@@ -1,0 +1,150 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## Clara AI Platform — Docker Compose
+##
+## Services:
+##   postgres     PostgreSQL 16 — persistent data store
+##   qdrant       Qdrant vector database
+##   clara-backend  Next.js 15 — port 3010
+##   clara-omen     Omen Insurance tenant app — port 3001
+##   clara-techvision  TechVision tenant app — port 3002
+##
+## Usage:
+##   docker compose up -d          # start all (detached)
+##   docker compose up --build -d  # rebuild images first
+##   docker compose logs -f clara-backend
+##   docker compose down -v        # stop + remove volumes (destructive)
+## ─────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+networks:
+  clara-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  qdrant-data:
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # PostgreSQL 16
+  # ──────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: clara-postgres
+    restart: unless-stopped
+    networks: [clara-net]
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-clara}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
+      POSTGRES_DB:       ${POSTGRES_DB:-clara_platform}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Qdrant Vector Database
+  # ──────────────────────────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: clara-qdrant
+    restart: unless-stopped
+    networks: [clara-net]
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "6334:6334"   # gRPC
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:6333/readyz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Clara Backend (Next.js 15)
+  #   Serves: marketing site, platform admin, RAG API, embed endpoint
+  # ──────────────────────────────────────────────────────────────────────────
+  clara-backend:
+    build:
+      context: ./clara-backend
+      dockerfile: Dockerfile
+    container_name: clara-backend
+    restart: unless-stopped
+    networks: [clara-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    ports:
+      - "3010:3010"
+    environment:
+      PORT:                 3010
+      DATABASE_URL:         postgresql://${POSTGRES_USER:-clara}:${POSTGRES_PASSWORD:-clarapassword}@postgres:5432/${POSTGRES_DB:-clara_platform}
+      QDRANT_URL:           http://qdrant:6333
+      QDRANT_API_KEY:       ${QDRANT_API_KEY:-}
+      OPENAI_API_KEY:       ${OPENAI_API_KEY}
+      AUTH_SECRET:          ${AUTH_SECRET}
+      NEXT_PUBLIC_APP_URL:  ${NEXT_PUBLIC_APP_URL:-http://localhost:3010}
+      STRIPE_SECRET_KEY:    ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      NODE_ENV:             ${NODE_ENV:-production}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3010/api/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Omen United Insurance — Tenant Demo (port 3001)
+  # ──────────────────────────────────────────────────────────────────────────
+  clara-omen:
+    build:
+      context: ./clara-omen-insurance
+      dockerfile: Dockerfile
+    container_name: clara-omen
+    restart: unless-stopped
+    networks: [clara-net]
+    depends_on:
+      clara-backend:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      PORT:                     3001
+      CLARA_BACKEND_URL:        http://clara-backend:3010
+      CLARA_ORG_ID:             ${OMEN_ORG_ID:-10000000-0000-0000-0000-000000000001}
+      NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3010}
+      NODE_ENV:                 ${NODE_ENV:-production}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # TechVision Solutions — Tenant Demo (port 3002)
+  # ──────────────────────────────────────────────────────────────────────────
+  clara-techvision:
+    build:
+      context: ./clara-techvision
+      dockerfile: Dockerfile
+    container_name: clara-techvision
+    restart: unless-stopped
+    networks: [clara-net]
+    depends_on:
+      clara-backend:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    environment:
+      PORT:                     3002
+      CLARA_BACKEND_URL:        http://clara-backend:3010
+      CLARA_ORG_ID:             ${TECHVISION_ORG_ID:-10000000-0000-0000-0000-000000000002}
+      NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3010}
+      NODE_ENV:                 ${NODE_ENV:-production}

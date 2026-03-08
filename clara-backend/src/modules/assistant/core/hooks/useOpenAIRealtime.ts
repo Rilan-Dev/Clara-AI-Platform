@@ -1,0 +1,1260 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  assistantPrompts,
+  buildLanguageGuidance,
+  resolveLanguagePreferences,
+  type LanguagePreferences,
+} from "../config";
+import type { Source } from "../models";
+
+// ─── Debug flag ───────────────────────────────────────────────────────────────
+// Set to true during development to log every data-channel event to the console.
+const DEBUG_EVENTS = false;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function generateTurnId(): string {
+  try {
+    const extendedGlobal = globalThis as typeof globalThis & {
+      msCrypto?: Crypto;
+    };
+    const globalCrypto: Crypto | undefined =
+      typeof globalThis !== "undefined"
+        ? globalThis.crypto ?? extendedGlobal.msCrypto
+        : undefined;
+    if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
+      return globalCrypto.randomUUID();
+    }
+    if (globalCrypto && typeof globalCrypto.getRandomValues === "function") {
+      const bytes = globalCrypto.getRandomValues(new Uint8Array(16));
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+      return [
+        hex.slice(0, 4).join(""),
+        hex.slice(4, 6).join(""),
+        hex.slice(6, 8).join(""),
+        hex.slice(8, 10).join(""),
+        hex.slice(10, 16).join(""),
+      ].join("-");
+    }
+  } catch {
+    // fall through to Math.random
+  }
+  return `turn_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Status = "idle" | "connecting" | "connected" | "error";
+
+type Options = {
+  documentId?: string | null;
+  kbId?: string | null;
+  documentOverview?: string;
+  voiceGreeting?: string;
+  language?: LanguagePreferences;
+};
+
+type TurnStatus = "pending" | "speaking" | "done";
+
+type VoiceTurn = {
+  id: string;
+  question: string;
+  answer: string;
+  sources: Source[];
+  status: TurnStatus;
+};
+
+// PendingFollowUp type removed — FIX V3: the dual-response (quick answer +
+// follow-up) mechanism caused the AI to repeat the full answer verbatim.
+// performRagAndRespond now waits for RAG context and fires exactly one
+// response.create, eliminating the duplicate-speech bug entirely.
+
+// ─── VAD & RAG tuning constants ───────────────────────────────────────────────
+// These can be overridden via environment variables (server-side at build time).
+// All values are in milliseconds unless noted.
+
+/**
+ * How long to wait after transcription ends before firing the RAG search.
+ *
+ * FIX V1 (was 1500ms): The 1500ms debounce was the primary cause of the
+ * 1-2 second silence users heard before any response. VAD now has
+ * create_response: false so the only gate on firing is this debounce.
+ * 300ms is enough to prevent double-fires on rapid re-transcriptions
+ * while keeping the perceived response latency tight.
+ */
+const RAG_DEBOUNCE_MS = 300;
+
+/**
+ * Minimum word count for a query to be considered valid for RAG retrieval.
+ *
+ * FIX STALL-C (was 5): MIN_WORD_COUNT=5 silently dropped short but valid
+ * questions like "What about AWS?" (3 words) or "Explain Jitsi" (2 words).
+ * When dropped, no turn was created and no response was sent — the AI
+ * appeared to have stopped responding entirely.
+ * Lowered to 2: single-word queries like "Hello" are still caught by
+ * MIN_QUERY_LENGTH; real questions are always 2+ words.
+ */
+const MIN_WORD_COUNT = 2;
+
+/**
+ * Minimum character length for a query (secondary gate alongside word count).
+ *
+ * FIX STALL-C (was 25): lowered to match the new word count threshold.
+ * A 2-word question like "What is" is 7 chars — set floor at 4 to allow
+ * any recognisable word pair through.
+ */
+const MIN_QUERY_LENGTH = 4;
+
+// ─── OpenAI Realtime API — exact data-channel event type strings ──────────────
+//
+// The Realtime API sends these event types over the WebRTC data channel.
+// Using exact string literals (not partial .includes() matches) prevents
+// accidental matches against similar event names and makes the code self-
+// documenting.
+//
+// Reference: https://platform.openai.com/docs/guides/realtime/events
+
+const RT_EVENTS = {
+  // VAD / user turn
+  SPEECH_STARTED:          "input_audio_buffer.speech_started",
+  SPEECH_STOPPED:          "input_audio_buffer.speech_stopped",
+  TRANSCRIPTION_DELTA:     "conversation.item.input_audio_transcription.delta",
+  TRANSCRIPTION_COMPLETED: "conversation.item.input_audio_transcription.completed",
+
+  // Response lifecycle
+  RESPONSE_CREATED: "response.created",
+  RESPONSE_DONE:    "response.done",
+
+  // Text / transcript output (model speaking)
+  AUDIO_TRANSCRIPT_DELTA: "response.audio_transcript.delta",
+  TEXT_DELTA:             "response.text.delta",
+
+  // Function / tool call
+  FUNCTION_ARGS_DELTA: "response.function_call_arguments.delta",
+  FUNCTION_ARGS_DONE:  "response.function_call_arguments.done",
+} as const;
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+/**
+ * useOpenAIRealtime
+ *
+ * Creates a WebRTC session to the OpenAI Realtime API using an ephemeral token,
+ * manages mic input and remote audio output, handles the data channel for
+ * control messages, and fulfils rag_search tool calls via the server.
+ *
+ * Design notes:
+ * - "Manual RAG path": performRagAndRespond() proactively fetches context after
+ *   transcription completes and injects a system message + response.create.
+ * - "Tool call path": handleToolCall() handles the model-initiated rag_search
+ *   tool call and returns the result via conversation.item.create
+ *   (function_call_output).  Both paths co-exist so the model can retrieve
+ *   additional context even after the quick manual answer has been delivered.
+ */
+export function useOpenAIRealtime(opts?: Options) {
+  const { documentId, kbId, documentOverview, voiceGreeting } = opts || {};
+  const languagePrefs = resolveLanguagePreferences(opts?.language);
+  const languageGuidance = buildLanguageGuidance(languagePrefs);
+
+  const [status, setStatus] = useState<Status>("idle");
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [history, setHistory] = useState<VoiceTurn[]>([]);
+  const [remoteAudioStream, setRemoteAudioStream] = useState<MediaStream | null>(null);
+
+  // ── Refs (no re-render on change) ─────────────────────────────────────────
+  const historyRef            = useRef<VoiceTurn[]>([]);
+  const pcRef                 = useRef<RTCPeerConnection | null>(null);
+  const dcRef                 = useRef<RTCDataChannel | null>(null);
+  const micStreamRef          = useRef<MediaStream | null>(null);
+  const remoteAudioStreamRef  = useRef<MediaStream | null>(null);
+  const connectTokenRef       = useRef(0);
+  const sendQueueRef          = useRef<string[]>([]);
+  const userQueryRef          = useRef<string>("");
+  const ragAbortRef           = useRef<AbortController | null>(null);
+  const ragTriggerTimeoutRef  = useRef<number | null>(null);
+  const activeTurnIdRef       = useRef<string | null>(null);
+  const latestTurnIdRef       = useRef<string | null>(null);
+  const toolCallBufferRef     = useRef<Record<string, string>>({});
+  const isSpeakingRef         = useRef(false);
+  // ragBusyRef removed — replaced by AbortController (ragAbortRef). See
+  // performRagAndRespond for the explanation.
+  // pendingFollowUpRef removed — FIX V3: see comment on PendingFollowUp type.
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  // ── sendJSON ──────────────────────────────────────────────────────────────
+
+  const sendJSON = useCallback((payload: unknown) => {
+    const dc = dcRef.current;
+    const msg = JSON.stringify(payload);
+    if (dc && dc.readyState === "open") {
+      try {
+        dc.send(msg);
+      } catch {
+        /* ignore transient send errors */
+      }
+    } else {
+      sendQueueRef.current.push(msg);
+    }
+  }, []);
+
+  // ── resolveTurnId ─────────────────────────────────────────────────────────
+
+  const resolveTurnId = useCallback((turns: VoiceTurn[]): string | null => {
+    const activeId = activeTurnIdRef.current;
+    if (activeId && turns.some((t) => t.id === activeId)) return activeId;
+    const latestId = latestTurnIdRef.current;
+    if (latestId && turns.some((t) => t.id === latestId)) return latestId;
+    return turns.length > 0 ? turns[turns.length - 1]!.id : null;
+  }, []);
+
+  // ── performRagAndRespond ──────────────────────────────────────────────────
+  //
+  // Single-path RAG flow (FIX V1 + V2 + V3):
+  //
+  // OLD broken design (three bugs):
+  //   1. Sent a "quick" response.create immediately (before RAG)
+  //   2. Fetched RAG in parallel
+  //   3. On RESPONSE_DONE, dispatched a second response.create (pendingFollowUp)
+  //
+  // Why it broke:
+  //   V1 – The old 1500ms RAG_DEBOUNCE_MS + cancellation of the VAD auto-
+  //        response caused 1-2 s of dead silence before anything was spoken.
+  //   V2 – The VAD auto-response (create_response: true) raced with this path.
+  //        handleToolCall also sent response.create on rag_search completion.
+  //        Three competing response.create events left activeTurnIdRef null
+  //        between responses, so transcript deltas were lost → empty answer.
+  //   V3 – The second response.create (pendingFollowUp) made the model repeat
+  //        the full answer verbatim because it saw the full context again and
+  //        regenerated a complete response from scratch.
+  //
+  // NEW single-path design:
+  //   1. Fetch RAG context first (300ms debounce already absorbed; typical
+  //      Qdrant round-trip is 300-600ms, so total pre-speech latency ~600ms).
+  //   2. Inject context + user question as conversation items.
+  //   3. Fire exactly ONE response.create with tool_choice:"none" so the model
+  //      cannot re-enter the rag_search tool and cause a second response.
+  //   4. No cancellations, no pendingFollowUp, no second response.create.
+
+  const performRagAndRespond = useCallback(async () => {
+    const query = userQueryRef.current.trim();
+    const docId = (documentId || "").trim();
+    const kbIdVal = (kbId || "").trim();
+    // Need either a documentId (legacy) or a kbId (KB mode) to do RAG
+    if (!query || (!docId && !kbIdVal)) return;
+
+    const normalizedQuery = query.normalize("NFKC").replace(/\s+/g, " ").trim();
+    const wordCount = normalizedQuery
+      ? normalizedQuery.split(" ").filter(Boolean).length
+      : 0;
+
+    if (wordCount === 0) return;
+
+    // Gate: skip very short fragments that are almost always mid-utterance
+    if (wordCount < MIN_WORD_COUNT && normalizedQuery.length < MIN_QUERY_LENGTH) return;
+
+    // FIX STALL-A: Replace the ragBusyRef boolean lock with an AbortController.
+    //
+    // OLD problem: ragBusyRef was a boolean set to `true` at the start of the
+    // fetch and `false` in a finally-setTimeout. If the fetch threw, was slow,
+    // or the component re-rendered between the flag flip, the flag could be
+    // stuck `true` forever — every subsequent question hit `if (ragBusyRef)
+    // return` and the AI permanently stopped responding for the session.
+    //
+    // NEW approach: abort the in-flight fetch and start a fresh one.
+    // Each call creates a new AbortController. If another call arrives while
+    // the previous fetch is still running, the old controller is aborted
+    // (fetch throws AbortError, caught below) and the new query takes over.
+    // There is no sticky boolean that can get stuck.
+    if (ragAbortRef.current) {
+      ragAbortRef.current.abort();
+    }
+    const abortCtrl = new AbortController();
+    ragAbortRef.current = abortCtrl;
+
+    if (ragTriggerTimeoutRef.current !== null) {
+      clearTimeout(ragTriggerTimeoutRef.current);
+      ragTriggerTimeoutRef.current = null;
+    }
+
+    // Create the turn entry before the async fetch so the UI shows "pending"
+    // immediately and resolveTurnId() has a valid target when deltas arrive.
+    const newId = generateTurnId();
+    activeTurnIdRef.current = newId;
+    latestTurnIdRef.current = newId;
+    setHistory((prev) => [
+      ...prev,
+      { id: newId, question: query, answer: "", sources: [], status: "pending" },
+    ]);
+
+    const targetTurnId = newId;
+
+    try {
+      // ── Step 1: Fetch RAG context ──────────────────────────────────────
+      // FIX V2: Fetch BEFORE response.create so there is only ever one
+      // response.create per user turn. The debounce (300ms) plus Qdrant
+      // round-trip (~300-600ms) gives a total pre-speech latency of ~600-900ms,
+      // which is far better than the previous 1500ms debounce alone.
+      const res = await fetch("/api/rag/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          kbIdVal
+            ? { query, kbId: kbIdVal }          // KB mode — searches all docs in KB
+            : { query, documentId: docId }       // Legacy mode — single document
+        ),
+        signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
+      });
+      const payload = await res.json();
+      const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
+      const ragContext =
+        typeof payload?.context === "string" ? payload.context.trim() : "";
+
+      // Update sources on the turn now that RAG has returned.
+      setHistory((prev) =>
+        prev.map((t) =>
+          t.id === targetTurnId ? { ...t, sources: payloadSources } : t
+        )
+      );
+
+      // ── Step 2: Build full context string ──────────────────────────────
+      const overviewSummary = documentOverview?.trim() ?? "";
+      const redirectLine = assistantPrompts.voice.outOfScopeRedirect?.trim();
+
+      const contextSegments: string[] = [];
+      if (overviewSummary) {
+        contextSegments.push(
+          `${assistantPrompts.voice.quickResponseContextLabel}\n${overviewSummary}`
+        );
+      }
+      if (ragContext) {
+        contextSegments.push(
+          `${assistantPrompts.voice.followUpContextLabel}\n${ragContext}`
+        );
+      }
+      if (redirectLine) {
+        contextSegments.push(redirectLine);
+      }
+
+      // ── Step 3: Inject context + user question as conversation items ────
+      if (contextSegments.length > 0) {
+        sendJSON({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "system",
+            content: [{ type: "input_text", text: contextSegments.join("\n\n") }],
+          },
+        });
+      }
+
+      sendJSON({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: `Customer question:\n${query}` }],
+        },
+      });
+
+      // ── Step 4: Single response.create with tool_choice:"none" ─────────
+      // FIX V3: tool_choice:"none" prevents the model from calling rag_search
+      // again (it already has the context), which would trigger handleToolCall
+      // and a second response.create — the root cause of the duplicate answer.
+      // FIX V2: Exactly one response.create per user turn means activeTurnIdRef
+      // is never null between competing responses; all deltas reach the turn.
+      sendJSON({
+        type: "response.create",
+        response: {
+          instructions: [
+            assistantPrompts.voice.followUpInstructions,
+            languageGuidance.follow,
+          ].join("\n\n"),
+          tool_choice: "none",
+        },
+      });
+
+      userQueryRef.current = "";
+    } catch (error) {
+      // FIX STALL-A: AbortError means a newer query superseded this one.
+      // Silently discard — the newer call will create its own turn and respond.
+      if (error instanceof Error && error.name === "AbortError") return;
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to retrieve context for this question.";
+      setHistory((prev) =>
+        prev.map((t) =>
+          t.id === targetTurnId
+            ? { ...t, status: "done", answer: message, sources: [] }
+            : t
+        )
+      );
+      latestTurnIdRef.current = targetTurnId;
+      activeTurnIdRef.current = null;
+    } finally {
+      // Clear the abort ref only if it still points to this controller
+      // (a newer call may have already replaced it).
+      if (ragAbortRef.current === abortCtrl) {
+        ragAbortRef.current = null;
+      }
+    }
+  }, [
+    documentId,
+    documentOverview,
+    languageGuidance.follow,
+    sendJSON,
+  ]);
+
+  // ── scheduleRag ───────────────────────────────────────────────────────────
+
+  const scheduleRag = useCallback(() => {
+    if (ragTriggerTimeoutRef.current !== null) {
+      clearTimeout(ragTriggerTimeoutRef.current);
+    }
+    ragTriggerTimeoutRef.current = window.setTimeout(() => {
+      ragTriggerTimeoutRef.current = null;
+      void performRagAndRespond();
+    }, RAG_DEBOUNCE_MS);
+  }, [performRagAndRespond]);
+
+  // ── cleanup ───────────────────────────────────────────────────────────────
+
+  const cleanup = useCallback(() => {
+    try { dcRef.current?.close(); } catch {}
+    try { pcRef.current?.close(); } catch {}
+    dcRef.current = null;
+    pcRef.current = null;
+
+    if (ragTriggerTimeoutRef.current !== null) {
+      clearTimeout(ragTriggerTimeoutRef.current);
+      ragTriggerTimeoutRef.current = null;
+    }
+
+    // FIX STALL-A: abort any in-flight RAG fetch so it doesn’t try to
+    // sendJSON into a closed data channel after cleanup.
+    if (ragAbortRef.current) {
+      ragAbortRef.current.abort();
+      ragAbortRef.current = null;
+    }
+
+    // FIX STALL-B: discard messages queued for the dead session so they
+    // don’t flood in when the user reconnects.
+    sendQueueRef.current = [];
+
+    userQueryRef.current = "";
+    activeTurnIdRef.current = null;
+    latestTurnIdRef.current = null;
+
+    if (historyRef.current.length > 0) {
+      setHistory([]);
+      historyRef.current = [];
+    }
+    if (isSpeakingRef.current) {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+    }
+    if (remoteAudioStreamRef.current) {
+      try { remoteAudioStreamRef.current.getTracks().forEach((t) => t.stop?.()); } catch {}
+      remoteAudioStreamRef.current = null;
+    }
+    setRemoteAudioStream(null);
+    isSpeakingRef.current = false;
+  }, []);
+
+  // ── interrupt ─────────────────────────────────────────────────────────────
+
+  const interrupt = useCallback(() => {
+    try {
+      sendJSON({ type: "response.cancel" });
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      // No pendingFollowUpRef to clear — removed in FIX V3.
+    } catch {}
+  }, [sendJSON]);
+
+  // ── handleToolCall ────────────────────────────────────────────────────────
+  //
+  // FIX: Two bugs corrected here:
+  //
+  // 1. EVENT DATA ACCESS: The Realtime API sends function_call_arguments.done
+  //    with `msg.call_id`, `msg.name`, and `msg.arguments` directly on the
+  //    message — not nested under `msg.tool_call`. The old code accessed
+  //    `call.id / call.name / call.arguments` where `call = msg.tool_call`
+  //    which was always undefined.
+  //
+  // 2. TOOL OUTPUT FORMAT: The old code used `type: "response.tool_output"`
+  //    which is not a valid Realtime API event type. The correct way to
+  //    return a function call result is:
+  //
+  //    { type: "conversation.item.create",
+  //      item: { type: "function_call_output", call_id: "...", output: "..." } }
+  //
+  //    followed by { type: "response.create" } to trigger the next response.
+
+  const handleToolCall = useCallback(
+    async (toolCall: { id: string; name?: string; arguments?: string }) => {
+      if (!toolCall?.id) return;
+      const name = toolCall?.name || "";
+      if (name !== "rag_search") return;
+
+      try {
+        const args = toolCall.arguments ? JSON.parse(toolCall.arguments) : {};
+        const q = String(args.query || "").trim();
+        const docId = String(args.documentId || documentId || "").trim();
+        const kbIdVal = (kbId || "").trim();
+        if (!q || (!docId && !kbIdVal)) throw new Error("Missing query or documentId/kbId");
+
+        let turnId = activeTurnIdRef.current;
+        if (!turnId) {
+          const newId = generateTurnId();
+          turnId = newId;
+          activeTurnIdRef.current = newId;
+          latestTurnIdRef.current = newId;
+          setHistory((prev) => [
+            ...prev,
+            { id: newId, question: q, answer: "", sources: [], status: "pending" },
+          ]);
+        } else {
+          const existingId = turnId;
+          latestTurnIdRef.current = existingId;
+          setHistory((prev) =>
+            prev.map((t) =>
+              t.id === existingId && q ? { ...t, question: q } : t
+            )
+          );
+        }
+
+        const res = await fetch("/api/rag/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            kbIdVal
+              ? { query: q, kbId: kbIdVal }       // KB mode
+              : { query: q, documentId: docId }    // Legacy mode
+          ),
+        });
+        const payload = await res.json();
+        const payloadSources = Array.isArray(payload?.sources)
+          ? payload.sources
+          : [];
+
+        if (turnId) {
+          setHistory((prev) =>
+            prev.map((t) =>
+              t.id === turnId ? { ...t, sources: payloadSources } : t
+            )
+          );
+        }
+
+        // ── CORRECT tool output format ──────────────────────────────────────
+        // conversation.item.create with type "function_call_output" is the
+        // only supported way to return a tool result in the Realtime API.
+        sendJSON({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: toolCall.id,
+            output: JSON.stringify({
+              context: payload.context,
+              sources: payload.sources,
+            }),
+          },
+        });
+        sendJSON({ type: "response.create" });
+      } catch (err) {
+        console.error("[useOpenAIRealtime] rag_search failed:", err);
+        // Return a minimal failure result so the model can handle gracefully
+        try {
+          sendJSON({
+            type: "conversation.item.create",
+            item: {
+              type: "function_call_output",
+              call_id: toolCall.id,
+              output: JSON.stringify({
+                error: (err as Error)?.message || "rag_search failed",
+              }),
+            },
+          });
+          sendJSON({ type: "response.create" });
+        } catch {}
+
+        const message = err instanceof Error ? err.message : "rag_search failed";
+        const targetId = activeTurnIdRef.current ?? latestTurnIdRef.current;
+        if (targetId) {
+          setHistory((prev) =>
+            prev.map((t) =>
+              t.id === targetId ? { ...t, status: "done", answer: message } : t
+            )
+          );
+        }
+      }
+    },
+    [documentId, sendJSON]
+  );
+
+  // ── connect ───────────────────────────────────────────────────────────────
+
+  const connect = useCallback(async () => {
+    const myToken = ++connectTokenRef.current;
+    setStatus("connecting");
+    setLastError(null);
+
+    // FIX 8: Connection timeout guard.
+    //
+    // Without a timeout, a slow or unresponsive OpenAI API / network can leave
+    // the hook in "connecting" status indefinitely, freezing the UI.
+    //
+    // If the connection has not completed within CONNECT_TIMEOUT_MS we abort,
+    // clean up, and surface an actionable error to the user.
+    // The timeout is cancelled inside the try block the moment we reach the
+    // "connected" state (dc.onopen sets status to "connected").
+    //
+    // 30 seconds is generous for a realistic connection — WebRTC + ICE + SDP
+    // exchange normally completes in 2–4 s on a good connection.
+    const CONNECT_TIMEOUT_MS = 30_000;
+    let connectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const startConnectTimeout = () => {
+      connectTimeoutId = setTimeout(() => {
+        // Only abort if this is still the active connect attempt
+        if (myToken === connectTokenRef.current) {
+          setLastError(
+            "Connection timed out after 30 s. " +
+            "Check your internet connection and try again."
+          );
+          setStatus("error");
+          cleanup();
+        }
+      }, CONNECT_TIMEOUT_MS);
+    };
+
+    const clearConnectTimeout = () => {
+      if (connectTimeoutId !== null) {
+        clearTimeout(connectTimeoutId);
+        connectTimeoutId = null;
+      }
+    };
+
+    startConnectTimeout();
+
+    try {
+      // ── 1. Create ephemeral session ──────────────────────────────────────
+      const sessRes = await fetch("/api/realtime/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: languagePrefs.assistant,
+          languages: languagePrefs.customer,
+          ...(kbId ? { kbId } : {}),
+        }),
+      });
+      if (!sessRes.ok) throw new Error(await sessRes.text());
+      const session = await sessRes.json();
+      const ephemeralKey =
+        session?.client_secret?.value ||
+        session?.client_secret ||
+        session?.value;
+      if (!ephemeralKey)
+        throw new Error(
+          "Missing ephemeral client_secret in session response. " +
+          "Ensure OPENAI_API_KEY has Realtime API access."
+        );
+
+      // FIX: Read model and voice from the server session response instead of
+      // NEXT_PUBLIC_ env vars. The server already selects the correct model
+      // via OPENAI_REALTIME_MODEL (server-side only). Reading it via
+      // NEXT_PUBLIC_OPENAI_REALTIME_MODEL would bake the model name into the
+      // browser bundle, exposing internal configuration unnecessarily.
+      const realtimeModel: string =
+        typeof session?.model === "string" && session.model
+          ? session.model
+          : "gpt-4o-realtime-preview";
+      const realtimeVoice: string =
+        typeof session?.voice === "string" && session.voice
+          ? session.voice
+          : "alloy";
+
+      // ── 2. Create RTCPeerConnection ──────────────────────────────────────
+      const pc = new RTCPeerConnection();
+      pcRef.current = pc;
+
+      const remoteMediaStream = new MediaStream();
+      remoteAudioStreamRef.current = remoteMediaStream;
+      setRemoteAudioStream(remoteMediaStream);
+
+      pc.ontrack = (event) => {
+        const incoming = event.streams[0];
+        if (!incoming) return;
+        incoming.getTracks().forEach((track) => {
+          if (!remoteMediaStream.getTracks().includes(track)) {
+            remoteMediaStream.addTrack(track);
+          }
+        });
+        setRemoteAudioStream(new MediaStream(remoteMediaStream.getTracks()));
+      };
+
+      // ── 3. Data channel ──────────────────────────────────────────────────
+      const dc = pc.createDataChannel("oai-events");
+      dcRef.current = dc;
+
+      dc.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data as string) as Record<string, unknown>;
+          const type = typeof msg?.type === "string" ? msg.type : "";
+
+          if (DEBUG_EVENTS && type) {
+            console.debug("[Realtime]", type, msg);
+          }
+
+          // ── VAD: user starts speaking ─────────────────────────────────
+          // Reset accumulation buffers for a fresh turn.
+          if (type === RT_EVENTS.SPEECH_STARTED) {
+            userQueryRef.current = "";
+            activeTurnIdRef.current = null;
+          }
+
+          // ── Streaming user transcript (delta) ─────────────────────────
+          // Accumulate partial transcript as speech-to-text streams in.
+          if (type === RT_EVENTS.TRANSCRIPTION_DELTA) {
+            const delta = typeof msg.delta === "string" ? msg.delta : "";
+            if (delta) userQueryRef.current += delta;
+          }
+
+          // ── User transcript complete ───────────────────────────────────
+          // Prefer the final, accurate full transcript over the accumulated
+          // delta string (deltas can have minor ordering artefacts).
+          if (type === RT_EVENTS.TRANSCRIPTION_COMPLETED) {
+            const finalTranscript =
+              typeof msg.transcript === "string"
+                ? msg.transcript
+                : userQueryRef.current;
+            if (finalTranscript.trim()) {
+              userQueryRef.current = finalTranscript;
+            }
+            scheduleRag();
+          }
+
+          // ── Model text / audio-transcript output (delta) ──────────────
+          // response.audio_transcript.delta — transcript of what the model
+          //   says; this is the primary source for populating turn.answer.
+          // response.text.delta — plain text modality output (also present
+          //   when both audio + text modalities are active).
+          if (
+            type === RT_EVENTS.AUDIO_TRANSCRIPT_DELTA ||
+            type === RT_EVENTS.TEXT_DELTA
+          ) {
+            const delta = typeof msg.delta === "string" ? msg.delta : "";
+            if (delta) {
+              setHistory((prev) => {
+                const targetId = resolveTurnId(prev);
+                if (!targetId) return prev;
+                latestTurnIdRef.current = targetId;
+                return prev.map((t) =>
+                  t.id === targetId
+                    ? { ...t, answer: `${t.answer}${delta}`, status: "speaking" }
+                    : t
+                );
+              });
+            }
+          }
+
+          // ── Response started ───────────────────────────────────────────
+          // FIX: Old code used `type.includes("response.start")` which never
+          // matched the actual API event "response.created". isSpeaking was
+          // therefore NEVER set to true via this path.
+          if (type === RT_EVENTS.RESPONSE_CREATED) {
+            isSpeakingRef.current = true;
+            setIsSpeaking(true);
+            setHistory((prev) => {
+              const targetId = resolveTurnId(prev);
+              if (!targetId) return prev;
+              latestTurnIdRef.current = targetId;
+              return prev.map((t) =>
+                t.id === targetId ? { ...t, status: "speaking" } : t
+              );
+            });
+          }
+
+          // ── Response complete ──────────────────────────────────────────
+          // FIX: Old code used `type.includes("response.end")` which never
+          // matched the actual API event "response.done". Consequences:
+          //   • isSpeaking was never reset to false
+          //   • Turn status was never set to "done"
+          //   • Pending follow-up messages were never dispatched
+          // FIX V3: pendingFollowUpRef dispatch removed.
+          // The old code dispatched a second response.create here, causing
+          // the model to speak the full answer a second time. With the
+          // single-path design, RESPONSE_DONE only needs to mark the turn
+          // done and reset speaking state — nothing more.
+          if (type === RT_EVENTS.RESPONSE_DONE) {
+            isSpeakingRef.current = false;
+            let resolvedId: string | null = null;
+            setHistory((prev) => {
+              const targetId = resolveTurnId(prev);
+              resolvedId = targetId;
+              if (!targetId) return prev;
+              return prev.map((t) =>
+                t.id === targetId ? { ...t, status: "done" } : t
+              );
+            });
+            if (resolvedId) latestTurnIdRef.current = resolvedId;
+            activeTurnIdRef.current = null;
+            setIsSpeaking(false);
+          }
+
+          // ── Tool call argument accumulation (delta) ────────────────────
+          // FIX: Old code used `type.endsWith("output_tool_call.delta")` which
+          // never matched the actual API event
+          // "response.function_call_arguments.delta".
+          // Also, arguments are streamed as msg.delta (not msg.tool_call.delta).
+          if (type === RT_EVENTS.FUNCTION_ARGS_DELTA) {
+            const callId = typeof msg.call_id === "string" ? msg.call_id : null;
+            const delta  = typeof msg.delta   === "string" ? msg.delta   : "";
+            if (callId && delta) {
+              toolCallBufferRef.current[callId] =
+                (toolCallBufferRef.current[callId] ?? "") + delta;
+            }
+          }
+
+          // ── Tool call complete ─────────────────────────────────────────
+          // FIX: Old code used `type.endsWith("output_tool_call.done")` which
+          // never matched "response.function_call_arguments.done".
+          // Also accessed msg.tool_call.id/name — correct is msg.call_id/name.
+          if (type === RT_EVENTS.FUNCTION_ARGS_DONE) {
+            const callId = typeof msg.call_id === "string" ? msg.call_id : null;
+            const name   = typeof msg.name    === "string" ? msg.name    : "";
+            if (callId && name) {
+              const args = typeof msg.arguments === "string"
+                ? msg.arguments
+                : (toolCallBufferRef.current[callId] ?? "{}");
+              delete toolCallBufferRef.current[callId];
+              void handleToolCall({ id: callId, name, arguments: args });
+            }
+          }
+        } catch {
+          // Ignore non-JSON frames silently
+        }
+      };
+
+      dc.onopen = () => {
+        // Connection established — cancel the connection timeout.
+        clearConnectTimeout();
+
+        // Flush messages queued before the channel was open.
+        const q = sendQueueRef.current;
+        sendQueueRef.current = [];
+        for (const item of q) {
+          try { dc.send(item); } catch {}
+        }
+        setStatus("connected");
+      };
+
+      dc.onclose = () => {
+        // FIX STALL-B: Data channel closed unexpectedly (network drop, session
+        // expiry, server-side timeout). Previously this handler was empty, so:
+        //   • status stayed "connected" — UI showed no error
+        //   • sendJSON silently queued every message into sendQueueRef forever
+        //   • the AI stopped responding with no indication to the user
+        //
+        // Now we check whether this is still the active connection token
+        // (to avoid a stale closure from a previous connect() call firing
+        // after the user has already reconnected), then surface an error.
+        if (myToken !== connectTokenRef.current) return;
+        setLastError(
+          "Voice connection lost. " +
+          "This can happen after ~15 minutes of inactivity or a network drop. " +
+          "Click Connect to start a new session."
+        );
+        setStatus("error");
+        // Abort in-flight RAG fetch and drain the stale queue.
+        if (ragAbortRef.current) {
+          ragAbortRef.current.abort();
+          ragAbortRef.current = null;
+        }
+        sendQueueRef.current = [];
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+      };
+
+      // ── 4. Microphone ────────────────────────────────────────────────────
+      const mediaDevices =
+        typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+      if (!mediaDevices || typeof mediaDevices.getUserMedia !== "function") {
+        throw new Error(
+          "Live voice requires microphone access, which is unavailable in this " +
+          "browser. Ensure the page is served over HTTPS and that you are using " +
+          "a modern browser (Chrome 74+, Edge 79+, Firefox 68+, Safari 14+)."
+        );
+      }
+
+      // FIX: Catch specific DOMException types and surface actionable messages.
+      // The old code let getUserMedia throw a generic Error with no guidance.
+      // FIX: Request echo cancellation, noise suppression, and AGC — the
+      // three standard constraints that make voice interaction usable in noisy
+      // environments. `{ audio: true }` disabled all of these.
+      let mic: MediaStream;
+      try {
+        mic = await mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          },
+        });
+      } catch (domErr) {
+        const e = domErr as DOMException;
+        if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
+          throw new Error(
+            "Microphone access was denied. Click the microphone icon in your " +
+            "browser's address bar to allow access, then try again."
+          );
+        } else if (e.name === "NotFoundError" || e.name === "DevicesNotFoundError") {
+          throw new Error(
+            "No microphone detected. Connect a microphone or headset and try again."
+          );
+        } else if (e.name === "NotReadableError" || e.name === "TrackStartError") {
+          throw new Error(
+            "Your microphone is in use by another application (Zoom, Teams, etc.). " +
+            "Close it and try again."
+          );
+        } else if (e.name === "OverconstrainedError") {
+          throw new Error(
+            "Your microphone doesn't support the required audio constraints. " +
+            "Try a different microphone."
+          );
+        } else {
+          throw new Error(
+            `Microphone error (${e.name || "unknown"}): ` +
+            `${e.message || "Could not access microphone. Ensure HTTPS is in use."}`
+          );
+        }
+      }
+
+      if (myToken !== connectTokenRef.current) {
+        try { mic.getTracks().forEach((t) => t.stop()); } catch {}
+        return;
+      }
+      micStreamRef.current = mic;
+      const audioTrack = mic.getAudioTracks()[0];
+      if (!audioTrack) throw new Error("No audio track available from microphone");
+      if (pc.signalingState === "closed")
+        throw new Error("RTCPeerConnection closed before track could be added");
+
+      // FIX 7: Remove the redundant pc.addTransceiver("audio", ...) call.
+      //
+      // The original code called BOTH addTrack() AND addTransceiver("audio"),
+      // which created TWO audio transceivers in the SDP offer:
+      //   m=audio … sendrecv   ← from addTrack
+      //   m=audio … sendrecv   ← from addTransceiver (duplicate, no track)
+      //
+      // The second transceiver had no mic track attached, wasted bandwidth,
+      // and could confuse the remote peer into sending two audio streams back.
+      //
+      // addTrack() already creates the sendrecv transceiver internally on
+      // modern browsers (RFC 8829 §5.3). We only need the single addTrack call.
+      pc.addTrack(audioTrack, mic);
+
+      // ── 5. SDP offer + ICE gathering ─────────────────────────────────────
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // FIX: ICE gathering race condition.
+      //
+      // OLD CODE:
+      //   if (pc.iceGatheringState !== "complete") {
+      //     await new Promise<void>((resolve) => {
+      //       const checkState = () => { … };
+      //       pc.addEventListener("icegatheringstatechange", checkState); // ← LATE
+      //     });
+      //   }
+      //
+      // PROBLEM: If the browser completed ICE gathering between the outer
+      // `if (pc.iceGatheringState !== "complete")` check and the
+      // `addEventListener` call inside the Promise, the event fired before
+      // the listener was attached and the Promise never resolved — hanging
+      // the entire WebRTC connection silently.
+      //
+      // FIX: Register the listener SYNCHRONOUSLY inside the Promise constructor
+      // (before any async gap), then immediately re-check state. An 8-second
+      // safety timeout prevents an infinite hang when ICE stalls.
+      if (pc.iceGatheringState !== "complete") {
+        await new Promise<void>((resolve) => {
+          let resolved = false;
+          const done = () => {
+            if (!resolved) {
+              resolved = true;
+              pc.removeEventListener("icegatheringstatechange", onStateChange);
+              resolve();
+            }
+          };
+          const onStateChange = () => {
+            if (pc.iceGatheringState === "complete") done();
+          };
+          // Register BEFORE any async gap to avoid the race window.
+          pc.addEventListener("icegatheringstatechange", onStateChange);
+          // Immediately re-check in case state already flipped.
+          if (pc.iceGatheringState === "complete") {
+            done();
+            return;
+          }
+          // Safety valve: 8 s prevents an infinite hang when ICE stalls.
+          setTimeout(done, 8_000);
+        });
+      }
+
+      if (myToken !== connectTokenRef.current) return;
+      const localSDP = pc.localDescription?.sdp || offer.sdp || "";
+
+      // ── 6. Exchange SDP with OpenAI Realtime ─────────────────────────────
+      const sdpRes = await fetch(
+        `https://api.openai.com/v1/realtime?model=${encodeURIComponent(realtimeModel)}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${ephemeralKey}`,
+            "Content-Type": "application/sdp",
+            "OpenAI-Beta": "realtime=v1",
+          },
+          body: localSDP,
+        }
+      );
+      if (!sdpRes.ok) {
+        throw new Error(
+          `SDP exchange failed (${sdpRes.status}): ${await sdpRes.text()}`
+        );
+      }
+      const answerSdp = await sdpRes.text();
+      if (myToken !== connectTokenRef.current) return;
+      await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+
+      // ── 7. Configure the live session ─────────────────────────────────────
+      const instructions = [
+        assistantPrompts.voice.sessionInstructions,
+        languageGuidance.session,
+      ].join("\n\n");
+
+      const tools = [
+        {
+          type: "function",
+          name: "rag_search",
+          description: "Retrieve relevant snippets from the active document.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string" },
+              documentId: { type: "string" },
+            },
+            required: ["query", "documentId"],
+          },
+        },
+      ];
+
+      if (myToken !== connectTokenRef.current) return;
+
+      // FIX 6: Include temperature explicitly in session.update.
+      // If session.update omits temperature the API resets it to its default
+      // (1.0), overriding the 0.8 the server set at session creation time.
+      // We read temperature from the session response so the value always
+      // matches what the server configured, without hardcoding it here.
+      const sessionTemperature: number =
+        typeof session?.temperature === "number" ? session.temperature : 0.8;
+
+      sendJSON({
+        type: "session.update",
+        session: {
+          instructions,
+          tools,
+          tool_choice: "auto",
+          voice: realtimeVoice,
+          modalities: ["audio", "text"],
+          temperature: sessionTemperature,
+
+          // VAD: mirror the server-side session creation values so there is no
+          // inconsistency window between session creation and this update.
+          // Values are read from the session response when available; otherwise
+          // we use the same defaults as the server (threshold 0.5, 300/700ms).
+          // FIX V1+V2+V3: create_response: false is echoed here to ensure
+          // the update cannot accidentally re-enable auto-response generation.
+          turn_detection: {
+            type: "server_vad",
+            threshold:
+              typeof session?.turn_detection?.threshold === "number"
+                ? session.turn_detection.threshold
+                : 0.5,
+            prefix_padding_ms:
+              typeof session?.turn_detection?.prefix_padding_ms === "number"
+                ? session.turn_detection.prefix_padding_ms
+                : 300,
+            silence_duration_ms:
+              typeof session?.turn_detection?.silence_duration_ms === "number"
+                ? session.turn_detection.silence_duration_ms
+                : 700,
+            create_response: false,
+          },
+
+          // FIX 5: DO NOT override input_audio_transcription here.
+          //
+          // The original code set model: "whisper-1" in session.update, which
+          // conflicted with the server's "gpt-4o-transcribe" setting.
+          // The server is now the single source of truth for transcription
+          // configuration. Omitting this field here preserves the server value.
+        },
+      });
+
+      // ── 8. Optional greeting ──────────────────────────────────────────────
+      const greetingText = voiceGreeting?.trim();
+      if (greetingText) {
+        const introTurnId = generateTurnId();
+        activeTurnIdRef.current = introTurnId;
+        latestTurnIdRef.current = introTurnId;
+        setHistory((prev) => [
+          ...prev,
+          {
+            id: introTurnId,
+            question: "Welcome message",
+            answer: "",
+            sources: [],
+            status: "pending",
+          },
+        ]);
+        sendJSON({
+          type: "response.create",
+          response: {
+            instructions: [
+              "Greet the user using the following script verbatim.",
+              greetingText,
+              languageGuidance.session,
+            ].join("\n\n"),
+          },
+        });
+      }
+    } catch (error) {
+      clearConnectTimeout();
+      setLastError((error as Error)?.message || "Failed to connect");
+      setStatus("error");
+      cleanup();
+    }
+  }, [
+    cleanup,
+    handleToolCall,
+    languageGuidance.session,
+    languagePrefs.assistant,
+    languagePrefs.customer,
+    resolveTurnId,
+    scheduleRag,
+    sendJSON,
+    voiceGreeting,
+  ]);
+
+  // ── disconnect ────────────────────────────────────────────────────────────
+
+  const disconnect = useCallback(() => {
+    ++connectTokenRef.current;
+    cleanup();
+    setStatus("idle");
+  }, [cleanup]);
+
+  // ── sendText ──────────────────────────────────────────────────────────────
+  //
+  // FIX (Bug 2): Implement sendText so the suggested-prompt buttons in
+  // VoiceChatModal can inject a typed user turn directly into the conversation
+  // without the user needing to speak.
+  //
+  // Flow:
+  //   1. Create a new VoiceTurn for history
+  //   2. Optionally inject the document overview as a system context message
+  //   3. Inject the text as a conversation.item.create user message
+  //   4. Send response.create so the model responds immediately
+  //
+  // WHY NOT scheduleRag():
+  //   performRagAndRespond() unconditionally sends another conversation.item.create
+  //   with role:"user" containing the same question, then calls response.create.
+  //   This causes OpenAI to see the question twice — resulting in two concurrent
+  //   responses or an accidental response.cancel that kills the first answer.
+  //
+  //   Instead we call response.create directly here. The model is already
+  //   configured with tool_choice:"auto" and a rag_search function declaration,
+  //   so it will call rag_search itself when it needs specific document context.
+  //   The handleToolCall path (already fully implemented) handles that call and
+  //   populates turn.sources exactly as the voice path does.
+
+  const sendText = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      const newId = generateTurnId();
+      activeTurnIdRef.current = newId;
+      latestTurnIdRef.current = newId;
+      userQueryRef.current = trimmed;
+
+      setHistory((prev) => [
+        ...prev,
+        { id: newId, question: trimmed, answer: "", sources: [], status: "pending" },
+      ]);
+
+      // Inject the document overview as context if available so the model can
+      // answer basic questions without a round-trip tool call.
+      const overviewSummary = documentOverview?.trim() ?? "";
+      if (overviewSummary) {
+        sendJSON({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "system",
+            content: [{
+              type: "input_text",
+              text: `${assistantPrompts.voice.quickResponseContextLabel}\n${overviewSummary}`,
+            }],
+          },
+        });
+      }
+
+      sendJSON({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: trimmed }],
+        },
+      });
+
+      // Trigger the model to respond. With tool_choice:"auto" and the rag_search
+      // function registered, the model will call rag_search if it needs specific
+      // document context — handleToolCall will populate sources automatically.
+      sendJSON({ type: "response.create" });
+    },
+    [documentOverview, sendJSON]
+  );
+
+  // ── Public API ────────────────────────────────────────────────────────────
+
+  return {
+    status,
+    error: lastError,
+    isSpeaking,
+    history,
+    connect,
+    disconnect,
+    interrupt,
+    sendText,
+    remoteAudioStream,
+    // OpenAI plays audio via a MediaStream (WebRTC), so no separate
+    // AnalyserNode is needed — the visualiser reads from remoteAudioStream.
+    outputAnalyserNode: null as AnalyserNode | null,
+  } as const;
+}

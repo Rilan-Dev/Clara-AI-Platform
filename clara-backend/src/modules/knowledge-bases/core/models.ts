@@ -1,0 +1,71 @@
+/**
+ * src/modules/knowledge-bases/core/models.ts
+ * TypeScript types for knowledge bases and assistant configs.
+ */
+
+// ── Knowledge Base ─────────────────────────────────────────────────────────────
+
+export type KnowledgeBase = {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  qdrantCollection: string;
+  status: "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateKbInput = {
+  name: string;
+  description?: string;
+};
+
+export type UpdateKbInput = Partial<Pick<CreateKbInput, "name" | "description"> & {
+  status: "active" | "archived";
+}>;
+
+// ── Assistant Config ──────────────────────────────────────────────────────────
+
+export type AssistantConfig = {
+  id: string;
+  kbId: string;
+
+  // Identity
+  assistantName: string;
+  avatarUrl: string | null;
+
+  // Behaviour
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string[];          // plain-English rule strings
+
+  // Language
+  defaultLanguage: string;
+  allowedLanguages: string[];
+  alwaysRespondIn: string | null;
+
+  // Voice
+  voiceId: string;
+  speed: number;
+
+  // Generation
+  temperature: number;
+  maxTokens: number;
+  citeSources: boolean;
+  strictMode: boolean;
+
+  // Branding
+  primaryColour: string;
+  accentColour: string;
+
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Full replace (PUT) — all fields required except id/kbId/timestamps */
+export type PutAssistantConfigInput = Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">;
+
+/** Partial update (PATCH) — any subset of config fields */
+export type PatchAssistantConfigInput = Partial<PutAssistantConfigInput>;
