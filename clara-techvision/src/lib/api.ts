@@ -58,7 +58,12 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   if (res.status === 401) {
-    if (typeof window !== "undefined") window.location.href = "/login";
+    // Session expired
+    if (typeof window !== "undefined") {
+      // Clear the httpOnly cookie via the logout endpoint before redirecting
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+      window.location.href = "/login";
+    }
     throw new Error("Session expired");
   }
   if (!res.ok) {
