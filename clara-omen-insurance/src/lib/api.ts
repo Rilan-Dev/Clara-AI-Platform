@@ -77,13 +77,19 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   if (res.status === 401) {
-    // Session expired
-    if (typeof window !== "undefined") {
+    const data = await res.json().catch(() => ({}));
+    // Only logout if it's a session/auth error, not a permission error
+    const isSessionError = 
+      data.error === "Session expired or invalid" || 
+      data.error === "Authentication required" ||
+      data.message?.includes("auth token is required");
+
+    if (isSessionError && typeof window !== "undefined") {
       // Clear the httpOnly cookie via the logout endpoint before redirecting
       await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
       window.location.href = "/login";
     }
-    throw new Error("Session expired");
+    throw new Error(data.error ?? "Session expired");
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

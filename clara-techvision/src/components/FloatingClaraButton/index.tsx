@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Brain, X, Send, Mic, MicOff, Minimize2, MessageSquare, Volume2 } from "lucide-react";
 import { streamChat } from "@/lib/api";
 
-const ORG_ID  = "00000000-0000-0000-0000-000000000002";
+const ORG_ID  = process.env.NEXT_PUBLIC_ORG_ID || "00000000-0000-0000-0000-000000000002";
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
