@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { MessageSquare, Database, Send, Mic, X, RotateCcw, AlertCircle } from "lucide-react";
 import { getKbsForOrg, streamChat, type KnowledgeBase } from "@/lib/api";
 
-const ORG_ID = "00000000-0000-0000-0000-000000000001";
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
@@ -79,8 +79,8 @@ export default function ChatPage() {
         <div className="flex-1 px-4 py-3">
           {activeKbData && (
             <div className="text-xs text-white/30 space-y-1">
-              <div>{activeKbData.doc_count} documents</div>
-              <div>{activeKbData.ready_count} indexed</div>
+            <div>{activeKbData.docCount} documents</div>
+            <div>{activeKbData.readyCount} indexed</div>
             </div>
           )}
         </div>

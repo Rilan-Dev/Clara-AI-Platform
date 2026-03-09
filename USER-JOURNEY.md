@@ -22,7 +22,7 @@
 
 | App | Base URL | Purpose |
 |---|---|---|
-| Clara Backend | `http://localhost:3010` | Marketing site + Platform Admin + RAG API |
+| Clara Backend | `http://localhost:3000` | Marketing site + Platform Admin + RAG API |
 | Omen Insurance | `http://localhost:3001` | Tenant demo — sidebar chat UX |
 | TechVision | `http://localhost:3002` | Tenant demo — floating widget UX |
 
@@ -39,7 +39,7 @@
 
 ## Screen 1.1 — Landing Page (Home)
 
-**URL:** `http://localhost:3010/`
+**URL:** `http://localhost:3000/`
 
 | Element | Label / Hint | Action | Leads To |
 |---|---|---|---|
@@ -62,7 +62,7 @@
 
 ## Screen 1.2 — Pricing Page (Full)
 
-**URL:** `http://localhost:3010/pricing`
+**URL:** `http://localhost:3000/pricing`
 
 | Element | Label / Hint | Action | Leads To |
 |---|---|---|---|
@@ -89,7 +89,7 @@
 
 ## Screen 2.1 — Admin Login
 
-**URL:** `http://localhost:3010/admin/login`  
+**URL:** `http://localhost:3000/admin/login`  
 *(Also reachable via:* `localhost:3010/login` *or clicking "Sign in" in nav)*
 
 | Element | Label / Hint | Action |
@@ -101,13 +101,13 @@
 | Error state | Red text below password | Shows `Invalid credentials` on wrong password |
 | Hint text | `Default: admin@clara.ai / Admin1234!` | Reference for first-time login |
 
-**Expected redirect after login:** `http://localhost:3010/dashboard`
+**Expected redirect after login:** `http://localhost:3000/dashboard`
 
 ---
 
 ## Screen 2.2 — Dashboard Overview
 
-**URL:** `http://localhost:3010/dashboard`
+**URL:** `http://localhost:3000/dashboard`
 
 | Element | Label / Hint | Action | Leads To |
 |---|---|---|---|
@@ -146,7 +146,7 @@
 
 ## Screen 2.3 — Organisations List
 
-**URL:** `http://localhost:3010/orgs`
+**URL:** `http://localhost:3000/orgs`
 
 | Element | Label / Hint | Action | Leads To |
 |---|---|---|---|
@@ -161,7 +161,7 @@
 
 ## Screen 2.4 — Organisation Detail
 
-**URL:** `http://localhost:3010/orgs/{org-id}`  
+**URL:** `http://localhost:3000/orgs/{org-id}`  
 *(e.g. `/orgs/10000000-0000-0000-0000-000000000001` for Omen)*
 
 | Element | Label / Hint | Action | Leads To |
@@ -180,7 +180,7 @@
 
 ## Screen 2.5 — Subscriptions Management
 
-**URL:** `http://localhost:3010/subscriptions`
+**URL:** `http://localhost:3000/subscriptions`
 
 | Element | Label / Hint | Action | Leads To |
 |---|---|---|---|
@@ -195,7 +195,7 @@
 
 ## Screen 2.6 — Analytics
 
-**URL:** `http://localhost:3010/analytics`
+**URL:** `http://localhost:3000/analytics`
 
 | Element | Label / Hint | Action | Leads To |
 |---|---|---|---|
@@ -211,7 +211,7 @@
 
 ## Screen 2.7 — Platform Settings
 
-**URL:** `http://localhost:3010/settings`
+**URL:** `http://localhost:3000/settings`
 
 | Element | Label / Hint | Action |
 |---|---|---|
@@ -489,7 +489,7 @@ Same structure as Omen Analytics — scoped to TechVision's org data.
 
 ## Screen 5.2 — Embed Widget (Public)
 
-**URL:** `http://localhost:3010/embed/widget?kbId={kb-id}&orgId={org-id}`
+**URL:** `http://localhost:3000/embed/widget?kbId={kb-id}&orgId={org-id}`
 
 This URL is what developers embed in an iFrame.
 
@@ -509,11 +509,11 @@ This URL is what developers embed in an iFrame.
 
 | Check | URL | Expected Response |
 |---|---|---|
-| Backend health | `GET http://localhost:3010/api/health` | `{"status":"ok","db":"connected","qdrant":"connected"}` |
-| Platform stats | `GET http://localhost:3010/api/platform/stats` | JSON with `totalOrgs`, `mrr`, etc. |
-| Plans list | `GET http://localhost:3010/api/subscriptions/plans` | `{"plans":[{id:"free"...},{id:"starter"...}...]}` |
-| Revenue data | `GET http://localhost:3010/api/platform/revenue` | `{"totalMrr":...,"planDist":...}` |
-| Orgs list | `GET http://localhost:3010/api/platform/orgs` | `{"orgs":[...],"total":2}` |
+| Backend health | `GET http://localhost:3000/api/health` | `{"status":"ok","db":"connected","qdrant":"connected"}` |
+| Platform stats | `GET http://localhost:3000/api/platform/stats` | JSON with `totalOrgs`, `mrr`, etc. |
+| Plans list | `GET http://localhost:3000/api/subscriptions/plans` | `{"plans":[{id:"free"...},{id:"starter"...}...]}` |
+| Revenue data | `GET http://localhost:3000/api/platform/revenue` | `{"totalMrr":...,"planDist":...}` |
+| Orgs list | `GET http://localhost:3000/api/platform/orgs` | `{"orgs":[...],"total":2}` |
 
 ---
 

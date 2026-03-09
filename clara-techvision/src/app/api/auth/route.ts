@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3010";
+const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
 
 /** POST /api/auth  — proxies to clara-backend auth */
 export async function POST(req: NextRequest) {

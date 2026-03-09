@@ -1,15 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { BarChart3, MessageSquare, Clock, Database } from "lucide-react";
-import { getKbsForOrg, getAnalytics, type KnowledgeBase } from "@/lib/api";
+import { getKbsForOrg, getAnalytics, type KnowledgeBase, type AnalyticsData } from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-const ORG_ID = "00000000-0000-0000-0000-000000000002";
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
 
 export default function TVAnalytics() {
   const [kbs, setKbs]             = useState<KnowledgeBase[]>([]);
   const [activeKb, setActiveKb]   = useState("");
-  const [analytics, setAnalytics] = useState<{ daily:{date:string;count:number}[]; total:number; avg_latency:number; top_queries:{query:string;count:number}[] } | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading]     = useState(false);
 
   useEffect(() => { getKbsForOrg(ORG_ID).then(d => { setKbs(d); if (d.length) setActiveKb(d[0].id); }); }, []);
@@ -27,7 +27,7 @@ export default function TVAnalytics() {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {[
           { label:"Total Queries",   value:loading?"…":(analytics?.total??0).toLocaleString(),  icon:MessageSquare, color:"text-sky-400" },
-          { label:"Avg Latency",     value:loading?"…":analytics?`${analytics.avg_latency.toFixed(0)}ms`:"—", icon:Clock, color:"text-indigo-400" },
+          { label:"Avg Latency",     value:loading?"…":analytics?.avg_latency != null?`${analytics.avg_latency.toFixed(0)}ms`:"—", icon:Clock, color:"text-indigo-400" },
           { label:"Active KBs",      value:kbs.length,                                            icon:Database, color:"text-emerald-400" },
         ].map(c => (
           <div key={c.label} className="border border-white/[0.06] bg-white/[0.02] rounded-2xl p-5">

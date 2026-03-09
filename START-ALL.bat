@@ -3,7 +3,7 @@ echo ============================================================
 echo   Clara AI Platform — Starting All Applications
 echo ============================================================
 echo.
-echo   clara-backend       → http://localhost:3010
+echo   clara-backend       → http://localhost:3000
 echo   clara-omen-insurance → http://localhost:3001
 echo   clara-techvision     → http://localhost:3002
 echo.

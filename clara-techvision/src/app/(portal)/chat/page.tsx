@@ -2,17 +2,17 @@
 import { useEffect, useState, useRef } from "react";
 import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3010";
-const ORG_ID  = process.env.NEXT_PUBLIC_ORG_ID || "";
+const PROXY  = "/api/proxy";
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
 
-type KB = { id: string; name: string; status: string; doc_count: number };
+type KB = { id: string; name: string; status: string; docCount: number };
 
 export default function TechVisionChatPage() {
   const [kbs, setKbs] = useState<KB[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${BACKEND}/api/kbs/all?orgId=${ORG_ID}`)
+    fetch(`${PROXY}/kbs/all?orgId=${ORG_ID}`)
       .then(r => r.json())
       .then(d => { setKbs(d.kbs ?? []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -43,7 +43,7 @@ export default function TechVisionChatPage() {
                  className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 hover:bg-white/[0.07] transition-all">
               <div className="text-left">
                 <div className="text-sm font-medium text-white">{kb.name}</div>
-                <div className="text-xs text-white/30">{kb.doc_count ?? 0} documents</div>
+                <div className="text-xs text-white/30">{kb.docCount ?? 0} documents</div>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${kb.status === "active" ? "bg-emerald-400" : "bg-amber-400"}`} />

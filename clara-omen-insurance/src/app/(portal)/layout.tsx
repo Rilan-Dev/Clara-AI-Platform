@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Shield, LayoutDashboard, Database, MessageSquare,
-  BarChart3, Settings, LogOut, Menu, X, ChevronRight, Mic
+  BarChart3, Settings, LogOut, Menu, X, ChevronRight
 } from "lucide-react";
 
 const NAV = [
@@ -16,8 +17,14 @@ const NAV = [
 ];
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
-  const pathname     = usePathname();
+  const pathname = usePathname();
+  const router   = useRouter();
   const [open, setOpen] = useState(false);
+
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    router.push("/login");
+  }
 
   return (
     <div className="min-h-screen bg-[#0a1628] flex">
@@ -55,7 +62,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </nav>
 
         <div className="p-3 border-t border-white/[0.06]">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all">
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all">
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>

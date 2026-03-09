@@ -37,7 +37,7 @@ QDRANT_API_KEY=your-qdrant-key
 OPENAI_API_KEY=sk-...
 AUTH_SECRET=your-32-character-secret-here
 PORT=3010
-NEXT_PUBLIC_APP_URL=http://localhost:3010
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 Install and run:
@@ -99,7 +99,7 @@ chmod +x START-ALL.sh
 **Or manually:**
 ```bash
 # Terminal 1
-cd clara-backend && npm run dev        # → http://localhost:3010
+cd clara-backend && npm run dev        # → http://localhost:3000
 
 # Terminal 2
 cd clara-omen-insurance && npm run dev # → http://localhost:3001
@@ -114,8 +114,8 @@ cd clara-techvision && npm run dev     # → http://localhost:3002
 
 | App | URL | Login |
 |-----|-----|-------|
-| Clara Platform | http://localhost:3010 | Marketing landing page |
-| Clara Admin | http://localhost:3010/admin | admin@clara.ai / Admin1234! |
+| Clara Platform | http://localhost:3000 | Marketing landing page |
+| Clara Admin | http://localhost:3000/admin | admin@clara.ai / Admin1234! |
 | Omen Insurance | http://localhost:3001 | admin@omeninsurance.com / Omen1234! |
 | TechVision | http://localhost:3002 | admin@techvision.io / Tech1234! |
 

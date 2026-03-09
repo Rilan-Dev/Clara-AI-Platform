@@ -302,11 +302,11 @@ structures. No code logic changes in this phase --- only structure.
 >
 > ADMIN_PASSWORD=\...
 >
-> NEXT_PUBLIC_APP_URL=http://localhost:3010
+> NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Environment Variables --- Tenant Apps**
 
-> CLARA_BACKEND_URL=http://localhost:3010
+> CLARA_BACKEND_URL=http://localhost:3000
 >
 > CLARA_ORG_ID=\<uuid from database\>
 >

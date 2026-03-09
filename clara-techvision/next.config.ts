@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/proxy/:path*",
-        destination: `${process.env.CLARA_BACKEND_URL || "http://localhost:3010"}/api/:path*`,
+        destination: `${process.env.CLARA_BACKEND_URL || "http://localhost:3000"}/api/:path*`,
       },
     ];
   },

@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Database, Upload, Settings, MessageSquare, Plus, FileText, CheckCircle2, Clock, AlertCircle, X } from "lucide-react";
 import { getKbsForOrg, getDocuments, type KnowledgeBase, type Document } from "@/lib/api";
 
-const ORG_ID   = "00000000-0000-0000-0000-000000000001";
-const BACKEND  = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3010";
+const ORG_ID  = process.env.NEXT_PUBLIC_ORG_ID || "";
+const PROXY   = "/api/proxy";
 
 export default function KnowledgeBasesPage() {
   const [kbs, setKbs]       = useState<KnowledgeBase[]>([]);
@@ -34,7 +34,7 @@ export default function KnowledgeBasesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`${BACKEND}/api/kbs/${selected}/documents/upload`, { method: "POST", body: formData });
+      const res = await fetch(`${PROXY}/kbs/${selected}/documents`, { method: "POST", body: formData });
       if (!res.ok) throw new Error("Upload failed");
       // Refresh docs after upload
       const updated = await getDocuments(selected);
@@ -72,7 +72,7 @@ export default function KnowledgeBasesPage() {
             <button key={kb.id} onClick={() => setSelected(kb.id)}
               className={`w-full text-left px-3 py-3 rounded-xl text-sm transition-all ${selected === kb.id ? "bg-[#c8821a]/15 text-white border border-[#c8821a]/25" : "text-white/50 hover:text-white hover:bg-white/[0.04]"}`}>
               <div className="font-medium truncate mb-1">{kb.name}</div>
-              <div className="text-xs text-white/30">{kb.doc_count} docs · {kb.ready_count} ready</div>
+              <div className="text-xs text-white/30">{kb.docCount} docs · {kb.readyCount} ready</div>
             </button>
           ))}
         </div>
@@ -127,9 +127,9 @@ export default function KnowledgeBasesPage() {
                         <FileText className="w-4 h-4 text-[#c8821a]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{doc.title || doc.file_name}</div>
+                        <div className="text-sm font-medium text-white truncate">{doc.title || doc.originalFilename}</div>
                         <div className="text-xs text-white/30">
-                          {(doc.file_size / 1024).toFixed(0)} KB · {doc.chunk_count} chunks
+                          {(doc.fileSize / 1024).toFixed(0)} KB · {doc.chunkCount} chunks
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export default function KnowledgeBasesPage() {
             <div className="max-w-lg">
               <h2 className="font-semibold text-white mb-4">Assistant Configuration</h2>
               <p className="text-white/40 text-sm">Configure the AI assistant for this knowledge base in the Clara Backend admin panel.</p>
-              <a href="http://localhost:3010/admin" target="_blank" className="mt-4 inline-flex items-center gap-2 text-sm text-[#c8821a] border border-[#c8821a]/30 px-4 py-2 rounded-xl hover:bg-[#c8821a]/10 transition-colors">
+              <a href="http://localhost:3000/admin" target="_blank" className="mt-4 inline-flex items-center gap-2 text-sm text-[#c8821a] border border-[#c8821a]/30 px-4 py-2 rounded-xl hover:bg-[#c8821a]/10 transition-colors">
                 Open Clara Admin <Settings className="w-3.5 h-3.5" />
               </a>
             </div>

@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Database, Upload, Plus, FileText, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { getKbsForOrg, getDocuments, type KnowledgeBase, type Document } from "@/lib/api";
 
-const ORG_ID  = "00000000-0000-0000-0000-000000000002";
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3010";
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
+const PROXY  = "/api/proxy";
 
 export default function TVKnowledgeBases() {
   const [kbs, setKbs]       = useState<KnowledgeBase[]>([]);
@@ -24,7 +24,7 @@ export default function TVKnowledgeBases() {
     setUploading(true);
     try {
       const fd = new FormData(); fd.append("file", file);
-      await fetch(`${BACKEND}/api/kbs/${selected}/documents/upload`, { method: "POST", body: fd });
+      await fetch(`${PROXY}/kbs/${selected}/documents`, { method: "POST", body: fd });
       setDocs(await getDocuments(selected));
     } catch {} finally { setUploading(false); e.target.value = ""; }
   }
@@ -44,7 +44,7 @@ export default function TVKnowledgeBases() {
             <button key={kb.id} onClick={() => setSelected(kb.id)}
               className={`w-full text-left px-3 py-3 rounded-xl text-sm transition-all ${selected === kb.id ? "bg-sky-500/10 text-white border border-sky-500/20" : "text-white/50 hover:text-white hover:bg-white/[0.04]"}`}>
               <div className="font-medium truncate">{kb.name}</div>
-              <div className="text-xs text-white/30 mt-0.5">{kb.doc_count} docs</div>
+              <div className="text-xs text-white/30 mt-0.5">{kb.docCount} docs</div>
             </button>
           ))}
         </div>
@@ -76,8 +76,8 @@ export default function TVKnowledgeBases() {
                 <div key={doc.id} className="flex items-center gap-4 px-4 py-3 border border-white/[0.05] bg-white/[0.02] rounded-xl hover:bg-white/[0.04] transition-colors">
                   <FileText className="w-4 h-4 text-sky-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">{doc.title || doc.file_name}</div>
-                    <div className="text-xs text-white/30">{doc.chunk_count} chunks · {(doc.file_size/1024).toFixed(0)}KB</div>
+                    <div className="text-sm font-medium text-white truncate">{doc.title || doc.originalFilename}</div>
+                    <div className="text-xs text-white/30">{doc.chunkCount} chunks · {(doc.fileSize/1024).toFixed(0)}KB</div>
                   </div>
                   <span className={`text-xs ${doc.status === "ready" ? "text-emerald-400" : doc.status === "failed" ? "text-red-400" : "text-amber-400"}`}>{doc.status}</span>
                 </div>

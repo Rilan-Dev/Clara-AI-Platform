@@ -56,6 +56,8 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
   "text/plain",
   "text/markdown",
   "text/csv",
@@ -127,7 +129,7 @@ export async function uploadDocumentsHandler(
       if (!ALLOWED_TYPES.has(mimeType) && !isAllowedExtension(filename)) {
         errors.push({
           filename,
-          error: `Unsupported file type: ${mimeType || "unknown"}. Allowed: PDF, DOCX, TXT, MD, CSV`,
+          error: `Unsupported file type: ${mimeType || "unknown"}. Allowed: PDF, DOCX, XLSX, XLS, TXT, MD, CSV`,
         });
         continue;
       }
@@ -321,6 +323,8 @@ function guessMimeType(filename: string): string {
   const map: Record<string, string> = {
     pdf:  "application/pdf",
     docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xls:  "application/vnd.ms-excel",
     txt:  "text/plain",
     md:   "text/markdown",
     csv:  "text/csv",
@@ -330,5 +334,5 @@ function guessMimeType(filename: string): string {
 
 function isAllowedExtension(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  return ["pdf", "docx", "txt", "md", "csv"].includes(ext);
+  return ["pdf", "docx", "xlsx", "xls", "txt", "md", "csv"].includes(ext);
 }

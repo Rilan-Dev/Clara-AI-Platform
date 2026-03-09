@@ -72,7 +72,7 @@ jobs:
           QDRANT_URL:              http://localhost:6333
           OPENAI_API_KEY:          sk-placeholder
           AUTH_SECRET:             placeholder-secret-for-ci-build-only
-          CLARA_BACKEND_URL:       http://localhost:3010
+          CLARA_BACKEND_URL:       http://localhost:3000
           CLARA_ORG_ID:            10000000-0000-0000-0000-000000000001
           NEXT_TELEMETRY_DISABLED: 1
 

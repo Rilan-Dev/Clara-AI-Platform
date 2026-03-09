@@ -32,7 +32,7 @@ export function sessionExpiresAt(): Date {
 }
 
 /** Cookie name used for the session token. */
-export const SESSION_COOKIE = "clara_session";
+export const SESSION_COOKIE = "clara_token";
 
 /** Build Set-Cookie header value. */
 export function buildSetCookieHeader(token: string, expiresAt: Date): string {

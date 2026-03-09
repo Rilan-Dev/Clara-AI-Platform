@@ -95,12 +95,12 @@ services:
       QDRANT_API_KEY:       ${QDRANT_API_KEY:-}
       OPENAI_API_KEY:       ${OPENAI_API_KEY}
       AUTH_SECRET:          ${AUTH_SECRET}
-      NEXT_PUBLIC_APP_URL:  ${NEXT_PUBLIC_APP_URL:-http://localhost:3010}
+      NEXT_PUBLIC_APP_URL:  ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       STRIPE_SECRET_KEY:    ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       NODE_ENV:             ${NODE_ENV:-production}
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3010/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -124,7 +124,7 @@ services:
       PORT:                     3001
       CLARA_BACKEND_URL:        http://clara-backend:3010
       CLARA_ORG_ID:             ${OMEN_ORG_ID:-10000000-0000-0000-0000-000000000001}
-      NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3010}
+      NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
       NODE_ENV:                 ${NODE_ENV:-production}
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -146,5 +146,5 @@ services:
       PORT:                     3002
       CLARA_BACKEND_URL:        http://clara-backend:3010
       CLARA_ORG_ID:             ${TECHVISION_ORG_ID:-10000000-0000-0000-0000-000000000002}
-      NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3010}
+      NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
       NODE_ENV:                 ${NODE_ENV:-production}

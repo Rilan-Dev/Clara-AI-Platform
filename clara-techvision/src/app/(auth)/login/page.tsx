@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Cpu, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 export default function TechVisionLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail]       = useState("techvision-admin@techvision.io");
   const [password, setPassword] = useState("");
   const [show, setShow]         = useState(false);
@@ -20,7 +21,7 @@ export default function TechVisionLogin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (res.ok) router.push("/dashboard");
+      if (res.ok) router.push(searchParams.get("next") || "/dashboard");
       else { const d = await res.json().catch(() => ({})); setError(d.error || "Invalid credentials"); }
     } catch { setError("Could not connect. Is clara-backend running?"); }
     finally { setLoading(false); }

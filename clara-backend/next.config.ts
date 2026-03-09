@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Run src/instrumentation.ts on server startup (runs DB migrations)
+  experimental: {
+    instrumentationHook: true,
+  },
+
   // Enable standalone output for Docker — produces a minimal server.js
   // that includes only the files needed for production
   output: "standalone",

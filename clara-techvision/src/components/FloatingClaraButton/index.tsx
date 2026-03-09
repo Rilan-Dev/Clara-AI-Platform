@@ -4,7 +4,7 @@ import { Brain, X, Send, Mic, MicOff, Minimize2, MessageSquare, Volume2 } from "
 import { streamChat } from "@/lib/api";
 
 const ORG_ID  = "00000000-0000-0000-0000-000000000002";
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3010";
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 type VoiceState = "idle" | "connecting" | "listening" | "speaking";

@@ -51,7 +51,7 @@ docker compose up -d postgres qdrant
 # 4. Install and start the backend
 cd clara-backend
 npm install
-npm run dev    # → http://localhost:3010
+npm run dev    # → http://localhost:3000
 
 # 5. Run DB migrations (first time only — runs automatically on startup)
 # Migrations run automatically when the dev server starts
@@ -212,7 +212,7 @@ server {
     server_name clara.yourdomain.com;
 
     location / {
-        proxy_pass http://localhost:3010;
+        proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -250,7 +250,7 @@ server {
 All apps expose a health endpoint:
 
 ```bash
-curl http://localhost:3010/api/health  # Backend
+curl http://localhost:3000/api/health  # Backend
 ```
 
 Response:

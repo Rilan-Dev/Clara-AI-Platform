@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 export default function OmenLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail]       = useState("omen-admin@omeninsurance.com");
   const [password, setPassword] = useState("");
   const [show, setShow]         = useState(false);
@@ -21,7 +22,8 @@ export default function OmenLogin() {
         body: JSON.stringify({ email, password }),
       });
       if (res.ok) {
-        router.push("/dashboard");
+        const next = searchParams.get("next") || "/dashboard";
+        router.push(next);
       } else {
         const d = await res.json().catch(() => ({}));
         setError(d.error || "Invalid email or password");

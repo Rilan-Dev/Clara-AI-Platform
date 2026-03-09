@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Cpu, LayoutDashboard, Database, BarChart3, Globe, LogOut, Menu, X, ChevronRight } from "lucide-react";
@@ -14,7 +15,13 @@ const NAV = [
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router   = useRouter();
   const [open, setOpen] = useState(false);
+
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    router.push("/login");
+  }
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex">
@@ -52,14 +59,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
         {/* Upgrade CTA */}
         <div className="px-4 pb-3">
-          <a href="http://localhost:3010/pricing" target="_blank"
+          <a href="http://localhost:3000/pricing" target="_blank"
             className="block w-full text-center py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-sky-500/20 to-blue-600/20 border border-sky-500/20 text-sky-300 hover:border-sky-500/40 transition-colors">
             ↑ Upgrade to Pro
           </a>
         </div>
 
         <div className="p-3 border-t border-white/[0.05]">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all">
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all">
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>

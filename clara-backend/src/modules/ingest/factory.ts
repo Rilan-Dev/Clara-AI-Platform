@@ -2,11 +2,13 @@ import { DocumentParser } from './types';
 import { PDFParser } from './parsers/pdf';
 import { DocxParser } from './parsers/docx';
 import { TextParser } from './parsers/text';
+import { XlsxParser } from './parsers/xlsx';
 
 export class ParserFactory {
   private static parsers: DocumentParser[] = [
     new PDFParser(),
     new DocxParser(),
+    new XlsxParser(),
     new TextParser()
   ];
 

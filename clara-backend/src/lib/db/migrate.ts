@@ -3,27 +3,30 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Lightweight migration runner.
  *
- * Strategy:
- *  1. On first call, create a `schema_migrations` table if it doesn't exist.
- *  2. Read every *.sql file from src/lib/db/migrations/ in alphabetical order.
- *  3. For each file not yet recorded in schema_migrations, execute it inside a
- *     transaction and record it. Already-applied migrations are skipped.
+ * Two entry points:
  *
- * Usage: call runMigrations() once at server startup, or lazily via
- * ensureMigrated() which caches the result so it only runs once per process.
+ *  1. runMigrationsOnStartup() — called once from src/instrumentation.ts at
+ *     server boot. Runs ALL pending migrations. Schema migrations (001-006)
+ *     throw on failure. Seed migrations (007+) warn and skip if data isn't
+ *     ready yet (e.g. orgs not seeded yet).
  *
- *   import { ensureMigrated } from "@/lib/db/migrate";
- *   await ensureMigrated();   // idempotent — safe to call on every request
+ *  2. ensureMigrated() — legacy lazy guard called per-route. No-ops after
+ *     startup has already run migrations.
  */
 
 import fs from "node:fs";
 import path from "node:path";
-
 import { pool } from "@/lib/db";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
 
-let migrated = false; // process-level cache
+// Migrations at or above this prefix are best-effort seed migrations.
+const SEED_THRESHOLD = "007";
+
+// Process-level flag so ensureMigrated() is a cheap no-op after startup.
+let migrated = false;
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 async function createMigrationsTable(): Promise<void> {
   await pool.query(`
@@ -48,13 +51,17 @@ async function runMigrations(): Promise<void> {
   const files = fs
     .readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
-    .sort(); // alphabetical = chronological given 001_, 002_ prefix
+    .sort();
+
+  let appliedCount = 0;
 
   for (const filename of files) {
     if (applied.has(filename)) continue;
 
+    const isSeed = filename >= SEED_THRESHOLD;
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), "utf-8");
     const client = await pool.connect();
+
     try {
       await client.query("BEGIN");
       await client.query(sql);
@@ -64,18 +71,45 @@ async function runMigrations(): Promise<void> {
       );
       await client.query("COMMIT");
       console.log(`[migrate] applied ${filename}`);
+      appliedCount++;
     } catch (err) {
       await client.query("ROLLBACK");
-      console.error(`[migrate] FAILED on ${filename}:`, err);
-      throw err;
+      if (isSeed) {
+        // Seed migrations may fail on a fresh DB before `npm run seed` is run.
+        // Log a warning and skip — will be retried on next restart.
+        console.warn(
+          `[migrate] skipped seed migration ${filename} (run "npm run seed" to populate demo data):`,
+          (err as Error).message
+        );
+      } else {
+        console.error(`[migrate] FAILED on ${filename}:`, err);
+        throw err;
+      }
     } finally {
       client.release();
     }
   }
+
+  if (appliedCount === 0) {
+    console.log("[migrate] All migrations already applied.");
+  }
 }
 
-/** Call this at the top of every API handler that touches the new tables.
- *  Runs the migrations only once per process lifetime. */
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Called from src/instrumentation.ts at server startup.
+ * Runs all pending migrations before the first request is served.
+ */
+export async function runMigrationsOnStartup(): Promise<void> {
+  await runMigrations();
+  migrated = true;
+}
+
+/**
+ * Called per-route as a lazy guard. After startup has run, this is a no-op.
+ * Kept for safety so routes still work even if instrumentation is disabled.
+ */
 export async function ensureMigrated(): Promise<void> {
   if (migrated) return;
   await runMigrations();

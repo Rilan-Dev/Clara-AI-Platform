@@ -13,7 +13,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const orgId = ORG_ID || "00000000-0000-0000-0000-000000000001";
+    const orgId = ORG_ID;
+    if (!orgId) return;
     Promise.all([
       getKbsForOrg(orgId).catch(() => [] as KnowledgeBase[]),
       getOrgSubscription(orgId).catch(() => null),
@@ -23,8 +24,8 @@ export default function Dashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const totalDocs   = kbs.reduce((s, k) => s + k.doc_count,   0);
-  const readyDocs   = kbs.reduce((s, k) => s + k.ready_count, 0);
+  const totalDocs   = kbs.reduce((s, k) => s + k.docCount,   0);
+  const readyDocs   = kbs.reduce((s, k) => s + k.readyCount, 0);
   const maxReq      = plan?.max_req_day ?? 10000;
   const reqToday    = usage?.requests_today ?? 0;
   const reqPct      = maxReq > 0 ? Math.min(100, Math.round(reqToday / maxReq * 100)) : 0;
@@ -101,7 +102,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-white text-sm truncate">{kb.name}</div>
-                  <div className="text-xs text-white/40">{kb.doc_count} documents · {kb.ready_count} ready</div>
+                  <div className="text-xs text-white/40">{kb.docCount} documents · {kb.readyCount} ready</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${kb.status === "active" ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-500/15 text-slate-400"}`}>
