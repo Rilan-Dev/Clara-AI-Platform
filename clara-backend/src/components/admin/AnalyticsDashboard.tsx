@@ -5,7 +5,6 @@
  *   • SVG bar chart — daily query volume (last 30 days)
  *   • Top 10 queries table
  */
-import { useMemo } from "react";
 import type { KbAnalytics } from "@/modules/admin-ui/api";
 
 type Props = { analytics: KbAnalytics };

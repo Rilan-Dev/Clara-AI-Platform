@@ -1,33 +1,45 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brain, Eye, EyeOff } from "lucide-react";
+import axios, { isAxiosError } from "axios";
+import { setStoredToken } from "@/lib/client-auth";
+import { getApiBaseUrl } from "@/lib/runtime";
+
+// Auth calls go directly to the backend's own /api/auth/login route.
+// On success the backend sets the `clara_platform_token` httpOnly cookie.
+const authClient = axios.create({
+  baseURL: getApiBaseUrl(),
+  timeout: 15_000,
+});
 
 export default function AdminLogin() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@clara.ai");
+  const [email, setEmail]       = useState("admin@clara.ai");
   const [password, setPassword] = useState("");
-  const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [show, setShow]         = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
+
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        router.push("/dashboard");
-      } else {
-        const d = await res.json();
-        setError(d.error || "Invalid credentials");
+      // POST /api/auth/login (backend's own route — sets `clara_platform_token`)
+      const { data } = await authClient.post<{ token?: string }>("/api/auth/login", { email, password });
+      if (data.token) {
+        setStoredToken(data.token);
       }
-    } catch {
-      setError("Connection failed");
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        const msg = (err.response?.data as { error?: string })?.error;
+        setError(msg || (err.response ? "Invalid credentials" : "Connection failed. Is the server running?"));
+      } else {
+        setError("An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }
@@ -43,6 +55,7 @@ export default function AdminLogin() {
           <h1 className="text-2xl font-bold text-white">Platform Admin</h1>
           <p className="text-white/40 text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
+
         <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -56,12 +69,19 @@ export default function AdminLogin() {
                 <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
                   placeholder="••••••••"
                   className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
-                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                <button type="button" onClick={() => setShow(!show)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
-            {error && <p className="text-red-400 text-xs">{error}</p>}
+
+            {error && (
+              <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+
             <button type="submit" disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
               {loading ? "Signing in…" : "Sign in"}

@@ -2,9 +2,18 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, Eye, EyeOff, AlertCircle } from "lucide-react";
+import axios, { isAxiosError } from "axios";
+import { setStoredToken } from "@/lib/auth";
+
+// Auth calls go to our own Next.js route — NOT through the /api/proxy instance.
+// The login route sets the httpOnly `clara_omen_token` cookie on success.
+const authClient = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000",
+  timeout: 15_000,
+});
 
 function LoginForm() {
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail]       = useState("omen-admin@omeninsurance.com");
   const [password, setPassword] = useState("");
@@ -14,22 +23,25 @@ function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
+
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const next = searchParams.get("next") || "/dashboard";
-        router.push(next);
-      } else {
-        const d = await res.json().catch(() => ({}));
-        setError(d.error || "Invalid email or password");
+      // POST /api/auth/login (same-origin Omen route)
+      // On success: route handler sets `clara_omen_token` httpOnly cookie
+      //             and returns { user, token }
+      const { data } = await authClient.post<{ token?: string }>("/api/auth/login", { email, password });
+      if (data.token) {
+        setStoredToken(data.token);
       }
-    } catch {
-      setError("Could not connect to server. Is clara-backend running?");
+      router.push(searchParams.get("next") || "/dashboard");
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        const msg = (err.response?.data as { error?: string })?.error;
+        setError(msg || (err.response ? "Invalid email or password" : "Could not connect to server. Is clara-backend running?"));
+      } else {
+        setError("An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }
@@ -81,7 +93,6 @@ function LoginForm() {
       {/* Right login form */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#c8821a] to-[#a86214] flex items-center justify-center">
               <Shield className="w-5 h-5 text-white" />

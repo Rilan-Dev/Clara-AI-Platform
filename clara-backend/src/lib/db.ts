@@ -38,7 +38,6 @@ const PG_CONFIG = {
 // ── Singleton pattern safe for Next.js dev hot-reload ─────────────────────────
 
 declare global {
-  // eslint-disable-next-line no-var
   var __pgPool: Pool | undefined;
 }
 

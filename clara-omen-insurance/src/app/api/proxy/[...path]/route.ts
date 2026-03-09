@@ -8,7 +8,6 @@
  * Proxied to    http://localhost:3000/api/kbs/all?orgId=...
  */
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
 
@@ -19,9 +18,8 @@ async function proxy(req: NextRequest, method: string): Promise<NextResponse> {
     const targetUrl = `${BACKEND}${proxyPath}${url.search}`;
 
     // Read the httpOnly auth token from cookie (only accessible server-side)
-    const cookieStore = await cookies();
     // clara_omen_token — unique per-app cookie name prevents localhost collision
-    const token = cookieStore.get("clara_omen_token")?.value;
+    const token = req.cookies.get("clara_omen_token")?.value;
 
     if (!token) {
       return NextResponse.json(

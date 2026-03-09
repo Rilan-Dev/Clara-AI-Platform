@@ -6,6 +6,8 @@ import {
   Brain, LayoutDashboard, Building2, CreditCard,
   Settings, LogOut, Menu, X, ChevronRight, BarChart3
 } from "lucide-react";
+import { clearStoredToken, withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 
 const NAV = [
   { href: "/dashboard",     icon: LayoutDashboard, label: "Dashboard" },
@@ -22,8 +24,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   async function handleSignOut() {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch(apiUrl("/api/auth/logout"), { method: "POST", headers: withAuthHeaders() });
     } finally {
+      clearStoredToken();
       router.push("/login");
     }
   }

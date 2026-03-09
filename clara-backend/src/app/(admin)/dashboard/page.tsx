@@ -6,6 +6,7 @@ import {
   CheckCircle, Clock, AlertCircle, RefreshCw, BarChart3, MessageSquare
 } from "lucide-react";
 import Link from "next/link";
+import http from "@/lib/http";
 
 type Stats = {
   totalOrgs: number; totalUsers: number; mrr: number;
@@ -53,12 +54,12 @@ export default function AdminDashboard() {
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      fetch("/api/platform/stats").then(r => r.json()).catch(() => null),
-      fetch("/api/platform/orgs?perPage=20").then(r => r.json()).catch(() => ({ orgs: [] })),
-      fetch("/api/platform/revenue").then(r => r.json()).catch(() => null),
+      http.get<Stats>("/platform/stats").then(r => r.data).catch(() => null),
+      http.get<{ orgs: Org[] }>("/platform/orgs?perPage=20").then(r => r.data).catch(() => ({ orgs: [] })),
+      http.get<Revenue>("/platform/revenue").then(r => r.data).catch(() => null),
     ]).then(([s, o, rev]) => {
       setStats(s);
-      setOrgs(o?.orgs ?? []);
+      setOrgs((o as { orgs: Org[] })?.orgs ?? []);
       setRevenue(rev);
       setLoading(false);
     });

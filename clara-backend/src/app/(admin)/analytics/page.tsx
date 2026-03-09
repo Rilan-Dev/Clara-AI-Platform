@@ -4,6 +4,7 @@ import {
   Activity, TrendingUp, MessageSquare, Clock,
   BarChart3, Globe, Zap, RefreshCw, Database
 } from "lucide-react";
+import { apiUrl } from "@/lib/runtime";
 
 type QueryEvent = {
   kb_name: string;
@@ -40,8 +41,8 @@ export default function AnalyticsPage() {
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      fetch("/api/platform/stats").then(r => r.json()).catch(() => null),
-      fetch("/api/platform/revenue").then(r => r.json()).catch(() => null),
+      fetch(apiUrl("/api/platform/stats")).then(r => r.json()).catch(() => null),
+      fetch(apiUrl("/api/platform/revenue")).then(r => r.json()).catch(() => null),
     ]).then(([s, rev]) => {
       setStats(s);
       setRevenue(rev);

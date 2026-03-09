@@ -1,4 +1,6 @@
 import type { Message, StreamEvent } from "@/modules/assistant/core";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -14,7 +16,7 @@ export type StreamChatOptions = {
   kbId?: string;
 };
 
-const DEFAULT_CHAT_ENDPOINT = "/api/chat";
+const DEFAULT_CHAT_ENDPOINT = apiUrl("/api/chat");
 
 export async function streamChatCompletion(
   documentOrKbId: string,
@@ -45,7 +47,7 @@ export async function streamChatCompletion(
 
   const response = await fetcher(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
     signal: options?.signal,
   });

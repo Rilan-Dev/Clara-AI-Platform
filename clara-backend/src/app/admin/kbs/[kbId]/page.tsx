@@ -5,7 +5,8 @@
  * Header: archive / restore toggle + voice preview
  */
 import Link from "next/link";
-import { use, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
+import { useState, useCallback } from "react";
 import { useKb, useDocuments, useAnalytics } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
 import { UploadZone } from "@/components/admin/UploadZone";
@@ -14,11 +15,10 @@ import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
 import { Button } from "@/components/ui/button";
+import { apiFetchJson } from "@/lib/runtime";
 
-type Props = { params: Promise<{ kbId: string }> };
-
-export default function KbDashboardPage({ params }: Props) {
-  const { kbId } = use(params);
+export default function KbDashboardPage() {
+  const { kbId = "" } = useParams<{ kbId: string }>();
   const { data: kb, loading: kbLoading, refetch: refetchKb } = useKb(kbId);
   const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
@@ -32,8 +32,7 @@ export default function KbDashboardPage({ params }: Props) {
     setDraining(true);
     setDrainResult(null);
     try {
-      const res = await fetch("/api/worker/ingest?drain=true", { method: "GET", credentials: "include" });
-      const data = await res.json() as { processed?: number; errors?: number; error?: string };
+      const data = await apiFetchJson<{ processed?: number; errors?: number; error?: string }>("/api/worker/ingest?drain=true", { method: "GET" });
       if (data.error) {
         setDrainResult(`Error: ${data.error}`);
       } else {

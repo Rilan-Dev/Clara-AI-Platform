@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { SystemPromptPreview } from "./SystemPromptPreview";
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 

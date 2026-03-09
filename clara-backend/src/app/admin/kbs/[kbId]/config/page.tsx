@@ -10,16 +10,14 @@
  *   └─────────────────────────────┴──────────────────────┘
  */
 import Link from "next/link";
-import { use } from "react";
+import { useParams } from "next/navigation";
 import { useKb, useConfig, useSnapshots } from "@/modules/admin-ui/hooks";
 import { ConfigEditor } from "@/components/admin/ConfigEditor";
 import { SnapshotHistory } from "@/components/admin/SnapshotHistory";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 
-type Props = { params: Promise<{ kbId: string }> };
-
-export default function KbConfigPage({ params }: Props) {
-  const { kbId } = use(params);
+export default function KbConfigPage() {
+  const { kbId = "" } = useParams<{ kbId: string }>();
   const { data: kb, loading: kbLoading } = useKb(kbId);
   const { config, loading: configLoading, save, refetch: refetchConfig } = useConfig(kbId);
   const { snapshots, loading: snapsLoading, saveSnapshot, restore, refetch: refetchSnaps } = useSnapshots(kbId);

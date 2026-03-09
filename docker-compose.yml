@@ -84,7 +84,7 @@ services:
       retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Clara Backend (Next.js 15)
+  # Clara Backend (Vite + Express)
   #   Serves: marketing site, platform admin, RAG API, embed endpoint
   #
   #   NOT port-bound to host — NPM proxies to container name "clara-backend"
@@ -127,7 +127,7 @@ services:
       retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Omen United Insurance — Tenant Demo
+  # Omen United Insurance — Tenant Demo (Vite + Express)
   #   NOT port-bound to host — NPM proxies to "clara-omen" on port 3001.
   # ──────────────────────────────────────────────────────────────────────────
   clara-omen:

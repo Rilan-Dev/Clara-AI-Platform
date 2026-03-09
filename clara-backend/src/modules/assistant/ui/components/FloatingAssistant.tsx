@@ -7,6 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 import { useAssistant } from "@/modules/assistant/core";
 import { MessageInput, MessageList } from "@/modules/assistant/ui/chat";
 
@@ -183,7 +185,7 @@ export function FloatingAssistant() {
 
   const loadKbs = useCallback(async () => {
     try {
-      const res  = await fetch("/api/kbs/all");
+      const res  = await fetch(apiUrl("/api/kbs/all"), { headers: withAuthHeaders() });
       const data = await res.json() as { kbs?: KbEntry[] };
       const list = data.kbs ?? [];
       setKbs(list);
@@ -202,7 +204,7 @@ export function FloatingAssistant() {
   // Load KBs once on mount (and whenever the floating panel opens)
   useEffect(() => {
     void loadKbs();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadKbs]);
 
   // Reload when the panel opens so the list is fresh
   useEffect(() => {
@@ -228,7 +230,7 @@ export function FloatingAssistant() {
       `What are the most frequently asked questions about "${kbName}"?`,
     ];
     setKbSuggestedPrompts(kbSuggestions);
-  }, [activeKb?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeKb, setKbSuggestedPrompts]);
 
   // ── Handle KB switch ──────────────────────────────────────────────────────
   const handleSelectKb = useCallback(

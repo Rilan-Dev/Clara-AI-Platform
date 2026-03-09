@@ -11,7 +11,6 @@
  * collision — all three localhost apps share the same cookie domain.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
 const COOKIE_NAME = "clara_tv_token";
@@ -23,8 +22,7 @@ async function proxy(req: NextRequest, method: string): Promise<NextResponse> {
     const targetUrl = `${BACKEND}${proxyPath}${url.search}`;
 
     // Read the httpOnly auth token — only accessible server-side
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
+    const token = req.cookies.get(COOKIE_NAME)?.value;
 
     const headers: Record<string, string> = {};
     const contentType = req.headers.get("content-type");

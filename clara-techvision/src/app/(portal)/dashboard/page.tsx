@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Database, Activity, FileText, ArrowUpRight, TrendingUp } from "lucide-react";
 import { getKbsForOrg, getOrgSubscription, type KnowledgeBase, type OrgUsage, type Subscription } from "@/lib/api";
 
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
+const ORG_ID = import.meta.env.VITE_ORG_ID ?? "";
 
 export default function TVDashboard() {
   const [kbs, setKbs]     = useState<KnowledgeBase[]>([]);

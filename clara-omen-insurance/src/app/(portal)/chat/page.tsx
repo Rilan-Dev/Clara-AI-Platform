@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { MessageSquare, Database, Send, Mic, X, RotateCcw, AlertCircle } from "lucide-react";
 import { getKbsForOrg, streamChat, type KnowledgeBase } from "@/lib/api";
 
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
+const ORG_ID = import.meta.env.VITE_ORG_ID ?? "";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 

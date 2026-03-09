@@ -4,7 +4,7 @@ import { BarChart3, TrendingUp, MessageSquare, Clock, Database } from "lucide-re
 import { getKbsForOrg, getAnalytics, type KnowledgeBase, type AnalyticsData } from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
+const ORG_ID = import.meta.env.VITE_ORG_ID ?? "";
 
 export default function AnalyticsPage() {
   const [kbs, setKbs]             = useState<KnowledgeBase[]>([]);

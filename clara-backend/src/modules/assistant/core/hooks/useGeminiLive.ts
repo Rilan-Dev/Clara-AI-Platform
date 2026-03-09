@@ -7,6 +7,8 @@ import {
   resolveLanguagePreferences,
   type LanguagePreferences,
 } from "../config";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -500,9 +502,9 @@ export function useGeminiLive(opts?: Options) {
 
           void (async () => {
             try {
-              const res = await fetch("/api/rag/search", {
+              const res = await fetch(apiUrl("/api/rag/search"), {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: withAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ query: q, documentId: docId }),
               });
               if (!res.ok) throw new Error(`RAG search HTTP ${res.status}`);
@@ -758,9 +760,9 @@ export function useGeminiLive(opts?: Options) {
 
     try {
       // ── 1. Fetch session config from server (API key never in browser) ──
-      const sessRes = await fetch("/api/gemini/session", {
+      const sessRes = await fetch(apiUrl("/api/gemini/session"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           language:  languagePrefs.assistant,
           languages: languagePrefs.customer,

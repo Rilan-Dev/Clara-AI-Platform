@@ -3,17 +3,16 @@
  * /admin/orgs/[orgId]/projects/[projectId] — Knowledge base list for a project
  */
 import Link from "next/link";
-import { use, useState } from "react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
 import { useOrg, useKbs } from "@/modules/admin-ui/hooks";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Props = { params: Promise<{ orgId: string; projectId: string }> };
-
-export default function ProjectPage({ params }: Props) {
-  const { orgId, projectId } = use(params);
+export default function ProjectPage() {
+  const { orgId = "", projectId = "" } = useParams<{ orgId: string; projectId: string }>();
   const { data: org } = useOrg(orgId);
   const { kbs, loading, create, remove } = useKbs(projectId);
   const [name, setName]           = useState("");

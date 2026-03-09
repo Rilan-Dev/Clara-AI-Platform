@@ -1,5 +1,4 @@
-# Clara Backend — Production Dockerfile
-# Multi-stage build: deps → builder → runner
+# Clara Backend — Vite + Express Dockerfile
 
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat curl
@@ -14,28 +13,29 @@ RUN npm ci --ignore-scripts --legacy-peer-deps
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-
-# Standalone output so we don't need the full node_modules in production
+# Build the Vite frontend into /app/dist
 RUN npm run build
 
 # ── Stage 3: Production runner ──────────────────────────────────────────────
 FROM base AS runner
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser  --system --uid 1001 nextjs
+RUN adduser  --system --uid 1001 clarauser
 
+# Copy built frontend and source code for the Express server
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/scripts ./scripts
 
-USER nextjs
+USER clarauser
 EXPOSE 3000
 
-# Run DB migrations then start the app
-CMD ["node", "server.js"]
+# Start the Express server using tsx
+CMD ["npm", "run", "start"]

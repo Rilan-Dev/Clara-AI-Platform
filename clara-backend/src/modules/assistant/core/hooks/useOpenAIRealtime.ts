@@ -7,6 +7,8 @@ import {
   resolveLanguagePreferences,
   type LanguagePreferences,
 } from "../config";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -302,9 +304,9 @@ export function useOpenAIRealtime(opts?: Options) {
       // response.create per user turn. The debounce (300ms) plus Qdrant
       // round-trip (~300-600ms) gives a total pre-speech latency of ~600-900ms,
       // which is far better than the previous 1500ms debounce alone.
-      const res = await fetch("/api/rag/search", {
+      const res = await fetch(apiUrl("/api/rag/search"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(
           kbIdVal
             ? { query, kbId: kbIdVal }          // KB mode — searches all docs in KB
@@ -537,9 +539,9 @@ export function useOpenAIRealtime(opts?: Options) {
           );
         }
 
-        const res = await fetch("/api/rag/search", {
+        const res = await fetch(apiUrl("/api/rag/search"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: withAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(
             kbIdVal
               ? { query: q, kbId: kbIdVal }       // KB mode
@@ -652,9 +654,9 @@ export function useOpenAIRealtime(opts?: Options) {
 
     try {
       // ── 1. Create ephemeral session ──────────────────────────────────────
-      const sessRes = await fetch("/api/realtime/session", {
+      const sessRes = await fetch(apiUrl("/api/realtime/session"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           language: languagePrefs.assistant,
           languages: languagePrefs.customer,

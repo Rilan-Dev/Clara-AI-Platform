@@ -1,21 +1,19 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
+import { getKbsForOrg, type KnowledgeBase } from "@/lib/api";
 
-const PROXY  = "/api/proxy";
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
-
-type KB = { id: string; name: string; status: string; docCount: number };
+const ORG_ID = import.meta.env.VITE_ORG_ID ?? "";
 
 export default function TechVisionChatPage() {
-  const [kbs, setKbs] = useState<KB[]>([]);
+  const [kbs, setKbs]       = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${PROXY}/kbs/all?orgId=${ORG_ID}`)
-      .then(r => r.json())
-      .then(d => { setKbs(d.kbs ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+    getKbsForOrg(ORG_ID)
+      .then(setKbs)
+      .catch(() => setKbs([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -40,7 +38,7 @@ export default function TechVisionChatPage() {
           <div className="text-xs font-medium text-white/40 mb-3">Available Knowledge Bases</div>
           {kbs.map(kb => (
             <div key={kb.id}
-                 className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 hover:bg-white/[0.07] transition-all">
+              className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 hover:bg-white/[0.07] transition-all">
               <div className="text-left">
                 <div className="text-sm font-medium text-white">{kb.name}</div>
                 <div className="text-xs text-white/30">{kb.docCount ?? 0} documents</div>

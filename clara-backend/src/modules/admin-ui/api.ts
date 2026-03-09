@@ -6,18 +6,23 @@
  * POST /api/auth/login (no need to manually pass tokens).
  */
 
+import { clearStoredToken, setStoredToken, withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
+
 // ── Generic fetch helper ──────────────────────────────────────────────────────
 
 async function apiFetch<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(url, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
+  const headers = withAuthHeaders(options.headers ?? {});
+
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const res = await fetch(apiUrl(url), {
+    headers,
     ...options,
   });
 
@@ -46,15 +51,21 @@ export async function fetchMe(): Promise<CurrentUser> {
 }
 
 export async function login(email: string, password: string): Promise<CurrentUser> {
-  const data = await apiFetch<{ user: CurrentUser }>("/api/auth/login", {
+  const data = await apiFetch<{ user: CurrentUser; token?: string }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
+
+  if (data.token) {
+    setStoredToken(data.token);
+  }
+
   return data.user;
 }
 
 export async function logout(): Promise<void> {
   await apiFetch("/api/auth/logout", { method: "POST" });
+  clearStoredToken();
 }
 
 // ── Orgs ──────────────────────────────────────────────────────────────────────
@@ -220,9 +231,9 @@ export async function fetchDocument(kbId: string, docId: string): Promise<KbDocu
 export async function uploadDocuments(kbId: string, files: File[]): Promise<{ queued: KbDocument[]; errors: { filename: string; error: string }[] }> {
   const form = new FormData();
   files.forEach((f) => form.append("files", f));
-  const res = await fetch(`/api/kbs/${kbId}/documents`, {
+  const res = await fetch(apiUrl(`/api/kbs/${kbId}/documents`), {
     method: "POST",
-    credentials: "include",
+    headers: withAuthHeaders(),
     body: form,
   });
   if (!res.ok) {

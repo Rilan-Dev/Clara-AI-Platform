@@ -1,10 +1,11 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Brain, X, Send, Mic, MicOff, Minimize2, MessageSquare, Volume2 } from "lucide-react";
-import { streamChat } from "@/lib/api";
+import { getKbsForOrg, streamChat } from "@/lib/api";
+import { withAuthHeaders } from "@/lib/auth";
 
-const ORG_ID  = process.env.NEXT_PUBLIC_ORG_ID || "00000000-0000-0000-0000-000000000002";
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+const ORG_ID  = import.meta.env.VITE_ORG_ID ?? "00000000-0000-0000-0000-000000000002";
+const BACKEND = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 type VoiceState = "idle" | "connecting" | "listening" | "speaking";
@@ -21,9 +22,8 @@ export default function FloatingClaraButton() {
 
   // Fetch first active KB for this org
   useEffect(() => {
-    fetch(`${BACKEND}/api/kbs/all?orgId=${ORG_ID}`)
-      .then(r => r.json())
-      .then(d => { if (d.kbs?.length > 0) setKbId(d.kbs[0].id); })
+    getKbsForOrg(ORG_ID)
+      .then((kbs) => { if (kbs.length > 0) setKbId(kbs[0].id); })
       .catch(() => {});
   }, []);
 
@@ -165,11 +165,11 @@ function VoiceModal({ onClose, kbId }: { onClose: () => void; kbId: string }) {
     setVoiceState("connecting");
     try {
       // Get ephemeral key from clara-backend
-      const sessionRes = await fetch(`${BACKEND}/api/realtime/session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kbId }),
-      });
+        const sessionRes = await fetch(`${BACKEND}/api/realtime/session`, {
+          method: "POST",
+          headers: withAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ kbId }),
+        });
       if (!sessionRes.ok) throw new Error("Failed to create voice session");
       const { client_secret } = await sessionRes.json();
       const ephemeralKey = client_secret?.value;

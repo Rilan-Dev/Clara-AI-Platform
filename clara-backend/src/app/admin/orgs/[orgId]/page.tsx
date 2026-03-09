@@ -3,17 +3,15 @@
  * /admin/orgs/[orgId] — Projects list for an organisation
  */
 import Link from "next/link";
-import { use, useState } from "react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
 import { useOrg, useProjects } from "@/modules/admin-ui/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
-type Props = { params: Promise<{ orgId: string }> };
-
-export default function OrgPage({ params }: Props) {
-  const { orgId } = use(params);
+export default function OrgPage() {
+  const { orgId = "" } = useParams<{ orgId: string }>();
   const { data: org, loading: orgLoading } = useOrg(orgId);
   const { projects, loading, create, remove } = useProjects(orgId);
   const [name, setName]           = useState("");

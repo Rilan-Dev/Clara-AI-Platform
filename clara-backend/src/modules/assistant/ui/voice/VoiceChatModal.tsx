@@ -27,7 +27,7 @@ import {
 // ("openai" or "gemini"), not a secret key. The actual secrets are server-side
 // (OPENAI_API_KEY, GEMINI_API_KEY — no NEXT_PUBLIC_ prefix).
 
-const AI_PROVIDER = (process.env.NEXT_PUBLIC_AI_PROVIDER ?? "openai").toLowerCase();
+const AI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER ?? "openai").toLowerCase();
 
 // ─── Shared prop types ─────────────────────────────────────────────────────────
 

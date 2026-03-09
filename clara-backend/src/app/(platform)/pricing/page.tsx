@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { Check } from "lucide-react";
+import { apiUrl } from "@/lib/runtime";
 
 type Plan = {
   id: string; name: string; description: string;
@@ -24,7 +24,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/subscriptions/plans")
+    fetch(apiUrl("/api/subscriptions/plans"))
       .then(r => r.json())
       .then(d => { setPlans(d.plans ?? []); setLoading(false); })
       .catch(() => setLoading(false));

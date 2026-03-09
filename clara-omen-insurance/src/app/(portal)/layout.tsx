@@ -7,6 +7,7 @@ import {
   Shield, LayoutDashboard, Database, MessageSquare,
   BarChart3, Settings, LogOut, Menu, X, ChevronRight
 } from "lucide-react";
+import { clearStoredToken, withAuthHeaders } from "@/lib/auth";
 
 const NAV = [
   { href: "/dashboard",         icon: LayoutDashboard, label: "Dashboard" },
@@ -22,7 +23,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [open, setOpen] = useState(false);
 
   async function handleSignOut() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+    await fetch(`${baseUrl}/api/auth/logout`, { method: "POST", headers: withAuthHeaders() }).catch(() => {});
+    clearStoredToken();
     router.push("/login");
   }
 

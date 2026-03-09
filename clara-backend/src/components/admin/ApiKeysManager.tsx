@@ -16,6 +16,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -118,10 +120,9 @@ function CreateKeyModal({
     try {
       // kbId is injected via the parent — we get it via the URL
       const kbId = window.location.pathname.split("/kbs/")[1]?.split("/")[0];
-      const res = await fetch(`/api/kbs/${kbId}/api-keys`, {
+      const res = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys`), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           name: name.trim() || "Default",
           allowedOrigins: origins
@@ -238,7 +239,7 @@ function SnippetPanel({ rawKey, baseUrl }: { rawKey?: string; baseUrl: string })
   );
 }
 
-function SnippetBlock({ title, description, code, lang = "html" }: {
+function SnippetBlock({ title, description, code, lang: _lang = "html" }: {
   title: string; description: string; code: string; lang?: string;
 }) {
   return (
@@ -275,7 +276,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
   const loadKeys = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/kbs/${kbId}/api-keys`, { credentials: "include" });
+      const res = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys`), { headers: withAuthHeaders() });
       const data = (await res.json()) as { keys?: ApiKey[] };
       setKeys(data.keys ?? []);
     } catch {
@@ -297,7 +298,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
     if (!confirm("Revoke this key? Any websites using it will immediately lose access.")) return;
     setRevoking(keyId);
     try {
-      await fetch(`/api/kbs/${kbId}/api-keys/${keyId}`, { method: "DELETE", credentials: "include" });
+      await fetch(apiUrl(`/api/kbs/${kbId}/api-keys/${keyId}`), { method: "DELETE", headers: withAuthHeaders() });
       setKeys((prev) => prev.filter((k) => k.id !== keyId));
     } finally {
       setRevoking(null);

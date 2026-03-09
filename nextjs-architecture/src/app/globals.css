@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 244 247 250;
+    --foreground: 15 23 42;
+  }
+
+  * {
+    @apply border-slate-200;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at top left, rgba(125, 211, 252, 0.22), transparent 28%),
+      radial-gradient(circle at top right, rgba(251, 191, 36, 0.16), transparent 22%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(244, 247, 250, 1));
+  }
+
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15;
+  }
+
+  ::selection {
+    background: rgba(15, 23, 42, 0.12);
+  }
+}

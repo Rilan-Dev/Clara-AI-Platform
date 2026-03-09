@@ -28,6 +28,8 @@ import {
   resolveLanguagePreferences,
   type LanguagePreferences,
 } from "../config";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 
 // ── P5 FIX: Conversation window cap ───────────────────────────────────────────
 //
@@ -73,9 +75,9 @@ type AssistantEndpoints = {
 };
 
 const DEFAULT_ENDPOINTS: AssistantEndpoints = {
-  documents: "/api/documents",
-  documentOverview: "/api/documents/overview",
-  chat: "/api/chat",
+  documents: apiUrl("/api/documents"),
+  documentOverview: apiUrl("/api/documents/overview"),
+  chat: apiUrl("/api/chat"),
 };
 
 export type AssistantProviderProps = {
@@ -238,7 +240,7 @@ export function AssistantProvider({
 
         const response = await fetch(endpointConfig.documentOverview, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: withAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ documentId: document.id }),
         });
 
@@ -365,9 +367,10 @@ export function AssistantProvider({
     setDocumentsError(null);
 
     try {
-      const response = await fetch(endpointConfig.documents, {
-        cache: "no-store",
-      });
+        const response = await fetch(endpointConfig.documents, {
+          cache: "no-store",
+          headers: withAuthHeaders(),
+        });
       if (!response.ok) {
         throw new AssistantError(
           `Failed to load documents: ${response.status}`,

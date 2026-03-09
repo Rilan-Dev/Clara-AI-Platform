@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { apiUrl } from "@/lib/runtime";
 
 type AssistantConfig = {
   kbId: string;
@@ -49,7 +50,7 @@ function WidgetContent() {
       setConfigLoading(false);
       return;
     }
-    fetch("/api/embed/config", {
+    fetch(apiUrl("/api/embed/config"), {
       headers: { Authorization: `Bearer ${apiKey}` },
     })
       .then((r) => r.json())
@@ -85,7 +86,7 @@ function WidgetContent() {
     setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
 
     try {
-      const res = await fetch("/api/embed/chat", {
+      const res = await fetch(apiUrl("/api/embed/chat"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -11,17 +11,25 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "next/server": ["./src/server/next-shim.ts"],
+      "next/link": ["./src/vite/shims/next-link.tsx"],
+      "next/navigation": ["./src/vite/shims/next-navigation.ts"],
+      "next/dynamic": ["./src/vite/shims/next-dynamic.tsx"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
+  "exclude": [
+    "node_modules",
+    "src/app/api/**",
+    "src/middleware.ts",
+    "scripts/**",
+    "src/modules/**/api/**",
+    "src/modules/auth/core/**",
+    "src/modules/embed/core/**",
+    "src/lib/plan-guard.ts"
+  ]
 }

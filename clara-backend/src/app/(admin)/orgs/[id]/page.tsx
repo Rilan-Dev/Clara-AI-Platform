@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Building2, Database, Users, Activity,
-  CreditCard, CheckCircle, Clock, AlertCircle, RefreshCw
+  CreditCard, CheckCircle, Clock, RefreshCw
 } from "lucide-react";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 
 type Org = {
   id: string; name: string; slug: string; logo_url: string | null;
@@ -24,7 +26,6 @@ const PLAN_BADGE: Record<string, string> = {
 
 export default function OrgDetailPage() {
   const { id }    = useParams<{ id: string }>();
-  const router    = useRouter();
   const [org, setOrg]       = useState<Org | null>(null);
   const [plans, setPlans]   = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,8 +34,8 @@ export default function OrgDetailPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/platform/orgs?perPage=100`).then(r => r.json()),
-      fetch("/api/subscriptions/plans").then(r => r.json()),
+      fetch(apiUrl(`/api/platform/orgs?perPage=100`)).then(r => r.json()),
+      fetch(apiUrl("/api/subscriptions/plans")).then(r => r.json()),
     ]).then(([orgsData, plansData]) => {
       const found = (orgsData.orgs ?? []).find((o: Org) => o.id === id);
       setOrg(found ?? null);
@@ -48,9 +49,9 @@ export default function OrgDetailPage() {
     setUpdating(true);
     setMsg("");
     try {
-      await fetch("/api/orgs/subscription", {
+      await fetch(apiUrl("/api/orgs/subscription"), {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ orgId: org.id, planId }),
       });
       setOrg(o => o ? { ...o, plan_id: planId } : o);

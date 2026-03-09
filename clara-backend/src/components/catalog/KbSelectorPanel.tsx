@@ -10,6 +10,8 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 import { useAssistant } from "@/modules/assistant/core";
 
 type KbEntry = {
@@ -69,7 +71,7 @@ export function KbSelectorPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch("/api/kbs/all");
+      const res  = await fetch(apiUrl("/api/kbs/all"), { headers: withAuthHeaders() });
       const data = await res.json() as { kbs?: KbEntry[]; error?: string };
       if (data.error) throw new Error(data.error);
       setKbs(data.kbs ?? []);
@@ -85,7 +87,7 @@ export function KbSelectorPanel() {
     }
   }, [activeKbId, setActiveKbId]);
 
-  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [load]);
 
   const filtered = search.trim()
     ? kbs.filter((k) =>

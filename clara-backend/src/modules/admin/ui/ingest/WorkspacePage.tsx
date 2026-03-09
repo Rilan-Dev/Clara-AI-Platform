@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 
 type UploadState =
@@ -124,8 +126,9 @@ export function AdminIngestWorkspace(): JSX.Element {
     });
 
     try {
-      const response = await fetch("/api/ingest", {
+      const response = await fetch(apiUrl("/api/ingest"), {
         method: "POST",
+        headers: withAuthHeaders(),
         body: formData,
       });
 

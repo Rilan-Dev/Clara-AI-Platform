@@ -6,6 +6,7 @@ import {
   ChevronRight, Star, ArrowRight, Sparkles, FileText,
   MessageSquare, Cpu, Building2
 } from "lucide-react";
+import { apiUrl } from "@/lib/runtime";
 
 const FEATURES = [
   { icon: Brain, title: "RAG-Powered Intelligence", desc: "Upload any document and your AI instantly learns from it with semantic vector search and cited responses.", color: "from-violet-500 to-indigo-500" },
@@ -37,10 +38,9 @@ type Plan = {
 
 export default function LandingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
 
   useEffect(() => {
-    fetch("/api/subscriptions/plans")
+    fetch(apiUrl("/api/subscriptions/plans"))
       .then(r => r.json())
       .then(d => setPlans(d.plans ?? []))
       .catch(() => {});

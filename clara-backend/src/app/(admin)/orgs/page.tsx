@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, ExternalLink } from "lucide-react";
+import { apiUrl } from "@/lib/runtime";
 
 type Org = {
   id: string; name: string; slug: string;
@@ -25,7 +26,7 @@ export default function OrgsPage() {
   const perPage = 20;
 
   useEffect(() => {
-    fetch(`/api/platform/orgs?page=${page}&perPage=${perPage}`)
+    fetch(apiUrl(`/api/platform/orgs?page=${page}&perPage=${perPage}`))
       .then(r => r.json())
       .then(d => { setOrgs(d.orgs ?? []); setTotal(d.total ?? 0); })
       .catch(() => {});

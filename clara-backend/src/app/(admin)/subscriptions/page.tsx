@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CreditCard, TrendingUp, Users, BarChart3, RefreshCw, Check } from "lucide-react";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
 
 type Plan = {
   id: string; name: string; price_usd: number; description: string;
@@ -28,8 +30,8 @@ export default function AdminSubscriptionsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/subscriptions/plans").then(r => r.json()),
-      fetch("/api/platform/orgs?perPage=100").then(r => r.json()),
+      fetch(apiUrl("/api/subscriptions/plans")).then(r => r.json()),
+      fetch(apiUrl("/api/platform/orgs?perPage=100")).then(r => r.json()),
     ]).then(([plansData, orgsData]) => {
       setPlans(plansData.plans ?? []);
       setOrgs(orgsData.orgs ?? []);
@@ -49,12 +51,12 @@ export default function AdminSubscriptionsPage() {
   async function changePlan(orgId: string, planId: string) {
     setUpdating(orgId);
     try {
-      await fetch("/api/orgs/subscription", {
+      await fetch(apiUrl("/api/orgs/subscription"), {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ orgId, planId }),
       });
-      const updated = await fetch("/api/platform/orgs?perPage=100").then(r => r.json());
+      const updated = await fetch(apiUrl("/api/platform/orgs?perPage=100")).then(r => r.json());
       setOrgs(updated.orgs ?? []);
     } finally {
       setUpdating(null);

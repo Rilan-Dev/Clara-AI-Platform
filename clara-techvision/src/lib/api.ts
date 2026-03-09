@@ -1,12 +1,18 @@
 /**
- * lib/api.ts
+ * lib/api.ts — TechVision Portal API layer
  *
- * All backend calls route through /api/proxy/* (same-origin).
- * The proxy route reads the httpOnly clara_token cookie server-side
- * and forwards it as Authorization: Bearer to clara-backend.
+ * All data-fetching functions use the shared `http` Axios instance which:
+ *   • routes through same-origin /api/proxy/* (server injects Bearer token)
+ *   • normalises errors into ApiError
+ *   • redirects to /login on 401
+ *
+ * NOTE: `streamChat` is intentionally kept on the native Fetch API.
  */
 
-const PROXY = "/api/proxy";
+import http from "./http";
+import { withAuthHeaders } from "./auth";
+
+// ─── Domain types ─────────────────────────────────────────────────────────────
 
 export type KnowledgeBase = {
   id: string;
@@ -35,7 +41,7 @@ export type Document = {
   mimeType: string | null;
   fileSize: number;
   chunkCount: number;
-  status: string;
+  status: "pending" | "processing" | "ready" | "failed";
   errorMessage: string | null;
   uploadedBy: string;
   createdAt: string;
@@ -43,57 +49,23 @@ export type Document = {
 };
 
 export type Subscription = {
-  id: string; org_id: string; plan_id: string; status: string;
-  max_kbs: number; max_docs_per_kb: number; max_req_day: number;
-  voice_enabled: boolean; api_access: boolean; features: string[];
+  id: string;
+  org_id: string;
+  plan_id: string;
+  status: string;
+  max_kbs: number;
+  max_docs_per_kb: number;
+  max_req_day: number;
+  voice_enabled: boolean;
+  api_access: boolean;
+  features: string[];
 };
 
 export type OrgUsage = {
-  kb_count: number; requests_today: number; storage_bytes: number;
+  kb_count: number;
+  requests_today: number;
+  storage_bytes: number;
 };
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${PROXY}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
-  if (res.status === 401) {
-    const data = await res.json().catch(() => ({}));
-    // Only logout if it's a session/auth error, not a permission error
-    const isSessionError = 
-      data.error === "Session expired or invalid" || 
-      data.error === "Authentication required" ||
-      data.error === "token not valid" || // Added per user report
-      data.message?.toLowerCase().includes("auth token") ||
-      data.message?.toLowerCase().includes("session");
-
-    if (isSessionError && typeof window !== "undefined") {
-      // Clear the httpOnly cookie via the logout endpoint before redirecting
-      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-      window.location.href = "/login";
-    }
-    throw new Error(data.error ?? "Session expired");
-  }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? `API error ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
-
-export async function getKbsForOrg(orgId: string): Promise<KnowledgeBase[]> {
-  const d = await api<{ kbs: KnowledgeBase[] }>(`/kbs/all?orgId=${orgId}`);
-  return d.kbs;
-}
-
-export async function getDocuments(kbId: string): Promise<Document[]> {
-  const d = await api<Document[]>(`/kbs/${kbId}/documents`);
-  return d ?? [];
-}
-
-export async function getOrgSubscription(orgId: string): Promise<{ subscription: Subscription; usage: OrgUsage }> {
-  return api(`/orgs/subscription?orgId=${orgId}`);
-}
 
 export type AnalyticsData = {
   total: number;
@@ -102,8 +74,61 @@ export type AnalyticsData = {
   top_queries: { query: string; count: number }[];
 };
 
-export async function getAnalytics(kbId: string, range = "30d"): Promise<AnalyticsData> {
-  const raw = await api<{
+// ─── Knowledge Base endpoints ─────────────────────────────────────────────────
+
+export async function getKbsForOrg(orgId: string): Promise<KnowledgeBase[]> {
+  const { data } = await http.get<{ kbs: KnowledgeBase[] }>(
+    `/kbs/all?orgId=${encodeURIComponent(orgId)}`
+  );
+  return data.kbs ?? [];
+}
+
+export async function getDocuments(kbId: string): Promise<Document[]> {
+  const { data } = await http.get<Document[]>(`/kbs/${kbId}/documents`);
+  return data ?? [];
+}
+
+export async function uploadDocument(
+  kbId: string,
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<Document> {
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const { data } = await http.post<Document>(
+    `/kbs/${kbId}/documents`,
+    fd,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (evt) => {
+        if (onProgress && evt.total) {
+          onProgress(Math.round((evt.loaded * 100) / evt.total));
+        }
+      },
+    }
+  );
+  return data;
+}
+
+// ─── Org / Subscription endpoints ────────────────────────────────────────────
+
+export async function getOrgSubscription(
+  orgId: string
+): Promise<{ subscription: Subscription; usage: OrgUsage }> {
+  const { data } = await http.get<{ subscription: Subscription; usage: OrgUsage }>(
+    `/orgs/subscription?orgId=${encodeURIComponent(orgId)}`
+  );
+  return data;
+}
+
+// ─── Analytics endpoints ──────────────────────────────────────────────────────
+
+export async function getAnalytics(
+  kbId: string,
+  range = "30d"
+): Promise<AnalyticsData> {
+  const { data } = await http.get<{
     totalQueries: number;
     queriesPerDay: { date: string; count: number }[];
     avgLatencyMs: number | null;
@@ -111,42 +136,56 @@ export async function getAnalytics(kbId: string, range = "30d"): Promise<Analyti
   }>(`/kbs/${kbId}/analytics?range=${range}`);
 
   return {
-    total:       raw.totalQueries ?? 0,
-    daily:       raw.queriesPerDay ?? [],
-    avg_latency: raw.avgLatencyMs ?? null,
-    top_queries: (raw.topQueries ?? []).map(q => ({ query: q.queryText, count: q.count })),
+    total:       data.totalQueries ?? 0,
+    daily:       data.queriesPerDay ?? [],
+    avg_latency: data.avgLatencyMs ?? null,
+    top_queries: (data.topQueries ?? []).map((q) => ({
+      query: q.queryText,
+      count: q.count,
+    })),
   };
 }
 
-export async function* streamChat(kbId: string, message: string, history: { role: string; content: string }[]) {
-  // Backend expects a `messages` array: history + current user message
-  const messages = [
-    ...history,
-    { role: "user", content: message },
-  ];
+// ─── Streaming chat ───────────────────────────────────────────────────────────
 
-  const res = await fetch(`${PROXY}/chat`, {
+export async function* streamChat(
+  kbId: string,
+  message: string,
+  history: { role: string; content: string }[]
+): AsyncGenerator<string> {
+  const messages = [...history, { role: "user", content: message }];
+
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ kbId, messages }),
   });
-  if (!res.ok || !res.body) throw new Error("Chat request failed");
-  const reader = res.body.getReader();
+
+  if (!res.ok || !res.body) {
+    const err = await res.json().catch(() => ({})) as Record<string, string>;
+    throw new Error(err.error ?? `Chat request failed (${res.status})`);
+  }
+
+  const reader  = res.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  let buffer    = "";
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
+
     for (const line of lines) {
-      const l = line.trim();
-      if (!l) continue;
+      const trimmed = line.trim();
+      if (!trimmed) continue;
       try {
-        const evt = JSON.parse(l);
-        if (evt.type === "token" && evt.payload) yield evt.payload as string;
-        if (evt.type === "error") throw new Error(evt.payload);
+        const evt = JSON.parse(trimmed) as { type: string; payload?: string };
+        if (evt.type === "token" && evt.payload) yield evt.payload;
+        if (evt.type === "error") throw new Error(evt.payload ?? "Stream error");
       } catch {
         // ignore malformed lines
       }

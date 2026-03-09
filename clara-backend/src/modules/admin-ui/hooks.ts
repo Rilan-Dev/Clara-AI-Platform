@@ -28,7 +28,6 @@ function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> & { r
     setState((s) => ({ ...s, loading: true, error: null }));
     fn().then((data) => setState({ data, loading: false, error: null }))
        .catch((e: Error) => setState({ data: null, loading: false, error: e.message }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   useEffect(() => { load(); }, [load]);

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Save, Globe, Mail, Key, Shield, Bell, Zap, CheckCircle } from "lucide-react";
+import { Save, Globe, Key, Shield, Bell, Zap, CheckCircle } from "lucide-react";
 
 const SECTIONS = [
   {
@@ -55,12 +55,12 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
 
   function handleChange(key: string, value: string) {
-    setValues(v => ({ ...v, [key]: value }));
+    setValues((current) => ({ ...current, [key]: value }));
   }
 
   async function handleSave() {
     setSaving(true);
-    // In production: POST /api/platform/settings
+    void values;
     await new Promise(r => setTimeout(r, 600));
     setSaved(true);
     setSaving(false);
