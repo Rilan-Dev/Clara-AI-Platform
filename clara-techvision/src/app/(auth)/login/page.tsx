@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Cpu, Eye, EyeOff, AlertCircle } from "lucide-react";
 
-export default function TechVisionLogin() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail]       = useState("techvision-admin@techvision.io");
@@ -93,5 +93,13 @@ export default function TechVisionLogin() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TechVisionLogin() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

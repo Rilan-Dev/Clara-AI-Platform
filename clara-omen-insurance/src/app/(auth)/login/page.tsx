@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, Eye, EyeOff, AlertCircle } from "lucide-react";
 
-export default function OmenLogin() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail]       = useState("omen-admin@omeninsurance.com");
@@ -130,5 +130,13 @@ export default function OmenLogin() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OmenLogin() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0a1628] flex items-center justify-center text-white">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
