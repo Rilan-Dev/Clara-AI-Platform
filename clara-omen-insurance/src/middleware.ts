@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * clara_omen_token — unique cookie name for the Omen Insurance portal.
- * Prevents browser cookie collision on localhost (browsers share cookies
- * by domain, not port — so all three apps need different cookie names).
+ * Browsers share cookies by domain (not port), so all three localhost apps
+ * would clobber each other if they all used "clara_token".
  *
  * Cookie map:
- *   clara_platform_token → clara-backend  (port 3000)
- *   clara_omen_token     → clara-omen-insurance (port 3001)  ← this app
- *   clara_tv_token       → clara-techvision (port 3002)
+ *   clara-backend      (port 3000) → clara_platform_token
+ *   clara-omen         (port 3001) → clara_omen_token      ← this app
+ *   clara-techvision   (port 3002) → clara_tv_token
  */
 const COOKIE_NAME = "clara_omen_token";
 

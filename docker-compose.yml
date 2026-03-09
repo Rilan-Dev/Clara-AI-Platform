@@ -15,8 +15,6 @@
 ##   docker compose down -v        # stop + remove volumes (destructive)
 ## ─────────────────────────────────────────────────────────────────────────────
 
-version: "3.9"
-
 networks:
   clara-net:
     driver: bridge

@@ -2,15 +2,19 @@
  * src/app/api/proxy/[...path]/route.ts
  *
  * Catch-all proxy: forwards every request to clara-backend,
- * injecting the httpOnly clara_token cookie as Authorization: Bearer.
+ * injecting the httpOnly clara_tv_token cookie as Authorization: Bearer.
  *
  * Client calls  /api/proxy/kbs/all?orgId=...
  * Proxied to    http://localhost:3000/api/kbs/all?orgId=...
+ *
+ * Uses clara_tv_token (not "clara_token") to avoid browser cookie
+ * collision — all three localhost apps share the same cookie domain.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
+const COOKIE_NAME = "clara_tv_token";
 
 async function proxy(req: NextRequest, method: string): Promise<NextResponse> {
   try {
@@ -18,9 +22,9 @@ async function proxy(req: NextRequest, method: string): Promise<NextResponse> {
     const proxyPath = url.pathname.replace(/^\/api\/proxy/, "/api");
     const targetUrl = `${BACKEND}${proxyPath}${url.search}`;
 
-    // Read the httpOnly auth token from cookie (only accessible server-side)
+    // Read the httpOnly auth token — only accessible server-side
     const cookieStore = await cookies();
-    const token = cookieStore.get("clara_token")?.value;
+    const token = cookieStore.get(COOKIE_NAME)?.value;
 
     const headers: Record<string, string> = {};
     const contentType = req.headers.get("content-type");

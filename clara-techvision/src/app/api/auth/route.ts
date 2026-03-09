@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
 
+/**
+ * clara_tv_token — unique cookie name for the TechVision portal.
+ * Prevents browser cookie collision on localhost (browsers share cookies
+ * by domain, not port).
+ *
+ * Cookie map:
+ *   clara-backend      (port 3000) → clara_platform_token
+ *   clara-omen         (port 3001) → clara_omen_token
+ *   clara-techvision   (port 3002) → clara_tv_token        ← this app
+ */
+const COOKIE_NAME = "clara_tv_token";
+
 /** POST /api/auth  — proxies to clara-backend auth */
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
     const res = NextResponse.json(data);
     if (data.token) {
-      res.cookies.set("clara_token", data.token, {
+      res.cookies.set(COOKIE_NAME, data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -33,6 +45,12 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.delete("clara_token");
+  res.cookies.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
   return res;
 }
