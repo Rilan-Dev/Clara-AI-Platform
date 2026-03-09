@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { MessageSquare, Database, Send, Mic, X, RotateCcw, AlertCircle } from "lucide-react";
 import { getKbsForOrg, streamChat, type KnowledgeBase } from "@/lib/api";
@@ -8,7 +8,7 @@ const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
-export default function ChatPage() {
+function ChatContent() {
   const searchParams   = useSearchParams();
   const [kbs, setKbs]  = useState<KnowledgeBase[]>([]);
   const [activeKb, setActiveKb] = useState<string>("");
@@ -178,5 +178,21 @@ export default function ChatPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-[#0c1d3a]">
+        <div className="flex gap-1 items-center">
+          <div className="w-2 h-2 rounded-full bg-[#c8821a] animate-bounce" style={{ animationDelay: "0ms" }} />
+          <div className="w-2 h-2 rounded-full bg-[#c8821a] animate-bounce" style={{ animationDelay: "150ms" }} />
+          <div className="w-2 h-2 rounded-full bg-[#c8821a] animate-bounce" style={{ animationDelay: "300ms" }} />
+        </div>
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }
