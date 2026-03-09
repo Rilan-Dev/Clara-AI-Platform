@@ -68,7 +68,7 @@ export async function planGuard(
       [orgId],
     );
 
-    const plan = planRow.rows[0] as PlanLimits & { plan_id: string } | undefined;
+    const plan = planRow[0] as PlanLimits & { plan_id: string } | undefined;
 
     // If no plan row found, default to free plan limits
     const limits: PlanLimits = plan ?? {
@@ -92,7 +92,7 @@ export async function planGuard(
            WHERE org_id = $1 AND status != 'archived'`,
           [orgId],
         );
-        const current = countRow.rows[0]?.count ?? 0;
+        const current = countRow[0]?.count ?? 0;
         if (current >= limits.max_kbs) {
           return {
             allowed:  false,
@@ -114,7 +114,7 @@ export async function planGuard(
            WHERE kb_id = $1 AND status != 'deleted'`,
           [context.kbId],
         );
-        const current = countRow.rows[0]?.count ?? 0;
+        const current = countRow[0]?.count ?? 0;
         if (current >= limits.max_docs_per_kb) {
           return {
             allowed:  false,
@@ -139,7 +139,7 @@ export async function planGuard(
              AND qe.created_at >= now() - INTERVAL '24 hours'`,
           [orgId],
         );
-        const current = countRow.rows[0]?.count ?? 0;
+        const current = countRow[0]?.count ?? 0;
         if (current >= limits.max_req_day) {
           return {
             allowed:  false,
@@ -224,7 +224,7 @@ export async function getOrgPlanLimits(orgId: string): Promise<PlanLimits & { pl
     [orgId],
   );
 
-  return row.rows[0] ?? {
+  return row[0] ?? {
     plan_id:         "free",
     max_kbs:         1,
     max_docs_per_kb: 20,

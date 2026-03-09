@@ -27,25 +27,25 @@ export async function GET() {
         JOIN organisations o ON o.id = p.org_id
         ORDER BY qe.created_at DESC
         LIMIT 10
-      `).catch(() => ({ rows: [] })),
+      `).catch(() => ([])),
     ]);
 
     // Monthly queries (this month)
     const monthlyQueriesR = await query(`
       SELECT COUNT(*)::int AS count FROM query_events
       WHERE created_at >= date_trunc('month', now())
-    `).catch(() => ({ rows: [{ count: 0 }] }));
+    `).catch(() => ([{ count: 0 }]));
 
     return NextResponse.json({
-      totalOrgs:           orgsR.rows[0].count,
-      totalUsers:          usersR.rows[0].count,
-      mrr:                 subsR.rows[0].mrr,
-      payingOrgs:          subsR.rows[0].paying_count,
-      totalQueries:        queriesR.rows[0].count,
-      totalKbs:            kbsR.rows[0].count,
-      totalDocuments:      docsR.rows[0].count,
-      totalQueriesThisMonth: monthlyQueriesR.rows[0].count,
-      recentActivity:      (recentR as { rows: unknown[] }).rows ?? [],
+      totalOrgs:           orgsR[0].count,
+      totalUsers:          usersR[0].count,
+      mrr:                 subsR[0].mrr,
+      payingOrgs:          subsR[0].paying_count,
+      totalQueries:        queriesR[0].count,
+      totalKbs:            kbsR[0].count,
+      totalDocuments:      docsR[0].count,
+      totalQueriesThisMonth: monthlyQueriesR[0].count,
+      recentActivity:      (recentR as unknown[]) ?? [],
     });
   } catch (err) {
     console.error("[GET /api/platform/stats]", err);

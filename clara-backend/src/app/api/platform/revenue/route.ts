@@ -45,15 +45,15 @@ export async function GET() {
       `),
     ]);
 
-    const totalMrr = byPlanR.rows.reduce((s: number, r: { plan_mrr: number; price_usd: number }) =>
+    const totalMrr = (byPlanR as { plan_mrr: number; price_usd: number }[]).reduce((s: number, r: { plan_mrr: number; price_usd: number }) =>
       r.price_usd > 0 ? s + r.plan_mrr : s, 0);
 
     return NextResponse.json({
       totalMrr,
       totalArr: totalMrr * 12,
-      byPlan:   byPlanR.rows,
-      mrrTrend: mrrTrendR.rows,
-      planDist: planDistR.rows,
+      byPlan:   byPlanR,
+      mrrTrend: mrrTrendR,
+      planDist: planDistR,
     });
   } catch (err) {
     console.error("[GET /api/platform/revenue]", err);

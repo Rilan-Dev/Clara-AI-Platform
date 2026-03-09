@@ -11,7 +11,7 @@ export async function GET() {
        FROM subscription_plans
        ORDER BY price_usd ASC`
     );
-    return NextResponse.json({ plans: result.rows });
+    return NextResponse.json({ plans: result });
   } catch (err) {
     console.error("[GET /api/subscriptions/plans]", err);
     return NextResponse.json({ error: "Failed to fetch plans" }, { status: 500 });

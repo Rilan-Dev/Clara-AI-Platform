@@ -45,11 +45,11 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      orgs: orgsR.rows,
-      total: totalR.rows[0].total,
+      orgs: orgsR,
+      total: (totalR as { total: number }[])[0].total,
       page,
       perPage,
-      totalPages: Math.ceil(totalR.rows[0].total / perPage),
+      totalPages: Math.ceil((totalR as { total: number }[])[0].total / perPage),
     });
   } catch (err) {
     console.error("[GET /api/platform/orgs]", err);
