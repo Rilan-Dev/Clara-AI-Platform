@@ -71,8 +71,8 @@ export async function GET(req: NextRequest) {
 
     // If the org has no subscription row yet, return the free-plan fallback
     // so the dashboard can still render instead of crashing.
-    const subscription = subR.rows[0] ?? FREE_PLAN_FALLBACK;
-    const usage = usageR.rows[0] ?? { kb_count: 0, requests_today: 0, storage_bytes: 0 };
+    const subscription = subR[0] ?? FREE_PLAN_FALLBACK;
+    const usage = usageR[0] ?? { kb_count: 0, requests_today: 0, storage_bytes: 0 };
 
     return NextResponse.json({ subscription, usage });
 
