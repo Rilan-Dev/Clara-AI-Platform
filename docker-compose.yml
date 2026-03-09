@@ -79,24 +79,24 @@ services:
     container_name: clara-backend
     restart: unless-stopped
     networks: [clara-net]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    #   qdrant:
+    #     condition: service_healthy
     ports:
-      - "3010:3010"
-    environment:
-      PORT:                 3010
-      DATABASE_URL:         postgresql://${POSTGRES_USER:-clara}:${POSTGRES_PASSWORD:-clarapassword}@postgres:5432/${POSTGRES_DB:-clara_platform}
-      QDRANT_URL:           http://qdrant:6333
-      QDRANT_API_KEY:       ${QDRANT_API_KEY:-}
-      OPENAI_API_KEY:       ${OPENAI_API_KEY}
-      AUTH_SECRET:          ${AUTH_SECRET}
-      NEXT_PUBLIC_APP_URL:  ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      STRIPE_SECRET_KEY:    ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      NODE_ENV:             ${NODE_ENV:-production}
+      - "3000:3000"
+    # environment:
+    #   PORT:                 3010
+    #   DATABASE_URL:         postgresql://${POSTGRES_USER:-clara}:${POSTGRES_PASSWORD:-clarapassword}@postgres:5432/${POSTGRES_DB:-clara_platform}
+    #   QDRANT_URL:           http://qdrant:6333
+    #   QDRANT_API_KEY:       ${QDRANT_API_KEY:-}
+    #   OPENAI_API_KEY:       ${OPENAI_API_KEY}
+    #   AUTH_SECRET:          ${AUTH_SECRET}
+    #   NEXT_PUBLIC_APP_URL:  ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    #   STRIPE_SECRET_KEY:    ${STRIPE_SECRET_KEY:-}
+    #   STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+    #   NODE_ENV:             ${NODE_ENV:-production}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health || exit 1"]
       interval: 20s
@@ -120,7 +120,7 @@ services:
       - "3001:3001"
     environment:
       PORT:                     3001
-      CLARA_BACKEND_URL:        http://clara-backend:3010
+      CLARA_BACKEND_URL:        http://clara-backend:3000
       CLARA_ORG_ID:             ${OMEN_ORG_ID:-10000000-0000-0000-0000-000000000001}
       NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
       NODE_ENV:                 ${NODE_ENV:-production}
@@ -142,7 +142,7 @@ services:
       - "3002:3002"
     environment:
       PORT:                     3002
-      CLARA_BACKEND_URL:        http://clara-backend:3010
+      CLARA_BACKEND_URL:        http://clara-backend:3000
       CLARA_ORG_ID:             ${TECHVISION_ORG_ID:-10000000-0000-0000-0000-000000000002}
       NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
       NODE_ENV:                 ${NODE_ENV:-production}
