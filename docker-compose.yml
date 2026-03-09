@@ -28,45 +28,45 @@ services:
   # ──────────────────────────────────────────────────────────────────────────
   # PostgreSQL 16
   # ──────────────────────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: clara-postgres
-    restart: unless-stopped
-    networks: [clara-net]
-    environment:
-      POSTGRES_USER:     ${POSTGRES_USER:-clara}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
-      POSTGRES_DB:       ${POSTGRES_DB:-clara_platform}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: clara-postgres
+  #   restart: unless-stopped
+  #   networks: [clara-net]
+  #   environment:
+  #     POSTGRES_USER:     ${POSTGRES_USER:-clara}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
+  #     POSTGRES_DB:       ${POSTGRES_DB:-clara_platform}
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   ports:
+  #     - "${POSTGRES_PORT:-5432}:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
   # Qdrant Vector Database
   # ──────────────────────────────────────────────────────────────────────────
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: clara-qdrant
-    restart: unless-stopped
-    networks: [clara-net]
-    volumes:
-      - qdrant-data:/qdrant/storage
-    ports:
-      - "${QDRANT_PORT:-6333}:6333"
-      - "6334:6334"   # gRPC
-    environment:
-      QDRANT__SERVICE__HTTP_PORT: 6333
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:6333/readyz || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+  # qdrant:
+  #   image: qdrant/qdrant:latest
+  #   container_name: clara-qdrant
+  #   restart: unless-stopped
+  #   networks: [clara-net]
+  #   volumes:
+  #     - qdrant-data:/qdrant/storage
+  #   ports:
+  #     - "${QDRANT_PORT:-6333}:6333"
+  #     - "6334:6334"   # gRPC
+  #   environment:
+  #     QDRANT__SERVICE__HTTP_PORT: 6333
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -fsS http://localhost:6333/readyz || exit 1"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
   # Clara Backend (Next.js 15)
