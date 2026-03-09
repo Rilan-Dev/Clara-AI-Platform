@@ -14,7 +14,7 @@
  *   query_events    → kb_id, query_text, source_count, latency_ms, created_at
  */
 
-import { Pool } from "pg";
+import { Pool, PoolClient } from "pg";
 import { scrypt, randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 
@@ -59,7 +59,7 @@ const IDS = {
 };
 
 // ── Reset ───────────────────────────────────────────────────────────────────
-async function reset(client: any) {
+async function reset(client: PoolClient) {
   console.log("⚠   Resetting demo data…");
   const kbIds = [IDS.omenKb1, IDS.omenKb2, IDS.omenKb3, IDS.tvKb1, IDS.tvKb2];
   await client.query(`DELETE FROM query_events       WHERE kb_id = ANY($1::uuid[])`, [kbIds]);
@@ -311,7 +311,7 @@ async function seed() {
     for (let kbIdx = 0; kbIdx < allKbs.length; kbIdx++) {
       const kb      = allKbs[kbIdx];
       const count   = eventCounts[kbIdx] ?? 100;
-      const values: any[] = [];
+      const values: (string | number | undefined)[] = [];
       const placeholders: string[] = [];
       let p = 1;
 
