@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { MessageSquare, Database, Send, Mic, X, RotateCcw, AlertCircle } from "lucide-react";
+import { MessageSquare, Send, X, RotateCcw, AlertCircle } from "lucide-react";
 import { getKbsForOrg, streamChat, type KnowledgeBase } from "@/lib/api";
 
 const ORG_ID = import.meta.env.VITE_ORG_ID ?? "";
@@ -17,8 +17,7 @@ function ChatContent() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const abortRef  = useRef<AbortController | null>(null);
-
+  
   useEffect(() => {
     getKbsForOrg(ORG_ID).then(data => {
       setKbs(data);

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Database, Activity, FileText, Clock, ArrowUpRight, AlertTriangle } from "lucide-react";
+import { Database, Activity, FileText, Clock, ArrowUpRight } from "lucide-react";
 import { getKbsForOrg, getOrgSubscription, type KnowledgeBase, type OrgUsage, type Subscription } from "@/lib/api";
 
 const ORG_ID = import.meta.env.VITE_ORG_ID ?? "";

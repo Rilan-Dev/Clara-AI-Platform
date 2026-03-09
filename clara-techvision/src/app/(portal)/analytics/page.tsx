@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BarChart3, MessageSquare, Clock, Database } from "lucide-react";
+import { MessageSquare, Clock, Database } from "lucide-react";
 import { getKbsForOrg, getAnalytics, type KnowledgeBase, type AnalyticsData } from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 

@@ -45,7 +45,7 @@ export default function FloatingClaraButton() {
       for await (const chunk of streamChat(kbId, text, history)) {
         setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: m.content + chunk } : m));
       }
-    } catch (err) {
+    } catch {
       setMessages(prev => prev.map(m => m.id === assistantId
         ? { ...m, content: "Sorry, I couldn't get a response. Please try again." } : m));
     } finally {
