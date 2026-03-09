@@ -39,7 +39,7 @@ export default function ContactPage() {
             Get in <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">touch</span>
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Ready to deploy AI knowledge for your organisation? Let's talk.
+            Ready to deploy AI knowledge for your organisation? Let&apos;s talk.
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function ContactPage() {
                     <CheckCircle className="w-8 h-8 text-emerald-400" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">Message received!</h3>
-                  <p className="text-white/50 text-sm mb-6">We'll get back to you within 24 hours.</p>
+                  <p className="text-white/50 text-sm mb-6">We&apos;ll get back to you within 24 hours.</p>
                   <Link href="/pricing"
                     className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-6 py-3 rounded-xl text-sm transition-all">
                     Explore pricing plans
@@ -120,7 +120,7 @@ export default function ContactPage() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <h3 className="text-lg font-bold text-white mb-1">Request a demo</h3>
-                  <p className="text-white/40 text-sm mb-6">Tell us about your use case and we'll set up a live walkthrough.</p>
+                  <p className="text-white/40 text-sm mb-6">Tell us about your use case and we&apos;ll set up a live walkthrough.</p>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>

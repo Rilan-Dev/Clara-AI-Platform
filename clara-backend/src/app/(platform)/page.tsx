@@ -219,7 +219,7 @@ export default function LandingPage() {
             {TESTIMONIALS.map(t => (
               <div key={t.name} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
                 <div className="flex mb-3">{[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 text-amber-400 fill-current" />)}</div>
-                <p className="text-white/70 text-sm leading-relaxed mb-4">"{t.text}"</p>
+                <p className="text-white/70 text-sm leading-relaxed mb-4">&quot;{t.text}&quot;</p>
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white">{t.avatar}</div>
                   <div>
@@ -237,7 +237,7 @@ export default function LandingPage() {
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center border border-white/[0.08] bg-white/[0.03] rounded-3xl p-12">
           <h2 className="text-4xl font-black text-white mb-4">Ready to build your AI?</h2>
-          <p className="text-white/50 mb-8">Join 500+ organisations. Start free, upgrade when you're ready.</p>
+          <p className="text-white/50 mb-8">Join 500+ organisations. Start free, upgrade when you&apos;re ready.</p>
           <Link href="/pricing" className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:scale-105">
             Get started for free <ChevronRight className="w-5 h-5" />
           </Link>

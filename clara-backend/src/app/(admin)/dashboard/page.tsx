@@ -324,7 +324,7 @@ export default function AdminDashboard() {
                     {a.org_name?.charAt(0) ?? "?"}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white/80 truncate">"{a.query_text}"</div>
+                    <div className="text-sm text-white/80 truncate">&quot;{a.query_text}&quot;</div>
                     <div className="text-xs text-white/30 mt-0.5"><span className="text-indigo-400">{a.org_name}</span> · {a.kb_name}</div>
                   </div>
                   <div className="text-xs text-white/20 shrink-0 text-right">
