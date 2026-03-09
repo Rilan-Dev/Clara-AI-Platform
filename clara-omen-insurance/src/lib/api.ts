@@ -82,7 +82,9 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const isSessionError = 
       data.error === "Session expired or invalid" || 
       data.error === "Authentication required" ||
-      data.message?.includes("auth token is required");
+      data.error === "token not valid" || // Added per user report
+      data.message?.toLowerCase().includes("auth token") ||
+      data.message?.toLowerCase().includes("session");
 
     if (isSessionError && typeof window !== "undefined") {
       // Clear the httpOnly cookie via the logout endpoint before redirecting
