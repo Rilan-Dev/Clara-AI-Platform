@@ -23,9 +23,26 @@ async function proxy(req: NextRequest, method: string): Promise<NextResponse> {
     // clara_omen_token — unique per-app cookie name prevents localhost collision
     const token = cookieStore.get("clara_omen_token")?.value;
 
+    if (!token) {
+      return NextResponse.json(
+        {
+          error: "Authentication required (proxy)",
+          debug: {
+            hasCookies: cookieStore.getAll().length > 0,
+            cookieNames: cookieStore.getAll().map(c => c.name),
+            authHeader: req.headers.get("authorization") ? "exists" : "missing"
+          }
+        },
+        { status: 401 }
+      );
+    }
+
+    console.log(`[proxy] ${method} ${targetUrl} (token: ${token ? "exists" : "MISSING"})`);
+
     const headers: Record<string, string> = {};
     const contentType = req.headers.get("content-type");
     if (contentType) headers["Content-Type"] = contentType;
+    console.log('token', `Bearer ${token}`)
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const init: RequestInit = { method, headers };

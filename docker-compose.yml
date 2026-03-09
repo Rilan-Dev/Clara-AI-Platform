@@ -107,14 +107,17 @@ services:
     environment:
       PORT:                  3000
       HOSTNAME:              "0.0.0.0"
-      # DATABASE_URL:          postgresql://${POSTGRES_USER:-clara}:${POSTGRES_PASSWORD:-clarapassword}@postgres:5432/${POSTGRES_DB:-clara_platform}
-      # QDRANT_URL:            http://qdrant:6333
-      # QDRANT_API_KEY:        ${QDRANT_API_KEY:-}
-      # OPENAI_API_KEY:        ${OPENAI_API_KEY}
-      # AUTH_SECRET:           ${AUTH_SECRET}
-      # NEXT_PUBLIC_APP_URL:   ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      # STRIPE_SECRET_KEY:     ${STRIPE_SECRET_KEY:-}
-      # STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      DATABASE_URL:          postgresql://${POSTGRES_USER:-clara}:${POSTGRES_PASSWORD:-clarapassword}@postgres:5432/${POSTGRES_DB:-clara_platform}
+      QDRANT_URL:            http://qdrant:6333
+      QDRANT_API_KEY:        ${QDRANT_API_KEY:-}
+      OPENAI_API_KEY:        ${OPENAI_API_KEY}
+      AUTH_SECRET:           ${AUTH_SECRET}
+      NEXT_PUBLIC_APP_URL:   ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      POSTGRES_HOST:         postgres
+      POSTGRES_PORT:         5432
+      POSTGRES_USER:         ${POSTGRES_USER:-clara}
+      POSTGRES_PASSWORD:     ${POSTGRES_PASSWORD:-clarapassword}
+      POSTGRES_DB:           ${POSTGRES_DB:-clara_platform}
       NODE_ENV:              production
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
@@ -139,6 +142,7 @@ services:
         condition: service_healthy
     environment:
       PORT:                      3001
+      HOSTNAME:                  "0.0.0.0"
       CLARA_BACKEND_URL:         http://clara-backend:3000
       # CLARA_ORG_ID:              ${OMEN_ORG_ID:-10000000-0000-0000-0000-000000000001}
       # NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
@@ -162,6 +166,7 @@ services:
         condition: service_healthy
     environment:
       PORT:                      3002
+      HOSTNAME:                  "0.0.0.0"
       CLARA_BACKEND_URL:         http://clara-backend:3000
       # CLARA_ORG_ID:              ${CLARA_ORG_ID:-10000000-0000-0000-0000-000000000002}
       # NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
