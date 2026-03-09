@@ -8,7 +8,7 @@ WORKDIR /app
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+RUN npm ci --ignore-scripts --legacy-peer-deps
 
 # ── Stage 2: Build ─────────────────────────────────────────────────────────
 FROM base AS builder
