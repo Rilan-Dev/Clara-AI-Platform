@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
+const COOKIE_NAME = "clara_omen_token";
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get("clara_token")?.value;
+  const token = req.cookies.get(COOKIE_NAME)?.value;
 
   // Best-effort: tell backend to destroy the session
   if (token) {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("clara_token", "", {
+  res.cookies.set(COOKIE_NAME, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

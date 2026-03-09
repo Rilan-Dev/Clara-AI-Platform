@@ -20,7 +20,8 @@ async function proxy(req: NextRequest, method: string): Promise<NextResponse> {
 
     // Read the httpOnly auth token from cookie (only accessible server-side)
     const cookieStore = await cookies();
-    const token = cookieStore.get("clara_token")?.value;
+    // clara_omen_token — unique per-app cookie name prevents localhost collision
+    const token = cookieStore.get("clara_omen_token")?.value;
 
     const headers: Record<string, string> = {};
     const contentType = req.headers.get("content-type");

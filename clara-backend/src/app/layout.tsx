@@ -1,18 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// Removed next/font/google to avoid build-time network timeouts for Geist font.
+// The app will fallback to system fonts defined in globals.css.
 import "./globals.css";
 import { AssistantProvider } from "@/modules/assistant/core";
 import { FloatingAssistant } from "@/modules/assistant/ui/components";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Clara Knowledge Assistant",
@@ -28,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
         <AssistantProvider>
           <main className="w-full h-full">{children}</main>

@@ -166,8 +166,9 @@ export function middleware(request: NextRequest): NextResponse {
   // ── Platform admin page protection ──────────────────────────────────────
   if (startsWith(pathname, ADMIN_PAGE_PREFIXES)) {
     const adminToken =
-      request.cookies.get("clara_admin_token")?.value ??
-      request.cookies.get("clara_token")?.value;
+      request.cookies.get("clara_platform_token")?.value ??
+      request.cookies.get("clara_admin_token")?.value ?? // legacy fallback
+      request.cookies.get("clara_token")?.value;         // legacy fallback
 
     if (!adminToken) {
       const loginUrl = new URL("/login", request.url);
@@ -183,8 +184,9 @@ export function middleware(request: NextRequest): NextResponse {
     const authHeader  = request.headers.get("authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const cookieToken =
-      request.cookies.get("clara_token")?.value ??
-      request.cookies.get("clara_admin_token")?.value;
+      request.cookies.get("clara_platform_token")?.value ??
+      request.cookies.get("clara_admin_token")?.value ??  // legacy fallback
+      request.cookies.get("clara_token")?.value;          // legacy fallback
 
     if (!bearerToken && !cookieToken) {
       const res = NextResponse.json(

@@ -31,8 +31,12 @@ export function sessionExpiresAt(): Date {
   return new Date(Date.now() + SESSION_DURATION_MS);
 }
 
-/** Cookie name used for the session token. */
-export const SESSION_COOKIE = "clara_token";
+/**
+ * Cookie name used for the session token.
+ * Each app on localhost uses a DIFFERENT name to avoid browser cookie
+ * collisions (browsers share cookies by domain, not port).
+ */
+export const SESSION_COOKIE = "clara_platform_token";
 
 /** Build Set-Cookie header value. */
 export function buildSetCookieHeader(token: string, expiresAt: Date): string {
