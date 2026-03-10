@@ -1,8 +1,36 @@
-import { createTokenStorage } from "@clara/consumer-runtime/auth";
+const STORAGE_KEY = "clara-techvision-token";
 
-const tokenStorage = createTokenStorage("clara-techvision-token");
+export function getStoredToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-export const getStoredToken = tokenStorage.getStoredToken;
-export const setStoredToken = tokenStorage.setStoredToken;
-export const clearStoredToken = tokenStorage.clearStoredToken;
-export const withAuthHeaders = tokenStorage.withAuthHeaders;
+  return window.localStorage.getItem(STORAGE_KEY);
+}
+
+export function setStoredToken(token: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(STORAGE_KEY, token);
+}
+
+export function clearStoredToken() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(STORAGE_KEY);
+}
+
+export function withAuthHeaders(headers: HeadersInit = {}) {
+  const token = getStoredToken();
+  const mergedHeaders = new Headers(headers);
+
+  if (token) {
+    mergedHeaders.set("Authorization", `Bearer ${token}`);
+  }
+
+  return mergedHeaders;
+}

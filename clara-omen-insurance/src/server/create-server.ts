@@ -2,14 +2,16 @@ import path from "node:path";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { type Express } from "express";
+import express from "express";
 import helmet from "helmet";
+
+type ExpressApp = any;
 
 type CreateConsumerServerOptions = {
   appName: string;
   port: number;
   rootDir: string;
-  registerApiRoutes: (app: Express) => void;
+  registerApiRoutes: (app: ExpressApp) => void;
 };
 
 export function createConsumerServer({ appName, port, rootDir, registerApiRoutes }: CreateConsumerServerOptions) {
@@ -29,11 +31,11 @@ export function createConsumerServer({ appName, port, rootDir, registerApiRoutes
     app.use(express.static(distDir));
   }
 
-  app.get(/.*/, (_req, res) => {
+  app.get(/.*/, (_req: any, res: any) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
 
-  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((error: Error, _req: any, res: any, _next: any) => {
     console.error(`[${appName}]`, error);
     res.status(500).json({ error: error.message || "Internal server error" });
   });

@@ -1,81 +1,40 @@
-## ─────────────────────────────────────────────────────────────────────────────
-## Clara AI Platform — Docker Compose
-##
-## Services:
-##   postgres          PostgreSQL 16 — persistent data store (host:5433 to avoid conflict)
-##   qdrant            Qdrant vector database — internal only
-##   clara-backend     Next.js 15 — routed via nginx-proxy-manager
-##   clara-omen        Omen Insurance tenant app — routed via nginx-proxy-manager
-##   clara-techvision  TechVision tenant app — routed via nginx-proxy-manager
-##
-## All app services are NOT port-bound to the host.
-## External access is handled exclusively by nginx-proxy-manager via the
-## shared nginx-proxy_default network (container hostname routing).
-##
-## Usage:
-##   docker compose up --build -d          # build + start all (detached)
-##   docker compose logs -f clara-backend  # stream backend logs
-##   docker compose exec clara-backend npm run seed  # seed demo data
-##   docker compose down                   # stop all services
-##   docker compose down -v                # stop + remove volumes (destructive)
-## ─────────────────────────────────────────────────────────────────────────────
-
-name: clara-platform
-
-networks:
-  # Internal network: all Clara services communicate here
-  clara-net:
-    driver: bridge
-
-  # External network owned by nginx-proxy-manager.
-  # App services join this so NPM can proxy to them by container hostname.
-  nginx-proxy_default:
-    external: true
-
-volumes:
-  postgres-data:
-  qdrant-data:
+version: '3.8'
 
 services:
-
   # ──────────────────────────────────────────────────────────────────────────
-  # PostgreSQL 16
-  # Host port remapped to 5433 to avoid conflict with existing postgres-db
-  # container which already occupies 5432 on this host.
-  # Internal apps connect via clara-net using hostname "postgres".
+  # Infrastructure
   # ──────────────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: clara-postgres
     restart: unless-stopped
-    networks: [clara-net]
     environment:
-      POSTGRES_USER:     ${POSTGRES_USER:-clara}
+      POSTGRES_USER: ${POSTGRES_USER:-clara}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
-      POSTGRES_DB:       ${POSTGRES_DB:-clara_platform}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      POSTGRES_DB: ${POSTGRES_DB:-clara_platform}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "5433:5432"
+    volumes:
+      - ./infra/postgres/data:/var/lib/postgresql/data
+    networks:
+      - clara-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara} -d ${POSTGRES_DB:-clara_platform}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # Qdrant Vector Database — internal only, no host port binding
-  # Healthcheck uses wget (curl is not available in the distroless qdrant image)
-  # ──────────────────────────────────────────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:latest
     container_name: clara-qdrant
     restart: unless-stopped
-    networks: [clara-net]
+    ports:
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - qdrant-data:/qdrant/storage
-    environment:
-      QDRANT__SERVICE__HTTP_PORT: 6333
+      - ./infra/qdrant/storage:/qdrant/storage
+    networks:
+      - clara-net
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n\" >&3 && cat <&3 | grep -q \"200 OK\"'"]
       interval: 15s
@@ -86,24 +45,18 @@ services:
   # ──────────────────────────────────────────────────────────────────────────
   # Clara Backend (Vite + Express)
   #   Serves: marketing site, platform admin, RAG API, embed endpoint
-  #
-  #   NOT port-bound to host — NPM proxies to container name "clara-backend"
-  #   on port 3000 via the nginx-proxy_default network.
   # ──────────────────────────────────────────────────────────────────────────
   clara-backend:
     build:
-      context: ./clara-backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: clara-backend/Dockerfile
     container_name: clara-backend
     restart: unless-stopped
     networks: [clara-net, nginx-proxy_default]
     depends_on:
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-    env_file:
-      - ./clara-backend/.env
+      postgres: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+    env_file: [.env]
     environment:
       PORT:                  3000
       HOSTNAME:              "0.0.0.0"
@@ -128,49 +81,46 @@ services:
 
   # ──────────────────────────────────────────────────────────────────────────
   # Omen United Insurance — Tenant Demo (Vite + Express)
-  #   NOT port-bound to host — NPM proxies to "clara-omen" on port 3001.
   # ──────────────────────────────────────────────────────────────────────────
   clara-omen:
     build:
-      context: ./clara-omen-insurance
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: clara-omen-insurance/Dockerfile
     container_name: clara-omen
     restart: unless-stopped
     networks: [clara-net, nginx-proxy_default]
     depends_on:
-      clara-backend:
-        condition: service_healthy
+      clara-backend: { condition: service_healthy }
     environment:
       PORT:                      3001
       HOSTNAME:                  "0.0.0.0"
       CLARA_BACKEND_URL:         http://clara-backend:3000
-      # CLARA_ORG_ID:              ${OMEN_ORG_ID:-10000000-0000-0000-0000-000000000001}
-      # NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
       NODE_ENV:                  production
     env_file:
       - ./clara-omen-insurance/.env
 
   # ──────────────────────────────────────────────────────────────────────────
-  # TechVision Solutions — Tenant Demo
-  #   NOT port-bound to host — NPM proxies to "clara-techvision" on port 3002.
+  # TechVision Solutions — Tenant Demo (Vite + Express)
   # ──────────────────────────────────────────────────────────────────────────
   clara-techvision:
     build:
-      context: ./clara-techvision
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: clara-techvision/Dockerfile
     container_name: clara-techvision
     restart: unless-stopped
     networks: [clara-net, nginx-proxy_default]
     depends_on:
-      clara-backend:
-        condition: service_healthy
+      clara-backend: { condition: service_healthy }
     environment:
       PORT:                      3002
       HOSTNAME:                  "0.0.0.0"
       CLARA_BACKEND_URL:         http://clara-backend:3000
-      # CLARA_ORG_ID:              ${CLARA_ORG_ID:-10000000-0000-0000-0000-000000000002}
-      # NEXT_PUBLIC_CLARA_API_URL: ${NEXT_PUBLIC_CLARA_API_URL:-http://localhost:3000}
       NODE_ENV:                  production
     env_file:
       - ./clara-techvision/.env
-      
+
+networks:
+  clara-net:
+    driver: bridge
+  nginx-proxy_default:
+    external: true

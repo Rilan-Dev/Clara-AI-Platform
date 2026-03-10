@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createConsumerServer } from "@clara/consumer-runtime/server";
 
+import { createConsumerServer } from "@/server/create-server";
 import { registerApiRoutes } from "@/server/routes";
 
 const __filename = fileURLToPath(import.meta.url);
