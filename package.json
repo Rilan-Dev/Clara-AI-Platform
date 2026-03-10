@@ -1,0 +1,15 @@
+{
+  "name": "clara-platform-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "clara-backend",
+    "clara-omen-insurance",
+    "clara-techvision"
+  ],
+  "scripts": {
+    "build:apps": "npm run build --workspaces --if-present",
+    "lint:apps": "npm run lint --workspaces --if-present",
+    "typecheck:apps": "npm run type-check --workspaces --if-present"
+  }
+}

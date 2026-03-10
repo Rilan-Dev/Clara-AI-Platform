@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@clara/consumer-runtime": "file:../packages/consumer-runtime",
     "@hookform/resolvers": "^3.10.0",
     "@tanstack/react-query": "^5.83.0",
     "axios": "^1.13.6",

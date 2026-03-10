@@ -1,11 +1,11 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import PortalLayout from "@/app/(portal)/layout";
-import TechVisionLogin from "@/app/(auth)/login/page";
-import TVDashboard from "@/app/(portal)/dashboard/page";
-import TVKnowledgeBases from "@/app/(portal)/knowledge-bases/page";
-import TVAnalytics from "@/app/(portal)/analytics/page";
-import TechVisionChatPage from "@/app/(portal)/chat/page";
-import DemoWebsite from "@/app/(portal)/demo-website/page";
+import { TechVisionPortalShell } from "@/features/portal-shell/layouts";
+import { TechVisionLoginScreen } from "@/features/auth/screens";
+import { TechVisionDashboardScreen } from "@/features/dashboard/screens";
+import { TechVisionKnowledgeBasesScreen } from "@/features/knowledge-bases/screens";
+import { TechVisionAnalyticsScreen } from "@/features/analytics/screens";
+import { TechVisionChatScreen } from "@/features/chat/screens";
+import { DemoWebsiteScreen } from "@/features/demo/screens";
 import { getStoredToken } from "@/lib/auth";
 
 function RequireAuth() {
@@ -18,26 +18,26 @@ function RequireAuth() {
 
 function PortalShell() {
   return (
-    <PortalLayout>
+    <TechVisionPortalShell>
       <Outlet />
-    </PortalLayout>
+    </TechVisionPortalShell>
   );
 }
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/login" replace /> },
-  { path: "/login", element: <TechVisionLogin /> },
+  { path: "/login", element: <TechVisionLoginScreen /> },
   {
     element: <RequireAuth />,
     children: [
       {
         element: <PortalShell />,
         children: [
-          { path: "/dashboard", element: <TVDashboard /> },
-          { path: "/knowledge-bases", element: <TVKnowledgeBases /> },
-          { path: "/analytics", element: <TVAnalytics /> },
-          { path: "/chat", element: <TechVisionChatPage /> },
-          { path: "/demo-website", element: <DemoWebsite /> },
+          { path: "/dashboard", element: <TechVisionDashboardScreen /> },
+          { path: "/knowledge-bases", element: <TechVisionKnowledgeBasesScreen /> },
+          { path: "/analytics", element: <TechVisionAnalyticsScreen /> },
+          { path: "/chat", element: <TechVisionChatScreen /> },
+          { path: "/demo-website", element: <DemoWebsiteScreen /> },
         ],
       },
     ],

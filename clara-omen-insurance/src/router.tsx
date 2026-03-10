@@ -1,11 +1,11 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import PortalLayout from "@/app/(portal)/layout";
-import OmenLogin from "@/app/(auth)/login/page";
-import Dashboard from "@/app/(portal)/dashboard/page";
-import KnowledgeBasesPage from "@/app/(portal)/knowledge-bases/page";
-import AnalyticsPage from "@/app/(portal)/analytics/page";
-import ChatPage from "@/app/(portal)/chat/page";
-import SettingsPage from "@/app/(portal)/settings/page";
+import { OmenPortalShell } from "@/features/portal-shell/layouts";
+import { OmenLoginScreen } from "@/features/auth/screens";
+import { OmenDashboardScreen } from "@/features/dashboard/screens";
+import { OmenKnowledgeBasesScreen } from "@/features/knowledge-bases/screens";
+import { OmenAnalyticsScreen } from "@/features/analytics/screens";
+import { OmenChatScreen } from "@/features/chat/screens";
+import { OmenSettingsScreen } from "@/features/settings/screens";
 import { getStoredToken } from "@/lib/auth";
 
 function RequireAuth() {
@@ -18,26 +18,26 @@ function RequireAuth() {
 
 function PortalShell() {
   return (
-    <PortalLayout>
+    <OmenPortalShell>
       <Outlet />
-    </PortalLayout>
+    </OmenPortalShell>
   );
 }
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/login" replace /> },
-  { path: "/login", element: <OmenLogin /> },
+  { path: "/login", element: <OmenLoginScreen /> },
   {
     element: <RequireAuth />,
     children: [
       {
         element: <PortalShell />,
         children: [
-          { path: "/dashboard", element: <Dashboard /> },
-          { path: "/knowledge-bases", element: <KnowledgeBasesPage /> },
-          { path: "/analytics", element: <AnalyticsPage /> },
-          { path: "/chat", element: <ChatPage /> },
-          { path: "/settings", element: <SettingsPage /> },
+          { path: "/dashboard", element: <OmenDashboardScreen /> },
+          { path: "/knowledge-bases", element: <OmenKnowledgeBasesScreen /> },
+          { path: "/analytics", element: <OmenAnalyticsScreen /> },
+          { path: "/chat", element: <OmenChatScreen /> },
+          { path: "/settings", element: <OmenSettingsScreen /> },
         ],
       },
     ],
