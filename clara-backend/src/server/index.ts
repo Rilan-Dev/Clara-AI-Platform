@@ -13,26 +13,47 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..", "..");
 const distDir = path.join(rootDir, "dist");
 
+function normalizeOrigin(value: string) {
+  return value.trim().replace(/\/+$/, "");
+}
+
 function buildAllowedOrigins() {
   const origins = new Set<string>();
   const multi = process.env.ALLOWED_ORIGINS ?? "";
   const single = process.env.ALLOWED_ORIGIN ?? "";
 
   for (const raw of [...multi.split(","), ...single.split(",")]) {
-    const value = raw.trim();
+    const value = normalizeOrigin(raw);
     if (value) {
       origins.add(value);
     }
   }
 
   if (process.env.NODE_ENV !== "production") {
-    ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:5173"].forEach((origin) => origins.add(origin));
+    [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://localhost:3003",
+      "http://localhost:5173",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+      "http://127.0.0.1:3002",
+      "http://127.0.0.1:3003",
+      "http://127.0.0.1:5173",
+    ].forEach((origin) => origins.add(normalizeOrigin(origin)));
   }
 
   return origins;
 }
 
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/embed", "/api/subscriptions/plans", "/api/health", "/api/gemini"];
+const PUBLIC_API_PREFIXES = [
+  "/api/auth",
+  "/api/embed",
+  "/api/subscriptions/plans",
+  "/api/health",
+  "/api/gemini",
+];
 
 function startsWith(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -45,11 +66,20 @@ app.set("trust proxy", true);
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (!origin) {
       callback(null, true);
       return;
     }
-    callback(new Error("Origin not allowed by CORS"));
+
+    const normalized = normalizeOrigin(origin);
+
+    if (allowedOrigins.has(normalized)) {
+      callback(null, true);
+      return;
+    }
+
+    console.warn("[cors] blocked origin:", origin, "allowed:", [...allowedOrigins]);
+    callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -73,7 +103,8 @@ app.use(helmet({
 
 app.use(compression());
 app.use(cookieParser());
-app.use(express.raw({ type: () => true, limit: "100mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/api", (req, res, next) => {
   if (startsWith(req.path, PUBLIC_API_PREFIXES.map((prefix) => prefix.replace("/api", "")))) {
@@ -83,7 +114,10 @@ app.use("/api", (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const cookieToken = req.cookies.clara_platform_token ?? req.cookies.clara_admin_token ?? req.cookies.clara_token;
+  const cookieToken =
+    req.cookies.clara_platform_token ??
+    req.cookies.clara_admin_token ??
+    req.cookies.clara_token;
 
   if (!bearerToken && !cookieToken) {
     res.status(401).json({ error: "Unauthorised", message: "A valid auth token is required." });
@@ -103,7 +137,7 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(distDir));
 }
 
-app.get(/.*/, (_req, res) => {
+app.get(/^\/(?!api).*/, (_req, res) => {
   res.sendFile(path.join(distDir, "index.html"));
 });
 

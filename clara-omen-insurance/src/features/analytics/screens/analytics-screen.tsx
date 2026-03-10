@@ -1,29 +1,23 @@
 "use client";
 import { useEffect, useState } from "react";
 import { TrendingUp, MessageSquare, Clock, Database } from "lucide-react";
-import { getKbsForOrg, getAnalytics, type KnowledgeBase, type AnalyticsData } from "@/lib/api";
+import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
+import { useKnowledgeBaseAnalytics } from "@/features/analytics/hooks/use-kb-analytics";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-const ORG_ID = import.meta.env.VITE_ORG_ID ?? "10000000-0000-0000-0000-000000000001";
-
 export default function AnalyticsPage() {
-  const [kbs, setKbs]             = useState<KnowledgeBase[]>([]);
   const [activeKb, setActiveKb]   = useState("");
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading]     = useState(false);
+  const knowledgeBasesQuery = useKnowledgeBases();
+  const analyticsQuery = useKnowledgeBaseAnalytics(activeKb, "30d");
+  const knowledgeBases = knowledgeBasesQuery.data ?? [];
+  const analytics = analyticsQuery.data ?? null;
+  const loading = knowledgeBasesQuery.isLoading || analyticsQuery.isLoading;
 
   useEffect(() => {
-    getKbsForOrg(ORG_ID).then(data => {
-      setKbs(data);
-      if (data.length > 0) setActiveKb(data[0].id);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!activeKb) return;
-    setLoading(true);
-    getAnalytics(activeKb, "30d").then(setAnalytics).catch(() => setAnalytics(null)).finally(() => setLoading(false));
-  }, [activeKb]);
+    if (!activeKb && knowledgeBasesQuery.data && knowledgeBasesQuery.data.length > 0) {
+      setActiveKb(knowledgeBasesQuery.data[0].id);
+    }
+  }, [activeKb, knowledgeBasesQuery.data]);
 
   return (
     <div className="p-6 lg:p-8">
@@ -34,7 +28,7 @@ export default function AnalyticsPage() {
         </div>
         <select value={activeKb} onChange={e => setActiveKb(e.target.value)}
           className="bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#c8821a]/50">
-          {kbs.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
+          {knowledgeBases.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
         </select>
       </div>
 
@@ -43,7 +37,7 @@ export default function AnalyticsPage() {
         {[
           { label: "Total Queries",    value: loading ? "…" : (analytics?.total ?? 0).toLocaleString(),          icon: MessageSquare, color: "text-[#c8821a]" },
           { label: "Avg Latency",      value: loading ? "…" : analytics?.avg_latency != null ? `${analytics.avg_latency.toFixed(0)}ms` : "—", icon: Clock,         color: "text-cyan-400" },
-          { label: "Active KBs",       value: kbs.length,                                                          icon: Database,      color: "text-indigo-400" },
+          { label: "Active KBs",       value: knowledgeBases.length,                                               icon: Database,      color: "text-indigo-400" },
           { label: "Trend",            value: "↑",                                                                  icon: TrendingUp,    color: "text-emerald-400" },
         ].map(c => (
           <div key={c.label} className="border border-white/[0.07] bg-white/[0.03] rounded-2xl p-5">

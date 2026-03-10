@@ -2,30 +2,35 @@
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { MessageSquare, Send, X, RotateCcw, AlertCircle } from "lucide-react";
-import { getKbsForOrg, streamChat, type KnowledgeBase } from "@/lib/api";
-
-const ORG_ID = import.meta.env.VITE_ORG_ID ?? "10000000-0000-0000-0000-000000000001";
+import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
+import { portalService } from "@/services/api/portal.service";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
 function ChatContent() {
   const searchParams   = useSearchParams();
-  const [kbs, setKbs]  = useState<KnowledgeBase[]>([]);
   const [activeKb, setActiveKb] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const knowledgeBasesQuery = useKnowledgeBases();
+  const knowledgeBases = knowledgeBasesQuery.data ?? [];
   
   useEffect(() => {
-    getKbsForOrg(ORG_ID).then(data => {
-      setKbs(data);
-      const preselect = searchParams.get("kb");
-      if (preselect && data.find(k => k.id === preselect)) setActiveKb(preselect);
-      else if (data.length > 0) setActiveKb(data[0].id);
-    }).catch(() => {});
-  }, []);
+    const preselect = searchParams.get("kb");
+    if (!knowledgeBasesQuery.data || activeKb) {
+      return;
+    }
+
+    if (preselect && knowledgeBasesQuery.data.find((kb) => kb.id === preselect)) {
+      setActiveKb(preselect);
+      return;
+    }
+
+    setActiveKb(knowledgeBasesQuery.data[0].id);
+  }, [activeKb, knowledgeBasesQuery.data, searchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -44,7 +49,7 @@ function ChatContent() {
 
     try {
       const history = messages.map(m => ({ role: m.role, content: m.content }));
-      for await (const chunk of streamChat(activeKb, text, history)) {
+      for await (const chunk of portalService.streamChat(activeKb, text, history)) {
         setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: m.content + chunk } : m));
       }
     } catch (err: unknown) {
@@ -56,7 +61,7 @@ function ChatContent() {
     }
   }, [input, activeKb, loading, messages]);
 
-  const activeKbData = kbs.find(k => k.id === activeKb);
+  const activeKbData = knowledgeBases.find(k => k.id === activeKb);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -65,8 +70,8 @@ function ChatContent() {
         <div className="px-4 py-4 border-b border-white/[0.06]">
           <div className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Knowledge Bases</div>
           <div className="space-y-1">
-            {kbs.length === 0 && <p className="text-xs text-white/30">Loading…</p>}
-            {kbs.map(kb => (
+            {knowledgeBases.length === 0 && <p className="text-xs text-white/30">Loading…</p>}
+            {knowledgeBases.map(kb => (
               <button key={kb.id} onClick={() => { setActiveKb(kb.id); setMessages([]); }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2.5 ${activeKb === kb.id ? "bg-[#c8821a]/15 text-white border border-[#c8821a]/25" : "text-white/50 hover:text-white hover:bg-white/[0.04]"}`}>
                 <div className={`w-2 h-2 rounded-full shrink-0 ${kb.status === "active" ? "bg-emerald-400" : "bg-slate-500"}`} />

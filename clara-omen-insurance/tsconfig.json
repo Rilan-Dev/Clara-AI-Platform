@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
+    "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
@@ -11,15 +11,14 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "next/server": ["./src/server/next-shim.ts"],
-      "next/link": ["./src/vite/shims/next-link.tsx"],
-      "next/navigation": ["./src/vite/shims/next-navigation.ts"]
-    }
+      "@/*": ["./src/*"]
+    },
+    "plugins": [{ "name": "next" }]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
-  "exclude": ["node_modules", "src/app/api/**", "src/middleware.ts"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next-app/types/**/*.ts"],
+  "exclude": ["node_modules", "src/server/**", "src/vite/**", "vite.config.ts"]
 }

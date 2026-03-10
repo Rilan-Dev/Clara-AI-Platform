@@ -1,28 +1,10 @@
-import tsParser from "@typescript-eslint/parser";
-import tsPlugin from "@typescript-eslint/eslint-plugin";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { FlatCompat } from "@eslint/eslintrc";
 
-export default [
-  {
-    ignores: ["node_modules/**", "dist/**", "build/**", "src/app/api/**", "src/middleware.ts"],
-  },
-  {
-    files: ["src/**/*.{ts,tsx}", "vite.config.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
-        ecmaFeatures: { jsx: true },
-      },
-    },
-    plugins: {
-      "@typescript-eslint": tsPlugin,
-    },
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-    },
-  },
-];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({ baseDirectory: __dirname });
+
+export default [...compat.extends("next/core-web-vitals", "next/typescript")];

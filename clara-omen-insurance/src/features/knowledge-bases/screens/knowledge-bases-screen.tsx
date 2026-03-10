@@ -4,62 +4,46 @@ import {
   Database, Upload, Plus, FileText,
   CheckCircle2, Clock, AlertCircle, X,
 } from "lucide-react";
-import {
-  getKbsForOrg, getDocuments, uploadDocument,
-  type KnowledgeBase, type Document,
-} from "@/lib/api";
-import { isApiError } from "@/lib/http";
-
-const ORG_ID = import.meta.env.VITE_ORG_ID ?? "10000000-0000-0000-0000-000000000001";
+import { getPlatformAdminUrl } from "@/config/app";
+import { useDocuments, useKnowledgeBases, useUploadDocument } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
+import { isApiError } from "@/services/api/http.client";
 
 export default function KnowledgeBasesPage() {
-  const [kbs, setKbs]         = useState<KnowledgeBase[]>([]);
   const [selected, setSelected] = useState<string>("");
-  const [docs, setDocs]       = useState<Document[]>([]);
   const [tab, setTab]         = useState<"documents" | "upload" | "configure">("documents");
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading]   = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
+  const knowledgeBasesQuery = useKnowledgeBases();
+  const documentsQuery = useDocuments(selected);
+  const uploadMutation = useUploadDocument(selected, setUploadProgress);
+  const knowledgeBases = knowledgeBasesQuery.data ?? [];
+  const docs = documentsQuery.data ?? [];
+  const loading = knowledgeBasesQuery.isLoading;
 
   useEffect(() => {
-    getKbsForOrg(ORG_ID)
-      .then(data => {
-        setKbs(data);
-        if (data.length > 0) setSelected(data[0].id);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (!selected) return;
-    getDocuments(selected).then(setDocs).catch(() => setDocs([]));
-  }, [selected]);
+    if (!selected && knowledgeBasesQuery.data && knowledgeBasesQuery.data.length > 0) {
+      setSelected(knowledgeBasesQuery.data[0].id);
+    }
+  }, [knowledgeBasesQuery.data, selected]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !selected) return;
-    setUploading(true);
     setUploadError("");
     setUploadProgress(0);
 
     try {
-      await uploadDocument(selected, file, setUploadProgress);
-      // Refresh document list after upload
-      const updated = await getDocuments(selected);
-      setDocs(updated);
+      await uploadMutation.mutateAsync(file);
       setTab("documents");
     } catch (err: unknown) {
       setUploadError(isApiError(err) ? err.message : "Upload failed. Please try again.");
     } finally {
-      setUploading(false);
       setUploadProgress(0);
       e.target.value = "";
     }
   }
 
-  const selectedKb = kbs.find(k => k.id === selected);
+  const selectedKb = knowledgeBases.find(k => k.id === selected);
 
   const statusIcon = (status: string) => {
     if (status === "ready")      return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
@@ -80,7 +64,7 @@ export default function KnowledgeBasesPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {loading && <p className="text-xs text-white/30 px-2">Loading…</p>}
-          {kbs.map(kb => (
+          {knowledgeBases.map(kb => (
             <button key={kb.id} onClick={() => setSelected(kb.id)}
               className={`w-full text-left px-3 py-3 rounded-xl text-sm transition-all ${
                 selected === kb.id
@@ -165,16 +149,16 @@ export default function KnowledgeBasesPage() {
           ) : tab === "upload" ? (
             <div className="max-w-lg">
               <h2 className="font-semibold text-white mb-4">Upload Documents</h2>
-              <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${uploading ? "border-[#c8821a]/60 bg-[#c8821a]/10" : "border-[#c8821a]/30 hover:border-[#c8821a]/60 bg-[#c8821a]/5 hover:bg-[#c8821a]/10"}`}>
+              <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${uploadMutation.isPending ? "border-[#c8821a]/60 bg-[#c8821a]/10" : "border-[#c8821a]/30 hover:border-[#c8821a]/60 bg-[#c8821a]/5 hover:bg-[#c8821a]/10"}`}>
                 <Upload className="w-8 h-8 text-[#c8821a]/60 mb-3" />
                 <span className="text-sm font-medium text-white/70">
-                  {uploading ? `Uploading… ${uploadProgress}%` : "Click to upload or drag and drop"}
+                  {uploadMutation.isPending ? `Uploading… ${uploadProgress}%` : "Click to upload or drag and drop"}
                 </span>
                 <span className="text-xs text-white/30 mt-1">PDF, DOCX, TXT — max 50MB</span>
-                <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleUpload} disabled={uploading} />
+                <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleUpload} disabled={uploadMutation.isPending} />
               </label>
 
-              {uploading && (
+              {uploadMutation.isPending && (
                 <div className="mt-3 w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
                   <div className="h-full bg-[#c8821a] rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                 </div>
@@ -192,7 +176,7 @@ export default function KnowledgeBasesPage() {
             <div className="max-w-lg">
               <h2 className="font-semibold text-white mb-4">Assistant Configuration</h2>
               <p className="text-white/40 text-sm">Configure the AI assistant for this knowledge base in the Clara Backend admin panel.</p>
-              <a href="http://localhost:3000/admin" target="_blank" rel="noreferrer"
+              <a href={getPlatformAdminUrl()} target="_blank" rel="noreferrer"
                 className="mt-4 inline-flex items-center gap-2 text-sm text-[#c8821a] border border-[#c8821a]/30 px-4 py-2 rounded-xl hover:bg-[#c8821a]/10 transition-colors">
                 Open Clara Admin
               </a>

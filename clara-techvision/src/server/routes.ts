@@ -27,7 +27,7 @@ function toNextRequest(req: any) {
   const body = req.method === "GET" || req.method === "HEAD"
     ? undefined
     : req.body
-      ? Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body))
+      ? Buffer.isBuffer(req.body) ? req.body : Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body))
       : undefined;
 
   return new NextRequest(url, { method: req.method, headers, body: body as unknown as BodyInit | undefined });

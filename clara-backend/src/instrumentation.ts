@@ -13,7 +13,7 @@
 
 export async function register() {
   // Only run in the Node.js runtime (not the edge runtime)
-  if (process.env.NEXT_RUNTIME === "nodejs") {
+  if (import.meta.env.VITE_RUNTIME === "nodejs") {
     console.log("[startup] Running database migrations…");
     try {
       const { runMigrationsOnStartup } = await import("./lib/db/migrate");

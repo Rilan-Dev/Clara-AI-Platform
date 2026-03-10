@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import type { KbDocument } from "@/modules/admin-ui/api";
 
-const ACCEPTED = ".pdf,.docx,.txt,.md,.csv";
+const ACCEPTED = ".pdf,.docx,.xlsx,.xls,.txt,.md,.csv";
 const MAX_MB = 50;
 
 type UploadError = { filename: string; error: string };
@@ -92,7 +92,7 @@ export function UploadZone({ docs, onUpload, onDelete, onReprocess }: Props) {
             {uploading ? "Uploading…" : "Drop files here or click to browse"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            PDF, DOCX, TXT, MD, CSV — up to {MAX_MB} MB each
+            PDF, DOCX, XLSX, TXT, MD, CSV — up to {MAX_MB} MB each
           </p>
         </div>
         {uploading && (

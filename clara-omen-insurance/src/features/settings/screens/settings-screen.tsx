@@ -1,108 +1,115 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { Save, Palette, Bot, Bell, Shield, RefreshCw } from "lucide-react";
-import http from "@/lib/http";
-import { isApiError } from "@/lib/http";
+import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
+import {
+  useAssistantConfig,
+  useUpdateAssistantConfig,
+} from "@/features/settings/hooks/use-assistant-config";
 
-const ORG_ID = import.meta.env.VITE_ORG_ID ?? "10000000-0000-0000-0000-000000000001";
+const assistantConfigSchema = z.object({
+  assistantName: z.string().min(1, "Assistant name is required"),
+  avatarUrl: z.string().url("Enter a valid URL").or(z.literal("")),
+  systemPrompt: z.string().min(1, "System prompt is required"),
+  welcomeMessage: z.string().min(1, "Welcome message is required"),
+  outOfScopeReply: z.string().min(1, "Out-of-scope reply is required"),
+  defaultLanguage: z.string().min(2, "Default language is required"),
+  temperature: z.coerce.number().min(0).max(1),
+  maxTokens: z.coerce.number().int().min(100).max(4000),
+  citeSources: z.boolean(),
+  strictMode: z.boolean(),
+  primaryColour: z.string().min(4, "Primary colour is required"),
+  accentColour: z.string().min(4, "Accent colour is required"),
+  voiceId: z.string().min(0),
+  speed: z.coerce.number().min(0.5).max(2),
+});
 
-type AssistantConfig = {
-  id: string;
-  kbId: string;
-  assistantName: string;
-  avatarUrl: string | null;
-  systemPrompt: string;
-  welcomeMessage: string;
-  outOfScopeReply: string;
-  defaultLanguage: string;
-  temperature: number;
-  maxTokens: number;
-  citeSources: boolean;
-  strictMode: boolean;
-  primaryColour: string;
-  accentColour: string;
-  voiceId: string | null;
-  speed: number;
+type AssistantConfigFormValues = z.infer<typeof assistantConfigSchema>;
+
+const emptyValues: AssistantConfigFormValues = {
+  assistantName: "",
+  avatarUrl: "",
+  systemPrompt: "",
+  welcomeMessage: "",
+  outOfScopeReply: "",
+  defaultLanguage: "en",
+  temperature: 0.7,
+  maxTokens: 500,
+  citeSources: true,
+  strictMode: true,
+  primaryColour: "#0a1628",
+  accentColour: "#c8821a",
+  voiceId: "",
+  speed: 1,
 };
 
-type KB = { id: string; name: string };
-
 export default function SettingsPage() {
-  const [kbs, setKbs]               = useState<KB[]>([]);
-  const [activeKbId, setActiveKbId] = useState<string>("");
-  const [config, setConfig]         = useState<Partial<AssistantConfig>>({});
-  const [loading, setLoading]       = useState(true);
-  const [saving, setSaving]         = useState(false);
-  const [saved, setSaved]           = useState(false);
-  const [saveError, setSaveError]   = useState("");
+  const [activeKbId, setActiveKbId] = useState("");
+  const [saved, setSaved] = useState(false);
+  const knowledgeBasesQuery = useKnowledgeBases();
+  const assistantConfigQuery = useAssistantConfig(activeKbId);
+  const updateAssistantConfigMutation = useUpdateAssistantConfig(activeKbId);
+  const knowledgeBases = knowledgeBasesQuery.data ?? [];
 
-  // Load KB list
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors, isDirty },
+  } = useForm<AssistantConfigFormValues>({
+    resolver: zodResolver(assistantConfigSchema),
+    defaultValues: emptyValues,
+  });
+
   useEffect(() => {
-    http.get<{ kbs: KB[] }>(`/kbs/all?orgId=${ORG_ID}`)
-      .then(({ data }) => {
-        const list = data.kbs ?? [];
-        setKbs(list);
-        if (list.length > 0) setActiveKbId(list[0].id);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Load config for selected KB
-  useEffect(() => {
-    if (!activeKbId) return;
-    setLoading(true);
-    http.get<AssistantConfig>(`/kbs/${activeKbId}/config`)
-      .then(({ data }) => setConfig(data ?? {}))
-      .catch(() => setConfig({}))
-      .finally(() => setLoading(false));
-  }, [activeKbId]);
-
-  async function save() {
-    if (!activeKbId) return;
-    setSaving(true);
-    setSaveError("");
-    try {
-      await http.put(`/kbs/${activeKbId}/config`, config);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } catch (err: unknown) {
-      setSaveError(isApiError(err) ? err.message : "Failed to save settings.");
-    } finally {
-      setSaving(false);
+    if (!activeKbId && knowledgeBasesQuery.data && knowledgeBasesQuery.data.length > 0) {
+      setActiveKbId(knowledgeBasesQuery.data[0].id);
     }
+  }, [activeKbId, knowledgeBasesQuery.data]);
+
+  useEffect(() => {
+    if (!assistantConfigQuery.data) {
+      return;
+    }
+
+    reset({
+      assistantName: assistantConfigQuery.data.assistantName ?? "",
+      avatarUrl: assistantConfigQuery.data.avatarUrl ?? "",
+      systemPrompt: assistantConfigQuery.data.systemPrompt ?? "",
+      welcomeMessage: assistantConfigQuery.data.welcomeMessage ?? "",
+      outOfScopeReply: assistantConfigQuery.data.outOfScopeReply ?? "",
+      defaultLanguage: assistantConfigQuery.data.defaultLanguage ?? "en",
+      temperature: assistantConfigQuery.data.temperature ?? 0.7,
+      maxTokens: assistantConfigQuery.data.maxTokens ?? 500,
+      citeSources: assistantConfigQuery.data.citeSources ?? true,
+      strictMode: assistantConfigQuery.data.strictMode ?? true,
+      primaryColour: assistantConfigQuery.data.primaryColour ?? "#0a1628",
+      accentColour: assistantConfigQuery.data.accentColour ?? "#c8821a",
+      voiceId: assistantConfigQuery.data.voiceId ?? "",
+      speed: assistantConfigQuery.data.speed ?? 1,
+    });
+  }, [assistantConfigQuery.data, reset]);
+
+  async function onSubmit(values: AssistantConfigFormValues) {
+    await updateAssistantConfigMutation.mutateAsync({
+      ...values,
+      avatarUrl: values.avatarUrl || null,
+      voiceId: values.voiceId || null,
+    });
+
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2500);
   }
 
-  function textField(label: string, key: keyof AssistantConfig, placeholder = "") {
-    return (
-      <div>
-        <label className="block text-xs font-medium text-white/50 mb-1">{label}</label>
-        <input
-          type="text"
-          value={(config[key] as string) ?? ""}
-          placeholder={placeholder}
-          onChange={e => setConfig(c => ({ ...c, [key]: e.target.value }))}
-          className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60"
-        />
-      </div>
-    );
-  }
-
-  function colorField(label: string, key: keyof AssistantConfig) {
-    return (
-      <div>
-        <label className="block text-xs font-medium text-white/50 mb-1">{label}</label>
-        <div className="flex items-center gap-2">
-          <input type="color" value={(config[key] as string) ?? "#000000"}
-            onChange={e => setConfig(c => ({ ...c, [key]: e.target.value }))}
-            className="w-10 h-9 rounded cursor-pointer bg-transparent border-0" />
-          <input type="text" value={(config[key] as string) ?? ""}
-            onChange={e => setConfig(c => ({ ...c, [key]: e.target.value }))}
-            className="flex-1 bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
-        </div>
-      </div>
-    );
-  }
+  const loading = knowledgeBasesQuery.isLoading || assistantConfigQuery.isLoading;
+  const formValues = watch();
+  const mutationError = updateAssistantConfigMutation.error?.message ?? "";
 
   return (
     <div className="p-6 max-w-3xl">
@@ -113,9 +120,16 @@ export default function SettingsPage() {
 
       <div className="mb-6">
         <label className="block text-xs font-medium text-white/50 mb-2">Configure for Knowledge Base</label>
-        <select value={activeKbId} onChange={e => setActiveKbId(e.target.value)}
-          className="bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60">
-          {kbs.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+        <select
+          value={activeKbId}
+          onChange={(event) => setActiveKbId(event.target.value)}
+          className="bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60"
+        >
+          {knowledgeBases.map((kb) => (
+            <option key={kb.id} value={kb.id}>
+              {kb.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -124,16 +138,28 @@ export default function SettingsPage() {
           <RefreshCw className="w-4 h-4 animate-spin" /> Loading settings…
         </div>
       ) : (
-        <div className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
           <section className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="w-4 h-4 text-indigo-400" />
               <h2 className="text-sm font-semibold text-white">Identity</h2>
             </div>
             <div className="space-y-4">
-              {textField("Assistant Name", "assistantName", "e.g. Aria")}
-              {textField("Avatar URL", "avatarUrl", "https://…")}
-              {textField("Welcome Message", "welcomeMessage", "Greeting shown to users")}
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Assistant Name</label>
+                <input {...register("assistantName")} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                {errors.assistantName ? <p className="mt-1 text-xs text-red-400">{errors.assistantName.message}</p> : null}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Avatar URL</label>
+                <input {...register("avatarUrl")} placeholder="https://..." className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                {errors.avatarUrl ? <p className="mt-1 text-xs text-red-400">{errors.avatarUrl.message}</p> : null}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Welcome Message</label>
+                <input {...register("welcomeMessage")} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                {errors.welcomeMessage ? <p className="mt-1 text-xs text-red-400">{errors.welcomeMessage.message}</p> : null}
+              </div>
             </div>
           </section>
 
@@ -145,41 +171,43 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-white/50 mb-1">System Prompt</label>
-                <textarea rows={5} value={config.systemPrompt ?? ""}
-                  onChange={e => setConfig(c => ({ ...c, systemPrompt: e.target.value }))}
-                  className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60 resize-y" />
+                <textarea {...register("systemPrompt")} rows={5} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60 resize-y" />
+                {errors.systemPrompt ? <p className="mt-1 text-xs text-red-400">{errors.systemPrompt.message}</p> : null}
               </div>
               <div>
                 <label className="block text-xs font-medium text-white/50 mb-1">Out-of-Scope Reply</label>
-                <textarea rows={2} value={config.outOfScopeReply ?? ""}
-                  onChange={e => setConfig(c => ({ ...c, outOfScopeReply: e.target.value }))}
-                  className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60 resize-y" />
+                <textarea {...register("outOfScopeReply")} rows={2} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60 resize-y" />
+                {errors.outOfScopeReply ? <p className="mt-1 text-xs text-red-400">{errors.outOfScopeReply.message}</p> : null}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-white/50 mb-1">Temperature</label>
-                  <input type="number" min={0} max={1} step={0.1} value={config.temperature ?? 0.7}
-                    onChange={e => setConfig(c => ({ ...c, temperature: parseFloat(e.target.value) }))}
-                    className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                  <input type="number" step="0.1" min={0} max={1} {...register("temperature", { valueAsNumber: true })} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                  {errors.temperature ? <p className="mt-1 text-xs text-red-400">{errors.temperature.message}</p> : null}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-white/50 mb-1">Max Tokens</label>
-                  <input type="number" min={100} max={4000} step={100} value={config.maxTokens ?? 500}
-                    onChange={e => setConfig(c => ({ ...c, maxTokens: parseInt(e.target.value) }))}
-                    className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                  <input type="number" step="100" min={100} max={4000} {...register("maxTokens", { valueAsNumber: true })} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                  {errors.maxTokens ? <p className="mt-1 text-xs text-red-400">{errors.maxTokens.message}</p> : null}
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-1">Default Language</label>
+                  <input {...register("defaultLanguage")} className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-1">Voice ID</label>
+                  <input {...register("voiceId")} placeholder="alloy" className="w-full bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
                 </div>
               </div>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={!!config.citeSources}
-                    onChange={e => setConfig(c => ({ ...c, citeSources: e.target.checked }))}
-                    className="w-4 h-4 rounded accent-[#c8821a]" />
+                  <input type="checkbox" {...register("citeSources")} className="w-4 h-4 rounded accent-[#c8821a]" />
                   <span className="text-sm text-white/70">Cite sources ([S1], [S2]…)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={!!config.strictMode}
-                    onChange={e => setConfig(c => ({ ...c, strictMode: e.target.checked }))}
-                    className="w-4 h-4 rounded accent-[#c8821a]" />
+                  <input type="checkbox" {...register("strictMode")} className="w-4 h-4 rounded accent-[#c8821a]" />
                   <span className="text-sm text-white/70">Strict mode (KB only)</span>
                 </label>
               </div>
@@ -192,8 +220,30 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-white">Appearance</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {colorField("Primary Colour", "primaryColour")}
-              {colorField("Accent Colour", "accentColour")}
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Primary Colour</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formValues.primaryColour}
+                    onChange={(event) => setValue("primaryColour", event.target.value, { shouldDirty: true })}
+                    className="w-10 h-9 rounded cursor-pointer bg-transparent border-0"
+                  />
+                  <input {...register("primaryColour")} className="flex-1 bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Accent Colour</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formValues.accentColour}
+                    onChange={(event) => setValue("accentColour", event.target.value, { shouldDirty: true })}
+                    className="w-10 h-9 rounded cursor-pointer bg-transparent border-0"
+                  />
+                  <input {...register("accentColour")} className="flex-1 bg-white/[0.05] border border-white/[0.10] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#c8821a]/60" />
+                </div>
+              </div>
             </div>
           </section>
 
@@ -202,29 +252,27 @@ export default function SettingsPage() {
               <Bell className="w-4 h-4 text-cyan-400" />
               <h2 className="text-sm font-semibold text-white">Voice Settings</h2>
             </div>
-            <div className="space-y-3">
-              {textField("Voice ID", "voiceId", "e.g. alloy, nova, shimmer")}
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1">Speed ({config.speed ?? 1}×)</label>
-                <input type="range" min={0.5} max={2} step={0.1} value={config.speed ?? 1}
-                  onChange={e => setConfig(c => ({ ...c, speed: parseFloat(e.target.value) }))}
-                  className="w-full accent-[#c8821a]" />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-1">Speed ({formValues.speed}×)</label>
+              <input type="range" min={0.5} max={2} step={0.1} {...register("speed", { valueAsNumber: true })} className="w-full accent-[#c8821a]" />
             </div>
           </section>
 
-          {saveError && (
+          {mutationError ? (
             <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {saveError}
+              {mutationError}
             </p>
-          )}
+          ) : null}
 
-          <button onClick={save} disabled={saving}
-            className="flex items-center gap-2 bg-[#c8821a] hover:bg-[#a86214] disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all">
+          <button
+            type="submit"
+            disabled={updateAssistantConfigMutation.isPending || !isDirty}
+            className="flex items-center gap-2 bg-[#c8821a] hover:bg-[#a86214] disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+          >
             <Save className="w-4 h-4" />
-            {saving ? "Saving…" : saved ? "Saved ✓" : "Save Settings"}
+            {updateAssistantConfigMutation.isPending ? "Saving…" : saved ? "Saved ✓" : "Save Settings"}
           </button>
-        </div>
+        </form>
       )}
     </div>
   );

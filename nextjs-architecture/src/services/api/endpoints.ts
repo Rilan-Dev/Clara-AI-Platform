@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
+const API_BASE_URL = import.meta.env.VITE_PUBLIC_API_BASE_URL ?? "/api";
 
 function withBase(path: string) {
   return `${API_BASE_URL}${path}`;

@@ -1,47 +1,46 @@
 "use client";
 import { useState, Suspense } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shield, Eye, EyeOff, AlertCircle } from "lucide-react";
-import axios, { isAxiosError } from "axios";
-import { setStoredToken } from "@/lib/auth";
+import { z } from "zod";
+import { authService } from "@/services/api/auth.service";
 
-// Auth calls go to our own Next.js route — NOT through the /api/proxy instance.
-// The login route sets the httpOnly `clara_omen_token` cookie on success.
-const authClient = axios.create({
-  baseURL: "",
-  timeout: 15_000,
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
 });
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail]       = useState("omen-admin@omeninsurance.com");
-  const [password, setPassword] = useState("");
   const [show, setShow]         = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "omen-admin@omeninsurance.com",
+      password: "",
+    },
+  });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(values: LoginFormValues) {
     setLoading(true);
     setError("");
 
     try {
-      // POST /api/auth/login (same-origin Omen route)
-      // On success: route handler sets `clara_omen_token` httpOnly cookie
-      //             and returns { user, token }
-      const { data } = await authClient.post<{ token?: string }>("/api/auth/login", { email, password });
-      if (data.token) {
-        setStoredToken(data.token);
-      }
+      await authService.login(values);
       router.push(searchParams.get("next") || "/dashboard");
     } catch (err: unknown) {
-      if (isAxiosError(err)) {
-        const msg = (err.response?.data as { error?: string })?.error;
-        setError(msg || (err.response ? "Invalid email or password" : "Could not connect to server. Is clara-backend running?"));
-      } else {
-        setError("An unexpected error occurred.");
-      }
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -103,16 +102,19 @@ function LoginForm() {
           <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
           <p className="text-white/40 text-sm mb-8">Sign in to your insurance portal</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">Email address</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
+              <input type="email" required autoFocus
+                {...register("email")}
                 className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#c8821a] transition-colors placeholder-white/20" />
+              {errors.email ? <p className="mt-1 text-xs text-red-400">{errors.email.message}</p> : null}
             </div>
             <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
               <div className="relative">
-                <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
+                <input type={show ? "text" : "password"} required
+                  {...register("password")}
                   placeholder="••••••••"
                   className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 pr-11 text-sm text-white focus:outline-none focus:border-[#c8821a] transition-colors placeholder-white/20" />
                 <button type="button" onClick={() => setShow(!show)}
@@ -120,6 +122,7 @@ function LoginForm() {
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {errors.password ? <p className="mt-1 text-xs text-red-400">{errors.password.message}</p> : null}
             </div>
 
             {error && (

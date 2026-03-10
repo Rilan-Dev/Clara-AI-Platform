@@ -231,9 +231,19 @@ export async function fetchDocument(kbId: string, docId: string): Promise<KbDocu
 export async function uploadDocuments(kbId: string, files: File[]): Promise<{ queued: KbDocument[]; errors: { filename: string; error: string }[] }> {
   const form = new FormData();
   files.forEach((f) => form.append("files", f));
+
+  // IMPORTANT: Do NOT pass a Content-Type header when sending FormData.
+  // The browser must set it automatically so it can include the correct
+  // multipart boundary (e.g. "multipart/form-data; boundary=----WebKit...").
+  // Passing a Headers object — even an empty one — can block the browser
+  // from injecting the boundary, causing the server to reject with 400.
+  const token = getStoredToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(apiUrl(`/api/kbs/${kbId}/documents`), {
     method: "POST",
-    headers: withAuthHeaders(),
+    headers,   // only Authorization — NO Content-Type
     body: form,
   });
   if (!res.ok) {

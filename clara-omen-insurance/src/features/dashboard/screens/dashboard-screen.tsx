@@ -1,28 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Database, Activity, FileText, Clock, ArrowUpRight } from "lucide-react";
-import { getKbsForOrg, getOrgSubscription, type KnowledgeBase, type OrgUsage, type Subscription } from "@/lib/api";
-
-const ORG_ID = import.meta.env.VITE_ORG_ID ?? "10000000-0000-0000-0000-000000000001";
+import { useDashboardData } from "@/features/dashboard/hooks/use-dashboard-data";
 
 export default function Dashboard() {
-  const [kbs, setKbs]     = useState<KnowledgeBase[]>([]);
-  const [usage, setUsage] = useState<OrgUsage | null>(null);
-  const [plan, setPlan]   = useState<Subscription | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const orgId = ORG_ID;
-    if (!orgId) return;
-    Promise.all([
-      getKbsForOrg(orgId).catch(() => [] as KnowledgeBase[]),
-      getOrgSubscription(orgId).catch(() => null),
-    ]).then(([kbsData, subData]) => {
-      setKbs(kbsData);
-      if (subData) { setUsage(subData.usage); setPlan(subData.subscription); }
-    }).finally(() => setLoading(false));
-  }, []);
+  const dashboardQuery = useDashboardData();
+  const kbs = dashboardQuery.data?.knowledgeBases ?? [];
+  const usage = dashboardQuery.data?.usage ?? null;
+  const plan = dashboardQuery.data?.plan ?? null;
+  const loading = dashboardQuery.isLoading;
 
   const totalDocs   = kbs.reduce((s, k) => s + k.docCount,   0);
   const readyDocs   = kbs.reduce((s, k) => s + k.readyCount, 0);

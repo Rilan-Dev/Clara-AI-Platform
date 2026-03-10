@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { APP_COOKIE_NAME, getBackendUrl } from "@/config/app";
 
-const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
-
-/**
- * Cookie name for Omen Insurance portal.
- * Must be DIFFERENT from clara-backend (clara_platform_token)
- * and clara-techvision (clara_tv_token).
- * Browsers share cookies by domain — not port — so all localhost apps
- * would overwrite each other if they used the same cookie name.
- */
-const COOKIE_NAME = "clara_omen_token";
+const BACKEND = getBackendUrl();
 
 /** POST /api/auth  — proxies to clara-backend auth */
 export async function POST(req: NextRequest) {
@@ -26,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
     const res = NextResponse.json(data);
     if (data.token) {
-      res.cookies.set(COOKIE_NAME, data.token, {
+      res.cookies.set(APP_COOKIE_NAME, data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -42,7 +34,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, "", {
+  res.cookies.set(APP_COOKIE_NAME, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { APP_COOKIE_NAME } from "@/config/app";
 
 /**
  * clara_omen_token — unique cookie name for the Omen Insurance portal.
@@ -10,10 +11,8 @@ import { NextRequest, NextResponse } from "next/server";
  *   clara-omen         (port 3001) → clara_omen_token      ← this app
  *   clara-techvision   (port 3002) → clara_tv_token
  */
-const COOKIE_NAME = "clara_omen_token";
-
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const token = req.cookies.get(APP_COOKIE_NAME)?.value;
   const { pathname } = req.nextUrl;
 
   // Protect all portal routes

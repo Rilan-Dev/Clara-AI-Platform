@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Mic, MicOff, X, Volume2 } from "lucide-react";
+import { ENDPOINTS } from "@/services/api/endpoints";
 
 type Props = {
   kbId: string;
@@ -46,7 +47,7 @@ export default function VoiceModal({ kbId, assistantName = "Clara", accentColor 
     async function connect() {
       try {
         // 1. Get ephemeral token from backend
-        const sessionRes = await fetch(`/api/proxy/realtime/session`, {
+        const sessionRes = await fetch(ENDPOINTS.assistant.realtimeSession, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ kbId }),
@@ -116,7 +117,7 @@ export default function VoiceModal({ kbId, assistantName = "Clara", accentColor 
         // 6. Create SDP offer and connect
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        const sdpRes = await fetch("https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17", {
+        const sdpRes = await fetch(ENDPOINTS.external.openAIRealtime("gpt-4o-realtime-preview-2024-12-17"), {
           method: "POST",
           headers: {
             Authorization: `Bearer ${client_secret.value}`,
