@@ -8,7 +8,7 @@ WORKDIR /app
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
 # Copy root workspace files and the specific app's package.json
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json* ./
 COPY packages/consumer-runtime ./packages/consumer-runtime
 COPY clara-omen-insurance/package.json ./clara-omen-insurance/
 

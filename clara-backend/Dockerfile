@@ -7,7 +7,7 @@ WORKDIR /app
 
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json* ./
 # Backend might not need other packages yet, but we'll be consistent
 COPY clara-backend/package.json ./clara-backend/
 RUN npm install --ignore-scripts --legacy-peer-deps
