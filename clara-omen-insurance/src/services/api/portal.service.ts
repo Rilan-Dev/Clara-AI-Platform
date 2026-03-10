@@ -1,3 +1,4 @@
+import { streamJsonLineEvents } from "@clara/api-client";
 import { ENDPOINTS } from "@/services/api/endpoints";
 import http from "@/services/api/http.client";
 import type {
@@ -39,10 +40,7 @@ export const portalService = {
   },
 
   async getSubscription(orgId: string) {
-    const { data } = await http.get<{ subscription: Subscription; usage: OrgUsage }>(
-      ENDPOINTS.organisations.subscription(orgId),
-    );
-
+    const { data } = await http.get<{ subscription: Subscription; usage: OrgUsage }>(ENDPOINTS.organisations.subscription(orgId));
     return data;
   },
 
@@ -92,40 +90,12 @@ export const portalService = {
       throw new Error(error.error ?? `Chat request failed (${response.status})`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
+    for await (const event of streamJsonLineEvents(response)) {
+      if (event.type === "token" && event.payload) {
+        yield event.payload;
       }
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) {
-          continue;
-        }
-
-        let event: { type: string; payload?: string };
-        try {
-          event = JSON.parse(trimmed) as { type: string; payload?: string };
-        } catch {
-          // ignore malformed lines
-          continue;
-        }
-
-        if (event.type === "token" && event.payload) {
-          yield event.payload;
-        }
-        if (event.type === "error") {
-          throw new Error(event.payload ?? "Stream error");
-        }
+      if (event.type === "error") {
+        throw new Error(event.payload ?? "Stream error");
       }
     }
   },

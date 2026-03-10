@@ -12,7 +12,7 @@ import type { VoiceClientOptions } from "../voice/types";
 // is active is not a security concern.  We use a separate server-side
 // AI_PROVIDER env var in factory.ts for server-only code.
 const ACTIVE_PROVIDER =
-  (import.meta.env.VITE_PUBLIC_AI_PROVIDER ?? "openai").toLowerCase();
+  (process.env.NEXT_PUBLIC_AI_PROVIDER ?? "openai").toLowerCase();
 
 /**
  * useVoiceClient

@@ -12,17 +12,16 @@
  */
 
 export async function register() {
-  // Only run in the Node.js runtime (not the edge runtime)
-  if (import.meta.env.VITE_RUNTIME === "nodejs") {
-    console.log("[startup] Running database migrations…");
-    try {
-      const { runMigrationsOnStartup } = await import("./lib/db/migrate");
-      await runMigrationsOnStartup();
-      console.log("[startup] Database ready.");
-    } catch (err) {
-      // Log but don't crash — the error will show in logs and routes will
-      // surface proper errors rather than a silent broken server.
-      console.error("[startup] Migration error:", err);
-    }
+  if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") {
+    return;
+  }
+
+  console.log("[startup] Running database migrations...");
+  try {
+    const { runMigrationsOnStartup } = await import("./lib/db/migrate");
+    await runMigrationsOnStartup();
+    console.log("[startup] Database ready.");
+  } catch (err) {
+    console.error("[startup] Migration error:", err);
   }
 }

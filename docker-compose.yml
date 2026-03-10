@@ -20,6 +20,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara} -d ${POSTGRES_DB:-clara_platform}"]
       interval: 10s
       timeout: 5s
+      start_period: 120s
       retries: 5
 
   qdrant:
@@ -46,8 +47,8 @@ services:
   # ──────────────────────────────────────────────────────────────────────────
   clara-backend:
     build:
-      context: .
-      dockerfile: clara-backend/Dockerfile
+      context: ./clara-backend
+      dockerfile: Dockerfile
     container_name: clara-backend
     restart: unless-stopped
     ports:

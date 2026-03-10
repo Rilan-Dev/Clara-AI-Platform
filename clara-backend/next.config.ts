@@ -1,12 +1,18 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // Run src/instrumentation.ts on server startup (runs DB migrations)
-  // Enable standalone output for Docker — produces a minimal server.js
-  // that includes only the files needed for production
-  output: "standalone",
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-  // Security headers applied to all responses
+const nextConfig: NextConfig = {
+  distDir: ".next-app",
+  output: "standalone",
+  reactStrictMode: true,
+  experimental: {
+    externalDir: true,
+  },
+  outputFileTracingRoot: join(__dirname, ".."),
   headers: async () => [
     {
       source: "/(.*)",
@@ -15,18 +21,11 @@ const nextConfig: NextConfig = {
         { key: "X-Frame-Options", value: "DENY" },
         { key: "X-XSS-Protection", value: "1; mode=block" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        {
-          key: "Permissions-Policy",
-          value: "camera=(), geolocation=(), microphone=(self)",
-        },
-        {
-          key: "Strict-Transport-Security",
-          value: "max-age=31536000; includeSubDomains",
-        },
+        { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=(self)" },
+        { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
       ],
     },
   ],
-
   webpack: (config) => {
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {

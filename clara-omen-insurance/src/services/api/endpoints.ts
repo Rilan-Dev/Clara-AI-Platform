@@ -1,16 +1,4 @@
-function queryString(params?: Record<string, string | number | undefined>) {
-  if (!params) {
-    return "";
-  }
-
-  const values = Object.entries(params).filter(([, value]) => value !== undefined && value !== "");
-
-  if (!values.length) {
-    return "";
-  }
-
-  return `?${new URLSearchParams(values.map(([key, value]) => [key, String(value)])).toString()}`;
-}
+import { buildQueryString } from "@clara/api-client";
 
 const API_BASE = "/api";
 const PROXY_BASE = `${API_BASE}/proxy`;
@@ -23,14 +11,14 @@ export const ENDPOINTS = {
     me: `${PROXY_BASE}/auth/me`,
   },
   knowledgeBases: {
-    listForOrg: (orgId: string) => `${PROXY_BASE}/kbs/all${queryString({ orgId })}`,
+    listForOrg: (orgId: string) => `${PROXY_BASE}/kbs/all${buildQueryString({ orgId })}`,
     documents: (kbId: string) => `${PROXY_BASE}/kbs/${kbId}/documents`,
     document: (kbId: string, documentId: string) => `${PROXY_BASE}/kbs/${kbId}/documents/${documentId}`,
     config: (kbId: string) => `${PROXY_BASE}/kbs/${kbId}/config`,
-    analytics: (kbId: string, range = "30d") => `${PROXY_BASE}/kbs/${kbId}/analytics${queryString({ range })}`,
+    analytics: (kbId: string, range = "30d") => `${PROXY_BASE}/kbs/${kbId}/analytics${buildQueryString({ range })}`,
   },
   organisations: {
-    subscription: (orgId: string) => `${PROXY_BASE}/orgs/subscription${queryString({ orgId })}`,
+    subscription: (orgId: string) => `${PROXY_BASE}/orgs/subscription${buildQueryString({ orgId })}`,
   },
   assistant: {
     chat: `${PROXY_BASE}/chat`,

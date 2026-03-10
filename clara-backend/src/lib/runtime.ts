@@ -5,7 +5,7 @@ function trimTrailingSlash(value: string) {
 }
 
 export function getApiBaseUrl() {
-  const envBase = import.meta.env.VITE_API_BASE_URL;
+  const envBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   return envBase ? trimTrailingSlash(envBase) : "";
 }
 
@@ -32,7 +32,7 @@ export async function apiFetchJson<T>(path: string, init: RequestInit = {}) {
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({})) as { error?: string; message?: string };
+    const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
     throw new Error(body.error ?? body.message ?? `HTTP ${response.status}`);
   }
 

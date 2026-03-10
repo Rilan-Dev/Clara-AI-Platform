@@ -18,6 +18,8 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    console.log('email ', email);
+    console.log('password ', password);
     try {
       await login(email, password);
       router.push("/admin/orgs");

@@ -1,4 +1,4 @@
-# Clara TechVision — Vite + Express Dockerfile
+# Clara TechVision — Next.js standalone Dockerfile
 # This Dockerfile expects to be run from the repository root (context: .)
 
 FROM node:20-alpine AS base
@@ -28,16 +28,12 @@ ENV PORT=3002
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser  --system --uid 1001 clarauser
 
-# Copy built frontend and source code for the Express server
-COPY --from=builder /app/clara-techvision/dist ./dist
-COPY --from=builder /app/clara-techvision/node_modules ./node_modules
-COPY --from=builder /app/clara-techvision/package.json ./package.json
-COPY --from=builder /app/clara-techvision/src ./src
-COPY --from=builder /app/clara-techvision/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/clara-techvision/public ./public
+COPY --from=builder /app/clara-techvision/.next-app/standalone ./
+COPY --from=builder /app/clara-techvision/.next-app/static ./.next/static
 
 USER clarauser
 EXPOSE 3002
 
-# Start the Express server using tsx
-CMD ["npm", "run", "start"]
+# Start the standalone Next.js server
+CMD ["node", "server.js"]

@@ -42,7 +42,7 @@ export default function DemoWebsite() {
             </span>
           </h1>
           <p className="text-lg text-white/50 max-w-2xl mx-auto mb-10">
-            Ship faster with TechVision's unified API platform. Scalable infrastructure, real-time observability, and developer-first tooling.
+            Ship faster with TechVision&apos;s unified API platform. Scalable infrastructure, real-time observability, and developer-first tooling.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white font-semibold px-7 py-3.5 rounded-xl text-base transition-all hover:scale-105">
@@ -104,7 +104,7 @@ export default function DemoWebsite() {
             ].map(t => (
               <div key={t.name} className="border border-white/[0.07] bg-white/[0.02] rounded-2xl p-6">
                 <div className="flex mb-3">{[...Array(5)].map((_,i)=><Star key={i} className="w-4 h-4 text-amber-400 fill-current"/>)}</div>
-                <p className="text-white/65 text-sm mb-4">"{t.text}"</p>
+                <p className="text-white/65 text-sm mb-4">&quot;{t.text}&quot;</p>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500/40 to-blue-600/40 flex items-center justify-center text-xs font-bold text-sky-300">{t.name[0]}</div>
                   <div><div className="text-sm font-semibold text-white">{t.name}</div><div className="text-xs text-white/35">{t.role}</div></div>

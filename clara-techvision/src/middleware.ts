@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
-/**
- * clara_tv_token — unique cookie name for the TechVision portal.
- * Browsers share cookies by domain (not port), so all three localhost apps
- * would clobber each other if they all used "clara_token".
- *
- * Cookie map:
- *   clara-backend      (port 3000) → clara_platform_token
- *   clara-omen         (port 3001) → clara_omen_token
- *   clara-techvision   (port 3002) → clara_tv_token        ← this app
- */
-const COOKIE_NAME = "clara_tv_token";
+import { APP_COOKIE_NAME } from "@/config/app";
 
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const token = req.cookies.get(APP_COOKIE_NAME)?.value;
   const { pathname } = req.nextUrl;
 
   // Protect all portal routes
@@ -22,7 +11,6 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/knowledge-bases") ||
     pathname.startsWith("/chat") ||
     pathname.startsWith("/analytics") ||
-    pathname.startsWith("/settings") ||
     pathname.startsWith("/demo-website")
   ) {
     if (!token) {
@@ -44,7 +32,6 @@ export const config = {
     "/knowledge-bases/:path*",
     "/chat/:path*",
     "/analytics/:path*",
-    "/settings/:path*",
     "/demo-website/:path*",
     "/login",
   ],

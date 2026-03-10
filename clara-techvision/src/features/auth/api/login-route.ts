@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { APP_COOKIE_NAME, getBackendUrl } from "@/config/app";
 
-const BACKEND = process.env.CLARA_BACKEND_URL || "http://localhost:3000";
-const COOKIE_NAME = "clara_tv_token";
+const BACKEND = getBackendUrl();
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
     const res = NextResponse.json(data, { status: 200 });
     if (data.token) {
-      res.cookies.set(COOKIE_NAME, data.token, {
+      res.cookies.set(APP_COOKIE_NAME, data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",

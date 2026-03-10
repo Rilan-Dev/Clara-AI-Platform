@@ -1,4 +1,4 @@
-# Clara Omen Insurance — Next.js standalone Dockerfile
+# Clara Omen Insurance — Vite + Express Dockerfile
 # This Dockerfile expects to be run from the repository root (context: .)
 
 FROM node:20-alpine AS base
@@ -28,12 +28,15 @@ ENV PORT=3001
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser  --system --uid 1001 clarauser
 
+COPY --from=builder /app/clara-omen-insurance/dist ./dist
+COPY --from=builder /app/clara-omen-insurance/node_modules ./node_modules
+COPY --from=builder /app/clara-omen-insurance/package.json ./package.json
+COPY --from=builder /app/clara-omen-insurance/src ./src
+COPY --from=builder /app/clara-omen-insurance/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/clara-omen-insurance/public ./public
-COPY --from=builder /app/clara-omen-insurance/.next-app/standalone ./
-COPY --from=builder /app/clara-omen-insurance/.next-app/static ./.next/static
 
 USER clarauser
 EXPOSE 3001
 
-# Start the standalone Next.js server
-CMD ["node", "server.js"]
+# Start the Express server
+CMD ["npm", "run", "start"]

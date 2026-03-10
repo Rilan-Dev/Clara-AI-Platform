@@ -3,7 +3,9 @@ node_modules
 .env.local
 *.tsbuildinfo
 /infra/
-infra/postgres/data/base/16384/1247
 clara-omen-insurance/.next-app
 clara-techvision/.next-app
-clara-omen-insurance/.next-app/server/pages-manifest.json
+clara-backend/.next-app
+clara-omen-insurance/dist/
+clara-techvision/dist/
+clara-backend/dist/

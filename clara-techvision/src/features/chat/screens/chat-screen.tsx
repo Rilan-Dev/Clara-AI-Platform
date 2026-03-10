@@ -1,20 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
-import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
-import { getKbsForOrg, type KnowledgeBase } from "@/lib/api";
 
-const ORG_ID = import.meta.env.VITE_ORG_ID ?? "10000000-0000-0000-0000-000000000002";
+import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
+import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
 
 export default function TechVisionChatPage() {
-  const [kbs, setKbs]       = useState<KnowledgeBase[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getKbsForOrg(ORG_ID)
-      .then(setKbs)
-      .catch(() => setKbs([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const knowledgeBasesQuery = useKnowledgeBases();
+  const kbs = knowledgeBasesQuery.data ?? [];
+  const loading = knowledgeBasesQuery.isLoading;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
@@ -29,16 +21,15 @@ export default function TechVisionChatPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-white/30 text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading knowledge bases…
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading knowledge bases...
         </div>
       ) : kbs.length === 0 ? (
         <div className="text-white/30 text-sm">No knowledge bases yet. Create one to start chatting.</div>
       ) : (
         <div className="w-full max-w-md space-y-2">
           <div className="text-xs font-medium text-white/40 mb-3">Available Knowledge Bases</div>
-          {kbs.map(kb => (
-            <div key={kb.id}
-              className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 hover:bg-white/[0.07] transition-all">
+          {kbs.map((kb) => (
+            <div key={kb.id} className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 hover:bg-white/[0.07] transition-all">
               <div className="text-left">
                 <div className="text-sm font-medium text-white">{kb.name}</div>
                 <div className="text-xs text-white/30">{kb.docCount ?? 0} documents</div>

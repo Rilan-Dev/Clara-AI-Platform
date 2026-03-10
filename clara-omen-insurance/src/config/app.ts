@@ -1,22 +1,17 @@
-export const APP_COOKIE_NAME = "clara_omen_token";
-export const DEFAULT_ORG_ID = "10000000-0000-0000-0000-000000000001";
+import { createPortalConfig } from "@clara/config";
 
-export function getOrgId() {
-  return process.env.NEXT_PUBLIC_ORG_ID ?? process.env.NEXT_PUBLIC_CLARA_ORG_ID ?? DEFAULT_ORG_ID;
-}
+const config = createPortalConfig({
+  cookieName: "clara_omen_token",
+  defaultOrgId: "10000000-0000-0000-0000-000000000001",
+  defaultOrgName: "Omen United Insurance",
+  defaultPlanLabel: "pro",
+  defaultAdminUrl: "http://localhost:3000/admin",
+});
 
-export function getBackendUrl() {
-  return process.env.CLARA_BACKEND_URL ?? "http://localhost:3000";
-}
-
-export function getOrgName() {
-  return process.env.NEXT_PUBLIC_ORG_NAME ?? "Omen United Insurance";
-}
-
-export function getPlanLabel() {
-  return process.env.NEXT_PUBLIC_PLAN ?? "pro";
-}
-
-export function getPlatformAdminUrl() {
-  return process.env.NEXT_PUBLIC_PLATFORM_ADMIN_URL ?? "http://localhost:3000/admin";
-}
+export const APP_COOKIE_NAME = config.APP_COOKIE_NAME;
+export const DEFAULT_ORG_ID = config.DEFAULT_ORG_ID;
+export const getOrgId = config.getOrgId;
+export const getBackendUrl = config.getBackendUrl;
+export const getOrgName = config.getOrgName;
+export const getPlanLabel = config.getPlanLabel;
+export const getPlatformAdminUrl = config.getPlatformAdminUrl;
