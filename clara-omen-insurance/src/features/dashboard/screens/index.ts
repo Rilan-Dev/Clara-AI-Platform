@@ -1,1 +1,1 @@
-export { default as OmenDashboardScreen } from "@/app/(portal)/dashboard/page";
+export { default as OmenDashboardScreen } from "./dashboard-screen";

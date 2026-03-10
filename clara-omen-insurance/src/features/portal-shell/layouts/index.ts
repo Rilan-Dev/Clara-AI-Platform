@@ -1,1 +1,1 @@
-export { default as OmenPortalShell } from "@/app/(portal)/layout";
+export { default as OmenPortalShell } from "./portal-shell";

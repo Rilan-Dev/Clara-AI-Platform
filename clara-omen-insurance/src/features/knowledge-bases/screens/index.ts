@@ -1,1 +1,1 @@
-export { default as OmenKnowledgeBasesScreen } from "@/app/(portal)/knowledge-bases/page";
+export { default as OmenKnowledgeBasesScreen } from "./knowledge-bases-screen";

@@ -1,1 +1,1 @@
-export { default as OmenLoginScreen } from "@/app/(auth)/login/page";
+export { default as OmenLoginScreen } from "./login-screen";

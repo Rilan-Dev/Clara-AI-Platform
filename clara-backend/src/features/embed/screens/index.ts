@@ -1,1 +1,1 @@
-export { default as EmbedWidgetScreen } from "@/app/embed/widget/page";
+export { default as EmbedWidgetScreen } from "./widget-screen";

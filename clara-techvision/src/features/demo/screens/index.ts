@@ -1,1 +1,1 @@
-export { default as DemoWebsiteScreen } from "@/app/(portal)/demo-website/page";
+export { default as DemoWebsiteScreen } from "./demo-website-screen";

@@ -227,8 +227,7 @@ export async function* streamChat(
 ): AsyncGenerator<string> {
   const messages = [...history, { role: "user", content: message }];
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/chat`, {
+  const res = await fetch("/api/proxy/chat", {
     method: "POST",
     headers: withAuthHeaders({
       "Content-Type": "application/json",

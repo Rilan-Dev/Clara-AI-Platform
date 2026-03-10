@@ -1,1 +1,1 @@
-export { default as TechVisionKnowledgeBasesScreen } from "@/app/(portal)/knowledge-bases/page";
+export { default as TechVisionKnowledgeBasesScreen } from "./knowledge-bases-screen";

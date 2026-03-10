@@ -1,1 +1,1 @@
-export { default as TechVisionAnalyticsScreen } from "@/app/(portal)/analytics/page";
+export { default as TechVisionAnalyticsScreen } from "./analytics-screen";

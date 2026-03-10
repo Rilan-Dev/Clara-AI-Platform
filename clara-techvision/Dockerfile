@@ -7,24 +7,16 @@ WORKDIR /app
 
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
-# Copy root workspace files and the specific app's package.json
-COPY package.json package-lock.json* ./
-COPY packages/consumer-runtime ./packages/consumer-runtime
-COPY clara-techvision/package.json ./clara-techvision/
-
-# Install dependencies using npm workspaces
+WORKDIR /app/clara-techvision
+COPY clara-techvision/package.json clara-techvision/package-lock.json* ./
 RUN npm install --ignore-scripts --legacy-peer-deps
 
 # ── Stage 2: Build ─────────────────────────────────────────────────────────
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-# Copy shared package and the app itself
-COPY packages/consumer-runtime ./packages/consumer-runtime
-COPY clara-techvision ./clara-techvision
-
 WORKDIR /app/clara-techvision
+COPY --from=deps /app/clara-techvision/node_modules ./node_modules
+COPY clara-techvision ./
 ENV NODE_ENV=production
-# Build the Vite frontend into /app/clara-techvision/dist
 RUN npm run build
 
 # ── Stage 3: Production runner ──────────────────────────────────────────────
@@ -38,7 +30,7 @@ RUN adduser  --system --uid 1001 clarauser
 
 # Copy built frontend and source code for the Express server
 COPY --from=builder /app/clara-techvision/dist ./dist
-COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/clara-techvision/node_modules ./node_modules
 COPY --from=builder /app/clara-techvision/package.json ./package.json
 COPY --from=builder /app/clara-techvision/src ./src
 COPY --from=builder /app/clara-techvision/tsconfig.json ./tsconfig.json

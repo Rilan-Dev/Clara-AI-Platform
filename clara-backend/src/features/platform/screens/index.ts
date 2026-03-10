@@ -1,5 +1,5 @@
-export { default as PlatformLandingScreen } from "@/app/(platform)/page";
-export { default as PlatformFeaturesScreen } from "@/app/(platform)/features/page";
-export { default as PlatformPricingScreen } from "@/app/(platform)/pricing/page";
-export { default as PlatformContactScreen } from "@/app/(platform)/contact/page";
-export { default as PlatformSandboxScreen } from "@/app/page";
+export { default as PlatformLandingScreen } from "./landing-screen";
+export { default as PlatformFeaturesScreen } from "./features-screen";
+export { default as PlatformPricingScreen } from "./pricing-screen";
+export { default as PlatformContactScreen } from "./contact-screen";
+export { default as PlatformSandboxScreen } from "./sandbox-screen";

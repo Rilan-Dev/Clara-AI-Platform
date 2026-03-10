@@ -1,2 +1,2 @@
-export { default as WorkspaceScreen } from "@/app/workspace/page";
-export { default as IngestScreen } from "@/app/ingest/page";
+export { default as WorkspaceScreen } from "./workspace-screen";
+export { default as IngestScreen } from "./ingest-screen";

@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import "./app/globals.css";
-import { AppShell } from "./app/layout";
+import { AppShell } from "./shared/layouts/app-shell";
 import { router } from "./router";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

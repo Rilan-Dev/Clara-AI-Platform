@@ -1,1 +1,1 @@
-export { default as TechVisionLoginScreen } from "@/app/(auth)/login/page";
+export { default as TechVisionLoginScreen } from "./login-screen";

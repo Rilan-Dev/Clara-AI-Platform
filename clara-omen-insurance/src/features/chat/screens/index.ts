@@ -1,1 +1,1 @@
-export { default as OmenChatScreen } from "@/app/(portal)/chat/page";
+export { default as OmenChatScreen } from "./chat-screen";

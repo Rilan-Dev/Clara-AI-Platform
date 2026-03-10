@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ──────────────────────────────────────────────────────────────────────────
   # Infrastructure
@@ -52,7 +50,9 @@ services:
       dockerfile: clara-backend/Dockerfile
     container_name: clara-backend
     restart: unless-stopped
-    networks: [clara-net, nginx-proxy_default]
+    ports:
+      - "3000:3000"
+    networks: [clara-net]
     depends_on:
       postgres: { condition: service_healthy }
       qdrant: { condition: service_healthy }
@@ -88,7 +88,9 @@ services:
       dockerfile: clara-omen-insurance/Dockerfile
     container_name: clara-omen
     restart: unless-stopped
-    networks: [clara-net, nginx-proxy_default]
+    ports:
+      - "3101:3001"
+    networks: [clara-net]
     depends_on:
       clara-backend: { condition: service_healthy }
     environment:
@@ -98,6 +100,12 @@ services:
       NODE_ENV:                  production
     env_file:
       - ./clara-omen-insurance/.env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
 
   # ──────────────────────────────────────────────────────────────────────────
   # TechVision Solutions — Tenant Demo (Vite + Express)
@@ -108,7 +116,9 @@ services:
       dockerfile: clara-techvision/Dockerfile
     container_name: clara-techvision
     restart: unless-stopped
-    networks: [clara-net, nginx-proxy_default]
+    ports:
+      - "3102:3002"
+    networks: [clara-net]
     depends_on:
       clara-backend: { condition: service_healthy }
     environment:
@@ -118,9 +128,13 @@ services:
       NODE_ENV:                  production
     env_file:
       - ./clara-techvision/.env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/api/health >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
 
 networks:
   clara-net:
     driver: bridge
-  nginx-proxy_default:
-    external: true

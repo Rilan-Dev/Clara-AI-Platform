@@ -1,1 +1,1 @@
-export { default as LegacyAdminShellLayout } from "@/app/admin/layout";
+export { default as LegacyAdminShellLayout } from "./legacy-admin-shell";

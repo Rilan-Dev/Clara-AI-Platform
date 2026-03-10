@@ -1,1 +1,1 @@
-export { default as TechVisionPortalShell } from "@/app/(portal)/layout";
+export { default as TechVisionPortalShell } from "./portal-shell";

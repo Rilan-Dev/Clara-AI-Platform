@@ -1,1 +1,1 @@
-export { default as PlatformShellLayout } from "@/app/(platform)/layout";
+export { default as PlatformShellLayout } from "./platform-shell";

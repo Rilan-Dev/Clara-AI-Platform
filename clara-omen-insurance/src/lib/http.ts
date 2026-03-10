@@ -45,7 +45,7 @@ export function isApiError(err: unknown): err is ApiError {
 // ─── Singleton instance ───────────────────────────────────────────────────────
 
 const http: AxiosInstance = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000"}/api`,
+  baseURL: "/api/proxy",
   timeout: 30_000,
   headers: {
     "Content-Type": "application/json",

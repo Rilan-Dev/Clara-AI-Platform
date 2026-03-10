@@ -1,1 +1,1 @@
-export { default as TechVisionChatScreen } from "@/app/(portal)/chat/page";
+export { default as TechVisionChatScreen } from "./chat-screen";

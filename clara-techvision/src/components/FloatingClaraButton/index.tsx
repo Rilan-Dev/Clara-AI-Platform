@@ -5,7 +5,6 @@ import { getKbsForOrg, streamChat } from "@/lib/api";
 import { withAuthHeaders } from "@/lib/auth";
 
 const ORG_ID  = import.meta.env.VITE_ORG_ID ?? "00000000-0000-0000-0000-000000000002";
-const BACKEND = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 type VoiceState = "idle" | "connecting" | "listening" | "speaking";
@@ -165,7 +164,7 @@ function VoiceModal({ onClose, kbId }: { onClose: () => void; kbId: string }) {
     setVoiceState("connecting");
     try {
       // Get ephemeral key from clara-backend
-        const sessionRes = await fetch(`${BACKEND}/api/realtime/session`, {
+        const sessionRes = await fetch("/api/proxy/realtime/session", {
           method: "POST",
           headers: withAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ kbId }),

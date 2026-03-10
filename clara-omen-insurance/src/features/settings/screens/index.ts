@@ -1,1 +1,1 @@
-export { default as OmenSettingsScreen } from "@/app/(portal)/settings/page";
+export { default as OmenSettingsScreen } from "./settings-screen";

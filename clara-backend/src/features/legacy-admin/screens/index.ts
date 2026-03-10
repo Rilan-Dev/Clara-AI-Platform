@@ -1,8 +1,8 @@
-export { default as LegacyAdminRootScreen } from "@/app/admin/page";
-export { default as LegacyAdminLoginScreen } from "@/app/admin/login/page";
-export { default as LegacyAdminOrgsScreen } from "@/app/admin/orgs/page";
-export { default as LegacyAdminOrgScreen } from "@/app/admin/orgs/[orgId]/page";
-export { default as LegacyAdminProjectScreen } from "@/app/admin/orgs/[orgId]/projects/[projectId]/page";
-export { default as LegacyAdminKbScreen } from "@/app/admin/kbs/[kbId]/page";
-export { default as LegacyAdminKbConfigScreen } from "@/app/admin/kbs/[kbId]/config/page";
-export { default as LegacyAdminSettingsScreen } from "@/app/admin/settings/page";
+export { default as LegacyAdminRootScreen } from "./root-screen";
+export { default as LegacyAdminLoginScreen } from "./login-screen";
+export { default as LegacyAdminOrgsScreen } from "./orgs-screen";
+export { default as LegacyAdminOrgScreen } from "./org-screen";
+export { default as LegacyAdminProjectScreen } from "./project-screen";
+export { default as LegacyAdminKbScreen } from "./kb-screen";
+export { default as LegacyAdminKbConfigScreen } from "./kb-config-screen";
+export { default as LegacyAdminSettingsScreen } from "./settings-screen";

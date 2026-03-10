@@ -1,1 +1,1 @@
-export { default as AdminShellLayout } from "@/app/(admin)/layout";
+export { default as AdminShellLayout } from "./admin-shell";

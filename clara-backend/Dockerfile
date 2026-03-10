@@ -7,16 +7,15 @@ WORKDIR /app
 
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
-COPY package.json package-lock.json* ./
-# Backend might not need other packages yet, but we'll be consistent
-COPY clara-backend/package.json ./clara-backend/
+WORKDIR /app/clara-backend
+COPY clara-backend/package.json clara-backend/package-lock.json* ./
 RUN npm install --ignore-scripts --legacy-peer-deps
 
 # ── Stage 2: Build ─────────────────────────────────────────────────────────
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY clara-backend ./clara-backend
 WORKDIR /app/clara-backend
+COPY --from=deps /app/clara-backend/node_modules ./node_modules
+COPY clara-backend ./
 ENV NODE_ENV=production
 RUN npm run build
 
@@ -31,7 +30,7 @@ RUN adduser  --system --uid 1001 clarauser
 
 # Copy built frontend and source code
 COPY --from=builder /app/clara-backend/dist ./dist
-COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/clara-backend/node_modules ./node_modules
 COPY --from=builder /app/clara-backend/package.json ./package.json
 COPY --from=builder /app/clara-backend/src ./src
 COPY --from=builder /app/clara-backend/tsconfig.json ./tsconfig.json

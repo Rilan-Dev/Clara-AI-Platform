@@ -2,10 +2,10 @@ type Express = any;
 type RequestHandler = any;
 import { NextRequest, NextResponse } from "@/server/next-shim";
 
-import * as authRoute from "@/app/api/auth/route";
-import * as authLoginRoute from "@/app/api/auth/login/route";
-import * as authLogoutRoute from "@/app/api/auth/logout/route";
-import * as proxyRoute from "@/app/api/proxy/[...path]/route";
+import * as authRoute from "@/features/auth/api/auth-route";
+import * as authLoginRoute from "@/features/auth/api/login-route";
+import * as authLogoutRoute from "@/features/auth/api/logout-route";
+import * as proxyRoute from "@/features/proxy/api/proxy-route";
 
 type RouteHandler = (request: NextRequest, context: { params: Promise<Record<string, string>> }) => Promise<Response> | Response;
 type RouteDefinition = { method: "get" | "post" | "put" | "patch" | "delete"; path: string; handler: RouteHandler };
