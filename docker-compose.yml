@@ -1,7 +1,7 @@
+version: '3.8'
+
 services:
-  # ──────────────────────────────────────────────────────────────────────────
-  # Infrastructure
-  # ──────────────────────────────────────────────────────────────────────────
+  # ──────────────── Infrastructure ────────────────
   postgres:
     image: postgres:16-alpine
     container_name: clara-postgres
@@ -16,12 +16,6 @@ services:
       - ./infra/postgres/data:/var/lib/postgresql/data
     networks:
       - clara-net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clara} -d ${POSTGRES_DB:-clara_platform}"]
-      interval: 10s
-      timeout: 5s
-      start_period: 120s
-      retries: 5
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -34,93 +28,61 @@ services:
       - ./infra/qdrant/storage:/qdrant/storage
     networks:
       - clara-net
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n\" >&3 && cat <&3 | grep -q \"200 OK\"'"]
-      interval: 15s
-      timeout: 5s
-      start_period: 30s
-      retries: 5
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # Clara Backend (Vite + Express)
-  #   Serves: marketing site, platform admin, RAG API, embed endpoint
-  # ──────────────────────────────────────────────────────────────────────────
+  # ──────────────── Clara Backend ────────────────
   clara-backend:
     build:
       context: .
       dockerfile: clara-backend/Dockerfile
     container_name: clara-backend
     restart: unless-stopped
+    env_file:
+      - clara-backend/.env
     ports:
       - "3000:3000"
-    networks: [clara-net]
     depends_on:
-      postgres: { condition: service_healthy }
-      qdrant: { condition: service_healthy }
-    env_file: [./clara-backend/.env]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
-      interval: 20s
-      timeout: 5s
-      start_period: 60s
-      retries: 5
+      - postgres
+      - qdrant
+    volumes:
+      - clara-static-assets:/app/clara-backend/.next/static
+    networks:
+      - clara-net
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # Omen United Insurance — Tenant Demo (Vite + Express)
-  # ──────────────────────────────────────────────────────────────────────────
+  # ──────────────── Clara Omen ────────────────
   clara-omen:
     build:
       context: .
       dockerfile: clara-omen-insurance/Dockerfile
     container_name: clara-omen
     restart: unless-stopped
-    ports:
-      - "3101:3001"
-    networks: [clara-net]
-    depends_on:
-      clara-backend: { condition: service_healthy }
-    environment:
-      PORT:                      3001
-      HOSTNAME:                  "0.0.0.0"
-      CLARA_BACKEND_URL:         http://clara-backend:3000
-      NODE_ENV:                  production
     env_file:
-      - ./clara-omen-insurance/.env
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health >/dev/null || exit 1"]
-      interval: 20s
-      timeout: 5s
-      start_period: 40s
-      retries: 5
+      - clara-omen-insurance/.env
+    ports:
+      - "3001:3001"
+    depends_on:
+      - clara-backend
+    networks:
+      - clara-net
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # TechVision Solutions — Tenant Demo (Vite + Express)
-  # ──────────────────────────────────────────────────────────────────────────
+  # ──────────────── Clara TechVision ────────────────
   clara-techvision:
     build:
       context: .
       dockerfile: clara-techvision/Dockerfile
     container_name: clara-techvision
     restart: unless-stopped
-    ports:
-      - "3102:3002"
-    networks: [clara-net]
-    depends_on:
-      clara-backend: { condition: service_healthy }
-    environment:
-      PORT:                      3002
-      HOSTNAME:                  "0.0.0.0"
-      CLARA_BACKEND_URL:         http://clara-backend:3000
-      NODE_ENV:                  production
     env_file:
-      - ./clara-techvision/.env
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/api/health >/dev/null || exit 1"]
-      interval: 20s
-      timeout: 5s
-      start_period: 40s
-      retries: 5
+      - clara-techvision/.env
+    ports:
+      - "3002:3002"
+    depends_on:
+      - clara-backend
+    networks:
+      - clara-net
 
 networks:
   clara-net:
     driver: bridge
+
+volumes:
+  clara-static-assets:
