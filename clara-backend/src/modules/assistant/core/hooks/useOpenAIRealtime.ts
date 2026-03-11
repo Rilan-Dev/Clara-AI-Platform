@@ -683,7 +683,7 @@ export function useOpenAIRealtime(opts?: Options) {
       const realtimeModel: string =
         typeof session?.model === "string" && session.model
           ? session.model
-          : "gpt-4o-mini-realtime-preview";
+          : "gpt-realtime-mini";
       const realtimeVoice: string =
         typeof session?.voice === "string" && session.voice
           ? session.voice
@@ -1111,7 +1111,7 @@ export function useOpenAIRealtime(opts?: Options) {
           // FIX 5: DO NOT override input_audio_transcription here.
           //
           // The original code set model: "whisper-1" in session.update, which
-          // conflicted with the server's "gpt-4o-transcribe" setting.
+          // conflicted with the server's "gpt-4o-mini-transcribe" setting.
           // The server is now the single source of truth for transcription
           // configuration. Omitting this field here preserves the server value.
         },

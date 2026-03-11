@@ -458,6 +458,7 @@ export async function crawlWebsite(
   type QueueItem = { url: string; depth: number; parentUrl: string | null };
   const queue: QueueItem[] = [];
   let lastRequestTime = 0;
+  let playwrightAvailable = true; // Set to false after first Playwright failure
 
   // ── Rate limiter ────────────────────────────────────────────────────────
   const effectiveDelay = robotsRules?.crawlDelay
@@ -497,13 +498,18 @@ export async function crawlWebsite(
 
     // Fetch HTML (HTTP first)
     let { html, ok } = await fetchHtml(normalizedUrl, pageTimeoutMs);
+    let fetchedViaHttp = ok && !!html;
 
-    if (!ok || !html) {
+    if ((!ok || !html) && playwrightAvailable) {
       // Try Playwright for non-responsive pages
       const rendered = await renderWithPlaywright(normalizedUrl, pageTimeoutMs);
       if (rendered) {
         html = rendered;
         ok = true;
+        fetchedViaHttp = false;
+      } else {
+        // Playwright failed (likely not installed) — disable for remaining URLs
+        playwrightAvailable = false;
       }
     }
 
@@ -529,51 +535,28 @@ export async function crawlWebsite(
       return [];
     }
 
-    const $ = loadHtml(html);
+    let $ = loadHtml(html);
     const title = extractTitle($);
     let contentLength = estimateContentLength($);
 
-    // If content is thin via HTTP fetch, try Playwright
-    if (contentLength < 200 && html === (await fetchHtml(normalizedUrl, pageTimeoutMs)).html) {
+    // If HTTP fetch returned thin content (<50 chars = likely SPA shell), try Playwright
+    if (fetchedViaHttp && contentLength < 50 && playwrightAvailable) {
       const rendered = await renderWithPlaywright(normalizedUrl, pageTimeoutMs);
       if (rendered) {
+        // Playwright is working — keep using it
         const $rendered = loadHtml(rendered);
         const renderedLength = estimateContentLength($rendered);
         if (renderedLength > contentLength) {
-          // Use Playwright-rendered content for link extraction too
-          const renderedLinks = extractLinks(
-            $rendered,
-            normalizedUrl,
-            targetDomain,
-            excludePatterns
-          );
+          // Playwright gave us richer content — use it instead
+          $ = $rendered;
           contentLength = renderedLength;
-
-          const discovered: DiscoveredUrl = {
-            url: normalizedUrl,
-            title: extractTitle($rendered),
-            depth,
-            parentUrl,
-            contentLength: renderedLength,
-            status: "discovered",
-          };
-          discoveredUrls.push(discovered);
-          onUrlDiscovered?.(discovered);
-
-          onProgress?.({
-            crawledCount: visited.size,
-            queuedCount: queue.length,
-            totalDiscovered: discoveredUrls.length,
-          });
-
-          return renderedLinks;
         }
       }
     }
 
     const discovered: DiscoveredUrl = {
       url: normalizedUrl,
-      title,
+      title: extractTitle($),
       depth,
       parentUrl,
       contentLength,
