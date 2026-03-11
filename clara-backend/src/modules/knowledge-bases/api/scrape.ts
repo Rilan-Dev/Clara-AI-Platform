@@ -51,6 +51,15 @@ function triggerScrapeWorker(req: NextRequest, sessionId: string): void {
 }
 
 // ── POST /api/kbs/:kbId/scrape/discover ──────────────────────────────────────
+//
+// Body:
+//   url              string   — root URL to crawl
+//   maxDepth?        number   — BFS depth (default: 3)
+//   maxUrls?         number   — URL cap (default: 500)
+//   requestDelayMs?  number   — ms between requests (default: 300)
+//   scopeToInputPath? boolean — restrict to input path prefix (default: true)
+//     true  → https://vite.dev/guide/ discovers ONLY /guide/* URLs
+//     false → discovers all reachable URLs across the whole domain
 
 export async function discoverHandler(
   req: NextRequest,
@@ -68,18 +77,22 @@ export async function discoverHandler(
     }
 
     const body = await req.json();
-    const { url, maxDepth = 3, maxUrls = 200, requestDelayMs = 500 } = body;
+    const {
+      url,
+      maxDepth        = 3,
+      maxUrls         = 500,
+      requestDelayMs  = 300,
+      scopeToInputPath = true,   // default: scope to input path prefix
+    } = body;
 
     if (!url?.trim()) {
       return NextResponse.json({ error: "url is required" }, { status: 400 });
     }
-
-    // Validate the URL
     try { new URL(url); } catch {
       return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
     }
 
-    // Create the session row immediately (status = 'discovering')
+    // Create session immediately so the UI can show "discovering..." status
     const session = await createSession({
       kbId,
       rootUrl:   url.trim(),
@@ -87,17 +100,17 @@ export async function discoverHandler(
       createdBy: auth.user.id,
     });
 
-    // Run the crawler synchronously (it's fast for typical sites, ≤30s)
-    // For very large sites, this could be moved to a background worker.
     try {
       const crawlResult = await crawlWebsite(url.trim(), {
         maxDepth,
         maxUrls,
         requestDelayMs,
-        concurrency: 3,
+        concurrency:      3,
+        scopeToInputPath: Boolean(scopeToInputPath),
+        parseSitemap:     true,
+        respectRobotsTxt: true,
       });
 
-      // Bulk-insert all discovered URLs
       await insertDiscoveredUrls(
         session.id,
         crawlResult.discoveredUrls.map((u) => ({
@@ -109,13 +122,23 @@ export async function discoverHandler(
         }))
       );
 
-      // Recalc counters + mark awaiting user confirmation
       await recalcSessionProgress(session.id);
       await markSessionAwaiting(session.id);
 
-      // Return the session with all URLs for immediate UI rendering
       const full = await getSessionWithUrls(session.id);
-      return NextResponse.json(full, { status: 201 });
+
+      // Attach crawl metadata for the UI to display
+      return NextResponse.json(
+        {
+          ...full,
+          crawlMeta: {
+            pathPrefix:      crawlResult.pathPrefix,
+            crawlDurationMs: crawlResult.crawlDurationMs,
+            errors:          crawlResult.errors.length,
+          },
+        },
+        { status: 201 }
+      );
 
     } catch (crawlErr) {
       const msg = (crawlErr as Error).message;
@@ -201,7 +224,6 @@ export async function toggleUrlHandler(
       return NextResponse.json({ error: "URL not found" }, { status: 404 });
     }
 
-    // Verify the URL belongs to this KB
     const session = await getSessionById(scrapeUrl.sessionId);
     if (!session || session.kbId !== kbId) {
       return NextResponse.json({ error: "URL not found" }, { status: 404 });
@@ -230,7 +252,7 @@ export async function batchToggleUrlHandler(
 
     const body = await req.json();
 
-    // selectAll mode: include/exclude all URLs in the session
+    // selectAll mode
     if (body?.selectAll !== undefined && body?.sessionId) {
       const session = await getSessionById(body.sessionId);
       if (!session || session.kbId !== kbId) {
@@ -282,10 +304,7 @@ export async function startScrapeHandler(
       );
     }
 
-    // Mark session as scraping
     await markSessionScraping(sessionId);
-
-    // Fire-and-forget: trigger the scrape worker
     triggerScrapeWorker(req, sessionId);
 
     return NextResponse.json({ started: true, sessionId });
@@ -314,7 +333,7 @@ export async function progressHandler(
 
     const urls = await listUrlsForSession(sessionId);
 
-    const summary = {
+    return NextResponse.json({
       sessionId:    session.id,
       status:       session.status,
       totalUrls:    session.totalUrls,
@@ -324,9 +343,7 @@ export async function progressHandler(
       pendingUrls:  urls.filter((u) => u.status === "pending" && u.included).length,
       scrapingUrls: urls.filter((u) => u.status === "scraping").length,
       errorMessage: session.errorMessage,
-    };
-
-    return NextResponse.json(summary);
+    });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
