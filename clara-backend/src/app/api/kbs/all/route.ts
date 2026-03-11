@@ -20,19 +20,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // ── 1. Authenticate ──────────────────────────────────────────────────────
     const auth = await requireAuth(req);
 
-    // ── 2. Validate orgId query param ────────────────────────────────────────
+    // ── 2. Validate orgId query param (Now Optional) ─────────────────────────
     const orgId = req.nextUrl.searchParams.get("orgId");
-    if (!orgId) {
-      return NextResponse.json(
-        { error: "orgId query parameter is required" },
-        { status: 400 }
-      );
+
+    // ── 3. Verify permissions & build query ──────────────────────────────────
+    let whereClause = "kb.status = 'active'";
+    const queryParams: unknown[] = [];
+
+    if (orgId) {
+      await requireOrgPermission(auth, orgId, "kb:read");
+      whereClause += " AND o.id = $1";
+      queryParams.push(orgId);
+    } else if (!auth.user.isSuperAdmin) {
+      whereClause += " AND o.id IN (SELECT org_id FROM org_members WHERE user_id = $1)";
+      queryParams.push(auth.user.id);
     }
 
-    // ── 3. Verify caller is a member of the requested org ────────────────────
-    await requireOrgPermission(auth, orgId, "kb:read");
-
-    // ── 4. Query — scoped strictly to this org ───────────────────────────────
+    // ── 4. Query ─────────────────────────────────────────────────────────────
     const result = await pool.query<{
       kb_id: string;
       kb_name: string;
@@ -73,13 +77,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        JOIN organisations   o  ON o.id  = p.org_id
        LEFT JOIN assistant_configs ac ON ac.kb_id = kb.id
        LEFT JOIN documents  d  ON d.kb_id = kb.id
-       WHERE kb.status = 'active'
-         AND o.id = $1
+       WHERE ${whereClause}
        GROUP BY kb.id, p.id, o.id,
                 ac.assistant_name, ac.avatar_url, ac.welcome_message,
                 ac.primary_colour, ac.accent_colour
        ORDER BY p.name ASC, kb.name ASC`,
-      [orgId]
+      queryParams
     );
 
     const kbs = result.rows.map((r) => ({
