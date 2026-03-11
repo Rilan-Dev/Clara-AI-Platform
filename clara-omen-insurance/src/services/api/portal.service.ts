@@ -1,3 +1,4 @@
+import type { AxiosProgressEvent } from "axios";
 import { streamJsonLineEvents } from "@clara/api-client";
 import { ENDPOINTS } from "@/services/api/endpoints";
 import http from "@/services/api/http.client";
@@ -29,7 +30,7 @@ export const portalService = {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-      onUploadProgress: (event) => {
+      onUploadProgress: (event: AxiosProgressEvent) => {
         if (onProgress && event.total) {
           onProgress(Math.round((event.loaded * 100) / event.total));
         }
@@ -56,7 +57,7 @@ export const portalService = {
       total: data.totalQueries ?? 0,
       daily: data.queriesPerDay ?? [],
       avg_latency: data.avgLatencyMs ?? null,
-      top_queries: (data.topQueries ?? []).map((query) => ({
+      top_queries: (data.topQueries ?? []).map((query: { queryText: string; count: number }) => ({
         query: query.queryText,
         count: query.count,
       })),

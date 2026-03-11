@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOrgId } from "@/config/app";
 import { portalQueryKeys } from "@/services/api/query-keys";
 import { portalService } from "@/services/api/portal.service";
+import type { DocumentRecord } from "@/services/api/portal.types";
 
 export function useKnowledgeBases() {
   const orgId = getOrgId();
@@ -20,8 +21,8 @@ export function useDocuments(kbId: string) {
     queryFn: () => portalService.getDocuments(kbId),
     enabled: Boolean(kbId),
     refetchInterval: (query) => {
-      const documents = query.state.data ?? [];
-      return documents.some((doc) => doc.status === "pending" || doc.status === "processing") ? 4_000 : false;
+      const documents: DocumentRecord[] = query.state.data ?? [];
+      return documents.some((doc: DocumentRecord) => doc.status === "pending" || doc.status === "processing") ? 4_000 : false;
     },
   });
 }

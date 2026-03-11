@@ -55,7 +55,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "OpenAI-Beta": "realtime=v1",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-realtime-preview",
+        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-mini-realtime-preview",
         voice: config.voiceId,
         modalities: ["audio", "text"],
         instructions,

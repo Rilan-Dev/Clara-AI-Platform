@@ -2,16 +2,17 @@
 import Link from "next/link";
 import { Database, Activity, FileText, Clock, ArrowUpRight } from "lucide-react";
 import { useDashboardData } from "@/features/dashboard/hooks/use-dashboard-data";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 export default function Dashboard() {
   const dashboardQuery = useDashboardData();
-  const kbs = dashboardQuery.data?.knowledgeBases ?? [];
+  const kbs: KnowledgeBase[] = dashboardQuery.data?.knowledgeBases ?? [];
   const usage = dashboardQuery.data?.usage ?? null;
   const plan = dashboardQuery.data?.plan ?? null;
   const loading = dashboardQuery.isLoading;
 
-  const totalDocs   = kbs.reduce((s, k) => s + k.docCount,   0);
-  const readyDocs   = kbs.reduce((s, k) => s + k.readyCount, 0);
+  const totalDocs   = kbs.reduce((sum: number, kb: KnowledgeBase) => sum + kb.docCount, 0);
+  const readyDocs   = kbs.reduce((sum: number, kb: KnowledgeBase) => sum + kb.readyCount, 0);
   const maxReq      = plan?.max_req_day ?? 10000;
   const reqToday    = usage?.requests_today ?? 0;
   const reqPct      = maxReq > 0 ? Math.min(100, Math.round(reqToday / maxReq * 100)) : 0;
@@ -38,7 +39,7 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {statCards.map(c => (
+        {statCards.map((c) => (
           <div key={c.label} className="border border-white/[0.07] bg-white/[0.03] rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-white/40">{c.label}</span>
@@ -81,7 +82,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="divide-y divide-white/[0.04]">
-            {kbs.map(kb => (
+            {kbs.map((kb) => (
               <div key={kb.id} className="flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors">
                 <div className="w-9 h-9 rounded-xl bg-[#c8821a]/10 border border-[#c8821a]/20 flex items-center justify-center">
                   <Database className="w-4 h-4 text-[#c8821a]" />

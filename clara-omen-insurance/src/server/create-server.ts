@@ -1,55 +1,46 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import type { Request, Response, NextFunction } from "express";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export function createConsumerServer(opts: {
+type CreateConsumerServerOptions = {
+  appName: string;
   port: number;
-  cookieName: string;
-  backendUrl: string;
-  appLabel: string;
-  distDir: string;
-}) {
-  const { port, cookieName, backendUrl, appLabel, distDir } = opts;
+  rootDir: string;
+  registerApiRoutes: (app: ReturnType<typeof express>) => void;
+};
 
-  const app = express();
+export function createConsumerServer({ appName, port, rootDir, registerApiRoutes }: CreateConsumerServerOptions) {
+  const app     = express();
+  const distDir = path.join(rootDir, "dist");
 
   app.set("trust proxy", true);
-
-  app.use(cors({
-    origin: true,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  }));
-
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'", "wss:", "https://api.openai.com", "https://realtime.openai.com"],
-        mediaSrc: ["'self'", "blob:"],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-  }));
-
+  app.use(cors({ origin: true, credentials: true }));
+  app.use(helmet({ crossOriginEmbedderPolicy: false, contentSecurityPolicy: false }));
   app.use(compression());
   app.use(cookieParser());
-
-  // Raw body for proxy (preserves multipart/file uploads)
   app.use(express.raw({ type: () => true, limit: "25mb" }));
 
-  return { app, port, cookieName, backendUrl, appLabel, distDir };
+  registerApiRoutes(app);
+
+  if (process.env.NODE_ENV === "production") {
+    app.use(express.static(distDir));
+  }
+
+  app.get(/.*/, (_req: express.Request, res: express.Response) => {
+    res.sendFile(path.join(distDir, "index.html"));
+  });
+
+  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error(`[${appName}]`, error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  });
+
+  app.listen(port, () => {
+    console.log(`[${appName}] server running on http://localhost:${port}`);
+  });
+
+  return app;
 }

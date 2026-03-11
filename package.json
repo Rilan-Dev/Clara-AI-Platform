@@ -1,0 +1,16 @@
+{
+  "name": "clara-platform",
+  "private": true,
+  "dependencies": {
+    "@tanstack/react-query": "^5.83.0",
+    "@tanstack/react-query-devtools": "^5.83.0",
+    "axios": "^1.13.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.7.3"
+  }
+}

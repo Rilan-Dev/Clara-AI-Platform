@@ -12,16 +12,5 @@
  */
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") {
-    return;
-  }
-
-  console.log("[startup] Running database migrations...");
-  try {
-    const { runMigrationsOnStartup } = await import("./lib/db/migrate");
-    await runMigrationsOnStartup();
-    console.log("[startup] Database ready.");
-  } catch (err) {
-    console.error("[startup] Migration error:", err);
-  }
+  return;
 }

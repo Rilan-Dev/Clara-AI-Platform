@@ -85,22 +85,16 @@ export async function loginHandler(req: NextRequest): Promise<NextResponse> {
     const body = await req.json();
     const { email, password } = body ?? {};
 
-    console.log('loginHandler email ', email)
-    console.log('loginHandler password ', password)
-
     if (!email || !password) {
       return NextResponse.json({ error: "email and password are required" }, { status: 400 });
     }
 
     const userWithHash = await getUserByEmail(email);
-    console.log("loginHandler userWithHash", userWithHash);
     if (!userWithHash) {
       // Constant-time: still run hash to prevent user-enumeration via timing
       await hashPassword("dummy-anti-timing-run");
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
-    console.log('loginHandler password ', password)
-    console.log('loginHandler passwordHash ', userWithHash.passwordHash)
 
     const valid = await verifyPassword(password, userWithHash.passwordHash);
     if (!valid) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });

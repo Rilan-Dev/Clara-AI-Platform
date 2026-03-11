@@ -2,11 +2,10 @@ import { useLocation, useNavigate, useParams as useRouteParams, useSearchParams 
 
 export function useRouter() {
   const navigate = useNavigate();
-
   return {
-    push: (to: string) => navigate(to),
+    push:    (to: string) => navigate(to),
     replace: (to: string) => navigate(to, { replace: true }),
-    back: () => navigate(-1),
+    back:    () => navigate(-1),
     forward: () => navigate(1),
     refresh: () => window.location.reload(),
     prefetch: async () => {},

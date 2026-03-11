@@ -4,8 +4,8 @@
  * No external dependencies — scrypt is OWASP-recommended for password hashing.
  */
 
-import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
 

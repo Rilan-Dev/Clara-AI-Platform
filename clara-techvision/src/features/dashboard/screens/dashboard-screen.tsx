@@ -4,10 +4,11 @@ import Link from "next/link";
 import { Database, ArrowUpRight, TrendingUp } from "lucide-react";
 import { getPricingUrl } from "@/config/app";
 import { useDashboardData } from "@/features/dashboard/hooks/use-dashboard-data";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 export default function TVDashboard() {
   const dashboardQuery = useDashboardData();
-  const kbs = dashboardQuery.data?.knowledgeBases ?? [];
+  const kbs: KnowledgeBase[] = dashboardQuery.data?.knowledgeBases ?? [];
   const usage = dashboardQuery.data?.usage ?? null;
   const plan = dashboardQuery.data?.plan ?? null;
   const loading = dashboardQuery.isLoading;
@@ -16,7 +17,7 @@ export default function TVDashboard() {
   const maxReq = plan?.max_req_day ?? 1000;
   const reqToday = usage?.requests_today ?? 0;
   const reqPct = maxReq > 0 ? Math.min(100, Math.round((reqToday / maxReq) * 100)) : 0;
-  const totalDocs = kbs.reduce((sum, kb) => sum + kb.docCount, 0);
+  const totalDocs = kbs.reduce((sum: number, kb: KnowledgeBase) => sum + kb.docCount, 0);
 
   return (
     <div className="p-6 lg:p-8">

@@ -127,7 +127,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         "claims, premiums, renewals, or any other policy-specific information.";
     }
 
-    const model = process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-realtime-preview";
+    const model = process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-mini-realtime-preview";
 
     const tools = [
       {

@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
       POSTGRES_DB: ${POSTGRES_DB:-clara_platform}
     ports:
-      - "5433:5432"
+      - "1234:5432"
     volumes:
       - ./infra/postgres/data:/var/lib/postgresql/data
     networks:
@@ -47,8 +47,8 @@ services:
   # ──────────────────────────────────────────────────────────────────────────
   clara-backend:
     build:
-      context: ./clara-backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: clara-backend/Dockerfile
     container_name: clara-backend
     restart: unless-stopped
     ports:
@@ -73,6 +73,8 @@ services:
       POSTGRES_PASSWORD:     ${POSTGRES_PASSWORD:-clarapassword}
       POSTGRES_DB:           ${POSTGRES_DB:-clara_platform}
       NODE_ENV:              production
+      AUTO_SEED_DEMO:        "true"
+      LOCAL_INIT_SECRET:     clara-local-init
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
       interval: 20s

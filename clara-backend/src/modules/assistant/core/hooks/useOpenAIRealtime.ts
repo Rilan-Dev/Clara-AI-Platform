@@ -683,7 +683,7 @@ export function useOpenAIRealtime(opts?: Options) {
       const realtimeModel: string =
         typeof session?.model === "string" && session.model
           ? session.model
-          : "gpt-4o-realtime-preview";
+          : "gpt-4o-mini-realtime-preview";
       const realtimeVoice: string =
         typeof session?.voice === "string" && session.voice
           ? session.voice

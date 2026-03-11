@@ -235,11 +235,15 @@ export async function uploadDocuments(kbId: string, files: File[]): Promise<{ qu
   // IMPORTANT: Do NOT pass a Content-Type header when sending FormData.
   // The browser must set it automatically so it can include the correct
   // multipart boundary (e.g. "multipart/form-data; boundary=----WebKit...").
-  // Passing a Headers object — even an empty one — can block the browser
-  // from injecting the boundary, causing the server to reject with 400.
-  const token = getStoredToken();
+  // Use withAuthHeaders to pick up the stored JWT, then strip Content-Type
+  // so the browser can inject the correct multipart boundary itself.
+  const authHeaders = withAuthHeaders({});
   const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  authHeaders.forEach((value, key) => {
+    if (key.toLowerCase() !== "content-type") {
+      headers[key] = value;
+    }
+  });
 
   const res = await fetch(apiUrl(`/api/kbs/${kbId}/documents`), {
     method: "POST",

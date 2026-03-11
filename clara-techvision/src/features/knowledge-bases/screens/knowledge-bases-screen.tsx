@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Database, Upload, Plus, FileText, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { useDocuments, useKnowledgeBases, useUploadDocument } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
 import { isApiError } from "@/services/api/http.client";
+import type { DocumentRecord, KnowledgeBase } from "@/services/api/portal.types";
 
 export default function TVKnowledgeBases() {
   const [selected, setSelected] = useState("");
@@ -12,8 +13,8 @@ export default function TVKnowledgeBases() {
   const knowledgeBasesQuery = useKnowledgeBases();
   const documentsQuery = useDocuments(selected);
   const uploadMutation = useUploadDocument(selected, setUploadProgress);
-  const kbs = knowledgeBasesQuery.data ?? [];
-  const docs = documentsQuery.data ?? [];
+  const kbs: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
+  const docs: DocumentRecord[] = documentsQuery.data ?? [];
   const loading = knowledgeBasesQuery.isLoading;
 
   useEffect(() => {

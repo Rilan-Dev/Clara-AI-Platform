@@ -4,12 +4,13 @@ import { TrendingUp, MessageSquare, Clock, Database } from "lucide-react";
 import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
 import { useKnowledgeBaseAnalytics } from "@/features/analytics/hooks/use-kb-analytics";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 export default function AnalyticsPage() {
   const [activeKb, setActiveKb]   = useState("");
   const knowledgeBasesQuery = useKnowledgeBases();
   const analyticsQuery = useKnowledgeBaseAnalytics(activeKb, "30d");
-  const knowledgeBases = knowledgeBasesQuery.data ?? [];
+  const knowledgeBases: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
   const analytics = analyticsQuery.data ?? null;
   const loading = knowledgeBasesQuery.isLoading || analyticsQuery.isLoading;
 
@@ -28,7 +29,7 @@ export default function AnalyticsPage() {
         </div>
         <select value={activeKb} onChange={e => setActiveKb(e.target.value)}
           className="bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#c8821a]/50">
-          {knowledgeBases.map(kb => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
+          {knowledgeBases.map((kb) => <option key={kb.id} value={kb.id}>{kb.name}</option>)}
         </select>
       </div>
 
@@ -77,7 +78,7 @@ export default function AnalyticsPage() {
           <p className="text-white/30 text-sm">No queries yet.</p>
         ) : (
           <div className="space-y-2">
-            {analytics!.top_queries.slice(0, 8).map((q, i) => (
+             {analytics!.top_queries.slice(0, 8).map((q: { query: string; count: number }, i: number) => (
               <div key={i} className="flex items-center gap-3">
                 <span className="text-xs font-bold text-white/20 w-5">{i + 1}</span>
                 <div className="flex-1 text-sm text-white/70 truncate">{q.query}</div>

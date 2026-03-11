@@ -1,5 +1,5 @@
 # Clara Backend — Next.js standalone Dockerfile
-# This Dockerfile expects the build context to be `clara-backend/`
+# This Dockerfile expects the build context to be the repository root (`.`)
 
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat curl
@@ -8,16 +8,17 @@ WORKDIR /app
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
 WORKDIR /app/clara-backend
-COPY package.json package-lock.json* ./
+COPY clara-backend/package.json clara-backend/package-lock.json* ./
 RUN npm install --ignore-scripts --legacy-peer-deps
 
 # ── Stage 2: Build ─────────────────────────────────────────────────────────
 FROM base AS builder
 WORKDIR /app/clara-backend
 COPY --from=deps /app/clara-backend/node_modules ./node_modules
-COPY . ./
+COPY packages /app/packages
+COPY clara-backend ./
 ENV NODE_ENV=production
-RUN npm run build
+RUN ln -s /app/clara-backend/node_modules /app/node_modules && npm run build
 
 # ── Stage 3: Production runner ──────────────────────────────────────────────
 FROM base AS runner
@@ -30,11 +31,11 @@ RUN adduser  --system --uid 1001 clarauser
 
 COPY --from=builder /app/clara-backend/public ./public
 COPY --from=builder /app/clara-backend/scripts ./scripts
-COPY --from=builder /app/clara-backend/.next-app/standalone ./
+COPY --from=builder /app/clara-backend/.next-app/standalone/clara-backend ./
 COPY --from=builder /app/clara-backend/.next-app/static ./.next/static
 
 USER clarauser
 EXPOSE 3000
 
 # Start the standalone Next.js server
-CMD ["node", "server.js"]
+CMD ["sh", "./scripts/docker-start.sh"]

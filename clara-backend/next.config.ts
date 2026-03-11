@@ -8,6 +8,7 @@ const __dirname = dirname(__filename);
 const nextConfig: NextConfig = {
   distDir: ".next-app",
   output: "standalone",
+  serverExternalPackages: ["pg"],
   reactStrictMode: true,
   experimental: {
     externalDir: true,
@@ -26,13 +27,19 @@ const nextConfig: NextConfig = {
       ],
     },
   ],
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve = config.resolve ?? {};
+    config.resolve.modules = [join(__dirname, "node_modules"), ...(config.resolve.modules ?? [])];
     config.resolve.alias = {
       ...(config.resolve.alias ?? {}),
       "pdfjs-dist/build/pdf.worker.mjs": false,
       "pdfjs-dist/legacy/build/pdf.worker.mjs": false,
     };
+
+    if (isServer && Array.isArray(config.externals)) {
+      config.externals.push({ pg: "commonjs pg", cheerio: "commonjs cheerio" });
+    }
+
     return config;
   },
 };

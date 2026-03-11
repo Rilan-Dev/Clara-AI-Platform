@@ -1,4 +1,9 @@
-import axios, { type AxiosInstance, type AxiosResponse, isAxiosError } from "axios";
+import axios, {
+  type AxiosInstance,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+  isAxiosError,
+} from "axios";
 
 export class ApiError extends Error {
   constructor(
@@ -41,7 +46,7 @@ export function createHttpClient(options: { requestIdPrefix: string; backendUnav
     },
   });
 
-  http.interceptors.request.use((config) => {
+  http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     config.headers["x-request-id"] = `${options.requestIdPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     return config;
   });
@@ -53,15 +58,17 @@ export function createHttpClient(options: { requestIdPrefix: string; backendUnav
         return Promise.reject(new ApiError(0, "UNKNOWN", "An unexpected request error occurred.", error));
       }
 
-      if (!error.response) {
-        if (error.code === "ECONNABORTED" || error.message?.toLowerCase().includes("timeout")) {
+      const axiosError = error;
+
+      if (!axiosError.response) {
+        if (axiosError.code === "ECONNABORTED" || axiosError.message?.toLowerCase().includes("timeout")) {
           return Promise.reject(new ApiError(408, "TIMEOUT", "Request timed out. Please try again."));
         }
 
         return Promise.reject(new ApiError(502, "NETWORK_ERROR", options.backendUnavailableMessage));
       }
 
-      const { status, data } = error.response;
+      const { status, data } = axiosError.response;
       const message =
         (data as { error?: string; message?: string } | undefined)?.error ??
         (data as { error?: string; message?: string } | undefined)?.message ??

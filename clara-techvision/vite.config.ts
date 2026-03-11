@@ -10,20 +10,18 @@ export default defineConfig({
       "next/server":     path.resolve(__dirname, "./src/server/next-shim.ts"),
       "next/link":       path.resolve(__dirname, "./src/vite/shims/next-link.tsx"),
       "next/navigation": path.resolve(__dirname, "./src/vite/shims/next-navigation.ts"),
-      "next/dynamic":    path.resolve(__dirname, "./src/vite/shims/next-dynamic.tsx"),
     },
   },
   server: {
-    port: 5173,
+    port: 5175,
     proxy: {
-      // Forward all /api/* requests from the Vite HMR dev server → Express on :3000
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://localhost:3002",
         changeOrigin: true,
       },
     },
   },
   preview: {
-    port: 3000,
+    port: 3002,
   },
 });

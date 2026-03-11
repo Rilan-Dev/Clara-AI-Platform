@@ -1,1 +1,1 @@
-export { SharedQueryProvider as QueryProvider } from "@clara/ui";
+export { AppProviders as QueryProvider } from "./AppProviders";

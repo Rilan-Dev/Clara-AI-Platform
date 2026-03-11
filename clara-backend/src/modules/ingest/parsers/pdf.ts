@@ -1,6 +1,7 @@
 import { DocumentParser, ParsedDocument } from "../types";
 
 // Require the internal lib file directly to bypass pdf-parse's broken `module.parent` check in index.js
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParseModule = require("pdf-parse/lib/pdf-parse.js");
 
 const pdfParse = pdfParseModule.default || pdfParseModule;

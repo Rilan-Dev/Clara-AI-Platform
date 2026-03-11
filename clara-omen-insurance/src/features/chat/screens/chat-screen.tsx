@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { MessageSquare, Send, X, RotateCcw, AlertCircle } from "lucide-react";
 import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
 import { portalService } from "@/services/api/portal.service";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
@@ -16,7 +17,7 @@ function ChatContent() {
   const [error, setError]       = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const knowledgeBasesQuery = useKnowledgeBases();
-  const knowledgeBases = knowledgeBasesQuery.data ?? [];
+  const knowledgeBases: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
   
   useEffect(() => {
     const preselect = searchParams.get("kb");
@@ -24,7 +25,7 @@ function ChatContent() {
       return;
     }
 
-    if (preselect && knowledgeBasesQuery.data.find((kb) => kb.id === preselect)) {
+    if (preselect && knowledgeBasesQuery.data.find((kb: KnowledgeBase) => kb.id === preselect)) {
       setActiveKb(preselect);
       return;
     }
@@ -61,7 +62,7 @@ function ChatContent() {
     }
   }, [input, activeKb, loading, messages]);
 
-  const activeKbData = knowledgeBases.find(k => k.id === activeKb);
+  const activeKbData = knowledgeBases.find((kb) => kb.id === activeKb);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -71,7 +72,7 @@ function ChatContent() {
           <div className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Knowledge Bases</div>
           <div className="space-y-1">
             {knowledgeBases.length === 0 && <p className="text-xs text-white/30">Loading…</p>}
-            {knowledgeBases.map(kb => (
+            {knowledgeBases.map((kb) => (
               <button key={kb.id} onClick={() => { setActiveKb(kb.id); setMessages([]); }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2.5 ${activeKb === kb.id ? "bg-[#c8821a]/15 text-white border border-[#c8821a]/25" : "text-white/50 hover:text-white hover:bg-white/[0.04]"}`}>
                 <div className={`w-2 h-2 rounded-full shrink-0 ${kb.status === "active" ? "bg-emerald-400" : "bg-slate-500"}`} />

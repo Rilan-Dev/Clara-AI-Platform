@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
     externalDir: true,
   },
   outputFileTracingRoot: join(__dirname, ".."),
+  webpack: (config) => {
+    config.resolve ??= {};
+    config.resolve.modules = [join(__dirname, "node_modules"), ...(config.resolve.modules ?? [])];
+    return config;
+  },
 };
 
 export default nextConfig;

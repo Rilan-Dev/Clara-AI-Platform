@@ -10,6 +10,7 @@ import {
   useAssistantConfig,
   useUpdateAssistantConfig,
 } from "@/features/settings/hooks/use-assistant-config";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 const assistantConfigSchema = z.object({
   assistantName: z.string().min(1, "Assistant name is required"),
@@ -53,7 +54,7 @@ export default function SettingsPage() {
   const knowledgeBasesQuery = useKnowledgeBases();
   const assistantConfigQuery = useAssistantConfig(activeKbId);
   const updateAssistantConfigMutation = useUpdateAssistantConfig(activeKbId);
-  const knowledgeBases = knowledgeBasesQuery.data ?? [];
+  const knowledgeBases: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
 
   const {
     register,

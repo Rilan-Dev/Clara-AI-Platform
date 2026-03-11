@@ -2,10 +2,11 @@
 
 import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
 import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 export default function TechVisionChatPage() {
   const knowledgeBasesQuery = useKnowledgeBases();
-  const kbs = knowledgeBasesQuery.data ?? [];
+  const kbs: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
   const loading = knowledgeBasesQuery.isLoading;
 
   return (

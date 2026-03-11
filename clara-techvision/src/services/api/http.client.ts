@@ -1,4 +1,4 @@
-import { ApiError, createHttpClient, isApiError } from "@clara/api-client";
+import { ApiError, createHttpClient, isApiError as isSharedApiError } from "@clara/api-client";
 
 const http = createHttpClient({
   requestIdPrefix: "tv",
@@ -8,5 +8,10 @@ const http = createHttpClient({
   },
 });
 
-export { ApiError, isApiError };
+export { ApiError };
+
+export function isApiError(error: unknown): error is ApiError {
+  return isSharedApiError(error);
+}
+
 export default http;

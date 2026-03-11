@@ -7,6 +7,7 @@ import {
 import { getPlatformAdminUrl } from "@/config/app";
 import { useDocuments, useKnowledgeBases, useUploadDocument } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
 import { isApiError } from "@/services/api/http.client";
+import type { DocumentRecord, KnowledgeBase } from "@/services/api/portal.types";
 
 export default function KnowledgeBasesPage() {
   const [selected, setSelected] = useState<string>("");
@@ -16,8 +17,8 @@ export default function KnowledgeBasesPage() {
   const knowledgeBasesQuery = useKnowledgeBases();
   const documentsQuery = useDocuments(selected);
   const uploadMutation = useUploadDocument(selected, setUploadProgress);
-  const knowledgeBases = knowledgeBasesQuery.data ?? [];
-  const docs = documentsQuery.data ?? [];
+  const knowledgeBases: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
+  const docs: DocumentRecord[] = documentsQuery.data ?? [];
   const loading = knowledgeBasesQuery.isLoading;
 
   useEffect(() => {
@@ -36,14 +37,15 @@ export default function KnowledgeBasesPage() {
       await uploadMutation.mutateAsync(file);
       setTab("documents");
     } catch (err: unknown) {
-      setUploadError(isApiError(err) ? err.message : "Upload failed. Please try again.");
+      const message = isApiError(err) ? err.message : "Upload failed. Please try again.";
+      setUploadError(message);
     } finally {
       setUploadProgress(0);
       e.target.value = "";
     }
   }
 
-  const selectedKb = knowledgeBases.find(k => k.id === selected);
+  const selectedKb = knowledgeBases.find((kb) => kb.id === selected);
 
   const statusIcon = (status: string) => {
     if (status === "ready")      return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
@@ -64,7 +66,7 @@ export default function KnowledgeBasesPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {loading && <p className="text-xs text-white/30 px-2">Loading…</p>}
-          {knowledgeBases.map(kb => (
+          {knowledgeBases.map((kb) => (
             <button key={kb.id} onClick={() => setSelected(kb.id)}
               className={`w-full text-left px-3 py-3 rounded-xl text-sm transition-all ${
                 selected === kb.id
@@ -125,7 +127,7 @@ export default function KnowledgeBasesPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {docs.map(doc => (
+                   {docs.map((doc) => (
                     <div key={doc.id} className="flex items-center gap-4 px-4 py-3 border border-white/[0.06] bg-white/[0.02] rounded-xl hover:bg-white/[0.04] transition-colors">
                       <div className="w-8 h-8 rounded-lg bg-[#c8821a]/10 flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-[#c8821a]" />

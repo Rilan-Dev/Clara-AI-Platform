@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -11,12 +15,46 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ],
+      "@clara/api-client": [
+        "../packages/api-client/src/index.ts"
+      ],
+      "@clara/config": [
+        "../packages/config/src/index.ts"
+      ],
+      "@clara/types": [
+        "../packages/types/src/index.ts"
+      ],
+      "@clara/ui": [
+        "../packages/ui/src/index.tsx"
+      ]
+    },
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "src/vite-env.d.ts"],
-  "exclude": ["node_modules", "dist", "src/app/**", "src/middleware.ts"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next-app/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/server/**",
+    "src/vite/**",
+    "src/main.tsx",
+    "src/router.tsx",
+    "src/vite-env.d.ts",
+    "vite.config.ts"
+  ]
 }

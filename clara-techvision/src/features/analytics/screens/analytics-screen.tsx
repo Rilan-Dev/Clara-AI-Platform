@@ -5,12 +5,13 @@ import { MessageSquare, Clock, Database } from "lucide-react";
 import { useKnowledgeBaseAnalytics } from "@/features/analytics/hooks/use-kb-analytics";
 import { useKnowledgeBases } from "@/features/knowledge-bases/hooks/use-knowledge-bases";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import type { KnowledgeBase } from "@/services/api/portal.types";
 
 export default function TVAnalytics() {
   const [activeKb, setActiveKb] = useState("");
   const knowledgeBasesQuery = useKnowledgeBases();
   const analyticsQuery = useKnowledgeBaseAnalytics(activeKb, "30d");
-  const knowledgeBases = knowledgeBasesQuery.data ?? [];
+  const knowledgeBases: KnowledgeBase[] = knowledgeBasesQuery.data ?? [];
   const analytics = analyticsQuery.data ?? null;
   const loading = knowledgeBasesQuery.isLoading || analyticsQuery.isLoading;
 

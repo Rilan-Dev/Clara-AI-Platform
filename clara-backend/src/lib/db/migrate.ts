@@ -14,8 +14,8 @@
  *     startup has already run migrations.
  */
 
-import fs from "node:fs";
-import path from "node:path";
+import fs from "fs";
+import path from "path";
 import { pool } from "@/lib/db";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
