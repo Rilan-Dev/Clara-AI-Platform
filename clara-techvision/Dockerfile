@@ -31,7 +31,7 @@ RUN adduser  --system --uid 1001 clarauser
 
 COPY --from=builder /app/clara-techvision/public ./public
 COPY --from=builder /app/clara-techvision/.next-app/standalone/clara-techvision ./
-COPY --from=builder /app/clara-techvision/.next-app/static ./.next/static
+COPY --from=builder /app/clara-techvision/.next-app/static ./.next-app/static
 
 USER clarauser
 EXPOSE 3002
