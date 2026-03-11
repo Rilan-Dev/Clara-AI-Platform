@@ -32,7 +32,8 @@ RUN adduser  --system --uid 1001 clarauser
 COPY --from=builder /app/clara-backend/public ./public
 COPY --from=builder /app/clara-backend/scripts ./scripts
 COPY --from=builder /app/clara-backend/.next-app/standalone/clara-backend ./
-COPY --from=builder /app/clara-backend/.next-app/static ./.next/static
+# Keep browser assets inside the configured distDir so standalone Next can serve /_next/static.
+COPY --from=builder /app/clara-backend/.next-app/static ./.next-app/static
 
 USER clarauser
 EXPOSE 3000
