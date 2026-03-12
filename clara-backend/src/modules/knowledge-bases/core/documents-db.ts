@@ -96,7 +96,8 @@ export async function createDocument(input: {
     `INSERT INTO documents (id, kb_id, title, original_filename, mime_type, file_size, uploaded_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [id, input.kbId, input.title, input.originalFilename, input.mimeType ?? null, input.fileSize ?? null, input.uploadedBy ?? null]
+    [id, input.kbId, input.title, input.originalFilename, input.mimeType ?? null,
+     input.fileSize ?? null, input.uploadedBy ?? null]
   );
   if (!row) throw new Error("Failed to create document");
   return toDocument(row);
@@ -118,19 +119,67 @@ export async function getDocumentById(id: string): Promise<KbDocument | null> {
   return row ? toDocument(row) : null;
 }
 
+/**
+ * Find an existing document in a KB by its source URL.
+ * Used by the scrape worker to avoid creating duplicate documents when
+ * the same URL is scraped in a later session.
+ *
+ * Source URLs are stored in `original_filename` for source_type='url' docs.
+ * Scoped to kb_id so URLs shared across KBs don't collide.
+ */
+export async function findDocumentBySourceUrl(
+  kbId: string,
+  sourceUrl: string
+): Promise<KbDocument | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM documents
+     WHERE kb_id = $1
+       AND original_filename = $2
+       AND source_type = 'url'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [kbId, sourceUrl]
+  );
+  return row ? toDocument(row) : null;
+}
+
+/**
+ * Reset a document back to pending so the ingest pipeline re-processes it.
+ * Used when re-scraping a URL that previously failed or went stale.
+ */
+export async function refreshDocument(
+  id: string,
+  updates: { title?: string; fileSize?: number }
+): Promise<void> {
+  await execute(
+    `UPDATE documents
+     SET title         = COALESCE($1, title),
+         file_size     = COALESCE($2, file_size),
+         status        = 'pending',
+         error_message = NULL,
+         chunk_count   = NULL,
+         updated_at    = now()
+     WHERE id = $3`,
+    [updates.title ?? null, updates.fileSize ?? null, id]
+  );
+}
+
 export async function updateDocumentStatus(
   id: string,
   status: DocumentStatus,
   extra?: { chunkCount?: number; errorMessage?: string }
 ): Promise<void> {
   await execute(
-    `UPDATE documents SET status = $1, chunk_count = COALESCE($2, chunk_count), error_message = $3 WHERE id = $4`,
+    `UPDATE documents
+     SET status = $1,
+         chunk_count   = COALESCE($2, chunk_count),
+         error_message = $3
+     WHERE id = $4`,
     [status, extra?.chunkCount ?? null, extra?.errorMessage ?? null, id]
   );
 }
 
 export async function deleteDocument(id: string): Promise<string | null> {
-  // Returns kb_id for Qdrant cleanup
   const row = await queryOne<{ kb_id: string }>(
     "DELETE FROM documents WHERE id = $1 RETURNING kb_id",
     [id]
@@ -176,10 +225,7 @@ export async function claimNextPendingJob(): Promise<IngestJobWithPayload | null
     );
 
     const row = res.rows[0];
-    if (!row) {
-      await client.query("ROLLBACK");
-      return null;
-    }
+    if (!row) { await client.query("ROLLBACK"); return null; }
 
     await client.query(
       `UPDATE ingest_jobs
@@ -190,7 +236,12 @@ export async function claimNextPendingJob(): Promise<IngestJobWithPayload | null
 
     await client.query("COMMIT");
 
-    const job = toJob({ ...row, status: "running", started_at: new Date().toISOString(), attempts: Number(row.attempts) + 1 });
+    const job = toJob({
+      ...row,
+      status:     "running",
+      started_at: new Date().toISOString(),
+      attempts:   Number(row.attempts) + 1,
+    });
     const rawPayload = row.file_payload as { base64: string; mimeType: string; filename: string } | null;
     return { ...job, filePayload: rawPayload };
   } catch (err) {
@@ -213,14 +264,16 @@ export async function markJobDone(jobId: string): Promise<void> {
 export async function markJobFailed(
   jobId: string,
   errorMessage: string,
-  rescheduleDelay?: number   // seconds before retry — defaults to exponential backoff
+  rescheduleDelay?: number
 ): Promise<void> {
   const delaySeconds = rescheduleDelay ?? 30;
   await execute(
     `UPDATE ingest_jobs
-     SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
+     SET status        = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
          error_message = $1,
-         scheduled_at  = CASE WHEN attempts >= max_attempts THEN scheduled_at ELSE now() + ($2 || ' seconds')::interval END,
+         scheduled_at  = CASE WHEN attempts >= max_attempts
+                              THEN scheduled_at
+                              ELSE now() + ($2 || ' seconds')::interval END,
          completed_at  = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END
      WHERE id = $3`,
     [errorMessage, delaySeconds, jobId]

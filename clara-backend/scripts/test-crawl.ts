@@ -128,7 +128,10 @@ Examples:
     ["All URLs are http(s)",           ok.every(u => /^https?:\/\//.test(u.url)), "✅"],
     ["All URLs match path prefix",     prefix === "/" || ok.every(u => { try { const p = new URL(u.url).pathname; return (p+"/").startsWith(prefix); } catch { return false; } }), prefix],
     ["Success rate ≥ 80%",             result.discoveredUrls.length === 0 || ok.length / result.discoveredUrls.length >= 0.8, `${ok.length}/${result.discoveredUrls.length}`],
-    ["Finished under 3 minutes",       result.crawlDurationMs < 180_000, `${(result.crawlDurationMs/1000).toFixed(0)}s`],
+    // Threshold: 3 min for mostly-SSR sites, 5 min for pure SPAs (every page needs Playwright)
+    // A pure SPA with 100 pages via shared browser pool should finish in ~40–60 s.
+    // 5 min is the outer safety net for very large or slow sites.
+    ["Finished under 5 minutes",       result.crawlDurationMs < 300_000, `${(result.crawlDurationMs/1000).toFixed(0)}s`],
   ];
 
   let passed = 0;

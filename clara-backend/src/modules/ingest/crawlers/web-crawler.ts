@@ -10,8 +10,10 @@
  *      drops links that are absolute to the real (redirected) domain
  *   4. Sitemap-first: pulls ALL matching URLs instantly for sites with sitemaps
  *   5. BFS link crawling: follows <a href> for sites without sitemaps
- *   6. Playwright fallback: per-page, independent — failure never blocks others
+ *   6. Playwright fallback: shared browser pool + networkidle wait for SPAs
  *   7. Correct extension exclusion: endsWith check, never substring includes
+ *   8. Deduplication: normalizeUrl + visited/queued sets prevent re-crawling
+ *   9. Filter-param deduplication: ?category=X URLs skipped (duplicate content)
  */
 
 import { load as loadHtml, type CheerioAPI } from "cheerio";
@@ -82,7 +84,6 @@ const ASSET_EXTENSIONS = new Set([
 
 // ── Path exclusions ───────────────────────────────────────────────────────────
 // Checked via pathname.startsWith — NOT via pathname.includes.
-// This prevents "/guide/api-plugin" from being blocked by an "/api/" rule.
 
 const EXCLUDE_PATH_PREFIXES = [
   "/login", "/logout", "/signup", "/register",
@@ -96,9 +97,35 @@ const EXCLUDE_PATH_PREFIXES = [
   "/checkout", "/cart",
 ];
 
+// ── Filter-only query param exclusion ─────────────────────────────────────────
+//
+// Sites like exceliya.edu.sa expose the same content at both:
+//   /courses                             ← canonical listing page (crawled)
+//   /courses?category=cyber-security     ← filtered subset (duplicate — skipped)
+//
+// Rule: if ALL query params belong to the known UI-filter set, skip the URL.
+// A URL mixing filter params with meaningful params (e.g. ?category=X&id=Y) is kept.
+
+const FILTER_ONLY_PARAMS = new Set([
+  "category", "tag", "tags", "filter", "filters",
+  "sort", "order", "dir", "direction",
+  "page", "p", "pg", "per_page", "limit", "offset",
+  "view", "tab", "type", "status",
+  "lang", "locale", "currency",
+  "q", "search",
+]);
+
+function isFilterOnlyUrl(urlStr: string): boolean {
+  try {
+    const keys = [...new URL(urlStr).searchParams.keys()];
+    if (keys.length === 0) return false;
+    return keys.every(k => FILTER_ONLY_PARAMS.has(k.toLowerCase()));
+  } catch { return false; }
+}
+
 // ── URL utilities ─────────────────────────────────────────────────────────────
 
-/** Strips www., lowercases. www.vite.dev === vite.dev */
+/** Strips www., lowercases host. www.vite.dev === vite.dev */
 function normHost(url: URL): string {
   return url.hostname.replace(/^www\./, "").toLowerCase();
 }
@@ -107,45 +134,54 @@ function normalizeUrl(urlStr: string): string {
   try {
     const url = new URL(urlStr);
     url.hash  = "";
-    const TRACKING = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","ref","fbclid","gclid"];
+    const TRACKING = [
+      "utm_source","utm_medium","utm_campaign","utm_term","utm_content",
+      "ref","fbclid","gclid","msclkid",
+    ];
     const p = new URLSearchParams(url.searchParams);
     for (const t of TRACKING) p.delete(t);
     const sorted = new URLSearchParams([...p.entries()].sort(([a],[b]) => a.localeCompare(b)));
     url.search = sorted.toString() ? `?${sorted}` : "";
     if (url.pathname.length > 1 && url.pathname.endsWith("/"))
       url.pathname = url.pathname.slice(0, -1);
+    if (url.pathname.endsWith("/index.html"))
+      url.pathname = url.pathname.slice(0, -"/index.html".length) || "/";
     return url.toString();
   } catch { return urlStr; }
 }
 
 /**
- * True if this URL should be skipped.
- * - Extension: only checks the suffix of the last path segment (endsWith).
- * - Path prefix: checks pathname.startsWith, not .includes.
+ * True if this URL should be skipped entirely.
+ * Checks (in order):
+ *   1. Asset extension (endsWith on last path segment only)
+ *   2. Excluded path prefix (startsWith, not includes)
+ *   3. Filter-only query params (?category=X style duplicates)
  */
 function shouldExclude(urlStr: string): boolean {
   try {
     const url  = new URL(urlStr);
     const path = url.pathname.toLowerCase();
     const last = path.split("/").pop() ?? "";
+
+    // 1. Asset extension — only the LAST segment
     if (last.includes(".")) {
       const ext = last.split(".").pop() ?? "";
       if (ASSET_EXTENSIONS.has(ext)) return true;
     }
+
+    // 2. Excluded path prefixes
     for (const prefix of EXCLUDE_PATH_PREFIXES) {
-      if (path === prefix || path.startsWith(prefix + "/") || path.startsWith(prefix + "?")) return true;
+      if (path === prefix || path.startsWith(prefix + "/") || path.startsWith(prefix + "?"))
+        return true;
     }
+
+    // 3. Filter-only query params
+    if (isFilterOnlyUrl(urlStr)) return true;
+
     return false;
   } catch { return true; }
 }
 
-/**
- * Derives path prefix from root URL:
- *   https://vite.dev/guide/         → "/guide/"
- *   https://vite.dev/guide          → "/guide/"
- *   https://vite.dev/guide/index.html → "/guide/"
- *   https://vite.dev/               → "/"
- */
 function derivePathPrefix(rootUrl: string): string {
   try {
     const url = new URL(rootUrl);
@@ -189,68 +225,172 @@ async function fetchHtml(url: string, timeoutMs: number): Promise<FetchResult> {
       redirect: "follow",
       signal: AbortSignal.timeout(timeoutMs),
     });
-
-    // res.url is the FINAL URL after all redirects — critical for domain tracking
     const finalUrl = res.url || url;
     if (!res.ok) return { html: "", ok: false, finalUrl };
-
     const ct = res.headers.get("content-type") ?? "";
     if (!ct.includes("text/html") && !ct.includes("application/xhtml"))
       return { html: "", ok: false, finalUrl };
-
     return { html: await res.text(), ok: true, finalUrl };
   } catch {
     return { html: "", ok: false, finalUrl: url };
   }
 }
 
-// ── Playwright fallback ───────────────────────────────────────────────────────
+// ── Shared Playwright browser pool ────────────────────────────────────────────
+//
+// ONE browser is launched for the entire crawl. Each page gets its own
+// isolated BrowserContext, closed immediately after use.
+//
+// Speed tuning (based on real profiling of exceliya.edu.sa — pure React SPA):
+//
+//   Old timing per page:  networkidle(10s) + waitForFunction(5s) + settle(500ms)
+//     → worst case 15.5s/page × 100 pages / 3 concurrency ≈ 516s
+//
+//   New timing per page:  networkidle(3s) + waitForFunction(3s) + settle(200ms)
+//     → worst case  6.2s/page × 87 real pages / 3 concurrency ≈ 180s  (~3 min)
+//
+// Why networkidle(3s) is safe:
+//   The React app fetches route-specific data from its own API (same-origin).
+//   In practice networkidle fires in 1–2s once the API response arrives.
+//   3s is a safety net for slow backends, not the common case.
 
-async function renderWithPlaywright(
-  url: string,
-  timeoutMs: number
-): Promise<{ html: string; finalUrl: string } | null> {
-  try {
-    const playwright = await import("playwright");
-    const browser    = await playwright.chromium.launch({ headless: true });
+type Browser = import("playwright").Browser;
+
+class PlaywrightPool {
+  private browser: Browser | null = null;
+  private initialized              = false;
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    this.initialized = true;
     try {
-      const page = await browser.newPage();
-      await page.setExtraHTTPHeaders({
-        "User-Agent": "Mozilla/5.0 (compatible; ClaraKnowledgeBot/1.0; +https://clara.ai/bot)",
+      const playwright = await import("playwright");
+      this.browser = await playwright.chromium.launch({
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-blink-features=AutomationControlled",
+          "--disable-dev-shm-usage",
+          "--disable-web-security",
+          "--lang=ar,en-US",
+        ],
       });
-      // Use domcontentloaded — fires as soon as HTML is parsed.
-      // "networkidle" never fires on sites with polling/websocket connections
-      // and causes 20 s hard-timeouts on Arabic / CDN-heavy sites.
-      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-      // Poll for meaningful text content (handles React/Vue hydration)
-      await page.waitForFunction(
-        () => (document.body?.innerText?.trim().length ?? 0) > 150,
-        { timeout: 10_000 }
-      ).catch(() => {});
-      await page.waitForTimeout(1500); // extra settle time for heavy SPAs
-      return { html: await page.content(), finalUrl: response?.url() ?? url };
-    } finally {
-      await browser.close();
+      console.log("[web-crawler] 🌐 Playwright browser started (shared pool)");
+    } catch (err) {
+      console.warn(`[web-crawler] Playwright unavailable: ${(err as Error).message.split("\n")[0]}`);
     }
-  } catch (err) {
-    console.warn(`[web-crawler] Playwright failed for ${url}: ${(err as Error).message.split("\n")[0]}`);
-    return null;
   }
+
+  async renderPage(
+    url: string,
+    timeoutMs: number
+  ): Promise<{ html: string; finalUrl: string } | null> {
+    if (!this.browser) return null;
+
+    let context: import("playwright").BrowserContext | null = null;
+    try {
+      context = await this.browser.newContext({
+        userAgent: "Mozilla/5.0 (compatible; ClaraKnowledgeBot/1.0; +https://clara.ai/bot)",
+        locale:    "ar-SA",
+        extraHTTPHeaders: { "Accept-Language": "ar,en-US;q=0.9,en;q=0.8" },
+        viewport:         { width: 1280, height: 900 },
+        ignoreHTTPSErrors: true,
+      });
+
+      const page = await context.newPage();
+
+      // Block heavy binary assets only — keep stylesheets so React CSS-in-JS works.
+      await page.route("**/*", (route) => {
+        const rt = route.request().resourceType();
+        if (["image", "media", "font"].includes(rt)) route.abort().catch(() => {});
+        else route.continue().catch(() => {});
+      });
+
+      const response = await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout:   timeoutMs,
+      });
+
+      // ── Phase 1: networkidle (3s timeout) ─────────────────────────────────
+      // Waits until ≤500ms of no network activity. For React SPAs this fires
+      // once the route-specific API call (course data, blog content) resolves.
+      // Timeout cut from 10s → 3s: API responds in <2s in practice.
+      await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
+
+      // ── Phase 2: content threshold (3s timeout) ────────────────────────────
+      // After networkidle the component has re-rendered with API data.
+      // 300 chars fires immediately on any real page (nav alone ≈ 200 chars).
+      await page.waitForFunction(
+        () => (document.body?.innerText?.trim().length ?? 0) > 300,
+        { timeout: 3_000 }
+      ).catch(() => {});
+
+      // ── Phase 3: settle (200ms) ────────────────────────────────────────────
+      // Minimal fixed wait for final synchronous re-renders.
+      // Reduced from 500ms → 200ms (saves ~30s across 100 pages).
+      await page.waitForTimeout(200);
+
+      const html     = await page.content();
+      const finalUrl = response?.url() ?? url;
+      return { html, finalUrl };
+    } catch (err) {
+      console.warn(
+        `[web-crawler] Playwright failed for ${url}: ${(err as Error).message.split("\n")[0]}`
+      );
+      return null;
+    } finally {
+      await context?.close().catch(() => {});
+    }
+  }
+
+  async close(): Promise<void> {
+    if (this.browser) {
+      await this.browser.close().catch(() => {});
+      this.browser = null;
+      console.log("[web-crawler] 🌐 Playwright browser closed");
+    }
+  }
+
+  get available(): boolean { return this.browser !== null; }
 }
 
 // ── Content helpers ───────────────────────────────────────────────────────────
 
+/**
+ * Estimates meaningful text length after stripping nav/chrome noise.
+ * Tries multiple content-area selectors in priority order, falls through
+ * to full body — prevents false 0-char readings on pages with empty <main>.
+ */
 function contentLength($: CheerioAPI): number {
   const clone = loadHtml($.html() ?? "");
-  clone("script,style,noscript,nav,footer,header,aside,iframe,svg").remove();
-  const root = clone("article,main,[role='main']");
-  return (root.length ? root.first() : clone("body")).text().replace(/\s+/g, " ").trim().length;
+  clone("script,style,noscript,nav,footer,header,aside,iframe,svg,button").remove();
+
+  const CONTENT_SELECTORS = [
+    "article", "main", "[role='main']",
+    ".content", "#content", ".main-content", "#main-content",
+    ".page-content", "#page-content", ".post-content",
+    ".entry-content", ".docs-content", ".documentation",
+  ];
+
+  for (const sel of CONTENT_SELECTORS) {
+    try {
+      const el = clone(sel).first();
+      if (!el.length) continue;
+      const text = el.text().replace(/\s+/g, " ").trim();
+      if (text.length > 80) return text.length;
+    } catch { /* invalid selector */ }
+  }
+
+  return clone("body").text().replace(/\s+/g, " ").trim().length;
 }
 
-/** True when the page is a client-side SPA shell with no meaningful content */
+/**
+ * True when the HTTP response is an SPA shell with no meaningful content.
+ * Threshold 300: typical SPA nav+header is 200–400 chars.
+ */
 function isSpaShell($: CheerioAPI, chars: number): boolean {
-  if (chars > 600) return false;
-  // SPA mount points used by React/Vue/Next.js/Nuxt/VitePress
+  if (chars > 300) return false;
   return !!$("#app,#root,#__next,#__nuxt,[data-app],[data-v-app]").length;
 }
 
@@ -265,13 +405,6 @@ function extractTitle($: CheerioAPI): string {
 
 // ── Link extraction ───────────────────────────────────────────────────────────
 
-/**
- * Extracts all crawlable links from a parsed page.
- *
- * pageUrl must be the FINAL URL after redirects so that relative paths
- * resolve to the real domain, and absolute links to the real domain are
- * accepted even if they differ from the original input domain.
- */
 function extractLinks(
   $: CheerioAPI,
   pageUrl: string,
@@ -282,24 +415,19 @@ function extractLinks(
   const links = new Set<string>();
 
   $("a[href]").each((_, el) => {
-    const href = $(el).attr("href")?.trim();
+    const href     = $(el).attr("href")?.trim();
     if (!href) return;
-
     const resolved = resolveHref(href, pageUrl);
     if (!resolved) return;
 
     try {
       const u    = new URL(resolved);
       const host = normHost(u);
-
-      // Accept links on EITHER the original input domain OR the redirected domain
       if (host !== inputDomain && host !== redirectedDomain) return;
       if (u.protocol !== "http:" && u.protocol !== "https:") return;
-
       const norm = normalizeUrl(resolved);
       if (shouldExclude(norm)) return;
       if (!matchesPrefix(norm, pathPrefix)) return;
-
       links.add(norm);
     } catch { /* skip */ }
   });
@@ -309,13 +437,6 @@ function extractLinks(
 
 // ── Sitemap discovery ─────────────────────────────────────────────────────────
 
-/**
- * Fetches sitemap.xml (and sitemap index files) and returns all page URLs
- * that match the target domain + path prefix.
- *
- * This is the fastest discovery method — a single HTTP request often yields
- * hundreds of URLs that BFS crawling would take minutes to find.
- */
 async function discoverViaSitemap(
   origin: string,
   pathPrefix: string,
@@ -324,9 +445,7 @@ async function discoverViaSitemap(
   robotsSitemaps: string[],
   timeoutMs: number,
 ): Promise<string[]> {
-  const found = new Set<string>();
-
-  // Start with sitemaps from robots.txt, then try common paths
+  const found   = new Set<string>();
   const toFetch = new Set<string>(
     robotsSitemaps.length > 0
       ? robotsSitemaps
@@ -340,17 +459,14 @@ async function discoverViaSitemap(
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) continue;
-
       const xml = await res.text();
       const $   = loadHtml(xml, { xmlMode: true });
 
-      // Sitemap index → queue child sitemaps (for...of loop picks up new Set entries)
       $("sitemap > loc").each((_, el) => {
         const loc = $(el).text().trim();
         if (loc && !toFetch.has(loc)) toFetch.add(loc);
       });
 
-      // Regular sitemap → collect page URLs
       $("url > loc").each((_, el) => {
         const loc = $(el).text().trim();
         if (!loc) return;
@@ -364,7 +480,9 @@ async function discoverViaSitemap(
         } catch { /* skip */ }
       });
     } catch (err) {
-      console.warn(`[web-crawler] sitemap fetch failed (${sitemapUrl}): ${(err as Error).message.split("\n")[0]}`);
+      console.warn(
+        `[web-crawler] sitemap fetch failed (${sitemapUrl}): ${(err as Error).message.split("\n")[0]}`
+      );
     }
   }
 
@@ -375,34 +493,24 @@ async function discoverViaSitemap(
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-async function pool<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
+async function concPool<T>(
+  items: T[],
+  n: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
   const q = [...items];
   await Promise.all(
     Array.from({ length: Math.min(n, q.length) }, async () => {
-      while (q.length > 0) { const item = q.shift(); if (item !== undefined) await fn(item); }
+      while (q.length > 0) {
+        const item = q.shift();
+        if (item !== undefined) await fn(item);
+      }
     })
   );
 }
 
 // ── Main crawl engine ─────────────────────────────────────────────────────────
 
-/**
- * Crawls a website starting from rootUrl, discovering all reachable pages
- * within the same path prefix.
- *
- * Example:
- *   crawlWebsite("https://vite.dev/guide/")
- *   → discovers https://vite.dev/guide/api-plugin
- *                https://vite.dev/guide/api-hmr
- *                https://vite.dev/guide/api-javascript
- *                ... (all /guide/* pages)
- *
- * Strategy (in order):
- *   1. Follow root URL redirect → track real domain (e.g. vite.dev→vitejs.dev)
- *   2. Parse sitemap.xml → instant full URL list for docs sites
- *   3. BFS <a href> crawl → fills gaps for sites without sitemaps
- *   4. Playwright per-page → fallback for JS-rendered SPA shells
- */
 export async function crawlWebsite(
   rootUrl: string,
   options: CrawlOptions = {}
@@ -420,32 +528,34 @@ export async function crawlWebsite(
     onProgress,
   } = options;
 
-  const t0           = Date.now();
-  const rootUrlObj   = new URL(rootUrl);
-  const inputDomain  = normHost(rootUrlObj);
-  const origin       = rootUrlObj.origin;
-  const pathPrefix   = scopeToInputPath ? derivePathPrefix(rootUrl) : "/";
+  const pwPool = new PlaywrightPool();
+  await pwPool.init();
 
-  // Tracks the real domain after a redirect (e.g. vite.dev → vitejs.dev)
-  let redirectedDomain = inputDomain;
+  const t0              = Date.now();
+  const rootUrlObj      = new URL(rootUrl);
+  const inputDomain     = normHost(rootUrlObj);
+  const origin          = rootUrlObj.origin;
+  const pathPrefix      = scopeToInputPath ? derivePathPrefix(rootUrl) : "/";
+  let   redirectedDomain = inputDomain;
 
   console.log(`\n[web-crawler] ───────────────────────────────────────────────────`);
   console.log(`[web-crawler] Root:    ${rootUrl}`);
   console.log(`[web-crawler] Domain:  ${inputDomain}`);
   console.log(`[web-crawler] Scope:   ${pathPrefix === "/" ? "(entire site)" : pathPrefix + "*"}`);
-  console.log(`[web-crawler] maxDepth=${maxDepth}  maxUrls=${maxUrls}  delay=${requestDelayMs}ms`);
+  console.log(`[web-crawler] maxDepth=${maxDepth}  maxUrls=${maxUrls}  concurrency=${concurrency}  delay=${requestDelayMs}ms`);
 
-  // ── robots.txt ──────────────────────────────────────────────────────────────
+  // ── robots.txt ───────────────────────────────────────────────────────────────
   let robots: RobotsRules | null = null;
   if (respectRobotsTxt) {
     robots = await fetchRobotsTxt(origin);
-    if (robots?.crawlDelay) console.log(`[web-crawler] robots crawl-delay: ${robots.crawlDelay}s`);
+    if (robots?.crawlDelay)
+      console.log(`[web-crawler] robots crawl-delay: ${robots.crawlDelay}s`);
   }
   const effectiveDelay = robots?.crawlDelay
     ? Math.max(requestDelayMs, robots.crawlDelay * 1000)
     : requestDelayMs;
 
-  // ── Step 1: Probe root URL to discover redirect target ──────────────────────
+  // ── Step 1: Probe root URL to capture redirect target ────────────────────────
   {
     const probe = await fetchHtml(normalizeUrl(rootUrl), pageTimeoutMs);
     if (probe.finalUrl && probe.finalUrl !== normalizeUrl(rootUrl)) {
@@ -459,12 +569,12 @@ export async function crawlWebsite(
     }
   }
 
-  // ── State ────────────────────────────────────────────────────────────────────
-  const visited        = new Set<string>();
-  const queued         = new Set<string>();
+  // ── State ─────────────────────────────────────────────────────────────────────
+  const visited         = new Set<string>();
+  const queued          = new Set<string>();
   const discoveredUrls: DiscoveredUrl[] = [];
   const errors:         CrawlError[]   = [];
-  let   lastRequest    = 0;
+  let   lastRequest     = 0;
 
   const rateLimit = async () => {
     const wait = effectiveDelay - (Date.now() - lastRequest);
@@ -483,7 +593,6 @@ export async function crawlWebsite(
     try {
       const u = new URL(n);
       const h = normHost(u);
-      // Accept both original and redirected domain
       if (h !== inputDomain && h !== redirectedDomain) return;
       if (!isUrlAllowed(u.pathname, robots)) return;
     } catch { return; }
@@ -491,9 +600,8 @@ export async function crawlWebsite(
     bfsQueue.push({ url: n, depth, parent });
   };
 
-  // ── Step 2: Sitemap discovery ────────────────────────────────────────────────
+  // ── Step 2: Sitemap discovery ─────────────────────────────────────────────────
   if (parseSitemap) {
-    // Try origin of both domains (in case sitemap is on the redirected domain)
     const origins = [...new Set([
       origin,
       redirectedDomain !== inputDomain ? `https://${redirectedDomain}` : null,
@@ -507,54 +615,48 @@ export async function crawlWebsite(
       if (sitemapUrls.length > 0) {
         console.log(`[web-crawler] Sitemap (${sOrigin}): ${sitemapUrls.length} URLs under ${pathPrefix}*`);
         for (const su of sitemapUrls) enqueue(su, 1, rootUrl);
-        break; // one working sitemap is enough
+        break;
       }
     }
   }
 
-  // ── Step 3: BFS seed ─────────────────────────────────────────────────────────
+  // ── Step 3: BFS seed ──────────────────────────────────────────────────────────
   enqueue(normalizeUrl(rootUrl), 0, null);
 
-  // ── Process one URL ──────────────────────────────────────────────────────────
+  // ── Process one URL ───────────────────────────────────────────────────────────
   const processUrl = async (item: QItem): Promise<void> => {
     if (discoveredUrls.length >= maxUrls) return;
     const { url, depth, parent } = item;
     visited.add(url);
-
     await rateLimit();
 
-    let html     = "";
-    let ok       = false;
-    let finalUrl = url;
-    let usedPW   = false;
+    let html = "", ok = false, finalUrl = url, usedPW = false;
 
-    // Attempt 1: HTTP fetch
+    // Attempt 1: plain HTTP fetch
     const fetched = await fetchHtml(url, pageTimeoutMs);
-    html     = fetched.html;
-    ok       = fetched.ok;
-    finalUrl = fetched.finalUrl; // real domain after redirect
+    html = fetched.html; ok = fetched.ok; finalUrl = fetched.finalUrl;
 
     if (ok && html) {
       const $ = loadHtml(html);
       const cl = contentLength($);
-      // Playwright fallback: only if content is suspiciously thin (SPA shell)
       if (isSpaShell($, cl)) {
-        console.log(`[web-crawler] SPA shell at ${url} (${cl} chars) — trying Playwright`);
-        const pw = await renderWithPlaywright(url, pageTimeoutMs);
-        if (pw && contentLength(loadHtml(pw.html)) > cl) {
-          html = pw.html; finalUrl = pw.finalUrl; usedPW = true;
-        }
+        console.log(`[web-crawler] HTTP gave SPA shell (${cl} chars) for ${url} — upgrading to Playwright`);
+        const pw = await pwPool.renderPage(url, pageTimeoutMs);
+        if (pw) { html = pw.html; finalUrl = pw.finalUrl; usedPW = true; }
       }
     } else if (!ok) {
-      // Attempt 2: Playwright when HTTP fails entirely
-      const pw = await renderWithPlaywright(url, pageTimeoutMs);
+      // HTTP failed entirely — try Playwright as direct fallback
+      const pw = await pwPool.renderPage(url, pageTimeoutMs);
       if (pw) { html = pw.html; finalUrl = pw.finalUrl; ok = true; usedPW = true; }
     }
 
     if (!ok || !html) {
       const msg = "Fetch failed (HTTP error; Playwright unavailable or also failed)";
       errors.push({ url, message: msg, depth });
-      const d: DiscoveredUrl = { url, title: "Fetch error", depth, parentUrl: parent, contentLength: 0, status: "error", errorMessage: msg };
+      const d: DiscoveredUrl = {
+        url, title: "Fetch error", depth, parentUrl: parent,
+        contentLength: 0, status: "error", errorMessage: msg,
+      };
       discoveredUrls.push(d);
       onUrlDiscovered?.(d);
       return;
@@ -563,30 +665,35 @@ export async function crawlWebsite(
     const $ = loadHtml(html);
     const cl = contentLength($);
 
-    // Keep redirectedDomain current as we discover more of the real domain
     try {
       const fd = normHost(new URL(finalUrl));
       if (fd !== inputDomain && fd !== redirectedDomain) redirectedDomain = fd;
     } catch { /* ignore */ }
 
-    const d: DiscoveredUrl = { url, title: extractTitle($), depth, parentUrl: parent, contentLength: cl, status: "discovered" };
+    const d: DiscoveredUrl = {
+      url, title: extractTitle($), depth,
+      parentUrl: parent, contentLength: cl, status: "discovered",
+    };
     discoveredUrls.push(d);
     onUrlDiscovered?.(d);
 
     if (usedPW) console.log(`[web-crawler] ✅ [Playwright] D${depth} ${url} (${cl} chars)`);
+    onProgress?.({
+      crawledCount: visited.size,
+      queuedCount: bfsQueue.length,
+      totalDiscovered: discoveredUrls.length,
+    });
 
-    onProgress?.({ crawledCount: visited.size, queuedCount: bfsQueue.length, totalDiscovered: discoveredUrls.length });
-
-    // Extract links — use finalUrl as base so relative paths resolve to real domain
     if (depth < maxDepth) {
       const links = extractLinks($, finalUrl, inputDomain, redirectedDomain, pathPrefix);
       for (const link of links) {
-        if (discoveredUrls.length + bfsQueue.length < maxUrls) enqueue(link, depth + 1, url);
+        if (discoveredUrls.length + bfsQueue.length < maxUrls)
+          enqueue(link, depth + 1, url);
       }
     }
   };
 
-  // ── BFS loop ─────────────────────────────────────────────────────────────────
+  // ── BFS loop ──────────────────────────────────────────────────────────────────
   let currentDepth = 0;
   while (currentDepth <= maxDepth && bfsQueue.length > 0 && discoveredUrls.length < maxUrls) {
     const level = bfsQueue.filter(q => q.depth === currentDepth);
@@ -595,9 +702,11 @@ export async function crawlWebsite(
     if (level.length === 0) { currentDepth++; continue; }
 
     console.log(`[web-crawler] Depth ${currentDepth}: ${level.length} URL(s)  (found so far: ${discoveredUrls.length})`);
-    await pool(level, concurrency, processUrl);
+    await concPool(level, concurrency, processUrl);
     currentDepth++;
   }
+
+  await pwPool.close();
 
   const ms  = Date.now() - t0;
   const okN = discoveredUrls.filter(u => u.status === "discovered").length;
