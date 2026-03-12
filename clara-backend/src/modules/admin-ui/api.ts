@@ -186,6 +186,19 @@ export type KbDocument = {
   errorMessage: string | null; createdAt: string; updatedAt: string;
 };
 
+export type BulkReprocessResult = {
+  total: number;
+  queued: number;
+  skipped: number;
+  failed: number;
+  details: Array<{
+    documentId: string;
+    title: string;
+    status: "queued" | "skipped" | "failed";
+    error?: string;
+  }>;
+};
+
 export async function fetchDocuments(kbId: string): Promise<KbDocument[]> { return apiFetch<KbDocument[]>(`/api/kbs/${kbId}/documents`); }
 export async function fetchDocument(kbId: string, docId: string): Promise<KbDocument> { return apiFetch<KbDocument>(`/api/kbs/${kbId}/documents/${docId}`); }
 export async function uploadDocuments(kbId: string, files: File[]): Promise<{ queued: KbDocument[]; errors: { filename: string; error: string }[] }> {
@@ -200,6 +213,9 @@ export async function uploadDocuments(kbId: string, files: File[]): Promise<{ qu
 }
 export async function deleteDocument(kbId: string, docId: string): Promise<void> { await apiFetch(`/api/kbs/${kbId}/documents/${docId}`, { method: "DELETE" }); }
 export async function reprocessDocument(kbId: string, docId: string): Promise<void> { await apiFetch(`/api/kbs/${kbId}/documents/${docId}/reprocess`, { method: "POST" }); }
+export async function reprocessAllDocuments(kbId: string): Promise<BulkReprocessResult> {
+  return apiFetch<BulkReprocessResult>(`/api/kbs/${kbId}/documents/reprocess-all`, { method: "POST" });
+}
 
 // ── Assistant Config ──────────────────────────────────────────────────────────
 

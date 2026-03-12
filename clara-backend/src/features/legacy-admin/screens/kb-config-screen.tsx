@@ -11,8 +11,9 @@
  */
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useKb, useConfig, useSnapshots } from "@/modules/admin-ui/hooks";
+import { useKb, useConfig, useKBAIOverrides, useSnapshots } from "@/modules/admin-ui/hooks";
 import { ConfigEditor } from "@/components/admin/ConfigEditor";
+import { KBAIOverridesEditor } from "@/components/admin/KBAIOverridesEditor";
 import { SnapshotHistory } from "@/components/admin/SnapshotHistory";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 
@@ -20,6 +21,12 @@ export default function KbConfigPage() {
   const { kbId = "" } = useParams<{ kbId: string }>();
   const { data: kb, loading: kbLoading } = useKb(kbId);
   const { config, loading: configLoading, save, refetch: refetchConfig } = useConfig(kbId);
+  const {
+    overrides,
+    loading: overridesLoading,
+    error: overridesError,
+    save: saveOverrides,
+  } = useKBAIOverrides(kbId);
   const { snapshots, loading: snapsLoading, saveSnapshot, restore, refetch: refetchSnaps } = useSnapshots(kbId);
 
   const loading = kbLoading || configLoading;
@@ -107,6 +114,24 @@ export default function KbConfigPage() {
             />
           )}
         </div>
+      </div>
+
+      <div className="mt-8">
+        {overridesLoading ? (
+          <div className="space-y-3">
+            <div className="h-12 rounded-xl bg-muted/40 animate-pulse" />
+            <div className="h-72 rounded-xl bg-muted/40 animate-pulse" />
+          </div>
+        ) : kb ? (
+          <KBAIOverridesEditor
+            kbName={kb.name}
+            overrides={overrides}
+            onSave={saveOverrides}
+          />
+        ) : null}
+        {overridesError && (
+          <p className="mt-3 text-sm text-destructive">{overridesError}</p>
+        )}
       </div>
     </div>
   );

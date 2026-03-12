@@ -3,8 +3,8 @@ import { Brain } from "lucide-react";
 
 const NAV = [
   { label: "Features", href: "/features" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Docs", href: "/docs" },
+  { label: "Pricing",  href: "/pricing" },
+  { label: "Docs",     href: "/docs" },
 ];
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
@@ -27,8 +27,10 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/login" className="text-sm text-white/60 hover:text-white transition-colors">Sign in</Link>
-            <Link href="/pricing" className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+            <Link href="/dashboard" className="text-sm text-white/60 hover:text-white transition-colors">
+              Sign in
+            </Link>
+            <Link href="/signup" className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-colors">
               Get started
             </Link>
           </div>
@@ -45,9 +47,9 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           </div>
           <div className="text-xs text-white/30">© 2025 Clara AI Platform. All rights reserved.</div>
           <div className="flex gap-6 text-xs text-white/40">
-            <Link href="/privacy" className="hover:text-white/70 transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-white/70 transition-colors">Terms</Link>
-            <Link href="/admin/login" className="hover:text-white/70 transition-colors">Admin</Link>
+            <Link href="/privacy"   className="hover:text-white/70 transition-colors">Privacy</Link>
+            <Link href="/terms"     className="hover:text-white/70 transition-colors">Terms</Link>
+            <Link href="/dashboard" className="hover:text-white/70 transition-colors">Admin</Link>
           </div>
         </div>
       </footer>

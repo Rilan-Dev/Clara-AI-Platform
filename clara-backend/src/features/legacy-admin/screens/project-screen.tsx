@@ -141,7 +141,7 @@ export default function ProjectPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0 mt-0.5">
                   <Link href={`/admin/kbs/${kb.id}/config`}>
-                    <Button variant="outline" size="sm" className="h-8">Config</Button>
+                    <Button variant="outline" size="sm" className="h-8">Assistant & AI</Button>
                   </Link>
                   <Link href={`/admin/kbs/${kb.id}`}>
                     <Button variant="default" size="sm" className="h-8">Documents →</Button>

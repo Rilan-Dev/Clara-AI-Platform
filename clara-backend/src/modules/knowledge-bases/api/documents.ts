@@ -252,6 +252,105 @@ export async function reprocessDocumentHandler(
   }
 }
 
+export async function reprocessAllDocumentsHandler(
+  req: NextRequest,
+  kbId: string,
+): Promise<NextResponse> {
+  try {
+    await ensureMigrated();
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "document:create");
+
+    const kb = await getKnowledgeBaseById(kbId);
+    if (!kb) {
+      return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    }
+
+    const docs = await listDocuments(kbId);
+    const details: Array<{
+      documentId: string;
+      title: string;
+      status: "queued" | "skipped" | "failed";
+      error?: string;
+    }> = [];
+
+    let queued = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const doc of docs) {
+      if (doc.status === "pending" || doc.status === "processing") {
+        skipped += 1;
+        details.push({
+          documentId: doc.id,
+          title: doc.title,
+          status: "skipped",
+          error: "Document is already processing.",
+        });
+        continue;
+      }
+
+      try {
+        const latestJob = await getDocumentJobStatus(doc.id);
+        if (!latestJob || latestJob.status === "running") {
+          skipped += 1;
+          details.push({
+            documentId: doc.id,
+            title: doc.title,
+            status: "skipped",
+            error: "No reusable ingest payload is available yet.",
+          });
+          continue;
+        }
+
+        if (!latestJob.filePayload) {
+          skipped += 1;
+          details.push({
+            documentId: doc.id,
+            title: doc.title,
+            status: "skipped",
+            error: "Original upload payload is missing. Re-upload this file to rebuild vectors.",
+          });
+          continue;
+        }
+
+        await updateDocumentStatus(doc.id, "pending");
+        await createIngestJob(doc.id, kbId, latestJob.filePayload);
+        queued += 1;
+        details.push({
+          documentId: doc.id,
+          title: doc.title,
+          status: "queued",
+        });
+      } catch (err) {
+        failed += 1;
+        details.push({
+          documentId: doc.id,
+          title: doc.title,
+          status: "failed",
+          error: (err as Error).message,
+        });
+      }
+    }
+
+    if (queued > 0) {
+      await triggerWorker(req);
+    }
+
+    return NextResponse.json({
+      total: docs.length,
+      queued,
+      skipped,
+      failed,
+      details,
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[documents] reprocess-all:", err);
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function guessMimeType(filename: string): string {

@@ -1,129 +1,137 @@
 "use client";
-import { useState } from "react";
-import { Save, Globe, Key, Shield, Bell, Zap, CheckCircle } from "lucide-react";
 
-const SECTIONS = [
-  {
-    id: "platform",
-    icon: Globe,
-    title: "Platform Identity",
-    color: "text-indigo-400",
-    fields: [
-      { key: "platform_name", label: "Platform Name", type: "text", default: "Clara AI" },
-      { key: "support_email", label: "Support Email", type: "email", default: "support@clara.ai" },
-      { key: "sales_email",   label: "Sales Email",   type: "email", default: "sales@clara.ai" },
-      { key: "app_url",       label: "Production URL", type: "url",  default: "https://clara.ai" },
-    ],
-  },
-  {
-    id: "auth",
-    icon: Key,
-    title: "Authentication",
-    color: "text-amber-400",
-    fields: [
-      { key: "session_ttl_days",   label: "Session TTL (days)",     type: "number", default: "7" },
-      { key: "max_login_attempts", label: "Max failed login attempts", type: "number", default: "5" },
-      { key: "lockout_minutes",    label: "Lockout duration (min)",  type: "number", default: "15" },
-    ],
-  },
-  {
-    id: "limits",
-    icon: Zap,
-    title: "Global Rate Limits",
-    color: "text-cyan-400",
-    fields: [
-      { key: "chat_rpm",      label: "Chat req/min per org",       type: "number", default: "60" },
-      { key: "upload_rpm",    label: "Upload req/min per org",     type: "number", default: "10" },
-      { key: "voice_rph",     label: "Voice sessions/hour per org", type: "number", default: "10" },
-      { key: "embed_rph",     label: "Embed req/hour per API key", type: "number", default: "1000" },
-    ],
-  },
-  {
-    id: "notifications",
-    icon: Bell,
-    title: "Notifications",
-    color: "text-pink-400",
-    fields: [
-      { key: "admin_alert_email", label: "Alert recipient email", type: "email", default: "admin@clara.ai" },
-    ],
-  },
-];
+import Link from "next/link";
+import { ArrowRight, BrainCircuit, Building2, Database, Layers3 } from "lucide-react";
+import { useOrgs } from "@/modules/admin-ui/hooks";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { Button } from "@/components/ui/button";
 
 export default function AdminSettingsPage() {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  function handleChange(key: string, value: string) {
-    setValues((current) => ({ ...current, [key]: value }));
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    void values;
-    await new Promise(r => setTimeout(r, 600));
-    setSaved(true);
-    setSaving(false);
-    setTimeout(() => setSaved(false), 2500);
-  }
+  const { orgs, loading, error } = useOrgs();
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Platform Settings</h1>
-        <p className="text-white/40 text-sm mt-1">Configure platform-wide behaviour and limits</p>
+    <div className="p-6 lg:p-8 max-w-6xl space-y-8">
+      <AdminPageHeader
+        icon={BrainCircuit}
+        title="AI Control Center"
+        description="Platform defaults still live in environment configuration. Inside the app, the controllable runtime surface now spans organisations, projects, and knowledge bases."
+        breadcrumbs={[{ label: "Settings" }]}
+        chips={[
+          `${orgs.length} organisation${orgs.length === 1 ? "" : "s"}`,
+          "Org AI policy",
+          "KB runtime overrides",
+        ]}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <GuideCard
+          icon={Building2}
+          title="Organisation Policy"
+          description="Choose the default provider, approved models, voice allowlists, and org-level feature flags."
+        />
+        <GuideCard
+          icon={Layers3}
+          title="Project to KB Flow"
+          description="Open an organisation, manage projects, then drill into the KB list to continue the full admin workflow."
+        />
+        <GuideCard
+          icon={Database}
+          title="KB Runtime Overrides"
+          description="Override provider or model routing per KB, and reset back to inherited org defaults any time."
+        />
       </div>
 
-      <div className="space-y-6">
-        {SECTIONS.map(section => (
-          <div key={section.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center">
-                <section.icon className={`w-4 h-4 ${section.color}`} />
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <BrainCircuit className="w-5 h-5 text-indigo-400" />
+          <h2 className="font-semibold text-white">Resolution Order</h2>
+        </div>
+        <p className="text-sm text-white/40">
+          Runtime selection resolves in this order: platform env defaults → org AI policy → KB runtime overrides → assistant config voice and generation settings.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            "Platform env defaults",
+            "Org AI policy",
+            "KB runtime overrides",
+            "Assistant config runtime values",
+          ].map((item) => (
+            <span key={item} className="rounded-full border border-white/10 bg-white/[0.02] px-3 py-1 text-xs text-white/60">
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-6">
+          <div>
+            <h2 className="font-semibold text-white">Open an Organisation</h2>
+            <p className="text-sm text-white/40 mt-1">
+              Start at the org level, then continue into projects and KBs for the full management flow.
+            </p>
+          </div>
+          <Link href="/orgs">
+            <Button variant="outline">Go to Organisations</Button>
+          </Link>
+        </div>
+
+        {loading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-20 rounded-2xl bg-white/[0.04] animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {error && <p className="text-sm text-rose-400">{error}</p>}
+
+        {!loading && !error && (
+          <div className="grid gap-3">
+            {orgs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-center">
+                <p className="font-medium text-white">No organisations yet</p>
+                <p className="text-sm text-white/40 mt-1">Create an organisation to unlock the AI policy and KB management flow.</p>
+                <Link href="/orgs" className="inline-flex mt-4">
+                  <Button>Create Organisation</Button>
+                </Link>
               </div>
-              <h2 className="font-semibold text-white text-sm">{section.title}</h2>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              {section.fields.map(field => (
-                <div key={field.key}>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">{field.label}</label>
-                  <input
-                    type={field.type}
-                    defaultValue={field.default}
-                    onChange={e => handleChange(field.key, e.target.value)}
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-colors"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        {/* Security notice */}
-        <div className="border border-amber-500/20 bg-amber-500/[0.05] rounded-xl p-4 flex items-start gap-3">
-          <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-300/70 leading-relaxed">
-            Changes to authentication and rate limit settings take effect immediately for all new sessions.
-            Existing sessions are not affected until they expire. Environment variables (DATABASE_URL, OPENAI_API_KEY, etc.)
-            must be set in your deployment environment and cannot be changed here.
-          </div>
-        </div>
-
-        {/* Save button */}
-        <div className="flex items-center gap-4">
-          <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-all">
-            {saving ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
-            ) : saved ? (
-              <><CheckCircle className="w-4 h-4" /> Saved!</>
             ) : (
-              <><Save className="w-4 h-4" /> Save Settings</>
+              orgs.map((org) => (
+                <div key={org.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-5 py-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-white">{org.name}</p>
+                    <p className="text-xs text-white/35 font-mono">/{org.slug}</p>
+                  </div>
+                  <Link href={`/orgs/${org.id}`} className="inline-flex items-center gap-2 text-sm text-indigo-300 hover:text-indigo-200">
+                    Open AI policy <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              ))
             )}
-          </button>
-          {saved && <span className="text-xs text-emerald-400">Settings saved successfully</span>}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function GuideCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5 text-indigo-300" />
+      </div>
+      <h2 className="font-semibold text-white">{title}</h2>
+      <p className="text-sm text-white/40 mt-2 leading-6">{description}</p>
     </div>
   );
 }

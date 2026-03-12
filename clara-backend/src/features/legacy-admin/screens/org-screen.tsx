@@ -5,7 +5,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useOrg, useProjects } from "@/modules/admin-ui/hooks";
+import { useOrg, useOrgAISettings, useProjects } from "@/modules/admin-ui/hooks";
+import { OrgAISettingsEditor } from "@/components/admin/OrgAISettingsEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,12 @@ import { Label } from "@/components/ui/label";
 export default function OrgPage() {
   const { orgId = "" } = useParams<{ orgId: string }>();
   const { data: org, loading: orgLoading } = useOrg(orgId);
+  const {
+    settings,
+    loading: settingsLoading,
+    error: settingsError,
+    save: saveAISettings,
+  } = useOrgAISettings(orgId);
   const { projects, loading, create, remove } = useProjects(orgId);
   const [name, setName]           = useState("");
   const [description, setDescription] = useState("");
@@ -58,12 +65,39 @@ export default function OrgPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Projects</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Projects group related knowledge bases together.
+            Manage project structure and the organisation-level AI policy in one place.
           </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
           <PlusIcon /> New Project
         </Button>
+      </div>
+
+      <div className="mb-8">
+        {settingsLoading ? (
+          <div className="space-y-3">
+            <div className="h-12 rounded-xl bg-muted/40 animate-pulse" />
+            <div className="h-80 rounded-xl bg-muted/40 animate-pulse" />
+          </div>
+        ) : (
+          <OrgAISettingsEditor
+            orgName={org?.name ?? "this organisation"}
+            settings={settings}
+            onSave={saveAISettings}
+          />
+        )}
+        {settingsError && (
+          <p className="mt-3 text-sm text-destructive">{settingsError}</p>
+        )}
+      </div>
+
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Project Directory</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Projects group related knowledge bases together.
+          </p>
+        </div>
       </div>
 
       {/* Create form */}

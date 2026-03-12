@@ -1,105 +1,3 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import {
-  Brain, Check, Eye, EyeOff, ArrowRight, ArrowLeft,
-  Building2, User, Zap, AlertCircle,
-} from "lucide-react";
-import { apiUrl } from "@/lib/runtime";
-import { setStoredToken } from "@/lib/client-auth";
-
-type PlanMeta = { id: string; name: string; price: string; description: string; badge?: string; color: string; ring: string; features: string[] };
-const PLAN_META: PlanMeta[] = [
-  { id: "free",    name: "Free",    price: "$0/mo",   description: "Great for experimenting", color: "border-white/[0.12] bg-white/[0.03]",          ring: "ring-2 ring-white/30",         features: ["1 Knowledge Base","10 docs","100 req/day","Text chat only"] },
-  { id: "starter", name: "Starter", price: "$49/mo",  description: "For small teams",         color: "border-cyan-500/30 bg-cyan-500/[0.04]",         ring: "ring-2 ring-cyan-500/60",      features: ["3 Knowledge Bases","50 docs per KB","1,000 req/day","Voice AI"] },
-  { id: "pro",     name: "Pro",     price: "$149/mo", description: "For growing businesses",  badge: "Most popular", color: "border-indigo-500/40 bg-indigo-600/[0.07]", ring: "ring-2 ring-indigo-500", features: ["10 Knowledge Bases","200 docs per KB","10,000 req/day","Advanced analytics"] },
-];
-
-type Step = "plan" | "account" | "org" | "review";
-type FormData = { planId: string; fullName: string; email: string; password: string; confirmPassword: string; orgName: string };
-const STEP_ORDER: Step[] = ["plan", "account", "org", "review"];
-const STEP_LABELS = ["Choose plan", "Your account", "Your org", "Review"];
-
-function passwordStrength(pw: string): { score: number; label: string; color: string } {
-  let s = 0;
-  if (pw.length >= 8)  s++;
-  if (pw.length >= 12) s++;
-  if (/[A-Z]/.test(pw)) s++;
-  if (/[0-9]/.test(pw)) s++;
-  if (/[^a-zA-Z0-9]/.test(pw)) s++;
-  if (s <= 1) return { score: s, label: "Weak",   color: "bg-rose-500" };
-  if (s <= 3) return { score: s, label: "Fair",   color: "bg-amber-500" };
-  return           { score: s, label: "Strong", color: "bg-emerald-500" };
-}
-
-export default function SignupScreen() {
-  const router       = useRouter();
-  const searchParams = useSearchParams();
-  const initialPlan  = (["free","starter","pro"].includes(searchParams.get("plan") ?? "")) ? (searchParams.get("plan") as string) : "free";
-
-  const [step, setStep]       = useState<Step>("plan");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
-  const [showPw, setShowPw]   = useState(false);
-  const [showCpw, setShowCpw] = useState(false);
-  const [form, setForm]       = useState<FormData>({ planId: initialPlan, fullName: "", email: "", password: "", confirmPassword: "", orgName: "" });
-
-  useEffect(() => {
-    const p = searchParams.get("plan");
-    if (p && ["free","starter","pro"].includes(p)) setForm(f => ({ ...f, planId: p }));
-  }, [searchParams]);
-
-  const set = (k: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
-  const stepIndex    = STEP_ORDER.indexOf(step);
-  const selectedPlan = PLAN_META.find(p => p.id === form.planId) ?? PLAN_META[0]!;
-  const pwStrength   = passwordStrength(form.password);
-
-  function validateCurrent(): string {
-    if (step === "account") {
-      if (!form.fullName.trim() || form.fullName.trim().length < 2) return "Full name must be at least 2 characters";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Enter a valid email address";
-      if (form.password.length < 8) return "Password must be at least 8 characters";
-      if (form.password !== form.confirmPassword) return "Passwords do not match";
-    }
-    if (step === "org") {
-      if (!form.orgName.trim() || form.orgName.trim().length < 2) return "Organisation name must be at least 2 characters";
-    }
-    return "";
-  }
-
-  function next() {
-    const err = validateCurrent();
-    if (err) { setError(err); return; }
-    setError("");
-    const i = STEP_ORDER.indexOf(step);
-    if (i < STEP_ORDER.length - 1) setStep(STEP_ORDER[i + 1]!);
-  }
-
-  function back() {
-    setError("");
-    const i = STEP_ORDER.indexOf(step);
-    if (i > 0) setStep(STEP_ORDER[i - 1]!);
-  }
-
-  async function handleSubmit() {
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(apiUrl("/api/auth/register"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email.trim(), password: form.password, fullName: form.fullName.trim(), orgName: form.orgName.trim(), planId: form.planId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      if (data.token) setStoredToken(data.token);
-      router.push(`/signup/verify?email=${encodeURIComponent(form.email)}&plan=${form.planId}`);
-    } catch (err: unknown) {
-      setError((err as Error).message ?? "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div className="min-h-screen px-4 py-20 flex items-start justify-center">
@@ -259,7 +157,11 @@ export default function SignupScreen() {
           {step === "review" && (
             <div>
               <h2 className="text-lg font-bold text-white mb-1">Review & confirm</h2>
-              <p className="text-white/40 text-sm mb-5">Everything look right? Click create to go live.</p>
+              <p className="text-white/40 text-sm mb-5">
+                {form.planId === "free"
+                  ? "Everything look right? Click create to get started."
+                  : "Everything look right? You'll choose your payment method next."}
+              </p>
               <div className="space-y-3">
                 {[
                   { label: "Plan",         value: `${selectedPlan.name} — ${selectedPlan.price} (after 14-day trial)`, icon: Zap },
@@ -297,7 +199,11 @@ export default function SignupScreen() {
             ) : (
               <button onClick={handleSubmit} disabled={loading}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all">
-                {loading ? "Creating account…" : <><Check className="w-4 h-4" /> Create account</>}
+                {loading
+                  ? "Creating account…"
+                  : form.planId === "free"
+                    ? <><Check className="w-4 h-4" /> Create account</>
+                    : <><ArrowRight className="w-4 h-4" /> Continue to payment</>}
               </button>
             )}
           </div>

@@ -1,0 +1,199 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { BookOpen, RefreshCw } from "lucide-react";
+import { useAnalytics, useDocuments, useKb, useOrg, useProject } from "@/modules/admin-ui/hooks";
+import { updateKb } from "@/modules/admin-ui/api";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { UploadZone } from "@/components/admin/UploadZone";
+import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
+import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
+import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
+import { Button } from "@/components/ui/button";
+import { apiFetchJson } from "@/lib/runtime";
+
+export default function KbDashboardPage() {
+  const { kbId = "" } = useParams<{ kbId: string }>();
+  const searchParams = useSearchParams();
+  const { data: kb, loading: kbLoading, refetch: refetchKb } = useKb(kbId);
+  const projectId = kb?.projectId ?? searchParams.get("projectId");
+  const { data: project } = useProject(projectId);
+  const orgId = project?.orgId ?? searchParams.get("orgId");
+  const { data: org } = useOrg(orgId);
+  const { docs, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
+  const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
+
+  const [tab, setTab] = useState<"documents" | "analytics" | "deploy">("documents");
+  const [archiving, setArchiving] = useState(false);
+  const [draining, setDraining] = useState(false);
+  const [drainResult, setDrainResult] = useState<string | null>(null);
+
+  const total = docs.length;
+  const ready = docs.filter((doc) => doc.status === "ready").length;
+  const processing = docs.filter((doc) => doc.status === "pending" || doc.status === "processing").length;
+  const failed = docs.filter((doc) => doc.status === "failed").length;
+  const totalChunks = docs.reduce((sum, doc) => sum + (doc.chunkCount ?? 0), 0);
+
+  const handleDrainQueue = useCallback(async () => {
+    setDraining(true);
+    setDrainResult(null);
+    try {
+      const data = await apiFetchJson<{ processed?: number; errors?: number; error?: string }>(
+        "/api/worker/ingest?drain=true",
+        { method: "GET" },
+      );
+      if (data.error) {
+        setDrainResult(`Error: ${data.error}`);
+      } else {
+        setDrainResult(`Processed ${data.processed ?? 0} job(s), ${data.errors ?? 0} error(s)`);
+        refetchKb();
+        refetchDocs();
+      }
+    } catch (err) {
+      setDrainResult(`Error: ${(err as Error).message}`);
+    } finally {
+      setDraining(false);
+    }
+  }, [refetchDocs, refetchKb]);
+
+  const handleArchiveToggle = useCallback(async () => {
+    if (!kb) return;
+    const nextStatus = kb.status === "active" ? "archived" : "active";
+    if (nextStatus === "archived") {
+      if (!confirm("Archive this knowledge base? Uploads and voice access will be blocked until restored.")) {
+        return;
+      }
+    }
+    setArchiving(true);
+    try {
+      await updateKb(kbId, { status: nextStatus });
+      refetchKb();
+    } finally {
+      setArchiving(false);
+    }
+  }, [kb, kbId, refetchKb]);
+
+  const projectHref = orgId && projectId ? `/orgs/${orgId}/projects/${projectId}` : "/orgs";
+  const kbConfigHref = orgId && projectId
+    ? `/kbs/${kbId}/config?orgId=${orgId}&projectId=${projectId}`
+    : `/kbs/${kbId}/config`;
+
+  return (
+    <div className="p-6 lg:p-8 max-w-6xl space-y-6">
+      <AdminPageHeader
+        icon={BookOpen}
+        title={kbLoading ? "Loading knowledge base..." : kb?.name ?? "Knowledge Base"}
+        description="Monitor document ingestion, run analytics, preview voice behavior, and manage deployment keys from the main KB workspace."
+        breadcrumbs={[
+          { label: "Organisations", href: "/orgs" },
+          ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
+          ...(orgId && projectId ? [{ label: project?.name ?? "Project", href: projectHref }] : []),
+          { label: kb?.name ?? "Knowledge Base" },
+        ]}
+        chips={[
+          kb?.status ?? "loading",
+          `${total} document${total === 1 ? "" : "s"}`,
+          kb?.qdrantCollection ?? "vector collection",
+        ]}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            {kb && <VoicePreviewButton kbId={kb.id} kbName={kb.name} />}
+            <Link href={kbConfigHref}>
+              <Button variant="outline" size="sm">Assistant & AI</Button>
+            </Link>
+            {kb && (
+              <Button variant="outline" size="sm" onClick={handleArchiveToggle} disabled={archiving}>
+                {archiving ? "Updating..." : kb.status === "active" ? "Archive" : "Restore"}
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Documents", value: total },
+          { label: "Ready", value: ready },
+          { label: "Processing", value: processing },
+          { label: "Total Chunks", value: totalChunks.toLocaleString() },
+        ].map((item) => (
+          <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+            <div className="text-xs text-white/40 mb-2">{item.label}</div>
+            <div className="text-2xl font-black text-white">{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit">
+        {(["documents", "analytics", "deploy"] as const).map((item) => (
+          <button
+            key={item}
+            onClick={() => {
+              setTab(item);
+              if (item === "analytics") refetchAnalytics();
+            }}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
+            }`}
+          >
+            {item === "documents" ? "Documents" : item === "analytics" ? "Analytics" : "Deploy"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "documents" && (
+        <div className="space-y-4">
+          {processing > 0 && (
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4">
+              <p className="text-sm text-amber-300">
+                {processing} document{processing > 1 ? "s are" : " is"} still processing. Use the queue action if workers appear stuck.
+              </p>
+              <Button variant="outline" size="sm" onClick={handleDrainQueue} disabled={draining}>
+                {draining ? "Processing..." : "Process queue"}
+              </Button>
+            </div>
+          )}
+
+          {drainResult && (
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm text-white/70">
+              {drainResult}
+            </div>
+          )}
+
+          {failed > 0 && (
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-4 text-sm text-rose-300">
+              {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause.
+            </div>
+          )}
+
+          <UploadZone
+            docs={docs}
+            onUpload={upload}
+            onDelete={remove}
+            onReprocess={reprocess}
+          />
+        </div>
+      )}
+
+      {tab === "analytics" && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          {analyticsLoading || !analytics ? (
+            <div className="flex items-center gap-3 text-white/40">
+              <RefreshCw className="w-4 h-4 animate-spin" /> Loading analytics...
+            </div>
+          ) : (
+            <AnalyticsDashboard analytics={analytics} />
+          )}
+        </div>
+      )}
+
+      {tab === "deploy" && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <ApiKeysManager kbId={kbId} />
+        </div>
+      )}
+    </div>
+  );
+}

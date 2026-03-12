@@ -1,13 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, Building2, CreditCard,
   Settings, LogOut, Menu, X, ChevronRight, BarChart3
 } from "lucide-react";
-import { clearStoredToken, withAuthHeaders } from "@/lib/client-auth";
-import { apiUrl } from "@/lib/runtime";
+import { useAuth } from "@/modules/admin-ui/hooks";
 
 const NAV = [
   { href: "/dashboard",     icon: LayoutDashboard, label: "Dashboard" },
@@ -18,17 +17,35 @@ const NAV = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading, logout } = useAuth();
   const pathname  = usePathname();
   const router    = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, router, user]);
+
   async function handleSignOut() {
     try {
-      await fetch(apiUrl("/api/auth/logout"), { method: "POST", headers: withAuthHeaders() });
+      await logout();
     } finally {
-      clearStoredToken();
       router.push("/login");
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-2 border-indigo-500/40 border-t-indigo-300 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (

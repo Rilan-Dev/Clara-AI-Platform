@@ -136,7 +136,7 @@ export default function OrgsPage() {
               <div className="flex items-center gap-2 shrink-0">
                 <Link href={`/admin/orgs/${org.id}`}>
                   <Button variant="outline" size="sm" className="h-8">
-                    Open →
+                    Projects & AI
                   </Button>
                 </Link>
                 <Button variant="ghost" size="sm" className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"

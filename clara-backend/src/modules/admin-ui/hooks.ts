@@ -23,14 +23,34 @@ export type {
 
 type AsyncState<T> = { data: T | null; loading: boolean; error: string | null };
 
-function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> & { refetch: () => void } {
+function useAsync<T>(
+  fn: () => Promise<T>,
+  key: string,
+  options?: { enabled?: boolean },
+): AsyncState<T> & { refetch: () => void } {
+  const enabled = options?.enabled ?? true;
   const [state, setState] = useState<AsyncState<T>>({ data: null, loading: true, error: null });
+  const fnRef = useRef(fn);
+
+  useEffect(() => {
+    fnRef.current = fn;
+  }, [fn]);
+
   const load = useCallback(() => {
+    if (!enabled) {
+      setState({ data: null, loading: false, error: null });
+      return;
+    }
     setState((s) => ({ ...s, loading: true, error: null }));
-    fn().then((data) => setState({ data, loading: false, error: null }))
-       .catch((e: Error) => setState({ data: null, loading: false, error: e.message }));
-  }, deps);
-  useEffect(() => { load(); }, [load]);
+    fnRef.current()
+      .then((data) => setState({ data, loading: false, error: null }))
+      .catch((e: Error) => setState({ data: null, loading: false, error: e.message }));
+  }, [enabled]);
+
+  useEffect(() => {
+    load();
+  }, [key, load]);
+
   return { ...state, refetch: load };
 }
 
@@ -63,19 +83,29 @@ export function useAuth() {
 // ── Orgs ──────────────────────────────────────────────────────────────────────
 
 export function useOrgs() {
-  const { data, loading, error, refetch } = useAsync(api.fetchOrgs, []);
+  const { data, loading, error, refetch } = useAsync(api.fetchOrgs, "orgs");
   const orgs = data ?? [];
   const create = useCallback(async (name: string) => { const org = await api.createOrg(name); refetch(); return org; }, [refetch]);
   const remove = useCallback(async (orgId: string) => { await api.deleteOrg(orgId); refetch(); }, [refetch]);
   return { orgs, loading, error, create, remove, refetch };
 }
 
-export function useOrg(orgId: string) { return useAsync(() => api.fetchOrg(orgId), [orgId]); }
+export function useOrg(orgId?: string | null) {
+  return useAsync(() => api.fetchOrg(orgId!), `org:${orgId ?? "none"}`, {
+    enabled: Boolean(orgId),
+  });
+}
+
+export function useProject(projectId?: string | null) {
+  return useAsync(() => api.fetchProject(projectId!), `project:${projectId ?? "none"}`, {
+    enabled: Boolean(projectId),
+  });
+}
 
 export function useOrgAISettings(orgId: string) {
   const { data: settings, loading, error, refetch } = useAsync(
     () => api.fetchOrgAISettings(orgId),
-    [orgId],
+    `org-ai-settings:${orgId}`,
   );
 
   const save = useCallback(
@@ -93,7 +123,10 @@ export function useOrgAISettings(orgId: string) {
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export function useProjects(orgId: string) {
-  const { data, loading, error, refetch } = useAsync(() => api.fetchProjects(orgId), [orgId]);
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchProjects(orgId),
+    `projects:${orgId}`,
+  );
   const projects = data ?? [];
   const create = useCallback(async (name: string, description?: string) => { const p = await api.createProject(orgId, name, description); refetch(); return p; }, [orgId, refetch]);
   const remove = useCallback(async (projectId: string) => { await api.deleteProject(projectId); refetch(); }, [refetch]);
@@ -103,14 +136,19 @@ export function useProjects(orgId: string) {
 // ── Knowledge Bases ───────────────────────────────────────────────────────────
 
 export function useKbs(projectId: string) {
-  const { data, loading, error, refetch } = useAsync(() => api.fetchKbs(projectId), [projectId]);
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchKbs(projectId),
+    `kbs:${projectId}`,
+  );
   const kbs = data ?? [];
   const create = useCallback(async (name: string, description?: string) => { const kb = await api.createKb(projectId, name, description); refetch(); return kb; }, [projectId, refetch]);
   const remove = useCallback(async (kbId: string) => { await api.deleteKb(kbId); refetch(); }, [refetch]);
   return { kbs, loading, error, create, remove, refetch };
 }
 
-export function useKb(kbId: string) { return useAsync(() => api.fetchKb(kbId), [kbId]); }
+export function useKb(kbId: string) {
+  return useAsync(() => api.fetchKb(kbId), `kb:${kbId}`);
+}
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 
@@ -142,7 +180,10 @@ export function useDocuments(kbId: string, pollIntervalMs = 4000) {
 // ── Config ────────────────────────────────────────────────────────────────────
 
 export function useConfig(kbId: string) {
-  const { data: config, loading, error, refetch } = useAsync(() => api.fetchConfig(kbId), [kbId]);
+  const { data: config, loading, error, refetch } = useAsync(
+    () => api.fetchConfig(kbId),
+    `kb-config:${kbId}`,
+  );
   const save = useCallback(async (data: Partial<Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">>) => {
     const updated = await api.patchConfig(kbId, data); refetch(); return updated;
   }, [kbId, refetch]);
@@ -152,7 +193,7 @@ export function useConfig(kbId: string) {
 export function useKBAIOverrides(kbId: string) {
   const { data: overrides, loading, error, refetch } = useAsync(
     () => api.fetchKBAIOverrides(kbId),
-    [kbId],
+    `kb-ai-overrides:${kbId}`,
   );
 
   const save = useCallback(
@@ -170,7 +211,10 @@ export function useKBAIOverrides(kbId: string) {
 // ── Config Snapshots ──────────────────────────────────────────────────────────
 
 export function useSnapshots(kbId: string) {
-  const { data, loading, error, refetch } = useAsync(() => api.fetchSnapshots(kbId), [kbId]);
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchSnapshots(kbId),
+    `kb-snapshots:${kbId}`,
+  );
   const snapshots = data ?? [];
   const saveSnapshot = useCallback(async (label?: string) => { const s = await api.createSnapshot(kbId, label); refetch(); return s; }, [kbId, refetch]);
   const restore = useCallback(async (snapshotId: string) => { const r = await api.restoreSnapshot(kbId, snapshotId); refetch(); return r; }, [kbId, refetch]);
@@ -179,7 +223,9 @@ export function useSnapshots(kbId: string) {
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
-export function useAnalytics(kbId: string) { return useAsync(() => api.fetchAnalytics(kbId), [kbId]); }
+export function useAnalytics(kbId: string) {
+  return useAsync(() => api.fetchAnalytics(kbId), `kb-analytics:${kbId}`);
+}
 
 // ── Scrape Wizard ─────────────────────────────────────────────────────────────
 /**

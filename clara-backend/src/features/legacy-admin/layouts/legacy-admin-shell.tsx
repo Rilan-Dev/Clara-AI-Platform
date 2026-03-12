@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
           <NavItem href="/admin/orgs" icon={OrgIcon} label="Organisations" pathname={pathname} />
-          <NavItem href="/admin/settings" icon={SettingsIcon} label="Settings" pathname={pathname} />
+          <NavItem href="/admin/settings" icon={SettingsIcon} label="AI Control" pathname={pathname} />
         </nav>
 
         {/* User footer */}
