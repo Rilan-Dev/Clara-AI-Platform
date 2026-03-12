@@ -27,6 +27,7 @@ import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import type { ChatMessage } from "@/modules/ai-core/types";
+import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -73,9 +74,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    if (!resolved.flags.publicEmbedEnabled) {
+      return NextResponse.json(
+        { error: "Public embed is disabled for this knowledge base" },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
+    const providerConfig = toProviderConfig(resolved);
+
     // RAG search
     const t0 = Date.now();
-    const searchResults = await searchKbEmbedded(kb.qdrantCollection, query, 6);
+    const searchResults = await searchKbEmbedded(kb.qdrantCollection, query, 6, {
+      providerConfig,
+    });
 
     const context = searchResults
       .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
@@ -107,7 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ];
 
     // Stream the response
-    const provider = ProviderFactory.getProvider();
+    const provider = ProviderFactory.getProvider(providerConfig);
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream<Uint8Array>({
@@ -128,10 +141,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
         (async () => {
           try {
-            const completionStream = provider.chatStream(chatMessages, {
-              temperature: config.temperature,
-              maxTokens: config.maxTokens,
-            });
+              const completionStream = provider.chatStream(chatMessages, {
+                temperature: resolved.temperature ?? config.temperature,
+                maxTokens: resolved.maxTokens ?? config.maxTokens,
+              });
 
             for await (const delta of completionStream) {
               if (delta) write({ type: "token", payload: delta });

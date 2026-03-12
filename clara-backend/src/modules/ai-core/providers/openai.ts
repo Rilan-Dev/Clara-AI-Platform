@@ -90,6 +90,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   getEmbeddingDimension(): number {
+    if (this.config.embeddingDimension) return this.config.embeddingDimension;
     const model = this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
     const envDim = process.env.OPENAI_EMBEDDING_DIMENSION;
     if (envDim) return Number(envDim);

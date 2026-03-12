@@ -9,18 +9,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
 import type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
-  ConfigSnapshot, KbAnalytics,
+  ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
 } from "./api";
 
-export type { CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember, ConfigSnapshot, KbAnalytics };
+export type {
+  CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
+  ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
+};
 
 // ── Generic async state helper ────────────────────────────────────────────────
 
-type AsyncState<T> = {
-  data: T | null;
-  loading: boolean;
-  error: string | null;
-};
+type AsyncState<T> = { data: T | null; loading: boolean; error: string | null };
 
 function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> & { refetch: () => void } {
   const [state, setState] = useState<AsyncState<T>>({ data: null, loading: true, error: null });
@@ -29,7 +28,6 @@ function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> & { r
     fn().then((data) => setState({ data, loading: false, error: null }))
        .catch((e: Error) => setState({ data: null, loading: false, error: e.message }));
   }, deps);
-
   useEffect(() => { load(); }, [load]);
   return { ...state, refetch: load };
 }
@@ -42,24 +40,14 @@ export function useAuth() {
   const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
-    api.fetchMe()
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    api.fetchMe().then(setUser).catch(() => setUser(null)).finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const u = await api.login(email, password);
-      setUser(u);
-    } catch (e) {
-      setError((e as Error).message);
-      throw e;
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError(null);
+    try { const u = await api.login(email, password); setUser(u); }
+    catch (e) { setError((e as Error).message); throw e; }
+    finally { setLoading(false); }
   }, []);
 
   const logout = useCallback(async () => {
@@ -75,42 +63,20 @@ export function useAuth() {
 export function useOrgs() {
   const { data, loading, error, refetch } = useAsync(api.fetchOrgs, []);
   const orgs = data ?? [];
-
-  const create = useCallback(async (name: string) => {
-    const org = await api.createOrg(name);
-    refetch();
-    return org;
-  }, [refetch]);
-
-  const remove = useCallback(async (orgId: string) => {
-    await api.deleteOrg(orgId);
-    refetch();
-  }, [refetch]);
-
+  const create = useCallback(async (name: string) => { const org = await api.createOrg(name); refetch(); return org; }, [refetch]);
+  const remove = useCallback(async (orgId: string) => { await api.deleteOrg(orgId); refetch(); }, [refetch]);
   return { orgs, loading, error, create, remove, refetch };
 }
 
-export function useOrg(orgId: string) {
-  return useAsync(() => api.fetchOrg(orgId), [orgId]);
-}
+export function useOrg(orgId: string) { return useAsync(() => api.fetchOrg(orgId), [orgId]); }
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export function useProjects(orgId: string) {
   const { data, loading, error, refetch } = useAsync(() => api.fetchProjects(orgId), [orgId]);
   const projects = data ?? [];
-
-  const create = useCallback(async (name: string, description?: string) => {
-    const proj = await api.createProject(orgId, name, description);
-    refetch();
-    return proj;
-  }, [orgId, refetch]);
-
-  const remove = useCallback(async (projectId: string) => {
-    await api.deleteProject(projectId);
-    refetch();
-  }, [refetch]);
-
+  const create = useCallback(async (name: string, description?: string) => { const p = await api.createProject(orgId, name, description); refetch(); return p; }, [orgId, refetch]);
+  const remove = useCallback(async (projectId: string) => { await api.deleteProject(projectId); refetch(); }, [refetch]);
   return { projects, loading, error, create, remove, refetch };
 }
 
@@ -119,68 +85,36 @@ export function useProjects(orgId: string) {
 export function useKbs(projectId: string) {
   const { data, loading, error, refetch } = useAsync(() => api.fetchKbs(projectId), [projectId]);
   const kbs = data ?? [];
-
-  const create = useCallback(async (name: string, description?: string) => {
-    const kb = await api.createKb(projectId, name, description);
-    refetch();
-    return kb;
-  }, [projectId, refetch]);
-
-  const remove = useCallback(async (kbId: string) => {
-    await api.deleteKb(kbId);
-    refetch();
-  }, [refetch]);
-
+  const create = useCallback(async (name: string, description?: string) => { const kb = await api.createKb(projectId, name, description); refetch(); return kb; }, [projectId, refetch]);
+  const remove = useCallback(async (kbId: string) => { await api.deleteKb(kbId); refetch(); }, [refetch]);
   return { kbs, loading, error, create, remove, refetch };
 }
 
-export function useKb(kbId: string) {
-  return useAsync(() => api.fetchKb(kbId), [kbId]);
-}
+export function useKb(kbId: string) { return useAsync(() => api.fetchKb(kbId), [kbId]); }
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 
 export function useDocuments(kbId: string, pollIntervalMs = 4000) {
-  const [docs, setDocs] = useState<KbDocument[]>([]);
+  const [docs, setDocs]     = useState<KbDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]   = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(() => {
-    api.fetchDocuments(kbId)
-      .then(setDocs)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+    api.fetchDocuments(kbId).then(setDocs).catch((e: Error) => setError(e.message)).finally(() => setLoading(false));
   }, [kbId]);
 
   useEffect(() => {
     load();
-    // Poll while any doc is pending/processing
     intervalRef.current = setInterval(() => {
-      setDocs((prev) => {
-        const hasPending = prev.some((d) => d.status === "pending" || d.status === "processing");
-        if (hasPending) { load(); }
-        return prev;
-      });
+      setDocs((prev) => { const hasPending = prev.some((d) => d.status === "pending" || d.status === "processing"); if (hasPending) load(); return prev; });
     }, pollIntervalMs);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [load, pollIntervalMs]);
 
-  const upload = useCallback(async (files: File[]) => {
-    const result = await api.uploadDocuments(kbId, files);
-    load();
-    return result;
-  }, [kbId, load]);
-
-  const remove = useCallback(async (docId: string) => {
-    await api.deleteDocument(kbId, docId);
-    setDocs((prev) => prev.filter((d) => d.id !== docId));
-  }, [kbId]);
-
-  const reprocess = useCallback(async (docId: string) => {
-    await api.reprocessDocument(kbId, docId);
-    load();
-  }, [kbId, load]);
+  const upload = useCallback(async (files: File[]) => { const r = await api.uploadDocuments(kbId, files); load(); return r; }, [kbId, load]);
+  const remove = useCallback(async (docId: string) => { await api.deleteDocument(kbId, docId); setDocs((p) => p.filter((d) => d.id !== docId)); }, [kbId]);
+  const reprocess = useCallback(async (docId: string) => { await api.reprocessDocument(kbId, docId); load(); }, [kbId, load]);
 
   return { docs, loading, error, upload, remove, reprocess, refetch: load };
 }
@@ -189,13 +123,9 @@ export function useDocuments(kbId: string, pollIntervalMs = 4000) {
 
 export function useConfig(kbId: string) {
   const { data: config, loading, error, refetch } = useAsync(() => api.fetchConfig(kbId), [kbId]);
-
   const save = useCallback(async (data: Partial<Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">>) => {
-    const updated = await api.patchConfig(kbId, data);
-    refetch();
-    return updated;
+    const updated = await api.patchConfig(kbId, data); refetch(); return updated;
   }, [kbId, refetch]);
-
   return { config, loading, error, save, refetch };
 }
 
@@ -204,24 +134,155 @@ export function useConfig(kbId: string) {
 export function useSnapshots(kbId: string) {
   const { data, loading, error, refetch } = useAsync(() => api.fetchSnapshots(kbId), [kbId]);
   const snapshots = data ?? [];
-
-  const saveSnapshot = useCallback(async (label?: string) => {
-    const snap = await api.createSnapshot(kbId, label);
-    refetch();
-    return snap;
-  }, [kbId, refetch]);
-
-  const restore = useCallback(async (snapshotId: string) => {
-    const result = await api.restoreSnapshot(kbId, snapshotId);
-    refetch();
-    return result;
-  }, [kbId, refetch]);
-
+  const saveSnapshot = useCallback(async (label?: string) => { const s = await api.createSnapshot(kbId, label); refetch(); return s; }, [kbId, refetch]);
+  const restore = useCallback(async (snapshotId: string) => { const r = await api.restoreSnapshot(kbId, snapshotId); refetch(); return r; }, [kbId, refetch]);
   return { snapshots, loading, error, saveSnapshot, restore, refetch };
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
-export function useAnalytics(kbId: string) {
-  return useAsync(() => api.fetchAnalytics(kbId), [kbId]);
+export function useAnalytics(kbId: string) { return useAsync(() => api.fetchAnalytics(kbId), [kbId]); }
+
+// ── Scrape Wizard ─────────────────────────────────────────────────────────────
+/**
+ * Full state machine for the web-scrape wizard.
+ *
+ * Phases:
+ *   idle                → user fills in URL form
+ *   discovering         → POST /discover in flight (spinner)
+ *   awaiting_confirmation → URL checklist shown (user include/exclude + Start)
+ *   scraping            → polling /progress every 2 s (progress bar)
+ *   completed           → success summary
+ *   failed              → error with reset button
+ */
+
+type WizardPhase =
+  | "idle"
+  | "discovering"
+  | "awaiting_confirmation"
+  | "scraping"
+  | "completed"
+  | "failed";
+
+export type ScrapeWizardState = {
+  phase:    WizardPhase;
+  session:  ScrapeSession | null;
+  progress: ScrapeProgress | null;
+  error:    string | null;
+  /** Optimistic local override map: urlId → included */
+  localToggles: Record<string, boolean>;
+};
+
+export function useScrapeWizard(kbId: string) {
+  const [state, setState] = useState<ScrapeWizardState>({
+    phase: "idle", session: null, progress: null, error: null, localToggles: {},
+  });
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Stop polling helper ─────────────────────────────────────────────────────
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // ── Discover ────────────────────────────────────────────────────────────────
+  const discover = useCallback(async (
+    url: string,
+    opts: { maxDepth?: number; maxUrls?: number; scopeToInputPath?: boolean } = {}
+  ) => {
+    setState((s) => ({ ...s, phase: "discovering", error: null }));
+    try {
+      const session = await api.discoverScrapeUrls(kbId, url, opts);
+      setState((s) => ({
+        ...s,
+        phase: "awaiting_confirmation",
+        session,
+        localToggles: {},
+      }));
+    } catch (e) {
+      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
+    }
+  }, [kbId]);
+
+  // ── Toggle a single URL (optimistic) ────────────────────────────────────────
+  const toggleUrl = useCallback(async (urlId: string, included: boolean) => {
+    // Apply optimistic update immediately
+    setState((s) => ({
+      ...s,
+      localToggles: { ...s.localToggles, [urlId]: included },
+    }));
+    try {
+      await api.toggleScrapeUrl(kbId, urlId, included);
+      // Refresh session to sync server counts
+      if (state.session) {
+        const fresh = await api.getScrapeSession(kbId, state.session.id);
+        setState((s) => ({ ...s, session: fresh }));
+      }
+    } catch (e) {
+      // Roll back optimistic update on failure
+      setState((s) => {
+        const next = { ...s.localToggles };
+        delete next[urlId];
+        return { ...s, localToggles: next, error: (e as Error).message };
+      });
+    }
+  }, [kbId, state.session]);
+
+  // ── Select all / deselect all ────────────────────────────────────────────────
+  const selectAll = useCallback(async (included: boolean) => {
+    if (!state.session) return;
+    const sessionId = state.session.id;
+    // Optimistic: mark all URLs in local state
+    setState((s) => {
+      const toggled: Record<string, boolean> = {};
+      s.session?.urls?.forEach((u) => { toggled[u.id] = included; });
+      return { ...s, localToggles: toggled };
+    });
+    try {
+      await api.batchToggleScrapeUrls(kbId, { sessionId, selectAll: included });
+      const fresh = await api.getScrapeSession(kbId, sessionId);
+      setState((s) => ({ ...s, session: fresh, localToggles: {} }));
+    } catch (e) {
+      setState((s) => ({ ...s, localToggles: {}, error: (e as Error).message }));
+    }
+  }, [kbId, state.session]);
+
+  // ── Start scraping ───────────────────────────────────────────────────────────
+  const startScrape = useCallback(async () => {
+    if (!state.session) return;
+    const sessionId = state.session.id;
+    setState((s) => ({ ...s, phase: "scraping", error: null }));
+    try {
+      await api.startScrapeSession(kbId, sessionId);
+      // Begin polling
+      const poll = async () => {
+        try {
+          const progress = await api.getScrapeProgress(kbId, sessionId);
+          setState((s) => ({ ...s, progress }));
+          if (progress.status === "completed" || progress.status === "failed") {
+            stopPolling();
+            setState((s) => ({
+              ...s,
+              phase: progress.status === "completed" ? "completed" : "failed",
+              error: progress.status === "failed" ? (progress.errorMessage ?? "Scrape failed") : null,
+            }));
+          }
+        } catch { /* keep polling */ }
+      };
+      poll(); // immediate first tick
+      pollRef.current = setInterval(poll, 2000);
+    } catch (e) {
+      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
+    }
+  }, [kbId, state.session, stopPolling]);
+
+  // ── Reset wizard ─────────────────────────────────────────────────────────────
+  const reset = useCallback(() => {
+    stopPolling();
+    setState({ phase: "idle", session: null, progress: null, error: null, localToggles: {} });
+  }, [stopPolling]);
+
+  return { state, discover, toggleUrl, selectAll, startScrape, reset };
 }

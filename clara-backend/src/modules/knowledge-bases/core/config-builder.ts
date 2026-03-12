@@ -46,6 +46,10 @@ export function buildSystemPrompt(
     `You are ${config.assistantName}, a voice assistant${orgPhrase}.`
   );
 
+  if (config.systemPrompt.trim()) {
+    parts.push(config.systemPrompt.trim());
+  }
+
   // ── 2. Knowledge Base scope ────────────────────────────────────────────────
   if (ctx.documentCount !== undefined && ctx.documentCount > 0) {
     parts.push(

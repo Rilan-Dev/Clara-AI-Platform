@@ -19,7 +19,9 @@ type Env = {
   QDRANT_API_KEY: string | undefined;
 
   // AI
-  OPENAI_API_KEY: string;
+  AI_PROVIDER: "openai" | "gemini";
+  OPENAI_API_KEY: string | undefined;
+  GEMINI_API_KEY: string | undefined;
 
   // Auth
   AUTH_SECRET: string;
@@ -37,17 +39,22 @@ type Env = {
 const REQUIRED: Array<keyof Env> = [
   "DATABASE_URL",
   "QDRANT_URL",
-  "OPENAI_API_KEY",
   "AUTH_SECRET",
 ];
 
 function loadEnv(): Env {
   const missing: string[] = [];
+  const provider = process.env.AI_PROVIDER === "gemini" ? "gemini" : "openai";
 
   for (const key of REQUIRED) {
     if (!process.env[key]) {
       missing.push(key);
     }
+  }
+
+  const providerKey = provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
+  if (!process.env[providerKey]) {
+    missing.push(providerKey);
   }
 
   if (missing.length > 0) {
@@ -67,7 +74,9 @@ function loadEnv(): Env {
     DATABASE_URL:            process.env.DATABASE_URL!,
     QDRANT_URL:              process.env.QDRANT_URL ?? "http://localhost:6333",
     QDRANT_API_KEY:          process.env.QDRANT_API_KEY,
-    OPENAI_API_KEY:          process.env.OPENAI_API_KEY!,
+    AI_PROVIDER:             provider,
+    OPENAI_API_KEY:          process.env.OPENAI_API_KEY,
+    GEMINI_API_KEY:          process.env.GEMINI_API_KEY,
     AUTH_SECRET:             process.env.AUTH_SECRET ?? "change-me-in-production",
     STRIPE_SECRET_KEY:       process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET:   process.env.STRIPE_WEBHOOK_SECRET,

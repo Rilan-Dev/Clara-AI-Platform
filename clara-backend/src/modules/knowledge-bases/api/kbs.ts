@@ -24,6 +24,8 @@ import {
   deleteKnowledgeBase,
 } from "../core/db";
 import { ensureCollectionExists, getQdrantClient } from "@/modules/admin/core/vector-store";
+import { ProviderFactory } from "@/modules/ai-core/factory";
+import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 
 // POST /api/projects/[projectId]/kbs
 export async function createKbHandler(
@@ -52,7 +54,15 @@ export async function createKbHandler(
     // 2. Create the Qdrant collection for this KB.
     //    Uses the embedding dimension from the current provider (default 1536).
     try {
-      await ensureCollectionExists(kb.qdrantCollection);
+      const resolved = await resolveAIConfig({
+        kbId: kb.id,
+        orgId: project.orgId,
+        surface: "rag-embedding",
+      });
+      const provider = ProviderFactory.getProvider(toProviderConfig(resolved));
+      await ensureCollectionExists(kb.qdrantCollection, {
+        vectorSize: provider.getEmbeddingDimension(),
+      });
     } catch (qdrantErr) {
       // Roll back the KB row so the DB and Qdrant stay consistent.
       // (deleteKnowledgeBase also removes assistant_config via CASCADE)

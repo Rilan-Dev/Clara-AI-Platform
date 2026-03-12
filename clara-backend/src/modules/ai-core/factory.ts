@@ -3,7 +3,29 @@ import { OpenAIProvider } from "./providers/openai";
 import { GeminiProvider } from "./providers/gemini";
 
 export class ProviderFactory {
-  private static instance: LLMProvider | null = null;
+  private static defaultInstance: LLMProvider | null = null;
+  private static configuredInstances = new Map<string, LLMProvider>();
+
+  private static getCacheKey(config: ProviderConfig): string {
+    return JSON.stringify({
+      provider: config.provider,
+      apiKey: config.apiKey ?? null,
+      chatModel: config.chatModel ?? null,
+      embeddingModel: config.embeddingModel ?? null,
+      embeddingDimension: config.embeddingDimension ?? null,
+    });
+  }
+
+  private static createProvider(config: ProviderConfig): LLMProvider {
+    switch (config.provider.toLowerCase()) {
+      case "openai":
+        return new OpenAIProvider(config);
+      case "gemini":
+        return new GeminiProvider(config);
+      default:
+        throw new Error(`Unsupported AI provider: ${config.provider}`);
+    }
+  }
 
   /**
    * Returns a singleton instance of the configured LLM Provider.
@@ -21,25 +43,27 @@ export class ProviderFactory {
    * is acceptable. But the factory itself should never run in the browser.
    */
   static getProvider(config?: ProviderConfig): LLMProvider {
-    if (this.instance && !config) {
-      return this.instance;
+    if (!config) {
+      if (this.defaultInstance) {
+        return this.defaultInstance;
+      }
+
+      const providerType = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
+      this.defaultInstance = this.createProvider({
+        provider: providerType === "gemini" ? "gemini" : "openai",
+      });
+      return this.defaultInstance;
     }
 
-    const providerType =
-      config?.provider || process.env.AI_PROVIDER || "openai";
-
-    switch (providerType.toLowerCase()) {
-      case "openai":
-        this.instance = new OpenAIProvider(config);
-        break;
-      case "gemini":
-        this.instance = new GeminiProvider(config);
-        break;
-      default:
-        throw new Error(`Unsupported AI provider: ${providerType}`);
+    const cacheKey = this.getCacheKey(config);
+    const cached = this.configuredInstances.get(cacheKey);
+    if (cached) {
+      return cached;
     }
 
-    return this.instance;
+    const provider = this.createProvider(config);
+    this.configuredInstances.set(cacheKey, provider);
+    return provider;
   }
 
   /**
@@ -47,6 +71,7 @@ export class ProviderFactory {
    * Useful for testing or dynamic configuration changes.
    */
   static reset() {
-    this.instance = null;
+    this.defaultInstance = null;
+    this.configuredInstances.clear();
   }
 }

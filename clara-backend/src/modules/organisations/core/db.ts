@@ -3,7 +3,7 @@
  * All PostgreSQL queries for organisations and projects.
  */
 
-import { query, queryOne, execute, withTransaction } from "@/lib/db";
+import { query, queryOne, withTransaction } from "@/lib/db";
 import type {
   Organisation,
   Project,
@@ -68,13 +68,22 @@ export async function createOrganisation(input: CreateOrgInput): Promise<Organis
   const base = input.slug ? slugify(input.slug) : slugify(input.name);
   const slug = await uniqueSlug(base);
 
-  const rows = await query<Record<string, unknown>>(
-    `INSERT INTO organisations (name, slug, logo_url)
-     VALUES ($1, $2, $3)
-     RETURNING *`,
-    [input.name, slug, input.logoUrl ?? null]
-  );
-  return toOrg(rows[0]!);
+  return withTransaction(async (client) => {
+    const result = await client.query<Record<string, unknown>>(
+      `INSERT INTO organisations (name, slug, logo_url)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [input.name, slug, input.logoUrl ?? null]
+    );
+    const orgRow = result.rows[0]!;
+    await client.query(
+      `INSERT INTO org_ai_settings (org_id)
+       VALUES ($1)
+       ON CONFLICT (org_id) DO NOTHING`,
+      [orgRow.id]
+    );
+    return toOrg(orgRow);
+  });
 }
 
 export async function listOrganisations(): Promise<Organisation[]> {

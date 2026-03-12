@@ -1,3 +1,5 @@
+export type AIProvider = "openai" | "gemini";
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -45,7 +47,7 @@ export interface LLMProvider {
 }
 
 export interface ProviderConfig {
-  provider: 'openai' | 'gemini';
+  provider: AIProvider;
   apiKey?: string;
   chatModel?: string;
   embeddingModel?: string;

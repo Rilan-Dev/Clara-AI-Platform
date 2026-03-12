@@ -7,6 +7,7 @@
 
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
+import type { ProviderConfig } from "@/modules/ai-core/types";
 
 const SCORE_THRESHOLD = 0.25;
 
@@ -21,23 +22,29 @@ export type EmbedSearchResult = {
 export async function searchKbEmbedded(
   collectionName: string,
   query: string,
-  topK = 6
+  topK = 6,
+  options?: {
+    providerConfig?: ProviderConfig;
+    filter?: Record<string, unknown>;
+  },
 ): Promise<EmbedSearchResult[]> {
   const client = getQdrantClient();
-  const embedding = await ProviderFactory.getProvider().embedText(query);
+  const embedding = await ProviderFactory.getProvider(options?.providerConfig).embedText(query);
 
   const searchParams = {
     vector: embedding,
     limit: topK,
     with_payload: true,
     score_threshold: SCORE_THRESHOLD,
+    ...(options?.filter ? { filter: options.filter } : {}),
   };
 
   let results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
 
   // Fallback: if nothing passes threshold, retry without it
   if (!Array.isArray(results) || results.length === 0) {
-    const { score_threshold: _st, ...fallback } = searchParams;
+    const fallback: Record<string, unknown> = { ...searchParams };
+    delete fallback.score_threshold;
     results = await client.search(collectionName, fallback as Parameters<typeof client.search>[1]);
   }
 

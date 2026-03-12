@@ -30,6 +30,7 @@ type VoiceTurn = {
 
 type Options = {
   documentId?: string | null;
+  kbId?: string | null;
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
@@ -201,7 +202,7 @@ function extractTranscriptionText(obj: Record<string, unknown>): string {
  *       and made turn.question in the history display show the full overview.
  */
 export function useGeminiLive(opts?: Options) {
-  const { documentId, documentOverview, voiceGreeting } = opts || {};
+  const { documentId, kbId, documentOverview, voiceGreeting } = opts || {};
   const languagePrefs   = resolveLanguagePreferences(opts?.language);
   const languageGuidance = buildLanguageGuidance(languagePrefs);
 
@@ -481,19 +482,20 @@ export function useGeminiLive(opts?: Options) {
           if (fc.name !== "rag_search") continue;
 
           const q     = String(fc.args?.query      || "").trim();
+          const kbIdValue = String(kbId || "").trim();
           // FIX G5: fall back to the hook's documentId if Gemini passed the
           // wrong value or omitted it. The system instruction now includes the
           // real ID so this fallback should rarely be needed.
           const docId = String(fc.args?.documentId || documentId || "").trim();
 
-          if (!q || !docId) {
+          if (!q || (!kbIdValue && !docId)) {
             // Always respond or Gemini will stall waiting for toolResponse.
             sendWS({
               toolResponse: {
                 functionResponses: [{
                   id:   fc.id,
                   name: fc.name,               // FIX G10: name is required
-                  response: { error: "rag_search: missing query or documentId." },
+                  response: { error: "rag_search: missing query or kbId/documentId." },
                 }],
               },
             });
@@ -505,7 +507,9 @@ export function useGeminiLive(opts?: Options) {
               const res = await fetch(apiUrl("/api/rag/search"), {
                 method: "POST",
                 headers: withAuthHeaders({ "Content-Type": "application/json" }),
-                body: JSON.stringify({ query: q, documentId: docId }),
+                body: JSON.stringify(
+                  kbIdValue ? { query: q, kbId: kbIdValue } : { query: q, documentId: docId }
+                ),
               });
               if (!res.ok) throw new Error(`RAG search HTTP ${res.status}`);
               const payload = await res.json();
@@ -718,6 +722,7 @@ export function useGeminiLive(opts?: Options) {
   }, [
     addTurn,
     documentId,
+    kbId,
     flushAudio,
     patchTurn,
     playPCM16,
@@ -766,13 +771,17 @@ export function useGeminiLive(opts?: Options) {
         body: JSON.stringify({
           language:  languagePrefs.assistant,
           languages: languagePrefs.customer,
+          ...(kbId ? { kbId } : {}),
         }),
       });
       if (!sessRes.ok) throw new Error(await sessRes.text());
       const session = await sessRes.json();
 
-      const { wsUrl, model, voice } = session as {
-        wsUrl: string; model: string; voice: string;
+      const { wsUrl, model, voice, instructions } = session as {
+        wsUrl: string;
+        model: string;
+        voice: string;
+        instructions?: string | null;
       };
       if (!wsUrl) throw new Error("Missing WebSocket URL in Gemini session response.");
       if (myToken !== connectTokenRef.current) { clearTimeoutGuard(); return; }
@@ -876,29 +885,73 @@ export function useGeminiLive(opts?: Options) {
         if (myToken !== connectTokenRef.current) { ws.close(); return; }
 
         // ── Build system instruction ────────────────────────────────────
-        const baseInstructions = [
-          assistantPrompts.voice.sessionInstructions,
-          languageGuidance.session,
-        ].join("\n\n");
+        const baseInstructions =
+          typeof instructions === "string" && instructions.trim().length > 0
+            ? instructions.trim()
+            : [assistantPrompts.voice.sessionInstructions, languageGuidance.session].join("\n\n");
 
         const systemParts: string[] = [baseInstructions];
 
         // FIX G5: Inject the document overview so Gemini can answer general
         // questions without a rag_search tool call. Specific questions still
         // trigger rag_search autonomously via toolConfig AUTO.
-        if (documentOverview?.trim()) {
+        if (!kbId && documentOverview?.trim()) {
           systemParts.push(`Policy document overview:\n${documentOverview.trim()}`);
         }
 
         // FIX G5: Inject the exact documentId so the model always passes the
         // correct value to rag_search's required documentId parameter. Without
         // this Gemini had to guess the ID or leave it blank.
-        if (documentId) {
+        if (!kbId && documentId) {
           systemParts.push(
             `Active document ID: ${documentId}\n` +
             `Always pass this exact string as the "documentId" argument when calling rag_search.`
           );
         }
+
+        if (kbId) {
+          systemParts.push(
+            `Active knowledge base ID: ${kbId}\n` +
+            "When calling rag_search, use the active knowledge base and ask only for relevant document context."
+          );
+        }
+
+        const toolParameters = kbId
+          ? {
+              type: "OBJECT",
+              properties: {
+                query: {
+                  type: "STRING",
+                  description: "The user's question in natural language.",
+                },
+              },
+              required: ["query"],
+            }
+          : {
+              type: "OBJECT",
+              properties: {
+                query: {
+                  type: "STRING",
+                  description: "The user's question in natural language.",
+                },
+                documentId: {
+                  type: "STRING",
+                  description:
+                    "The ID of the active document. Use the exact value " +
+                    "from the system instruction — do not guess or omit it.",
+                },
+              },
+              required: ["query", "documentId"],
+            };
+
+        const toolDescription = kbId
+          ? "Retrieve relevant snippets from the active knowledge base. Call this whenever the user asks a question that requires specific document context."
+          :
+            "Retrieve relevant snippets from the active insurance policy " +
+            "document. Call this whenever the user asks about coverage " +
+            "details, exclusions, claims, premiums, renewals, or any " +
+            "other policy-specific information. Always pass the documentId " +
+            "value specified in the system instruction.";
 
         ws.send(JSON.stringify({
           setup: {
@@ -940,28 +993,8 @@ export function useGeminiLive(opts?: Options) {
                 functionDeclarations: [
                   {
                     name: "rag_search",
-                    description:
-                      "Retrieve relevant snippets from the active insurance policy " +
-                      "document. Call this whenever the user asks about coverage " +
-                      "details, exclusions, claims, premiums, renewals, or any " +
-                      "other policy-specific information. Always pass the documentId " +
-                      "value specified in the system instruction.",
-                    parameters: {
-                      type: "OBJECT",
-                      properties: {
-                        query: {
-                          type: "STRING",
-                          description: "The user's question in natural language.",
-                        },
-                        documentId: {
-                          type: "STRING",
-                          description:
-                            "The ID of the active document. Use the exact value " +
-                            "from the system instruction — do not guess or omit it.",
-                        },
-                      },
-                      required: ["query", "documentId"],
-                    },
+                    description: toolDescription,
+                    parameters: toolParameters,
                   },
                 ],
               },
@@ -1055,6 +1088,7 @@ export function useGeminiLive(opts?: Options) {
   }, [
     cleanup,
     documentId,
+    kbId,
     documentOverview,
     languageGuidance.session,
     languagePrefs.assistant,

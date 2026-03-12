@@ -69,3 +69,31 @@ export type PutAssistantConfigInput = Omit<AssistantConfig, "id" | "kbId" | "cre
 
 /** Partial update (PATCH) — any subset of config fields */
 export type PatchAssistantConfigInput = Partial<PutAssistantConfigInput>;
+
+// ── KB AI Overrides ───────────────────────────────────────────────────────────
+
+export type AIProvider = "openai" | "gemini";
+
+export type KBAIOverrides = {
+  id: string;
+  kbId: string;
+  provider: AIProvider | null;
+  chatModel: string | null;
+  embeddingModel: string | null;
+  realtimeModel: string | null;
+  transcriptionModel: string | null;
+  disableVoice: boolean;
+  disablePublicEmbed: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PatchKBAIOverridesInput = Partial<{
+  provider: AIProvider | null;
+  chatModel: string | null;
+  embeddingModel: string | null;
+  realtimeModel: string | null;
+  transcriptionModel: string | null;
+  disableVoice: boolean;
+  disablePublicEmbed: boolean;
+}>;

@@ -412,6 +412,7 @@ export function useOpenAIRealtime(opts?: Options) {
   }, [
     documentId,
     documentOverview,
+    kbId,
     languageGuidance.follow,
     sendJSON,
   ]);
@@ -604,7 +605,7 @@ export function useOpenAIRealtime(opts?: Options) {
         }
       }
     },
-    [documentId, sendJSON]
+    [documentId, kbId, sendJSON]
   );
 
   // ── connect ───────────────────────────────────────────────────────────────
@@ -1153,6 +1154,7 @@ export function useOpenAIRealtime(opts?: Options) {
   }, [
     cleanup,
     handleToolCall,
+    kbId,
     languageGuidance.session,
     languagePrefs.assistant,
     languagePrefs.customer,

@@ -16,7 +16,8 @@
  *   Net effect: ~25–40 % reduction in token count, cleaner chunk boundaries.
  */
 
-import { load as loadHtml, type CheerioAPI, type Cheerio, type AnyNode } from "cheerio";
+import { load as loadHtml, type CheerioAPI, type Cheerio } from "cheerio";
+import type { AnyNode } from "domhandler";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 

@@ -39,3 +39,51 @@ export type CreateProjectInput = {
 };
 
 export type UpdateProjectInput = Partial<CreateProjectInput>;
+
+// ── Org AI Settings ───────────────────────────────────────────────────────────
+
+export type AIProvider = "openai" | "gemini";
+
+export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;
+
+export type OrgAISettings = {
+  id: string;
+  orgId: string;
+  defaultProvider: AIProvider | null;
+  allowedProviders: AIProvider[];
+  allowedChatModels: ProviderScopedList;
+  allowedEmbeddingModels: ProviderScopedList;
+  allowedRealtimeModels: ProviderScopedList;
+  allowedVoices: ProviderScopedList;
+  defaultChatModel: string | null;
+  defaultEmbeddingModel: string | null;
+  defaultRealtimeModel: string | null;
+  defaultTranscriptionModel: string | null;
+  maxChatTokens: number | null;
+  maxRealtimeTokens: number | null;
+  maxTemperature: number | null;
+  enablePublicEmbed: boolean;
+  enableVoice: boolean;
+  enableRealtime: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PatchOrgAISettingsInput = Partial<{
+  defaultProvider: AIProvider | null;
+  allowedProviders: AIProvider[];
+  allowedChatModels: ProviderScopedList;
+  allowedEmbeddingModels: ProviderScopedList;
+  allowedRealtimeModels: ProviderScopedList;
+  allowedVoices: ProviderScopedList;
+  defaultChatModel: string | null;
+  defaultEmbeddingModel: string | null;
+  defaultRealtimeModel: string | null;
+  defaultTranscriptionModel: string | null;
+  maxChatTokens: number | null;
+  maxRealtimeTokens: number | null;
+  maxTemperature: number | null;
+  enablePublicEmbed: boolean;
+  enableVoice: boolean;
+  enableRealtime: boolean;
+}>;

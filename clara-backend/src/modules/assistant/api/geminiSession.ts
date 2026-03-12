@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveLanguagePreferences } from "@/modules/assistant/core/config";
+import { ensureMigrated } from "@/lib/db/migrate";
+import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
+import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 
 // ─── Gemini Live session configuration ────────────────────────────────────────
 //
@@ -28,6 +32,52 @@ const LIVE_OUTPUT_SAMPLE_RATE = 24_000;  // Hz
 
 export async function postGeminiSession(request: NextRequest) {
   try {
+    // Parse optional language preferences from the request body.
+    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+    const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : null;
+    const languagePreferences = resolveLanguagePreferences({
+      assistant:
+        typeof body?.language === "string" ? body.language : undefined,
+      customer: Array.isArray(body?.languages) ? body.languages : undefined,
+    });
+
+    let rawModel = process.env.GEMINI_LIVE_MODEL ?? DEFAULT_MODEL;
+    let voice = process.env.GEMINI_LIVE_VOICE ?? DEFAULT_VOICE;
+    let instructions: string | null = null;
+
+    if (kbId) {
+      await ensureMigrated();
+      const kb = await getKnowledgeBaseById(kbId);
+      if (!kb) {
+        return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+      }
+
+      const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
+      if (resolved.provider !== "gemini") {
+        return NextResponse.json(
+          {
+            error: "Resolved voice provider is OpenAI for this knowledge base.",
+            provider: resolved.provider,
+          },
+          { status: 409 },
+        );
+      }
+
+      if (!resolved.assistantConfig) {
+        return NextResponse.json(
+          { error: "Assistant configuration not found for this knowledge base" },
+          { status: 500 },
+        );
+      }
+
+      rawModel = resolved.realtimeModel ?? rawModel;
+      voice = resolved.voiceId ?? voice;
+      instructions = buildSystemPrompt(resolved.assistantConfig, { kbName: kb.name });
+    }
+
+    // Model name — normalise to include "models/" prefix if absent.
+    const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -40,33 +90,25 @@ export async function postGeminiSession(request: NextRequest) {
       );
     }
 
-    // Parse optional language preferences from the request body.
-    const body = await request.json().catch(() => null);
-    const languagePreferences = resolveLanguagePreferences({
-      assistant:
-        typeof body?.language === "string" ? body.language : undefined,
-      customer: Array.isArray(body?.languages) ? body.languages : undefined,
-    });
-
-    // Model name — normalise to include "models/" prefix if absent.
-    const rawModel = process.env.GEMINI_LIVE_MODEL ?? DEFAULT_MODEL;
-    const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
-
-    const voice = process.env.GEMINI_LIVE_VOICE ?? DEFAULT_VOICE;
-
     // Build the WebSocket URL server-side so the API key is never in the
     // browser JS bundle (no NEXT_PUBLIC_GEMINI_API_KEY required).
     const wsUrl = `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`;
 
     return NextResponse.json({
+      provider: "gemini",
       wsUrl,
       model,
       voice,
+      kbId,
+      instructions,
       language: languagePreferences,
       inputSampleRate: LIVE_INPUT_SAMPLE_RATE,
       outputSampleRate: LIVE_OUTPUT_SAMPLE_RATE,
     });
   } catch (error) {
+    if (error instanceof AIConfigResolutionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 500 }

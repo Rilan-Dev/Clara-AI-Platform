@@ -129,6 +129,12 @@ export class GeminiProvider implements LLMProvider {
   }
 
   getEmbeddingDimension(): number {
+    if (this.config.embeddingDimension) return this.config.embeddingDimension;
+    const envDim = process.env.GEMINI_EMBEDDING_DIMENSION;
+    if (envDim) return Number(envDim);
+
+    const model = this.getEmbeddingModelName();
+    if (model.includes("gemini-embedding-001")) return 3072;
     return 768;
   }
 }

@@ -20,6 +20,7 @@ import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 
 // ── P1 FIX: Read max-tokens from env (was hardcoded 500) ──────────────────────
 //
@@ -149,9 +150,10 @@ async function postChatKb(
   const latest = messages[messages.length - 1]!;
   if (latest.role !== "user") throw new Error("The final message must come from the user.");
 
-  const [kb, config] = await Promise.all([
+  const [kb, config, resolved] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfig(kbId),
+    resolveAIConfig({ kbId, surface: "chat" }),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");
   if (!config) throw new Error("Knowledge base configuration not found.");
@@ -164,7 +166,10 @@ async function postChatKb(
   console.log(`[chat/kb] kbId=${kbId} query="${query.slice(0, 100)}"`);
 
   // RAG search across the full KB collection
-  const results = await searchKbEmbedded(kb.qdrantCollection, query, 6);
+  const providerConfig = toProviderConfig(resolved);
+  const results = await searchKbEmbedded(kb.qdrantCollection, query, 6, {
+    providerConfig,
+  });
   const latencyMs = Date.now() - t0;
 
   // Analytics (fire-and-forget)
@@ -193,7 +198,7 @@ async function postChatKb(
   }));
 
   const encoder = new TextEncoder();
-  const provider = ProviderFactory.getProvider();
+  const provider = ProviderFactory.getProvider(providerConfig);
   const baseHeaders = {
     "Content-Type": "application/x-ndjson",
     "Cache-Control": "no-store",
@@ -211,8 +216,8 @@ async function postChatKb(
       (async () => {
         try {
           const completionStream = provider.chatStream(chatMessages, {
-            temperature: config.temperature,
-            maxTokens: config.maxTokens,
+            temperature: resolved.temperature ?? config.temperature,
+            maxTokens: resolved.maxTokens ?? config.maxTokens,
           });
           for await (const delta of completionStream) {
             if (delta) write({ type: "token", payload: delta });

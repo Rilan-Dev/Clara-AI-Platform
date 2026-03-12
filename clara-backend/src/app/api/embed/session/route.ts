@@ -15,6 +15,12 @@ import {
 } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
+import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+
+const GEMINI_LIVE_WSS_URL =
+  "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
+const GEMINI_INPUT_SAMPLE_RATE = 16_000;
+const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -31,11 +37,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "Voice not configured" }, { status: 500, headers: corsHeaders });
-    }
-
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfig(ctx.kbId),
@@ -45,7 +46,41 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
+
+    if (resolved.provider === "gemini") {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "Gemini voice is not configured" },
+          { status: 500, headers: corsHeaders },
+        );
+      }
+
+      const rawModel = resolved.realtimeModel ?? process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio-preview-12-2025";
+      const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
+      const wsUrl = `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`;
+
+      return NextResponse.json(
+        {
+          provider: "gemini",
+          kbId: ctx.kbId,
+          wsUrl,
+          model,
+          voice: resolved.voiceId ?? process.env.GEMINI_LIVE_VOICE ?? "Aoede",
+          instructions,
+          inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
+          outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
+        },
+        { headers: corsHeaders },
+      );
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "Voice not configured" }, { status: 500, headers: corsHeaders });
+    }
 
     const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
@@ -55,12 +90,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "OpenAI-Beta": "realtime=v1",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini",
-        voice: config.voiceId,
+        model: resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini"),
+        voice: resolved.voiceId ?? config.voiceId,
         modalities: ["audio", "text"],
         instructions,
-        temperature: config.temperature,
-        max_response_output_tokens: config.maxTokens,
+        temperature: resolved.temperature ?? config.temperature,
+        max_response_output_tokens: resolved.maxTokens ?? config.maxTokens,
         turn_detection: {
           type: "server_vad",
           threshold: 0.5,
@@ -69,7 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           create_response: false,
         },
         input_audio_transcription: {
-          model: "gpt-4o-mini-transcribe",
+          model: resolved.transcriptionModel ?? "gpt-4o-mini-transcribe",
           language: config.alwaysRespondIn ?? config.defaultLanguage,
         },
         tools: [
@@ -95,8 +130,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const session = await res.json();
-    return NextResponse.json({ ...session, kbId: ctx.kbId }, { headers: corsHeaders });
+    return NextResponse.json(
+      { ...session, kbId: ctx.kbId, provider: "openai" },
+      { headers: corsHeaders },
+    );
   } catch (err) {
+    if (err instanceof AIConfigResolutionError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error("[embed/session]:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }

@@ -14,6 +14,7 @@ export type VoiceTurn = {
 
 export type VoiceClientOptions = {
   documentId?: string | null;
+  kbId?: string | null;
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;

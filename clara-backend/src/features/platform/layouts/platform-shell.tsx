@@ -4,7 +4,7 @@ import { Brain } from "lucide-react";
 const NAV = [
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Docs", href: "#" },
+  { label: "Docs", href: "/docs" },
 ];
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
@@ -45,8 +45,8 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           </div>
           <div className="text-xs text-white/30">© 2025 Clara AI Platform. All rights reserved.</div>
           <div className="flex gap-6 text-xs text-white/40">
-            <a href="#" className="hover:text-white/70 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white/70 transition-colors">Terms</a>
+            <Link href="/privacy" className="hover:text-white/70 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white/70 transition-colors">Terms</Link>
             <Link href="/admin/login" className="hover:text-white/70 transition-colors">Admin</Link>
           </div>
         </div>

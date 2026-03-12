@@ -74,6 +74,46 @@ export type Org = {
   createdAt: string;
 };
 
+export type AIProvider = "openai" | "gemini";
+export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;
+
+export type OrgAISettings = {
+  id: string;
+  orgId: string;
+  defaultProvider: AIProvider | null;
+  allowedProviders: AIProvider[];
+  allowedChatModels: ProviderScopedList;
+  allowedEmbeddingModels: ProviderScopedList;
+  allowedRealtimeModels: ProviderScopedList;
+  allowedVoices: ProviderScopedList;
+  defaultChatModel: string | null;
+  defaultEmbeddingModel: string | null;
+  defaultRealtimeModel: string | null;
+  defaultTranscriptionModel: string | null;
+  maxChatTokens: number | null;
+  maxRealtimeTokens: number | null;
+  maxTemperature: number | null;
+  enablePublicEmbed: boolean;
+  enableVoice: boolean;
+  enableRealtime: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type KBAIOverrides = {
+  id: string;
+  kbId: string;
+  provider: AIProvider | null;
+  chatModel: string | null;
+  embeddingModel: string | null;
+  realtimeModel: string | null;
+  transcriptionModel: string | null;
+  disableVoice: boolean;
+  disablePublicEmbed: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export async function fetchOrgs(): Promise<Org[]> { return apiFetch<Org[]>("/api/orgs"); }
 export async function fetchOrg(orgId: string): Promise<Org> { return apiFetch<Org>(`/api/orgs/${orgId}`); }
 export async function createOrg(name: string): Promise<Org> {
@@ -83,6 +123,18 @@ export async function updateOrg(orgId: string, name: string): Promise<Org> {
   return apiFetch<Org>(`/api/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) });
 }
 export async function deleteOrg(orgId: string): Promise<void> { await apiFetch(`/api/orgs/${orgId}`, { method: "DELETE" }); }
+export async function fetchOrgAISettings(orgId: string): Promise<OrgAISettings> {
+  return apiFetch<OrgAISettings>(`/api/orgs/${orgId}/ai-settings`);
+}
+export async function patchOrgAISettings(
+  orgId: string,
+  data: Partial<Omit<OrgAISettings, "id" | "orgId" | "createdAt" | "updatedAt">>,
+): Promise<OrgAISettings> {
+  return apiFetch<OrgAISettings>(`/api/orgs/${orgId}/ai-settings`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
 
 // ── Org Members ───────────────────────────────────────────────────────────────
 
@@ -163,6 +215,18 @@ export type AssistantConfig = {
 export async function fetchConfig(kbId: string): Promise<AssistantConfig> { return apiFetch<AssistantConfig>(`/api/kbs/${kbId}/config`); }
 export async function patchConfig(kbId: string, data: Partial<Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">>): Promise<AssistantConfig> {
   return apiFetch<AssistantConfig>(`/api/kbs/${kbId}/config`, { method: "PATCH", body: JSON.stringify(data) });
+}
+export async function fetchKBAIOverrides(kbId: string): Promise<KBAIOverrides | null> {
+  return apiFetch<KBAIOverrides | null>(`/api/kbs/${kbId}/ai-overrides`);
+}
+export async function patchKBAIOverrides(
+  kbId: string,
+  data: Partial<Omit<KBAIOverrides, "id" | "kbId" | "createdAt" | "updatedAt">>,
+): Promise<KBAIOverrides> {
+  return apiFetch<KBAIOverrides>(`/api/kbs/${kbId}/ai-overrides`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 // ── Config Snapshots ──────────────────────────────────────────────────────────

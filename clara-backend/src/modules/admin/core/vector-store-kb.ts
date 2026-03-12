@@ -15,6 +15,8 @@
 import { randomUUID } from "node:crypto";
 import { getQdrantClient, ensureCollectionExists } from "./vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
+import type { ProviderConfig } from "@/modules/ai-core/types";
+import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 
 // Re-use batch config from env
 const EMBED_BATCH_SIZE = (() => {
@@ -49,9 +51,13 @@ export type KbChunkMeta = {
 
 // ── embed with retry ──────────────────────────────────────────────────────────
 
-async function embedWithRetry(text: string, attempt = 0): Promise<number[]> {
+async function embedWithRetry(
+  text: string,
+  providerConfig: ProviderConfig,
+  attempt = 0,
+): Promise<number[]> {
   try {
-    return await ProviderFactory.getProvider().embedText(text);
+    return await ProviderFactory.getProvider(providerConfig).embedText(text);
   } catch (err: unknown) {
     const e = err as Record<string, unknown>;
     const status = typeof e?.status === "number" ? e.status
@@ -60,20 +66,25 @@ async function embedWithRetry(text: string, attempt = 0): Promise<number[]> {
       const wait = Math.min(1_000 * 2 ** attempt, 30_000);
       console.warn(`[vs-kb] rate-limited, retrying in ${wait}ms (attempt ${attempt + 1})`);
       await sleep(wait);
-      return embedWithRetry(text, attempt + 1);
+      return embedWithRetry(text, providerConfig, attempt + 1);
     }
     throw err;
   }
 }
 
-async function embedBatches(texts: string[]): Promise<number[][]> {
+async function embedBatches(
+  texts: string[],
+  providerConfig: ProviderConfig,
+): Promise<number[][]> {
   const results: number[][] = [];
   const totalBatches = Math.ceil(texts.length / EMBED_BATCH_SIZE);
   for (let i = 0; i < texts.length; i += EMBED_BATCH_SIZE) {
     const batch = texts.slice(i, i + EMBED_BATCH_SIZE);
     const batchNum = Math.floor(i / EMBED_BATCH_SIZE) + 1;
     console.log(`[vs-kb] embedding batch ${batchNum}/${totalBatches} (${batch.length} chunks)`);
-    const embeddings = await Promise.all(batch.map((t) => embedWithRetry(t)));
+    const embeddings = await Promise.all(
+      batch.map((text) => embedWithRetry(text, providerConfig)),
+    );
     results.push(...embeddings);
     if (i + EMBED_BATCH_SIZE < texts.length && EMBED_BATCH_DELAY_MS > 0) {
       await sleep(EMBED_BATCH_DELAY_MS);
@@ -103,9 +114,15 @@ export async function upsertDocumentsKb(
   if (textChunks.length === 0) return;
 
   const client = getQdrantClient();
-  await ensureCollectionExists(collectionName);
+  const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
+  const providerConfig = toProviderConfig(resolved);
+  const provider = ProviderFactory.getProvider(providerConfig);
 
-  const embeddings = await embedBatches(textChunks);
+  await ensureCollectionExists(collectionName, {
+    vectorSize: provider.getEmbeddingDimension(),
+  });
+
+  const embeddings = await embedBatches(textChunks, providerConfig);
   const uploadedAt = new Date().toISOString();
 
   const points = textChunks.map((chunk, index) => ({

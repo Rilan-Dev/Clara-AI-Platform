@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAudioVisualizer } from "@/modules/assistant/core";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
-import { useOpenAIRealtime } from "@/modules/assistant/core/hooks/useOpenAIRealtime";
 import type { LanguagePreferences } from "@/modules/assistant/core/config";
 import type { VoiceTurn, VoiceStatus } from "@/modules/assistant/core/voice/types";
 import { Modal } from "@/components/ui/Modal";
@@ -16,18 +15,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-// ─── Provider selection ────────────────────────────────────────────────────────
-//
-// This constant is resolved at build time by Next.js (NEXT_PUBLIC_ prefix).
-// Switching providers requires a rebuild, which is intentional — the voice
-// infrastructure (WebRTC vs WebSocket) differs fundamentally between them.
-//
-// NEXT_PUBLIC_AI_PROVIDER is safe here: it contains only the provider name
-// ("openai" or "gemini"), not a secret key. The actual secrets are server-side
-// (OPENAI_API_KEY, GEMINI_API_KEY — no NEXT_PUBLIC_ prefix).
-
-const AI_PROVIDER = (process.env.NEXT_PUBLIC_AI_PROVIDER ?? "openai").toLowerCase();
 
 // ─── Shared prop types ─────────────────────────────────────────────────────────
 
@@ -43,6 +30,7 @@ type Props = {
 
 // The normalised interface both inner hooks conform to after our updates.
 type VoiceSessionState = {
+  provider: "openai" | "gemini";
   status: VoiceStatus;
   error: string | null;
   isSpeaking: boolean;
@@ -55,33 +43,10 @@ type VoiceSessionState = {
   outputAnalyserNode: AnalyserNode | null;
 };
 
-// ─── VoiceChatModal — provider selector ──────────────────────────────────────
-//
-// FIX 24/25: The old VoiceChatModal always went through useVoiceClient →
-// OpenAIVoiceAdapter — a stale, incomplete class that missed all Phase 2/3
-// fixes (event names, tool format, ICE race, VAD tuning, stable callbacks, …).
-//
-// Fix: render one of two sub-components based on provider. Each component
-// calls its own hook unconditionally (React requires hooks to be called at
-// the top level of a component, not conditionally). The branching happens
-// before any hook is called, which is valid React.
-//
-//   • OpenAIVoiceModal  → useOpenAIRealtime  (battle-tested, all fixes applied)
-//   • GeminiVoiceModal  → useVoiceClient     (GeminiVoiceAdapter, newly fixed)
-
 export default function VoiceChatModal(props: Props) {
-  if (AI_PROVIDER === "gemini") {
-    return <GeminiVoiceModal {...props} />;
-  }
-  return <OpenAIVoiceModal {...props} />;
-}
-
-// ─── OpenAI path ──────────────────────────────────────────────────────────────
-
-function OpenAIVoiceModal(props: Props) {
   const { documentId, kbId, overviewContext, voiceGreeting, language, suggestedPrompts, onClose } = props;
 
-  const session = useOpenAIRealtime({
+  const session = useVoiceClient({
     documentId,
     kbId,
     documentOverview: overviewContext,
@@ -89,30 +54,6 @@ function OpenAIVoiceModal(props: Props) {
     language,
   });
 
-  // useOpenAIRealtime already returns remoteAudioStream — no renaming needed.
-  return (
-    <VoiceModalShell
-      {...props}
-      session={session}
-      suggestedPrompts={suggestedPrompts}
-      onClose={onClose}
-    />
-  );
-}
-
-// ─── Gemini path ──────────────────────────────────────────────────────────────
-
-function GeminiVoiceModal(props: Props) {
-  const { documentId, overviewContext, voiceGreeting, language, suggestedPrompts, onClose } = props;
-
-  const session = useVoiceClient({
-    documentId,
-    documentOverview: overviewContext,
-    voiceGreeting,
-    language,
-  });
-
-  // useVoiceClient now returns remoteAudioStream (renamed from remoteStream).
   return (
     <VoiceModalShell
       {...props}
@@ -257,7 +198,7 @@ function VoiceModalShell({
       ? `${overviewSnippetRaw.slice(0, 220)}...`
       : overviewSnippetRaw;
 
-  const isGemini = AI_PROVIDER === "gemini";
+  const isGemini = session.provider === "gemini";
   // Real analyser data is now available for both providers — use levels directly.
   const displayLevels = levels;
 

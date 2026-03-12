@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { resolveAIConfig } from "@/modules/ai-core/resolve";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -32,6 +33,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       getAssistantConfig(ctx.kbId),
     ]);
 
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    if (!resolved.flags.publicEmbedEnabled) {
+      return NextResponse.json(
+        { error: "Public embed is disabled for this knowledge base" },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
     if (!kb || !config) {
       return NextResponse.json({ error: "Configuration not found" }, { status: 404, headers: corsHeaders });
     }
@@ -47,7 +56,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         primaryColour:  config.primaryColour,
         accentColour:   config.accentColour,
         defaultLanguage: config.defaultLanguage,
-        voiceEnabled:   true, // voice is always available via /api/embed/session
+        voiceEnabled:   resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
       },
       { headers: corsHeaders }
     );

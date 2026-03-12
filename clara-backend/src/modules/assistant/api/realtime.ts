@@ -21,8 +21,8 @@ import { getAssistantConfig } from "@/modules/knowledge-bases/core/db";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
   buildSystemPrompt,
-  buildLanguageGuidanceFromConfig,
 } from "@/modules/knowledge-bases/core/config-builder";
+import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 
 // ── Legacy / fallback constants (used when no kbId is supplied) ───────────────
 
@@ -49,14 +49,6 @@ const TRANSCRIPTION_MODEL =
 
 export async function postRealtimeSession(request: NextRequest): Promise<NextResponse> {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "OPENAI_API_KEY is not set on server" },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : null;
 
@@ -65,8 +57,10 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     let voice: string;
     let temperature: number;
     let maxTokens: number;
+    let transcriptionModel: string;
     let transcriptionLanguage: string;
     let toolDescription: string;
+    let model: string;
 
     if (kbId) {
       // ── KB-aware path: load config from DB ────────────────────────────────
@@ -85,6 +79,17 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         );
       }
 
+      const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
+      if (resolved.provider !== "openai") {
+        return NextResponse.json(
+          {
+            error: "Resolved voice provider is Gemini for this knowledge base.",
+            provider: resolved.provider,
+          },
+          { status: 409 },
+        );
+      }
+
       // Build the full system prompt from AssistantConfig
       instructions = buildSystemPrompt(config, {
         kbName: kb.name,
@@ -92,10 +97,12 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         // the documents table exists; for now the prompt references the KB name.
       });
 
-      voice        = config.voiceId;
-      temperature  = config.temperature;
-      maxTokens    = config.maxTokens;
+      voice        = resolved.voiceId ?? config.voiceId;
+      temperature  = resolved.temperature ?? config.temperature;
+      maxTokens    = resolved.maxTokens ?? config.maxTokens;
+      transcriptionModel = resolved.transcriptionModel ?? TRANSCRIPTION_MODEL;
       transcriptionLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
+      model = resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini");
 
       // Tool description reflects the actual KB, not the legacy insurance copy
       toolDescription =
@@ -119,7 +126,9 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       voice        = process.env.OPENAI_REALTIME_VOICE ?? "alloy";
       temperature  = Number(process.env.OPENAI_REALTIME_TEMPERATURE ?? 0.8);
       maxTokens    = VOICE_MAX_RESPONSE_TOKENS;
+      transcriptionModel = TRANSCRIPTION_MODEL;
       transcriptionLanguage = languagePreferences.assistant;
+      model = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
 
       toolDescription =
         "Retrieve relevant snippets from the active insurance policy document. " +
@@ -127,7 +136,13 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         "claims, premiums, renewals, or any other policy-specific information.";
     }
 
-    const model = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "OPENAI_API_KEY is not set on server" },
+        { status: 500 }
+      );
+    }
 
     const tools = [
       {
@@ -164,7 +179,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         max_response_output_tokens: maxTokens,
         turn_detection:             VOICE_VAD,
         input_audio_transcription: {
-          model:    TRANSCRIPTION_MODEL,
+          model:    transcriptionModel,
           language: transcriptionLanguage,
         },
       }),
@@ -182,9 +197,12 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
 
     // Attach kbId to the session response so the client hook can pass it back
     // in subsequent API calls (rag/search, etc.) without additional state.
-    return NextResponse.json({ ...session, kbId: kbId ?? null });
+    return NextResponse.json({ ...session, kbId: kbId ?? null, provider: "openai" });
   } catch (error) {
     console.error("[realtime] postRealtimeSession:", error);
+    if (error instanceof AIConfigResolutionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 500 }

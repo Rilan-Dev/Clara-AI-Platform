@@ -26,6 +26,8 @@ import { searchHybrid } from "@/modules/admin/core/hybrid-search";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import type { ProviderConfig } from "@/modules/ai-core/types";
 
 const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K   = 6;  // more results for multi-doc search
@@ -58,6 +60,9 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
         return NextResponse.json({ error: "Knowledge base is archived" }, { status: 400 });
       }
 
+      const resolved = await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
+      const providerConfig = toProviderConfig(resolved);
+
       // Build Qdrant filter: optionally scope to a single document
       const filter = body.documentId
         ? { must: [{ key: "documentId", match: { value: body.documentId } }] }
@@ -65,7 +70,13 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
 
       let results;
       try {
-        results = await searchKbCollection(kb.qdrantCollection, query, topK, filter);
+        results = await searchKbCollection(
+          kb.qdrantCollection,
+          query,
+          topK,
+          filter,
+          providerConfig,
+        );
       } catch (searchErr) {
         const msg = (searchErr as Error).message;
         // Surface missing-collection as a 503 (not 500) so callers can distinguish
@@ -161,10 +172,11 @@ async function searchKbCollection(
   collectionName: string,
   query: string,
   topK: number,
-  filter?: Record<string, unknown>
+  filter?: Record<string, unknown>,
+  providerConfig?: ProviderConfig,
 ): Promise<SearchHit[]> {
   const client    = getQdrantClient();
-  const embedding = await ProviderFactory.getProvider().embedText(query);
+  const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
 
   const searchParams: Record<string, unknown> = {
     vector:       embedding,
@@ -194,7 +206,8 @@ async function searchKbCollection(
 
   // Fallback: if nothing passes threshold, retry without threshold
   if (!Array.isArray(results) || results.length === 0) {
-    const { score_threshold: _st, ...fallbackParams } = searchParams;
+    const fallbackParams = { ...searchParams };
+    delete fallbackParams.score_threshold;
     results = await client.search(collectionName, fallbackParams as Parameters<typeof client.search>[1]);
   }
 
