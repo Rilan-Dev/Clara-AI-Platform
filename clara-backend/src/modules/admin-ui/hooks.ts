@@ -10,11 +10,13 @@ import * as api from "./api";
 import type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
+  OrgAISettings, KBAIOverrides,
 } from "./api";
 
 export type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
+  OrgAISettings, KBAIOverrides,
 };
 
 // ── Generic async state helper ────────────────────────────────────────────────
@@ -69,6 +71,24 @@ export function useOrgs() {
 }
 
 export function useOrg(orgId: string) { return useAsync(() => api.fetchOrg(orgId), [orgId]); }
+
+export function useOrgAISettings(orgId: string) {
+  const { data: settings, loading, error, refetch } = useAsync(
+    () => api.fetchOrgAISettings(orgId),
+    [orgId],
+  );
+
+  const save = useCallback(
+    async (data: Partial<Omit<OrgAISettings, "id" | "orgId" | "createdAt" | "updatedAt">>) => {
+      const updated = await api.patchOrgAISettings(orgId, data);
+      refetch();
+      return updated;
+    },
+    [orgId, refetch],
+  );
+
+  return { settings, loading, error, save, refetch };
+}
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 
@@ -127,6 +147,24 @@ export function useConfig(kbId: string) {
     const updated = await api.patchConfig(kbId, data); refetch(); return updated;
   }, [kbId, refetch]);
   return { config, loading, error, save, refetch };
+}
+
+export function useKBAIOverrides(kbId: string) {
+  const { data: overrides, loading, error, refetch } = useAsync(
+    () => api.fetchKBAIOverrides(kbId),
+    [kbId],
+  );
+
+  const save = useCallback(
+    async (data: Partial<Omit<KBAIOverrides, "id" | "kbId" | "createdAt" | "updatedAt">>) => {
+      const updated = await api.patchKBAIOverrides(kbId, data);
+      refetch();
+      return updated;
+    },
+    [kbId, refetch],
+  );
+
+  return { overrides, loading, error, save, refetch };
 }
 
 // ── Config Snapshots ──────────────────────────────────────────────────────────

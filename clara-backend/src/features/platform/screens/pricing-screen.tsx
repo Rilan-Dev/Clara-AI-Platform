@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 
@@ -18,8 +19,19 @@ const PLAN_COLOURS: Record<string, string> = {
   enterprise: "border-amber-500/30",
 };
 
+function ctaHref(plan: Plan): string {
+  if (plan.price_usd === -1) return "/contact";
+  return `/signup?plan=${plan.id}`;
+}
+
+function ctaLabel(plan: Plan): string {
+  if (plan.price_usd === -1) return "Contact sales";
+  if (plan.price_usd === 0)  return "Start free";
+  return "Get started";
+}
+
 export default function PricingPage() {
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const [plans, setPlans]     = useState<Plan[]>([]);
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState(true);
 
@@ -75,7 +87,6 @@ export default function PricingPage() {
                   <div className="text-xs text-white/40 mt-1">{plan.description}</div>
                 </div>
 
-                {/* Limits */}
                 <div className="space-y-1 mb-4 border-t border-white/[0.06] pt-4">
                   <div className="text-xs text-white/50 flex justify-between">
                     <span>Knowledge Bases</span>
@@ -91,7 +102,6 @@ export default function PricingPage() {
                   </div>
                 </div>
 
-                {/* Features */}
                 <ul className="space-y-2 flex-1 mb-6">
                   {(plan.features as unknown as string[]).map((f: string) => (
                     <li key={f} className="flex items-center gap-2 text-xs text-white/70">
@@ -100,9 +110,14 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <button className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${plan.id === "pro" ? "bg-indigo-600 hover:bg-indigo-500 text-white" : "border border-white/10 text-white/60 hover:border-white/20 hover:text-white"}`}>
-                  {plan.price_usd === -1 ? "Contact sales" : plan.price_usd === 0 ? "Start free" : "Get started"}
-                </button>
+                {/* CTA — now wired to /signup?plan=xxx */}
+                <Link href={ctaHref(plan)}
+                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all text-center block
+                    ${plan.id === "pro"
+                      ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                      : "border border-white/10 text-white/60 hover:border-white/20 hover:text-white"}`}>
+                  {ctaLabel(plan)}
+                </Link>
               </div>
             ))}
           </div>
