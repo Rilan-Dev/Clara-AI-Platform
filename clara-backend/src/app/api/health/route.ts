@@ -1,24 +1,112 @@
 import { NextResponse } from "next/server";
+import { pool } from "@/lib/db";
 
 /**
  * GET /api/health
- * Lightweight health-check endpoint for Docker HEALTHCHECK, load balancers,
- * and uptime monitors. Returns 200 with basic status info.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Enhanced health-check: real DB ping, Qdrant connectivity, system stats.
+ * Used by Docker HEALTHCHECK, load balancers, uptime monitors,
+ * and the Platform Analytics screen.
  */
 export async function GET() {
+  const start = Date.now();
+
+  // ── Database ping ─────────────────────────────────────────────────────────
+  let dbStatus: "ok" | "error" = "error";
+  let dbLatencyMs = 0;
+  let dbError: string | undefined;
+
+  try {
+    const dbStart = Date.now();
+    await pool.query("SELECT 1");
+    dbLatencyMs = Date.now() - dbStart;
+    dbStatus = "ok";
+  } catch (err) {
+    dbError = (err as Error).message;
+  }
+
+  // ── Qdrant ping ───────────────────────────────────────────────────────────
+  let qdrantStatus: "ok" | "error" | "unconfigured" = "unconfigured";
+  let qdrantLatencyMs = 0;
+  let qdrantError: string | undefined;
+
+  const qdrantUrl = process.env.QDRANT_URL;
+  if (qdrantUrl) {
+    try {
+      const qdrantStart = Date.now();
+      const res = await fetch(`${qdrantUrl.replace(/\/$/, "")}/healthz`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      qdrantLatencyMs = Date.now() - qdrantStart;
+      qdrantStatus = res.ok ? "ok" : "error";
+      if (!res.ok) qdrantError = `HTTP ${res.status}`;
+    } catch (err) {
+      qdrantError = (err as Error).message;
+      qdrantStatus = "error";
+    }
+  }
+
+  // ── System stats ──────────────────────────────────────────────────────────
+  const memUsage   = process.memoryUsage();
+  const uptimeSecs = process.uptime();
+
+  // ── DB pool stats (pg Pool exposes these) ────────────────────────────────
+  const poolStats = {
+    total:   (pool as unknown as { totalCount: number }).totalCount   ?? null,
+    idle:    (pool as unknown as { idleCount:  number }).idleCount    ?? null,
+    waiting: (pool as unknown as { waitingCount: number }).waitingCount ?? null,
+  };
+
+  const overallStatus =
+    dbStatus === "ok" && (qdrantStatus === "ok" || qdrantStatus === "unconfigured")
+      ? "healthy"
+      : "degraded";
+
+  const totalMs = Date.now() - start;
+
   return NextResponse.json(
     {
-      status: "healthy",
-      service: "clara-ai-rag",
+      status:    overallStatus,
+      service:   "clara-ai-rag",
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      version: process.env.npm_package_version || "0.1.0",
+      version:   process.env.npm_package_version || "0.1.0",
+      uptime: {
+        seconds: Math.floor(uptimeSecs),
+        human:   formatUptime(uptimeSecs),
+      },
+      checks: {
+        database: {
+          status:    dbStatus,
+          latencyMs: dbLatencyMs,
+          error:     dbError,
+          pool:      poolStats,
+        },
+        qdrant: {
+          status:    qdrantStatus,
+          latencyMs: qdrantLatencyMs,
+          url:       qdrantUrl ? qdrantUrl.replace(/:[^:@]+@/, ":***@") : null,
+          error:     qdrantError,
+        },
+      },
+      memory: {
+        heapUsedMb:  Math.round(memUsage.heapUsed  / 1024 / 1024),
+        heapTotalMb: Math.round(memUsage.heapTotal / 1024 / 1024),
+        rssMb:       Math.round(memUsage.rss       / 1024 / 1024),
+      },
+      responseMs: totalMs,
     },
     {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      status: overallStatus === "healthy" ? 200 : 503,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
     }
   );
+}
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }

@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { toast } from "@/components/ui/sonner";
 
 type Props = {
   orgName: string;
@@ -215,9 +216,16 @@ export function OrgAISettingsEditor({ orgName, settings, onSave }: Props) {
       });
 
       setSaved(true);
+      toast.success("Saved organisation AI policy", {
+        description: `${orgName} will use the updated AI policy for future requests and sessions.`,
+      });
       window.setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error("Could not save organisation AI policy", {
+        description: message,
+      });
     } finally {
       setSaving(false);
     }

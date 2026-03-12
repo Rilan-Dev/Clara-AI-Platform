@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { toast } from "@/components/ui/sonner";
 
 type Props = {
   kbName: string;
@@ -35,6 +36,12 @@ type Draft = {
   disablePublicEmbed: boolean;
 };
 
+type PreviewChange = {
+  label: string;
+  from: string;
+  to: string;
+};
+
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -50,6 +57,15 @@ function toDraft(overrides: KBAIOverrides | null): Draft {
     disableVoice: overrides?.disableVoice ?? false,
     disablePublicEmbed: overrides?.disablePublicEmbed ?? false,
   };
+}
+
+function formatMaybeInherited(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : "inherit";
+}
+
+function formatProvider(value: AIProvider | null): string {
+  return value ?? "inherit";
 }
 
 export function KBAIOverridesEditor({
@@ -114,15 +130,25 @@ export function KBAIOverridesEditor({
           `Queued ${result.queued} document${result.queued === 1 ? "" : "s"}. ` +
             `${result.skipped} skipped, ${result.failed} failed.`,
         );
+        toast.success("Saved KB overrides and queued document rebuild", {
+          description: `Queued ${result.queued}, skipped ${result.skipped}, failed ${result.failed}.`,
+        });
       } else {
         await onSave(payload);
         setNeedsReprocess(hasEmbeddingRoutingChange());
+        toast.success("Saved KB AI overrides", {
+          description: `${kbName} will use the updated runtime routing for new requests.`,
+        });
       }
 
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error("Could not update KB runtime overrides", {
+        description: message,
+      });
     } finally {
       setSaving(false);
     }
@@ -149,6 +175,45 @@ export function KBAIOverridesEditor({
     !draft.disablePublicEmbed;
 
   const embeddingRoutingChanged = hasEmbeddingRoutingChange();
+  const pendingChanges = useMemo<PreviewChange[]>(() => {
+    const changes: PreviewChange[] = [];
+
+    const pushIfChanged = (label: string, from: string, to: string) => {
+      if (from !== to) {
+        changes.push({ label, from, to });
+      }
+    };
+
+    pushIfChanged("Provider", formatProvider(baseline.provider), formatProvider(draft.provider));
+    pushIfChanged("Chat model", formatMaybeInherited(baseline.chatModel), formatMaybeInherited(draft.chatModel));
+    pushIfChanged(
+      "Embedding model",
+      formatMaybeInherited(baseline.embeddingModel),
+      formatMaybeInherited(draft.embeddingModel),
+    );
+    pushIfChanged(
+      "Realtime model",
+      formatMaybeInherited(baseline.realtimeModel),
+      formatMaybeInherited(draft.realtimeModel),
+    );
+    pushIfChanged(
+      "Transcription model",
+      formatMaybeInherited(baseline.transcriptionModel),
+      formatMaybeInherited(draft.transcriptionModel),
+    );
+    pushIfChanged(
+      "Voice access",
+      baseline.disableVoice ? "disabled" : "enabled",
+      draft.disableVoice ? "disabled" : "enabled",
+    );
+    pushIfChanged(
+      "Public embed",
+      baseline.disablePublicEmbed ? "disabled" : "enabled",
+      draft.disablePublicEmbed ? "disabled" : "enabled",
+    );
+
+    return changes;
+  }, [baseline, draft]);
 
   return (
     <Card className="border-border shadow-soft">
@@ -164,6 +229,32 @@ export function KBAIOverridesEditor({
             ? "This knowledge base currently inherits its AI provider, models, and embed access from the organisation policy."
             : "Overrides are active for this knowledge base. These values take precedence over the org defaults."}
         </div>
+
+        {pendingChanges.length > 0 && (
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-4">
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-foreground">Pending runtime changes</p>
+              <p className="text-xs text-muted-foreground">
+                These fields will change when you save the override set.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              {pendingChanges.map((change) => (
+                <div
+                  key={change.label}
+                  className="flex flex-col gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm md:flex-row md:items-center md:justify-between"
+                >
+                  <span className="font-medium text-foreground">{change.label}</span>
+                  <span className="text-muted-foreground">
+                    <span className="text-white/60">{change.from}</span>
+                    <span className="mx-2 text-indigo-300">-&gt;</span>
+                    <span className="text-foreground">{change.to}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <section className="space-y-4">
           <div>
