@@ -1,2 +1,3 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+
+export { default } from "./dashboard-screen";
