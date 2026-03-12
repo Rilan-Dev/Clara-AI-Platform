@@ -111,6 +111,8 @@ export function KBAIOverridesEditor({
   function setField<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
     setSaved(false);
+    setError(null);
+    setReprocessMessage(null);
   }
 
   async function handleSave(reprocessDocs = false) {
