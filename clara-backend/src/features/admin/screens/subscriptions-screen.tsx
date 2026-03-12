@@ -7,12 +7,12 @@
  * - Billing history drawer: payment events + audit log
  * - Notification queue status panel
  */
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  CreditCard, TrendingUp, Users, BarChart3, RefreshCw, Check,
-  ChevronDown, X, Clock, AlertTriangle, Play, Pause, Ban,
+  CreditCard, TrendingUp, BarChart3, RefreshCw, Check,
+  X, Clock, Play, Pause, Ban,
   RotateCcw, Gift, Zap, Receipt, Shield, Bell, ChevronRight,
-  CheckCircle2, XCircle, AlertCircle, Mail, ExternalLink,
+  CheckCircle2, XCircle, AlertCircle, Mail,
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
