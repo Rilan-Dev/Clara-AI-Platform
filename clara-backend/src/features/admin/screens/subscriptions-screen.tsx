@@ -275,6 +275,266 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
 
 // ── Billing History Drawer ───────────────────────────────────────────────────
 
+// ── Notification Panel ──────────────────────────────────────────────────────
+
+function NotificationPanel() {
+  const [data, setData] = useState<{ notifications: unknown[]; summary: {status:string; count:number}[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(apiUrl("/api/admin/notifications?limit=20"), { headers: withAuthHeaders({}) })
+      .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const NOTIF_STATUS_ICON: Record<string, React.ReactNode> = {
+    sent:       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />,
+    pending:    <Clock className="w-3.5 h-3.5 text-amber-400" />,
+    failed:     <XCircle className="w-3.5 h-3.5 text-rose-400" />,
+    suppressed: <AlertCircle className="w-3.5 h-3.5 text-slate-400" />,
+  };
+
+  return (
+    <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+        <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+          <Bell className="w-4 h-4 text-indigo-400" /> Email Notification Queue
+        </h3>
+        <div className="flex gap-3">
+          {(data?.summary ?? []).map(s => (
+            <span key={s.status} className="text-xs text-white/40 capitalize">
+              {s.status}: <span className="text-white/70 font-medium">{s.count}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      {loading ? (
+        <div className="py-8 text-center text-white/25 text-sm">Loading…</div>
+      ) : !data?.notifications.length ? (
+        <div className="py-8 text-center text-white/25 text-sm flex flex-col items-center gap-2">
+          <Mail className="w-7 h-7 opacity-30" />
+          No notifications queued yet
+        </div>
+      ) : (
+        <div className="divide-y divide-white/[0.04]">
+          {(data.notifications as Array<Record<string,unknown>>).map((n) => (
+            <div key={n.id as string} className="px-5 py-3 flex items-center gap-4 hover:bg-white/[0.02] transition-colors">
+              <div className="shrink-0">{NOTIF_STATUS_ICON[n.status as string] ?? <AlertCircle className="w-3.5 h-3.5 text-white/30" />}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-white/80 truncate">{n.subject as string}</div>
+                <div className="text-xs text-white/30 mt-0.5">
+                  <span className="text-indigo-400/70">{n.org_name as string}</span>
+                  {" · "}{n.recipient_email as string}
+                  {" · "}{n.notification_type as string}
+                </div>
+              </div>
+              <div className="text-xs text-white/25 shrink-0">{fmtDateTime(n.created_at as string)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Export ─────────────────────────────────────────────────────────────
+
+export default function AdminSubscriptionsScreen() {
+  const [plans,   setPlans]   = useState<Plan[]>([]);
+  const [orgs,    setOrgs]    = useState<OrgSub[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState("");
+  const [modal,   setModal]   = useState<ModalState>(null);
+  const [notifPanel, setNotifPanel] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [plansData, orgsData] = await Promise.all([
+        fetch(apiUrl("/api/subscriptions/plans")).then(r => r.json()),
+        fetch(apiUrl("/api/platform/orgs?perPage=200"), { headers: withAuthHeaders({}) }).then(r => r.json()),
+      ]);
+      setPlans(plansData.plans ?? []);
+      setOrgs(orgsData.orgs ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const mrr     = orgs.reduce((s, o) => s + (o.price_usd > 0 ? o.price_usd : 0), 0);
+  const paying  = orgs.filter(o => o.price_usd > 0).length;
+  const trials  = orgs.filter(o => o.sub_status === "trialing").length;
+  const paused  = orgs.filter(o => o.sub_status === "paused").length;
+
+  const filtered = orgs.filter(o =>
+    !search || o.name.toLowerCase().includes(search.toLowerCase()) || o.slug.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const planDist = plans.map(p => ({
+    ...p,
+    count: orgs.filter(o => o.plan_id === p.id).length,
+  }));
+
+  return (
+    <div className="p-6 lg:p-8 max-w-7xl space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Subscription Management</h1>
+          <p className="text-white/40 text-sm mt-0.5">Manage billing across all organisations</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setNotifPanel(p => !p)}
+            className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border transition-all ${
+              notifPanel ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-300" : "border-white/10 text-white/40 hover:text-white hover:border-white/20"
+            }`}>
+            <Bell className="w-3.5 h-3.5" /> Notifications
+          </button>
+          <button onClick={loadData}
+            className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-lg transition-all">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "MRR",         value: `${mrr.toLocaleString()}`,  icon: TrendingUp, color: "text-emerald-400" },
+          { label: "ARR",         value: `${(mrr*12).toLocaleString()}`, icon: BarChart3, color: "text-indigo-400" },
+          { label: "Paying Orgs", value: paying,                       icon: CreditCard, color: "text-cyan-400"   },
+          { label: "On Trial",    value: trials,                       icon: Gift,       color: "text-amber-400"  },
+          { label: "Paused",      value: paused,                       icon: Pause,      color: "text-rose-400"   },
+        ].map(s => (
+          <div key={s.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-white/40">{s.label}</span>
+              <s.icon className={`w-4 h-4 ${s.color}`} />
+            </div>
+            <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Notification panel (collapsible) */}
+      {notifPanel && <NotificationPanel />}
+
+      {/* Plan distribution */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {planDist.map(p => (
+          <div key={p.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PLAN_BADGE[p.id] ?? PLAN_BADGE.free}`}>{p.name}</span>
+              <span className="text-lg font-bold text-white">{p.count}</span>
+            </div>
+            <div className="text-xs text-white/35">
+              {p.price_usd === -1 ? "Custom pricing" : p.price_usd === 0 ? "Free tier" : `${p.price_usd}/mo each`}
+            </div>
+            {p.count > 0 && orgs.length > 0 && (
+              <div className="mt-2 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width:`${(p.count/orgs.length)*100}%`, backgroundColor: PLAN_COLOR[p.id] ?? "#6366f1" }} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Org table */}
+      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-4">
+          <h2 className="font-semibold text-white text-sm shrink-0">All Organisations</h2>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name or slug…"
+            className="flex-1 max-w-xs bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/50" />
+          <span className="text-xs text-white/30 shrink-0">{filtered.length} orgs</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-white/[0.03]">
+              <tr className="text-xs text-white/40 text-left">
+                {["Organisation","Plan","Status","KBs","Queries","Joined","Actions"].map(h => (
+                  <th key={h} className="px-5 py-3 font-medium whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              {loading
+                ? Array(5).fill(0).map((_,i) => (
+                    <tr key={i}>
+                      {Array(7).fill(0).map((_,j) => <td key={j} className="px-5 py-4"><div className="h-4 bg-white/[0.04] rounded animate-pulse" /></td>)}
+                    </tr>
+                  ))
+                : filtered.map(org => {
+                    const status = org.sub_status ?? "free";
+                    return (
+                      <tr key={org.org_id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="text-sm font-medium text-white">{org.name}</div>
+                          <div className="text-xs text-white/30 font-mono">{org.slug}</div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_BADGE[org.plan_id ?? "free"] ?? PLAN_BADGE.free}`}>
+                            {org.plan_id ?? "free"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[status] ?? "text-white/40 bg-white/[0.04] border-white/[0.08]"}`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-white/50">{org.kb_count}</td>
+                        <td className="px-5 py-4 text-sm text-white/50">{org.query_count.toLocaleString()}</td>
+                        <td className="px-5 py-4 text-xs text-white/30">{fmtDate(org.created_at)}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setModal({ type:"action", orgId:org.org_id, orgName:org.name, planId:org.plan_id??"free", status })}
+                              className="flex items-center gap-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/30 text-indigo-300 px-2.5 py-1.5 rounded-lg transition-all">
+                              <CreditCard className="w-3 h-3" /> Manage
+                            </button>
+                            <button
+                              onClick={() => setModal({ type:"history", orgId:org.org_id, orgName:org.name })}
+                              className="flex items-center gap-1.5 text-xs bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 hover:text-white px-2.5 py-1.5 rounded-lg transition-all">
+                              <Receipt className="w-3 h-3" /> History
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+            </tbody>
+          </table>
+          {!loading && !filtered.length && (
+            <div className="py-12 text-center text-white/25 text-sm">No organisations found</div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {modal?.type === "action" && (
+        <ActionModal
+          orgId={modal.orgId} orgName={modal.orgName}
+          planId={modal.planId} status={modal.status}
+          plans={plans}
+          onClose={() => setModal(null)}
+          onDone={loadData}
+        />
+      )}
+      {modal?.type === "history" && (
+        <BillingHistoryDrawer
+          orgId={modal.orgId} orgName={modal.orgName}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── BillingHistoryDrawer (moved below main, order doesn’t matter in TS) ──────
+
 function BillingHistoryDrawer({ orgId, orgName, onClose }: {
   orgId: string; orgName: string; onClose: () => void;
 }) {
