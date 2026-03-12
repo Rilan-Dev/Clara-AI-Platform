@@ -24,5 +24,13 @@
     "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next-app/types/**/*.ts"],
-  "exclude": ["node_modules", "src/server/**", "src/vite/**", "vite.config.ts", "scripts/**"]
+  "exclude": [
+    "node_modules",
+    "src/server/**",
+    "src/vite/**",
+    "vite.config.ts",
+    "scripts/**",
+    "**/*_DELETE_ME.ts",
+    "**/*_DELETE_ME.tsx"
+  ]
 }
