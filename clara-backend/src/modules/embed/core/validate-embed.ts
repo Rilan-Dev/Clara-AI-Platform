@@ -1,38 +1,55 @@
 /**
  * src/modules/embed/core/validate-embed.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Middleware utility for public embed API endpoints.
+ * Middleware utility for every public embed endpoint (/api/embed/...).
  *
- * Every public endpoint (/api/embed/...) must call validateEmbedRequest()
- * at the top. It handles:
- *   1. Extract the raw API key from Authorization: Bearer <key> header
- *   2. Validate the key exists, is active, and belongs to an active KB
- *   3. Validate the request Origin against allowed_origins (if configured)
- *   4. Check + increment the rate limit for the current hour
+ * validateEmbedRequest() pipeline (in order):
+ *   1. Extract Bearer token
+ *   2. Validate key — exists, active, KB active
+ *   3. Origin check — allowed_origins list
+ *   4. Fetch org plan limits (max_req_day, voice_enabled)  ← Phase 3
+ *   5. Daily quota check (org-wide rolling 24 h)           ← Phase 3
+ *   6. Hourly per-key rate limit (increment + check)
  *
- * Returns:
- *   { ok: true, ctx: ValidatedKey }   — proceed with the request
- *   { ok: false, response: NextResponse } — return this error response immediately
+ * On success returns { ok: true, ctx: EmbedContext } where ctx now carries
+ * planLimits so downstream routes (e.g. session) don't need another DB round-trip.
+ *
+ * Phase 3 also exports:
+ *   - requireVoiceAccess() — standalone gate for /api/embed/session
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import {
   validateApiKey,
   checkAndIncrementRateLimit,
+  getOrgPlanForKey,
+  checkDailyQuota,
   type ValidatedKey,
+  type OrgPlanLimits,
 } from "./api-keys-db";
 
-export type EmbedContext = ValidatedKey;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+/** Full context available to every embed route handler after validation. */
+export type EmbedContext = ValidatedKey & {
+  /**
+   * Subscription plan limits fetched during validation.
+   * Null only when the org has no active subscription (should be caught by
+   * the daily-quota check first, but typed defensively).
+   */
+  planLimits: OrgPlanLimits | null;
+};
 
 type ValidationResult =
   | { ok: true;  ctx: EmbedContext }
   | { ok: false; response: NextResponse };
 
-/**
- * CORS headers to attach to every embed response so the browser doesn't block them.
- * The actual origin is validated below — we only echo it back when it's allowed.
- */
-export function buildCorsHeaders(origin: string | null, allowedOrigins: string[]): Record<string, string> {
+// ── CORS helpers ──────────────────────────────────────────────────────────────
+
+export function buildCorsHeaders(
+  origin: string | null,
+  allowedOrigins: string[]
+): Record<string, string> {
   const allowOrigin = resolveAllowedOrigin(origin, allowedOrigins);
   return {
     "Access-Control-Allow-Origin":  allowOrigin,
@@ -44,38 +61,36 @@ export function buildCorsHeaders(origin: string | null, allowedOrigins: string[]
 }
 
 function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[]): string {
-  // No restriction configured → allow any origin
   if (!allowedOrigins || allowedOrigins.length === 0) return origin ?? "*";
-
   if (!origin) return "null";
 
-  // Normalize: strip trailing slash, lowercase
   const normalizedOrigin = origin.replace(/\/$/, "").toLowerCase();
 
   for (const allowed of allowedOrigins) {
     const normalizedAllowed = allowed.replace(/\/$/, "").toLowerCase();
-    // Wildcard subdomain: "*.example.com"
     if (normalizedAllowed.startsWith("*.")) {
-      const suffix = normalizedAllowed.slice(1); // ".example.com"
-      if (normalizedOrigin.endsWith(suffix)) return origin;
+      if (normalizedOrigin.endsWith(normalizedAllowed.slice(1))) return origin;
     } else if (normalizedOrigin === normalizedAllowed) {
       return origin;
     }
   }
 
-  return "null"; // blocked
+  return "null";
 }
 
 function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boolean {
-  if (!allowedOrigins || allowedOrigins.length === 0) return true; // open
+  if (!allowedOrigins || allowedOrigins.length === 0) return true;
   if (!origin) return false;
   return resolveAllowedOrigin(origin, allowedOrigins) !== "null";
 }
 
+// ── Main validator ────────────────────────────────────────────────────────────
+
 export async function validateEmbedRequest(req: NextRequest): Promise<ValidationResult> {
-  // ── 1. Extract API key ──────────────────────────────────────────────────────
+
+  // ── 1. Extract Bearer token ─────────────────────────────────────────────────
   const authHeader = req.headers.get("authorization") ?? "";
-  const rawKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const rawKey     = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 
   if (!rawKey) {
     return {
@@ -87,9 +102,9 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     };
   }
 
-  // ── 2. Validate key + KB status ────────────────────────────────────────────
-  const ctx = await validateApiKey(rawKey);
-  if (!ctx) {
+  // ── 2. Validate key + KB active ─────────────────────────────────────────────
+  const keyCtx = await validateApiKey(rawKey);
+  if (!keyCtx) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -99,9 +114,9 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     };
   }
 
-  // ── 3. Validate Origin ────────────────────────────────────────────────────
+  // ── 3. Origin check ─────────────────────────────────────────────────────────
   const origin = req.headers.get("origin");
-  if (!isOriginAllowed(origin, ctx.allowedOrigins)) {
+  if (!isOriginAllowed(origin, keyCtx.allowedOrigins)) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -111,16 +126,52 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     };
   }
 
-  // ── 4. Rate limit ──────────────────────────────────────────────────────────
-  const withinLimit = await checkAndIncrementRateLimit(ctx.keyId, ctx.rateLimitPerHour);
-  if (!withinLimit) {
+  // ── 4. Fetch plan limits ────────────────────────────────────────────────────
+  // Runs concurrently with step 5 where possible.
+  const planLimits = await getOrgPlanForKey(keyCtx.keyId);
+
+  // ── 5. Daily quota (org-wide rolling 24 h) ──────────────────────────────────
+  if (planLimits) {
+    const quota = await checkDailyQuota(keyCtx.orgId, planLimits.maxReqDay);
+
+    if (!quota.allowed) {
+      const isHardLimit = planLimits.maxReqDay === 0; // plan has no daily access at all
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error: isHardLimit
+              ? "Your plan does not include API request access. Please upgrade."
+              : `Daily request quota exceeded (${quota.current.toLocaleString()} / ${quota.limit.toLocaleString()} requests). Resets in ${hoursUntilMidnightUTC()} h.`,
+            code:    "DAILY_QUOTA_EXCEEDED",
+            current: quota.current,
+            limit:   quota.limit,
+            plan:    planLimits.planId,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(secondsUntilMidnightUTC()) },
+          }
+        ),
+      };
+    }
+  }
+
+  // ── 6. Hourly per-key rate limit (increments counter) ──────────────────────
+  const withinHourlyLimit = await checkAndIncrementRateLimit(
+    keyCtx.keyId,
+    keyCtx.rateLimitPerHour
+  );
+
+  if (!withinHourlyLimit) {
     return {
       ok: false,
       response: NextResponse.json(
         {
-          error: "Rate limit exceeded",
+          error:      "Hourly rate limit exceeded. Try again next hour.",
+          code:       "RATE_LIMIT_EXCEEDED",
+          limit:      keyCtx.rateLimitPerHour,
           retryAfter: "Try again next hour",
-          limit: ctx.rateLimitPerHour,
         },
         {
           status: 429,
@@ -130,14 +181,68 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     };
   }
 
-  return { ok: true, ctx };
+  // ── All checks passed ───────────────────────────────────────────────────────
+  return {
+    ok: true,
+    ctx: { ...keyCtx, planLimits },
+  };
 }
 
-/** Handle preflight OPTIONS requests for embed endpoints */
+// ── Voice access gate (Phase 3) ───────────────────────────────────────────────
+
+/**
+ * Call this at the top of /api/embed/session after validateEmbedRequest.
+ * Returns a 403 response if the org's plan does not include voice, or null
+ * if voice is allowed (proceed normally).
+ */
+export function requireVoiceAccess(
+  ctx: EmbedContext,
+  corsHeaders: Record<string, string>
+): NextResponse | null {
+  if (!ctx.planLimits) {
+    // No plan found — deny by default
+    return NextResponse.json(
+      { error: "Voice access requires an active subscription. Please check your billing." },
+      { status: 403, headers: corsHeaders }
+    );
+  }
+
+  if (!ctx.planLimits.voiceEnabled) {
+    return NextResponse.json(
+      {
+        error: `Voice assistant is not included in the ${ctx.planLimits.planName} plan. Upgrade to Pro or above.`,
+        code:  "VOICE_NOT_ENABLED",
+        plan:  ctx.planLimits.planId,
+      },
+      { status: 403, headers: corsHeaders }
+    );
+  }
+
+  return null; // access granted
+}
+
+// ── Preflight handler ─────────────────────────────────────────────────────────
+
 export function handlePreflight(req: NextRequest, allowedOrigins: string[] = []): NextResponse {
   const origin = req.headers.get("origin");
   return new NextResponse(null, {
     status: 204,
     headers: buildCorsHeaders(origin, allowedOrigins),
   });
+}
+
+// ── Time helpers ──────────────────────────────────────────────────────────────
+
+function hoursUntilMidnightUTC(): number {
+  const now        = new Date();
+  const midnight   = new Date(now);
+  midnight.setUTCHours(24, 0, 0, 0);
+  return Math.ceil((midnight.getTime() - now.getTime()) / 3_600_000);
+}
+
+function secondsUntilMidnightUTC(): number {
+  const now      = new Date();
+  const midnight = new Date(now);
+  midnight.setUTCHours(24, 0, 0, 0);
+  return Math.ceil((midnight.getTime() - now.getTime()) / 1_000);
 }

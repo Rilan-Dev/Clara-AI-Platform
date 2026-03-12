@@ -6,6 +6,11 @@
  * Key format: "clr_" + 32 random hex chars → e.g. "clr_a1b2c3d4e5f6..."
  * Only the SHA-256 hash of the full key is stored in the DB.
  * The raw key is returned exactly once at creation time and never again.
+ *
+ * Phase 3 additions:
+ *   - OrgPlanLimits type + getOrgPlanForKey()  — fetch plan caps from DB
+ *   - getOrgDailyUsage()                        — total requests last 24 h (org-wide)
+ *   - checkDailyQuota()                         — read-only quota gate
  */
 
 import { createHash, randomBytes } from "node:crypto";
@@ -18,10 +23,10 @@ export type ApiKey = {
   kbId: string;
   orgId: string;
   name: string;
-  keyPrefix: string;        // first 16 chars of the raw key (safe to display)
-  allowedOrigins: string[]; // empty = any origin allowed
+  keyPrefix: string;
+  allowedOrigins: string[];
   isActive: boolean;
-  rateLimitPerHour: number; // 0 = unlimited
+  rateLimitPerHour: number;
   createdBy: string | null;
   lastUsedAt: Date | null;
   createdAt: Date;
@@ -29,7 +34,7 @@ export type ApiKey = {
 
 export type CreateApiKeyResult = {
   key: ApiKey;
-  rawKey: string; // returned ONCE — never retrievable again
+  rawKey: string;
 };
 
 export type ValidatedKey = {
@@ -40,6 +45,14 @@ export type ValidatedKey = {
   rateLimitPerHour: number;
 };
 
+/** Subscription plan limits relevant to the embed API layer. */
+export type OrgPlanLimits = {
+  maxReqDay:    number;  // -1 = unlimited, 0 = none
+  voiceEnabled: boolean;
+  planId:       string;
+  planName:     string;
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function hashKey(rawKey: string): string {
@@ -47,7 +60,7 @@ function hashKey(rawKey: string): string {
 }
 
 function generateRawKey(): string {
-  return "clr_" + randomBytes(24).toString("hex"); // 52 chars total
+  return "clr_" + randomBytes(24).toString("hex");
 }
 
 function rowToApiKey(row: Record<string, unknown>): ApiKey {
@@ -76,9 +89,9 @@ export async function createApiKey(opts: {
   rateLimitPerHour?: number;
   createdBy?: string;
 }): Promise<CreateApiKeyResult> {
-  const rawKey = generateRawKey();
-  const keyHash = hashKey(rawKey);
-  const keyPrefix = rawKey.slice(0, 16); // "clr_" + 12 chars
+  const rawKey    = generateRawKey();
+  const keyHash   = hashKey(rawKey);
+  const keyPrefix = rawKey.slice(0, 16);
 
   const result = await pool.query<Record<string, unknown>>(
     `INSERT INTO api_keys
@@ -118,11 +131,6 @@ export async function getApiKeyById(keyId: string): Promise<ApiKey | null> {
   return result.rows[0] ? rowToApiKey(result.rows[0]) : null;
 }
 
-/**
- * Validate an incoming raw API key.
- * Returns the key's metadata (without secrets) if valid and active.
- * Returns null if key does not exist, is revoked, or KB is archived.
- */
 export async function validateApiKey(rawKey: string): Promise<ValidatedKey | null> {
   if (!rawKey || !rawKey.startsWith("clr_")) return null;
 
@@ -145,11 +153,8 @@ export async function validateApiKey(rawKey: string): Promise<ValidatedKey | nul
 
   if (!result.rows[0]) return null;
   const row = result.rows[0];
-
-  // Block requests if the KB has been archived
   if (row.kb_status !== "active") return null;
 
-  // Fire-and-forget last_used_at update
   pool
     .query(`UPDATE api_keys SET last_used_at = now() WHERE id = $1`, [row.key_id])
     .catch(() => {});
@@ -163,23 +168,101 @@ export async function validateApiKey(rawKey: string): Promise<ValidatedKey | nul
   };
 }
 
-// ── Rate limiting ─────────────────────────────────────────────────────────────
+// ── Plan limits (Phase 3) ─────────────────────────────────────────────────────
 
 /**
- * Atomically increment the usage counter for the current UTC hour.
- * Returns true if the request is within the limit, false if over.
- * 0 = unlimited.
+ * Fetch the subscription plan limits that are relevant to the embed API layer,
+ * looked up via the api_key's org_id → org_subscriptions → subscription_plans.
+ *
+ * Returns null only if no subscription row exists (treat as no access).
  */
+export async function getOrgPlanForKey(keyId: string): Promise<OrgPlanLimits | null> {
+  const result = await pool.query<{
+    max_req_day:   number;
+    voice_enabled: boolean;
+    plan_id:       string;
+    plan_name:     string;
+  }>(
+    `SELECT
+       sp.max_req_day,
+       sp.voice_enabled,
+       sp.id   AS plan_id,
+       sp.name AS plan_name
+     FROM api_keys ak
+     JOIN org_subscriptions  os ON os.org_id  = ak.org_id
+     JOIN subscription_plans sp ON sp.id      = os.plan_id
+     WHERE ak.id = $1
+       AND os.status IN ('active', 'trialing')
+     LIMIT 1`,
+    [keyId]
+  );
+
+  if (!result.rows[0]) return null;
+  const row = result.rows[0];
+
+  return {
+    maxReqDay:    row.max_req_day,
+    voiceEnabled: row.voice_enabled,
+    planId:       row.plan_id,
+    planName:     row.plan_name,
+  };
+}
+
+// ── Daily quota (Phase 3) ─────────────────────────────────────────────────────
+
+/**
+ * Sum all request counts across every API key belonging to the org
+ * for the rolling 24-hour window.  Used to enforce max_req_day.
+ */
+export async function getOrgDailyUsage(orgId: string): Promise<number> {
+  const result = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(aku.count), 0) AS total
+     FROM api_key_usage aku
+     JOIN api_keys ak ON ak.id = aku.key_id
+     WHERE ak.org_id = $1
+       AND aku.hour  >= now() - INTERVAL '24 hours'`,
+    [orgId]
+  );
+  return parseInt(result.rows[0]?.total ?? "0", 10);
+}
+
+/**
+ * Read-only quota gate.  Call BEFORE checkAndIncrementRateLimit so we don't
+ * count a request that will be rejected anyway.
+ *
+ * Returns { allowed, current, limit }.
+ *   -1  limit = unlimited (always allowed).
+ *   0   limit = no access (always blocked).
+ */
+export async function checkDailyQuota(
+  orgId: string,
+  maxReqDay: number
+): Promise<{ allowed: boolean; current: number; limit: number }> {
+  if (maxReqDay === -1) {
+    // Unlimited — skip the DB read entirely
+    return { allowed: true, current: 0, limit: -1 };
+  }
+
+  const current = await getOrgDailyUsage(orgId);
+
+  return {
+    allowed: maxReqDay > 0 && current < maxReqDay,
+    current,
+    limit: maxReqDay,
+  };
+}
+
+// ── Hourly rate limit ─────────────────────────────────────────────────────────
+
 export async function checkAndIncrementRateLimit(
   keyId: string,
   limitPerHour: number
 ): Promise<boolean> {
-  if (limitPerHour === 0) return true; // unlimited
+  if (limitPerHour === 0) return true;
 
   const currentHour = new Date();
-  currentHour.setMinutes(0, 0, 0); // truncate to hour
+  currentHour.setMinutes(0, 0, 0);
 
-  // Upsert: increment counter, return new value
   const result = await pool.query<{ count: string }>(
     `INSERT INTO api_key_usage (key_id, hour, count)
      VALUES ($1, $2, 1)
@@ -196,32 +279,20 @@ export async function checkAndIncrementRateLimit(
 // ── Update / Revoke ───────────────────────────────────────────────────────────
 
 export async function revokeApiKey(keyId: string): Promise<void> {
-  await pool.query(
-    `UPDATE api_keys SET is_active = FALSE WHERE id = $1`,
-    [keyId]
-  );
+  await pool.query(`UPDATE api_keys SET is_active = FALSE WHERE id = $1`, [keyId]);
 }
 
 export async function updateApiKey(
   keyId: string,
   updates: { name?: string; allowedOrigins?: string[]; rateLimitPerHour?: number }
 ): Promise<ApiKey | null> {
-  const sets: string[] = [];
+  const sets: string[]   = [];
   const values: unknown[] = [];
   let i = 1;
 
-  if (updates.name !== undefined) {
-    sets.push(`name = $${i++}`);
-    values.push(updates.name);
-  }
-  if (updates.allowedOrigins !== undefined) {
-    sets.push(`allowed_origins = $${i++}`);
-    values.push(updates.allowedOrigins);
-  }
-  if (updates.rateLimitPerHour !== undefined) {
-    sets.push(`rate_limit_per_hour = $${i++}`);
-    values.push(updates.rateLimitPerHour);
-  }
+  if (updates.name !== undefined)             { sets.push(`name = $${i++}`);              values.push(updates.name); }
+  if (updates.allowedOrigins !== undefined)   { sets.push(`allowed_origins = $${i++}`);   values.push(updates.allowedOrigins); }
+  if (updates.rateLimitPerHour !== undefined) { sets.push(`rate_limit_per_hour = $${i++}`); values.push(updates.rateLimitPerHour); }
   if (sets.length === 0) return getApiKeyById(keyId);
 
   values.push(keyId);
@@ -243,11 +314,7 @@ export type KeyUsageStat = {
 };
 
 export async function getKeyUsageStats(keyId: string): Promise<KeyUsageStat> {
-  const result = await pool.query<{
-    total_24h: string;
-    total_7d: string;
-    this_hour: string;
-  }>(
+  const result = await pool.query<{ total_24h: string; total_7d: string; this_hour: string }>(
     `SELECT
        COALESCE(SUM(CASE WHEN hour >= now() - INTERVAL '24 hours' THEN count ELSE 0 END), 0) AS total_24h,
        COALESCE(SUM(CASE WHEN hour >= now() - INTERVAL '7 days'   THEN count ELSE 0 END), 0) AS total_7d,
