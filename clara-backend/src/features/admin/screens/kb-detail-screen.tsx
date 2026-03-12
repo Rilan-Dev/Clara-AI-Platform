@@ -7,6 +7,8 @@ import { BookOpen, RefreshCw } from "lucide-react";
 import { useAnalytics, useDocuments, useKb, useOrg, useProject } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { ScrapeWizard } from "@/components/admin/ScrapeWizard";
+import { StatusBadge } from "@/components/admin/StatusBadge";
 import { UploadZone } from "@/components/admin/UploadZone";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
@@ -22,10 +24,10 @@ export default function KbDashboardPage() {
   const { data: project } = useProject(projectId);
   const orgId = project?.orgId ?? searchParams.get("orgId");
   const { data: org } = useOrg(orgId);
-  const { docs, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
+  const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
 
-  const [tab, setTab] = useState<"documents" | "analytics" | "deploy">("documents");
+  const [tab, setTab] = useState<"documents" | "scrape" | "analytics" | "deploy">("documents");
   const [archiving, setArchiving] = useState(false);
   const [draining, setDraining] = useState(false);
   const [drainResult, setDrainResult] = useState<string | null>(null);
@@ -99,6 +101,7 @@ export default function KbDashboardPage() {
         ]}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            {kb && <StatusBadge status={kb.status} />}
             {kb && <VoicePreviewButton kbId={kb.id} kbName={kb.name} />}
             <Link href={kbConfigHref}>
               <Button variant="outline" size="sm">Assistant & AI</Button>
@@ -127,7 +130,7 @@ export default function KbDashboardPage() {
       </div>
 
       <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit">
-        {(["documents", "analytics", "deploy"] as const).map((item) => (
+        {(["documents", "scrape", "analytics", "deploy"] as const).map((item) => (
           <button
             key={item}
             onClick={() => {
@@ -138,7 +141,13 @@ export default function KbDashboardPage() {
               tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
             }`}
           >
-            {item === "documents" ? "Documents" : item === "analytics" ? "Analytics" : "Deploy"}
+            {item === "documents"
+              ? "Documents"
+              : item === "scrape"
+              ? "Scrape"
+              : item === "analytics"
+              ? "Analytics"
+              : "Deploy"}
           </button>
         ))}
       </div>
@@ -168,14 +177,24 @@ export default function KbDashboardPage() {
             </div>
           )}
 
-          <UploadZone
-            docs={docs}
-            onUpload={upload}
-            onDelete={remove}
-            onReprocess={reprocess}
-          />
+          {docsLoading && docs.length === 0 ? (
+            <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="h-12 rounded-lg bg-white/[0.04] animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <UploadZone
+              docs={docs}
+              onUpload={upload}
+              onDelete={remove}
+              onReprocess={reprocess}
+            />
+          )}
         </div>
       )}
+
+      {tab === "scrape" && <ScrapeWizard kbId={kbId} />}
 
       {tab === "analytics" && (
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
