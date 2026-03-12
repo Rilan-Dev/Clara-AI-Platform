@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": [
+    "node_modules",
+    ".next/**",
+    ".next-app/**",
+    "src/server/**",
+    "src/vite/**",
+    "vite.config.ts",
+    "scripts/**",
+    "**/*_DELETE_ME.ts",
+    "**/*_DELETE_ME.tsx"
+  ]
+}

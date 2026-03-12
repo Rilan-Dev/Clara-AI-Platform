@@ -26,7 +26,7 @@ export type CrawlOptions = {
   concurrency?: number;
   /** ms between requests. Default: 300 */
   requestDelayMs?: number;
-  /** Per-page fetch timeout ms. Default: 20000 */
+  /** Per-page fetch timeout ms. Default: 45000 */
   pageTimeoutMs?: number;
   /** Maximum URLs to discover. Default: 500 */
   maxUrls?: number;
@@ -218,7 +218,15 @@ async function renderWithPlaywright(
       await page.setExtraHTTPHeaders({
         "User-Agent": "Mozilla/5.0 (compatible; ClaraKnowledgeBot/1.0; +https://clara.ai/bot)",
       });
-      const response = await page.goto(url, { waitUntil: "networkidle", timeout: timeoutMs });
+      // Use domcontentloaded — fires as soon as HTML is parsed.
+      // "networkidle" never fires on sites with polling/websocket connections
+      // and causes 20 s hard-timeouts on Arabic / CDN-heavy sites.
+      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+      // Poll for meaningful text content (handles React/Vue hydration)
+      await page.waitForFunction(
+        () => (document.body?.innerText?.trim().length ?? 0) > 150,
+        { timeout: 10_000 }
+      ).catch(() => {});
       await page.waitForTimeout(1500); // extra settle time for heavy SPAs
       return { html: await page.content(), finalUrl: response?.url() ?? url };
     } finally {
@@ -403,7 +411,7 @@ export async function crawlWebsite(
     maxDepth         = 3,
     concurrency      = 3,
     requestDelayMs   = 300,
-    pageTimeoutMs    = 20_000,
+    pageTimeoutMs    = 45_000,
     maxUrls          = 500,
     respectRobotsTxt = true,
     parseSitemap     = true,

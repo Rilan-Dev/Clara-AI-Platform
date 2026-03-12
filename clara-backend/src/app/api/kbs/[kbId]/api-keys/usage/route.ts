@@ -18,7 +18,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { pool } from "@/lib/db";
 import {
-  listApiKeys,
   getOrgDailyUsage,
 } from "@/modules/embed/core/api-keys-db";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
