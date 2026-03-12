@@ -7,6 +7,14 @@ import { useOrgs } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function OrgsPage() {
   const { orgs, loading, error, create, remove } = useOrgs();
   const [search, setSearch] = useState("");
@@ -143,11 +151,13 @@ export default function OrgsPage() {
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 text-sm font-bold text-indigo-300">
                       {org.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-white truncate">{org.name}</p>
-                      <p className="text-xs text-white/35 font-mono truncate">/{org.slug}</p>
-                    </div>
-                  </div>
+                     <div className="min-w-0">
+                       <p className="font-semibold text-white truncate">{org.name}</p>
+                      <p className="text-xs text-white/35 truncate">
+                        Created {formatDate(org.createdAt)} · <span className="font-mono">/{org.slug}</span>
+                      </p>
+                     </div>
+                   </div>
 
                   <div className="flex items-center gap-2">
                     <Link href={`/orgs/${org.id}`}>

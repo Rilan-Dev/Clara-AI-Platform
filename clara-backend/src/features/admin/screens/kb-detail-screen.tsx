@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { BookOpen, RefreshCw } from "lucide-react";
+import { AlertTriangle, BookOpen, Layers3, RefreshCw } from "lucide-react";
 import { useAnalytics, useDocuments, useKb, useOrg, useProject } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -15,6 +15,14 @@ import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
 import { Button } from "@/components/ui/button";
 import { apiFetchJson } from "@/lib/runtime";
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function KbDashboardPage() {
   const { kbId = "" } = useParams<{ kbId: string }>();
@@ -115,6 +123,42 @@ export default function KbDashboardPage() {
         }
       />
 
+      {kb?.status === "archived" && (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <div>
+              <p className="font-medium text-amber-200">This knowledge base is archived.</p>
+              <p className="mt-1 text-sm text-amber-100/80">
+                Document uploads, scrape runs, and voice sessions stay blocked until you restore the KB.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {kb && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+            <div className="text-xs uppercase tracking-[0.2em] text-white/35">Knowledge Base</div>
+            <p className="mt-3 text-sm leading-6 text-white/75">
+              {kb.description || "No description yet. Add context in the assistant config so operators know what this KB covers."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/35">
+              <Layers3 className="h-3.5 w-3.5 text-cyan-300" /> Collection
+            </div>
+            <p className="mt-3 break-all font-mono text-xs text-white/75">{kb.qdrantCollection}</p>
+          </div>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+            <div className="text-xs uppercase tracking-[0.2em] text-white/35">Created</div>
+            <p className="mt-3 text-sm text-white/75">{formatDate(kb.createdAt)}</p>
+            {project?.name ? <p className="mt-2 text-xs text-white/40">Project: {project.name}</p> : null}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Documents", value: total },
@@ -156,9 +200,12 @@ export default function KbDashboardPage() {
         <div className="space-y-4">
           {processing > 0 && (
             <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4">
-              <p className="text-sm text-amber-300">
-                {processing} document{processing > 1 ? "s are" : " is"} still processing. Use the queue action if workers appear stuck.
-              </p>
+              <div>
+                <p className="text-sm text-amber-300">
+                  {processing} document{processing > 1 ? "s are" : " is"} still processing. If a file has been stuck for more than 30 seconds, run the queue action below.
+                </p>
+                <p className="mt-1 text-xs text-amber-200/75">The table keeps polling every 4 seconds while jobs are in flight.</p>
+              </div>
               <Button variant="outline" size="sm" onClick={handleDrainQueue} disabled={draining}>
                 {draining ? "Processing..." : "Process queue"}
               </Button>
@@ -184,12 +231,15 @@ export default function KbDashboardPage() {
               ))}
             </div>
           ) : (
-            <UploadZone
-              docs={docs}
-              onUpload={upload}
-              onDelete={remove}
-              onReprocess={reprocess}
-            />
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+              <UploadZone docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
+              {processing > 0 && (
+                <p className="mt-4 flex items-center gap-2 text-xs text-white/35">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Polling for document status updates every 4 seconds.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

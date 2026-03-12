@@ -1,59 +1,68 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 013_subscription_audit.sql
--- Clara AI — Subscription audit log, admin notes, extended org_subscriptions
+-- Clara AI — Phase 6: subscription audit log + notification queue
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- ── Extend org_subscriptions ──────────────────────────────────────────────────
-ALTER TABLE org_subscriptions
-  ADD COLUMN IF NOT EXISTS paused_at              TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS cancelled_at           TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS trial_ends_at          TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS trial_extended_count   INT NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS pause_reason           TEXT,
-  ADD COLUMN IF NOT EXISTS cancel_reason          TEXT;
-
--- Fix status check to include 'paused'
-DO $$ BEGIN
-  ALTER TABLE org_subscriptions
-    DROP CONSTRAINT IF EXISTS org_subscriptions_status_check;
-  ALTER TABLE org_subscriptions
-    ADD CONSTRAINT org_subscriptions_status_check
-    CHECK (status IN ('active','trialing','paused','past_due','canceled'));
-EXCEPTION WHEN others THEN NULL; END $$;
-
--- ── subscription_audit_log ────────────────────────────────────────────────────
--- Append-only record of every admin or system action on a subscription.
+-- ── subscription_audit_log ───────────────────────────────────────────────────
+-- Immutable record of every admin-initiated or system-initiated change to an
+-- org's subscription. Powers the billing history / audit trail in the UI.
 
 CREATE TABLE IF NOT EXISTS subscription_audit_log (
-  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id       UUID        NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
-  actor_id     UUID        REFERENCES users(id) ON DELETE SET NULL,
-  actor_label  TEXT        NOT NULL DEFAULT 'system',   -- display name / 'system'
-  action       TEXT        NOT NULL,
-    -- e.g. plan_changed, status_changed, trial_extended, trial_converted,
-    --      subscription_cancelled, subscription_paused, subscription_resumed,
-    --      note_added, billing_event
-  old_value    JSONB,
-  new_value    JSONB,
-  metadata     JSONB       NOT NULL DEFAULT '{}',
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        UUID        NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  actor_user_id UUID        REFERENCES users(id) ON DELETE SET NULL,
+  actor_label   TEXT        NOT NULL DEFAULT 'system',  -- 'admin', 'system', 'webhook'
+
+  action        TEXT        NOT NULL,
+  -- e.g. 'plan_changed', 'cancelled', 'paused', 'resumed',
+  --      'trial_extended', 'trial_converted', 'reactivated'
+
+  old_plan_id   TEXT        REFERENCES subscription_plans(id),
+  new_plan_id   TEXT        REFERENCES subscription_plans(id),
+  old_status    TEXT,
+  new_status    TEXT,
+
+  note          TEXT,       -- optional human-readable note
+  metadata      JSONB       NOT NULL DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS sub_audit_org_id_idx    ON subscription_audit_log (org_id);
 CREATE INDEX IF NOT EXISTS sub_audit_created_idx   ON subscription_audit_log (created_at DESC);
 CREATE INDEX IF NOT EXISTS sub_audit_action_idx    ON subscription_audit_log (action);
 
--- ── subscription_notes ────────────────────────────────────────────────────────
--- Admin-authored free-text notes attached to an org's subscription.
+-- ── subscription_notifications ───────────────────────────────────────────────
+-- Outbound email/notification queue. Picked up by a background worker
+-- (or sent inline as a placeholder for now).
 
-CREATE TABLE IF NOT EXISTS subscription_notes (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id      UUID        NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
-  author_id   UUID        REFERENCES users(id) ON DELETE SET NULL,
-  author_name TEXT        NOT NULL DEFAULT 'Admin',
-  body        TEXT        NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS subscription_notifications (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        UUID        NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  recipient_email TEXT      NOT NULL,
+  notification_type TEXT    NOT NULL,
+  -- e.g. 'subscription_cancelled', 'trial_ending_soon', 'plan_changed',
+  --      'trial_extended', 'payment_failed', 'subscription_paused'
+
+  subject       TEXT        NOT NULL,
+  body_html     TEXT        NOT NULL,
+  body_text     TEXT        NOT NULL,
+  status        TEXT        NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'sent', 'failed', 'suppressed')),
+  attempts      INT         NOT NULL DEFAULT 0,
+  sent_at       TIMESTAMPTZ,
+  error_message TEXT,
+  metadata      JSONB       NOT NULL DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS sub_notes_org_id_idx ON subscription_notes (org_id);
-CREATE INDEX IF NOT EXISTS sub_notes_created_idx ON subscription_notes (created_at DESC);
+CREATE INDEX IF NOT EXISTS sub_notif_org_id_idx  ON subscription_notifications (org_id);
+CREATE INDEX IF NOT EXISTS sub_notif_status_idx  ON subscription_notifications (status);
+CREATE INDEX IF NOT EXISTS sub_notif_created_idx ON subscription_notifications (created_at DESC);
+
+-- ── Extend org_subscriptions: pause + cancel-at-period-end cols ───────────────
+ALTER TABLE org_subscriptions
+  ADD COLUMN IF NOT EXISTS paused_at              TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS cancelled_at           TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS trial_extended_days    INT         DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cancel_at_period_end   BOOLEAN     NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS admin_note             TEXT;

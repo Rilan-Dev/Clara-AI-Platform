@@ -36,6 +36,14 @@ type OrgSummary = {
 
 type Plan = { id: string; name: string; price_usd: number };
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function OrgDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const { data: org } = useOrg(id);
@@ -282,6 +290,7 @@ export default function OrgDetailPage() {
                 <div>
                   <p className="font-medium text-white">{project.name}</p>
                   {project.description && <p className="text-sm text-white/40 mt-1">{project.description}</p>}
+                  <p className="text-xs text-white/30 mt-1">Created {formatDate(project.createdAt)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Link href={`/orgs/${id}/projects/${project.id}`}>

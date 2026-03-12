@@ -9,6 +9,14 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function ProjectDetailPage() {
   const { id = "", projectId = "" } = useParams<{ id: string; projectId: string }>();
   const { data: org } = useOrg(id);
@@ -130,7 +138,9 @@ export default function ProjectDetailPage() {
                   <StatusBadge status={kb.status} />
                 </div>
                 {kb.description && <p className="text-sm text-white/40 mt-1">{kb.description}</p>}
-                <p className="text-xs text-white/30 mt-1 font-mono">{kb.qdrantCollection}</p>
+                <p className="text-xs text-white/30 mt-1">
+                  Created {formatDate(kb.createdAt)} · <span className="font-mono">{kb.qdrantCollection}</span>
+                </p>
               </div>
                 <div className="flex items-center gap-2">
                   <Link href={`/kbs/${kb.id}/config?orgId=${id}&projectId=${projectId}`}>

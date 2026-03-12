@@ -66,7 +66,10 @@ export default function KbConfigPage() {
             <ConfigEditor config={config} kbName={kb.name} onSave={save} />
           ) : (
             <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-8 text-center text-rose-300">
-              Assistant config not found for this knowledge base.
+              <p className="font-medium">Assistant config not found for this knowledge base.</p>
+              <p className="mt-2 text-sm text-rose-100/75">
+                This usually means the KB predates the assistant-config migration. Re-run migrations, then refresh this page and try again.
+              </p>
             </div>
           )}
 
