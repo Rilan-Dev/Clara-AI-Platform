@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/sonner";
 import { SystemPromptPreview } from "./SystemPromptPreview";
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 
@@ -91,9 +92,16 @@ export function ConfigEditor({ config: initial, kbName, onSave }: Props) {
         accentColour:    cfg.accentColour,
       });
       setSaved(true);
+      toast.success("Saved assistant configuration", {
+        description: `${cfg.assistantName} is ready for the next chat and voice session.`,
+      });
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      setError(message);
+      toast.error("Could not save assistant configuration", {
+        description: message,
+      });
     } finally {
       setSaving(false);
     }

@@ -6,6 +6,7 @@
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/sonner";
 import type { ConfigSnapshot } from "@/modules/admin-ui/api";
 
 type Props = {
@@ -34,9 +35,16 @@ export function SnapshotHistory({ snapshots, onSave, onRestore, onRefetch }: Pro
       await onSave(label.trim() || undefined);
       setLabel("");
       flash("Snapshot saved");
+      toast.success("Saved config snapshot", {
+        description: label.trim() ? `Checkpoint "${label.trim()}" is available in version history.` : "A new checkpoint is available in version history.",
+      });
       onRefetch();
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      setError(message);
+      toast.error("Could not save snapshot", {
+        description: message,
+      });
     } finally {
       setSaving(false);
     }
@@ -49,9 +57,16 @@ export function SnapshotHistory({ snapshots, onSave, onRestore, onRefetch }: Pro
     try {
       await onRestore(id);
       flash("Config restored — reload the page to see changes");
+      toast.success("Restored config snapshot", {
+        description: "The latest KB configuration has been replaced with the selected version.",
+      });
       onRefetch();
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      setError(message);
+      toast.error("Could not restore snapshot", {
+        description: message,
+      });
     } finally {
       setRestoring(null);
     }
