@@ -39,6 +39,11 @@ export default function AdminSettingsPage() {
           title="KB Runtime Overrides"
           description="Override provider or model routing per KB, and reset back to inherited org defaults any time."
         />
+        <GuideCard
+          icon={ArrowRight}
+          title="Reprocess After Embedding Changes"
+          description="When you change embedding routing, reprocess that KB so stored vectors match the active provider and dimension."
+        />
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
@@ -61,6 +66,13 @@ export default function AdminSettingsPage() {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+        <h2 className="font-semibold text-white">Operational Reminder</h2>
+        <p className="mt-2 text-sm text-white/40 leading-6">
+          Assistant identity changes are instant, but embedding-route changes are not. After switching embedding provider or model overrides, reprocess the affected KB documents before relying on retrieval quality.
+        </p>
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">

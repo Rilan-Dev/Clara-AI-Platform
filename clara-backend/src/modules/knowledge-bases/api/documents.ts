@@ -21,7 +21,6 @@ import {
   deleteDocument,
   updateDocumentStatus,
   getDocumentJobStatus,
-  type IngestJobWithPayload,
 } from "@/modules/knowledge-bases/core/documents-db";
 import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
 

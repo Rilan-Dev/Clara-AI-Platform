@@ -4,13 +4,12 @@
  * permissions, and audit logs.
  */
 
-import { query, queryOne, execute, withTransaction } from "@/lib/db";
+import { query, queryOne, execute } from "@/lib/db";
 import type {
   User,
   Role,
   RoleName,
   OrgMember,
-  ProjectMember,
   Session,
   AuditLogInput,
   PermissionKey,

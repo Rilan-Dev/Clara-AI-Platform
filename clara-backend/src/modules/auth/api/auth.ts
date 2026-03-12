@@ -164,7 +164,11 @@ export async function loginHandler(req: NextRequest): Promise<NextResponse> {
     await touchLastLogin(userWithHash.id);
     await writeAuditLog({ userId: userWithHash.id, action: "user.login", resourceType: "user", resourceId: userWithHash.id, ipAddress: getIp(req) });
 
-    const { passwordHash: _ph, ...user } = userWithHash;
+    const user = {
+      ...userWithHash,
+      passwordHash: undefined,
+    };
+    delete user.passwordHash;
     const res = NextResponse.json({ user, token });
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
     return res;

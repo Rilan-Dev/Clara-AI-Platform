@@ -8,6 +8,7 @@
  * Or use the auto-loading script snippet for a floating button version.
  */
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";

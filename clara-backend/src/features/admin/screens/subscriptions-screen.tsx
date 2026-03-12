@@ -87,7 +87,10 @@ function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 function fmtAmount(cents: number | null, paise: number | null, currency: string) {
-  if (cents && cents > 0)  return `${(cents  / 100).toFixed(2)}`;
+  if (cents && cents > 0) {
+    const symbol = currency.toUpperCase() === "USD" ? "$" : `${currency.toUpperCase()} `;
+    return `${symbol}${(cents / 100).toFixed(2)}`;
+  }
   if (paise && paise > 0)  return `₹${(paise  / 100).toFixed(2)}`;
   return "—";
 }
@@ -252,7 +255,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
                   <Zap className="w-4 h-4" /> Convert Trial
                 </button>
               </div>
-              {!isTrialing && <p className="text-xs text-white/30 text-center">"Convert Trial" is only available for trialing orgs.</p>}
+              {!isTrialing && <p className="text-xs text-white/30 text-center">&quot;Convert Trial&quot; is only available for trialing orgs.</p>}
             </div>
           )}
 

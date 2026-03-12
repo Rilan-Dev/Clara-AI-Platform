@@ -1,5 +1,7 @@
 class AudioRecorderWorklet extends AudioWorkletProcessor {
-  process(inputs, outputs, parameters) {
+  process(inputs, _outputs, _parameters) {
+    void _outputs;
+    void _parameters;
     const input = inputs[0];
     if (input.length > 0) {
       const channelData = input[0];

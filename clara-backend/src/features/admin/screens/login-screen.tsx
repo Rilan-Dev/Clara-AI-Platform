@@ -27,8 +27,6 @@ export default function AdminLogin() {
     setError("");
 
     try {
-      console.log('email ', email)
-      console.log('password ', password)
       // POST /api/auth/login (backend's own route — sets `clara_platform_token`)
       const { data } = await authClient.post<{ token?: string }>("/api/auth/login", { email, password });
       if (data.token) {

@@ -28,8 +28,7 @@ export class HtmlParser implements DocumentParser {
 
   async parse(
     buffer: Buffer,
-    filename: string,
-    _mimeType?: string
+    filename: string
   ): Promise<ParsedDocument> {
     const html = buffer.toString("utf-8");
 
