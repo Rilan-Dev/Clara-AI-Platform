@@ -29,6 +29,7 @@ import {
   markSessionFailed,
   getSessionById,
 } from "../src/modules/knowledge-bases/core/scrape-sessions-db";
+import { publishScrapeSessionRefresh } from "../src/modules/knowledge-bases/core/scrape-progress-stream";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
 
   // Abort early if session was cancelled externally
   const session = await getSessionById(sessionId);
-  if (!session || session.status === "failed") {
+  if (!session || session.status === "failed" || session.cancelRequested) {
     console.warn(`[crawl-worker] Session ${sessionId} no longer active — skipping`);
     return;
   }
@@ -58,6 +59,7 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
   try {
     // ── Update job progress so BullMQ dashboard can show percentage ──────────
     await job.updateProgress(buildProgress(5, 0));
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
 
     const crawlResult = await crawlWebsite(url, {
       maxDepth,
@@ -67,14 +69,17 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
       scopeToInputPath: Boolean(scopeToInputPath),
       parseSitemap:     true,
       respectRobotsTxt: true,
+      shouldAbort: async () => Boolean((await getSessionById(sessionId))?.cancelRequested),
       onProgress: async ({ totalDiscovered }) => {
         // Report progress as % of maxUrls (capped at 90 — rest is DB write)
         const pct = Math.min(90, Math.round((totalDiscovered / maxUrls) * 90));
         await job.updateProgress(buildProgress(pct, totalDiscovered)).catch(() => null);
+        await publishScrapeSessionRefresh(sessionId).catch(() => null);
       },
     });
 
     await job.updateProgress(buildProgress(92, crawlResult.discoveredUrls.length));
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
 
     await insertDiscoveredUrls(
       sessionId,
@@ -91,6 +96,7 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
     await recalcSessionProgress(sessionId);
     await markSessionAwaiting(sessionId);
     await job.updateProgress(buildProgress(100, crawlResult.discoveredUrls.length));
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
 
     console.log(
       `[crawl-worker] ✅ Job ${job.id} done — ` +
@@ -99,8 +105,15 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
 
   } catch (err) {
     const message = (err as Error).message;
+    const current = await getSessionById(sessionId);
+    if (message === "Crawl cancelled" || current?.cancelRequested) {
+      console.log(`[crawl-worker] ⏹ Job ${job.id} cancelled for session ${sessionId}`);
+      await publishScrapeSessionRefresh(sessionId).catch(() => null);
+      return;
+    }
     console.error(`[crawl-worker] ❌ Job ${job.id} failed:`, message);
     await markSessionFailed(sessionId, `Crawl failed: ${message}`).catch(() => null);
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
     throw err; // BullMQ will retry according to defaultJobOptions.attempts
   }
 }

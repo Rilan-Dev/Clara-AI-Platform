@@ -17,6 +17,7 @@ export type KbDocument = {
   title:            string;
   originalFilename: string;
   sourceType:       "upload" | "url" | "api";
+  createdByScrapeSessionId: string | null;
   mimeType:         string | null;
   fileSize:         number | null;
   chunkCount:       number | null;
@@ -45,6 +46,14 @@ export type IngestJobWithPayload = IngestJob & {
   filePayload: { base64: string; mimeType: string; filename: string } | null;
 };
 
+export type SessionIngestProgress = {
+  totalDocs: number;
+  pendingDocs: number;
+  processingDocs: number;
+  readyDocs: number;
+  failedDocs: number;
+};
+
 // ── Row mappers ───────────────────────────────────────────────────────────────
 
 function toDocument(row: Record<string, unknown>): KbDocument {
@@ -54,6 +63,9 @@ function toDocument(row: Record<string, unknown>): KbDocument {
     title:            String(row.title),
     originalFilename: String(row.original_filename),
     sourceType:       (row.source_type as KbDocument["sourceType"]) ?? "upload",
+    createdByScrapeSessionId: row.created_by_scrape_session_id != null
+      ? String(row.created_by_scrape_session_id)
+      : null,
     mimeType:         row.mime_type != null ? String(row.mime_type) : null,
     fileSize:         row.file_size != null ? Number(row.file_size) : null,
     chunkCount:       row.chunk_count != null ? Number(row.chunk_count) : null,
@@ -87,16 +99,22 @@ export async function createDocument(input: {
   kbId:             string;
   title:            string;
   originalFilename: string;
+  sourceType?:      KbDocument["sourceType"];
+  createdByScrapeSessionId?: string;
   mimeType?:        string;
   fileSize?:        number;
   uploadedBy?:      string;
 }): Promise<KbDocument> {
   const id = randomUUID();
   const row = await queryOne<Record<string, unknown>>(
-    `INSERT INTO documents (id, kb_id, title, original_filename, mime_type, file_size, uploaded_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO documents (
+       id, kb_id, title, original_filename, source_type,
+       created_by_scrape_session_id, mime_type, file_size, uploaded_by
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [id, input.kbId, input.title, input.originalFilename, input.mimeType ?? null,
+    [id, input.kbId, input.title, input.originalFilename, input.sourceType ?? "upload",
+     input.createdByScrapeSessionId ?? null, input.mimeType ?? null,
      input.fileSize ?? null, input.uploadedBy ?? null]
   );
   if (!row) throw new Error("Failed to create document");
@@ -252,6 +270,49 @@ export async function claimNextPendingJob(): Promise<IngestJobWithPayload | null
   }
 }
 
+export async function claimPendingJobById(jobId: string): Promise<IngestJobWithPayload | null> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const res = await client.query<Record<string, unknown>>(
+      `SELECT * FROM ingest_jobs
+       WHERE id = $1
+         AND status = 'pending'
+         AND attempts < max_attempts
+         AND scheduled_at <= now()
+       FOR UPDATE SKIP LOCKED`,
+      [jobId]
+    );
+
+    const row = res.rows[0];
+    if (!row) { await client.query("ROLLBACK"); return null; }
+
+    await client.query(
+      `UPDATE ingest_jobs
+       SET status = 'running', started_at = now(), attempts = attempts + 1
+       WHERE id = $1`,
+      [row.id]
+    );
+
+    await client.query("COMMIT");
+
+    const job = toJob({
+      ...row,
+      status: "running",
+      started_at: new Date().toISOString(),
+      attempts: Number(row.attempts) + 1,
+    });
+    const rawPayload = row.file_payload as { base64: string; mimeType: string; filename: string } | null;
+    return { ...job, filePayload: rawPayload };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function markJobDone(jobId: string): Promise<void> {
   await execute(
     `UPDATE ingest_jobs
@@ -288,4 +349,72 @@ export async function getDocumentJobStatus(documentId: string): Promise<IngestJo
   if (!row) return null;
   const rawPayload = row.file_payload as { base64: string; mimeType: string; filename: string } | null;
   return { ...toJob(row), filePayload: rawPayload };
+}
+
+export async function getSessionIngestProgress(sessionId: string): Promise<SessionIngestProgress> {
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT
+       COUNT(*) FILTER (WHERE su.included = true AND su.document_id IS NOT NULL) AS total_docs,
+       COUNT(*) FILTER (
+         WHERE su.included = true AND su.document_id IS NOT NULL
+           AND COALESCE(d.status, 'pending') = 'pending'
+       ) AS pending_docs,
+       COUNT(*) FILTER (
+         WHERE su.included = true AND su.document_id IS NOT NULL
+           AND d.status = 'processing'
+       ) AS processing_docs,
+       COUNT(*) FILTER (
+         WHERE su.included = true AND su.document_id IS NOT NULL
+           AND d.status = 'ready'
+       ) AS ready_docs,
+       COUNT(*) FILTER (
+         WHERE su.included = true AND su.document_id IS NOT NULL
+           AND d.status = 'failed'
+       ) AS failed_docs
+     FROM scrape_urls su
+     LEFT JOIN documents d ON d.id = su.document_id
+     WHERE su.session_id = $1`,
+    [sessionId]
+  );
+
+  return {
+    totalDocs: Number(row?.total_docs ?? 0),
+    pendingDocs: Number(row?.pending_docs ?? 0),
+    processingDocs: Number(row?.processing_docs ?? 0),
+    readyDocs: Number(row?.ready_docs ?? 0),
+    failedDocs: Number(row?.failed_docs ?? 0),
+  };
+}
+
+export async function listRollbackDocumentsForSession(sessionId: string): Promise<KbDocument[]> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT DISTINCT d.*
+     FROM documents d
+     INNER JOIN scrape_urls su ON su.document_id = d.id
+     INNER JOIN scrape_sessions ss ON ss.id = su.session_id
+     WHERE su.session_id = $1
+       AND (
+         d.created_by_scrape_session_id = $1
+         OR (
+           d.created_by_scrape_session_id IS NULL
+           AND d.source_type = 'url'
+           AND d.created_at >= ss.created_at
+         )
+       )`,
+    [sessionId]
+  );
+  return rows.map(toDocument);
+}
+
+export async function countRunningIngestJobsForSession(sessionId: string): Promise<number> {
+  const row = await queryOne<{ count: string | number }>(
+    `SELECT COUNT(DISTINCT ij.id) AS count
+     FROM ingest_jobs ij
+     INNER JOIN documents d ON d.id = ij.document_id
+     INNER JOIN scrape_urls su ON su.document_id = d.id
+     WHERE su.session_id = $1
+       AND ij.status = 'running'`,
+    [sessionId]
+  );
+  return Number(row?.count ?? 0);
 }

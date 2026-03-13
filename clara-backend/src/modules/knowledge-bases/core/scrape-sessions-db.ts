@@ -10,8 +10,9 @@
  *   setUrlInclusion()        → user toggles include/exclude
  *   batchSetUrlInclusion()   → user bulk-toggles
  *   markSessionScraping()    → status = 'scraping'  (user confirmed)
+ *   markSessionIngesting()   → status = 'ingesting' (KB injection running)
  *   markUrlScraping()        → status = 'scraping'  (worker picks URL)
- *   markUrlCompleted()       → status = 'completed' (ingest done)
+ *   markUrlCompleted()       → status = 'completed' (page fetched + doc linked)
  *   markUrlFailed()          → status = 'failed'
  *   recalcSessionProgress()  → updates counters on session row
  *   markSessionCompleted()   → status = 'completed'
@@ -27,6 +28,7 @@ export type SessionStatus =
   | "discovering"
   | "awaiting_confirmation"
   | "scraping"
+  | "ingesting"
   | "completed"
   | "failed";
 
@@ -42,6 +44,7 @@ export type ScrapeSession = {
   kbId:          string;
   rootUrl:       string;
   status:        SessionStatus;
+  cancelRequested: boolean;
   maxDepth:      number;
   totalUrls:     number;
   selectedUrls:  number;
@@ -92,6 +95,7 @@ function toSession(row: Record<string, unknown>): ScrapeSession {
     kbId:         String(row.kb_id),
     rootUrl:      String(row.root_url),
     status:       row.status as SessionStatus,
+    cancelRequested: Boolean(row.cancel_requested),
     maxDepth:     Number(row.max_depth),
     totalUrls:    Number(row.total_urls),
     selectedUrls: Number(row.selected_urls),
@@ -157,12 +161,23 @@ export async function setSessionJobId(id: string, jobId: string): Promise<void> 
   );
 }
 
-/** Find the most recent active session (discovering or scraping) for a KB. */
+export async function setSessionCancelRequested(id: string, cancelRequested: boolean): Promise<void> {
+  await execute(
+    "UPDATE scrape_sessions SET cancel_requested = $1 WHERE id = $2",
+    [cancelRequested, id]
+  );
+}
+
+export async function deleteSession(id: string): Promise<void> {
+  await execute("DELETE FROM scrape_sessions WHERE id = $1", [id]);
+}
+
+/** Find the most recent active session for a KB. */
 export async function findActiveSession(kbId: string): Promise<ScrapeSession | null> {
   const row = await queryOne<Record<string, unknown>>(
     `SELECT * FROM scrape_sessions
      WHERE kb_id = $1
-       AND status IN ('discovering', 'awaiting_confirmation', 'scraping')
+       AND status IN ('discovering', 'awaiting_confirmation', 'scraping', 'ingesting')
      ORDER BY created_at DESC
      LIMIT 1`,
     [kbId]
@@ -200,11 +215,25 @@ export async function updateSessionStatus(
 }
 
 export async function markSessionAwaiting(id: string): Promise<void> {
-  await updateSessionStatus(id, "awaiting_confirmation");
+  await execute(
+    `UPDATE scrape_sessions
+     SET status = 'awaiting_confirmation', error_message = NULL, cancel_requested = FALSE
+     WHERE id = $1`,
+    [id]
+  );
 }
 
 export async function markSessionScraping(id: string): Promise<void> {
-  await updateSessionStatus(id, "scraping");
+  await execute(
+    `UPDATE scrape_sessions
+     SET status = 'scraping', cancel_requested = FALSE
+     WHERE id = $1`,
+    [id]
+  );
+}
+
+export async function markSessionIngesting(id: string): Promise<void> {
+  await updateSessionStatus(id, "ingesting");
 }
 
 export async function markSessionCompleted(id: string): Promise<void> {
@@ -213,6 +242,26 @@ export async function markSessionCompleted(id: string): Promise<void> {
 
 export async function markSessionFailed(id: string, errorMessage: string): Promise<void> {
   await updateSessionStatus(id, "failed", { errorMessage });
+}
+
+export async function rollbackSessionToAwaiting(sessionId: string): Promise<void> {
+  await execute(
+    `UPDATE scrape_urls
+     SET status = CASE WHEN included THEN 'pending' ELSE 'excluded' END,
+         document_id = NULL,
+         error_message = NULL
+     WHERE session_id = $1`,
+    [sessionId]
+  );
+
+  await execute(
+    `UPDATE scrape_sessions
+     SET status = 'awaiting_confirmation',
+         error_message = NULL,
+         cancel_requested = FALSE
+     WHERE id = $1`,
+    [sessionId]
+  );
 }
 
 /** Recomputes total/selected/scraped/failed counters from scrape_urls rows. */

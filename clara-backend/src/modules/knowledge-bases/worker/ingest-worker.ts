@@ -21,7 +21,9 @@ import { chunkText } from "@/modules/admin/core/ingest/chunker";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
+  claimPendingJobById,
   claimNextPendingJob,
+  type IngestJobWithPayload,
   markJobDone,
   markJobFailed,
   updateDocumentStatus,
@@ -32,14 +34,7 @@ export type ProcessResult =
   | { status: "idle" }
   | { status: "error"; error: string };
 
-/**
- * Processes the next pending ingest job from the queue.
- * Returns immediately if no jobs are pending.
- */
-export async function processNextJob(): Promise<ProcessResult> {
-  const job = await claimNextPendingJob();
-  if (!job) return { status: "idle" };
-
+async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResult> {
   const { documentId, kbId, id: jobId, filePayload } = job;
 
   try {
@@ -47,24 +42,19 @@ export async function processNextJob(): Promise<ProcessResult> {
       throw new Error("Job has no file payload — cannot process");
     }
 
-    // 1. Mark document as processing
     await updateDocumentStatus(documentId, "processing");
 
-    // 2. Decode base64 → Buffer
     const buffer = Buffer.from(filePayload.base64, "base64");
 
-    // 3. Load KB to get collection name
     const kb = await getKnowledgeBaseById(kbId);
     if (!kb) throw new Error(`Knowledge base ${kbId} not found`);
 
-    // 4. Parse document
     const parsed = await parseDocumentFromBuffer(buffer, filePayload.filename, filePayload.mimeType);
 
     if (!parsed.text?.trim()) {
       throw new Error("Document parsed successfully but contained no extractable text");
     }
 
-    // 5. Chunk
     const chunks = chunkText(parsed.text);
     if (chunks.length === 0) {
       throw new Error("Chunking produced 0 chunks — document may be empty or corrupt");
@@ -74,7 +64,6 @@ export async function processNextJob(): Promise<ProcessResult> {
       `[ingest-worker] document ${documentId}: parsed ${parsed.text.length} chars → ${chunks.length} chunks`
     );
 
-    // 6. Embed + upsert to Qdrant (kbId + documentId in every chunk payload)
     await upsertDocumentsKb(kb.qdrantCollection, chunks, {
       kbId,
       documentId,
@@ -82,7 +71,6 @@ export async function processNextJob(): Promise<ProcessResult> {
       originalFilename: filePayload.filename,
     });
 
-    // 7. Mark document ready
     await updateDocumentStatus(documentId, "ready", { chunkCount: chunks.length });
     await markJobDone(jobId);
 
@@ -95,12 +83,29 @@ export async function processNextJob(): Promise<ProcessResult> {
 
     await updateDocumentStatus(documentId, "failed", { errorMessage: message });
 
-    // Exponential back-off: 30s, 60s, 120s
     const delaySec = 30 * Math.pow(2, job.attempts - 1);
     await markJobFailed(jobId, message, delaySec);
 
     return { status: "error", error: message };
   }
+}
+
+/**
+ * Processes the next pending ingest job from the queue.
+ * Returns immediately if no jobs are pending.
+ */
+export async function processNextJob(): Promise<ProcessResult> {
+  const job = await claimNextPendingJob();
+  if (!job) return { status: "idle" };
+
+  return processClaimedJob(job);
+}
+
+export async function processJobById(jobId: string): Promise<ProcessResult> {
+  const job = await claimPendingJobById(jobId);
+  if (!job) return { status: "idle" };
+
+  return processClaimedJob(job);
 }
 
 /**
@@ -116,6 +121,41 @@ export async function drainQueue(maxJobs = 20): Promise<{ processed: number; err
     if (result.status === "idle") break;
     if (result.status === "processed") processed++;
     if (result.status === "error") errors++;
+  }
+
+  return { processed, errors };
+}
+
+export async function processJobsById(
+  jobIds: string[],
+  options: {
+    shouldStop?: () => Promise<boolean> | boolean;
+    onProgress?: (progress: {
+      total: number;
+      processed: number;
+      errors: number;
+      currentJobId: string;
+      result: ProcessResult;
+    }) => Promise<void> | void;
+  } = {}
+): Promise<{ processed: number; errors: number }> {
+  let processed = 0;
+  let errors = 0;
+
+  for (const jobId of jobIds) {
+    if (await options.shouldStop?.()) break;
+
+    const result = await processJobById(jobId);
+    if (result.status === "processed") processed++;
+    if (result.status === "error") errors++;
+
+    await options.onProgress?.({
+      total: jobIds.length,
+      processed,
+      errors,
+      currentJobId: jobId,
+      result,
+    });
   }
 
   return { processed, errors };

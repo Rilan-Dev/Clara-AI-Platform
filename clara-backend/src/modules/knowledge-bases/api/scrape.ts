@@ -17,7 +17,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
+import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import {
+  countRunningIngestJobsForSession,
+  deleteDocument,
+  listRollbackDocumentsForSession,
+} from "@/modules/knowledge-bases/core/documents-db";
+import {
+  buildScrapeStreamSnapshot,
+  createScrapeSessionSubscriber,
+  getScrapeSessionChannel,
+  publishScrapeSessionRefresh,
+} from "@/modules/knowledge-bases/core/scrape-progress-stream";
 import {
   createSession,
   getSessionById,
@@ -30,12 +42,15 @@ import {
   markSessionScraping,
   markSessionFailed,
   recalcSessionProgress,
-  listUrlsForSession,
+  rollbackSessionToAwaiting,
+  deleteSession,
+  setSessionCancelRequested,
   setSessionJobId,
   findActiveSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
-import { getCrawlQueue, type CrawlJobProgress } from "@/modules/queue";
+import { getCrawlQueue } from "@/modules/queue";
 import { runScrapeSession } from "@/modules/knowledge-bases/worker/scrape-worker";
+import type Redis from "ioredis";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -45,37 +60,82 @@ function triggerScrapeWorker(sessionId: string): void {
       const message = (e as Error).message;
       console.error(`[scrape] background worker failed for session ${sessionId}:`, message);
       await markSessionFailed(sessionId, `Scrape failed: ${message}`).catch(() => null);
+      await publishScrapeSessionRefresh(sessionId).catch(() => null);
     });
   });
 }
 
-function parseTimestampMs(value: unknown): number | null {
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value === "string") {
-    const ms = Date.parse(value);
-    return Number.isNaN(ms) ? null : ms;
-  }
-  return null;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function readCrawlJobProgress(value: unknown): CrawlJobProgress | null {
-  if (!value || typeof value !== "object") return null;
+async function rollbackSessionDocuments(kbId: string, sessionId: string): Promise<void> {
+  const [kb, docs] = await Promise.all([
+    getKnowledgeBaseById(kbId),
+    listRollbackDocumentsForSession(sessionId),
+  ]);
 
-  const candidate = value as Partial<CrawlJobProgress>;
-  if (
-    typeof candidate.percent !== "number" ||
-    typeof candidate.urlsFound !== "number" ||
-    typeof candidate.startedAtMs !== "number"
-  ) {
-    return null;
+  for (const doc of docs) {
+    if (kb) {
+      await deleteDocumentChunks(kb.qdrantCollection, doc.id);
+    }
+    await deleteDocument(doc.id);
+  }
+}
+
+async function waitForSessionWorkersToStop(sessionId: string): Promise<boolean> {
+  const deadline = Date.now() + 20_000;
+
+  while (Date.now() < deadline) {
+    const session = await getSessionById(sessionId);
+    if (!session) return true;
+
+    let crawlBusy = false;
+    if (session.status === "discovering" && session.jobId) {
+      try {
+        const job = await getCrawlQueue().getJob(session.jobId);
+        if (job) {
+          const state = await job.getState();
+          crawlBusy = state === "waiting" || state === "active" || state === "delayed";
+        }
+      } catch {}
+    }
+
+    const snapshot = await buildScrapeStreamSnapshot(sessionId);
+    const scrapingBusy = (snapshot?.scrapingUrls ?? 0) > 0;
+    const ingestBusy = await countRunningIngestJobsForSession(sessionId);
+
+    if (!crawlBusy && !scrapingBusy && ingestBusy === 0) {
+      return true;
+    }
+
+    await sleep(250);
   }
 
-  return {
-    percent: candidate.percent,
-    urlsFound: candidate.urlsFound,
-    startedAtMs: candidate.startedAtMs,
-  };
+  return false;
+}
+
+async function finalizeSessionCancellation(kbId: string, sessionId: string): Promise<void> {
+  const ready = await waitForSessionWorkersToStop(sessionId);
+  if (!ready) {
+    setTimeout(() => {
+      void finalizeSessionCancellation(kbId, sessionId);
+    }, 1_000);
+    return;
+  }
+
+  const session = await getSessionById(sessionId);
+  if (!session) return;
+
+  if (session.status === "discovering" || session.status === "awaiting_confirmation") {
+    await deleteSession(sessionId);
+    return;
+  }
+
+  await rollbackSessionDocuments(kbId, sessionId);
+  await rollbackSessionToAwaiting(sessionId);
+  await recalcSessionProgress(sessionId);
+  await publishScrapeSessionRefresh(sessionId).catch(() => null);
 }
 
 // ── POST /api/kbs/:kbId/scrape/discover ──────────────────────────────────────
@@ -161,49 +221,24 @@ export async function discoverProgressHandler(
     if (!session || session.kbId !== kbId)
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-    // If already past discovering, return completion signal
-    if (session.status !== "discovering") {
+    const snapshot = await buildScrapeStreamSnapshot(sessionId);
+    if (!snapshot)
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+
+    if (snapshot.status !== "discovering") {
       return NextResponse.json({
-        status:      session.status,
+        status:      snapshot.status,
         jobProgress: 100,
-        urlsFound:   session.totalUrls,
+        urlsFound:   snapshot.totalUrls,
         elapsedMs:   null,
       });
     }
 
-    // Query BullMQ job progress
-    let jobProgress = 0;
-    let urlsFound = session.totalUrls;
-    let startedAtMs: number | null = null;
-
-    if (session.jobId) {
-      try {
-        const job = await getCrawlQueue().getJob(session.jobId);
-        if (job) {
-          const prog = await job.progress;
-          if (typeof prog === "number") {
-            jobProgress = prog;
-          } else {
-            const progressMeta = readCrawlJobProgress(prog);
-            if (progressMeta) {
-              jobProgress = progressMeta.percent;
-              urlsFound = progressMeta.urlsFound;
-              startedAtMs = progressMeta.startedAtMs;
-            }
-          }
-        }
-      } catch { /* Redis may be briefly unavailable */ }
-    }
-
-    const fallbackStartedAtMs = parseTimestampMs(session.createdAt);
-    const elapsedOrigin = startedAtMs ?? fallbackStartedAtMs;
-    const elapsedMs = elapsedOrigin != null ? Math.max(0, Date.now() - elapsedOrigin) : null;
-
     return NextResponse.json({
-      status:      session.status,
-      jobProgress,
-      urlsFound,
-      elapsedMs,
+      status:      snapshot.status,
+      jobProgress: snapshot.jobProgress,
+      urlsFound:   snapshot.urlsFound,
+      elapsedMs:   snapshot.elapsedMs,
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
@@ -263,8 +298,93 @@ export async function startScrapeHandler(
         { error: `Cannot start — session status is '${session.status}'` }, { status: 400 }
       );
     await markSessionScraping(sessionId);
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
     triggerScrapeWorker(sessionId);
     return NextResponse.json({ started: true, sessionId });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+function encodeSsePayload(data: unknown): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function encodeSseHeartbeat(): Uint8Array {
+  return new TextEncoder().encode(`: heartbeat\n\n`);
+}
+
+export async function streamHandler(
+  req: NextRequest, kbId: string, sessionId: string
+): Promise<NextResponse> {
+  try {
+    await ensureMigrated();
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "document:read");
+
+    const session = await getSessionById(sessionId);
+    if (!session || session.kbId !== kbId) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    const channel = getScrapeSessionChannel(sessionId);
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const subscriber: Redis = createScrapeSessionSubscriber();
+        let heartbeat: ReturnType<typeof setInterval> | null = null;
+        let closed = false;
+
+        const closeStream = async () => {
+          if (closed) return;
+          closed = true;
+          if (heartbeat) clearInterval(heartbeat);
+          req.signal.removeEventListener("abort", abortHandler);
+          try { await subscriber.unsubscribe(channel); } catch {}
+          subscriber.disconnect();
+          try { controller.close(); } catch {}
+        };
+
+        const sendSnapshot = async () => {
+          if (closed) return;
+          const snapshot = await buildScrapeStreamSnapshot(sessionId);
+          if (!snapshot) {
+            await closeStream();
+            return;
+          }
+          controller.enqueue(encodeSsePayload(snapshot));
+        };
+
+        const abortHandler = () => { void closeStream(); };
+        req.signal.addEventListener("abort", abortHandler);
+
+        subscriber.on("message", (_incomingChannel, message) => {
+          if (closed || message !== "refresh") return;
+          void sendSnapshot();
+        });
+
+        await subscriber.subscribe(channel);
+        await sendSnapshot();
+
+        heartbeat = setInterval(() => {
+          if (closed) return;
+          try {
+            controller.enqueue(encodeSseHeartbeat());
+          } catch {
+            void closeStream();
+          }
+        }, 15_000);
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-store",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -283,17 +403,70 @@ export async function progressHandler(
     const session = await getSessionById(sessionId);
     if (!session || session.kbId !== kbId)
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
-    const urls = await listUrlsForSession(sessionId);
+    const snapshot = await buildScrapeStreamSnapshot(sessionId);
+    if (!snapshot)
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+
     return NextResponse.json({
-      sessionId:    session.id,
-      status:       session.status,
-      totalUrls:    session.totalUrls,
-      selectedUrls: session.selectedUrls,
-      scrapedUrls:  session.scrapedUrls,
-      failedUrls:   session.failedUrls,
-      pendingUrls:  urls.filter((u) => u.status === "pending" && u.included).length,
-      scrapingUrls: urls.filter((u) => u.status === "scraping").length,
-      errorMessage: session.errorMessage,
+      sessionId:            snapshot.sessionId,
+      status:               snapshot.status,
+      totalUrls:            snapshot.totalUrls,
+      selectedUrls:         snapshot.selectedUrls,
+      scrapedUrls:          snapshot.scrapedUrls,
+      failedUrls:           snapshot.failedUrls,
+      pendingUrls:          snapshot.pendingUrls,
+      scrapingUrls:         snapshot.scrapingUrls,
+      ingestTotalDocs:      snapshot.ingestTotalDocs,
+      ingestPendingDocs:    snapshot.ingestPendingDocs,
+      ingestProcessingDocs: snapshot.ingestProcessingDocs,
+      ingestReadyDocs:      snapshot.ingestReadyDocs,
+      ingestFailedDocs:     snapshot.ingestFailedDocs,
+      errorMessage:         snapshot.errorMessage,
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+export async function cancelSessionHandler(
+  req: NextRequest, kbId: string, sessionId: string
+): Promise<NextResponse> {
+  try {
+    await ensureMigrated();
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "document:create");
+
+    const session = await getSessionById(sessionId);
+    if (!session || session.kbId !== kbId) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    if (session.status === "awaiting_confirmation") {
+      await deleteSession(sessionId);
+      return NextResponse.json({ rolledBackTo: "idle" });
+    }
+
+    if (session.status === "completed" || session.status === "failed") {
+      await rollbackSessionDocuments(kbId, sessionId);
+      await rollbackSessionToAwaiting(sessionId);
+      await recalcSessionProgress(sessionId);
+      const full = await getSessionWithUrls(sessionId);
+      return NextResponse.json({ rolledBackTo: "awaiting_confirmation", session: full });
+    }
+
+    await setSessionCancelRequested(sessionId, true);
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
+
+    queueMicrotask(() => {
+      void finalizeSessionCancellation(kbId, sessionId).catch((err) => {
+        console.error(`[scrape] cancel rollback failed for session ${sessionId}:`, (err as Error).message);
+      });
+    });
+
+    return NextResponse.json({
+      cancelling: true,
+      rolledBackTo: session.status === "discovering" ? "idle" : "awaiting_confirmation",
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;

@@ -10,13 +10,13 @@ import * as api from "./api";
 import type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
-  DiscoverProgress, OrgAISettings, KBAIOverrides,
+  DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
 } from "./api";
 
 export type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
-  DiscoverProgress, OrgAISettings, KBAIOverrides,
+  DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
 };
 
 // ── Generic async state helper ────────────────────────────────────────────────
@@ -245,6 +245,7 @@ type WizardPhase =
   | "discovering"
   | "awaiting_confirmation"
   | "scraping"
+  | "ingesting"
   | "completed"
   | "failed";
 
@@ -254,6 +255,7 @@ export type ScrapeWizardState = {
   progress:        ScrapeProgress | null;
   discoverProgress: DiscoverProgress | null;
   error:           string | null;
+  canceling:       boolean;
   /** Optimistic local override map: urlId → included */
   localToggles:    Record<string, boolean>;
 };
@@ -261,62 +263,120 @@ export type ScrapeWizardState = {
 export function useScrapeWizard(kbId: string) {
   const [state, setState] = useState<ScrapeWizardState>({
     phase: "idle", session: null, progress: null, discoverProgress: null,
-    error: null, localToggles: {},
+    error: null, canceling: false, localToggles: {},
   });
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamRef = useRef<EventSource | null>(null);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  }, []);
-  useEffect(() => () => stopPolling(), [stopPolling]);
-
-  // ── Resume helper — called on mount and after discover ────────────────────
-  const resumePollingForSession = useCallback((sessionId: string, phase: WizardPhase) => {
-    stopPolling();
-    if (phase === "discovering") {
-      // Poll discover-progress (fast 2s tick for crawl progress bar)
-      pollRef.current = setInterval(async () => {
-        try {
-          const dp = await api.getDiscoverProgress(kbId, sessionId);
-          setState((s) => ({ ...s, discoverProgress: dp }));
-          if (dp.status === "awaiting_confirmation") {
-            stopPolling();
-            const full = await api.getScrapeSession(kbId, sessionId);
-            setState((s) => ({
-              ...s, phase: "awaiting_confirmation", session: full,
-              discoverProgress: null, localToggles: {},
-            }));
-          } else if (dp.status === "failed") {
-            stopPolling();
-            const sess = await api.getScrapeSession(kbId, sessionId);
-            setState((s) => ({
-              ...s, phase: "failed", session: sess,
-              error: sess.errorMessage ?? "Discovery failed",
-            }));
-          }
-        } catch { /* transient — keep polling */ }
-      }, 2_000);
-    } else if (phase === "scraping") {
-      // Poll scrape progress
-      pollRef.current = setInterval(async () => {
-        try {
-          const progress = await api.getScrapeProgress(kbId, sessionId);
-          setState((s) => ({ ...s, progress }));
-          if (progress.status === "completed" || progress.status === "failed") {
-            stopPolling();
-            setState((s) => ({
-              ...s,
-              phase: progress.status === "completed" ? "completed" : "failed",
-              error: progress.status === "failed" ? (progress.errorMessage ?? "Scrape failed") : null,
-            }));
-          }
-        } catch { /* keep polling */ }
-      }, 2_000);
+  const stopStreaming = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.close();
+      streamRef.current = null;
     }
-  }, [kbId, stopPolling]);
+  }, []);
+  useEffect(() => () => stopStreaming(), [stopStreaming]);
+
+  const applyStreamSnapshot = useCallback(async (snapshot: ScrapeStreamSnapshot) => {
+    const progress: ScrapeProgress = {
+      sessionId: snapshot.sessionId,
+      status: snapshot.status,
+      totalUrls: snapshot.totalUrls,
+      selectedUrls: snapshot.selectedUrls,
+      scrapedUrls: snapshot.scrapedUrls,
+      failedUrls: snapshot.failedUrls,
+      pendingUrls: snapshot.pendingUrls,
+      scrapingUrls: snapshot.scrapingUrls,
+      ingestTotalDocs: snapshot.ingestTotalDocs,
+      ingestPendingDocs: snapshot.ingestPendingDocs,
+      ingestProcessingDocs: snapshot.ingestProcessingDocs,
+      ingestReadyDocs: snapshot.ingestReadyDocs,
+      ingestFailedDocs: snapshot.ingestFailedDocs,
+      errorMessage: snapshot.errorMessage,
+    };
+
+    if (snapshot.status === "awaiting_confirmation") {
+      stopStreaming();
+      const full = await api.getScrapeSession(kbId, snapshot.sessionId);
+      setState((s) => ({
+        ...s,
+        phase: "awaiting_confirmation",
+        session: full,
+        progress: null,
+        discoverProgress: null,
+        localToggles: {},
+        error: null,
+        canceling: snapshot.cancelRequested,
+      }));
+      return;
+    }
+
+    const mergedSession = (session: ScrapeSession | null): ScrapeSession | null => {
+      if (!session || session.id !== snapshot.sessionId) return session;
+      return {
+        ...session,
+        rootUrl: snapshot.rootUrl,
+        status: snapshot.status,
+        totalUrls: snapshot.totalUrls,
+        selectedUrls: snapshot.selectedUrls,
+        scrapedUrls: snapshot.scrapedUrls,
+        failedUrls: snapshot.failedUrls,
+        errorMessage: snapshot.errorMessage,
+      };
+    };
+
+    if (snapshot.status === "discovering") {
+      const discoverProgress: DiscoverProgress = {
+        status: snapshot.status,
+        jobProgress: snapshot.jobProgress,
+        urlsFound: snapshot.urlsFound,
+        elapsedMs: snapshot.elapsedMs,
+      };
+      setState((s) => ({
+        ...s,
+        phase: "discovering",
+        session: mergedSession(s.session),
+        discoverProgress,
+        progress: null,
+        error: null,
+        canceling: snapshot.cancelRequested,
+      }));
+      return;
+    }
+
+    const phase: WizardPhase =
+      snapshot.status === "scraping"  ? "scraping" :
+      snapshot.status === "ingesting" ? "ingesting" :
+      snapshot.status === "completed" ? "completed" : "failed";
+
+    if (snapshot.status === "completed" || snapshot.status === "failed") {
+      stopStreaming();
+    }
+
+    setState((s) => ({
+      ...s,
+      phase,
+      session: mergedSession(s.session),
+      progress,
+      discoverProgress: null,
+      error: snapshot.status === "failed" ? (snapshot.errorMessage ?? "Scrape failed") : null,
+      canceling: snapshot.cancelRequested,
+    }));
+  }, [kbId, stopStreaming]);
+
+  const resumeStreamingForSession = useCallback((sessionId: string) => {
+    stopStreaming();
+    const source = api.openScrapeProgressStream(kbId, sessionId);
+    streamRef.current = source;
+
+    source.onmessage = (event) => {
+      try {
+        const snapshot = JSON.parse(event.data) as ScrapeStreamSnapshot;
+        void applyStreamSnapshot(snapshot);
+      } catch {}
+    };
+  }, [applyStreamSnapshot, kbId, stopStreaming]);
 
   // ── Auto-resume on mount — pick up any in-flight session ─────────────────
   useEffect(() => {
@@ -326,22 +386,19 @@ export function useScrapeWizard(kbId: string) {
         const active = await api.getActiveSession(kbId);
         if (cancelled || !active) return;
         const phase: WizardPhase =
-          active.status === "discovering"          ? "discovering" :
-          active.status === "awaiting_confirmation"? "awaiting_confirmation" :
-          active.status === "scraping"             ? "scraping" : "idle";
+          active.status === "discovering"           ? "discovering" :
+          active.status === "awaiting_confirmation" ? "awaiting_confirmation" :
+          active.status === "scraping"              ? "scraping" :
+          active.status === "ingesting"             ? "ingesting" : "idle";
         if (phase === "idle") return;
-
-        // Fetch discover progress if still crawling
-        let dp: DiscoverProgress | null = null;
-        if (phase === "discovering" && active.jobId) {
-          try { dp = await api.getDiscoverProgress(kbId, active.id); } catch { /* ok */ }
-        }
 
         setState((s) => ({
           ...s, phase, session: active,
-          discoverProgress: dp, localToggles: {},
+          discoverProgress: null, canceling: false, localToggles: {},
         }));
-        resumePollingForSession(active.id, phase);
+        if (phase === "discovering" || phase === "scraping" || phase === "ingesting") {
+          resumeStreamingForSession(active.id);
+        }
       } catch { /* not critical */ }
     })();
     return () => { cancelled = true; };
@@ -353,7 +410,7 @@ export function useScrapeWizard(kbId: string) {
     url: string,
     opts: { maxDepth?: number; maxUrls?: number; scopeToInputPath?: boolean } = {}
   ) => {
-    setState((s) => ({ ...s, phase: "discovering", error: null, discoverProgress: null }));
+    setState((s) => ({ ...s, phase: "discovering", error: null, discoverProgress: null, canceling: false }));
     try {
       const session = await api.discoverScrapeUrls(kbId, url, opts);
       setState((s) => ({ ...s, session }));
@@ -363,12 +420,59 @@ export function useScrapeWizard(kbId: string) {
         return;
       }
       if (session.status === "failed") throw new Error(session.errorMessage ?? "Discovery failed");
-      resumePollingForSession(session.id, "discovering");
+      resumeStreamingForSession(session.id);
     } catch (e) {
-      stopPolling();
-      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
+      stopStreaming();
+      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message, canceling: false }));
     }
-  }, [kbId, resumePollingForSession, stopPolling]);
+  }, [kbId, resumeStreamingForSession, stopStreaming]);
+
+  const cancelCurrent = useCallback(async () => {
+    const sessionId = stateRef.current.session?.id;
+    const phase = stateRef.current.phase;
+    if (!sessionId || phase === "idle" || stateRef.current.canceling) return;
+
+    setState((s) => ({ ...s, canceling: true, error: null }));
+
+    try {
+      const result = await api.cancelScrapeSession(kbId, sessionId);
+
+      if (result.rolledBackTo === "idle") {
+        stopStreaming();
+        setState({
+          phase: "idle",
+          session: null,
+          progress: null,
+          discoverProgress: null,
+          error: null,
+          canceling: false,
+          localToggles: {},
+        });
+        return;
+      }
+
+      if (result.session) {
+        stopStreaming();
+        setState((s) => ({
+          ...s,
+          phase: "awaiting_confirmation",
+          session: result.session ?? null,
+          progress: null,
+          discoverProgress: null,
+          error: null,
+          canceling: false,
+          localToggles: {},
+        }));
+        return;
+      }
+
+      if (!result.cancelling) {
+        setState((s) => ({ ...s, canceling: false }));
+      }
+    } catch (e) {
+      setState((s) => ({ ...s, canceling: false, error: (e as Error).message }));
+    }
+  }, [kbId, stopStreaming]);
 
   // ── Toggle a single URL (optimistic) ─────────────────────────────────────
   const toggleUrl = useCallback(async (urlId: string, included: boolean) => {
@@ -410,23 +514,23 @@ export function useScrapeWizard(kbId: string) {
   const startScrape = useCallback(async () => {
     const sessionId = stateRef.current.session?.id;
     if (!sessionId) return;
-    setState((s) => ({ ...s, phase: "scraping", error: null }));
+    setState((s) => ({ ...s, phase: "scraping", error: null, canceling: false }));
     try {
       await api.startScrapeSession(kbId, sessionId);
-      resumePollingForSession(sessionId, "scraping");
+      resumeStreamingForSession(sessionId);
     } catch (e) {
-      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
+      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message, canceling: false }));
     }
-  }, [kbId, resumePollingForSession]);
+  }, [kbId, resumeStreamingForSession]);
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
-    stopPolling();
+    stopStreaming();
     setState({
       phase: "idle", session: null, progress: null, discoverProgress: null,
-      error: null, localToggles: {},
+      error: null, canceling: false, localToggles: {},
     });
-  }, [stopPolling]);
+  }, [stopStreaming]);
 
-  return { state, discover, toggleUrl, selectAll, startScrape, reset };
+  return { state, discover, toggleUrl, selectAll, startScrape, cancelCurrent, reset };
 }

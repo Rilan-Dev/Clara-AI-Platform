@@ -44,6 +44,7 @@ export type CrawlOptions = {
   scopeToInputPath?: boolean;
   onUrlDiscovered?: (url: DiscoveredUrl) => void;
   onProgress?: (progress: CrawlProgress) => void;
+  shouldAbort?: () => Promise<boolean> | boolean;
 };
 
 export type DiscoveredUrl = {
@@ -526,7 +527,14 @@ export async function crawlWebsite(
     scopeToInputPath = true,
     onUrlDiscovered,
     onProgress,
+    shouldAbort,
   } = options;
+
+  const throwIfAborted = async () => {
+    if (await shouldAbort?.()) {
+      throw new Error("Crawl cancelled");
+    }
+  };
 
   const pwPool = new PlaywrightPool();
   await pwPool.init();
@@ -608,6 +616,7 @@ export async function crawlWebsite(
     ].filter(Boolean))] as string[];
 
     for (const sOrigin of origins) {
+      await throwIfAborted();
       const sitemapUrls = await discoverViaSitemap(
         sOrigin, pathPrefix, inputDomain, redirectedDomain,
         robots?.sitemaps ?? [], pageTimeoutMs
@@ -625,6 +634,7 @@ export async function crawlWebsite(
 
   // ── Process one URL ───────────────────────────────────────────────────────────
   const processUrl = async (item: QItem): Promise<void> => {
+    await throwIfAborted();
     if (discoveredUrls.length >= maxUrls) return;
     const { url, depth, parent } = item;
     visited.add(url);
@@ -635,6 +645,7 @@ export async function crawlWebsite(
     // Attempt 1: plain HTTP fetch
     const fetched = await fetchHtml(url, pageTimeoutMs);
     html = fetched.html; ok = fetched.ok; finalUrl = fetched.finalUrl;
+    await throwIfAborted();
 
     if (ok && html) {
       const $ = loadHtml(html);
@@ -696,6 +707,7 @@ export async function crawlWebsite(
   // ── BFS loop ──────────────────────────────────────────────────────────────────
   let currentDepth = 0;
   while (currentDepth <= maxDepth && bfsQueue.length > 0 && discoveredUrls.length < maxUrls) {
+    await throwIfAborted();
     const level = bfsQueue.filter(q => q.depth === currentDepth);
     bfsQueue.splice(0, bfsQueue.length, ...bfsQueue.filter(q => q.depth !== currentDepth));
 

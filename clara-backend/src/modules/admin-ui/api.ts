@@ -271,7 +271,7 @@ export async function fetchAnalytics(kbId: string): Promise<KbAnalytics> { retur
 // ── Web Scrape Sessions ───────────────────────────────────────────────────────
 
 export type ScrapeSessionStatus =
-  "discovering" | "awaiting_confirmation" | "scraping" | "completed" | "failed";
+  "discovering" | "awaiting_confirmation" | "scraping" | "ingesting" | "completed" | "failed";
 
 export type ScrapeUrlStatus = "pending" | "scraping" | "completed" | "failed" | "excluded";
 
@@ -294,6 +294,8 @@ export type ScrapeProgress = {
   sessionId: string; status: ScrapeSessionStatus;
   totalUrls: number; selectedUrls: number; scrapedUrls: number;
   failedUrls: number; pendingUrls: number; scrapingUrls: number;
+  ingestTotalDocs: number; ingestPendingDocs: number; ingestProcessingDocs: number;
+  ingestReadyDocs: number; ingestFailedDocs: number;
   errorMessage: string | null;
 };
 
@@ -302,6 +304,34 @@ export type DiscoverProgress = {
   jobProgress: number;   // 0-100 from BullMQ
   urlsFound: number;     // increments as crawl runs
   elapsedMs: number | null;
+};
+
+export type ScrapeStreamSnapshot = {
+  sessionId: string;
+  rootUrl: string;
+  status: ScrapeSessionStatus;
+  cancelRequested: boolean;
+  totalUrls: number;
+  selectedUrls: number;
+  scrapedUrls: number;
+  failedUrls: number;
+  pendingUrls: number;
+  scrapingUrls: number;
+  jobProgress: number;
+  urlsFound: number;
+  elapsedMs: number | null;
+  ingestTotalDocs: number;
+  ingestPendingDocs: number;
+  ingestProcessingDocs: number;
+  ingestReadyDocs: number;
+  ingestFailedDocs: number;
+  errorMessage: string | null;
+};
+
+export type CancelScrapeSessionResult = {
+  cancelling?: boolean;
+  rolledBackTo: "idle" | "awaiting_confirmation";
+  session?: ScrapeSession;
 };
 
 export async function discoverScrapeUrls(
@@ -340,6 +370,16 @@ export async function startScrapeSession(kbId: string, sessionId: string): Promi
   return apiFetch(`/api/kbs/${kbId}/scrape/sessions/${sessionId}/start`, { method: "POST", body: "{}" });
 }
 
+export async function cancelScrapeSession(
+  kbId: string,
+  sessionId: string,
+): Promise<CancelScrapeSessionResult> {
+  return apiFetch<CancelScrapeSessionResult>(
+    `/api/kbs/${kbId}/scrape/sessions/${sessionId}/cancel`,
+    { method: "POST", body: "{}" }
+  );
+}
+
 export async function getScrapeProgress(kbId: string, sessionId: string): Promise<ScrapeProgress> {
   return apiFetch<ScrapeProgress>(`/api/kbs/${kbId}/scrape/sessions/${sessionId}/progress`);
 }
@@ -351,5 +391,12 @@ export async function getActiveSession(kbId: string): Promise<ScrapeSession | nu
 export async function getDiscoverProgress(kbId: string, sessionId: string): Promise<DiscoverProgress> {
   return apiFetch<DiscoverProgress>(
     `/api/kbs/${kbId}/scrape/sessions/${sessionId}/discover-progress`
+  );
+}
+
+export function openScrapeProgressStream(kbId: string, sessionId: string): EventSource {
+  return new EventSource(
+    apiUrl(`/api/kbs/${kbId}/scrape/sessions/${sessionId}/stream`),
+    { withCredentials: true }
   );
 }

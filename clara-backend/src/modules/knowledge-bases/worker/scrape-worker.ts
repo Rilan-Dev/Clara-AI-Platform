@@ -15,7 +15,6 @@ import {
   createDocument,
   createIngestJob,
   findDocumentBySourceUrl,
-  refreshDocument,
 } from "@/modules/knowledge-bases/core/documents-db";
 import {
   getSessionById,
@@ -25,9 +24,12 @@ import {
   markUrlFailed,
   markSessionCompleted,
   markSessionFailed,
+  markSessionIngesting,
   recalcSessionProgress,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
-import { drainQueue } from "@/modules/knowledge-bases/worker/ingest-worker";
+import { getSessionIngestProgress } from "@/modules/knowledge-bases/core/documents-db";
+import { publishScrapeSessionRefresh } from "@/modules/knowledge-bases/core/scrape-progress-stream";
+import { processJobsById } from "@/modules/knowledge-bases/worker/ingest-worker";
 
 export type ScrapeWorkerResult = {
   sessionId:  string;
@@ -57,10 +59,16 @@ export async function runScrapeSession(
   const urls  = await listIncludedPendingUrls(sessionId);
   const { kbId } = session;
 
+  const ensureNotCancelled = async (): Promise<boolean> => {
+    const current = await getSessionById(sessionId);
+    return Boolean(current?.cancelRequested || current?.status === "failed");
+  };
+
   let scraped   = 0;
   let failed    = 0;
   let skipped   = 0;
   let refreshed = 0;
+  const ingestJobIds: string[] = [];
 
   console.log(
     `[scrape-worker] Session ${sessionId}: ${urls.length} URLs to scrape (concurrency=${concurrency})`
@@ -71,27 +79,25 @@ export async function runScrapeSession(
 
     await Promise.all(
       batch.map(async (scrapeUrl) => {
-        // Abort if session was externally cancelled/failed
-        const current = await getSessionById(sessionId);
-        if (current?.status === "failed") { skipped++; return; }
+        if (await ensureNotCancelled()) return;
 
         await markUrlScraping(scrapeUrl.id);
+        await publishScrapeSessionRefresh(sessionId).catch(() => null);
 
         try {
-          // ── Deduplication check ──────────────────────────────────────────
           const existing = await findDocumentBySourceUrl(kbId, scrapeUrl.url);
 
           if (existing?.status === "ready") {
-            // Already ingested — reuse, no re-scrape needed
             await markUrlCompleted(scrapeUrl.id, existing.id);
             skipped++;
             console.log(`[scrape-worker] ⏭  Reusing existing doc for ${scrapeUrl.url}`);
             await recalcSessionProgress(sessionId);
+            await publishScrapeSessionRefresh(sessionId).catch(() => null);
             return;
           }
 
-          // ── Fetch page content ───────────────────────────────────────────
           const page = await loadWebPage(scrapeUrl.url);
+          if (await ensureNotCancelled()) return;
 
           if (!page.text?.trim()) {
             throw new Error("Page returned no extractable text content");
@@ -103,28 +109,25 @@ export async function runScrapeSession(
           const safeTitle   = (page.title || scrapeUrl.url)
             .replace(/[^a-z0-9\-_ ]/gi, "_").slice(0, 100);
           const filename    = `${safeTitle}.md`;
+          const doc = await createDocument({
+            kbId,
+            title:                  page.title || scrapeUrl.url,
+            originalFilename:       scrapeUrl.url,
+            sourceType:             "url",
+            createdByScrapeSessionId: sessionId,
+            mimeType:               "text/markdown",
+            fileSize,
+          });
+          if (existing) refreshed++;
+          else scraped++;
 
-          let doc;
-
-          if (existing) {
-            // Re-scrape: refresh the existing failed/pending document
-            await refreshDocument(existing.id, { title: page.title || scrapeUrl.url, fileSize });
-            doc = { ...existing, title: page.title || scrapeUrl.url };
-            refreshed++;
-            console.log(`[scrape-worker] 🔄 Refreshing existing doc for ${scrapeUrl.url}`);
-          } else {
-            // First scrape: create a new document
-            doc = await createDocument({
-              kbId,
-              title:            page.title || scrapeUrl.url,
-              originalFilename: scrapeUrl.url,
-              mimeType:         "text/markdown",
-              fileSize,
-            });
-            scraped++;
-          }
-
-          await createIngestJob(doc.id, kbId, { base64, mimeType: "text/markdown", filename });
+          const ingestJob = await createIngestJob(doc.id, kbId, {
+            base64,
+            mimeType: "text/markdown",
+            filename,
+          });
+          ingestJobIds.push(ingestJob.id);
+          if (await ensureNotCancelled()) return;
           await markUrlCompleted(scrapeUrl.id, doc.id);
           console.log(`[scrape-worker] ✅ ${scrapeUrl.url}`);
 
@@ -136,25 +139,46 @@ export async function runScrapeSession(
         }
 
         await recalcSessionProgress(sessionId);
+        await publishScrapeSessionRefresh(sessionId).catch(() => null);
       })
     );
   }
 
-  // Mark session complete/failed
-  if (scraped === 0 && refreshed === 0 && failed > 0) {
-    await markSessionFailed(sessionId, `All ${failed} URLs failed to scrape`);
-  } else {
-    await markSessionCompleted(sessionId);
+  if (await ensureNotCancelled()) {
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
+    return { sessionId, scraped, failed, skipped, refreshed };
   }
 
-  // Trigger ingest worker to process newly created jobs
-  if ((scraped + refreshed) > 0) {
-    queueMicrotask(() => {
-      void drainQueue(50).catch((err) => {
-        console.error("[scrape-worker] ingest drain failed:", (err as Error).message);
-      });
+  if (scraped === 0 && refreshed === 0 && skipped === 0 && failed > 0) {
+    await markSessionFailed(sessionId, `All ${failed} URLs failed to scrape`);
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
+    return { sessionId, scraped, failed, skipped, refreshed };
+  }
+
+  if (ingestJobIds.length > 0) {
+    await markSessionIngesting(sessionId);
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
+
+    await processJobsById(ingestJobIds, {
+      shouldStop: ensureNotCancelled,
+      onProgress: async () => {
+        await publishScrapeSessionRefresh(sessionId).catch(() => null);
+      },
     });
   }
+
+  if (await ensureNotCancelled()) {
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
+    return { sessionId, scraped, failed, skipped, refreshed };
+  }
+
+  const ingest = await getSessionIngestProgress(sessionId);
+  if (ingest.readyDocs > 0) {
+    await markSessionCompleted(sessionId);
+  } else {
+    await markSessionFailed(sessionId, "No scraped documents were successfully added to the knowledge base");
+  }
+  await publishScrapeSessionRefresh(sessionId).catch(() => null);
 
   console.log(
     `[scrape-worker] Session ${sessionId} done — ` +

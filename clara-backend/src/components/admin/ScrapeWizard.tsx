@@ -174,7 +174,17 @@ function DiscoverForm({ onDiscover, discovering }: {
 // Shows while BullMQ worker is running crawlWebsite() in the background.
 // Real progress % from BullMQ, live URL counter, elapsed clock.
 
-function DiscoveringProgress({ dp, rootUrl }: { dp: DiscoverProgress | null; rootUrl: string }) {
+function DiscoveringProgress({
+  dp,
+  rootUrl,
+  onCancel,
+  canceling,
+}: {
+  dp: DiscoverProgress | null;
+  rootUrl: string;
+  onCancel: () => void;
+  canceling: boolean;
+}) {
   const pct      = dp?.jobProgress ?? 0;
   const urls     = dp?.urlsFound  ?? 0;
   const elapsed  = dp?.elapsedMs  ?? null;
@@ -193,6 +203,9 @@ function DiscoveringProgress({ dp, rootUrl }: { dp: DiscoverProgress | null; roo
           <p className="font-semibold text-foreground text-lg">Crawling website…</p>
           <p className="mt-0.5 font-mono text-xs text-muted-foreground truncate">{rootUrl}</p>
         </div>
+        <Button variant="outline" size="sm" onClick={onCancel} disabled={canceling}>
+          {canceling ? "Cancelling..." : "Cancel"}
+        </Button>
         {elapsed !== null && (
           <div className="shrink-0 text-right">
             <p className="text-2xl font-bold tabular-nums text-foreground">{formatMs(elapsed)}</p>
@@ -258,11 +271,11 @@ function DiscoveringProgress({ dp, rootUrl }: { dp: DiscoverProgress | null; roo
 
 // ─── Step 2 — URL Checklist ───────────────────────────────────────────────────
 
-function UrlReview({ urls, localToggles, selectedCount, totalCount, onToggle, onSelectAll, onStart, onBack, rootUrl }: {
+function UrlReview({ urls, localToggles, selectedCount, totalCount, onToggle, onSelectAll, onStart, onBack, onCancel, canceling, rootUrl }: {
   urls: ScrapeUrl[]; localToggles: Record<string, boolean>;
   selectedCount: number; totalCount: number;
   onToggle: (id: string, v: boolean) => void; onSelectAll: (v: boolean) => void;
-  onStart: () => void; onBack: () => void; rootUrl: string;
+  onStart: () => void; onBack: () => void; onCancel: () => void; canceling: boolean; rootUrl: string;
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "included" | "excluded">("all");
@@ -293,8 +306,11 @@ function UrlReview({ urls, localToggles, selectedCount, totalCount, onToggle, on
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onBack}>← Back</Button>
-          <Button size="sm" disabled={selectedCount === 0} onClick={onStart} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={onBack} disabled={canceling}>← Back</Button>
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={canceling}>
+            {canceling ? "Cancelling..." : "Cancel"}
+          </Button>
+          <Button size="sm" disabled={selectedCount === 0 || canceling} onClick={onStart} className="gap-1.5">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
             </svg>
@@ -374,13 +390,36 @@ function UrlReview({ urls, localToggles, selectedCount, totalCount, onToggle, on
 
 // ─── Step 3 — Scrape Progress ─────────────────────────────────────────────────
 
-function ScrapingProgress({ scrapedUrls, failedUrls, pendingUrls, scrapingUrls, selectedUrls, rootUrl }: {
+function ScrapingProgress({
+  phase,
+  scrapedUrls,
+  failedUrls,
+  pendingUrls,
+  scrapingUrls,
+  selectedUrls,
+  ingestTotalDocs,
+  ingestPendingDocs,
+  ingestProcessingDocs,
+  ingestReadyDocs,
+  ingestFailedDocs,
+  onCancel,
+  canceling,
+  rootUrl,
+}: {
+  phase: "scraping" | "ingesting";
   scrapedUrls: number; failedUrls: number; pendingUrls: number;
-  scrapingUrls: number; selectedUrls: number; rootUrl: string;
+  scrapingUrls: number; selectedUrls: number;
+  ingestTotalDocs: number; ingestPendingDocs: number; ingestProcessingDocs: number;
+  ingestReadyDocs: number; ingestFailedDocs: number;
+  onCancel: () => void; canceling: boolean; rootUrl: string;
 }) {
-  const total = selectedUrls || 1;
-  const done  = scrapedUrls + failedUrls;
-  const pct   = Math.min(100, Math.round((done / total) * 100));
+  const scrapeTotal = selectedUrls || 1;
+  const scrapeDone  = scrapedUrls + failedUrls;
+  const scrapePct   = Math.min(100, Math.round((scrapeDone / scrapeTotal) * 100));
+  const ingestTotal = Math.max(ingestTotalDocs, ingestReadyDocs + ingestFailedDocs, 1);
+  const ingestDone  = ingestReadyDocs + ingestFailedDocs;
+  const ingestPct   = Math.min(100, Math.round((ingestDone / ingestTotal) * 100));
+  const isIngesting = phase === "ingesting";
 
   return (
     <div className="space-y-6">
@@ -389,18 +428,41 @@ function ScrapingProgress({ scrapedUrls, failedUrls, pendingUrls, scrapingUrls, 
           <SpinnerIcon className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <p className="font-semibold text-foreground">Scraping pages…</p>
+          <p className="font-semibold text-foreground">
+            {isIngesting ? "Injecting into knowledge base…" : "Scraping pages…"}
+          </p>
           <p className="font-mono text-xs text-muted-foreground truncate max-w-xs">{rootUrl}</p>
         </div>
+        <Button variant="outline" size="sm" onClick={onCancel} disabled={canceling}>
+          {canceling ? "Cancelling..." : "Cancel"}
+        </Button>
         <div className="ml-auto text-right">
-          <p className="text-3xl font-bold tabular-nums text-foreground">{pct}%</p>
-          <p className="text-xs text-muted-foreground">{done} / {total}</p>
+          <p className="text-3xl font-bold tabular-nums text-foreground">{isIngesting ? ingestPct : scrapePct}%</p>
+          <p className="text-xs text-muted-foreground">
+            {isIngesting ? `${ingestDone} / ${ingestTotal}` : `${scrapeDone} / ${scrapeTotal}`}
+          </p>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${pct}%` }} />
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Scraping progress</span>
+            <span>{scrapePct}%</span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${scrapePct}%` }} />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>KB injection progress</span>
+            <span>{ingestPct}%</span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-success transition-all duration-500 ease-out" style={{ width: `${ingestPct}%` }} />
+          </div>
         </div>
       </div>
 
@@ -410,6 +472,20 @@ function ScrapingProgress({ scrapedUrls, failedUrls, pendingUrls, scrapingUrls, 
           { label: "In flight", value: scrapingUrls, color: "text-primary animate-pulse" },
           { label: "Queued",    value: pendingUrls,  color: "text-muted-foreground" },
           { label: "Failed",    value: failedUrls,   color: failedUrls > 0 ? "text-destructive" : "text-muted-foreground" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-center">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Docs queued",     value: ingestPendingDocs,    color: "text-muted-foreground" },
+          { label: "Embedding",       value: ingestProcessingDocs, color: "text-primary animate-pulse" },
+          { label: "Ready in KB",     value: ingestReadyDocs,      color: "text-success" },
+          { label: "Ingest failed",   value: ingestFailedDocs,     color: ingestFailedDocs > 0 ? "text-destructive" : "text-muted-foreground" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-center">
             <p className="text-xs text-muted-foreground">{label}</p>
@@ -431,7 +507,7 @@ function ScrapingProgress({ scrapedUrls, failedUrls, pendingUrls, scrapingUrls, 
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-        Updating every 2 seconds…
+        Live updates via streaming connection
       </p>
     </div>
   );
@@ -439,8 +515,9 @@ function ScrapingProgress({ scrapedUrls, failedUrls, pendingUrls, scrapingUrls, 
 
 // ─── Step 4a — Done ───────────────────────────────────────────────────────────
 
-function ScrapeDone({ scrapedUrls, failedUrls, rootUrl, onReset }: {
+function ScrapeDone({ scrapedUrls, failedUrls, rootUrl, onReset, onUndo, canceling }: {
   scrapedUrls: number; failedUrls: number; rootUrl: string; onReset: () => void;
+  onUndo: () => void; canceling: boolean;
 }) {
   return (
     <div className="flex flex-col items-center gap-6 py-6 text-center">
@@ -457,14 +534,21 @@ function ScrapeDone({ scrapedUrls, failedUrls, rootUrl, onReset }: {
         </p>
         <p className="mt-1 font-mono text-xs text-muted-foreground/60 truncate max-w-xs">{rootUrl}</p>
       </div>
-      <Button variant="outline" onClick={onReset}>Scrape another site</Button>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onUndo} disabled={canceling}>
+          {canceling ? "Rolling back..." : "Undo import"}
+        </Button>
+        <Button variant="outline" onClick={onReset} disabled={canceling}>Scrape another site</Button>
+      </div>
     </div>
   );
 }
 
 // ─── Step 4b — Error ──────────────────────────────────────────────────────────
 
-function ScrapeError({ message, onReset }: { message: string; onReset: () => void }) {
+function ScrapeError({ message, onReset, onUndo, canceling }: {
+  message: string; onReset: () => void; onUndo: () => void; canceling: boolean;
+}) {
   return (
     <div className="flex flex-col items-center gap-6 py-6 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
@@ -476,7 +560,12 @@ function ScrapeError({ message, onReset }: { message: string; onReset: () => voi
         <h3 className="text-xl font-bold text-foreground">Scrape failed</h3>
         <p className="mt-1 text-sm text-muted-foreground max-w-md">{message}</p>
       </div>
-      <Button variant="outline" onClick={onReset}>Try again</Button>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onUndo} disabled={canceling}>
+          {canceling ? "Rolling back..." : "Rollback changes"}
+        </Button>
+        <Button variant="outline" onClick={onReset} disabled={canceling}>Try again</Button>
+      </div>
     </div>
   );
 }
@@ -513,15 +602,18 @@ function StepIndicator({ active }: { active: 0 | 1 | 2 | 3 }) {
 // ─── Live Banner — shown on other tabs when job is running ────────────────────
 
 export function ScrapeActiveBanner({ kbId }: { kbId: string }) {
-  const { state, reset } = useScrapeWizard(kbId);
-  const { phase, session, progress, discoverProgress } = state;
+  const { state, cancelCurrent } = useScrapeWizard(kbId);
+  const { phase, session, progress, discoverProgress, canceling } = state;
 
-  if (phase !== "discovering" && phase !== "scraping") return null;
+  if (phase !== "discovering" && phase !== "scraping" && phase !== "ingesting") return null;
 
   const isDiscovering = phase === "discovering";
+  const isIngesting = phase === "ingesting";
   const label = isDiscovering
     ? `Discovering… ${discoverProgress?.urlsFound ?? 0} URLs found`
-    : `Scraping… ${progress?.scrapedUrls ?? 0} / ${progress?.selectedUrls ?? session?.selectedUrls ?? "?"} pages`;
+    : isIngesting
+      ? `Injecting… ${progress?.ingestReadyDocs ?? 0} / ${progress?.ingestTotalDocs ?? 0} docs ready`
+      : `Scraping… ${progress?.scrapedUrls ?? 0} / ${progress?.selectedUrls ?? session?.selectedUrls ?? "?"} pages`;
 
   return (
     <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
@@ -532,9 +624,9 @@ export function ScrapeActiveBanner({ kbId }: { kbId: string }) {
           {session?.rootUrl ?? ""}
         </span>
       </div>
-      <button onClick={reset}
+      <button onClick={cancelCurrent} disabled={canceling}
         className="shrink-0 rounded-lg border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors">
-        Cancel
+        {canceling ? "Cancelling..." : "Cancel"}
       </button>
     </div>
   );
@@ -543,13 +635,13 @@ export function ScrapeActiveBanner({ kbId }: { kbId: string }) {
 // ─── Root Export — ScrapeWizard ───────────────────────────────────────────────
 
 export function ScrapeWizard({ kbId }: { kbId: string }) {
-  const { state, discover, toggleUrl, selectAll, startScrape, reset } = useScrapeWizard(kbId);
-  const { phase, session, progress, discoverProgress, error, localToggles } = state;
+  const { state, discover, toggleUrl, selectAll, startScrape, cancelCurrent, reset } = useScrapeWizard(kbId);
+  const { phase, session, progress, discoverProgress, error, localToggles, canceling } = state;
 
   const stepIndex: 0 | 1 | 2 | 3 =
     phase === "idle" || phase === "discovering" ? 0 :
     phase === "awaiting_confirmation"           ? 1 :
-    phase === "scraping"                        ? 2 : 3;
+    phase === "scraping" || phase === "ingesting" ? 2 : 3;
 
   const urls          = session?.urls ?? [];
   const selectedCount = urls.filter((u) => (u.id in localToggles ? localToggles[u.id] : u.included)).length;
@@ -567,7 +659,12 @@ export function ScrapeWizard({ kbId }: { kbId: string }) {
 
       {/* Phase 1b — discovering: show live progress */}
       {phase === "discovering" && (
-        <DiscoveringProgress dp={discoverProgress} rootUrl={session?.rootUrl ?? ""} />
+        <DiscoveringProgress
+          dp={discoverProgress}
+          rootUrl={session?.rootUrl ?? ""}
+          onCancel={cancelCurrent}
+          canceling={canceling}
+        />
       )}
 
       {/* Phase 2 — review */}
@@ -576,18 +673,26 @@ export function ScrapeWizard({ kbId }: { kbId: string }) {
           urls={urls} localToggles={localToggles}
           selectedCount={selectedCount} totalCount={session.totalUrls}
           onToggle={toggleUrl} onSelectAll={selectAll}
-          onStart={startScrape} onBack={reset} rootUrl={session.rootUrl}
+          onStart={startScrape} onBack={reset} onCancel={cancelCurrent}
+          canceling={canceling} rootUrl={session.rootUrl}
         />
       )}
 
-      {/* Phase 3 — scraping */}
-      {phase === "scraping" && (
+      {(phase === "scraping" || phase === "ingesting") && (
         <ScrapingProgress
+          phase={phase}
           scrapedUrls={progress?.scrapedUrls ?? 0}
           failedUrls={progress?.failedUrls ?? 0}
           pendingUrls={progress?.pendingUrls ?? 0}
           scrapingUrls={progress?.scrapingUrls ?? 0}
           selectedUrls={progress?.selectedUrls ?? session?.selectedUrls ?? 0}
+          ingestTotalDocs={progress?.ingestTotalDocs ?? 0}
+          ingestPendingDocs={progress?.ingestPendingDocs ?? 0}
+          ingestProcessingDocs={progress?.ingestProcessingDocs ?? 0}
+          ingestReadyDocs={progress?.ingestReadyDocs ?? 0}
+          ingestFailedDocs={progress?.ingestFailedDocs ?? 0}
+          onCancel={cancelCurrent}
+          canceling={canceling}
           rootUrl={session?.rootUrl ?? ""}
         />
       )}
@@ -595,15 +700,20 @@ export function ScrapeWizard({ kbId }: { kbId: string }) {
       {/* Phase 4a — done */}
       {phase === "completed" && (
         <ScrapeDone
-          scrapedUrls={progress?.scrapedUrls ?? session?.scrapedUrls ?? 0}
+          scrapedUrls={progress?.ingestReadyDocs ?? progress?.scrapedUrls ?? session?.scrapedUrls ?? 0}
           failedUrls={progress?.failedUrls ?? session?.failedUrls ?? 0}
-          rootUrl={session?.rootUrl ?? ""} onReset={reset}
+          rootUrl={session?.rootUrl ?? ""} onReset={reset} onUndo={cancelCurrent} canceling={canceling}
         />
       )}
 
       {/* Phase 4b — failed */}
       {phase === "failed" && (
-        <ScrapeError message={error ?? "An unexpected error occurred."} onReset={reset} />
+        <ScrapeError
+          message={error ?? "An unexpected error occurred."}
+          onReset={reset}
+          onUndo={cancelCurrent}
+          canceling={canceling}
+        />
       )}
 
       {/* Inline error toast during review */}
