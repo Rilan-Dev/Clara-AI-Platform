@@ -276,17 +276,17 @@ export type ScrapeSessionStatus =
 export type ScrapeUrlStatus = "pending" | "scraping" | "completed" | "failed" | "excluded";
 
 export type ScrapeUrl = {
-  id: string; sessionId: string; url: string; title: string;
+  id: string; sessionId: string; url: string; title: string | null;
   depth: number; parentUrl: string | null; included: boolean;
   status: ScrapeUrlStatus; documentId: string | null;
-  contentLength: number; errorMessage: string | null; createdAt: string;
+  contentLength: number | null; errorMessage: string | null; createdAt: string;
 };
 
 export type ScrapeSession = {
   id: string; kbId: string; rootUrl: string; status: ScrapeSessionStatus;
   maxDepth: number; totalUrls: number; selectedUrls: number;
   scrapedUrls: number; failedUrls: number; errorMessage: string | null;
-  createdBy: string | null; createdAt: string; updatedAt: string;
+  jobId: string | null; createdBy: string | null; createdAt: string; updatedAt: string;
   urls?: ScrapeUrl[];
 };
 
