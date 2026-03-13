@@ -1,5 +1,17 @@
 services:
   # ──────────────── Infrastructure ────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: clara-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./infra/redis/data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - clara-net
+
   postgres:
     image: postgres:16-alpine
     container_name: clara-postgres
@@ -36,9 +48,33 @@ services:
     restart: unless-stopped
     env_file:
       - clara-backend/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     ports:
       - "3000:3000"
     depends_on:
+      - postgres
+      - qdrant
+      - redis
+    networks:
+      - clara-net
+
+  # ──────────────── Clara Worker (BullMQ) ────────────────
+  clara-worker:
+    build:
+      context: .
+      dockerfile: clara-backend/Dockerfile.worker
+    container_name: clara-worker
+    restart: unless-stopped
+    env_file:
+      - clara-backend/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CRAWL_WORKER_CONCURRENCY=2
+    depends_on:
+      - redis
       - postgres
       - qdrant
     networks:

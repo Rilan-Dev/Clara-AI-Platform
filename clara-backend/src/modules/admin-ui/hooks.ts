@@ -272,20 +272,49 @@ export function useScrapeWizard(kbId: string) {
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   // ── Discover ────────────────────────────────────────────────────────────────
+  // POST /discover returns 202 immediately (session status='discovering').
+  // BullMQ worker runs crawlWebsite() in background. We poll every 2s until
+  // status transitions to 'awaiting_confirmation' (or 'failed').
   const discover = useCallback(async (
     url: string,
     opts: { maxDepth?: number; maxUrls?: number; scopeToInputPath?: boolean } = {}
   ) => {
     setState((s) => ({ ...s, phase: "discovering", error: null }));
+    let discoveryPoll: ReturnType<typeof setInterval> | null = null;
     try {
       const session = await api.discoverScrapeUrls(kbId, url, opts);
-      setState((s) => ({
-        ...s,
-        phase: "awaiting_confirmation",
-        session,
-        localToggles: {},
-      }));
+      setState((s) => ({ ...s, session }));
+
+      // Fast-path: already completed (safety valve)
+      if (session.status === "awaiting_confirmation") {
+        setState((s) => ({ ...s, phase: "awaiting_confirmation", localToggles: {} }));
+        return;
+      }
+      if (session.status === "failed") {
+        throw new Error(session.errorMessage ?? "Discovery failed");
+      }
+
+      // Poll until BullMQ worker finishes the crawl
+      await new Promise<void>((resolve, reject) => {
+        discoveryPoll = setInterval(async () => {
+          try {
+            const fresh = await api.getScrapeSession(kbId, session.id);
+            setState((s) => ({ ...s, session: fresh }));
+            if (fresh.status === "awaiting_confirmation") {
+              clearInterval(discoveryPoll!);
+              discoveryPoll = null;
+              setState((s) => ({ ...s, phase: "awaiting_confirmation", localToggles: {} }));
+              resolve();
+            } else if (fresh.status === "failed") {
+              clearInterval(discoveryPoll!);
+              discoveryPoll = null;
+              reject(new Error(fresh.errorMessage ?? "Discovery failed"));
+            }
+          } catch { /* keep polling on transient errors */ }
+        }, 2_000);
+      });
     } catch (e) {
+      if (discoveryPoll) { clearInterval(discoveryPoll); discoveryPoll = null; }
       setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
     }
   }, [kbId]);

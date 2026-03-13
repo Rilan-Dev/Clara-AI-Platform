@@ -10,6 +10,12 @@
  * PATCH  /api/kbs/:kbId/scrape/urls/batch            → batchToggleUrlHandler
  * POST   /api/kbs/:kbId/scrape/sessions/:sid/start   → startScrapeHandler
  * GET    /api/kbs/:kbId/scrape/sessions/:sid/progress→ progressHandler
+ *
+ * Discovery is async (BullMQ):
+ *   1. POST /discover  → creates session (status='discovering'), enqueues job, returns 202 immediately
+ *   2. Worker runs crawlWebsite() in background (no HTTP timeout)
+ *   3. Worker transitions session to 'awaiting_confirmation'
+ *   4. Frontend polls GET /sessions/:id every 2s until status changes
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -32,7 +38,7 @@ import {
   recalcSessionProgress,
   listUrlsForSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
-import { crawlWebsite } from "@/modules/ingest/crawlers/web-crawler";
+import { crawlQueue } from "@/modules/queue";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,13 +59,15 @@ function triggerScrapeWorker(req: NextRequest, sessionId: string): void {
 // ── POST /api/kbs/:kbId/scrape/discover ──────────────────────────────────────
 //
 // Body:
-//   url              string   — root URL to crawl
-//   maxDepth?        number   — BFS depth (default: 3)
-//   maxUrls?         number   — URL cap (default: 500)
-//   requestDelayMs?  number   — ms between requests (default: 300)
-//   scopeToInputPath? boolean — restrict to input path prefix (default: true)
-//     true  → https://vite.dev/guide/ discovers ONLY /guide/* URLs
-//     false → discovers all reachable URLs across the whole domain
+//   url               string   — root URL to crawl
+//   maxDepth?         number   — BFS depth (default: 3)
+//   maxUrls?          number   — URL cap (default: 500)
+//   requestDelayMs?   number   — ms between requests (default: 300)
+//   scopeToInputPath? boolean  — restrict to input path prefix (default: true)
+//
+// Returns: 202 Accepted + session object (status='discovering')
+//   The crawl runs in a background BullMQ worker.
+//   Poll GET /sessions/:sessionId until status='awaiting_confirmation'.
 
 export async function discoverHandler(
   req: NextRequest,
@@ -79,10 +87,10 @@ export async function discoverHandler(
     const body = await req.json();
     const {
       url,
-      maxDepth        = 3,
-      maxUrls         = 500,
-      requestDelayMs  = 300,
-      scopeToInputPath = true,   // default: scope to input path prefix
+      maxDepth         = 3,
+      maxUrls          = 500,
+      requestDelayMs   = 300,
+      scopeToInputPath = true,
     } = body;
 
     if (!url?.trim()) {
@@ -92,7 +100,7 @@ export async function discoverHandler(
       return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
     }
 
-    // Create session immediately so the UI can show "discovering..." status
+    // ── Create session (status = 'discovering') ───────────────────────────────
     const session = await createSession({
       kbId,
       rootUrl:   url.trim(),
@@ -100,54 +108,26 @@ export async function discoverHandler(
       createdBy: auth.user.id,
     });
 
-    try {
-      const crawlResult = await crawlWebsite(url.trim(), {
-        maxDepth,
-        maxUrls,
-        requestDelayMs,
-        concurrency:      3,
-        scopeToInputPath: Boolean(scopeToInputPath),
-        parseSitemap:     true,
-        respectRobotsTxt: true,
-      });
+    // ── Enqueue background crawl job — returns in < 100ms ─────────────────────
+    const job = await crawlQueue.add("discover", {
+      sessionId:       session.id,
+      kbId,
+      url:             url.trim(),
+      maxDepth,
+      maxUrls,
+      requestDelayMs,
+      scopeToInputPath: Boolean(scopeToInputPath),
+    });
 
-      await insertDiscoveredUrls(
-        session.id,
-        crawlResult.discoveredUrls.map((u) => ({
-          url:           u.url,
-          title:         u.title,
-          depth:         u.depth,
-          parentUrl:     u.parentUrl ?? undefined,
-          contentLength: u.contentLength,
-        }))
-      );
+    console.log(
+      `[scrape] Enqueued crawl job ${job.id} for session ${session.id} (${url.trim()})`
+    );
 
-      await recalcSessionProgress(session.id);
-      await markSessionAwaiting(session.id);
-
-      const full = await getSessionWithUrls(session.id);
-
-      // Attach crawl metadata for the UI to display
-      return NextResponse.json(
-        {
-          ...full,
-          crawlMeta: {
-            pathPrefix:      crawlResult.pathPrefix,
-            crawlDurationMs: crawlResult.crawlDurationMs,
-            errors:          crawlResult.errors.length,
-          },
-        },
-        { status: 201 }
-      );
-
-    } catch (crawlErr) {
-      const msg = (crawlErr as Error).message;
-      await markSessionFailed(session.id, msg);
-      return NextResponse.json(
-        { error: `Crawl failed: ${msg}`, sessionId: session.id },
-        { status: 422 }
-      );
-    }
+    // ── Return 202 immediately — frontend polls for completion ────────────────
+    return NextResponse.json(
+      { ...session, jobId: job.id },
+      { status: 202 }
+    );
 
   } catch (err) {
     if (err instanceof NextResponse) return err;
@@ -252,7 +232,6 @@ export async function batchToggleUrlHandler(
 
     const body = await req.json();
 
-    // selectAll mode
     if (body?.selectAll !== undefined && body?.sessionId) {
       const session = await getSessionById(body.sessionId);
       if (!session || session.kbId !== kbId) {
@@ -263,7 +242,6 @@ export async function batchToggleUrlHandler(
       return NextResponse.json({ updated: true });
     }
 
-    // Batch specific URL IDs
     const { urlIds, included } = body ?? {};
     if (!Array.isArray(urlIds) || typeof included !== "boolean") {
       return NextResponse.json(
