@@ -73,6 +73,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CRAWL_WORKER_CONCURRENCY=2
+      - RETRY_WORKER_CONCURRENCY=3
     depends_on:
       - redis
       - postgres

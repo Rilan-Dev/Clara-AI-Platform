@@ -18,8 +18,10 @@
 
 import { useState, useMemo } from "react";
 import { useScrapeWizard } from "@/modules/admin-ui/hooks";
-import type { ScrapeUrl, DiscoverProgress } from "@/modules/admin-ui/api";
+import type { ScrapeUrl, DiscoverProgress, FailedUrlWithRetries } from "@/modules/admin-ui/api";
+import * as api from "@/modules/admin-ui/api";
 import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useCallback } from "react";
 
 // ─── Shared Icons ──────────────────────────────────────────────────────────────
 
@@ -570,6 +572,228 @@ function ScrapeError({ message, onReset, onUndo, canceling }: {
   );
 }
 
+// ─── Failed URL retry panel ───────────────────────────────────────────────────
+// Shown below the ScrapingProgress / ScrapeDone phases when there are any
+// failed URLs. Polls every 5s while retries are in-flight.
+// Stops polling once every URL is either 'succeeded' or 'permanently_failed'.
+
+type FailedUrlPanelProps = {
+  kbId:      string;
+  sessionId: string;
+};
+
+function retryStatusLabel(r: FailedUrlWithRetries): {
+  label: string; color: string;
+} {
+  if (!r.retryStatus && r.retryCount === 0)
+    return { label: "No retry", color: "text-muted-foreground" };
+  switch (r.retryStatus) {
+    case "scheduled":         return { label: "Queued",     color: "text-amber-600 dark:text-amber-400" };
+    case "retrying":          return { label: "Retrying…",  color: "text-blue-600 dark:text-blue-400" };
+    case "succeeded":         return { label: "Recovered",  color: "text-success" };
+    case "permanently_failed":return { label: "Exhausted",  color: "text-destructive" };
+    default:                  return { label: "Pending",    color: "text-muted-foreground" };
+  }
+}
+
+function formatCountdown(isoDate: string | null): string {
+  if (!isoDate) return "";
+  const ms = new Date(isoDate).getTime() - Date.now();
+  if (ms <= 0) return "soon";
+  const s = Math.floor(ms / 1000);
+  if (s < 60)  return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+
+function shortErrCode(msg: string | null): string {
+  if (!msg) return "unknown";
+  const m = msg.match(/^\[([^\]]+)\]/);
+  return m ? m[1] : msg.slice(0, 24);
+}
+
+function useCountdown(targetIso: string | null): string {
+  const [label, setLabel] = useState(() => formatCountdown(targetIso));
+  useEffect(() => {
+    if (!targetIso) { setLabel(""); return; }
+    const tick = () => setLabel(formatCountdown(targetIso));
+    tick();
+    const id = setInterval(tick, 1_000);
+    return () => clearInterval(id);
+  }, [targetIso]);
+  return label;
+}
+
+function RetryCountdownCell({ nextRetryAt }: { nextRetryAt: string | null }) {
+  const label = useCountdown(nextRetryAt);
+  return <span className="tabular-nums text-xs text-muted-foreground">{label ? `in ${label}` : "—"}</span>;
+}
+
+function AttemptDots({ retryCount, max = 3 }: { retryCount: number; max?: number }) {
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: max }).map((_, i) => (
+        <span key={i}
+          className={`h-2 w-2 rounded-full ${i < retryCount ? "bg-amber-500" : "bg-muted"}`}
+          title={i < retryCount ? `Attempt ${i + 1} used` : "Available"} />
+      ))}
+    </div>
+  );
+}
+
+export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
+  const [items, setItems] = useState<FailedUrlWithRetries[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [expanded, setExpanded]   = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isActive = (item: FailedUrlWithRetries) =>
+    item.retryStatus === "scheduled" || item.retryStatus === "retrying";
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api.getFailedUrls(kbId, sessionId);
+      setItems(data);
+      setLoading(false);
+      // Stop polling once nothing is actively being retried
+      if (!data.some(isActive)) stopPolling();
+    } catch { /* keep polling */ }
+  }, [kbId, sessionId, stopPolling]);
+
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(load, 5_000);
+    return stopPolling;
+  }, [load, stopPolling]);
+
+  if (loading && items.length === 0) return null;
+  if (items.length === 0) return null;
+
+  const recovering   = items.filter((i) => i.retryStatus === "succeeded").length;
+  const exhausted    = items.filter((i) => i.retryStatus === "permanently_failed").length;
+  const inFlight     = items.filter(isActive).length;
+  const noRetry      = items.filter((i) => !i.retryStatus && i.retryCount === 0).length;
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-muted/30">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${inFlight > 0 ? "bg-amber-500/15" : exhausted === items.length ? "bg-destructive/10" : "bg-muted/50"}`}>
+            {inFlight > 0
+              ? <SpinnerIcon className="h-4 w-4 text-amber-500" />
+              : <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+            }
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {items.length} page{items.length !== 1 ? "s" : ""} failed
+              {inFlight > 0 && <span className="ml-2 text-amber-500 text-xs">· {inFlight} retrying</span>}
+              {recovering > 0 && <span className="ml-2 text-success text-xs">· {recovering} recovered</span>}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {noRetry > 0 && `${noRetry} permanent · `}
+              {exhausted > 0 && `${exhausted} exhausted · `}
+              Auto-retry schedule: 5 min → 30 min → 2 hr
+            </p>
+          </div>
+        </div>
+        <svg className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border">
+          {/* Stats bar */}
+          <div className="grid grid-cols-4 divide-x divide-border border-b border-border">
+            {[
+              { label: "Failed",     n: items.length,                     c: "text-destructive" },
+              { label: "In queue",   n: inFlight,                         c: "text-amber-500" },
+              { label: "Recovered",  n: recovering,                       c: "text-success" },
+              { label: "Exhausted",  n: exhausted,                        c: "text-muted-foreground" },
+            ].map(({ label, n, c }) => (
+              <div key={label} className="px-4 py-3 text-center">
+                <p className={`text-xl font-bold tabular-nums ${c}`}>{n}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* URL table */}
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
+            {items.map((item) => {
+              const { label: statusLabel, color: statusColor } = retryStatusLabel(item);
+              return (
+                <div key={item.id} className="flex items-start gap-3 px-5 py-3.5">
+                  {/* Status dot */}
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                    {item.retryStatus === "retrying"
+                      ? <SpinnerIcon className="h-3.5 w-3.5 text-blue-500" />
+                      : item.retryStatus === "succeeded"
+                      ? <svg className="h-3.5 w-3.5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      : item.retryStatus === "permanently_failed"
+                      ? <svg className="h-3.5 w-3.5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      : <span className="h-2 w-2 rounded-full bg-amber-400" />
+                    }
+                  </div>
+
+                  {/* URL info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate" title={item.url}>
+                      {item.title || item.url}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground truncate font-mono">{item.url}</p>
+                    <p className="mt-1 text-[11px] text-destructive/80">
+                      {shortErrCode(item.errorMessage)}
+                    </p>
+                  </div>
+
+                  {/* Retry state */}
+                  <div className="shrink-0 text-right space-y-1">
+                    <p className={`text-xs font-medium ${statusColor}`}>{statusLabel}</p>
+                    <AttemptDots retryCount={item.retryCount} />
+                    {item.retryStatus === "scheduled" && item.nextRetryAt && (
+                      <RetryCountdownCell nextRetryAt={item.nextRetryAt} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer note */}
+          <div className="flex items-start gap-2 border-t border-border bg-muted/20 px-5 py-3">
+            <svg className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-[11px] text-muted-foreground">
+              Transient failures (timeouts, empty pages, soft blocks) are retried automatically.
+              Permanent failures (CAPTCHA, login walls) cannot be recovered without manual access.
+              This panel refreshes every 5 seconds.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 
 const STEPS = ["Discover", "Review", "Scraping", "Done"] as const;
@@ -697,6 +921,10 @@ export function ScrapeWizard({ kbId }: { kbId: string }) {
         />
       )}
 
+      {(phase === "scraping" || phase === "ingesting") && session && (progress?.failedUrls ?? 0) > 0 && (
+        <FailedUrlPanel kbId={kbId} sessionId={session.id} />
+      )}
+
       {/* Phase 4a — done */}
       {phase === "completed" && (
         <ScrapeDone
@@ -704,6 +932,10 @@ export function ScrapeWizard({ kbId }: { kbId: string }) {
           failedUrls={progress?.failedUrls ?? session?.failedUrls ?? 0}
           rootUrl={session?.rootUrl ?? ""} onReset={reset} onUndo={cancelCurrent} canceling={canceling}
         />
+      )}
+
+      {phase === "completed" && session && (progress?.failedUrls ?? session?.failedUrls ?? 0) > 0 && (
+        <FailedUrlPanel kbId={kbId} sessionId={session.id} />
       )}
 
       {/* Phase 4b — failed */}

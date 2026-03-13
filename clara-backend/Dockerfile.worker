@@ -38,4 +38,5 @@ RUN ln -sf /app/clara-backend/node_modules /app/node_modules 2>/dev/null || true
 USER pwuser
 
 # tsx runs TypeScript directly — no build step needed for the worker
-CMD ["node_modules/.bin/tsx", "--tsconfig", "tsconfig.worker.json", "workers/crawl-worker.ts"]
+# all-workers.ts starts BOTH the crawl worker AND the retry worker in one process
+CMD ["node_modules/.bin/tsx", "--tsconfig", "tsconfig.worker.json", "workers/all-workers.ts"]

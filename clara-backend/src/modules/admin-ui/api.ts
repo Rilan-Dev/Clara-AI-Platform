@@ -400,3 +400,53 @@ export function openScrapeProgressStream(kbId: string, sessionId: string): Event
     { withCredentials: true }
   );
 }
+
+// ── Failed URL retries ─────────────────────────────────────────────────────────
+
+export type UrlRetryStatus = "scheduled" | "running" | "succeeded" | "failed";
+export type UrlRetryStatusOnUrl =
+  | "scheduled"
+  | "retrying"
+  | "succeeded"
+  | "permanently_failed";
+
+export type UrlRetry = {
+  id:            string;
+  scrapeUrlId:   string;
+  sessionId:     string;
+  kbId:          string;
+  url:           string;
+  attemptNumber: number;
+  status:        UrlRetryStatus;
+  errorCode:     string | null;
+  errorMessage:  string | null;
+  scheduledAt:   string;
+  startedAt:     string | null;
+  completedAt:   string | null;
+  nextRetryAt:   string | null;
+  jobId:         string | null;
+  createdAt:     string;
+};
+
+export type FailedUrlWithRetries = {
+  id:           string;
+  sessionId:    string;
+  url:          string;
+  title:        string | null;
+  depth:        number;
+  errorMessage: string | null;
+  retryCount:   number;
+  retryStatus:  UrlRetryStatusOnUrl | null;
+  nextRetryAt:  string | null;
+  retries:      UrlRetry[];
+};
+
+/** GET /api/kbs/:kbId/scrape/sessions/:sessionId/failed-urls */
+export async function getFailedUrls(
+  kbId: string,
+  sessionId: string
+): Promise<FailedUrlWithRetries[]> {
+  return apiFetch<FailedUrlWithRetries[]>(
+    `/api/kbs/${kbId}/scrape/sessions/${sessionId}/failed-urls`
+  );
+}

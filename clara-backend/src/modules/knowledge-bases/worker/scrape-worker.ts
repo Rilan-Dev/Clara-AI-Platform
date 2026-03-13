@@ -30,6 +30,7 @@ import {
 import { getSessionIngestProgress } from "@/modules/knowledge-bases/core/documents-db";
 import { publishScrapeSessionRefresh } from "@/modules/knowledge-bases/core/scrape-progress-stream";
 import { processJobsById } from "@/modules/knowledge-bases/worker/ingest-worker";
+import { scheduleFailedUrlRetries } from "@/modules/knowledge-bases/worker/retry-scheduler";
 
 export type ScrapeWorkerResult = {
   sessionId:  string;
@@ -226,6 +227,14 @@ export async function runScrapeSession(
     await markSessionFailed(sessionId, "No scraped documents were successfully added to the knowledge base");
   }
   await publishScrapeSessionRefresh(sessionId).catch(() => null);
+
+  // ── Schedule retries for any failed URLs ──────────────────────────────────
+  // Fire-and-forget: retry scheduling is non-critical and must not throw.
+  if (failed > 0) {
+    scheduleFailedUrlRetries(sessionId, kbId).catch((e) =>
+      console.error(`[scrape-worker] retry scheduling error for session ${sessionId}:`, (e as Error).message)
+    );
+  }
 
   console.log(
     `[scrape-worker] Session ${sessionId} done — ` +
