@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ──────────────── Infrastructure ────────────────
   postgres:
@@ -43,8 +41,6 @@ services:
     depends_on:
       - postgres
       - qdrant
-    volumes:
-      - clara-static-assets:/app/clara-backend/.next/static
     networks:
       - clara-net
 
@@ -83,6 +79,3 @@ services:
 networks:
   clara-net:
     driver: bridge
-
-volumes:
-  clara-static-assets:
