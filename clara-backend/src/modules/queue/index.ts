@@ -28,17 +28,23 @@ export type CrawlJobData = {
   scopeToInputPath: boolean;
 };
 
-// ── Queue instances (producer side — safe to import in Next.js) ───────────────
+let crawlQueue: Queue<CrawlJobData> | null = null;
 
-export const crawlQueue = new Queue<CrawlJobData>("clara-crawl", {
-  connection: redisConnection,
-  defaultJobOptions: {
-    /** Remove completed jobs after 1 hour — keeps Redis lean */
-    removeOnComplete: { age: 3600 },
-    /** Keep failed jobs for 24 h for debugging */
-    removeOnFail:    { age: 86_400 },
-    /** 3 attempts with exponential back-off before giving up */
-    attempts: 3,
-    backoff: { type: "exponential", delay: 5_000 },
-  },
-});
+export function getCrawlQueue(): Queue<CrawlJobData> {
+  if (!crawlQueue) {
+    crawlQueue = new Queue<CrawlJobData>("clara-crawl", {
+      connection: redisConnection,
+      defaultJobOptions: {
+        /** Remove completed jobs after 1 hour — keeps Redis lean */
+        removeOnComplete: { age: 3600 },
+        /** Keep failed jobs for 24 h for debugging */
+        removeOnFail: { age: 86_400 },
+        /** 3 attempts with exponential back-off before giving up */
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5_000 },
+      },
+    });
+  }
+
+  return crawlQueue;
+}

@@ -106,15 +106,15 @@ const worker = new Worker<CrawlJobData>(QUEUE_NAME, processCrawlJob, {
   concurrency: CONCURRENCY,
 });
 
-worker.on("completed", (job) =>
+worker.on("completed", (job: Job<CrawlJobData>) =>
   console.log(`[crawl-worker] Job ${job.id} completed`)
 );
 
-worker.on("failed", (job, err) =>
+worker.on("failed", (job: Job<CrawlJobData> | undefined, err: Error) =>
   console.error(`[crawl-worker] Job ${job?.id} failed (attempt ${job?.attemptsMade}):`, err.message)
 );
 
-worker.on("error", (err) =>
+worker.on("error", (err: Error) =>
   console.error("[crawl-worker] Worker error:", err)
 );
 
