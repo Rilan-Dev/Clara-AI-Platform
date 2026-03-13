@@ -48,6 +48,7 @@ export type ScrapeSession = {
   scrapedUrls:   number;
   failedUrls:    number;
   errorMessage:  string | null;
+  jobId:         string | null;
   createdBy:     string | null;
   createdAt:     string;
   updatedAt:     string;
@@ -87,6 +88,7 @@ function toSession(row: Record<string, unknown>): ScrapeSession {
     scrapedUrls:  Number(row.scraped_urls),
     failedUrls:   Number(row.failed_urls),
     errorMessage: row.error_message != null ? String(row.error_message) : null,
+    jobId:        row.job_id != null ? String(row.job_id) : null,
     createdBy:    row.created_by != null ? String(row.created_by) : null,
     createdAt:    String(row.created_at),
     updatedAt:    String(row.updated_at),
@@ -134,6 +136,26 @@ export async function getSessionById(id: string): Promise<ScrapeSession | null> 
   const row = await queryOne<Record<string, unknown>>(
     "SELECT * FROM scrape_sessions WHERE id = $1",
     [id]
+  );
+  return row ? toSession(row) : null;
+}
+
+export async function setSessionJobId(id: string, jobId: string): Promise<void> {
+  await execute(
+    "UPDATE scrape_sessions SET job_id = $1 WHERE id = $2",
+    [jobId, id]
+  );
+}
+
+/** Find the most recent active session (discovering or scraping) for a KB. */
+export async function findActiveSession(kbId: string): Promise<ScrapeSession | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM scrape_sessions
+     WHERE kb_id = $1
+       AND status IN ('discovering', 'awaiting_confirmation', 'scraping')
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [kbId]
   );
   return row ? toSession(row) : null;
 }

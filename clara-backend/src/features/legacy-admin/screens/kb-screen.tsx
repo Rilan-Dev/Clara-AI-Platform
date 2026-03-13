@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
-import { ScrapeWizard } from "@/components/admin/ScrapeWizard";
+import { ScrapeWizard, ScrapeActiveBanner } from "@/components/admin/ScrapeWizard";
 import { Button } from "@/components/ui/button";
 import { apiFetchJson } from "@/lib/runtime";
 
@@ -163,6 +163,9 @@ export default function KbDashboardPage() {
           </p>
         </div>
       )}
+
+      {/* Live scrape banner — visible from any tab when a job is running */}
+      {tab !== "scrape" && <ScrapeActiveBanner kbId={kbId} />}
 
       {/* ── Tabs ── */}
       <div className="mb-6 flex gap-1 rounded-lg bg-muted/50 p-1 border border-border w-fit">

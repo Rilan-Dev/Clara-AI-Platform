@@ -10,13 +10,13 @@ import * as api from "./api";
 import type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
-  OrgAISettings, KBAIOverrides,
+  DiscoverProgress, OrgAISettings, KBAIOverrides,
 } from "./api";
 
 export type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
-  OrgAISettings, KBAIOverrides,
+  DiscoverProgress, OrgAISettings, KBAIOverrides,
 };
 
 // ── Generic async state helper ────────────────────────────────────────────────
@@ -249,128 +249,59 @@ type WizardPhase =
   | "failed";
 
 export type ScrapeWizardState = {
-  phase:    WizardPhase;
-  session:  ScrapeSession | null;
-  progress: ScrapeProgress | null;
-  error:    string | null;
+  phase:           WizardPhase;
+  session:         ScrapeSession | null;
+  progress:        ScrapeProgress | null;
+  discoverProgress: DiscoverProgress | null;
+  error:           string | null;
   /** Optimistic local override map: urlId → included */
-  localToggles: Record<string, boolean>;
+  localToggles:    Record<string, boolean>;
 };
 
 export function useScrapeWizard(kbId: string) {
   const [state, setState] = useState<ScrapeWizardState>({
-    phase: "idle", session: null, progress: null, error: null, localToggles: {},
+    phase: "idle", session: null, progress: null, discoverProgress: null,
+    error: null, localToggles: {},
   });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
-  // ── Stop polling helper ─────────────────────────────────────────────────────
   const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
-
   useEffect(() => () => stopPolling(), [stopPolling]);
 
-  // ── Discover ────────────────────────────────────────────────────────────────
-  // POST /discover returns 202 immediately (session status='discovering').
-  // BullMQ worker runs crawlWebsite() in background. We poll every 2s until
-  // status transitions to 'awaiting_confirmation' (or 'failed').
-  const discover = useCallback(async (
-    url: string,
-    opts: { maxDepth?: number; maxUrls?: number; scopeToInputPath?: boolean } = {}
-  ) => {
-    setState((s) => ({ ...s, phase: "discovering", error: null }));
-    let discoveryPoll: ReturnType<typeof setInterval> | null = null;
-    try {
-      const session = await api.discoverScrapeUrls(kbId, url, opts);
-      setState((s) => ({ ...s, session }));
-
-      // Fast-path: already completed (safety valve)
-      if (session.status === "awaiting_confirmation") {
-        setState((s) => ({ ...s, phase: "awaiting_confirmation", localToggles: {} }));
-        return;
-      }
-      if (session.status === "failed") {
-        throw new Error(session.errorMessage ?? "Discovery failed");
-      }
-
-      // Poll until BullMQ worker finishes the crawl
-      await new Promise<void>((resolve, reject) => {
-        discoveryPoll = setInterval(async () => {
-          try {
-            const fresh = await api.getScrapeSession(kbId, session.id);
-            setState((s) => ({ ...s, session: fresh }));
-            if (fresh.status === "awaiting_confirmation") {
-              clearInterval(discoveryPoll!);
-              discoveryPoll = null;
-              setState((s) => ({ ...s, phase: "awaiting_confirmation", localToggles: {} }));
-              resolve();
-            } else if (fresh.status === "failed") {
-              clearInterval(discoveryPoll!);
-              discoveryPoll = null;
-              reject(new Error(fresh.errorMessage ?? "Discovery failed"));
-            }
-          } catch { /* keep polling on transient errors */ }
-        }, 2_000);
-      });
-    } catch (e) {
-      if (discoveryPoll) { clearInterval(discoveryPoll); discoveryPoll = null; }
-      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
-    }
-  }, [kbId]);
-
-  // ── Toggle a single URL (optimistic) ────────────────────────────────────────
-  const toggleUrl = useCallback(async (urlId: string, included: boolean) => {
-    // Apply optimistic update immediately
-    setState((s) => ({
-      ...s,
-      localToggles: { ...s.localToggles, [urlId]: included },
-    }));
-    try {
-      await api.toggleScrapeUrl(kbId, urlId, included);
-      // Refresh session to sync server counts
-      if (state.session) {
-        const fresh = await api.getScrapeSession(kbId, state.session.id);
-        setState((s) => ({ ...s, session: fresh }));
-      }
-    } catch (e) {
-      // Roll back optimistic update on failure
-      setState((s) => {
-        const next = { ...s.localToggles };
-        delete next[urlId];
-        return { ...s, localToggles: next, error: (e as Error).message };
-      });
-    }
-  }, [kbId, state.session]);
-
-  // ── Select all / deselect all ────────────────────────────────────────────────
-  const selectAll = useCallback(async (included: boolean) => {
-    if (!state.session) return;
-    const sessionId = state.session.id;
-    // Optimistic: mark all URLs in local state
-    setState((s) => {
-      const toggled: Record<string, boolean> = {};
-      s.session?.urls?.forEach((u) => { toggled[u.id] = included; });
-      return { ...s, localToggles: toggled };
-    });
-    try {
-      await api.batchToggleScrapeUrls(kbId, { sessionId, selectAll: included });
-      const fresh = await api.getScrapeSession(kbId, sessionId);
-      setState((s) => ({ ...s, session: fresh, localToggles: {} }));
-    } catch (e) {
-      setState((s) => ({ ...s, localToggles: {}, error: (e as Error).message }));
-    }
-  }, [kbId, state.session]);
-
-  // ── Start scraping ───────────────────────────────────────────────────────────
-  const startScrape = useCallback(async () => {
-    if (!state.session) return;
-    const sessionId = state.session.id;
-    setState((s) => ({ ...s, phase: "scraping", error: null }));
-    try {
-      await api.startScrapeSession(kbId, sessionId);
-      // Begin polling
-      const poll = async () => {
+  // ── Resume helper — called on mount and after discover ────────────────────
+  const resumePollingForSession = useCallback((sessionId: string, phase: WizardPhase) => {
+    stopPolling();
+    if (phase === "discovering") {
+      // Poll discover-progress (fast 2s tick for crawl progress bar)
+      pollRef.current = setInterval(async () => {
+        try {
+          const dp = await api.getDiscoverProgress(kbId, sessionId);
+          setState((s) => ({ ...s, discoverProgress: dp }));
+          if (dp.status === "awaiting_confirmation") {
+            stopPolling();
+            const full = await api.getScrapeSession(kbId, sessionId);
+            setState((s) => ({
+              ...s, phase: "awaiting_confirmation", session: full,
+              discoverProgress: null, localToggles: {},
+            }));
+          } else if (dp.status === "failed") {
+            stopPolling();
+            const sess = await api.getScrapeSession(kbId, sessionId);
+            setState((s) => ({
+              ...s, phase: "failed", session: sess,
+              error: sess.errorMessage ?? "Discovery failed",
+            }));
+          }
+        } catch { /* transient — keep polling */ }
+      }, 2_000);
+    } else if (phase === "scraping") {
+      // Poll scrape progress
+      pollRef.current = setInterval(async () => {
         try {
           const progress = await api.getScrapeProgress(kbId, sessionId);
           setState((s) => ({ ...s, progress }));
@@ -383,18 +314,118 @@ export function useScrapeWizard(kbId: string) {
             }));
           }
         } catch { /* keep polling */ }
-      };
-      poll(); // immediate first tick
-      pollRef.current = setInterval(poll, 2000);
+      }, 2_000);
+    }
+  }, [kbId, stopPolling]);
+
+  // ── Auto-resume on mount — pick up any in-flight session ─────────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const active = await api.getActiveSession(kbId);
+        if (cancelled || !active) return;
+        const phase: WizardPhase =
+          active.status === "discovering"          ? "discovering" :
+          active.status === "awaiting_confirmation"? "awaiting_confirmation" :
+          active.status === "scraping"             ? "scraping" : "idle";
+        if (phase === "idle") return;
+
+        // Fetch discover progress if still crawling
+        let dp: DiscoverProgress | null = null;
+        if (phase === "discovering" && active.jobId) {
+          try { dp = await api.getDiscoverProgress(kbId, active.id); } catch { /* ok */ }
+        }
+
+        setState((s) => ({
+          ...s, phase, session: active,
+          discoverProgress: dp, localToggles: {},
+        }));
+        resumePollingForSession(active.id, phase);
+      } catch { /* not critical */ }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kbId]);
+
+  // ── Discover ──────────────────────────────────────────────────────────────
+  const discover = useCallback(async (
+    url: string,
+    opts: { maxDepth?: number; maxUrls?: number; scopeToInputPath?: boolean } = {}
+  ) => {
+    setState((s) => ({ ...s, phase: "discovering", error: null, discoverProgress: null }));
+    try {
+      const session = await api.discoverScrapeUrls(kbId, url, opts);
+      setState((s) => ({ ...s, session }));
+      if (session.status === "awaiting_confirmation") {
+        const full = await api.getScrapeSession(kbId, session.id);
+        setState((s) => ({ ...s, phase: "awaiting_confirmation", session: full, localToggles: {} }));
+        return;
+      }
+      if (session.status === "failed") throw new Error(session.errorMessage ?? "Discovery failed");
+      resumePollingForSession(session.id, "discovering");
+    } catch (e) {
+      stopPolling();
+      setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
+    }
+  }, [kbId, resumePollingForSession, stopPolling]);
+
+  // ── Toggle a single URL (optimistic) ─────────────────────────────────────
+  const toggleUrl = useCallback(async (urlId: string, included: boolean) => {
+    setState((s) => ({ ...s, localToggles: { ...s.localToggles, [urlId]: included } }));
+    try {
+      await api.toggleScrapeUrl(kbId, urlId, included);
+      if (stateRef.current.session) {
+        const fresh = await api.getScrapeSession(kbId, stateRef.current.session.id);
+        setState((s) => ({ ...s, session: fresh }));
+      }
+    } catch (e) {
+      setState((s) => {
+        const next = { ...s.localToggles };
+        delete next[urlId];
+        return { ...s, localToggles: next, error: (e as Error).message };
+      });
+    }
+  }, [kbId]);
+
+  // ── Select all / deselect all ─────────────────────────────────────────────
+  const selectAll = useCallback(async (included: boolean) => {
+    const sessionId = stateRef.current.session?.id;
+    if (!sessionId) return;
+    setState((s) => {
+      const toggled: Record<string, boolean> = {};
+      s.session?.urls?.forEach((u) => { toggled[u.id] = included; });
+      return { ...s, localToggles: toggled };
+    });
+    try {
+      await api.batchToggleScrapeUrls(kbId, { sessionId, selectAll: included });
+      const fresh = await api.getScrapeSession(kbId, sessionId);
+      setState((s) => ({ ...s, session: fresh, localToggles: {} }));
+    } catch (e) {
+      setState((s) => ({ ...s, localToggles: {}, error: (e as Error).message }));
+    }
+  }, [kbId]);
+
+  // ── Start scraping ────────────────────────────────────────────────────────
+  const startScrape = useCallback(async () => {
+    const sessionId = stateRef.current.session?.id;
+    if (!sessionId) return;
+    setState((s) => ({ ...s, phase: "scraping", error: null }));
+    try {
+      await api.startScrapeSession(kbId, sessionId);
+      resumePollingForSession(sessionId, "scraping");
     } catch (e) {
       setState((s) => ({ ...s, phase: "failed", error: (e as Error).message }));
     }
-  }, [kbId, state.session, stopPolling]);
+  }, [kbId, resumePollingForSession]);
 
-  // ── Reset wizard ─────────────────────────────────────────────────────────────
+  // ── Reset ─────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
     stopPolling();
-    setState({ phase: "idle", session: null, progress: null, error: null, localToggles: {} });
+    setState({
+      phase: "idle", session: null, progress: null, discoverProgress: null,
+      error: null, localToggles: {},
+    });
   }, [stopPolling]);
 
   return { state, discover, toggleUrl, selectAll, startScrape, reset };

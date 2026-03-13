@@ -297,6 +297,13 @@ export type ScrapeProgress = {
   errorMessage: string | null;
 };
 
+export type DiscoverProgress = {
+  status: ScrapeSessionStatus;
+  jobProgress: number;   // 0-100 from BullMQ
+  urlsFound: number;     // increments as crawl runs
+  elapsedMs: number | null;
+};
+
 export async function discoverScrapeUrls(
   kbId: string, url: string,
   opts: { maxDepth?: number; maxUrls?: number; scopeToInputPath?: boolean }
@@ -335,4 +342,14 @@ export async function startScrapeSession(kbId: string, sessionId: string): Promi
 
 export async function getScrapeProgress(kbId: string, sessionId: string): Promise<ScrapeProgress> {
   return apiFetch<ScrapeProgress>(`/api/kbs/${kbId}/scrape/sessions/${sessionId}/progress`);
+}
+
+export async function getActiveSession(kbId: string): Promise<ScrapeSession | null> {
+  return apiFetch<ScrapeSession | null>(`/api/kbs/${kbId}/scrape/active-session`);
+}
+
+export async function getDiscoverProgress(kbId: string, sessionId: string): Promise<DiscoverProgress> {
+  return apiFetch<DiscoverProgress>(
+    `/api/kbs/${kbId}/scrape/sessions/${sessionId}/discover-progress`
+  );
 }
