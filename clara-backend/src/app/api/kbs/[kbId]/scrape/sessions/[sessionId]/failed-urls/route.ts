@@ -18,12 +18,12 @@ import { listFailedUrlsWithRetries } from "@/modules/knowledge-bases/core/scrape
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { kbId: string; sessionId: string } }
+  { params }: { params: Promise<{ kbId: string; sessionId: string }> }
 ): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
-    const { kbId, sessionId } = params;
+    const { kbId, sessionId } = await params;
     const auth = await requireAuth(req);
     await requireKbPermission(auth, kbId, "document:read");
 
