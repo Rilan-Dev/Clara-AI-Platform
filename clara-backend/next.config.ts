@@ -7,6 +7,7 @@ const __dirname = dirname(__filename);
 
 const nextConfig: NextConfig = {
   distDir: ".next-app",
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   output: "standalone",
   serverExternalPackages: ["pg"],
   reactStrictMode: true,

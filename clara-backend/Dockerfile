@@ -1,9 +1,9 @@
 # Clara Backend — Next.js standalone Dockerfile
 # This Dockerfile expects the build context to be the repository root (`.`)
 
-FROM node:20-alpine AS base
-RUN apk add --no-cache libc6-compat curl
+FROM mcr.microsoft.com/playwright:v1.56.1-noble AS base
 WORKDIR /app
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # ── Stage 1: Install dependencies ──────────────────────────────────────────
 FROM base AS deps
@@ -25,9 +25,7 @@ FROM base AS runner
 WORKDIR /app/clara-backend
 ENV NODE_ENV=production
 ENV PORT=3000
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser  --system --uid 1001 clarauser
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY --from=builder /app/clara-backend/public ./public
 COPY --from=builder /app/clara-backend/scripts ./scripts
@@ -35,7 +33,7 @@ COPY --from=builder /app/clara-backend/.next-app/standalone/clara-backend ./
 # Keep browser assets inside the configured distDir so standalone Next can serve /_next/static.
 COPY --from=builder /app/clara-backend/.next-app/static ./.next-app/static
 
-USER clarauser
+USER pwuser
 EXPOSE 3000
 
 # Start the standalone Next.js server
