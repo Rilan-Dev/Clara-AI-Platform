@@ -28,6 +28,12 @@ export type CrawlJobData = {
   scopeToInputPath: boolean;
 };
 
+export type CrawlJobProgress = {
+  percent: number;
+  urlsFound: number;
+  startedAtMs: number;
+};
+
 let crawlQueue: Queue<CrawlJobData> | null = null;
 
 export function getCrawlQueue(): Queue<CrawlJobData> {

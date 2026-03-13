@@ -20,7 +20,7 @@
 
 import { Worker, type Job } from "bullmq";
 import { redisConnection } from "../src/modules/queue/redis";
-import type { CrawlJobData } from "../src/modules/queue/index";
+import type { CrawlJobData, CrawlJobProgress } from "../src/modules/queue/index";
 import { crawlWebsite } from "../src/modules/ingest/crawlers/web-crawler";
 import {
   insertDiscoveredUrls,
@@ -39,6 +39,12 @@ const CONCURRENCY = parseInt(process.env.CRAWL_WORKER_CONCURRENCY ?? "2", 10);
 
 async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
   const { sessionId, url, maxDepth, maxUrls, requestDelayMs, scopeToInputPath } = job.data;
+  const discoveryStartedAtMs = Date.now();
+  const buildProgress = (percent: number, urlsFound: number): CrawlJobProgress => ({
+    percent,
+    urlsFound,
+    startedAtMs: discoveryStartedAtMs,
+  });
 
   console.log(`[crawl-worker] ▶ Job ${job.id} — session=${sessionId}  url=${url}`);
 
@@ -51,7 +57,7 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
 
   try {
     // ── Update job progress so BullMQ dashboard can show percentage ──────────
-    await job.updateProgress(5);
+    await job.updateProgress(buildProgress(5, 0));
 
     const crawlResult = await crawlWebsite(url, {
       maxDepth,
@@ -64,11 +70,11 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
       onProgress: async ({ totalDiscovered }) => {
         // Report progress as % of maxUrls (capped at 90 — rest is DB write)
         const pct = Math.min(90, Math.round((totalDiscovered / maxUrls) * 90));
-        await job.updateProgress(pct).catch(() => null);
+        await job.updateProgress(buildProgress(pct, totalDiscovered)).catch(() => null);
       },
     });
 
-    await job.updateProgress(92);
+    await job.updateProgress(buildProgress(92, crawlResult.discoveredUrls.length));
 
     await insertDiscoveredUrls(
       sessionId,
@@ -81,10 +87,10 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
       }))
     );
 
-    await job.updateProgress(96);
+    await job.updateProgress(buildProgress(96, crawlResult.discoveredUrls.length));
     await recalcSessionProgress(sessionId);
     await markSessionAwaiting(sessionId);
-    await job.updateProgress(100);
+    await job.updateProgress(buildProgress(100, crawlResult.discoveredUrls.length));
 
     console.log(
       `[crawl-worker] ✅ Job ${job.id} done — ` +

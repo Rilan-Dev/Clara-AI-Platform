@@ -76,6 +76,16 @@ export type ScrapeSessionWithUrls = ScrapeSession & {
 
 // ── Row mappers ───────────────────────────────────────────────────────────────
 
+function toIsoTimestamp(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "number") return new Date(value).toISOString();
+  if (typeof value === "string") {
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? value : new Date(ms).toISOString();
+  }
+  return String(value);
+}
+
 function toSession(row: Record<string, unknown>): ScrapeSession {
   return {
     id:           String(row.id),
@@ -90,8 +100,8 @@ function toSession(row: Record<string, unknown>): ScrapeSession {
     errorMessage: row.error_message != null ? String(row.error_message) : null,
     jobId:        row.job_id != null ? String(row.job_id) : null,
     createdBy:    row.created_by != null ? String(row.created_by) : null,
-    createdAt:    String(row.created_at),
-    updatedAt:    String(row.updated_at),
+    createdAt:    toIsoTimestamp(row.created_at),
+    updatedAt:    toIsoTimestamp(row.updated_at),
   };
 }
 
@@ -108,8 +118,8 @@ function toUrl(row: Record<string, unknown>): ScrapeUrl {
     documentId:    row.document_id != null ? String(row.document_id) : null,
     contentLength: row.content_length != null ? Number(row.content_length) : null,
     errorMessage:  row.error_message != null ? String(row.error_message) : null,
-    createdAt:     String(row.created_at),
-    updatedAt:     String(row.updated_at),
+    createdAt:     toIsoTimestamp(row.created_at),
+    updatedAt:     toIsoTimestamp(row.updated_at),
   };
 }
 

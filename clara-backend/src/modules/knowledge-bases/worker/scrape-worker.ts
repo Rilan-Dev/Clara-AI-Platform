@@ -27,6 +27,7 @@ import {
   markSessionFailed,
   recalcSessionProgress,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
+import { drainQueue } from "@/modules/knowledge-bases/worker/ingest-worker";
 
 export type ScrapeWorkerResult = {
   sessionId:  string;
@@ -40,11 +41,9 @@ export async function runScrapeSession(
   sessionId: string,
   options: {
     concurrency?: number;
-    triggerIngestOrigin?: string;
-    workerSecret?: string;
   } = {}
 ): Promise<ScrapeWorkerResult> {
-  const { concurrency = 2, triggerIngestOrigin, workerSecret } = options;
+  const { concurrency = 2 } = options;
 
   const session = await getSessionById(sessionId);
   if (!session) throw new Error(`Scrape session ${sessionId} not found`);
@@ -149,14 +148,12 @@ export async function runScrapeSession(
   }
 
   // Trigger ingest worker to process newly created jobs
-  if (triggerIngestOrigin && (scraped + refreshed) > 0) {
-    try {
-      const headers: Record<string, string> = {};
-      if (workerSecret) headers["x-worker-secret"] = workerSecret;
-      fetch(`${triggerIngestOrigin}/api/worker/ingest?drain=true`, {
-        method: "GET", headers,
-      }).catch(() => null);
-    } catch { /* best-effort */ }
+  if ((scraped + refreshed) > 0) {
+    queueMicrotask(() => {
+      void drainQueue(50).catch((err) => {
+        console.error("[scrape-worker] ingest drain failed:", (err as Error).message);
+      });
+    });
   }
 
   console.log(

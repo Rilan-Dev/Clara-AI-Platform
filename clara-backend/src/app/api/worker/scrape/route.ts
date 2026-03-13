@@ -32,12 +32,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    const origin = req.nextUrl.origin;
-    const result = await runScrapeSession(sessionId, {
-      concurrency: 2,
-      triggerIngestOrigin: origin,
-      workerSecret: workerSecret ?? "",
-    });
+    const result = await runScrapeSession(sessionId, { concurrency: 2 });
 
     return NextResponse.json(result);
   } catch (err) {

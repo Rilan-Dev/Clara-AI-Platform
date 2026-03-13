@@ -28,27 +28,54 @@ import {
   selectAllUrls,
   getUrlById,
   markSessionScraping,
+  markSessionFailed,
   recalcSessionProgress,
   listUrlsForSession,
   setSessionJobId,
   findActiveSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
-import { getCrawlQueue } from "@/modules/queue";
+import { getCrawlQueue, type CrawlJobProgress } from "@/modules/queue";
+import { runScrapeSession } from "@/modules/knowledge-bases/worker/scrape-worker";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function triggerScrapeWorker(req: NextRequest, sessionId: string): void {
-  try {
-    const origin = req.nextUrl.origin;
-    const secret = process.env.WORKER_SECRET ?? "";
-    fetch(`${origin}/api/worker/scrape`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json", "x-worker-secret": secret },
-      body:    JSON.stringify({ sessionId }),
-    }).catch((e) => console.warn("[scrape] worker trigger failed:", e.message));
-  } catch (e) {
-    console.warn("[scrape] worker trigger error:", (e as Error).message);
+function triggerScrapeWorker(sessionId: string): void {
+  queueMicrotask(() => {
+    void runScrapeSession(sessionId, { concurrency: 2 }).catch(async (e) => {
+      const message = (e as Error).message;
+      console.error(`[scrape] background worker failed for session ${sessionId}:`, message);
+      await markSessionFailed(sessionId, `Scrape failed: ${message}`).catch(() => null);
+    });
+  });
+}
+
+function parseTimestampMs(value: unknown): number | null {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? null : ms;
   }
+  return null;
+}
+
+function readCrawlJobProgress(value: unknown): CrawlJobProgress | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Partial<CrawlJobProgress>;
+  if (
+    typeof candidate.percent !== "number" ||
+    typeof candidate.urlsFound !== "number" ||
+    typeof candidate.startedAtMs !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    percent: candidate.percent,
+    urlsFound: candidate.urlsFound,
+    startedAtMs: candidate.startedAtMs,
+  };
 }
 
 // ── POST /api/kbs/:kbId/scrape/discover ──────────────────────────────────────
@@ -146,25 +173,36 @@ export async function discoverProgressHandler(
 
     // Query BullMQ job progress
     let jobProgress = 0;
+    let urlsFound = session.totalUrls;
+    let startedAtMs: number | null = null;
+
     if (session.jobId) {
       try {
-          const job = await getCrawlQueue().getJob(session.jobId);
+        const job = await getCrawlQueue().getJob(session.jobId);
         if (job) {
           const prog = await job.progress;
-          jobProgress = typeof prog === "number" ? prog : 0;
+          if (typeof prog === "number") {
+            jobProgress = prog;
+          } else {
+            const progressMeta = readCrawlJobProgress(prog);
+            if (progressMeta) {
+              jobProgress = progressMeta.percent;
+              urlsFound = progressMeta.urlsFound;
+              startedAtMs = progressMeta.startedAtMs;
+            }
+          }
         }
       } catch { /* Redis may be briefly unavailable */ }
     }
 
-    // Count URLs already inserted (increments as crawl runs)
-    const urls = await listUrlsForSession(sessionId);
-    const createdAt = new Date(session.createdAt).getTime();
-    const elapsedMs = Date.now() - createdAt;
+    const fallbackStartedAtMs = parseTimestampMs(session.createdAt);
+    const elapsedOrigin = startedAtMs ?? fallbackStartedAtMs;
+    const elapsedMs = elapsedOrigin != null ? Math.max(0, Date.now() - elapsedOrigin) : null;
 
     return NextResponse.json({
       status:      session.status,
       jobProgress,
-      urlsFound:   urls.length,
+      urlsFound,
       elapsedMs,
     });
   } catch (err) {
@@ -225,7 +263,7 @@ export async function startScrapeHandler(
         { error: `Cannot start — session status is '${session.status}'` }, { status: 400 }
       );
     await markSessionScraping(sessionId);
-    triggerScrapeWorker(req, sessionId);
+    triggerScrapeWorker(sessionId);
     return NextResponse.json({ started: true, sessionId });
   } catch (err) {
     if (err instanceof NextResponse) return err;
