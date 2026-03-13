@@ -32,9 +32,6 @@ import {
   selectAllUrls,
   getUrlById,
   markSessionScraping,
-  markSessionAwaiting,
-  markSessionFailed,
-  insertDiscoveredUrls,
   recalcSessionProgress,
   listUrlsForSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";

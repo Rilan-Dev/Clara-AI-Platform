@@ -30,7 +30,7 @@ export type CrawlJobData = {
 
 // ── Queue instances (producer side — safe to import in Next.js) ───────────────
 
-export const crawlQueue = new Queue<CrawlJobData>("clara:crawl", {
+export const crawlQueue = new Queue<CrawlJobData>("clara-crawl", {
   connection: redisConnection,
   defaultJobOptions: {
     /** Remove completed jobs after 1 hour — keeps Redis lean */

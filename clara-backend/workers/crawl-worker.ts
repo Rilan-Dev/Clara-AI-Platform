@@ -32,7 +32,7 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const QUEUE_NAME  = "clara:crawl";
+const QUEUE_NAME  = "clara-crawl";
 const CONCURRENCY = parseInt(process.env.CRAWL_WORKER_CONCURRENCY ?? "2", 10);
 
 // ── Job processor ─────────────────────────────────────────────────────────────
