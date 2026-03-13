@@ -37,7 +37,47 @@ export type WebMetadata = {
   breadcrumbs:    string[];
   retrievedAt:    string;
   contentLength:  number;
-  scrapeStrategy: "http-fetch" | "playwright-load" | "playwright-scroll";
+  scrapeStrategy:
+    | "http-fetch"
+    | "playwright-load"
+    | "playwright-scroll"
+    | "xhr-fallback"
+    | "hydration-fallback"
+    | "json-ld-fallback";
+};
+
+export type WebLoadErrorCode =
+  | "http-fetch-failed"
+  | "playwright-failed"
+  | "spa-shell"
+  | "empty-content"
+  | "soft-block"
+  | "hard-block"
+  | "structured-empty";
+
+export class WebLoadError extends Error {
+  code: WebLoadErrorCode;
+  retryable: boolean;
+
+  constructor(message: string, code: WebLoadErrorCode, retryable = true) {
+    super(message);
+    this.name = "WebLoadError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+type Candidate = {
+  strategy: WebMetadata["scrapeStrategy"];
+  kind: "html" | "text";
+  payload: string;
+  title?: string;
+  metadata?: Partial<WebMetadata>;
+};
+
+type PlaywrightSnapshot = {
+  html: string;
+  networkPayloads: string[];
 };
 
 // ── Noise selectors ───────────────────────────────────────────────────────────
@@ -129,11 +169,71 @@ async function httpFetch(url: string, timeoutMs = 25_000): Promise<string | null
 
 // ── Playwright helpers ────────────────────────────────────────────────────────
 
+const JSON_CONTENT_TYPES = [
+  "application/json",
+  "application/ld+json",
+  "application/vnd.api+json",
+  "text/json",
+  "text/plain",
+];
+
+const RESPONSE_BLOCKLIST = [
+  "googletagmanager.com",
+  "google-analytics.com",
+  "doubleclick.net",
+  "youtube.com",
+  "ytimg.com",
+  "facebook.com",
+  "flock.js",
+];
+
+function isLikelyDetailRoute(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname;
+    return /\/(courses|products|items|article|blog|post)\//i.test(pathname) || /[0-9a-f]{8}-[0-9a-f]{4}-/i.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isLikelySoftBlock(text: string): boolean {
+  const sample = text.toLowerCase();
+  return [
+    "captcha",
+    "verify you are human",
+    "attention required",
+    "access denied",
+    "temporarily unavailable",
+    "too many requests",
+    "request blocked",
+  ].some((marker) => sample.includes(marker));
+}
+
+function shouldCaptureResponse(response: import("playwright").Response, pageUrl: string): boolean {
+  const url = response.url();
+  if (RESPONSE_BLOCKLIST.some((entry) => url.includes(entry))) return false;
+  if (response.status() >= 400) return false;
+
+  const contentType = (response.headers()["content-type"] ?? "").toLowerCase();
+  const looksJson = JSON_CONTENT_TYPES.some((type) => contentType.includes(type));
+  const looksApi = /\/api\/|graphql|supabase|rest\//i.test(url);
+
+  if (!looksJson && !looksApi) return false;
+
+  try {
+    const responseHost = new URL(url).hostname.replace(/^www\./, "");
+    const pageHost = new URL(pageUrl).hostname.replace(/^www\./, "");
+    return responseHost === pageHost || looksApi;
+  } catch {
+    return looksApi;
+  }
+}
+
 async function playwrightLoad(
   url: string,
   scroll   = false,
   timeoutMs = 50_000
-): Promise<string | null> {
+): Promise<PlaywrightSnapshot | null> {
   try {
     const playwright = await import("playwright");
     const browser = await playwright.chromium.launch({
@@ -163,12 +263,26 @@ async function playwrightLoad(
       });
 
       const page = await context.newPage();
+      const networkPayloads: string[] = [];
+      const pendingResponses = new Set<Promise<void>>();
+
+      page.on("response", (response) => {
+        const task = (async () => {
+          if (!shouldCaptureResponse(response, url)) return;
+          const text = await response.text().catch(() => "");
+          if (!text || text.length < 40) return;
+          networkPayloads.push(text.slice(0, 120_000));
+        })();
+
+        pendingResponses.add(task);
+        void task.finally(() => pendingResponses.delete(task));
+      });
 
       // ── Block resource-heavy assets — only fetch HTML + XHR/fetch ──────────
       // This is the key performance fix: don't wait for fonts, images, CSS CDNs
       await page.route("**/*", (route) => {
         const rt = route.request().resourceType();
-        if (["image", "media", "font", "stylesheet", "other"].includes(rt)) {
+        if (["image", "media", "font"].includes(rt)) {
           route.abort().catch(() => {});
         } else {
           route.continue().catch(() => {});
@@ -183,18 +297,39 @@ async function playwrightLoad(
         timeout:   timeoutMs,
       });
 
+      const likelyDetail = isLikelyDetailRoute(url);
+
+      await page.waitForLoadState("networkidle", {
+        timeout: likelyDetail ? 8_000 : 4_000,
+      }).catch(() => {});
+
       // ── Smart content-ready wait ───────────────────────────────────────────
       // Poll until body has meaningful text, or 12 s max.
       // This handles React/Vue hydration without a fixed sleep.
       await page.waitForFunction(
-        () => (document.body?.innerText?.trim().length ?? 0) > 200,
-        { timeout: 12_000 }
+        () => {
+          const bodyLength = document.body?.innerText?.trim().length ?? 0;
+          const selectors = [
+            "article",
+            "main",
+            "[role='main']",
+            "h1",
+            "[class*='content']",
+            "[class*='course']",
+          ];
+          const selectorReady = selectors.some((selector) => {
+            const el = document.querySelector(selector);
+            return (el?.textContent?.trim().length ?? 0) > 120;
+          });
+          return bodyLength > 200 || selectorReady;
+        },
+        { timeout: likelyDetail ? 18_000 : 12_000 }
       ).catch(() => {
         // Best-effort: continue even if body is still sparse
       });
 
       // Fixed settle for any remaining JS rendering
-      await page.waitForTimeout(2_000);
+      await page.waitForTimeout(likelyDetail ? 3_000 : 2_000);
 
       if (scroll) {
         // Scroll through the entire page to trigger lazy-loaded content
@@ -217,7 +352,11 @@ async function playwrightLoad(
         await page.waitForTimeout(3_000);
       }
 
-      return await page.content();
+      await Promise.allSettled([...pendingResponses]);
+      return {
+        html: await page.content(),
+        networkPayloads,
+      };
     } finally {
       await browser.close();
     }
@@ -601,6 +740,222 @@ export function extractMarkdownFromHtml(html: string, pageUrl = ""): {
   return { title, markdown, metadata: { ...metadata, contentLength: markdown.length } };
 }
 
+const SIGNAL_KEY_ALLOWLIST = /title|name|description|content|body|text|summary|overview|details|curriculum|module|lesson|course|faq|question|answer|benefit|objective|requirement|label|heading/i;
+const SIGNAL_KEY_BLOCKLIST = /token|secret|key|cookie|session|authorization|password|jwt|captcha|analytics|tracking|gtm|pixel/i;
+
+function createMetadata(pageUrl: string, strategy: WebMetadata["scrapeStrategy"], extra: Partial<WebMetadata> = {}): WebMetadata {
+  return {
+    description: extra.description ?? "",
+    ogTitle: extra.ogTitle ?? "",
+    ogDescription: extra.ogDescription ?? "",
+    canonicalUrl: extra.canonicalUrl ?? pageUrl,
+    breadcrumbs: extra.breadcrumbs ?? [],
+    retrievedAt: extra.retrievedAt ?? new Date().toISOString(),
+    contentLength: extra.contentLength ?? 0,
+    scrapeStrategy: strategy,
+  };
+}
+
+function uniqueOrdered(values: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    if (seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
+}
+
+function looksLikeNoiseValue(text: string, keyHint = ""): boolean {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length < 40) return true;
+  if (SIGNAL_KEY_BLOCKLIST.test(keyHint)) return true;
+  if (/^https?:\/\//i.test(normalized) && normalized.length < 140) return true;
+  if (/^[A-Za-z0-9+/_=-]{32,}$/.test(normalized)) return true;
+  return false;
+}
+
+function collectSignalText(
+  value: unknown,
+  output: string[],
+  path: string[] = [],
+  depth = 0,
+): void {
+  if (depth > 8 || output.length > 400 || value == null) return;
+
+  if (typeof value === "string") {
+    const keyHint = path[path.length - 1] ?? "";
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!looksLikeNoiseValue(normalized, keyHint) && (SIGNAL_KEY_ALLOWLIST.test(keyHint) || normalized.length >= 80)) {
+      output.push(normalized);
+    }
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectSignalText(item, output, path, depth + 1);
+    return;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (SIGNAL_KEY_BLOCKLIST.test(key)) continue;
+      collectSignalText(child, output, [...path, key], depth + 1);
+    }
+  }
+}
+
+function extractBalancedJson(source: string, startIndex: number): string | null {
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  let depth = 0;
+  const opening = source[startIndex];
+  const closing = opening === "{" ? "}" : "]";
+
+  for (let index = startIndex; index < source.length; index++) {
+    const char = source[index]!;
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (quote) {
+      if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === opening) depth++;
+    if (char === closing) {
+      depth--;
+      if (depth === 0) return source.slice(startIndex, index + 1);
+    }
+  }
+
+  return null;
+}
+
+function parseEmbeddedJson(text: string, marker: string): unknown | null {
+  const markerIndex = text.indexOf(marker);
+  if (markerIndex === -1) return null;
+  const assignIndex = text.indexOf("=", markerIndex);
+  if (assignIndex === -1) return null;
+  const jsonStart = text.slice(assignIndex + 1).search(/[\[{]/);
+  if (jsonStart === -1) return null;
+  const absoluteStart = assignIndex + 1 + jsonStart;
+  const raw = extractBalancedJson(text, absoluteStart);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function buildStructuredCandidate(
+  value: unknown,
+  strategy: WebMetadata["scrapeStrategy"],
+  metadata: Partial<WebMetadata>,
+  titleHint = "",
+): Candidate | null {
+  const texts: string[] = [];
+  collectSignalText(value, texts);
+  const payload = uniqueOrdered(texts).join("\n\n").trim();
+  if (payload.length < 120) return null;
+
+  return {
+    strategy,
+    kind: "text",
+    payload,
+    title: titleHint || metadata.ogTitle || metadata.description || "Untitled Page",
+    metadata,
+  };
+}
+
+function collectSupplementalCandidates(
+  html: string,
+  pageUrl: string,
+  networkPayloads: string[] = [],
+): Candidate[] {
+  const $ = loadHtml(html);
+  const metadata = extractMeta($, pageUrl);
+  const title = extractTitle($);
+  const candidates: Candidate[] = [];
+
+  $("script").each((_, el) => {
+    const script = $(el);
+    const raw = script.html()?.trim() ?? "";
+    if (!raw || raw.length < 20) return;
+
+    if (script.attr("type") === "application/ld+json") {
+      try {
+        const parsed = JSON.parse(raw);
+        const candidate = buildStructuredCandidate(parsed, "json-ld-fallback", metadata, title);
+        if (candidate) candidates.push(candidate);
+      } catch {}
+      return;
+    }
+
+    if (script.attr("id") === "__NEXT_DATA__" || script.attr("type") === "application/json") {
+      try {
+        const parsed = JSON.parse(raw);
+        const candidate = buildStructuredCandidate(parsed, "hydration-fallback", metadata, title);
+        if (candidate) candidates.push(candidate);
+      } catch {}
+    }
+
+    for (const marker of ["__NEXT_DATA__", "__NUXT__", "__INITIAL_STATE__", "__APOLLO_STATE__", "__PINIA__"]) {
+      const parsed = parseEmbeddedJson(raw, marker);
+      if (!parsed) continue;
+      const candidate = buildStructuredCandidate(parsed, "hydration-fallback", metadata, title);
+      if (candidate) candidates.push(candidate);
+    }
+  });
+
+  for (const payload of networkPayloads) {
+    try {
+      const parsed = JSON.parse(payload);
+      const candidate = buildStructuredCandidate(parsed, "xhr-fallback", metadata, title);
+      if (candidate) candidates.push(candidate);
+    } catch {}
+  }
+
+  return candidates;
+}
+
+function materializeCandidate(candidate: Candidate, pageUrl: string): {
+  title: string;
+  markdown: string;
+  metadata: WebMetadata;
+} {
+  if (candidate.kind === "html") {
+    const { title, markdown, metadata } = extractMarkdownFromHtml(candidate.payload, pageUrl);
+    return {
+      title,
+      markdown,
+      metadata: { ...metadata, scrapeStrategy: candidate.strategy, contentLength: markdown.length },
+    };
+  }
+
+  const markdown = cleanMarkdown(candidate.payload);
+  return {
+    title: candidate.title ?? "Untitled Page",
+    markdown,
+    metadata: createMetadata(pageUrl, candidate.strategy, {
+      ...candidate.metadata,
+      contentLength: markdown.length,
+    }),
+  };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -610,7 +965,6 @@ export function extractMarkdownFromHtml(html: string, pageUrl = ""): {
  *   3. Playwright domcontentloaded + scroll  (lazy-load heavy SPAs)
  */
 export async function loadWebPage(url: string): Promise<WebDocument> {
-  type Candidate = { html: string; strategy: WebMetadata["scrapeStrategy"] };
   const candidates: Candidate[] = [];
 
   // ── Strategy 1: HTTP fetch ─────────────────────────────────────────────────
@@ -622,7 +976,11 @@ export async function loadWebPage(url: string): Promise<WebDocument> {
     console.log(`[web-loader] HTTP fetch: ${charCount} text chars | SPA shell: ${isSpa}`);
 
     if (charCount >= 300 && !isSpa) {
-      candidates.push({ html: rawHtml, strategy: "http-fetch" });
+      candidates.push({ kind: "html", payload: rawHtml, strategy: "http-fetch" });
+    }
+
+    for (const candidate of collectSupplementalCandidates(rawHtml, url)) {
+      candidates.push(candidate);
     }
   } else {
     console.warn("[web-loader] HTTP fetch returned null — upgrading to Playwright");
@@ -630,16 +988,24 @@ export async function loadWebPage(url: string): Promise<WebDocument> {
 
   // ── Strategy 2: Playwright (domcontentloaded + smart wait) ────────────────
   const bestSoFar = () =>
-    candidates.length > 0 ? measureTextLength(candidates[0].html) : 0;
+    candidates.reduce((best, candidate) => {
+      if (candidate.kind === "html") {
+        return Math.max(best, measureTextLength(candidate.payload));
+      }
+      return Math.max(best, candidate.payload.length);
+    }, 0);
 
   if (bestSoFar() < 300) {
     console.log("[web-loader] Trying Playwright (domcontentloaded + smart wait)…");
     const rendered = await playwrightLoad(url, false);
     if (rendered) {
-      const charCount = measureTextLength(rendered);
+      const charCount = measureTextLength(rendered.html);
       console.log(`[web-loader] Playwright load: ${charCount} text chars`);
       if (charCount > bestSoFar()) {
-        candidates.unshift({ html: rendered, strategy: "playwright-load" });
+        candidates.unshift({ kind: "html", payload: rendered.html, strategy: "playwright-load" });
+      }
+      for (const candidate of collectSupplementalCandidates(rendered.html, url, rendered.networkPayloads)) {
+        candidates.unshift(candidate);
       }
     }
   }
@@ -649,35 +1015,54 @@ export async function loadWebPage(url: string): Promise<WebDocument> {
     console.log("[web-loader] Trying Playwright (scroll + 3s settle)…");
     const scrolled = await playwrightLoad(url, true);
     if (scrolled) {
-      const charCount = measureTextLength(scrolled);
+      const charCount = measureTextLength(scrolled.html);
       console.log(`[web-loader] Playwright scroll: ${charCount} text chars`);
       if (charCount > bestSoFar()) {
-        candidates.unshift({ html: scrolled, strategy: "playwright-scroll" });
+        candidates.unshift({ kind: "html", payload: scrolled.html, strategy: "playwright-scroll" });
+      }
+      for (const candidate of collectSupplementalCandidates(scrolled.html, url, scrolled.networkPayloads)) {
+        candidates.unshift(candidate);
       }
     }
   }
 
   // ── Use best candidate ─────────────────────────────────────────────────────
   if (candidates.length === 0) {
-    throw new Error(
-      `All fetch strategies failed for ${url}. ` +
-      `The site may block bots or require authentication.`
+    throw new WebLoadError(
+      `All fetch strategies failed for ${url}. The site may block bots, render too late, or require authentication.`,
+      rawHtml ? "structured-empty" : "http-fetch-failed",
+      true,
     );
   }
 
-  const best = candidates[0];
-  const { title, markdown, metadata } = extractMarkdownFromHtml(best.html, url);
+  const materialized = candidates
+    .map((candidate) => ({ candidate, evaluated: materializeCandidate(candidate, url) }))
+    .sort((left, right) => right.evaluated.markdown.length - left.evaluated.markdown.length);
+
+  const best = materialized[0];
+  if (!best || best.evaluated.markdown.trim().length < 120) {
+    const sample = materialized[0]?.evaluated.markdown ?? rawHtml ?? "";
+    throw new WebLoadError(
+      isLikelySoftBlock(sample)
+        ? `Soft-blocked while extracting ${url}.`
+        : `Extracted content was too sparse for ${url}.`,
+      isLikelySoftBlock(sample) ? "soft-block" : "empty-content",
+      true,
+    );
+  }
+
+  const { title, markdown, metadata } = best.evaluated;
 
   console.log(
-    `[web-loader] ✅ Strategy: ${best.strategy} | ` +
-    `raw HTML chars: ${best.html.length.toLocaleString()} | ` +
-    `markdown chars: ${markdown.length.toLocaleString()}`
+    `[web-loader] ✅ Strategy: ${best.candidate.strategy} | ` +
+      `raw payload chars: ${best.candidate.payload.length.toLocaleString()} | ` +
+      `markdown chars: ${markdown.length.toLocaleString()}`
   );
 
   return {
     url,
     title,
     text:     markdown,
-    metadata: { ...metadata, scrapeStrategy: best.strategy },
+    metadata: { ...metadata, scrapeStrategy: best.candidate.strategy },
   };
 }

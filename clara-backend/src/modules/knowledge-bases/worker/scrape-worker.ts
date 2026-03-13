@@ -10,7 +10,7 @@
  *   c) No existing doc                         → create new doc + ingest job
  */
 
-import { loadWebPage } from "@/modules/admin/core/ingest/web-loader";
+import { loadWebPage, WebLoadError } from "@/modules/admin/core/ingest/web-loader";
 import {
   createDocument,
   createIngestJob,
@@ -38,6 +38,48 @@ export type ScrapeWorkerResult = {
   skipped:    number;   // URLs reusing an existing 'ready' document
   refreshed:  number;   // URLs whose failed/pending doc was re-ingested
 };
+
+const MAX_URL_ATTEMPTS = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(attempt: number): number {
+  const base = 1_500 * Math.pow(2, Math.max(0, attempt - 1));
+  const jitter = Math.floor(Math.random() * 750);
+  return base + jitter;
+}
+
+async function loadPageWithRetries(
+  url: string,
+  shouldStop: () => Promise<boolean>,
+): Promise<{ page: Awaited<ReturnType<typeof loadWebPage>>; attempts: number }> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_URL_ATTEMPTS; attempt++) {
+    if (await shouldStop()) {
+      throw new WebLoadError("Scrape cancelled", "hard-block", false);
+    }
+
+    try {
+      const page = await loadWebPage(url);
+      return { page, attempts: attempt };
+    } catch (error) {
+      lastError = error as Error;
+      const retryable = error instanceof WebLoadError ? error.retryable : true;
+      const code = error instanceof WebLoadError ? error.code : "unknown";
+
+      if (!retryable || attempt >= MAX_URL_ATTEMPTS) break;
+
+      const delayMs = getRetryDelayMs(attempt);
+      console.warn(`[scrape-worker] ↻ retry ${attempt}/${MAX_URL_ATTEMPTS - 1} for ${url} after ${code} (${delayMs}ms)`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError ?? new WebLoadError(`Failed to load ${url}`, "empty-content", true);
+}
 
 export async function runScrapeSession(
   sessionId: string,
@@ -96,7 +138,7 @@ export async function runScrapeSession(
             return;
           }
 
-          const page = await loadWebPage(scrapeUrl.url);
+          const { page, attempts } = await loadPageWithRetries(scrapeUrl.url, ensureNotCancelled);
           if (await ensureNotCancelled()) return;
 
           if (!page.text?.trim()) {
@@ -129,10 +171,15 @@ export async function runScrapeSession(
           ingestJobIds.push(ingestJob.id);
           if (await ensureNotCancelled()) return;
           await markUrlCompleted(scrapeUrl.id, doc.id);
-          console.log(`[scrape-worker] ✅ ${scrapeUrl.url}`);
+          console.log(`[scrape-worker] ✅ ${scrapeUrl.url} (attempts=${attempts})`);
 
         } catch (err) {
-          const message = (err as Error).message;
+          const error = err as Error;
+          if (error instanceof WebLoadError && error.message === "Scrape cancelled") {
+            return;
+          }
+          const code = err instanceof WebLoadError ? err.code : "unexpected";
+          const message = `[${code}] ${error.message}`;
           console.error(`[scrape-worker] ❌ ${scrapeUrl.url}:`, message);
           await markUrlFailed(scrapeUrl.id, message);
           failed++;

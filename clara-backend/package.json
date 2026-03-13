@@ -11,7 +11,8 @@
     "seed": "tsx scripts/seed-demo.ts",
     "seed:reset": "tsx scripts/seed-demo.ts --reset",
     "ingest": "tsx scripts/ingest.ts",
-    "ingest-web": "tsx scripts/ingest-web.ts"
+    "ingest-web": "tsx scripts/ingest-web.ts",
+    "scrape:benchmark": "tsx scripts/scrape-benchmark.ts"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
