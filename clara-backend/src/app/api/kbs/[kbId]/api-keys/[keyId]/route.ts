@@ -22,12 +22,14 @@ export async function PATCH(req: NextRequest, { params }: Props): Promise<NextRe
       name?: string;
       allowedOrigins?: string[];
       rateLimitPerHour?: number;
+      designEditEnabled?: boolean;
     };
 
     const updated = await updateApiKey(keyId, {
       name: body.name,
       allowedOrigins: body.allowedOrigins,
       rateLimitPerHour: body.rateLimitPerHour,
+      designEditEnabled: typeof body.designEditEnabled === "boolean" ? body.designEditEnabled : undefined,
     });
 
     return NextResponse.json({ key: updated });

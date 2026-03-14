@@ -253,6 +253,39 @@ export function handlePreflight(req: NextRequest, allowedOrigins: string[] = [])
   });
 }
 
+// ── Design-API validator ──────────────────────────────────────────────────────
+//
+// Same full pipeline as validateEmbedRequest PLUS an additional gate:
+// the key must have design_edit_enabled = TRUE.
+// This is called exclusively by PATCH /api/embed/design.
+
+export async function validateEmbedDesignRequest(req: NextRequest): Promise<ValidationResult> {
+  // Reuse the full standard pipeline first
+  const base = await validateEmbedRequest(req);
+  if (!base.ok) return base;
+
+  const { ctx } = base;
+  const origin = req.headers.get("origin");
+  const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
+
+  // Gate: design editing must be explicitly enabled on this key by the admin
+  if (!ctx.designEditEnabled) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          error:  "This API key does not have design-edit permission.",
+          hint:   "Go to the Deploy tab in your knowledge base, click Edit on this key, and enable 'Allow widget design editing'.",
+          code:   "DESIGN_EDIT_DISABLED",
+        },
+        { status: 403, headers: corsHeaders }
+      ),
+    };
+  }
+
+  return base;
+}
+
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
 function hoursUntilMidnightUTC(): number {

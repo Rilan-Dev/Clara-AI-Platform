@@ -60,7 +60,7 @@ export type AssistantConfig = {
   primaryColour: string;
   accentColour: string;
 
-  // Widget design
+  // Widget layout & design
   widgetTheme: "light" | "dark";
   widgetPosition: "bottom-right" | "bottom-left";
   widgetButtonSize: number;
@@ -69,6 +69,12 @@ export type AssistantConfig = {
   widgetChatHeight: number;
   widgetShowBranding: boolean;
   widgetLauncherLabel: string | null;
+  // Full design control
+  widgetMode: "floating" | "inline" | "headless";
+  customCss: string | null;
+  customLauncherSvg: string | null;
+  customHeaderHtml: string | null;
+  customPoweredBy: string | null;
 
   createdAt: string;
   updatedAt: string;

@@ -91,6 +91,11 @@ function toConfig(row: Record<string, unknown>): AssistantConfig {
     widgetChatHeight:   Number(row.widget_chat_height ?? 580),
     widgetShowBranding: row.widget_show_branding !== false,
     widgetLauncherLabel: row.widget_launcher_label != null ? String(row.widget_launcher_label) : null,
+    widgetMode:          (row.widget_mode as "floating" | "inline" | "headless") ?? "floating",
+    customCss:           row.custom_css != null ? String(row.custom_css) : null,
+    customLauncherSvg:   row.custom_launcher_svg != null ? String(row.custom_launcher_svg) : null,
+    customHeaderHtml:    row.custom_header_html != null ? String(row.custom_header_html) : null,
+    customPoweredBy:     row.custom_powered_by != null ? String(row.custom_powered_by) : null,
     createdAt:        String(row.created_at),
     updatedAt:        String(row.updated_at),
   };
@@ -295,6 +300,11 @@ export async function patchAssistantConfig(
     widgetChatHeight:   "widget_chat_height",
     widgetShowBranding: "widget_show_branding",
     widgetLauncherLabel:"widget_launcher_label",
+    widgetMode:          "widget_mode",
+    customCss:           "custom_css",
+    customLauncherSvg:   "custom_launcher_svg",
+    customHeaderHtml:    "custom_header_html",
+    customPoweredBy:     "custom_powered_by",
   };
 
   const sets: string[] = [];

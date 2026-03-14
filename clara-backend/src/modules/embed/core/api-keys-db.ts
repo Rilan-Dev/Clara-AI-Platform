@@ -141,12 +141,13 @@ export async function validateApiKey(rawKey: string): Promise<ValidatedKey | nul
 
   const result = await pool.query<Record<string, unknown>>(
     `SELECT
-       ak.id           AS key_id,
+       ak.id                  AS key_id,
        ak.kb_id,
        ak.org_id,
        ak.allowed_origins,
        ak.rate_limit_per_hour,
-       kb.status       AS kb_status
+       ak.design_edit_enabled,
+       kb.status              AS kb_status
      FROM api_keys ak
      JOIN knowledge_bases kb ON kb.id = ak.kb_id
      WHERE ak.key_hash = $1
@@ -163,11 +164,12 @@ export async function validateApiKey(rawKey: string): Promise<ValidatedKey | nul
     .catch(() => {});
 
   return {
-    keyId:            row.key_id as string,
-    kbId:             row.kb_id as string,
-    orgId:            row.org_id as string,
-    allowedOrigins:   (row.allowed_origins as string[]) ?? [],
-    rateLimitPerHour: row.rate_limit_per_hour as number,
+    keyId:             row.key_id as string,
+    kbId:              row.kb_id as string,
+    orgId:             row.org_id as string,
+    allowedOrigins:    (row.allowed_origins as string[]) ?? [],
+    rateLimitPerHour:  row.rate_limit_per_hour as number,
+    designEditEnabled: Boolean(row.design_edit_enabled),
   };
 }
 
@@ -287,15 +289,16 @@ export async function revokeApiKey(keyId: string): Promise<void> {
 
 export async function updateApiKey(
   keyId: string,
-  updates: { name?: string; allowedOrigins?: string[]; rateLimitPerHour?: number }
+  updates: { name?: string; allowedOrigins?: string[]; rateLimitPerHour?: number; designEditEnabled?: boolean }
 ): Promise<ApiKey | null> {
-  const sets: string[]   = [];
+  const sets: string[]    = [];
   const values: unknown[] = [];
   let i = 1;
 
-  if (updates.name !== undefined)             { sets.push(`name = $${i++}`);              values.push(updates.name); }
-  if (updates.allowedOrigins !== undefined)   { sets.push(`allowed_origins = $${i++}`);   values.push(updates.allowedOrigins); }
-  if (updates.rateLimitPerHour !== undefined) { sets.push(`rate_limit_per_hour = $${i++}`); values.push(updates.rateLimitPerHour); }
+  if (updates.name              !== undefined) { sets.push(`name = $${i++}`);                values.push(updates.name); }
+  if (updates.allowedOrigins    !== undefined) { sets.push(`allowed_origins = $${i++}`);     values.push(updates.allowedOrigins); }
+  if (updates.rateLimitPerHour  !== undefined) { sets.push(`rate_limit_per_hour = $${i++}`); values.push(updates.rateLimitPerHour); }
+  if (updates.designEditEnabled !== undefined) { sets.push(`design_edit_enabled = $${i++}`); values.push(updates.designEditEnabled); }
   if (sets.length === 0) return getApiKeyById(keyId);
 
   values.push(keyId);

@@ -66,6 +66,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         widgetChatHeight:    config.widgetChatHeight,
         widgetShowBranding:  config.widgetShowBranding,
         widgetLauncherLabel: config.widgetLauncherLabel,
+        // Full design control fields
+        widgetMode:          config.widgetMode,
+        customCss:           config.customCss,
+        customLauncherSvg:   config.customLauncherSvg,
+        customHeaderHtml:    config.customHeaderHtml,
+        customPoweredBy:     config.customPoweredBy,
       },
       { headers: corsHeaders }
     );

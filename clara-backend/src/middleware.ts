@@ -63,7 +63,8 @@ const CORS_HEADERS = {
 // Embed routes are API-key authenticated — they must accept requests from any
 // origin (the site owner embeds the widget on their own domain).
 const EMBED_CORS_HEADERS = {
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  // PATCH needed for /api/embed/design — must be listed or browser blocks the preflight
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Max-Age": "86400",
 } as const;

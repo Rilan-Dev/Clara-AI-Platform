@@ -22,6 +22,7 @@ type ApiKey = {
   allowedOrigins: string[];
   isActive: boolean;
   rateLimitPerHour: number;
+  designEditEnabled: boolean;    // ← may call PATCH /api/embed/design
   lastUsedAt: string | null;
   createdAt: string;
   usage?: { thisHour: number; totalLast24h: number; totalLast7d: number };
@@ -188,20 +189,118 @@ function CreateKeyModal({ onClose, onCreated, quota }: { onClose: () => void; on
   );
 }
 
-// ── SnippetPanel (Phase 2) ────────────────────────────────────────────────────
-// Tabbed panel: Script tag | iFrame | React | WordPress | REST API
+// ── EditKeyModal ─────────────────────────────────────────────────────────────
 
-type SnippetTab = "script" | "iframe" | "react" | "wordpress" | "curl";
+function EditKeyModal({ kbId, apiKey, onClose, onUpdated }: {
+  kbId: string; apiKey: ApiKey; onClose: () => void; onUpdated: (k: ApiKey) => void;
+}) {
+  const [name, setName]             = useState(apiKey.name);
+  const [origins, setOrigins]       = useState(apiKey.allowedOrigins.join("\n"));
+  const [rateLimit, setRate]        = useState(apiKey.rateLimitPerHour);
+  const [designEdit, setDesignEdit] = useState(apiKey.designEditEnabled);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [saved, setSaved]           = useState(false);
 
-function SnippetPanel({ baseUrl, keyPrefix }: { baseUrl: string; keyPrefix: string }) {
+  const handleSave = async () => {
+    setSaving(true); setError(null); setSaved(false);
+    try {
+      const res = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys/${apiKey.id}`), {
+        method: "PATCH",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: name.trim() || apiKey.name,
+          allowedOrigins: origins.split("\n").map(o => o.trim()).filter(Boolean),
+          rateLimitPerHour: rateLimit,
+          designEditEnabled: designEdit,
+        }),
+      });
+      const data = (await res.json()) as { key?: ApiKey; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to update key");
+      onUpdated(data.key!);
+      setSaved(true);
+      setTimeout(onClose, 700);
+    } catch (e) { setError((e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl shadow-lg max-w-md w-full p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-base">Edit API key</h3>
+          <code className="text-xs font-mono bg-muted/60 px-2 py-1 rounded text-muted-foreground">{apiKey.keyPrefix}…</code>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Key name</label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Allowed origins <span className="font-normal text-muted-foreground">(one per line, empty = any)</span></label>
+            <textarea value={origins} onChange={e => setOrigins(e.target.value)} rows={4}
+              placeholder={"https://yoursite.com\nhttp://localhost:8080\n*.yoursite.com"}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+            <p className="text-xs text-muted-foreground mt-1">Include <code className="bg-muted px-1 rounded">http://localhost:PORT</code> for local development.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
+            <input type="number" min={0} value={rateLimit} onChange={e => setRate(Number(e.target.value))}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          </div>
+          {/* ── Design API permission ── */}
+          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Allow widget design editing</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Lets this key call <code className="bg-muted px-1 rounded">PATCH /api/embed/design</code> to update widget appearance remotely from any framework.</p>
+              </div>
+              <button onClick={() => setDesignEdit(v => !v)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                  designEdit ? "bg-indigo-600" : "bg-muted-foreground/30"
+                }`}>
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                  designEdit ? "translate-x-4" : "translate-x-1"
+                }`} />
+              </button>
+            </div>
+            {designEdit && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                ⚠️ Only enable on trusted production keys. This allows your site to change the widget's visual appearance via API.
+              </p>
+            )}
+          </div>
+        </div>
+        {error && <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{error}</p>}
+        {saved  && <p className="text-sm text-success bg-success/5 border border-success/20 rounded-lg px-3 py-2">✔ Saved!</p>}
+        <div className="flex gap-3 justify-end">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SnippetPanel (Phase 3) ────────────────────────────────────────────────────
+// Tabs: Script tag | iFrame | React / Next.js | Vue | WordPress | REST API | Design API
+
+type SnippetTab = "script" | "iframe" | "react" | "vue" | "wordpress" | "curl" | "design";
+
+function SnippetPanel({ baseUrl, keyPrefix, designEditEnabled }: {
+  baseUrl: string; keyPrefix: string; designEditEnabled: boolean;
+}) {
   const [tab, setTab] = useState<SnippetTab>("script");
 
-  const tabs: { id: SnippetTab; label: string }[] = [
+  const tabs: { id: SnippetTab; label: string; locked?: boolean }[] = [
     { id: "script",    label: "Script tag" },
     { id: "iframe",    label: "iFrame" },
     { id: "react",     label: "React / Next.js" },
+    { id: "vue",       label: "Vue / Nuxt" },
     { id: "wordpress", label: "WordPress" },
     { id: "curl",      label: "REST API" },
+    { id: "design",    label: "Design API", locked: !designEditEnabled },
   ];
 
   const snippets: Record<SnippetTab, { description: string; code: string; lang: string }> = {
@@ -274,6 +373,39 @@ function clara_widget_script() {
 }
 add_action( 'wp_footer', 'clara_widget_script' );`,
     },
+    vue: {
+      description: "Vue 3 / Nuxt — composable that loads the widget once and cleans up on unmount.",
+      lang: "ts",
+      code:
+`// composables/useClaraWidget.ts
+import { onMounted, onUnmounted } from 'vue';
+
+export function useClaraWidget() {
+  let scriptEl: HTMLScriptElement | null = null;
+
+  onMounted(() => {
+    if (document.querySelector('script[data-clara]')) return;
+    scriptEl = document.createElement('script');
+    scriptEl.src   = '${baseUrl}/embed/clara.js';
+    scriptEl.async = true;
+    scriptEl.dataset.key      = 'YOUR_FULL_API_KEY';
+    scriptEl.dataset.position = 'bottom-right';
+    scriptEl.dataset.theme    = 'light';
+    scriptEl.dataset.clara    = '1';
+    document.body.appendChild(scriptEl);
+  });
+
+  onUnmounted(() => {
+    scriptEl?.remove();
+  });
+}
+
+// Usage: call useClaraWidget() in any component or layout
+// <script setup>
+// import { useClaraWidget } from '~/composables/useClaraWidget';
+// useClaraWidget();
+// </script>`,
+    },
     curl: {
       description: "REST API — integrate directly from your own backend or custom UI.",
       lang: "bash",
@@ -294,6 +426,55 @@ curl -X POST ${baseUrl}/api/embed/session \\
   -H "Content-Type: application/json" \\
   -d '{}'`,
     },
+    design: {
+      description: "Design API — update widget appearance from your own codebase. Requires design-edit permission on this key.",
+      lang: "ts",
+      code: designEditEnabled
+        ? `// ===== Design API — update widget appearance remotely =====
+// Works from ANY framework: React, Vue, Next.js, Nuxt, Svelte, vanilla JS.
+// Only visual fields are accepted — AI behaviour is never changeable via this API.
+
+const CLARA_API   = '${baseUrl}/api/embed/design';
+const CLARA_KEY   = 'YOUR_FULL_API_KEY';   // store in env, never commit
+
+// ── Read current design ──
+const getDesign = async () => {
+  const res = await fetch(CLARA_API, {
+    headers: { Authorization: `Bearer \${CLARA_KEY}\` },
+  });
+  return res.json();
+};
+
+// ── Update design (partial patch) ──
+const updateDesign = async (patch: Record<string, unknown>) => {
+  const res = await fetch(CLARA_API, {
+    method:  'PATCH',
+    headers: { Authorization: `Bearer \${CLARA_KEY}\`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(patch),
+  });
+  return res.json();
+};
+
+// ── Example: switch to dark mode + change brand colour ──
+await updateDesign({
+  widgetTheme:      'dark',
+  primaryColour:    '#7c3aed',
+  accentColour:     '#a78bfa',
+  widgetBorderRadius: 24,
+  widgetChatHeight: 620,
+  widgetShowBranding: false,
+  widgetLauncherLabel: 'Ask us anything',
+});
+
+// ── Allowed fields ──
+// primaryColour | accentColour
+// widgetTheme (light|dark) | widgetPosition (bottom-right|bottom-left)
+// widgetButtonSize (40–80) | widgetBorderRadius (0–40)
+// widgetChatHeight (300–900) | widgetFontFamily
+// widgetShowBranding | widgetLauncherLabel
+// assistantName | welcomeMessage | avatarUrl (https only)`
+        : `// Design API is not enabled for this key.\n//\n// Go to the Deploy tab → Edit this key → enable\n// "Allow widget design editing" to unlock this tab.`,
+    },
   };
 
   const active = snippets[tab]!;
@@ -311,9 +492,16 @@ curl -X POST ${baseUrl}/api/embed/session \\
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${tab === t.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+            title={t.locked ? "Enable \'Allow widget design editing\' on this key to unlock" : undefined}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+              tab === t.id
+                ? "bg-primary text-primary-foreground"
+                : t.locked
+                ? "bg-muted/50 text-muted-foreground/40 cursor-not-allowed"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
           >
-            {t.label}
+            {t.label}{t.locked ? " 🔒" : ""}
           </button>
         ))}
       </div>
@@ -336,6 +524,17 @@ curl -X POST ${baseUrl}/api/embed/session \\
           Use <code>data-position=&quot;bottom-left&quot;</code> or <code>data-theme=&quot;dark&quot;</code> to customise.
         </p>
       )}
+      {tab === "design" && designEditEnabled && (
+        <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-2.5 space-y-1">
+          <p className="text-xs font-medium text-indigo-400">✨ Design API is enabled for this key</p>
+          <p className="text-xs text-muted-foreground">Changes via <code className="bg-muted px-1 rounded">PATCH /api/embed/design</code> take effect immediately — live for all visitors within seconds. Only widget appearance fields are accepted. AI behaviour (prompts, model, rules) can only be changed from the admin panel.</p>
+        </div>
+      )}
+      {tab === "design" && !designEditEnabled && (
+        <p className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
+          🔒 Design API is locked. Edit this key and enable &quot;Allow widget design editing&quot; to unlock these snippets.
+        </p>
+      )}
     </div>
   );
 }
@@ -350,6 +549,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
   const [newKeyResult, setNewKeyResult]     = useState<NewKeyResult | null>(null);
   const [showSnippetFor, setShowSnippetFor] = useState<string | null>(null);
   const [revoking, setRevoking]             = useState<string | null>(null);
+  const [editingKey, setEditingKey]         = useState<ApiKey | null>(null);
 
   const baseUrl = typeof window !== "undefined" ? `${window.location.protocol}//${window.location.host}` : "";
 
@@ -370,6 +570,11 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
     setNewKeyResult(result);
     setKeys(prev => [...prev, result.key]);
     setQuota(prev => prev ? { ...prev, current: prev.current + 1 } : prev);
+  }, []);
+
+  const handleUpdated = useCallback((updated: ApiKey) => {
+    setKeys(prev => prev.map(k => k.id === updated.id ? updated : k));
+    setEditingKey(null);
   }, []);
 
   const handleRevoke = useCallback(async (keyId: string) => {
@@ -436,9 +641,16 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
                       ? <Badge variant="outline" className="text-success border-success/30 bg-success/5 text-xs">Active</Badge>
                       : <Badge variant="outline" className="text-muted-foreground text-xs">Revoked</Badge>}
                   </div>
-                  <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <code className="text-xs font-mono bg-muted/60 px-2 py-0.5 rounded text-muted-foreground">
                       {key.keyPrefix}••••••••••••••••••••••••••••••••••••
+                    </code>
+                    {key.designEditEnabled && (
+                      <Badge variant="outline" className="text-xs border-indigo-500/30 bg-indigo-500/5 text-indigo-400">
+                        Design API ✨
+                      </Badge>
+                    )}
+                  </div>•••••••••••••••••••••
                     </code>
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
@@ -451,7 +663,10 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
                   </div>
                 </div>
                 {key.isActive && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={() => setEditingKey(key)} className="text-xs">
+                      Edit
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowSnippetFor(showSnippetFor === key.id ? null : key.id)} className="text-xs">
                       {showSnippetFor === key.id ? "Hide snippet" : "Get snippet"}
                     </Button>
@@ -466,7 +681,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
               {/* Snippet panel — Phase 2: tabbed, with real key prefix */}
               {showSnippetFor === key.id && (
                 <div className="mt-4 pt-4 border-t border-border">
-                  <SnippetPanel baseUrl={baseUrl} keyPrefix={key.keyPrefix} />
+                  <SnippetPanel baseUrl={baseUrl} keyPrefix={key.keyPrefix} designEditEnabled={key.designEditEnabled} />
                 </div>
               )}
             </div>
@@ -476,6 +691,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
 
       {/* Modals */}
       {showCreate && quota && <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} quota={quota} />}
+      {editingKey && <EditKeyModal kbId={kbId} apiKey={editingKey} onClose={() => setEditingKey(null)} onUpdated={handleUpdated} />}
       {newKeyResult && <RawKeyModal rawKey={newKeyResult.rawKey} onClose={() => setNewKeyResult(null)} />}
     </div>
   );

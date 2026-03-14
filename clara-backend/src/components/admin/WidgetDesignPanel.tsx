@@ -34,6 +34,12 @@ type WidgetDesign = {
   assistantName:  string;
   welcomeMessage: string;
   avatarUrl:      string;
+  // Full design control
+  widgetMode:         "floating" | "inline" | "headless";
+  customCss:          string;
+  customLauncherSvg:  string;
+  customHeaderHtml:   string;
+  customPoweredBy:    string;
 };
 
 const DEFAULTS: WidgetDesign = {
@@ -50,6 +56,11 @@ const DEFAULTS: WidgetDesign = {
   assistantName:       "Clara",
   welcomeMessage:      "Hi! How can I help you today?",
   avatarUrl:           "",
+  widgetMode:          "floating",
+  customCss:           "",
+  customLauncherSvg:   "",
+  customHeaderHtml:    "",
+  customPoweredBy:     "",
 };
 
 const FONT_OPTIONS = [
@@ -255,6 +266,11 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           assistantName:       data.assistantName       ?? DEFAULTS.assistantName,
           welcomeMessage:      data.welcomeMessage      ?? DEFAULTS.welcomeMessage,
           avatarUrl:           data.avatarUrl           ?? "",
+          widgetMode:          data.widgetMode          ?? "floating",
+          customCss:           data.customCss           ?? "",
+          customLauncherSvg:   data.customLauncherSvg   ?? "",
+          customHeaderHtml:    data.customHeaderHtml    ?? "",
+          customPoweredBy:     data.customPoweredBy     ?? "",
         });
       })
       .catch(() => {})
@@ -286,6 +302,11 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           assistantName:       design.assistantName,
           welcomeMessage:      design.welcomeMessage,
           avatarUrl:           design.avatarUrl || null,
+          widgetMode:          design.widgetMode,
+          customCss:           design.customCss || null,
+          customLauncherSvg:   design.customLauncherSvg || null,
+          customHeaderHtml:    design.customHeaderHtml || null,
+          customPoweredBy:     design.customPoweredBy || null,
         }),
       });
       const data = await res.json();
@@ -426,6 +447,52 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
               placeholder="https://yoursite.com/avatar.png"
               className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-white/80
                 focus:border-indigo-500/50 focus:outline-none font-mono text-xs" />
+          </Field>
+
+          <Divider label="Widget Mode" />
+          <Field label="Render mode" hint="floating = FAB button (default) · inline = full-page iframe · headless = zero DOM, use ClaraSDK">
+            <div className="flex gap-2">
+              {(["floating", "inline", "headless"] as const).map((m) => (
+                <button key={m} onClick={() => set("widgetMode", m)}
+                  className={`flex-1 rounded-lg border py-2 text-xs capitalize transition-all ${
+                    design.widgetMode === m
+                      ? "border-indigo-500/50 bg-indigo-600/20 text-indigo-300"
+                      : "border-white/[0.1] bg-white/[0.03] text-white/50 hover:text-white"
+                  }`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+            {design.widgetMode === "headless" && (
+              <p className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-1">
+                Headless mode renders no UI. Use <code className="bg-muted px-1 rounded">window.ClaraSDK</code> in your own code to send messages, stream tokens, and start voice sessions.
+              </p>
+            )}
+          </Field>
+
+          <Divider label="Custom Code" />
+          <Field label="Custom CSS" hint="Injected into widget Shadow DOM after default styles — overrides anything. Max 32 KB.">
+            <textarea value={design.customCss} onChange={(e) => set("customCss", e.target.value)} rows={5}
+              placeholder={`/* Override any widget style */\n#panel { border: 2px solid #ff6b6b; }\n.mu    { border-radius: 4px !important; }\n#tbtn  { box-shadow: 0 0 30px rgba(124,58,237,0.8) !important; }`}
+              className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-xs font-mono text-white/80 focus:border-indigo-500/50 focus:outline-none resize-none" />
+          </Field>
+          <Field label="Custom launcher SVG" hint="Replaces the default chat-bubble FAB icon. Must be a valid <svg>…</svg> string. Max 4 KB.">
+            <textarea value={design.customLauncherSvg} onChange={(e) => set("customLauncherSvg", e.target.value)} rows={3}
+              placeholder='<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">\n  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>\n</svg>'
+              className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-xs font-mono text-white/80 focus:border-indigo-500/50 focus:outline-none resize-none" />
+            {design.customLauncherSvg && !/^<svg[\s>]/i.test(design.customLauncherSvg.trim()) && (
+              <p className="text-[11px] text-rose-400 mt-1">⚠ Must start with &lt;svg …&gt;</p>
+            )}
+          </Field>
+          <Field label="Custom header HTML" hint="Appended inside the widget header bar — e.g. a status badge, logo, or online indicator. Max 500 chars.">
+            <input value={design.customHeaderHtml} onChange={(e) => set("customHeaderHtml", e.target.value)}
+              placeholder='<span style="background:#22c55e;color:#fff;border-radius:99px;padding:2px 8px;font-size:10px">LIVE</span>'
+              className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-xs font-mono text-white/80 focus:border-indigo-500/50 focus:outline-none" />
+          </Field>
+          <Field label="Custom 'Powered by' text" hint="Override the branding footer text. Leave empty for default.">
+            <input value={design.customPoweredBy} onChange={(e) => set("customPoweredBy", e.target.value)}
+              placeholder="Powered by AmazeTechCLANS AI"
+              className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-white/80 focus:border-indigo-500/50 focus:outline-none" />
           </Field>
 
           <Divider label="Extras" />

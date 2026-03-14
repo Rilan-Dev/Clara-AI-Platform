@@ -23,6 +23,14 @@ type AssistantConfig = {
   primaryColour: string;
   accentColour: string;
   defaultLanguage: string;
+  // Full design fields
+  widgetTheme?: string;
+  widgetBorderRadius?: number;
+  widgetFontFamily?: string;
+  widgetShowBranding?: boolean;
+  customCss?: string | null;
+  customPoweredBy?: string | null;
+  customHeaderHtml?: string | null;
 };
 
 type Message = {
@@ -152,8 +160,17 @@ function WidgetContent() {
     }
   }, [input, loading, config, messages, apiKey]);
 
-  const primary = config?.primaryColour ?? "#6366f1";
-  const accent  = config?.accentColour  ?? "#a5b4fc";
+  const primary     = config?.primaryColour  ?? "#6366f1";
+  const accent      = config?.accentColour   ?? "#a5b4fc";
+  const dark        = config?.widgetTheme === "dark";
+  const bgPage      = dark ? "#0f0f1a" : "#fff";
+  const bgSurface   = dark ? "#27273b" : "#f3f4f6";
+  const txtColor    = dark ? "#e2e2f0" : "#1f2937";
+  const borderColor = dark ? "rgba(255,255,255,0.09)" : "#f3f4f6";
+  const fontFamily  = config?.widgetFontFamily || "system-ui,-apple-system,sans-serif";
+  const radius      = (config?.widgetBorderRadius ?? 18) + "px";
+  // Inject custom CSS into the page when in inline mode
+  const customCss   = config?.customCss ?? null;
 
   if (configLoading) {
     return (
@@ -177,7 +194,9 @@ function WidgetContent() {
   const avatarLetter = config?.assistantName?.charAt(0)?.toUpperCase() ?? "A";
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100dvh", minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", background:"#fff" }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100dvh", minHeight:"100vh", fontFamily, background:bgPage, color:txtColor }}>
+      {/* Inject custom CSS for inline mode */}
+      {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
 
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 16px", background:primary, color:"#fff" }}>
@@ -192,6 +211,10 @@ function WidgetContent() {
           <div style={{ fontWeight:"600", fontSize:"14px" }}>{config?.assistantName}</div>
           <div style={{ fontSize:"11px", opacity:0.75 }}>{config?.kbName}</div>
         </div>
+        {/* Custom header HTML slot */}
+        {config?.customHeaderHtml && (
+          <div dangerouslySetInnerHTML={{ __html: config.customHeaderHtml }} style={{ display:"flex", alignItems:"center" }} />
+        )}
         <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
           <span style={{ width:"8px", height:"8px", borderRadius:"50%", background:"#4ade80" }} />
           <span style={{ fontSize:"11px", opacity:0.75 }}>Online</span>
@@ -204,12 +227,13 @@ function WidgetContent() {
           <div key={msg.id} style={{ display:"flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
             <div style={{
               maxWidth:"85%",
-              borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+              borderRadius: msg.role === "user" ? radius + " " + radius + " 4px " + radius : radius + " " + radius + " " + radius + " 4px",
               padding:"10px 14px",
               fontSize:"13px",
               lineHeight:"1.5",
-              background: msg.role === "user" ? primary : "#f3f4f6",
-              color: msg.role === "user" ? "#fff" : "#1f2937",
+              background: msg.role === "user" ? primary : bgSurface,
+              color: msg.role === "user" ? "#fff" : txtColor,
+              border: msg.role === "user" ? "none" : ("1px solid " + borderColor),
             }}>
               {msg.content || (
                 <span style={{ display:"flex", gap:"4px", alignItems:"center" }}>
@@ -234,7 +258,7 @@ function WidgetContent() {
       </div>
 
       {/* Input */}
-      <div style={{ borderTop:"1px solid #f3f4f6", padding:"12px", paddingBottom:"calc(12px + env(safe-area-inset-bottom))" }}>
+      <div style={{ borderTop:"1px solid "+borderColor, padding:"12px", paddingBottom:"calc(12px + env(safe-area-inset-bottom))", background:bgPage }}>
         <div style={{ display:"flex", alignItems:"flex-end", gap:"8px" }}>
           <textarea
             value={input}
@@ -244,10 +268,10 @@ function WidgetContent() {
             rows={1}
             disabled={loading}
             style={{
-              flex:1, resize:"none", borderRadius:"12px", border:"1px solid #e5e7eb",
+              flex:1, resize:"none", borderRadius:"12px", border:"1px solid "+borderColor,
               padding:"8px 12px", fontSize:"13px", fontFamily:"inherit",
               outline:"none", lineHeight:"1.5", maxHeight:"100px", overflowY:"auto",
-              opacity: loading ? 0.5 : 1,
+              opacity: loading ? 0.5 : 1, background:bgSurface, color:txtColor,
             }}
           />
           <button
@@ -265,9 +289,13 @@ function WidgetContent() {
             </svg>
           </button>
         </div>
-        <div style={{ textAlign:"center", marginTop:"8px" }}>
-          <span style={{ fontSize:"10px", color:"#d1d5db" }}>Powered by Clara AI</span>
-        </div>
+        {config?.widgetShowBranding !== false && (
+          <div style={{ textAlign:"center", marginTop:"8px" }}>
+            <span style={{ fontSize:"10px", color: dark ? "#4b4b6b" : "#d1d5db" }}>
+              {config?.customPoweredBy ?? "Powered by Clara AI"}
+            </span>
+          </div>
+        )}
       </div>
 
       <style>{`
