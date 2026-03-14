@@ -60,10 +60,35 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400", // 24 h preflight cache
 } as const;
 
+// Embed routes are API-key authenticated — they must accept requests from any
+// origin (the site owner embeds the widget on their own domain).
+const EMBED_CORS_HEADERS = {
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+} as const;
+
+/** Localhost regex — always allowed for developer convenience. */
+const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+function applyEmbedCors(response: NextResponse, origin: string | null): NextResponse {
+  // Echo the requesting origin (required when Authorization header is sent).
+  // If there is no origin (e.g. server-to-server), use wildcard.
+  response.headers.set("Access-Control-Allow-Origin", origin ?? "*");
+  for (const [k, v] of Object.entries(EMBED_CORS_HEADERS)) {
+    response.headers.set(k, v);
+  }
+  response.headers.set("Vary", "Origin");
+  return response;
+}
+
 function applyCors(response: NextResponse, origin: string | null): NextResponse {
   if (!origin) return response;
 
-  if (ALLOWED_ORIGINS.has(origin)) {
+  // Always allow localhost for developer convenience.
+  const isLocalhost = LOCALHOST_RE.test(origin);
+
+  if (isLocalhost || ALLOWED_ORIGINS.has(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     for (const [k, v] of Object.entries(CORS_HEADERS)) {
       response.headers.set(k, v);
@@ -137,14 +162,24 @@ export function middleware(request: NextRequest): NextResponse {
   // ── CORS preflight — must be handled BEFORE any auth checks ─────────────
   if (request.method === "OPTIONS" && isApiRoute) {
     const preflight = new NextResponse(null, { status: 204 });
-    applyCors(preflight, origin);
+    // Embed routes are API-key authenticated and open to any origin.
+    // Use wide-open CORS so third-party sites can host the widget.
+    if (pathname.startsWith("/api/embed")) {
+      applyEmbedCors(preflight, origin);
+    } else {
+      applyCors(preflight, origin);
+    }
     return preflight;
   }
 
   // Always allow public routes through immediately
   if (startsWith(pathname, PUBLIC_PREFIXES)) {
     const res = addSecurityHeaders(NextResponse.next());
-    if (isApiRoute) applyCors(res, origin);
+    if (pathname.startsWith("/api/embed")) {
+      applyEmbedCors(res, origin);
+    } else if (isApiRoute) {
+      applyCors(res, origin);
+    }
     return res;
   }
 
