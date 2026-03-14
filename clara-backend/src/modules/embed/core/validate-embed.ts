@@ -44,6 +44,11 @@ type ValidationResult =
   | { ok: true;  ctx: EmbedContext }
   | { ok: false; response: NextResponse };
 
+// ── Localhost regex (used by both CORS helpers and origin validator) ─────────
+
+/** Matches any localhost / 127.0.0.1 origin regardless of port. */
+const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
 export function buildCorsHeaders(
@@ -64,6 +69,10 @@ function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[]): 
   if (!allowedOrigins || allowedOrigins.length === 0) return origin ?? "*";
   if (!origin) return "null";
 
+  // Localhost is always implicitly allowed — echo the origin so the browser
+  // accepts the response even if the DB list only has the production domain.
+  if (LOCALHOST_RE.test(origin)) return origin;
+
   const normalizedOrigin = origin.replace(/\/$/, "").toLowerCase();
 
   for (const allowed of allowedOrigins) {
@@ -79,8 +88,13 @@ function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[]): 
 }
 
 function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boolean {
+  // Empty list → unrestricted (key created without an origin whitelist)
   if (!allowedOrigins || allowedOrigins.length === 0) return true;
-  if (!origin) return false;
+  // No Origin header → server-to-server / curl / Postman — always allow
+  if (!origin) return true;
+  // Localhost is always allowed for developer convenience
+  // (localhost can never be a real production origin so this is safe)
+  if (LOCALHOST_RE.test(origin)) return true;
   return resolveAllowedOrigin(origin, allowedOrigins) !== "null";
 }
 
