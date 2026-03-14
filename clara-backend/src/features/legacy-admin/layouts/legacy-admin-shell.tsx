@@ -6,7 +6,7 @@
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user && pathname !== "/admin/login") {
@@ -41,9 +42,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex min-h-[100dvh] overflow-x-hidden bg-background">
       {/* Sidebar */}
-      <aside className="flex w-60 flex-col border-r border-border bg-sidebar">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-60 flex flex-col border-r border-border bg-sidebar transition-transform duration-300 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0`}
+      >
         {/* Logo */}
         <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
@@ -76,8 +81,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
+      <button
+        onClick={() => setSidebarOpen((open) => !open)}
+        className="md:hidden fixed top-4 left-4 z-[60] rounded-lg border border-border bg-sidebar p-2 text-sidebar-foreground shadow-lg"
+      >
+        <span className="sr-only">Toggle sidebar</span>
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6.75h18M3 12h18M3 17.25h18" />
+        </svg>
+      </button>
+
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 md:ml-60 min-h-[100dvh] overflow-y-auto">
         <div className="min-h-full">
           {children}
         </div>

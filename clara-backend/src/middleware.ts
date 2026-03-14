@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { SECURITY_HEADERS } from "./security/csp";
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 
@@ -119,25 +120,9 @@ function startsWith(path: string, prefixes: string[]): boolean {
 // ─── Security headers applied to every response ──────────────────────────────
 
 function addSecurityHeaders(response: NextResponse): NextResponse {
-  response.headers.set("X-Frame-Options", "SAMEORIGIN");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(self), geolocation=()",
-  );
-  response.headers.set(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob:",
-      "connect-src 'self' wss: https://api.openai.com https://realtime.openai.com",
-      "media-src 'self' blob:",
-    ].join("; "),
-  );
+  for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(header, value);
+  }
   return response;
 }
 

@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { APP_COOKIE_NAME } from "@/config/app";
+import { SECURITY_HEADERS } from "./server/security-headers";
+
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(header, value);
+  }
+  return response;
+}
 
 export function middleware(req: NextRequest) {
   const token = req.cookies.get(APP_COOKIE_NAME)?.value;
@@ -14,25 +22,20 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/demo-website")
   ) {
     if (!token) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      return applySecurityHeaders(NextResponse.redirect(new URL("/login", req.url)));
     }
   }
 
   // Redirect already-logged-in users away from login page
   if (pathname === "/login" && token) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard", req.url)));
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next());
 }
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/knowledge-bases/:path*",
-    "/chat/:path*",
-    "/analytics/:path*",
-    "/demo-website/:path*",
-    "/login",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)).*)",
   ],
 };

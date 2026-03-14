@@ -32,9 +32,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="min-h-screen bg-[#0a1628] flex">
+    <div className="min-h-[100dvh] bg-[#0a1628] flex">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-[#0c1d3a] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-[#0c1d3a] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
         <div className="h-16 px-5 flex items-center gap-3 border-b border-white/[0.06]">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#c8821a] to-[#a86214] flex items-center justify-center">
             <Shield className="w-4 h-4 text-white" />
@@ -74,11 +74,15 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       </aside>
 
       <button onClick={toggleMobileNav}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-[#0c1d3a] border border-white/[0.06] text-white">
+        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-[#0c1d3a] border border-white/[0.06] text-white">
         {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
-      <main className="flex-1 lg:ml-60 min-h-screen overflow-y-auto">
+      {mobileNavOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={closeMobileNav} />
+      )}
+
+      <main className="flex-1 md:ml-60 min-h-[100dvh] overflow-y-auto overflow-x-hidden">
         {children}
       </main>
     </div>

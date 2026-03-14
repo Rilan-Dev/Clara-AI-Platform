@@ -33,7 +33,7 @@ const EVENTS = ["document.ingested", "document.failed", "kb.created", "kb.delete
 
 export default function DocsSdkScreen() {
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 py-20 sm:px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
           <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
@@ -79,12 +79,12 @@ export default function DocsSdkScreen() {
           <div className="border border-white/[0.08] bg-white/[0.03] rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 border-b border-white/[0.06] text-xs font-bold text-white/30 uppercase tracking-widest">Embed attributes</div>
             {EMBED_ATTRS.map((r, i) => (
-              <div key={r.attr} className={`flex items-start gap-3 px-4 py-2.5 text-xs ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
-                <code className="text-indigo-300 font-mono shrink-0 w-44">{r.attr}</code>
+              <div key={r.attr} className={`flex flex-col gap-2 px-4 py-2.5 text-xs sm:flex-row sm:items-start sm:gap-3 ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
+                <code className="text-indigo-300 font-mono shrink-0 sm:w-44">{r.attr}</code>
                 {r.required
-                  ? <span className="text-rose-400 shrink-0 text-[10px] font-bold uppercase w-16">required</span>
-                  : <span className="text-white/20 shrink-0 text-[10px] uppercase w-16">optional</span>}
-                <span className="text-white/50">{r.desc}</span>
+                  ? <span className="text-rose-400 shrink-0 text-[10px] font-bold uppercase sm:w-16">required</span>
+                  : <span className="text-white/20 shrink-0 text-[10px] uppercase sm:w-16">optional</span>}
+                <span className="text-white/50 min-w-0">{r.desc}</span>
               </div>
             ))}
           </div>

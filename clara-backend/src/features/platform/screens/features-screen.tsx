@@ -194,30 +194,34 @@ export default function FeaturesPage() {
             <p className="text-white/50">See exactly what each plan includes</p>
           </div>
           <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-5 border-b border-white/[0.08]">
-              <div className="px-5 py-4 text-sm font-medium text-white/40">Feature</div>
-              {["Free", "Starter", "Pro", "Enterprise"].map((p, i) => (
-                <div key={p} className={`px-5 py-4 text-center ${i === 2 ? "bg-indigo-600/10" : ""}`}>
-                  <div className="text-sm font-bold text-white">{p}</div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[720px]">
+                <div className="grid grid-cols-5 border-b border-white/[0.08]">
+                  <div className="px-5 py-4 text-sm font-medium text-white/40">Feature</div>
+                  {["Free", "Starter", "Pro", "Enterprise"].map((p, i) => (
+                    <div key={p} className={`px-5 py-4 text-center ${i === 2 ? "bg-indigo-600/10" : ""}`}>
+                      <div className="text-sm font-bold text-white">{p}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {COMPARISON.map((row, i) => (
-              <div key={row.feature} className={`grid grid-cols-5 border-b border-white/[0.04] last:border-0 ${i % 2 === 0 ? "" : "bg-white/[0.01]"}`}>
-                <div className="px-5 py-3.5 text-sm text-white/70">{row.feature}</div>
-                {(["free", "starter", "pro", "enterprise"] as const).map((plan, j) => (
-                  <div key={plan} className={`px-5 py-3.5 text-center ${j === 2 ? "bg-indigo-600/5" : ""}`}>
-                    {typeof row[plan] === "boolean" ? (
-                      row[plan]
-                        ? <CheckCircle className="w-4 h-4 text-emerald-400 mx-auto" />
-                        : <div className="w-4 h-0.5 bg-white/10 mx-auto" />
-                    ) : (
-                      <span className="text-sm font-medium text-white/70">{row[plan]}</span>
-                    )}
+                {COMPARISON.map((row, i) => (
+                  <div key={row.feature} className={`grid grid-cols-5 border-b border-white/[0.04] last:border-0 ${i % 2 === 0 ? "" : "bg-white/[0.01]"}`}>
+                    <div className="px-5 py-3.5 text-sm text-white/70">{row.feature}</div>
+                    {(["free", "starter", "pro", "enterprise"] as const).map((plan, j) => (
+                      <div key={plan} className={`px-5 py-3.5 text-center ${j === 2 ? "bg-indigo-600/5" : ""}`}>
+                        {typeof row[plan] === "boolean" ? (
+                          row[plan]
+                            ? <CheckCircle className="w-4 h-4 text-emerald-400 mx-auto" />
+                            : <div className="w-4 h-0.5 bg-white/10 mx-auto" />
+                        ) : (
+                          <span className="text-sm font-medium text-white/70">{row[plan]}</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
-            ))}
+            </div>
           </div>
           <div className="text-center mt-8">
             <Link href="/pricing"

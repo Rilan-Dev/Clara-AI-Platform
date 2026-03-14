@@ -41,6 +41,10 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm run lint --if-present
 
+      - name: Test
+        working-directory: ${{ matrix.app }}
+        run: npm run test --if-present
+
   # ─── Build ────────────────────────────────────────────────────────────────
   build:
     name: Build

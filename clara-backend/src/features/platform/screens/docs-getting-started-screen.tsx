@@ -67,7 +67,7 @@ const STEPS = [
 
 export default function DocsGettingStartedScreen() {
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 py-20 sm:px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
           <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
@@ -85,7 +85,7 @@ export default function DocsGettingStartedScreen() {
 
         <div className="space-y-12">
           {STEPS.map((s, idx) => (
-            <div key={s.id} id={s.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-8 scroll-mt-24">
+            <div key={s.id} id={s.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 sm:p-8 scroll-mt-24">
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
                   <s.icon className="w-6 h-6 text-white" />

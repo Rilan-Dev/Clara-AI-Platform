@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { APP_COOKIE_NAME } from "@/config/app";
+import { SECURITY_HEADERS } from "./server/security-headers";
+
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(header, value);
+  }
+  return response;
+}
 
 /**
  * clara_omen_token — unique cookie name for the Omen Insurance portal.
@@ -24,25 +32,20 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/settings")
   ) {
     if (!token) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      return applySecurityHeaders(NextResponse.redirect(new URL("/login", req.url)));
     }
   }
 
   // Redirect already-logged-in users away from login page
   if (pathname === "/login" && token) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard", req.url)));
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next());
 }
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/knowledge-bases/:path*",
-    "/chat/:path*",
-    "/analytics/:path*",
-    "/settings/:path*",
-    "/login",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)).*)",
   ],
 };

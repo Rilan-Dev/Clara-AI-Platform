@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { SECURITY_HEADERS } from "./security-headers.js";
 
 type CreateConsumerServerOptions = {
   appName: string;
@@ -19,6 +20,12 @@ export function createConsumerServer({ appName, port, rootDir, registerApiRoutes
   app.set("trust proxy", true);
   app.use(cors({ origin: true, credentials: true }));
   app.use(helmet({ crossOriginEmbedderPolicy: false, contentSecurityPolicy: false }));
+  app.use((_req, res, next) => {
+    for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
+      res.setHeader(header, value);
+    }
+    next();
+  });
   app.use(compression());
   app.use(cookieParser());
   app.use(express.raw({ type: () => true, limit: "25mb" }));

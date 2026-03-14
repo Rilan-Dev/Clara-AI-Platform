@@ -157,7 +157,7 @@ function WidgetContent() {
 
   if (configLoading) {
     return (
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui,sans-serif", color:"#9ca3af", fontSize:"14px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", minHeight:"100vh", fontFamily:"system-ui,sans-serif", color:"#9ca3af", fontSize:"14px" }}>
         Loading assistant…
       </div>
     );
@@ -165,7 +165,7 @@ function WidgetContent() {
 
   if (error) {
     return (
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui,sans-serif", padding:"24px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", minHeight:"100vh", fontFamily:"system-ui,sans-serif", padding:"24px" }}>
         <div style={{ textAlign:"center" }}>
           <div style={{ fontSize:"32px", marginBottom:"8px" }}>⚠️</div>
           <div style={{ color:"#dc2626", fontSize:"13px" }}>{error}</div>
@@ -177,7 +177,7 @@ function WidgetContent() {
   const avatarLetter = config?.assistantName?.charAt(0)?.toUpperCase() ?? "A";
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", background:"#fff" }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100dvh", minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", background:"#fff" }}>
 
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 16px", background:primary, color:"#fff" }}>
@@ -234,7 +234,7 @@ function WidgetContent() {
       </div>
 
       {/* Input */}
-      <div style={{ borderTop:"1px solid #f3f4f6", padding:"12px" }}>
+      <div style={{ borderTop:"1px solid #f3f4f6", padding:"12px", paddingBottom:"calc(12px + env(safe-area-inset-bottom))" }}>
         <div style={{ display:"flex", alignItems:"flex-end", gap:"8px" }}>
           <textarea
             value={input}
@@ -283,7 +283,7 @@ function WidgetContent() {
 export default function EmbedWidgetPage() {
   return (
     <Suspense fallback={
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui,sans-serif", color:"#9ca3af", fontSize:"14px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", minHeight:"100vh", fontFamily:"system-ui,sans-serif", color:"#9ca3af", fontSize:"14px" }}>
         Loading…
       </div>
     }>

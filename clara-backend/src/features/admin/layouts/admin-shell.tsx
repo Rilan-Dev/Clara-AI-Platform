@@ -49,9 +49,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="dark min-h-screen bg-[#0a0a0f] flex">
+    <div className="dark min-h-[100dvh] bg-[#0a0a0f] flex">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-[#0d0d1a] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-[#0d0d1a] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
         <div className="h-16 px-5 flex items-center gap-3 border-b border-white/[0.06]">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
             <Brain className="w-4 h-4 text-white" />
@@ -95,17 +95,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile toggle */}
       <button onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-[60] p-2 rounded-lg bg-[#0d0d1a] border border-white/[0.06] text-white shadow-lg">
+        className="md:hidden fixed top-4 left-4 z-[60] p-2 rounded-lg bg-[#0d0d1a] border border-white/[0.06] text-white shadow-lg">
         {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
+        <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Main */}
-      <main className="flex-1 lg:ml-60 min-h-screen overflow-x-hidden">
+      <main className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden">
         {children}
       </main>
     </div>

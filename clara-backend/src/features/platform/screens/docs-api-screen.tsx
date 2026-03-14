@@ -110,7 +110,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function DocsApiScreen() {
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 py-20 sm:px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
           <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
@@ -131,7 +131,7 @@ export default function DocsApiScreen() {
           <p className="text-sm text-white/60 mb-3">
             Pass your API key in the <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded">x-api-key</code> header on every request.
           </p>
-          <div className="flex items-center justify-between bg-[#0d0d18] rounded-lg px-4 py-2.5 font-mono text-xs text-emerald-300 gap-3">
+          <div className="flex flex-col gap-2 bg-[#0d0d18] rounded-lg px-4 py-2.5 font-mono text-xs text-emerald-300 sm:flex-row sm:items-center sm:justify-between">
             <span className="overflow-x-auto">curl -H &quot;x-api-key: YOUR_API_KEY&quot; {BASE}/api/kbs</span>
             <CopyButton text={`curl -H "x-api-key: YOUR_API_KEY" ${BASE}/api/kbs`} />
           </div>
@@ -143,10 +143,10 @@ export default function DocsApiScreen() {
             <div className="space-y-5">
               {sec.endpoints.map(ep => (
                 <div key={ep.path} className="border border-white/[0.08] bg-white/[0.03] rounded-xl overflow-hidden">
-                  <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+                  <div className="flex flex-col gap-2 px-5 py-4 border-b border-white/[0.06] sm:flex-row sm:items-center sm:gap-3">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-md font-mono ${METHOD_COLORS[ep.method]}`}>{ep.method}</span>
-                    <code className="text-sm text-white/80 font-mono">{ep.path}</code>
-                    {ep.auth && <span className="ml-auto text-xs text-white/30 border border-white/10 rounded px-2 py-0.5">Auth required</span>}
+                    <code className="text-sm text-white/80 font-mono break-all sm:break-normal">{ep.path}</code>
+                    {ep.auth && <span className="text-xs text-white/30 border border-white/10 rounded px-2 py-0.5 sm:ml-auto">Auth required</span>}
                   </div>
                   <div className="px-5 py-4 space-y-4">
                     <p className="text-sm text-white/60">{ep.summary}</p>
@@ -155,13 +155,13 @@ export default function DocsApiScreen() {
                         <div className="text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Request body</div>
                         <div className="rounded-lg overflow-hidden border border-white/[0.06]">
                           {ep.body.map((p, i) => (
-                            <div key={p.name} className={`flex items-start gap-3 px-4 py-2.5 text-xs ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
-                              <code className="text-indigo-300 font-mono shrink-0 w-28">{p.name}</code>
-                              <span className="text-white/30 shrink-0 w-16">{p.type}</span>
+                            <div key={p.name} className={`flex flex-col gap-2 px-4 py-2.5 text-xs sm:flex-row sm:items-start sm:gap-3 ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
+                              <code className="text-indigo-300 font-mono shrink-0 sm:w-28">{p.name}</code>
+                              <span className="text-white/30 shrink-0 sm:w-16">{p.type}</span>
                               {p.required
                                 ? <span className="text-rose-400 shrink-0 text-[10px] font-bold uppercase">required</span>
                                 : <span className="text-white/20 shrink-0 text-[10px] uppercase">optional</span>}
-                              <span className="text-white/50 leading-relaxed">{p.desc}</span>
+                              <span className="text-white/50 leading-relaxed min-w-0">{p.desc}</span>
                             </div>
                           ))}
                         </div>
@@ -169,8 +169,8 @@ export default function DocsApiScreen() {
                     )}
                     <div>
                       <div className="text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Response</div>
-                      <div className="flex items-start justify-between bg-[#0d0d18] rounded-lg px-4 py-3 font-mono text-xs text-emerald-300 gap-3">
-                        <pre className="overflow-x-auto flex-1">{ep.response}</pre>
+                      <div className="flex flex-col gap-2 bg-[#0d0d18] rounded-lg px-4 py-3 font-mono text-xs text-emerald-300 sm:flex-row sm:items-start sm:justify-between">
+                        <pre className="overflow-x-auto flex-1 min-w-0">{ep.response}</pre>
                         <CopyButton text={ep.response} />
                       </div>
                     </div>
