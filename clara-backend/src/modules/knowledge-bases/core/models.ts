@@ -56,9 +56,19 @@ export type AssistantConfig = {
   citeSources: boolean;
   strictMode: boolean;
 
-  // Branding
+  // Branding / colours
   primaryColour: string;
   accentColour: string;
+
+  // Widget design
+  widgetTheme: "light" | "dark";
+  widgetPosition: "bottom-right" | "bottom-left";
+  widgetButtonSize: number;
+  widgetBorderRadius: number;
+  widgetFontFamily: string;
+  widgetChatHeight: number;
+  widgetShowBranding: boolean;
+  widgetLauncherLabel: string | null;
 
   createdAt: string;
   updatedAt: string;

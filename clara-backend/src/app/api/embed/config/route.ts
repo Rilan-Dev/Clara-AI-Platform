@@ -45,7 +45,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    // Only return safe public-facing fields
+    // Only return safe public-facing fields (no system prompt, rules, model settings)
     return NextResponse.json(
       {
         kbId:           kb.id,
@@ -57,6 +57,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         accentColour:   config.accentColour,
         defaultLanguage: config.defaultLanguage,
         voiceEnabled:   resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
+        // Widget design fields — all consumed by clara.js to style the widget
+        widgetTheme:         config.widgetTheme,
+        widgetPosition:      config.widgetPosition,
+        widgetButtonSize:    config.widgetButtonSize,
+        widgetBorderRadius:  config.widgetBorderRadius,
+        widgetFontFamily:    config.widgetFontFamily,
+        widgetChatHeight:    config.widgetChatHeight,
+        widgetShowBranding:  config.widgetShowBranding,
+        widgetLauncherLabel: config.widgetLauncherLabel,
       },
       { headers: corsHeaders }
     );

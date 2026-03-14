@@ -27,6 +27,7 @@ export type ApiKey = {
   allowedOrigins: string[];
   isActive: boolean;
   rateLimitPerHour: number;
+  designEditEnabled: boolean;      // ← may call PATCH /api/embed/design
   createdBy: string | null;
   lastUsedAt: Date | null;
   createdAt: Date;
@@ -43,6 +44,7 @@ export type ValidatedKey = {
   orgId: string;
   allowedOrigins: string[];
   rateLimitPerHour: number;
+  designEditEnabled: boolean;      // ← gating field for /api/embed/design
 };
 
 /** Subscription plan limits relevant to the embed API layer. */
@@ -65,17 +67,18 @@ function generateRawKey(): string {
 
 function rowToApiKey(row: Record<string, unknown>): ApiKey {
   return {
-    id:               row.id as string,
-    kbId:             row.kb_id as string,
-    orgId:            row.org_id as string,
-    name:             row.name as string,
-    keyPrefix:        row.key_prefix as string,
-    allowedOrigins:   (row.allowed_origins as string[]) ?? [],
-    isActive:         row.is_active as boolean,
-    rateLimitPerHour: row.rate_limit_per_hour as number,
-    createdBy:        (row.created_by as string) ?? null,
-    lastUsedAt:       row.last_used_at ? new Date(row.last_used_at as string) : null,
-    createdAt:        new Date(row.created_at as string),
+    id:                row.id as string,
+    kbId:              row.kb_id as string,
+    orgId:             row.org_id as string,
+    name:              row.name as string,
+    keyPrefix:         row.key_prefix as string,
+    allowedOrigins:    (row.allowed_origins as string[]) ?? [],
+    isActive:          row.is_active as boolean,
+    rateLimitPerHour:  row.rate_limit_per_hour as number,
+    designEditEnabled: Boolean(row.design_edit_enabled),
+    createdBy:         (row.created_by as string) ?? null,
+    lastUsedAt:        row.last_used_at ? new Date(row.last_used_at as string) : null,
+    createdAt:         new Date(row.created_at as string),
   };
 }
 

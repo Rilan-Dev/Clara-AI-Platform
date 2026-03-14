@@ -115,6 +115,14 @@ export async function putConfigHandler(
       strictMode:      Boolean(body.strictMode),
       primaryColour:   body.primaryColour ? String(body.primaryColour).trim() : "#6366f1",
       accentColour:    body.accentColour  ? String(body.accentColour).trim()  : "#a5b4fc",
+      widgetTheme:        (body.widgetTheme === "dark" ? "dark" : "light"),
+      widgetPosition:     (body.widgetPosition === "bottom-left" ? "bottom-left" : "bottom-right"),
+      widgetButtonSize:   body.widgetButtonSize   ? Math.min(Math.max(Number(body.widgetButtonSize), 40), 80) : 56,
+      widgetBorderRadius: body.widgetBorderRadius !== undefined ? Math.min(Math.max(Number(body.widgetBorderRadius), 0), 40) : 20,
+      widgetFontFamily:   body.widgetFontFamily   ? String(body.widgetFontFamily).trim() : "system-ui,sans-serif",
+      widgetChatHeight:   body.widgetChatHeight   ? Math.min(Math.max(Number(body.widgetChatHeight), 300), 900) : 580,
+      widgetShowBranding: body.widgetShowBranding !== undefined ? Boolean(body.widgetShowBranding) : true,
+      widgetLauncherLabel: body.widgetLauncherLabel ? String(body.widgetLauncherLabel).trim() : null,
     };
 
     const config = await putAssistantConfig(kbId, input);
@@ -157,6 +165,14 @@ export async function patchConfigHandler(
     if (body.strictMode       !== undefined) input.strictMode       = Boolean(body.strictMode);
     if (body.primaryColour    !== undefined) input.primaryColour    = String(body.primaryColour).trim();
     if (body.accentColour     !== undefined) input.accentColour     = String(body.accentColour).trim();
+    if (body.widgetTheme      !== undefined) input.widgetTheme      = body.widgetTheme === "dark" ? "dark" : "light";
+    if (body.widgetPosition   !== undefined) input.widgetPosition   = body.widgetPosition === "bottom-left" ? "bottom-left" : "bottom-right";
+    if (body.widgetButtonSize   !== undefined) input.widgetButtonSize   = Math.min(Math.max(Number(body.widgetButtonSize), 40), 80);
+    if (body.widgetBorderRadius !== undefined) input.widgetBorderRadius = Math.min(Math.max(Number(body.widgetBorderRadius), 0), 40);
+    if (body.widgetFontFamily   !== undefined) input.widgetFontFamily   = String(body.widgetFontFamily).trim();
+    if (body.widgetChatHeight   !== undefined) input.widgetChatHeight   = Math.min(Math.max(Number(body.widgetChatHeight), 300), 900);
+    if (body.widgetShowBranding !== undefined) input.widgetShowBranding = Boolean(body.widgetShowBranding);
+    if (body.widgetLauncherLabel !== undefined) input.widgetLauncherLabel = body.widgetLauncherLabel ? String(body.widgetLauncherLabel).trim() : null;
 
     const config = await patchAssistantConfig(kbId, input);
     if (!config) {

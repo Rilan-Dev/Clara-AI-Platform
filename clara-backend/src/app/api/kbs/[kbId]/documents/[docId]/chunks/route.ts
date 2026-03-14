@@ -1,0 +1,88 @@
+/**
+ * GET  /api/kbs/[kbId]/documents/[docId]/chunks  — list all Qdrant chunks for a doc
+ * POST /api/kbs/[kbId]/documents/[docId]/chunks  — add a new chunk
+ */
+import { NextRequest, NextResponse } from "next/server";
+import { ensureMigrated } from "@/lib/db/migrate";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
+import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getDocumentById } from "@/modules/knowledge-bases/core/documents-db";
+import {
+  listDocumentChunks,
+  addChunk,
+} from "@/modules/admin/core/vector-store-kb";
+
+type Params = { params: Promise<{ kbId: string; docId: string }> };
+
+// ── GET ───────────────────────────────────────────────────────────────────────
+
+export async function GET(req: NextRequest, { params }: Params) {
+  try {
+    await ensureMigrated();
+    const { kbId, docId } = await params;
+
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "document:read");
+
+    const kb = await getKnowledgeBaseById(kbId);
+    if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+
+    const doc = await getDocumentById(docId);
+    if (!doc || doc.kbId !== kbId)
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+
+    const chunks = await listDocumentChunks(kb.qdrantCollection, docId);
+    return NextResponse.json({
+      documentId: docId,
+      title: doc.title,
+      chunkCount: chunks.length,
+      chunks,
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[chunks] GET:", err);
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+// ── POST ──────────────────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest, { params }: Params) {
+  try {
+    await ensureMigrated();
+    const { kbId, docId } = await params;
+
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "document:create");
+
+    const kb = await getKnowledgeBaseById(kbId);
+    if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+
+    const doc = await getDocumentById(docId);
+    if (!doc || doc.kbId !== kbId)
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+
+    const body = (await req.json()) as { text?: string; chunkIndex?: number };
+    if (!body.text?.trim())
+      return NextResponse.json({ error: "text is required" }, { status: 400 });
+
+    // Determine next chunkIndex if not provided
+    const existing = await listDocumentChunks(kb.qdrantCollection, docId);
+    const chunkIndex = body.chunkIndex ?? (existing.length > 0
+      ? Math.max(...existing.map((c) => c.chunkIndex)) + 1
+      : 0);
+
+    const pointId = await addChunk(kb.qdrantCollection, body.text.trim(), chunkIndex, {
+      kbId,
+      documentId: docId,
+      title: doc.title,
+      originalFilename: doc.originalFilename,
+    });
+
+    return NextResponse.json({ pointId, chunkIndex, text: body.text.trim() }, { status: 201 });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[chunks] POST:", err);
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
