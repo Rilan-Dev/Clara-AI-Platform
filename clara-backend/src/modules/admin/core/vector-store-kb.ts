@@ -182,7 +182,7 @@ export async function listDocumentChunks(
 ): Promise<KbChunk[]> {
   const client = getQdrantClient();
   const chunks: KbChunk[] = [];
-  let offset: string | number | null | undefined = undefined;
+  let offset: string | number | Record<string, unknown> | null | undefined = undefined;
 
   do {
     const result = await client.scroll(collectionName, {
