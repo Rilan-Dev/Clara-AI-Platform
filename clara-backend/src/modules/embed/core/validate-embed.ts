@@ -117,11 +117,19 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
   // ── 3. Origin check ─────────────────────────────────────────────────────────
   const origin = req.headers.get("origin");
   if (!isOriginAllowed(origin, keyCtx.allowedOrigins)) {
+    // Include CORS headers even on rejection so the browser can read the error
+    // message in the console instead of showing a blank "CORS error".
+    // This matches the standard approach used by Stripe, Pusher, etc.
+    const rejectCorsHeaders = buildCorsHeaders(origin, []);
     return {
       ok: false,
       response: NextResponse.json(
-        { error: `Origin "${origin}" is not allowed for this API key` },
-        { status: 403 }
+        {
+          error: `Origin "${origin}" is not in the allowed origins for this API key.`,
+          hint:  `Add "${origin}" to the key's allowed origins in the Deploy tab of your knowledge base.`,
+          allowedOrigins: keyCtx.allowedOrigins,
+        },
+        { status: 403, headers: rejectCorsHeaders }
       ),
     };
   }

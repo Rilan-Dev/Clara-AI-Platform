@@ -226,7 +226,7 @@ export default function KbDashboardPage() {
           <div className="rounded-xl border border-border bg-card p-6 shadow-soft">
             {docsLoading && docs.length === 0
               ? <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-12 rounded-lg bg-muted/40 animate-pulse" />)}</div>
-              : <UploadZone docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />}
+              : <UploadZone kbId={kbId} docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />}
             {processing > 0 && (
               <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />

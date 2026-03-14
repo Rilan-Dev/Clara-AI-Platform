@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { BookOpen, FolderKanban, Plus, Trash2 } from "lucide-react";
-import { useOrg, useKbs, useProject } from "@/modules/admin-ui/hooks";
+import { useAuth, useOrg, useKbs, useProject } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ function formatDate(value: string) {
 
 export default function ProjectDetailPage() {
   const { id = "", projectId = "" } = useParams<{ id: string; projectId: string }>();
+  const { user } = useAuth();
   const { data: org } = useOrg(id);
   const { data: project } = useProject(projectId);
   const { kbs, loading, create, remove } = useKbs(projectId);
@@ -65,10 +66,15 @@ export default function ProjectDetailPage() {
         title={project?.name ?? "Knowledge Bases"}
         description="Create knowledge bases, open assistant configuration, and continue into the runtime and deployment workflow for this project."
         breadcrumbs={[
-          { label: "Organisations", href: "/orgs" },
-          { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
+          // Org users go directly to their org page; admins go to the full orgs list
+          user?.isSuperAdmin
+            ? { label: "Organisations", href: "/orgs" }
+            : { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
+          user?.isSuperAdmin
+            ? { label: org?.name ?? "Organisation", href: `/orgs/${id}` }
+            : { label: "Projects", href: `/orgs/${id}` },
           { label: project?.name ?? "Project" },
-        ]}
+        ].filter(Boolean) as { label: string; href?: string }[]}
         chips={[
           `${kbs.length} KB${kbs.length === 1 ? "" : "s"}`,
           project?.description ?? "Project workspace",

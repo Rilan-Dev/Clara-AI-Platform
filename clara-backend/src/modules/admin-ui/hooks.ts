@@ -57,27 +57,58 @@ function useAsync<T>(
 // ── Auth hook ─────────────────────────────────────────────────────────────────
 
 export function useAuth() {
-  const [user, setUser]       = useState<CurrentUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [user, setUser]               = useState<CurrentUser | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  // primaryOrgId: the first org the current user belongs to.
+  // Null for super-admins (they see all orgs) or when not yet loaded.
+  const [primaryOrgId, setPrimaryOrgId] = useState<string | null>(null);
 
   useEffect(() => {
-    api.fetchMe().then(setUser).catch(() => setUser(null)).finally(() => setLoading(false));
+    (async () => {
+      try {
+        const u = await api.fetchMe();
+        setUser(u);
+        if (!u.isSuperAdmin) {
+          try {
+            const orgs = await api.fetchOrgs();
+            setPrimaryOrgId(orgs[0]?.id ?? null);
+          } catch { /* non-critical */ }
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true); setError(null);
-    try { const u = await api.login(email, password); setUser(u); }
-    catch (e) { setError((e as Error).message); throw e; }
-    finally { setLoading(false); }
+    try {
+      const u = await api.login(email, password);
+      setUser(u);
+      if (!u.isSuperAdmin) {
+        try {
+          const orgs = await api.fetchOrgs();
+          setPrimaryOrgId(orgs[0]?.id ?? null);
+        } catch { /* non-critical */ }
+      }
+    } catch (e) {
+      setError((e as Error).message);
+      throw e;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const logout = useCallback(async () => {
     await api.logout().catch(() => {});
     setUser(null);
+    setPrimaryOrgId(null);
   }, []);
 
-  return { user, loading, error, login, logout };
+  return { user, loading, error, login, logout, primaryOrgId };
 }
 
 // ── Orgs ──────────────────────────────────────────────────────────────────────
