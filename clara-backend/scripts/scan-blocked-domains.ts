@@ -1,10 +1,10 @@
+import { BLOCKED_ANALYTICS_TOKENS, findBlockedAnalyticsTokens } from "../src/security/blocked-domains";
+
 const targetsRaw = process.env.SCAN_URLS ?? "";
 const targets = targetsRaw
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
-
-const blockedDomains = ["google-analytics.com", "overbridgenet.com"];
 
 if (targets.length === 0) {
   console.error("SCAN_URLS is required (comma-separated list of URLs).");
@@ -19,10 +19,10 @@ async function scanUrl(url: string): Promise<boolean> {
   }
 
   const html = await response.text();
-  const matches = blockedDomains.filter((domain) => html.includes(domain));
+  const matches = findBlockedAnalyticsTokens(html);
 
   if (matches.length > 0) {
-    console.error(`Blocked domains found in ${url}: ${matches.join(", ")}`);
+    console.error(`Blocked analytics tokens found in ${url}: ${matches.join(", ")}`);
     return false;
   }
 
@@ -47,7 +47,7 @@ async function run(): Promise<void> {
     return;
   }
 
-  console.log("No blocked domains detected.");
+  console.log(`No blocked analytics tokens detected (scanned: ${BLOCKED_ANALYTICS_TOKENS.join(", ")}).`);
 }
 
 run();
