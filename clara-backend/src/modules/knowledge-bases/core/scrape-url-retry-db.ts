@@ -73,6 +73,17 @@ export type FailedUrlWithRetries = {
   retries:       UrlRetry[];
 };
 
+export type ScrapeUrlRetryContext = {
+  id: string;
+  sessionId: string;
+  kbId: string;
+  url: string;
+  status: string;
+  retryCount: number;
+  retryStatus: UrlRetryStatusOnUrl | null;
+  errorMessage: string | null;
+};
+
 // ── Row mappers ───────────────────────────────────────────────────────────────
 
 function toIso(v: unknown): string {
@@ -195,6 +206,21 @@ export async function listRetriesForSession(sessionId: string): Promise<UrlRetry
   return rows.map(toRetry);
 }
 
+export async function getLatestScheduledRetryForUrl(scrapeUrlId: string): Promise<UrlRetry | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    "SELECT * FROM scrape_url_retries WHERE scrape_url_id = $1 AND status = 'scheduled' ORDER BY attempt_number DESC LIMIT 1",
+    [scrapeUrlId]
+  );
+  return row ? toRetry(row) : null;
+}
+
+export async function setRetryScheduledAt(retryId: string, scheduledAt: Date): Promise<void> {
+  await execute(
+    "UPDATE scrape_url_retries SET scheduled_at = $1, updated_at = now() WHERE id = $2",
+    [scheduledAt.toISOString(), retryId]
+  );
+}
+
 // ── scrape_urls retry columns ─────────────────────────────────────────────────
 
 /** Mark a URL as having a retry scheduled. */
@@ -206,6 +232,13 @@ export async function markScrapeUrlRetryScheduled(
     `UPDATE scrape_urls
      SET retry_status = 'scheduled', next_retry_at = $1, retry_count = retry_count + 1
      WHERE id = $2`,
+    [nextRetryAt.toISOString(), urlId]
+  );
+}
+
+export async function setScrapeUrlRetrySchedule(urlId: string, nextRetryAt: Date): Promise<void> {
+  await execute(
+    "UPDATE scrape_urls SET retry_status = 'scheduled', next_retry_at = $1 WHERE id = $2",
     [nextRetryAt.toISOString(), urlId]
   );
 }
@@ -296,4 +329,26 @@ export async function listFailedUrlsWithRetries(
     nextRetryAt: r.next_retry_at != null ? toIso(r.next_retry_at) : null,
     retries:     retryMap.get(String(r.id)) ?? [],
   }));
+}
+
+export async function getScrapeUrlRetryContext(urlId: string): Promise<ScrapeUrlRetryContext | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT u.id, u.session_id, u.url, u.status, u.retry_count, u.retry_status, u.error_message,
+            s.kb_id
+     FROM scrape_urls u
+     JOIN scrape_sessions s ON s.id = u.session_id
+     WHERE u.id = $1`,
+    [urlId]
+  );
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    sessionId: String(row.session_id),
+    kbId: String(row.kb_id),
+    url: String(row.url),
+    status: String(row.status),
+    retryCount: Number(row.retry_count ?? 0),
+    retryStatus: (row.retry_status as UrlRetryStatusOnUrl | null) ?? null,
+    errorMessage: row.error_message != null ? String(row.error_message) : null,
+  };
 }

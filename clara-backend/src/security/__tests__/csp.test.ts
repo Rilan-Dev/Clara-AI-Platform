@@ -8,6 +8,10 @@ describe("CSP header", () => {
     );
   });
 
+  it("includes CSP violation reporting", () => {
+    expect(CSP_HEADER_VALUE).toContain("report-uri /api/csp-report");
+  });
+
   it("does not allow blocked analytics domains", () => {
     expect(CSP_HEADER_VALUE).not.toContain("google-analytics.com");
     expect(CSP_HEADER_VALUE).not.toContain("overbridgenet.com");

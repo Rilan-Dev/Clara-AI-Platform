@@ -645,6 +645,8 @@ export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
   const [items, setItems] = useState<FailedUrlWithRetries[]>([]);
   const [loading, setLoading]     = useState(true);
   const [expanded, setExpanded]   = useState(false);
+  const [retryingIds, setRetryingIds] = useState<Record<string, boolean>>({});
+  const [retryError, setRetryError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isActive = (item: FailedUrlWithRetries) =>
@@ -664,6 +666,41 @@ export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
     } catch { /* keep polling */ }
   }, [kbId, sessionId, stopPolling]);
 
+  const canRetry = useCallback((item: FailedUrlWithRetries) => {
+    if (item.retryStatus === "retrying" || item.retryStatus === "scheduled") return false;
+    if (item.retryStatus === "permanently_failed") return false;
+    return item.retryCount < 3;
+  }, []);
+
+  const retryNow = useCallback(async (urlId: string) => {
+    setRetryError(null);
+    setRetryingIds((prev) => ({ ...prev, [urlId]: true }));
+    try {
+      await api.retryFailedUrl(kbId, urlId);
+      await load();
+    } catch (err) {
+      setRetryError((err as Error).message);
+    } finally {
+      setRetryingIds((prev) => ({ ...prev, [urlId]: false }));
+    }
+  }, [kbId, load]);
+
+  const retryAll = useCallback(async () => {
+    setRetryError(null);
+    const eligible = items.filter(canRetry);
+    for (const item of eligible) {
+      setRetryingIds((prev) => ({ ...prev, [item.id]: true }));
+      try {
+        await api.retryFailedUrl(kbId, item.id);
+      } catch (err) {
+        setRetryError((err as Error).message);
+      } finally {
+        setRetryingIds((prev) => ({ ...prev, [item.id]: false }));
+      }
+    }
+    await load();
+  }, [items, canRetry, kbId, load]);
+
   useEffect(() => {
     load();
     pollRef.current = setInterval(load, 5_000);
@@ -677,6 +714,7 @@ export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
   const exhausted    = items.filter((i) => i.retryStatus === "permanently_failed").length;
   const inFlight     = items.filter(isActive).length;
   const noRetry      = items.filter((i) => !i.retryStatus && i.retryCount === 0).length;
+  const retryableCount = items.filter(canRetry).length;
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -715,6 +753,24 @@ export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
 
       {expanded && (
         <div className="border-t border-border">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+            <p className="text-xs text-muted-foreground">
+              Manual retry triggers an immediate fetch and respects the retry limit.
+            </p>
+            <div className="flex items-center gap-2">
+              {retryError && (
+                <span className="text-xs text-destructive">{retryError}</span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={retryAll}
+                disabled={retryableCount === 0}
+              >
+                Retry {retryableCount > 0 ? retryableCount : ""} now
+              </Button>
+            </div>
+          </div>
           {/* Stats bar */}
           <div className="grid grid-cols-4 divide-x divide-border border-b border-border">
             {[
@@ -770,6 +826,17 @@ export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
                     {item.retryStatus === "scheduled" && item.nextRetryAt && (
                       <RetryCountdownCell nextRetryAt={item.nextRetryAt} />
                     )}
+                    <div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => retryNow(item.id)}
+                        disabled={!canRetry(item) || retryingIds[item.id]}
+                        className="h-7 px-2 text-[11px]"
+                      >
+                        {retryingIds[item.id] ? "Retrying..." : "Retry now"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

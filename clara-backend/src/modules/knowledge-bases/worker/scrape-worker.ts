@@ -184,6 +184,9 @@ export async function runScrapeSession(
           console.error(`[scrape-worker] ❌ ${scrapeUrl.url}:`, message);
           await markUrlFailed(scrapeUrl.id, message);
           failed++;
+          scheduleFailedUrlRetries(sessionId, kbId).catch((e) =>
+            console.error(`[scrape-worker] retry scheduling error for session ${sessionId}:`, (e as Error).message)
+          );
         }
 
         await recalcSessionProgress(sessionId);

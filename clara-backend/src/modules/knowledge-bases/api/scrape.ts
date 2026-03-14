@@ -48,8 +48,10 @@ import {
   setSessionJobId,
   findActiveSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
+import { getScrapeUrlRetryContext } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
 import { getCrawlQueue } from "@/modules/queue";
 import { runScrapeSession } from "@/modules/knowledge-bases/worker/scrape-worker";
+import { scheduleImmediateRetryForUrl } from "@/modules/knowledge-bases/worker/retry-scheduler";
 import type Redis from "ioredis";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -523,6 +525,35 @@ export async function batchToggleUrlHandler(req: NextRequest, kbId: string): Pro
       );
     const count = await batchSetUrlInclusion(urlIds, included);
     return NextResponse.json({ updatedCount: count });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+export async function retryScrapeUrlHandler(
+  req: NextRequest,
+  kbId: string,
+  urlId: string
+): Promise<NextResponse> {
+  try {
+    await ensureMigrated();
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "document:create");
+
+    const ctx = await getScrapeUrlRetryContext(urlId);
+    if (!ctx || ctx.kbId !== kbId) {
+      return NextResponse.json({ error: "URL not found" }, { status: 404 });
+    }
+
+    const result = await scheduleImmediateRetryForUrl(urlId);
+    if (!result.scheduled) {
+      return NextResponse.json({ error: result.reason ?? "Retry not scheduled" }, { status: 400 });
+    }
+
+    await publishScrapeSessionRefresh(ctx.sessionId).catch(() => null);
+
+    return NextResponse.json(result);
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

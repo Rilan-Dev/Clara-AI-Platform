@@ -13,6 +13,10 @@ const requiredConnectSrc = [
   "connect-src 'self' wss: https://api.openai.com https://realtime.openai.com",
 ];
 
+const requiredReporting = [
+  "report-uri /api/csp-report",
+];
+
 describe("CSP headers", () => {
   it("does not allow external analytics hosts", () => {
     for (const header of [backendCsp, techvisionCsp, omenCsp]) {
@@ -25,6 +29,14 @@ describe("CSP headers", () => {
   it("keeps connect-src strict", () => {
     for (const header of [backendCsp, techvisionCsp, omenCsp]) {
       for (const directive of requiredConnectSrc) {
+        expect(header).toContain(directive);
+      }
+    }
+  });
+
+  it("enables CSP reporting", () => {
+    for (const header of [backendCsp, techvisionCsp, omenCsp]) {
+      for (const directive of requiredReporting) {
         expect(header).toContain(directive);
       }
     }

@@ -441,6 +441,13 @@ export type FailedUrlWithRetries = {
   retries:      UrlRetry[];
 };
 
+export type RetryFailedUrlResult = {
+  scheduled: boolean;
+  reason?: string;
+  attemptNumber?: number;
+  nextRetryAt?: string;
+};
+
 /** GET /api/kbs/:kbId/scrape/sessions/:sessionId/failed-urls */
 export async function getFailedUrls(
   kbId: string,
@@ -448,5 +455,15 @@ export async function getFailedUrls(
 ): Promise<FailedUrlWithRetries[]> {
   return apiFetch<FailedUrlWithRetries[]>(
     `/api/kbs/${kbId}/scrape/sessions/${sessionId}/failed-urls`
+  );
+}
+
+export async function retryFailedUrl(
+  kbId: string,
+  urlId: string
+): Promise<RetryFailedUrlResult> {
+  return apiFetch<RetryFailedUrlResult>(
+    `/api/kbs/${kbId}/scrape/urls/${urlId}`,
+    { method: "POST", body: "{}" }
   );
 }

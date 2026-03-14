@@ -6,6 +6,7 @@ export const CSP_HEADER_VALUE = [
   "img-src 'self' data: blob:",
   "connect-src 'self' wss: https://api.openai.com https://realtime.openai.com",
   "media-src 'self' blob:",
+  "report-uri /api/csp-report",
 ].join("; ");
 
 export const SECURITY_HEADERS = {

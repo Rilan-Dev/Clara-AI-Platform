@@ -22,7 +22,11 @@ import {
   PERMANENT_ERROR_CODES,
   createUrlRetry,
   setRetryJobId,
+  setRetryScheduledAt,
+  getLatestScheduledRetryForUrl,
+  getScrapeUrlRetryContext,
   markScrapeUrlRetryScheduled,
+  setScrapeUrlRetrySchedule,
 } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
 
 /** Apply ±20% random jitter to a delay so concurrent retries don't pile up. */
@@ -130,6 +134,90 @@ export async function scheduleFailedUrlRetries(
     `[retry-scheduler] Session ${sessionId}: scheduled ${scheduled}/${rows.length} retries`
   );
   return scheduled;
+}
+
+export async function scheduleImmediateRetryForUrl(scrapeUrlId: string): Promise<{
+  scheduled: boolean;
+  reason?: string;
+  attemptNumber?: number;
+  nextRetryAt?: string;
+}> {
+  const ctx = await getScrapeUrlRetryContext(scrapeUrlId);
+  if (!ctx) return { scheduled: false, reason: "not_found" };
+  if (ctx.status !== "failed") return { scheduled: false, reason: "not_failed" };
+  if (ctx.retryStatus === "retrying") return { scheduled: false, reason: "retrying" };
+  if (ctx.retryCount >= MAX_RETRY_ATTEMPTS) return { scheduled: false, reason: "max_attempts" };
+
+  const errorCode = extractErrorCode(ctx.errorMessage ?? "");
+  if (PERMANENT_ERROR_CODES.has(errorCode)) {
+    return { scheduled: false, reason: "permanent_error" };
+  }
+
+  const retryQueue = getRetryQueue();
+  const scheduledAt = new Date();
+
+  if (ctx.retryStatus === "scheduled") {
+    const existing = await getLatestScheduledRetryForUrl(scrapeUrlId);
+    const attemptNumber = existing?.attemptNumber ?? Math.max(1, ctx.retryCount);
+    if (existing?.jobId) {
+      await retryQueue.remove(existing.jobId).catch(() => null);
+    }
+    if (existing) {
+      await setRetryScheduledAt(existing.id, scheduledAt);
+      const payload: UrlRetryJobData = {
+        retryRecordId: existing.id,
+        scrapeUrlId,
+        sessionId: ctx.sessionId,
+        kbId: ctx.kbId,
+        url: ctx.url,
+        attemptNumber,
+      };
+      const job = await retryQueue.add("retry-url", payload, {
+        delay: 0,
+        jobId: `retry-${scrapeUrlId}-a${attemptNumber}-${Date.now()}`,
+      });
+      await setRetryJobId(existing.id, job.id!);
+      await setScrapeUrlRetrySchedule(scrapeUrlId, scheduledAt);
+      return {
+        scheduled: true,
+        attemptNumber,
+        nextRetryAt: scheduledAt.toISOString(),
+      };
+    }
+  }
+
+  const attemptNumber = ctx.retryCount + 1;
+  const retryRecord = await createUrlRetry({
+    scrapeUrlId,
+    sessionId: ctx.sessionId,
+    kbId: ctx.kbId,
+    url: ctx.url,
+    attemptNumber,
+    scheduledAt,
+  });
+
+  const payload: UrlRetryJobData = {
+    retryRecordId: retryRecord.id,
+    scrapeUrlId,
+    sessionId: ctx.sessionId,
+    kbId: ctx.kbId,
+    url: ctx.url,
+    attemptNumber,
+  };
+
+  const job = await retryQueue.add("retry-url", payload, {
+    delay: 0,
+    jobId: `retry-${scrapeUrlId}-a${attemptNumber}-${Date.now()}`,
+  });
+
+  await setRetryJobId(retryRecord.id, job.id!);
+  await markScrapeUrlRetryScheduled(scrapeUrlId, scheduledAt);
+
+  return {
+    scheduled: true,
+    attemptNumber,
+    nextRetryAt: scheduledAt.toISOString(),
+  };
 }
 
 /** Extract the error code from a stored error_message like "[soft-block] Blocked..." */
