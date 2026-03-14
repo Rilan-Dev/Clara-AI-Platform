@@ -181,6 +181,8 @@ export async function deleteKb(kbId: string): Promise<void> { await apiFetch(`/a
 
 export type KbDocument = {
   id: string; kbId: string; title: string; originalFilename: string; mimeType: string | null;
+  sourceType: "upload" | "url" | "api";
+  createdByScrapeSessionId: string | null;
   fileSize: number | null; chunkCount: number | null;
   status: "pending" | "processing" | "ready" | "failed";
   errorMessage: string | null; createdAt: string; updatedAt: string;
@@ -447,6 +449,51 @@ export type RetryFailedUrlResult = {
   attemptNumber?: number;
   nextRetryAt?: string;
 };
+
+// ── Document Chunks (Qdrant) ───────────────────────────────────────────────────────────────────────────
+
+export type KbChunk = {
+  pointId:          string;
+  chunkIndex:       number;
+  chunk:            string;
+  uploadedAt:       string;
+  title:            string;
+  originalFilename: string;
+  documentId:       string;
+};
+
+export async function listDocumentChunks(kbId: string, docId: string): Promise<KbChunk[]> {
+  const data = await apiFetch<{ chunks: KbChunk[]; total: number }>(
+    `/api/kbs/${kbId}/documents/${docId}/chunks`
+  );
+  return data.chunks;
+}
+
+export async function addDocumentChunk(
+  kbId: string, docId: string, text: string, chunkIndex?: number
+): Promise<KbChunk> {
+  return apiFetch<KbChunk>(`/api/kbs/${kbId}/documents/${docId}/chunks`, {
+    method: "POST",
+    body: JSON.stringify({ text, chunkIndex }),
+  });
+}
+
+export async function updateDocumentChunk(
+  kbId: string, docId: string, pointId: string, text: string, chunkIndex: number
+): Promise<void> {
+  await apiFetch(`/api/kbs/${kbId}/documents/${docId}/chunks/${pointId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ text, chunkIndex }),
+  });
+}
+
+export async function deleteDocumentChunk(
+  kbId: string, docId: string, pointId: string
+): Promise<void> {
+  await apiFetch(`/api/kbs/${kbId}/documents/${docId}/chunks/${pointId}`, {
+    method: "DELETE",
+  });
+}
 
 /** GET /api/kbs/:kbId/scrape/sessions/:sessionId/failed-urls */
 export async function getFailedUrls(

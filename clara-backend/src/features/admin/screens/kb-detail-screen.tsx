@@ -10,6 +10,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ScrapeWizard } from "@/components/admin/ScrapeWizard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { UploadZone } from "@/components/admin/UploadZone";
+import { WebSourcesPanel } from "@/components/admin/WebSourcesPanel";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
@@ -36,6 +37,7 @@ export default function KbDashboardPage() {
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
 
   const [tab, setTab] = useState<"documents" | "scrape" | "analytics" | "deploy">("documents");
+  const [docSubTab, setDocSubTab] = useState<"uploads" | "web">("uploads");
   const [archiving, setArchiving] = useState(false);
   const [draining, setDraining] = useState(false);
   const [drainResult, setDrainResult] = useState<string | null>(null);
@@ -45,6 +47,8 @@ export default function KbDashboardPage() {
   const processing = docs.filter((doc) => doc.status === "pending" || doc.status === "processing").length;
   const failed = docs.filter((doc) => doc.status === "failed").length;
   const totalChunks = docs.reduce((sum, doc) => sum + (doc.chunkCount ?? 0), 0);
+  const uploadCount = docs.filter((doc) => doc.sourceType !== "url").length;
+  const webCount    = docs.filter((doc) => doc.sourceType === "url").length;
 
   const handleDrainQueue = useCallback(async () => {
     setDraining(true);
@@ -224,15 +228,34 @@ export default function KbDashboardPage() {
             </div>
           )}
 
+          {/* Sub-tab switcher: Uploaded Files vs Web Sources */}
+          <div className="flex gap-1 rounded-lg bg-white/[0.03] p-1 border border-white/[0.06] w-fit">
+            {(["uploads", "web"] as const).map((st) => {
+              const label = st === "uploads"
+                ? `Uploaded Files${uploadCount > 0 ? ` (${uploadCount})` : ""}`
+                : `Web Sources${webCount > 0 ? ` (${webCount})` : ""}`;
+              return (
+                <button key={st} onClick={() => setDocSubTab(st)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                    docSubTab === st
+                      ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                      : "text-white/50 hover:text-white"
+                  }`}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
           {docsLoading && docs.length === 0 ? (
             <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="h-12 rounded-lg bg-white/[0.04] animate-pulse" />
               ))}
             </div>
-          ) : (
+          ) : docSubTab === "uploads" ? (
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-              <UploadZone docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
+              <UploadZone kbId={kbId} docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
               {processing > 0 && (
                 <p className="mt-4 flex items-center gap-2 text-xs text-white/35">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -240,6 +263,8 @@ export default function KbDashboardPage() {
                 </p>
               )}
             </div>
+          ) : (
+            <WebSourcesPanel kbId={kbId} docs={docs} onDelete={remove} onReprocess={reprocess} />
           )}
         </div>
       )}

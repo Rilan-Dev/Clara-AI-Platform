@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
+import { ChunkViewer } from "./ChunkViewer";
 import type { KbDocument } from "@/modules/admin-ui/api";
 
 const ACCEPTED = ".pdf,.docx,.xlsx,.xls,.txt,.md,.csv";
@@ -14,13 +15,16 @@ const MAX_MB = 50;
 type UploadError = { filename: string; error: string };
 
 type Props = {
+  kbId: string;
   docs: KbDocument[];
   onUpload: (files: File[]) => Promise<{ queued: KbDocument[]; errors: UploadError[] }>;
   onDelete: (docId: string) => Promise<void>;
   onReprocess: (docId: string) => Promise<void>;
 };
 
-export function UploadZone({ docs, onUpload, onDelete, onReprocess }: Props) {
+export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Props) {
+  // Only show uploaded files — web-scraped docs live in the Web Sources tab
+  const uploadDocs = docs.filter((d) => d.sourceType !== "url");
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -113,59 +117,58 @@ export function UploadZone({ docs, onUpload, onDelete, onReprocess }: Props) {
         </div>
       )}
 
-      {/* Documents table */}
-      {docs.length > 0 && (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5 text-left font-medium">Document</th>
-                <th className="px-4 py-2.5 text-left font-medium">Size</th>
-                <th className="px-4 py-2.5 text-left font-medium">Chunks</th>
-                <th className="px-4 py-2.5 text-left font-medium">Status</th>
-                <th className="px-4 py-2.5 text-left font-medium">Uploaded</th>
-                <th className="px-4 py-2.5 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {docs.map((doc) => (
-                <tr key={doc.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 max-w-[220px]">
-                    <div className="font-medium text-foreground truncate">{doc.title}</div>
-                    <div className="text-xs text-muted-foreground truncate">{doc.originalFilename}</div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatSize(doc.fileSize)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {doc.chunkCount != null ? doc.chunkCount.toLocaleString() : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={doc.status} />
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(doc.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {doc.status === "failed" && (
-                        <Button variant="ghost" size="sm" onClick={() => onReprocess(doc.id)}
-                          className="h-7 px-2 text-xs text-warning hover:text-warning hover:bg-warning/10">
-                          Retry
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => onDelete(doc.id)}
-                        className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Documents table — uploaded files only */}
+      {uploadDocs.length > 0 && (
+        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+          {uploadDocs.map((doc) => (
+            <div key={doc.id} className="bg-card">
+              {/* Row */}
+              <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
+                {/* File icon */}
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-muted/60">
+                  <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-foreground truncate">{doc.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">{doc.originalFilename}</div>
+                </div>
+                {/* Meta */}
+                <div className="flex items-center gap-4 shrink-0 text-xs text-muted-foreground">
+                  <span>{formatSize(doc.fileSize)}</span>
+                  <span>{doc.chunkCount != null ? `${doc.chunkCount.toLocaleString()} chunks` : "—"}</span>
+                  <span className="hidden sm:block">{formatDate(doc.createdAt)}</span>
+                  <StatusBadge status={doc.status} />
+                </div>
+                {/* Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  {doc.status === "failed" && (
+                    <Button variant="ghost" size="sm" onClick={() => onReprocess(doc.id)}
+                      className="h-7 px-2 text-xs text-warning hover:text-warning hover:bg-warning/10">
+                      Retry
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => onDelete(doc.id)}
+                    className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                    Delete
+                  </Button>
+                </div>
+              </div>
+              {/* Chunk viewer — lazy, expandable */}
+              {doc.status === "ready" && (
+                <ChunkViewer kbId={kbId} docId={doc.id} chunkCount={doc.chunkCount} />
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {docs.length === 0 && !uploading && (
+      {uploadDocs.length === 0 && !uploading && (
         <p className="text-center text-sm text-muted-foreground py-4">
-          No documents yet. Upload your first document above.
+          No uploaded documents yet. Drop files above to get started.
         </p>
       )}
     </div>

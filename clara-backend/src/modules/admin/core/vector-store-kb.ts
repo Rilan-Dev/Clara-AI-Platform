@@ -160,6 +160,138 @@ export async function upsertDocumentsKb(
   console.log(`[vs-kb] ✅ upserted ${points.length} points into "${collectionName}"`);
 }
 
+// ── Per-chunk operations (for Chunk Viewer UI) ──────────────────────────────
+
+export type KbChunk = {
+  pointId:          string;
+  chunkIndex:       number;
+  chunk:            string;
+  uploadedAt:       string;
+  title:            string;
+  originalFilename: string;
+  documentId:       string;
+};
+
+/**
+ * Scroll all chunks for a single document out of Qdrant (no vectors).
+ * Returns chunks sorted by chunkIndex.
+ */
+export async function listDocumentChunks(
+  collectionName: string,
+  documentId: string
+): Promise<KbChunk[]> {
+  const client = getQdrantClient();
+  const chunks: KbChunk[] = [];
+  let offset: string | number | null | undefined = undefined;
+
+  do {
+    const result = await client.scroll(collectionName, {
+      filter: { must: [{ key: "documentId", match: { value: documentId } }] },
+      limit: 100,
+      ...(offset !== undefined ? { offset } : {}),
+      with_payload: true,
+      with_vector: false,
+    });
+
+    for (const point of result.points) {
+      const p = point.payload as Record<string, unknown>;
+      chunks.push({
+        pointId:          String(point.id),
+        chunkIndex:       Number(p.chunkIndex ?? 0),
+        chunk:            String(p.chunk ?? ""),
+        uploadedAt:       String(p.uploadedAt ?? ""),
+        title:            String(p.title ?? ""),
+        originalFilename: String(p.originalFilename ?? ""),
+        documentId:       String(p.documentId ?? documentId),
+      });
+    }
+
+    offset = result.next_page_offset ?? null;
+  } while (offset !== null && offset !== undefined);
+
+  return chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
+}
+
+/** Delete a single Qdrant point by its UUID point ID. */
+export async function deleteChunk(
+  collectionName: string,
+  pointId: string
+): Promise<void> {
+  const client = getQdrantClient();
+  await client.delete(collectionName, { wait: true, points: [pointId] });
+}
+
+/**
+ * Re-embed updated text and upsert back with the same pointId.
+ * Preserves chunkIndex and all other metadata.
+ */
+export async function updateChunk(
+  collectionName: string,
+  pointId: string,
+  newText: string,
+  chunkIndex: number,
+  meta: KbChunkMeta
+): Promise<void> {
+  const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
+  const providerConfig = toProviderConfig(resolved);
+  const embedding = await embedWithRetry(newText, providerConfig);
+
+  const client = getQdrantClient();
+  await client.upsert(collectionName, {
+    wait: true,
+    points: [{
+      id:      pointId,
+      vector:  embedding,
+      payload: {
+        kbId:             meta.kbId,
+        documentId:       meta.documentId,
+        title:            meta.title,
+        originalFilename: meta.originalFilename,
+        chunk:            newText,
+        chunkIndex,
+        uploadedAt:       new Date().toISOString(),
+      },
+    }],
+  });
+}
+
+/**
+ * Embed a new chunk text and insert it as a new Qdrant point.
+ * Returns the generated pointId (UUID).
+ */
+export async function addChunk(
+  collectionName: string,
+  text: string,
+  chunkIndex: number,
+  meta: KbChunkMeta
+): Promise<string> {
+  const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
+  const providerConfig = toProviderConfig(resolved);
+  const embedding = await embedWithRetry(text, providerConfig);
+
+  const client = getQdrantClient();
+  const pointId = randomUUID();
+
+  await client.upsert(collectionName, {
+    wait: true,
+    points: [{
+      id:      pointId,
+      vector:  embedding,
+      payload: {
+        kbId:             meta.kbId,
+        documentId:       meta.documentId,
+        title:            meta.title,
+        originalFilename: meta.originalFilename,
+        chunk:            text,
+        chunkIndex,
+        uploadedAt:       new Date().toISOString(),
+      },
+    }],
+  });
+
+  return pointId;
+}
+
 /**
  * Delete all Qdrant points belonging to a specific document.
  * Called when a document is deleted from the DB.
