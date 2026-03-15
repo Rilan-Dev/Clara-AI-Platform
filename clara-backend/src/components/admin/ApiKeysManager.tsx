@@ -440,7 +440,7 @@ const CLARA_KEY   = 'YOUR_FULL_API_KEY';   // store in env, never commit
 // ── Read current design ──
 const getDesign = async () => {
   const res = await fetch(CLARA_API, {
-    headers: { Authorization: `Bearer \${CLARA_KEY}\` },
+    headers: { Authorization: 'Bearer ' + CLARA_KEY },
   });
   return res.json();
 };
@@ -449,7 +449,7 @@ const getDesign = async () => {
 const updateDesign = async (patch: Record<string, unknown>) => {
   const res = await fetch(CLARA_API, {
     method:  'PATCH',
-    headers: { Authorization: `Bearer \${CLARA_KEY}\`, 'Content-Type': 'application/json' },
+    headers: { Authorization: 'Bearer ' + CLARA_KEY, 'Content-Type': 'application/json' },
     body:    JSON.stringify(patch),
   });
   return res.json();

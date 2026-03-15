@@ -35,13 +35,17 @@ ENV PORT=3000
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY --from=builder /app/clara-backend/public ./public
-COPY --from=builder /app/clara-backend/scripts ./scripts
+# Copy the full standalone Next.js output (includes server.js, node_modules, etc.)
 COPY --from=builder /app/clara-backend/.next-app/standalone/clara-backend ./
 # Keep browser assets inside the configured distDir so standalone Next can serve /_next/static.
 COPY --from=builder /app/clara-backend/.next-app/static ./.next-app/static
+# Overwrite scripts/ with the full scripts directory (includes docker-start.sh etc.)
+# The relay scripts (start.mjs, voice-relay.mjs) and ws module are already
+# inside the standalone output from the builder stage RUN cp commands above.
+COPY --from=builder /app/clara-backend/scripts ./scripts
 
 USER pwuser
 EXPOSE 3000
 
-# Start the standalone Next.js server
+# Start via the relay-enabled custom entry point
 CMD ["sh", "./scripts/docker-start.sh"]
