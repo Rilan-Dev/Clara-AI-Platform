@@ -148,7 +148,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const session = (await res.json()) as Record<string, unknown>;
     return NextResponse.json(
-      { ...session, kbId: ctx.kbId, provider: "openai" },
+      { ...session, kbId: ctx.kbId, provider: "openai", welcomeMessage: config.welcomeMessage ?? "" },
       { headers: corsHeaders }
     );
   } catch (err) {
