@@ -123,6 +123,13 @@ export async function putConfigHandler(
       widgetChatHeight:   body.widgetChatHeight   ? Math.min(Math.max(Number(body.widgetChatHeight), 300), 900) : 580,
       widgetShowBranding: body.widgetShowBranding !== undefined ? Boolean(body.widgetShowBranding) : true,
       widgetLauncherLabel: body.widgetLauncherLabel ? String(body.widgetLauncherLabel).trim() : null,
+      // Full design control fields (migration 019)
+      widgetMode:        (body.widgetMode === "inline" || body.widgetMode === "headless"
+                            ? body.widgetMode : "floating") as "floating" | "inline" | "headless",
+      customCss:         body.customCss         ? String(body.customCss).trim()         : null,
+      customLauncherSvg: body.customLauncherSvg ? String(body.customLauncherSvg).trim() : null,
+      customHeaderHtml:  body.customHeaderHtml  ? String(body.customHeaderHtml).trim()  : null,
+      customPoweredBy:   body.customPoweredBy   ? String(body.customPoweredBy).trim()   : null,
     };
 
     const config = await putAssistantConfig(kbId, input);
