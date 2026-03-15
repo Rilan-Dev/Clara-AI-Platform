@@ -650,8 +650,6 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
                         Design API ✨
                       </Badge>
                     )}
-                  </div>•••••••••••••••••••••
-                    </code>
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                     {key.allowedOrigins.length > 0
