@@ -33,12 +33,6 @@ export class VonageAdapter implements PhoneProviderAdapter {
     // Accept if JWT is present (Vonage signs with application private key)
     // For simplicity, verify HMAC of body with API secret
     try {
-      const sig = crypto
-        .createHmac("sha256", this.apiSecret)
-        .update(rawBody)
-        .digest("hex");
-      const provided = authHeader.replace("Bearer ", "");
-      // In a real setup, verify JWT. Here we do timing-safe comparison.
       return provided.length > 0; // Vonage JWTs are always valid if present
     } catch {
       return false;

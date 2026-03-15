@@ -183,6 +183,19 @@ export class CallHandler {
     this.phoneWs.on("error",  () => this.endCall("phone error"));
   }
 
+  // ── Public helpers called by phone-stream.mjs before start() ────────────────
+
+  /** Called for Twilio media frames buffered before the start event */
+  _forwardTwilioFrame(msg: Record<string, unknown>): void {
+    const payload = (msg as { media?: { payload?: string } }).media?.payload;
+    if (payload) this.forwardAudioToOpenAI(Buffer.from(payload, "base64"));
+  }
+
+  /** Called for Vonage raw binary audio frames buffered before metadata */
+  _handleRawAudio(buf: Buffer): void {
+    this.forwardAudioToOpenAI(buf);
+  }
+
   // ── Forward phone audio to OpenAI ──────────────────────────────────────────
   private forwardAudioToOpenAI(rawBuf: Buffer): void {
     if (!this.openaiWs || this.openaiWs.readyState !== WebSocket.OPEN) return;

@@ -5,6 +5,7 @@ import { ArrowRight, BrainCircuit, Building2, Database, Layers3 } from "lucide-r
 import { useOrgs } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Button } from "@/components/ui/button";
+import { PlatformEnvPanel } from "@/components/admin/PlatformEnvPanel";
 
 export default function AdminSettingsPage() {
   const { orgs, loading, error } = useOrgs();
@@ -73,6 +74,10 @@ export default function AdminSettingsPage() {
         <p className="mt-2 text-sm text-white/40 leading-6">
           Assistant identity changes are instant, but embedding-route changes are not. After switching embedding provider or model overrides, reprocess the affected KB documents before relying on retrieval quality.
         </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+        <PlatformEnvPanel />
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">

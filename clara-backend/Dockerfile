@@ -23,8 +23,9 @@ RUN ln -s /app/clara-backend/node_modules /app/node_modules && npm run build
 # Copy voice relay scripts into standalone output so they run alongside Next.js.
 # Also copy the ws package (used by the relay) into standalone node_modules.
 RUN mkdir -p /app/clara-backend/.next-app/standalone/clara-backend/scripts && \
-    cp /app/clara-backend/scripts/start.mjs       /app/clara-backend/.next-app/standalone/clara-backend/scripts/start.mjs && \
-    cp /app/clara-backend/scripts/voice-relay.mjs /app/clara-backend/.next-app/standalone/clara-backend/scripts/voice-relay.mjs && \
+    cp /app/clara-backend/scripts/start.mjs        /app/clara-backend/.next-app/standalone/clara-backend/scripts/start.mjs && \
+    cp /app/clara-backend/scripts/voice-relay.mjs  /app/clara-backend/.next-app/standalone/clara-backend/scripts/voice-relay.mjs && \
+    cp /app/clara-backend/scripts/phone-stream.mjs /app/clara-backend/.next-app/standalone/clara-backend/scripts/phone-stream.mjs && \
     cp -r /app/clara-backend/node_modules/ws      /app/clara-backend/.next-app/standalone/clara-backend/node_modules/ws
 
 # ── Stage 3: Production runner ──────────────────────────────────────────────
@@ -40,7 +41,7 @@ COPY --from=builder /app/clara-backend/.next-app/standalone/clara-backend ./
 # Keep browser assets inside the configured distDir so standalone Next can serve /_next/static.
 COPY --from=builder /app/clara-backend/.next-app/static ./.next-app/static
 # Overwrite scripts/ with the full scripts directory (includes docker-start.sh etc.)
-# The relay scripts (start.mjs, voice-relay.mjs) and ws module are already
+# The relay scripts (start.mjs, voice-relay.mjs, phone-stream.mjs) and ws module are already
 # inside the standalone output from the builder stage RUN cp commands above.
 COPY --from=builder /app/clara-backend/scripts ./scripts
 

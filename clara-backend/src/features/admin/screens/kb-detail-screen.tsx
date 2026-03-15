@@ -15,6 +15,7 @@ import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
 import { WidgetDesignPanel } from "@/components/admin/WidgetDesignPanel";
+import { PhoneCallPanel } from "@/components/admin/PhoneCallPanel";
 import { Button } from "@/components/ui/button";
 import { apiFetchJson } from "@/lib/runtime";
 
@@ -37,7 +38,7 @@ export default function KbDashboardPage() {
   const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
 
-  const [tab, setTab] = useState<"documents" | "scrape" | "analytics" | "deploy" | "design">("documents");
+  const [tab, setTab] = useState<"documents" | "scrape" | "analytics" | "deploy" | "design" | "phone">("documents");
   const [docSubTab, setDocSubTab] = useState<"uploads" | "web">("uploads");
   const [archiving, setArchiving] = useState(false);
   const [draining, setDraining] = useState(false);
@@ -179,7 +180,7 @@ export default function KbDashboardPage() {
       </div>
 
       <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit">
-        {(["documents", "scrape", "analytics", "deploy", "design"] as const).map((item) => (
+        {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
           <button
             key={item}
             onClick={() => {
@@ -198,6 +199,8 @@ export default function KbDashboardPage() {
               ? "Analytics"
               : item === "deploy"
               ? "Deploy"
+              : item === "phone"
+              ? "📞 Phone"
               : "Design"}
           </button>
         ))}
@@ -295,6 +298,12 @@ export default function KbDashboardPage() {
       {tab === "design" && (
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
           <WidgetDesignPanel kbId={kbId} />
+        </div>
+      )}
+
+      {tab === "phone" && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <PhoneCallPanel kbId={kbId} />
         </div>
       )}
     </div>
