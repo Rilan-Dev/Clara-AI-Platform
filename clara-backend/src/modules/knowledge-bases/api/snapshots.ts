@@ -117,6 +117,21 @@ export async function restoreSnapshotHandler(
       strictMode:       s.strictMode,
       primaryColour:    s.primaryColour,
       accentColour:     s.accentColour,
+      // Widget layout (migration 016-017)
+      widgetTheme:        s.widgetTheme        ?? "light",
+      widgetPosition:     s.widgetPosition     ?? "bottom-right",
+      widgetButtonSize:   s.widgetButtonSize   ?? 56,
+      widgetBorderRadius: s.widgetBorderRadius ?? 20,
+      widgetFontFamily:   s.widgetFontFamily   ?? "system-ui,sans-serif",
+      widgetChatHeight:   s.widgetChatHeight   ?? 580,
+      widgetShowBranding: s.widgetShowBranding ?? true,
+      widgetLauncherLabel: s.widgetLauncherLabel ?? null,
+      // Full design control (migration 019)
+      widgetMode:         s.widgetMode         ?? "floating",
+      customCss:          s.customCss          ?? null,
+      customLauncherSvg:  s.customLauncherSvg  ?? null,
+      customHeaderHtml:   s.customHeaderHtml   ?? null,
+      customPoweredBy:    s.customPoweredBy    ?? null,
     };
 
     const restoredConfig = await putAssistantConfig(kbId, input);
