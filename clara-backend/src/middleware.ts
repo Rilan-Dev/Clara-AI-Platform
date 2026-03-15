@@ -64,9 +64,10 @@ const CORS_HEADERS = {
 // origin (the site owner embeds the widget on their own domain).
 const EMBED_CORS_HEADERS = {
   // PATCH for /api/embed/design; Upgrade for /api/embed/voice WebSocket
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Extensions",
-  "Access-Control-Max-Age": "86400",
+  "Access-Control-Allow-Methods":     "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":     "Content-Type, Authorization, Accept, X-Requested-With, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Extensions",
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Max-Age":           "86400",
 } as const;
 
 /** Localhost regex — always allowed for developer convenience. */

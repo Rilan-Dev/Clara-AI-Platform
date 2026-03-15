@@ -128,7 +128,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         const write = (event: unknown) =>
           controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
-        // Emit sources immediately
+        // Emit sources as first event so callers can display citations
         write({
           type: "sources",
           payload: searchResults.map((r, i) => ({

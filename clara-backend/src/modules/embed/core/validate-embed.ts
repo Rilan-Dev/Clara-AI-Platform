@@ -57,11 +57,12 @@ export function buildCorsHeaders(
 ): Record<string, string> {
   const allowOrigin = resolveAllowedOrigin(origin, allowedOrigins);
   return {
-    "Access-Control-Allow-Origin":  allowOrigin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Max-Age":       "86400",
-    "Vary":                         "Origin",
+    "Access-Control-Allow-Origin":      allowOrigin,
+    "Access-Control-Allow-Methods":     "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers":     "Content-Type, Authorization, Accept, X-Requested-With",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age":           "86400",
+    "Vary":                             "Origin",
   };
 }
 
@@ -247,10 +248,12 @@ export function requireVoiceAccess(
 
 export function handlePreflight(req: NextRequest, allowedOrigins: string[] = []): NextResponse {
   const origin = req.headers.get("origin");
-  return new NextResponse(null, {
-    status: 204,
-    headers: buildCorsHeaders(origin, allowedOrigins),
-  });
+  // For preflight, always echo the origin back (embed endpoints are public-key-authenticated,
+  // not restricted by origin at the OPTIONS level — the actual GET/POST validates origin).
+  const headers = buildCorsHeaders(origin, allowedOrigins);
+  // Override: always allow the requesting origin on OPTIONS so the preflight succeeds
+  if (origin) headers["Access-Control-Allow-Origin"] = origin;
+  return new NextResponse(null, { status: 204, headers });
 }
 
 // ── Design-API validator ──────────────────────────────────────────────────────
