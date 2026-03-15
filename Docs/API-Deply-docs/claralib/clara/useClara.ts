@@ -1,21 +1,3 @@
-/**
- * src/lib/clara/useClara.ts
- * ─────────────────────────────────────────────────────────────────────────────
- * Dead-simple React hook for Clara AI chat.
- *
- * You get the data. You build the UI however you want.
- *
- *   const { messages, send, isThinking, reset } = useClara();
- *
- * That's it. No configuration, no design objects, no Clara concepts to learn.
- * Style your own components. Use your own CSS / Tailwind / styled-components.
- *
- * messages shape:
- *   { id, role: "user"|"assistant", content, sources? }
- *   — assistant content streams in token-by-token while it is being generated
- *   — sources is an array of { title, snippet } citation objects (optional)
- */
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { CLARA_CONFIG } from "./config";
 
@@ -26,7 +8,6 @@ export type Message = {
   sources?: Array<{ index: number; title: string; snippet: string }>;
 };
 
-// Minimal config shape — only what the UI actually needs
 export type ClaraConfig = {
   assistantName:  string;
   welcomeMessage: string;
@@ -39,8 +20,6 @@ const BASE = CLARA_CONFIG.baseUrl;
 const KEY  = CLARA_CONFIG.apiKey;
 const AUTH = { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" };
 const SID  = "chat_" + Math.random().toString(36).slice(2, 10);
-
-// ── Hook ───────────────────────────────────────────────────────────────────
 
 export function useClara() {
   const [messages,   setMessages]   = useState<Message[]>([]);
@@ -66,18 +45,15 @@ export function useClara() {
       .catch(() => {});
   }, []);
 
-  /** Send a message. Tokens stream in as they arrive. */
   const send = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
 
-    // Add user bubble immediately
     const userId = `u_${Date.now()}`;
     setMessages(prev => [...prev, { id: userId, role: "user", content: trimmed }]);
     history.current.push({ role: "user", content: trimmed });
     setIsThinking(true);
 
-    // Add empty assistant bubble that we'll fill in as tokens arrive
     const asstId = `a_${Date.now()}`;
     setMessages(prev => [...prev, { id: asstId, role: "assistant", content: "" }]);
     let accumulated = "";
@@ -98,7 +74,7 @@ export function useClara() {
       const decoder = new TextDecoder();
       let   buffer  = "";
 
-      // Read streaming NDJSON
+      
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -137,17 +113,16 @@ export function useClara() {
     }
   }, [isThinking]);
 
-  /** Clear conversation and start fresh */
   const reset = useCallback(() => {
     history.current = [];
     setMessages([]);
   }, []);
 
   return {
-    messages,    // Message[]  — render these however you want
-    send,        // (text: string) => void
-    isThinking,  // boolean  — true while AI is streaming
-    reset,       // () => void  — clear conversation
-    config,      // ClaraConfig | null  — brand colours + assistant name
+    messages,    
+    send,        
+    isThinking,  
+    reset,       
+    config,      
   };
 }

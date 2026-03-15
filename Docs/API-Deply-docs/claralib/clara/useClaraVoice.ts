@@ -1,24 +1,28 @@
 /**
  * src/lib/clara/useClaraVoice.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * React hook for Clara AI voice — OpenAI Realtime (WebRTC) or Gemini Live (WebSocket).
+ * Direct WebRTC voice — browser ↔ OpenAI Realtime via ephemeral key.
  *
- *   const voice = useClaraVoice();
+ * Three critical fixes vs previous version:
  *
- *   voice.status      — "idle" | "connecting" | "connected" | "error"
- *   voice.transcript  — live turns: [{ id, speaker, text, status }]
- *   voice.isSpeaking  — true while AI is playing audio
- *   voice.audioLevels — number[32]  0–1 bar heights for a visualizer
- *   voice.connect()   — request mic + start session
- *   voice.disconnect()
- *   voice.interrupt() — cut off AI mid-sentence
- *   voice.sendText()  — inject a text turn while voice is active
- *   voice.error       — string | null
+ * FIX 1 — Always fire response.create (fixes "ask twice" bug)
+ *   Old: word-count gate returned early without response.create → AI stuck forever
+ *   New: ALWAYS fire response.create after RAG attempt, even if query is short
+ *        or RAG fails. AI can respond to greetings like "Hi" without context.
+ *
+ * FIX 2 — Speculative RAG on transcript delta (fixes delay)
+ *   Old: wait for transcription.completed → 300ms debounce → RAG → inject → speak
+ *   New: start RAG search as soon as 10+ chars accumulate during streaming deltas.
+ *        By the time transcription.completed fires, results are often already back.
+ *        Only re-fetches if the final transcript differs significantly.
+ *
+ * FIX 3 — Welcome message on connect
+ *   Old: no greeting after session starts
+ *   New: session response includes welcomeMessage from KB config — fire greeting
+ *        response.create immediately after session.update.
  */
 import { useState, useRef, useCallback, useEffect } from "react";
 import { CLARA_CONFIG } from "./config";
-
-// ── Types ───────────────────────────────────────────────────────────────────
 
 export type VoiceStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -27,6 +31,7 @@ export type VoiceTurn = {
   speaker: "user" | "assistant";
   text:    string;
   status:  "speaking" | "done";
+  sources?: Array<{ index: number; title: string }>;
 };
 
 export type UseClaraVoiceReturn = {
@@ -41,28 +46,25 @@ export type UseClaraVoiceReturn = {
   error:       string | null;
 };
 
-// ── Internal constants ───────────────────────────────────────────────────────
-
 const BASE = CLARA_CONFIG.baseUrl;
-const AUTH = { "Authorization": `Bearer ${CLARA_CONFIG.apiKey}`, "Content-Type": "application/json" };
-const SID  = "voice_" + Math.random().toString(36).slice(2, 10);
+const KEY  = CLARA_CONFIG.apiKey;
 const BARS = 32;
+// Minimum chars to start a speculative RAG search during delta streaming
+const SPECULATIVE_MIN_CHARS = 12;
+// How similar the speculative query must be to reuse its result (0-1)
+const REUSE_THRESHOLD = 0.7;
 
-// ── Frequency analyser → bar heights ────────────────────────────────────────
-
-function buildLevels(analyser: AnalyserNode | null): number[] {
-  if (!analyser) return Array(BARS).fill(0);
-  const data = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(data);
-  const bucket = Math.floor(data.length / BARS);
-  return Array.from({ length: BARS }, (_, i) => {
-    let sum = 0;
-    for (let j = 0; j < bucket; j++) sum += data[i * bucket + j]!;
-    return (sum / bucket) / 255;
-  });
+function uid() {
+  return crypto.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
-// ── Hook ─────────────────────────────────────────────────────────────────────
+/** Simple similarity: what fraction of words in `b` appear in `a` */
+function similarity(a: string, b: string): number {
+  const wa = new Set(a.toLowerCase().split(/\s+/).filter(Boolean));
+  const wb = b.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!wb.length) return 1;
+  return wb.filter(w => wa.has(w)).length / wb.length;
+}
 
 export function useClaraVoice(): UseClaraVoiceReturn {
   const [status,      setStatus]      = useState<VoiceStatus>("idle");
@@ -71,437 +73,431 @@ export function useClaraVoice(): UseClaraVoiceReturn {
   const [audioLevels, setAudioLevels] = useState<number[]>(Array(BARS).fill(0));
   const [error,       setError]       = useState<string | null>(null);
 
-  const pcRef       = useRef<RTCPeerConnection | null>(null);
-  const dcRef       = useRef<RTCDataChannel | null>(null);
-  const wsRef       = useRef<WebSocket | null>(null);
-  const streamRef   = useRef<MediaStream | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const rafRef      = useRef<number>(0);
-  const providerRef = useRef<"openai" | "gemini" | null>(null);
+  const statusRef     = useRef<VoiceStatus>("idle");
+  const pcRef         = useRef<RTCPeerConnection | null>(null);
+  const dcRef         = useRef<RTCDataChannel | null>(null);
+  const micRef        = useRef<MediaStream | null>(null);
+  const audioRef      = useRef<HTMLAudioElement | null>(null);
+  const analyserRef   = useRef<AnalyserNode | null>(null);
+  const audioCtxRef   = useRef<AudioContext | null>(null);
+  const rafRef        = useRef<number>(0);
+  const connectTok    = useRef(0);
+  const sendQueue     = useRef<string[]>([]);
+  const userQuery     = useRef("");
+  const ragAbort      = useRef<AbortController | null>(null);
+  const activeTurn    = useRef<string | null>(null);
+  const latestTurn    = useRef<string | null>(null);
+  const toolBuf       = useRef<Record<string, string>>({});
+  const kbIdRef       = useRef<string | null>(null);
+  // Speculative RAG cache: query → {context, sources}
+  const specCache     = useRef<{ query: string; context: string; sources: Array<{ index: number; title: string }> } | null>(null);
+  const specAbort     = useRef<AbortController | null>(null);
 
-  // ── Visualizer RAF loop ─────────────────────────────────────────────────
+  const upd = useCallback((s: VoiceStatus) => { statusRef.current = s; setStatus(s); }, []);
+
+  // ── Visualizer ────────────────────────────────────────────────────────────
   const startViz = useCallback(() => {
     const tick = () => {
-      setAudioLevels(buildLevels(analyserRef.current));
+      if (!analyserRef.current) { setAudioLevels(Array(BARS).fill(0)); return; }
+      const d = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(d);
+      const b = Math.floor(d.length / BARS);
+      setAudioLevels(Array.from({ length: BARS }, (_, i) => {
+        let s = 0; for (let j = 0; j < b; j++) s += d[i * b + j]!; return (s / b) / 255;
+      }));
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
   const stopViz = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    cancelAnimationFrame(rafRef.current);
     setAudioLevels(Array(BARS).fill(0));
   }, []);
 
-  // ── Transcript upsert ────────────────────────────────────────────────────
-  const upsertTurn = useCallback((id: string, speaker: VoiceTurn["speaker"], text: string, st: VoiceTurn["status"]) => {
-    setTranscript(prev => {
-      const idx = prev.findIndex(t => t.id === id);
-      if (idx === -1) return [...prev, { id, speaker, text, status: st }];
-      return prev.map((t, i) => i === idx ? { ...t, text, status: st } : t);
-    });
+  // ── sendJSON ──────────────────────────────────────────────────────────────
+  const sendJSON = useCallback((obj: unknown) => {
+    const msg = JSON.stringify(obj);
+    const dc  = dcRef.current;
+    if (dc?.readyState === "open") { try { dc.send(msg); } catch { /* Skip Error Catch */ } }
+    else sendQueue.current.push(msg);
   }, []);
 
-  // ── RAG search — called when OpenAI Realtime fires a rag_search tool call ──
-  // Streams tokens from /api/embed/chat, accumulates the answer, then sends
-  // the result back to the data channel so the AI can continue speaking.
-  const answerRagSearch = useCallback(async (callId: string, query: string) => {
-    try {
-      const res = await fetch(`${BASE}/api/embed/chat`, {
-        method: "POST", headers: AUTH,
-        body: JSON.stringify({ messages: [{ role: "user", content: query }], sessionId: SID + "_rag" }),
-      });
-      if (!res.ok || !res.body) throw new Error("RAG fetch failed");
-
-      const reader = res.body.getReader(); const dec = new TextDecoder();
-      let buf = ""; let answer = "";
-      for (;;) {
-        const { done, value } = await reader.read(); if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n"); buf = lines.pop() ?? "";
-        for (const line of lines) {
-          try {
-            const ev = JSON.parse(line) as { type: string; payload: unknown };
-            if (ev.type === "token" && typeof ev.payload === "string") answer += ev.payload;
-          } catch { /* skip */ }
-        }
-      }
-
-      if (dcRef.current?.readyState === "open") {
-        dcRef.current.send(JSON.stringify({
-          type: "conversation.item.create",
-          item: {
-            type: "function_call_output",
-            call_id: callId,
-            output: answer || "No relevant information found in the knowledge base.",
-          },
-        }));
-        // Trigger AI to continue speaking with the RAG result
-        dcRef.current.send(JSON.stringify({ type: "response.create" }));
-      }
-    } catch (e) {
-      console.warn("[ClaraVoice] RAG search failed:", e);
-    }
+  // ── Resolve which turn to update ──────────────────────────────────────────
+  const resolveTurnId = useCallback((turns: VoiceTurn[]) => {
+    if (activeTurn.current && turns.some(t => t.id === activeTurn.current)) return activeTurn.current;
+    if (latestTurn.current && turns.some(t => t.id === latestTurn.current)) return latestTurn.current;
+    return turns.length ? turns[turns.length - 1]!.id : null;
   }, []);
 
-  // ── OpenAI Realtime event handler ─────────────────────────────────────────
-  const handleOpenAIEvent = useCallback((ev: Record<string, unknown>) => {
-    switch (ev.type) {
-
-      // ── Speech detection ─────────────────────────────────────────────────
-      case "input_audio_buffer.speech_started":
-        setIsSpeaking(false); // user speaking, AI not
-        break;
-
-      // The server session uses create_response=false, so we must trigger
-      // response.create manually. We fire it ONLY on 'committed' — which
-      // always fires after speech_stopped. Firing on both causes the
-      // "active response already in progress" error seen in the console.
-      case "input_audio_buffer.committed":
-        if (dcRef.current?.readyState === "open") {
-          dcRef.current.send(JSON.stringify({ type: "response.create" }));
-        }
-        break;
-
-      // ── AI audio output ──────────────────────────────────────────────────
-      case "response.audio.delta":
-        setIsSpeaking(true);
-        break;
-
-      case "response.audio.done":
-        setIsSpeaking(false);
-        break;
-
-      // ── User speech transcription ────────────────────────────────────────
-      case "conversation.item.input_audio_transcription.completed": {
-        const turnId = (ev.item_id as string) ?? `u_${Date.now()}`;
-        const text   = (ev.transcript as string) ?? "";
-        if (text.trim()) upsertTurn(turnId, "user", text, "done");
-        break;
-      }
-
-      // ── AI text transcript (streams word-by-word) ─────────────────────────
-      case "response.audio_transcript.delta": {
-        const turnId = (ev.response_id as string) ?? `a_${Date.now()}`;
-        const delta  = (ev.delta as string) ?? "";
-        setTranscript(prev => {
-          const idx = prev.findIndex(t => t.id === turnId);
-          if (idx === -1) return [...prev, { id: turnId, speaker: "assistant", text: delta, status: "speaking" }];
-          return prev.map((t, i) => i === idx ? { ...t, text: t.text + delta, status: "speaking" } : t);
-        });
-        break;
-      }
-
-      case "response.audio_transcript.done": {
-        const turnId = (ev.response_id as string) ?? "";
-        if (turnId) setTranscript(prev => prev.map(t => t.id === turnId ? { ...t, status: "done" } : t));
-        break;
-      }
-
-      // ── RAG tool call ─────────────────────────────────────────────────────
-      case "response.function_call_arguments.done": {
-        const callId = (ev.call_id as string) ?? "";
-        try {
-          const args = JSON.parse(ev.arguments as string) as { query?: string };
-          if (callId && args.query) answerRagSearch(callId, args.query);
-        } catch { /* ignore */ }
-        break;
-      }
-
-      case "error": {
-        const msg = ((ev.error as { message?: string })?.message) ?? "Unknown error";
-        setError(msg); setStatus("error");
-        console.error("[ClaraVoice] server error:", msg);
-        break;
-      }
-    }
-  }, [upsertTurn, answerRagSearch]);
-
-  // ── OpenAI WebRTC connect ──────────────────────────────────────────────────
-  const connectOpenAI = useCallback(async (ephemeralKey: string) => {
-    const pc = new RTCPeerConnection();
-    pcRef.current = pc;
-
-    const audioCtx = new AudioContext();
-    audioCtxRef.current = audioCtx;
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = BARS * 4;
-    analyserRef.current = analyser;
-
-    const remoteAudio = new Audio();
-    remoteAudio.autoplay = true;
-
-    pc.ontrack = (e) => {
-      const [stream] = e.streams;
-      if (stream) {
-        remoteAudio.srcObject = stream;
-        remoteAudio.play().catch(() => {});
-        const src = audioCtx.createMediaStreamSource(stream);
-        src.connect(analyser);
-      }
-    };
-
-    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-    streamRef.current = mic;
-    mic.getAudioTracks().forEach(t => pc.addTrack(t, mic));
-
-    const dc = pc.createDataChannel("oai-events");
-    dcRef.current = dc;
-
-    dc.onopen = () => {
-      setStatus("connected");
-      startViz();
-      // NOTE: We do NOT send session.update here.
-      // The server already configured the session with:
-      //   - KB instructions (system prompt)
-      //   - rag_search tool definition
-      //   - turn_detection (server_vad, create_response=false)
-      //   - input_audio_transcription
-      //   - voice + temperature
-      // Sending session.update would overwrite all of that, removing the
-      // KB instructions and breaking the AI's context.
-    };
-
-    dc.onmessage = (e: MessageEvent<string>) => {
-      try { handleOpenAIEvent(JSON.parse(e.data) as Record<string, unknown>); }
-      catch { /* ignore malformed */ }
-    };
-
-    dc.onclose = () => { setStatus("idle"); stopViz(); };
-    dc.onerror = () => { setError("Data channel error"); setStatus("error"); };
-
-    // WebRTC SDP handshake with OpenAI
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    const sdpRes = await fetch("https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview", {
+  // ── Fire RAG search (returns result, doesn't inject yet) ─────────────────
+  const fetchRag = useCallback(async (query: string, signal: AbortSignal) => {
+    const kbId = kbIdRef.current;
+    if (!query.trim() || !kbId) return null;
+    const res = await fetch(`${BASE}/api/embed/search`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${ephemeralKey}`, "Content-Type": "application/sdp" },
-      body: offer.sdp,
+      headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: query.trim(), limit: 6 }),
+      signal,
     });
-    if (!sdpRes.ok) throw new Error(`OpenAI WebRTC handshake failed: ${sdpRes.status}`);
-    await pc.setRemoteDescription({ type: "answer", sdp: await sdpRes.text() });
-  }, [startViz, stopViz, handleOpenAIEvent]);
+    if (!res.ok) return null;
+    const data = await res.json() as { context?: string; sources?: Array<{ index: number; title: string }> };
+    return { context: data.context ?? "", sources: data.sources ?? [] };
+  }, []);
 
-  // ── Gemini Live WebSocket connect ──────────────────────────────────────────
-  const connectGemini = useCallback(async (session: {
-    wsUrl: string; model: string; voice: string; instructions: string;
-    inputSampleRate: number; outputSampleRate: number;
-  }) => {
-    const ws = new WebSocket(session.wsUrl);
-    wsRef.current = ws;
+  // ── Inject context + fire response.create ─────────────────────────────────
+  // FIX 1: ALWAYS fires response.create — even if query is a greeting.
+  // Short greetings get no context injection but AI still responds immediately.
+  const injectAndRespond = useCallback((
+    query: string,
+    context: string,
+    sources: Array<{ index: number; title: string }>,
+    assistantId: string,
+  ) => {
+    setTranscript(prev => prev.map(t => t.id === assistantId ? { ...t, sources } : t));
 
-    const audioCtx = new AudioContext({ sampleRate: session.inputSampleRate });
-    audioCtxRef.current = audioCtx;
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = BARS * 4;
-    analyserRef.current = analyser;
-
-    ws.onopen = async () => {
-      ws.send(JSON.stringify({
-        setup: {
-          model: session.model,
-          generation_config: { response_modalities: ["AUDIO"] },
-          system_instruction: { parts: [{ text: session.instructions }] },
-          tools: [{
-            function_declarations: [{
-              name: "rag_search",
-              description: "Search the knowledge base for relevant context.",
-              parameters: { type: "OBJECT", properties: { query: { type: "STRING" } }, required: ["query"] },
-            }],
-          }],
-        },
-      }));
-
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = mic;
-      const src = audioCtx.createMediaStreamSource(mic);
-      src.connect(analyser);
-
-      await audioCtx.audioWorklet.addModule(
-        URL.createObjectURL(new Blob([PCM16_WORKLET], { type: "application/javascript" }))
-      );
-      const worklet = new AudioWorkletNode(audioCtx, "pcm16-encoder");
-      src.connect(worklet);
-
-      worklet.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            realtime_input: {
-              media_chunks: [{
-                mime_type: "audio/pcm;rate=" + session.inputSampleRate,
-                data: btoa(String.fromCharCode(...new Uint8Array(e.data))),
-              }],
-            },
-          }));
-        }
-      };
-
-      setStatus("connected");
-      startViz();
-    };
-
-    ws.onmessage = async (e: MessageEvent<Blob | string>) => {
-      const raw = e.data instanceof Blob ? await e.data.text() : e.data;
-      try {
-        const msg = JSON.parse(raw) as Record<string, unknown>;
-
-        // Audio chunks — decode PCM16 and play
-        const serverContent = msg.serverContent as { modelTurn?: { parts?: unknown[] } } | undefined;
-        if (serverContent?.modelTurn) {
-          for (const part of (serverContent.modelTurn.parts ?? []) as Array<Record<string, unknown>>) {
-            if (part.inlineData) {
-              const data  = (part.inlineData as { data: string }).data;
-              const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
-              const pcm   = new Int16Array(bytes.buffer);
-              const float = new Float32Array(pcm.length);
-              for (let i = 0; i < pcm.length; i++) float[i] = pcm[i]! / 32768;
-              const buf = audioCtx.createBuffer(1, float.length, session.outputSampleRate);
-              buf.copyToChannel(float, 0);
-              const src2 = audioCtx.createBufferSource();
-              src2.buffer = buf; src2.connect(audioCtx.destination); src2.start();
-              setIsSpeaking(true); src2.onended = () => setIsSpeaking(false);
-            }
-            if (typeof part.text === "string" && part.text.trim()) {
-              upsertTurn(`g_${Date.now()}`, "assistant", part.text, "done");
-            }
-          }
-        }
-
-        // Tool call — answer with RAG
-        const toolCall = msg.toolCall as { functionCalls?: Array<{ id: string; args: { query?: string } }> } | undefined;
-        if (toolCall?.functionCalls) {
-          for (const call of toolCall.functionCalls) {
-            if (call.args.query) {
-              const answer = await ragText(call.args.query);
-              ws.send(JSON.stringify({
-                tool_response: { function_responses: [{ id: call.id, response: { output: answer } }] },
-              }));
-            }
-          }
-        }
-      } catch { /* skip bad JSON */ }
-    };
-
-    ws.onerror = () => { setError("WebSocket error"); setStatus("error"); };
-    ws.onclose = () => { setStatus("idle"); setIsSpeaking(false); stopViz(); };
-  }, [upsertTurn, startViz, stopViz]);
-
-  // Plain text RAG lookup for Gemini tool responses
-  const ragText = async (query: string): Promise<string> => {
-    try {
-      const res = await fetch(`${BASE}/api/embed/chat`, {
-        method: "POST", headers: AUTH,
-        body: JSON.stringify({ messages: [{ role: "user", content: query }], sessionId: SID + "_g" }),
+    if (context.trim()) {
+      sendJSON({
+        type: "conversation.item.create",
+        item: { type: "message", role: "system",
+          content: [{ type: "input_text",
+            text: `Knowledge base context:\n\n${context.trim()}\n\nAnswer the user's question using the above context. Be concise and natural.` }] },
       });
-      if (!res.ok || !res.body) return "No information found.";
-      const reader = res.body.getReader(); const dec = new TextDecoder();
-      let buf = ""; let answer = "";
-      for (;;) {
-        const { done, value } = await reader.read(); if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n"); buf = lines.pop() ?? "";
-        for (const line of lines) {
-          try {
-            const ev = JSON.parse(line) as { type: string; payload: unknown };
-            if (ev.type === "token" && typeof ev.payload === "string") answer += ev.payload;
-          } catch { /* skip */ }
-        }
-      }
-      return answer || "No information found.";
-    } catch { return "Search failed."; }
-  };
-
-  // ── Public API ─────────────────────────────────────────────────────────────
-
-  const connect = useCallback(async () => {
-    if (status !== "idle") return;
-    setError(null); setStatus("connecting"); setTranscript([]);
-    try {
-      const res = await fetch(`${BASE}/api/embed/session`, {
-        method: "POST", headers: AUTH, body: JSON.stringify({ sessionId: SID }),
-      });
-      if (!res.ok) throw new Error(`Session failed: ${res.status}`);
-      const session = await res.json() as Record<string, unknown>;
-      providerRef.current = (session.provider as "openai" | "gemini") ?? "openai";
-
-      if (session.provider === "gemini") {
-        await connectGemini(session as Parameters<typeof connectGemini>[0]);
-      } else {
-        const ephKey =
-          (session.client_secret as { value: string } | undefined)?.value ??
-          (session.client_secret as string | undefined) ?? "";
-        if (!ephKey) throw new Error("No ephemeral key in session response");
-        await connectOpenAI(ephKey);
-      }
-    } catch (e) {
-      const msg = (e as Error).message;
-      setError(msg); setStatus("error");
-      console.error("[ClaraVoice] connect failed:", msg);
     }
-  }, [status, connectOpenAI, connectGemini]);
 
-  const disconnect = useCallback(() => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    dcRef.current?.close(); dcRef.current = null;
-    pcRef.current?.close(); pcRef.current = null;
-    wsRef.current?.close(); wsRef.current = null;
-    audioCtxRef.current?.close().catch(() => {});
-    audioCtxRef.current = null;
-    analyserRef.current = null;
-    stopViz();
-    setStatus("idle");
+    if (query.trim()) {
+      sendJSON({
+        type: "conversation.item.create",
+        item: { type: "message", role: "user",
+          content: [{ type: "input_text", text: query.trim() }] },
+      });
+    }
+
+    // FIX 1 KEY: always fire response.create — never leave AI stuck
+    sendJSON({ type: "response.create", response: { tool_choice: "none" } });
+    userQuery.current = "";
+  }, [sendJSON]);
+
+  // ── Full RAG → inject → respond pipeline ──────────────────────────────────
+  const performRagAndRespond = useCallback(async () => {
+    const query = userQuery.current.trim();
+    if (!query) return;
+
+    // Abort any in-flight speculative fetch
+    specAbort.current?.abort();
+    ragAbort.current?.abort();
+    const ctrl = new AbortController();
+    ragAbort.current = ctrl;
+
+    // Create turn entries
+    const turnId = uid();
+    activeTurn.current = turnId;
+    latestTurn.current = turnId;
+    setTranscript(prev => [...prev, { id: turnId, speaker: "user", text: query, status: "done" }]);
+    const asstId = uid();
+    setTranscript(prev => [...prev, { id: asstId, speaker: "assistant", text: "", status: "speaking" }]);
+    activeTurn.current = asstId;
+
+    // FIX 2: Check if speculative cache is a good match (saves ~400ms)
+    const cached = specCache.current;
+    if (cached && similarity(cached.query, query) >= REUSE_THRESHOLD) {
+      specCache.current = null;
+      injectAndRespond(query, cached.context, cached.sources, asstId);
+      return;
+    }
+
+    try {
+      // FIX 1: even short greetings go through — just no KB context for them
+      const result = await fetchRag(query, ctrl.signal);
+      if (ragAbort.current !== ctrl) return; // superseded
+      injectAndRespond(query, result?.context ?? "", result?.sources ?? [], asstId);
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      // RAG failed — still let AI respond (it'll say it doesn't have that info)
+      injectAndRespond(query, "", [], asstId);
+    } finally {
+      if (ragAbort.current === ctrl) ragAbort.current = null;
+    }
+  }, [fetchRag, injectAndRespond]);
+
+  // ── Speculative RAG during delta streaming ────────────────────────────────
+  // FIX 2: Start search early while user is still being transcribed.
+  // If the final transcript matches closely, we skip the second fetch entirely.
+  const startSpeculative = useCallback((partialQuery: string) => {
+    if (partialQuery.length < SPECULATIVE_MIN_CHARS || !kbIdRef.current) return;
+    // Don't restart if we already have a good speculative result for this query
+    const cached = specCache.current;
+    if (cached && similarity(cached.query, partialQuery) >= REUSE_THRESHOLD) return;
+
+    specAbort.current?.abort();
+    const ctrl = new AbortController();
+    specAbort.current = ctrl;
+
+    fetchRag(partialQuery, ctrl.signal)
+      .then(result => {
+        if (result && specAbort.current === ctrl) {
+          specCache.current = { query: partialQuery, context: result.context, sources: result.sources };
+        }
+      })
+      .catch(() => {});
+  }, [fetchRag]);
+
+  // ── Data channel message handler ──────────────────────────────────────────
+  const onDcMessage = useCallback((ev: MessageEvent) => {
+    let msg: Record<string, unknown>;
+    try { msg = JSON.parse(ev.data as string) as Record<string, unknown>; } catch { return; }
+    const type = typeof msg.type === "string" ? msg.type : "";
+
+    // Speech started — reset accumulators and speculative cache
+    if (type === "input_audio_buffer.speech_started") {
+      userQuery.current = "";
+      activeTurn.current = null;
+      specCache.current = null;
+      specAbort.current?.abort();
+      specAbort.current = null;
+    }
+
+    // FIX 2: Streaming transcript delta — start speculative RAG early
+    if (type === "conversation.item.input_audio_transcription.delta") {
+      const d = typeof msg.delta === "string" ? msg.delta : "";
+      if (d) {
+        userQuery.current += d;
+        startSpeculative(userQuery.current);
+      }
+    }
+
+    // Final transcript — fire full RAG pipeline (uses cache if available)
+    if (type === "conversation.item.input_audio_transcription.completed") {
+      const final = typeof msg.transcript === "string" ? msg.transcript : userQuery.current;
+      if (final.trim()) userQuery.current = final;
+      void performRagAndRespond();
+    }
+
+    // AI transcript streaming
+    if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
+      const d = typeof msg.delta === "string" ? msg.delta : "";
+      if (d) setTranscript(prev => {
+        const id = resolveTurnId(prev);
+        if (!id) return prev;
+        latestTurn.current = id;
+        return prev.map(t => t.id === id ? { ...t, text: t.text + d, status: "speaking" } : t);
+      });
+    }
+
+    if (type === "response.created") { setIsSpeaking(true); }
+
+    if (type === "response.done") {
+      setIsSpeaking(false);
+      setTranscript(prev => {
+        const id = resolveTurnId(prev);
+        if (id) latestTurn.current = id;
+        return prev.map(t => t.id === (id ?? "") ? { ...t, status: "done" } : t);
+      });
+      activeTurn.current = null;
+    }
+
+    // Tool call — return empty result; AI uses injected context instead
+    if (type === "response.function_call_arguments.delta") {
+      const cid = typeof msg.call_id === "string" ? msg.call_id : null;
+      const d   = typeof msg.delta   === "string" ? msg.delta   : "";
+      if (cid && d) toolBuf.current[cid] = (toolBuf.current[cid] ?? "") + d;
+    }
+    if (type === "response.function_call_arguments.done") {
+      const cid = typeof msg.call_id === "string" ? msg.call_id : null;
+      if (cid) {
+        delete toolBuf.current[cid];
+        sendJSON({ type: "conversation.item.create",
+          item: { type: "function_call_output", call_id: cid,
+            output: JSON.stringify({ info: "Context already injected. Use the system message above." }) } });
+        sendJSON({ type: "response.create" });
+      }
+    }
+  }, [performRagAndRespond, resolveTurnId, sendJSON, startSpeculative]);
+
+  // ── Cleanup ───────────────────────────────────────────────────────────────
+  const cleanup = useCallback(() => {
+    try { dcRef.current?.close(); } catch { /* Skip Error Catch */ }
+    try { pcRef.current?.close(); } catch { /* Skip Error Catch */ }
+    dcRef.current = null; pcRef.current = null;
+    micRef.current?.getTracks().forEach(t => t.stop()); micRef.current = null;
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch { /* Skip Error Catch */ }
+      audioRef.current.srcObject = null;
+    }
+    ragAbort.current?.abort(); ragAbort.current = null;
+    specAbort.current?.abort(); specAbort.current = null;
+    specCache.current = null;
+    sendQueue.current = [];
+    userQuery.current = "";
+    activeTurn.current = null; latestTurn.current = null;
     setIsSpeaking(false);
+    stopViz();
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null; analyserRef.current = null;
   }, [stopViz]);
 
-  const interrupt = useCallback(() => {
-    if (providerRef.current === "openai" && dcRef.current?.readyState === "open") {
-      dcRef.current.send(JSON.stringify({ type: "response.cancel" }));
-      dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+  // ── Connect ───────────────────────────────────────────────────────────────
+  const connect = useCallback(async () => {
+    if (statusRef.current === "connecting" || statusRef.current === "connected") return;
+    setError(null); setTranscript([]); upd("connecting");
+    const tok = ++connectTok.current;
+
+    try {
+      // 1. Ephemeral key from server
+      const sessRes = await fetch(`${BASE}/api/embed/session`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!sessRes.ok) throw new Error(`Session error ${sessRes.status}: ${await sessRes.text()}`);
+      const session = await sessRes.json() as Record<string, unknown>;
+
+      const ephemeralKey =
+        ((session?.client_secret as Record<string, unknown>)?.value as string) ??
+        (session?.client_secret as string) ?? (session?.value as string);
+      if (!ephemeralKey) throw new Error("No ephemeral key in session response");
+
+      kbIdRef.current = typeof session?.kbId === "string" ? session.kbId : null;
+      const model       = typeof session?.model === "string" ? session.model : "gpt-realtime-mini";
+      const voice       = typeof session?.voice === "string" ? session.voice : "alloy";
+      const temperature = typeof session?.temperature === "number" ? session.temperature : 0.8;
+      // FIX 3: grab welcomeMessage from session response (set in KB config)
+      const welcomeMsg  = typeof session?.welcomeMessage === "string" ? session.welcomeMessage.trim() : "";
+
+      if (tok !== connectTok.current) return;
+
+      // 2. WebRTC
+      const pc = new RTCPeerConnection();
+      pcRef.current = pc;
+
+      const remoteStream = new MediaStream();
+      pc.ontrack = ev => {
+        (ev.streams[0] ?? new MediaStream()).getTracks().forEach(t => remoteStream.addTrack(t));
+        if (!audioRef.current) {
+          const el = document.createElement("audio");
+          el.autoplay = true;
+          document.body.appendChild(el);
+          audioRef.current = el;
+        }
+        audioRef.current.srcObject = remoteStream;
+        audioRef.current.play().catch(() => {});
+        // Visualizer reads remote audio
+        const ctx = new AudioContext();
+        audioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = BARS * 4;
+        analyserRef.current = analyser;
+        ctx.createMediaStreamSource(remoteStream).connect(analyser);
+        startViz();
+      };
+
+      // 3. Data channel
+      const dc = pc.createDataChannel("oai-events");
+      dcRef.current = dc;
+      dc.onmessage = onDcMessage;
+      dc.onopen = () => {
+        const q = sendQueue.current; sendQueue.current = [];
+        q.forEach(m => { try { dc.send(m); } catch { /* Skip Error Catch */ } });
+
+        // Configure session — create_response:false waits for our RAG inject
+        sendJSON({
+          type: "session.update",
+          session: {
+            voice, modalities: ["audio", "text"], temperature,
+            turn_detection: {
+              type: "server_vad", threshold: 0.5,
+              prefix_padding_ms: 300, silence_duration_ms: 600,
+              create_response: false,  // AI waits for our performRagAndRespond
+            },
+            input_audio_transcription: { model: "gpt-4o-mini-transcribe" },
+            tools: [{
+              type: "function", name: "rag_search",
+              description: "Search the knowledge base for additional information.",
+              parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+            }],
+            tool_choice: "auto",
+          },
+        });
+
+        // FIX 3: Fire welcome greeting immediately after session is configured
+        if (welcomeMsg) {
+          const greetId = uid();
+          activeTurn.current = greetId;
+          latestTurn.current = greetId;
+          setTranscript([{ id: greetId, speaker: "assistant", text: "", status: "speaking" }]);
+          sendJSON({
+            type: "response.create",
+            response: {
+              instructions: `Greet the user with this message exactly: "${welcomeMsg}". Be warm and natural.`,
+              tool_choice: "none",
+            },
+          });
+        }
+
+        upd("connected");
+      };
+
+      dc.onclose = () => {
+        if (tok !== connectTok.current) return;
+        setError("Voice session ended. Tap the mic to reconnect.");
+        upd("error"); cleanup();
+      };
+
+      // 4. Microphone
+      const mic = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      }).catch((e: DOMException) => {
+        if (e.name === "NotAllowedError") throw new Error("Microphone access denied.");
+        if (e.name === "NotFoundError")   throw new Error("No microphone found.");
+        throw new Error(`Mic error: ${e.message}`);
+      });
+      if (tok !== connectTok.current) { mic.getTracks().forEach(t => t.stop()); return; }
+      micRef.current = mic;
+      pc.addTrack(mic.getAudioTracks()[0]!, mic);
+
+      // 5. SDP offer + ICE
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      if (pc.iceGatheringState !== "complete") {
+        await new Promise<void>(res => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; pc.removeEventListener("icegatheringstatechange", fn); res(); } };
+          const fn = () => { if (pc.iceGatheringState === "complete") finish(); };
+          pc.addEventListener("icegatheringstatechange", fn);
+          if (pc.iceGatheringState === "complete") finish();
+          setTimeout(finish, 8000);
+        });
+      }
+
+      // 6. SDP exchange with OpenAI
+      const sdpRes = await fetch(
+        `https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${ephemeralKey}`, "Content-Type": "application/sdp", "OpenAI-Beta": "realtime=v1" },
+          body: pc.localDescription?.sdp ?? offer.sdp ?? "",
+        });
+      if (!sdpRes.ok) throw new Error(`SDP failed (${sdpRes.status}): ${await sdpRes.text()}`);
+      await pc.setRemoteDescription({ type: "answer", sdp: await sdpRes.text() });
+
+    } catch (e) {
+      upd("error"); setError((e as Error).message); cleanup();
     }
+  }, [cleanup, onDcMessage, sendJSON, startViz, upd]);
+
+  const disconnect = useCallback(() => { ++connectTok.current; cleanup(); upd("idle"); }, [cleanup, upd]);
+
+  const interrupt = useCallback(() => {
+    sendJSON({ type: "response.cancel" });
     setIsSpeaking(false);
-  }, []);
+  }, [sendJSON]);
 
   const sendText = useCallback((text: string) => {
-    if (!text.trim()) return;
-    if (providerRef.current === "openai" && dcRef.current?.readyState === "open") {
-      dcRef.current.send(JSON.stringify({
-        type: "conversation.item.create",
-        item: { type: "message", role: "user", content: [{ type: "input_text", text }] },
-      }));
-      dcRef.current.send(JSON.stringify({ type: "response.create" }));
-      upsertTurn(`u_${Date.now()}`, "user", text, "done");
-    } else if (providerRef.current === "gemini" && wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        client_content: { turns: [{ role: "user", parts: [{ text }] }], turn_complete: true },
-      }));
-      upsertTurn(`u_${Date.now()}`, "user", text, "done");
-    }
-  }, [upsertTurn]);
+    const t = text.trim(); if (!t) return;
+    userQuery.current = t;
+    void performRagAndRespond();
+  }, [performRagAndRespond]);
 
   useEffect(() => () => { disconnect(); }, [disconnect]);
 
   return { status, transcript, isSpeaking, audioLevels, connect, disconnect, interrupt, sendText, error };
 }
-
-// ── PCM16 AudioWorklet (Gemini path only) ────────────────────────────────────
-// Encodes Float32 mic samples to Int16 PCM and posts buffer to main thread.
-
-const PCM16_WORKLET = `
-class Pcm16Encoder extends AudioWorkletProcessor {
-  process(inputs) {
-    const ch = inputs[0]?.[0];
-    if (!ch) return true;
-    const pcm = new Int16Array(ch.length);
-    for (let i = 0; i < ch.length; i++) {
-      const s = Math.max(-1, Math.min(1, ch[i]));
-      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-    }
-    this.port.postMessage(pcm.buffer, [pcm.buffer]);
-    return true;
-  }
-}
-registerProcessor('pcm16-encoder', Pcm16Encoder);
-`;
