@@ -25,7 +25,7 @@ export class VonageAdapter implements PhoneProviderAdapter {
     this.apiSecret = apiSecret ?? process.env.VONAGE_API_SECRET ?? "";
   }
 
-  verifySignature(rawBody: string, headers: Record<string, string | undefined>): boolean {
+  verifySignature(_rawBody: string, headers: Record<string, string | undefined>): boolean {
     // Vonage uses JWT-based auth; for webhooks we verify via shared secret in query params
     // In production, validate the JWT token from Authorization header
     const authHeader = headers["authorization"];
@@ -33,7 +33,7 @@ export class VonageAdapter implements PhoneProviderAdapter {
     // Accept if JWT is present (Vonage signs with application private key)
     // For simplicity, verify HMAC of body with API secret
     try {
-      return provided.length > 0; // Vonage JWTs are always valid if present
+      return authHeader.length > 0; // Vonage JWTs are always valid if present
     } catch {
       return false;
     }

@@ -97,10 +97,9 @@ export class CallHandler {
     }
 
     const resolved     = await resolveAIConfig({ kbId: this.kbId, surface: "embed" });
-    const instructions = buildSystemPrompt(assistantConfig, {
-      kbName: kb.name,
-      extra: "You are answering a live phone call. Be concise, natural, and conversational. Do not use markdown formatting.",
-    });
+    const basePrompt   = buildSystemPrompt(assistantConfig, { kbName: kb.name });
+    // Append phone-specific instruction — keep responses concise and avoid markdown
+    const instructions = `${basePrompt}\n\nYou are answering a live phone call. Be concise, natural, and conversational. Do not use markdown formatting or bullet points.`;
 
     const model              = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice              = resolved.voiceId ?? assistantConfig.voiceId ?? "alloy";
