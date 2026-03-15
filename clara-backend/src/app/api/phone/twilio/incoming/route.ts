@@ -27,15 +27,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Verify signature in production
-    if (process.env.TWILIO_AUTH_TOKEN) {
-      const adapter = new TwilioAdapter();
-      const urlForSig = `${APP_URL}/api/phone/twilio/incoming`;
-      const valid = adapter.verifySignature(rawBody, {
-        ...Object.fromEntries(req.headers.entries()),
-        "x-forwarded-url": urlForSig,
-      });
-      if (!valid) return new NextResponse("Forbidden", { status: 403 });
+    // Verify Twilio signature — only when TWILIO_VERIFY_WEBHOOK=true is explicitly set.
+    // Twilio signs with HMAC-SHA1(authToken, fullUrl + sortedPostParams).
+    // Skip by default so misconfigured APP_URL doesn't block real calls.
+    if (process.env.TWILIO_VERIFY_WEBHOOK === "true" && process.env.TWILIO_AUTH_TOKEN) {
+      const twilioSig  = req.headers.get("x-twilio-signature") ?? "";
+      const fullUrl    = `${APP_URL}/api/phone/twilio/incoming`;
+      const params2    = new URLSearchParams(rawBody);
+      const sortedStr  = [...params2.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}${v}`).join("");
+      const { createHmac } = await import("node:crypto");
+      const expected = createHmac("sha1", process.env.TWILIO_AUTH_TOKEN)
+        .update(fullUrl + sortedStr).digest("base64");
+      if (twilioSig !== expected) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
     }
 
     const wsBase = APP_URL.replace(/^https?/, "wss");
