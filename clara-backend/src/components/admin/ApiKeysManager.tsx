@@ -267,7 +267,7 @@ function EditKeyModal({ kbId, apiKey, onClose, onUpdated }: {
             </div>
             {designEdit && (
               <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                ⚠️ Only enable on trusted production keys. This allows your site to change the widget's visual appearance via API.
+                ⚠️ Only enable on trusted production keys. This allows your site to change the widget&apos;s visual appearance via API.
               </p>
             )}
           </div>

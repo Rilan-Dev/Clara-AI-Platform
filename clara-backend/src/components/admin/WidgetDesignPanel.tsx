@@ -504,7 +504,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           </Field>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-white/70">Show "Powered by Clara AI"</p>
+              <p className="text-xs font-medium text-white/70">Show &quot;Powered by Clara AI&quot;</p>
               <p className="text-[11px] text-white/35">Uncheck to hide the branding footer</p>
             </div>
             <button onClick={() => set("widgetShowBranding", !design.widgetShowBranding)}
