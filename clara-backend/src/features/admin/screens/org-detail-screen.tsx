@@ -31,7 +31,7 @@ function formatDate(value: string) {
 
 function ProjectsSection({
   orgId, projects, loading: projectsLoading,
-  create, remove, showBreadcrumbOrgs: _showBreadcrumbOrgs,
+  create, remove,
 }: {
   orgId: string;
   projects: ReturnType<typeof useProjects>["projects"];

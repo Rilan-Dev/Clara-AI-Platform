@@ -82,7 +82,7 @@ function sanitizeHtml(raw: string): string {
 function sanitizeSvg(raw: string): string {
   // Must start with <svg and end with </svg>
   const trimmed = raw.trim();
-  if (!/^<svg[\s>]/i.test(trimmed) || !/</svg>$/i.test(trimmed)) return "";
+  if (!/^<svg[\s>]/i.test(trimmed) || !/<\/svg>$/i.test(trimmed)) return "";
   return trimmed.replace(DANGEROUS_SVG_RE, "").slice(0, 4_000);
 }
 
