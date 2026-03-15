@@ -35,11 +35,12 @@ export async function handleTwilioStream(phoneWs, req) {
   let   bridge      = null;
   let   started     = false;
 
-  phoneWs.on("message", async (data, isBinary) => {
-    if (isBinary) return; // Twilio sends only JSON text frames
+  phoneWs.on("message", async (data) => {
+    // ws library passes all frames as Buffer — always parse as string first
+    const str = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
 
     let msg;
-    try { msg = JSON.parse(data.toString()); } catch { return; }
+    try { msg = JSON.parse(str); } catch { return; } // non-JSON = binary audio, skip
     const ev = msg.event ?? "";
 
     if (ev === "connected") return;
@@ -97,11 +98,14 @@ export async function handleVonageStream(phoneWs, req) {
   let   bridge      = null;
   let   started     = false;
 
-  phoneWs.on("message", async (data, isBinary) => {
-    if (!isBinary) {
+  phoneWs.on("message", async (data) => {
+    // ws library: all frames arrive as Buffer. Try JSON first, treat rest as binary audio.
+    const str = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
+    const looksLikeJson = str.trimStart().startsWith("{") || str.trimStart().startsWith("[");
+    if (looksLikeJson) {
       // Text frame — Vonage call metadata JSON
       try {
-        const msg = JSON.parse(data.toString());
+        const msg = JSON.parse(str);
         if (msg.uuid)              callSid = msg.uuid;
         if (msg.headers?.kbId)     kbId    = msg.headers.kbId;
         if (msg.headers?.callSid)  callSid = msg.headers.callSid;
