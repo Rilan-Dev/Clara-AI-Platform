@@ -26,7 +26,6 @@ http.createServer = (...args) => {
 
   const wss = new WebSocketServer({ noServer: true });
 
-  // Route WebSocket upgrades
   server.on("upgrade", (req, socket, head) => {
     try {
       const url = new URL(req.url, "http://x");
@@ -35,7 +34,6 @@ http.createServer = (...args) => {
           wss.emit("connection", ws, req);
         });
       } else {
-        // Reject unknown upgrade paths cleanly
         socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
         socket.destroy();
       }
@@ -44,7 +42,17 @@ http.createServer = (...args) => {
     }
   });
 
-  wss.on("connection", handleVoiceConnection);
+  // Log when the server starts listening so we can confirm the relay is active
+  server.once("listening", () => {
+    const addr = server.address();
+    const port = typeof addr === "object" ? addr?.port : addr;
+    console.log(`[clara-voice-relay] ✅ WebSocket relay active on port ${port} — path: /api/embed/voice`);
+  });
+
+  wss.on("connection", (ws, req) => {
+    console.log(`[clara-voice-relay] 🔌 New voice connection from ${req.socket.remoteAddress}`);
+    handleVoiceConnection(ws, req);
+  });
 
   return server;
 };
