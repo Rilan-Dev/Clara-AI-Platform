@@ -63,9 +63,9 @@ const CORS_HEADERS = {
 // Embed routes are API-key authenticated — they must accept requests from any
 // origin (the site owner embeds the widget on their own domain).
 const EMBED_CORS_HEADERS = {
-  // PATCH needed for /api/embed/design — must be listed or browser blocks the preflight
+  // PATCH for /api/embed/design; Upgrade for /api/embed/voice WebSocket
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Extensions",
   "Access-Control-Max-Age": "86400",
 } as const;
 

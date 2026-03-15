@@ -1,7 +1,10 @@
 #!/bin/sh
 set -eu
 
-node server.js &
+# Use custom start.mjs which monkey-patches http.createServer to attach the
+# server-side voice WebSocket relay before Next.js starts listening.
+# voice-relay.mjs is co-located in scripts/ and does NOT expose any AI secrets.
+node scripts/start.mjs &
 SERVER_PID=$!
 
 if [ -n "${LOCAL_INIT_SECRET:-}" ]; then

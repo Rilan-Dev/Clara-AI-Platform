@@ -67,9 +67,13 @@ export function buildSystemPrompt(
     );
   }
 
+  // Explicit tool-use instruction — without this the realtime model answers
+  // from general knowledge instead of calling rag_search.
   parts.push(
-    "When answering questions, use the context retrieved from these documents. " +
-    "Never fabricate information that is not present in the provided context."
+    "IMPORTANT: You MUST call the rag_search function before answering ANY user question. " +
+    "Do not answer from general knowledge. Always call rag_search first, wait for the result, " +
+    "then answer based only on what was returned. " +
+    "Never fabricate information that is not present in the retrieved context."
   );
 
   // ── 3. Behaviour Rules ─────────────────────────────────────────────────────
@@ -128,7 +132,8 @@ export function buildSystemPrompt(
     "You are speaking aloud in real time. " +
     "Keep answers concise, warm, and conversational. " +
     "Do not mention 'retrieval', 'documents', 'RAG', or 'context' — speak like " +
-    "a well-briefed human expert, not a search engine."
+    "a well-briefed human expert, not a search engine. " +
+    "Remember: always call rag_search before every answer, without exception."
   );
 
   return parts.join("\n\n");
