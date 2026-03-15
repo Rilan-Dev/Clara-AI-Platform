@@ -148,13 +148,15 @@ export async function getPlatformEnvSettings(): Promise<Array<{
 }
 
 export async function setPlatformEnvSetting(
-  key: string, value: string, updatedBy: string
+  key: string, value: string, updatedBy?: string | null
 ): Promise<void> {
+  // updatedBy must be a valid UUID or NULL — never pass a plain string like "platform-admin"
+  const safeUpdatedBy = updatedBy && /^[0-9a-f-]{36}$/i.test(updatedBy) ? updatedBy : null;
   await pool.query(`
     INSERT INTO platform_env_settings (key, value, updated_at, updated_by)
     VALUES ($1, $2, now(), $3)
     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now(), updated_by = $3
-  `, [key, value, updatedBy]);
+  `, [key, value, safeUpdatedBy]);
   // Also update process.env so it takes effect immediately without restart
   process.env[key] = value;
 }

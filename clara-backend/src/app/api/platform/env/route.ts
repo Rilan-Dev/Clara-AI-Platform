@@ -1,14 +1,7 @@
 /**
- * GET  /api/platform/env  — list all env settings (secrets masked)
- * POST /api/platform/env  — update one env setting (requires HMAC confirmation token)
- * OPTIONS /api/platform/env?key=X&value=Y — generate a confirmation token for the UI
- *
- * Security:
- *   - All routes protected by Next.js session middleware (platform admin only)
- *   - POST requires a time-limited HMAC-SHA256 confirmation token (5-minute window)
- *     to prevent accidental changes and CSRF attacks
- *   - Secret values are masked on GET — only "is set" boolean returned
- *   - Changes written to platform_env_settings table AND process.env immediately
+ * GET /api/platform/env           — list all settings (secrets masked)
+ * GET /api/platform/env?token=1&key=X&value=Y — generate confirmation token
+ * POST /api/platform/env          — update a setting (requires token)
  */
 import { NextRequest, NextResponse } from "next/server";
 import crypto                        from "node:crypto";
@@ -21,7 +14,7 @@ import {
 const CONFIRM_SECRET = process.env.PLATFORM_CONFIRM_SECRET
   ?? process.env.NEXTAUTH_SECRET
   ?? "clara-platform-confirm-secret";
-const TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const TOKEN_TTL_MS = 5 * 60 * 1000;
 
 function buildToken(key: string, value: string, ts: number): string {
   return crypto
@@ -30,9 +23,24 @@ function buildToken(key: string, value: string, ts: number): string {
     .digest("hex");
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
+    const { searchParams } = new URL(req.url);
+
+    // Token generation mode — called by UI before submitting a change
+    if (searchParams.get("token") === "1") {
+      const key   = searchParams.get("key")   ?? "";
+      const value = searchParams.get("value") ?? "";
+      const ts    = Date.now();
+      return NextResponse.json({
+        confirmation_token: buildToken(key, value, ts),
+        timestamp:          ts,
+        expires_in_ms:      TOKEN_TTL_MS,
+      });
+    }
+
+    // List mode — return all settings with secrets masked
     const settings = await getPlatformEnvSettings();
     const safe = settings.map(s => ({
       key:             s.key,
@@ -93,24 +101,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Persist + apply to process.env immediately
-    await setPlatformEnvSetting(body.key, body.value, "platform-admin");
+    await setPlatformEnvSetting(body.key, body.value, null);
     console.log(`[platform/env] ${body.key} updated`);
     return NextResponse.json({ ok: true, key: body.key, updatedAt: new Date().toISOString() });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
-}
-
-/** Generate a confirmation token — called by the UI before submitting a change */
-export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
-  const { searchParams } = new URL(req.url);
-  const key   = searchParams.get("key")   ?? "";
-  const value = searchParams.get("value") ?? "";
-  const ts    = Date.now();
-  const token = buildToken(key, value, ts);
-  return NextResponse.json({
-    confirmation_token: token,
-    timestamp:          ts,
-    expires_in_ms:      TOKEN_TTL_MS,
-  });
 }

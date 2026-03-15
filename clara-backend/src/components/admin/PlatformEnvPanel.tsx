@@ -62,10 +62,10 @@ export function PlatformEnvPanel() {
     }
     setSaving(true); setError(null); setSuccess(null);
     try {
-      // Get confirmation token from server
+      // Get confirmation token from server using GET?token=1
       const tokenRes = await fetch(
-        apiUrl(`/api/platform/env?key=${encodeURIComponent(key)}&value=${encodeURIComponent(newValue)}`),
-        { method: "OPTIONS", headers: withAuthHeaders() }
+        apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(newValue)}`),
+        { headers: withAuthHeaders() }
       );
       const tokenData = await tokenRes.json() as { confirmation_token: string; timestamp: number };
 
