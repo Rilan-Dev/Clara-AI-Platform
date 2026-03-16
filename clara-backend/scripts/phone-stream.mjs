@@ -50,9 +50,13 @@ export async function handleTwilioStream(phoneWs, req) {
       started = true;
 
       // Pull kbId/callSid from custom parameters if not in URL
-      const cp = msg.start?.customParameters ?? {};
-      if (cp.callSid) callSid = cp.callSid;
-      if (cp.kbId)    kbId    = cp.kbId;
+      const startData = msg.start ?? {};
+      const cp = startData.customParameters ?? {};
+      if (cp.callSid || startData.callSid) callSid = cp.callSid || startData.callSid || callSid;
+      if (cp.kbId) kbId = cp.kbId;
+      // streamSid (MZ...) is what Twilio expects in media responses — different from callSid (CA...)
+      const streamSid = msg.streamSid || startData.streamSid || callSid;
+      console.log("[phone/twilio] kbId=" + kbId + " callSid=" + callSid + " streamSid=" + streamSid);
 
       if (!kbId) {
         console.error("[phone/twilio] No kbId — closing");
@@ -60,11 +64,10 @@ export async function handleTwilioStream(phoneWs, req) {
         return;
       }
 
-      // Get AI session from Next.js internal route
       const cfg = await fetchPhoneSession(kbId, "twilio");
       if (!cfg) { phoneWs.close(1011, "Session failed"); return; }
 
-      bridge = new TwilioCallBridge(phoneWs, callSid, kbId, cfg);
+      bridge = new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
       await bridge.start();
 
       // Replay buffered media
@@ -436,6 +439,11 @@ class CallBridge {
 // ── Twilio bridge ─────────────────────────────────────────────────────────────
 
 class TwilioCallBridge extends CallBridge {
+  constructor(phoneWs, callSid, streamSid, kbId, cfg) {
+    super(phoneWs, callSid, kbId, cfg);
+    this.streamSid = streamSid || callSid;
+  }
+
   handleTwilioMedia(msg) {
     const payload = msg?.media?.payload;
     if (!payload || !this.openaiWs || this.openaiWs.readyState !== WebSocket.OPEN) return;
@@ -451,7 +459,7 @@ class TwilioCallBridge extends CallBridge {
     const mulaw  = pcm16ToMulaw(pcm8k);
     this.phoneWs.send(JSON.stringify({
       event:     "media",
-      streamSid: this.callSid,
+      streamSid: this.streamSid,
       media:     { payload: mulaw.toString("base64") },
     }));
   }
