@@ -12,6 +12,7 @@ import { apiUrl } from "@/lib/runtime";
 import { useAuth, useOrg, useOrgAISettings, useProjects } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { OrgAISettingsEditor } from "@/components/admin/OrgAISettingsEditor";
+import { EditOrgPanel } from "@/components/admin/EditOrgPanel";
 import { Button } from "@/components/ui/button";
 
 type OrgSummary = {
@@ -157,6 +158,9 @@ export default function OrgDetailPage() {
   const { settings, loading: settingsLoading, error: settingsError, save: saveAISettings } = useOrgAISettings(id);
   const { projects, loading: projectsLoading, create, remove } = useProjects(id);
 
+  // Local state so edits reflect immediately without refetch
+  const [editedOrg, setEditedOrg] = useState<{ name: string; slug: string; logoUrl?: string | null } | null>(null);
+
   // Platform-level billing data — only fetched for super admins
   const [orgSummary, setOrgSummary]     = useState<OrgSummary | null>(null);
   const [plans, setPlans]               = useState<Plan[]>([]);
@@ -213,8 +217,8 @@ export default function OrgDetailPage() {
     );
   }
 
-  const displayName  = org?.name  ?? orgSummary?.name  ?? "Organisation";
-  const displaySlug  = org?.slug  ?? orgSummary?.slug  ?? "";
+  const displayName  = editedOrg?.name ?? org?.name  ?? orgSummary?.name  ?? "Organisation";
+  const displaySlug  = editedOrg?.slug ?? org?.slug  ?? orgSummary?.slug  ?? "";
   const activePlan   = orgSummary?.plan_id  ?? "free";
   const subStatus    = orgSummary?.sub_status ?? "inactive";
 
@@ -268,23 +272,12 @@ export default function OrgDetailPage() {
         )}
         {settingsError && <p className="text-sm text-rose-400">{settingsError}</p>}
 
-        {/* ── Org Info ── */}
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
-          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-violet-400" /> Organisation Info
-          </h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {[
-              ["ID",   id],
-              ["Slug", `/${displaySlug}`],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <div className="text-xs text-white/40 mb-1">{label}</div>
-                <div className="text-white/80 font-mono text-xs break-all">{value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* ── Org Details — editable for org_admin ── */}
+        <EditOrgPanel
+          org={{ id, name: displayName, slug: displaySlug, logoUrl: editedOrg?.logoUrl ?? org?.logoUrl ?? null }}
+          isSuperAdmin={false}
+          onSaved={(updated) => setEditedOrg(updated)}
+        />
       </div>
     );
   }
@@ -373,25 +366,12 @@ export default function OrgDetailPage() {
         showBreadcrumbOrgs={true}
       />
 
-      {/* Org Info */}
-      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
-        <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-violet-400" /> Organisation Info
-        </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          {[
-            ["ID",      id],
-            ["Slug",    `/${displaySlug}`],
-            ["Created", orgSummary?.created_at ? new Date(orgSummary.created_at).toLocaleString() : "—"],
-            ["Plan",    activePlan],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <div className="text-xs text-white/40 mb-1">{label}</div>
-              <div className="text-white/80 font-mono text-xs break-all">{value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Org Details — super admin can also edit slug */}
+      <EditOrgPanel
+        org={{ id, name: displayName, slug: displaySlug, logoUrl: editedOrg?.logoUrl ?? org?.logoUrl ?? null }}
+        isSuperAdmin={true}
+        onSaved={(updated) => setEditedOrg(updated)}
+      />
     </div>
   );
 }

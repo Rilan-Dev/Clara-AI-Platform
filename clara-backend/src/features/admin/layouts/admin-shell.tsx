@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, Building2, CreditCard,
-  Settings, LogOut, Menu, X, ChevronRight, BarChart3,
+  Settings, LogOut, Menu, X, ChevronRight, BarChart3, UserPen,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
+import { EditProfileModal } from "@/components/admin/EditProfileModal";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname   = usePathname();
   const router     = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   // ── Redirect unauthenticated users to login ─────────────────────────────────
   useEffect(() => {
@@ -133,11 +135,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Footer */}
         <div className="p-3 border-t border-white/[0.06] space-y-0.5">
-          {/* User info pill */}
-          <div className="px-3 py-2 mb-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-            <p className="text-xs font-medium text-white/70 truncate">{user.fullName}</p>
-            <p className="text-[11px] text-white/30 truncate">{user.email}</p>
-          </div>
+          {/* User info pill — click to edit profile */}
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-full text-left px-3 py-2 mb-1 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.07] hover:border-indigo-500/30 transition-all group"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-white/70 truncate">{user.fullName}</p>
+                <p className="text-[11px] text-white/30 truncate">{user.email}</p>
+              </div>
+              <UserPen className="w-3.5 h-3.5 text-white/20 group-hover:text-indigo-400 shrink-0 transition-colors" />
+            </div>
+          </button>
           <Link
             href="/"
             onClick={() => setSidebarOpen(false)}
@@ -174,6 +184,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden">
         {children}
       </main>
+
+      {/* Edit Profile modal */}
+      {showProfile && (
+        <EditProfileModal
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onSaved={() => { setShowProfile(false); window.location.reload(); }}
+        />
+      )}
     </div>
   );
 }

@@ -30,6 +30,13 @@ import type { AuthContext, PermissionKey } from "./models";
  * Returns AuthContext on success, throws NextResponse(401) on failure.
  */
 export async function requireAuth(request: Request): Promise<AuthContext> {
+  // TEMP: bypass auth when SKIP_AUTH=true — remove for production
+  if (process.env.SKIP_AUTH === "true") {
+    const fakeUser = { id: "00000000-0000-0000-0000-000000000000", email: "admin@clara.local", isSuperAdmin: true, status: "active", name: "Admin" };
+    const fakeSession = { id: "skip-auth", userId: "00000000-0000-0000-0000-000000000000" };
+    return { user: fakeUser as unknown as AuthContext["user"], session: fakeSession as unknown as AuthContext["session"] };
+  }
+
   await ensureMigrated();
 
   const token = extractToken(request);

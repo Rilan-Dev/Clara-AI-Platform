@@ -9,7 +9,7 @@ import {
   createUser, getUserByEmail, getUserById,
   createSession, deleteSession, deleteAllUserSessions,
   getSessionByTokenHash, addOrgMember, listOrgMembers,
-  removeOrgMember, writeAuditLog, touchLastLogin,
+  removeOrgMember, writeAuditLog, touchLastLogin, updateUser,
 } from "../core/db";
 import { hashPassword, verifyPassword } from "../core/password";
 import {
@@ -192,6 +192,26 @@ export async function logoutHandler(req: NextRequest): Promise<NextResponse> {
     res.headers.set("Set-Cookie", buildClearCookieHeader());
     return res;
   } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+// ── PATCH /api/auth/me ────────────────────────────────────────────────────────
+
+export async function updateMeHandler(req: NextRequest): Promise<NextResponse> {
+  try {
+    const auth = await requireAuth(req);
+    const body = await req.json() as { fullName?: string; avatarUrl?: string | null };
+    if (body.fullName !== undefined && !body.fullName.trim())
+      return NextResponse.json({ error: "fullName cannot be empty" }, { status: 400 });
+    const updated = await updateUser(auth.user.id, {
+      fullName:  body.fullName?.trim(),
+      avatarUrl: body.avatarUrl,
+    });
+    await writeAuditLog({ userId: auth.user.id, action: "user.update_profile", resourceType: "user", resourceId: auth.user.id, newData: body, ipAddress: getIp(req) });
+    return NextResponse.json({ user: updated });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

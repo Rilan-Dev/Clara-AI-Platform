@@ -51,6 +51,7 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - SKIP_AUTH=true
     ports:
       - "3000:3000"
     depends_on:

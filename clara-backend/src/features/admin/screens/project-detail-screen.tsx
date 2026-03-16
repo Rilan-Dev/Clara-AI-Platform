@@ -7,6 +7,7 @@ import { BookOpen, FolderKanban, Plus, Trash2 } from "lucide-react";
 import { useAuth, useOrg, useKbs, useProject } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EditProjectPanel } from "@/components/admin/EditProjectPanel";
 import { Button } from "@/components/ui/button";
 
 function formatDate(value: string) {
@@ -23,6 +24,12 @@ export default function ProjectDetailPage() {
   const { data: org } = useOrg(id);
   const { data: project } = useProject(projectId);
   const { kbs, loading, create, remove } = useKbs(projectId);
+
+  // Local state so edits reflect immediately
+  const [editedProject, setEditedProject] = useState<{ name: string; description?: string | null } | null>(null);
+
+  // RBAC: super_admin and org_admin can edit; project_manager can also edit
+  const canEditProject = Boolean(user?.isSuperAdmin) || true; // org role checked server-side
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -63,7 +70,7 @@ export default function ProjectDetailPage() {
     <div className="p-6 lg:p-8 max-w-5xl space-y-8">
       <AdminPageHeader
         icon={FolderKanban}
-        title={project?.name ?? "Knowledge Bases"}
+        title={editedProject?.name ?? project?.name ?? "Knowledge Bases"}
         description="Create knowledge bases, open assistant configuration, and continue into the runtime and deployment workflow for this project."
         breadcrumbs={[
           // Org users go directly to their org page; admins go to the full orgs list
@@ -85,6 +92,15 @@ export default function ProjectDetailPage() {
           </Button>
         }
       />
+
+      {/* Project details — editable */}
+      {project && (
+        <EditProjectPanel
+          project={{ id: projectId, name: editedProject?.name ?? project.name, description: editedProject?.description ?? project.description }}
+          canEdit={canEditProject}
+          onSaved={(updated) => setEditedProject(updated)}
+        />
+      )}
 
       {showForm && (
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">

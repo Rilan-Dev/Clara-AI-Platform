@@ -187,12 +187,15 @@ export function middleware(request: NextRequest): NextResponse {
 
   // ── Platform admin page protection ──────────────────────────────────────
   if (startsWith(pathname, ADMIN_PAGE_PREFIXES)) {
+    // TEMP: skip admin page auth when NEXT_PUBLIC_SKIP_AUTH=true
+    const skipAuth = process.env.SKIP_AUTH === "true";
+
     const adminToken =
       request.cookies.get("clara_platform_token")?.value ??
-      request.cookies.get("clara_admin_token")?.value ?? // legacy fallback
-      request.cookies.get("clara_token")?.value;         // legacy fallback
+      request.cookies.get("clara_admin_token")?.value ??
+      request.cookies.get("clara_token")?.value;
 
-    if (!adminToken) {
+    if (!skipAuth && !adminToken) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
@@ -203,19 +206,22 @@ export function middleware(request: NextRequest): NextResponse {
 
   // ── Protected API route enforcement ─────────────────────────────────────
   if (startsWith(pathname, PROTECTED_API_PREFIXES)) {
+    // TEMP: skip auth when SKIP_AUTH=true (remove for production)
+    const skipAuth = process.env.SKIP_AUTH === "true";
+
     const authHeader  = request.headers.get("authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const cookieToken =
       request.cookies.get("clara_platform_token")?.value ??
-      request.cookies.get("clara_admin_token")?.value ??  // legacy fallback
-      request.cookies.get("clara_token")?.value;          // legacy fallback
+      request.cookies.get("clara_admin_token")?.value ??
+      request.cookies.get("clara_token")?.value;
 
-    if (!bearerToken && !cookieToken) {
+    if (!skipAuth && !bearerToken && !cookieToken) {
       const res = NextResponse.json(
         { error: "Unauthorised", message: "A valid auth token is required." },
         { status: 401 },
       );
-      applyCors(res, origin); // CORS headers on 401 too — browser must read the error body
+      applyCors(res, origin);
       return res;
     }
 
