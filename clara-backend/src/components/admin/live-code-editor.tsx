@@ -3,8 +3,17 @@
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Maximize2, Minimize2, Wand2 } from "lucide-react";
+import { loader } from "@monaco-editor/react";
 import type { editor as MonacoEditorNamespace } from "monaco-editor";
 import { Button } from "@/components/ui/button";
+
+const registeredTypeLibs = new Set<string>();
+
+loader.config({
+  paths: {
+    vs: "/monaco/vs",
+  },
+});
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -18,13 +27,14 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 type LiveCodeEditorProps = {
   title: string;
   description?: string;
-  language: "css" | "html" | "json";
+  language: "css" | "html" | "json" | "typescript";
   value: string;
   onChange: (value: string) => void;
   path: string;
   height?: number;
   schema?: Record<string, unknown>;
   minimap?: boolean;
+  typescriptExtraLibs?: Array<{ filePath: string; content: string }>;
 };
 
 function markerTone(markers: MonacoEditorNamespace.IMarker[]) {
@@ -64,6 +74,7 @@ export function LiveCodeEditor({
   height = 220,
   schema,
   minimap = false,
+  typescriptExtraLibs,
 }: LiveCodeEditorProps) {
   const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
   const [markers, setMarkers] = useState<MonacoEditorNamespace.IMarker[]>([]);
@@ -88,7 +99,28 @@ export function LiveCodeEditor({
         ],
       });
     }
-  }, [language, path, schema, schemaUri]);
+
+    if (language === "typescript") {
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2020,
+        module: monaco.languages.typescript.ModuleKind.ESNext,
+        allowNonTsExtensions: true,
+        strict: true,
+        noEmit: true,
+      });
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+
+      for (const lib of typescriptExtraLibs ?? []) {
+        if (!registeredTypeLibs.has(lib.filePath)) {
+          monaco.languages.typescript.typescriptDefaults.addExtraLib(lib.content, lib.filePath);
+          registeredTypeLibs.add(lib.filePath);
+        }
+      }
+    }
+  }, [language, path, schema, schemaUri, typescriptExtraLibs]);
 
   const handleMount = useCallback((editor: MonacoEditorNamespace.IStandaloneCodeEditor) => {
     editorRef.current = editor;
@@ -139,12 +171,16 @@ export function LiveCodeEditor({
             minimap: { enabled: minimap || expanded },
             scrollBeyondLastLine: false,
             wordWrap: "on",
+            wrappingIndent: "indent",
+            wordWrapColumn: 80,
+            wrappingStrategy: "advanced",
             tabSize: 2,
             fontSize: 13,
             lineHeight: 20,
             folding: true,
             formatOnPaste: true,
             formatOnType: true,
+            scrollbar: { horizontal: "hidden" },
             padding: { top: 14, bottom: 14 },
             smoothScrolling: true,
             cursorBlinking: "smooth",

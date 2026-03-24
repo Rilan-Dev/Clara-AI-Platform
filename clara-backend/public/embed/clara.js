@@ -46,14 +46,32 @@
   var isOpen     = false;
   var isThinking = false;
   var voiceOn    = false;
+  var voiceState = 'idle';
   var history    = [];
   var refreshTimer = null;
   var $panel, $toggleBtn, $msgs, $textarea, $sendBtn, $voiceBtn;
+  var voiceWs = null;
+  var voiceMicStream = null;
+  var voiceCaptureCtx = null;
+  var voicePlaybackCtx = null;
+  var voiceMicSource = null;
+  var voiceWorklet = null;
+  var voicePingTimer = null;
+  var voiceNextPlayTime = 0;
+  var voicePendingAssistantId = null;
+  var voicePendingAssistantText = '';
+  var voiceStoppedManually = false;
 
   /* ── 3. Utilities ────────────────────────────────────────────────────────── */
   function uid()     { return Math.random().toString(36).slice(2, 9); }
   function authHdr() { return { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' }; }
   function svg(i)    { return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' + i + '</svg>'; }
+  function base64ToInt16(b64) {
+    var binary = atob(b64 || '');
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Int16Array(bytes.buffer);
+  }
 
   /* ── 4. CSS builder ──────────────────────────────────────────────────────── */
   function buildCSS(c) {
@@ -127,10 +145,14 @@
       '#sbtn svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}',
       '#vbtn{background:'+surface+';border:1.5px solid '+bdr+'}',
       '#vbtn.von{background:#ef4444;border-color:#ef4444}',
+      '#vbtn.vconnecting{background:'+accent+';border-color:'+accent+';animation:voicePulse 1.2s ease-in-out infinite}',
+      '#vbtn.vlistening{background:'+primary+';border-color:'+primary+'}',
+      '#vbtn.vspeaking{background:#10b981;border-color:#10b981;animation:voicePulse 1s ease-in-out infinite}',
       '#vbtn svg{width:15px;height:15px;fill:none;stroke:'+sub+';stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
-      '#vbtn.von svg{stroke:#fff}',
+      '#vbtn.von svg,#vbtn.vconnecting svg,#vbtn.vlistening svg,#vbtn.vspeaking svg{stroke:#fff}',
       '#pw{text-align:center;font-size:10px;color:'+sub+';padding:4px 0 9px;flex-shrink:0}',
       '#pw a{color:'+sub+';text-decoration:none}#pw a:hover{text-decoration:underline}',
+      '@keyframes voicePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}',
     ].join('\n');
     // Inject custom CSS AFTER defaults — overrides anything
     if (c.customCss) css += '\n/* === custom === */\n' + c.customCss;
@@ -177,6 +199,29 @@
     var div = document.createElement('div');
     div.style.cssText = 'font-size:11px;color:#9898b8;text-align:center;padding:2px 0';
     div.textContent = text; $msgs.appendChild(div); scrollBottom();
+  }
+
+  function setVoiceState(nextState) {
+    voiceState = nextState || 'idle';
+    voiceOn = voiceState !== 'idle';
+    if ($voiceBtn) {
+      $voiceBtn.classList.toggle('von', voiceOn);
+      $voiceBtn.classList.toggle('vconnecting', voiceState === 'connecting');
+      $voiceBtn.classList.toggle('vlistening', voiceState === 'connected' || voiceState === 'listening');
+      $voiceBtn.classList.toggle('vspeaking', voiceState === 'speaking');
+      $voiceBtn.setAttribute(
+        'aria-label',
+        voiceOn ? ('Stop voice (' + voiceState + ')') : 'Start voice'
+      );
+      $voiceBtn.setAttribute('title', voiceOn ? ('Voice: ' + voiceState) : 'Start voice');
+      $voiceBtn.innerHTML = svg(voiceOn ? I_STOP : I_MIC);
+    }
+    _emit('voiceState', { state: voiceState, active: voiceOn });
+    try {
+      document.dispatchEvent(new CustomEvent('clara:voiceState', {
+        detail: { state: voiceState, active: voiceOn }
+      }));
+    } catch (e) {}
   }
 
   /* ── 7. Streaming chat ───────────────────────────────────────────────────── */
@@ -246,28 +291,244 @@
   }
 
   /* ── 8. Voice session ────────────────────────────────────────────────────── */
+  function getVoiceRelayUrl() {
+    var wsBase = BASE_URL.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+    return wsBase + '/api/embed/voice?key=' + encodeURIComponent(API_KEY);
+  }
+
+  function queueVoiceAudio(base64, sampleRate) {
+    if (!voicePlaybackCtx || !base64) return;
+    var int16 = base64ToInt16(base64);
+    if (!int16.length) return;
+    var float32 = new Float32Array(int16.length);
+    for (var i = 0; i < int16.length; i++) {
+      float32[i] = int16[i] / 32768;
+    }
+    var rate = sampleRate || 24000;
+    var buffer = voicePlaybackCtx.createBuffer(1, float32.length, rate);
+    buffer.getChannelData(0).set(float32);
+    var source = voicePlaybackCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(voicePlaybackCtx.destination);
+    var now = voicePlaybackCtx.currentTime;
+    if (voiceNextPlayTime < now) voiceNextPlayTime = now;
+    source.start(voiceNextPlayTime);
+    voiceNextPlayTime += buffer.duration;
+  }
+
+  function releaseVoiceRuntime(closeSocket) {
+    if (voicePingTimer) {
+      clearInterval(voicePingTimer);
+      voicePingTimer = null;
+    }
+    if (voiceWorklet) {
+      try { voiceWorklet.port.onmessage = null; } catch (e) {}
+      try { voiceWorklet.disconnect(); } catch (e) {}
+      voiceWorklet = null;
+    }
+    if (voiceMicSource) {
+      try { voiceMicSource.disconnect(); } catch (e) {}
+      voiceMicSource = null;
+    }
+    if (voiceMicStream) {
+      try { voiceMicStream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
+      voiceMicStream = null;
+    }
+    if (voiceCaptureCtx) {
+      try { voiceCaptureCtx.close(); } catch (e) {}
+      voiceCaptureCtx = null;
+    }
+    if (voicePlaybackCtx) {
+      try { voicePlaybackCtx.close(); } catch (e) {}
+      voicePlaybackCtx = null;
+    }
+    if (closeSocket && voiceWs) {
+      try { voiceWs.close(1000, 'voice ended'); } catch (e) {}
+    }
+    voiceWs = null;
+    voiceNextPlayTime = 0;
+    voicePendingAssistantId = null;
+    voicePendingAssistantText = '';
+  }
+
+  function stopVoiceRuntime(announce) {
+    voiceStoppedManually = true;
+    releaseVoiceRuntime(true);
+    setVoiceState('idle');
+    if (announce !== false) addNote('\uD83C\uDF99 Voice session ended');
+    _emit('voiceEnd', {});
+  }
+
+  function startVoiceRuntime() {
+    var mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : null;
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (voiceWs && (voiceWs.readyState === 0 || voiceWs.readyState === 1)) {
+      return Promise.resolve({ transport: 'websocket-relay', status: voiceState || 'connected' });
+    }
+    if (!mediaDevices || typeof mediaDevices.getUserMedia !== 'function') {
+      return Promise.reject(new Error('Microphone access is unavailable in this browser.'));
+    }
+    if (!AudioCtx || typeof window.WebSocket !== 'function') {
+      return Promise.reject(new Error('Live voice is unavailable in this browser.'));
+    }
+
+    setVoiceState('connecting');
+    voiceStoppedManually = false;
+
+    return mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      }
+    }).then(function(mic) {
+      voiceMicStream = mic;
+      voiceCaptureCtx = new AudioCtx({ sampleRate: 16000 });
+      voicePlaybackCtx = new AudioCtx({ sampleRate: 24000 });
+      return Promise.all([
+        voiceCaptureCtx.resume(),
+        voicePlaybackCtx.resume(),
+        voiceCaptureCtx.audioWorklet.addModule(BASE_URL + '/worklets/audio-recorder-worklet.js')
+      ]).then(function() {
+        voiceMicSource = voiceCaptureCtx.createMediaStreamSource(mic);
+        voiceWorklet = new AudioWorkletNode(voiceCaptureCtx, 'audio-recorder-worklet');
+        voiceWorklet.port.onmessage = function(ev) {
+          var ws = voiceWs;
+          var chunk = ev && ev.data;
+          if (!ws || ws.readyState !== 1 || !chunk) return;
+          try {
+            ws.send(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength));
+          } catch (e) {}
+        };
+        voiceMicSource.connect(voiceWorklet);
+
+        return new Promise(function(resolve, reject) {
+          var settled = false;
+          var ws = new WebSocket(getVoiceRelayUrl());
+          voiceWs = ws;
+
+          function resolveSession(statusValue) {
+            if (settled) return;
+            settled = true;
+            resolve({ transport: 'websocket-relay', status: statusValue || 'connected' });
+          }
+
+          function rejectSession(err) {
+            if (settled) return;
+            settled = true;
+            if (voiceWs && voiceWs.readyState < 2) {
+              try { voiceWs.close(1011, 'voice error'); } catch (e) {}
+            }
+            reject(err);
+          }
+
+          ws.onopen = function() {
+            voicePingTimer = setInterval(function() {
+              if (voiceWs && voiceWs.readyState === 1) {
+                try { voiceWs.send(JSON.stringify({ type: 'ping' })); } catch (e) {}
+              }
+            }, 15000);
+          };
+
+          ws.onmessage = function(event) {
+            var msg;
+            try { msg = JSON.parse(event.data); } catch (e) { return; }
+            if (!msg || !msg.type) return;
+
+            if (msg.type === 'status') {
+              var nextState = msg.value || 'connected';
+              setVoiceState(nextState);
+              if (nextState === 'connected' || nextState === 'listening' || nextState === 'speaking') {
+                resolveSession(nextState);
+              }
+              return;
+            }
+
+            if (msg.type === 'audio' && typeof msg.data === 'string') {
+              queueVoiceAudio(msg.data, msg.sampleRate);
+              return;
+            }
+
+            if (msg.type === 'transcript.user' && typeof msg.text === 'string' && msg.text.trim()) {
+              history.push({ role: 'user', content: msg.text });
+              addMsg('user', msg.text);
+              _emit('voiceTranscript', { role: 'user', text: msg.text });
+              return;
+            }
+
+            if (msg.type === 'transcript.ai.delta' && typeof msg.delta === 'string') {
+              if (!voicePendingAssistantId) {
+                voicePendingAssistantId = addMsg('assistant', '');
+                voicePendingAssistantText = '';
+              }
+              voicePendingAssistantText += msg.delta;
+              setMsg(voicePendingAssistantId, voicePendingAssistantText);
+              _emit('voiceTranscript', { role: 'assistant', text: voicePendingAssistantText, delta: msg.delta });
+              return;
+            }
+
+            if (msg.type === 'transcript.ai.done') {
+              if (typeof msg.text === 'string' && msg.text.trim() && !voicePendingAssistantText) {
+                voicePendingAssistantId = voicePendingAssistantId || addMsg('assistant', '');
+                voicePendingAssistantText = msg.text;
+                setMsg(voicePendingAssistantId, voicePendingAssistantText);
+              }
+              if (voicePendingAssistantText.trim()) {
+                history.push({ role: 'assistant', content: voicePendingAssistantText });
+              }
+              voicePendingAssistantId = null;
+              voicePendingAssistantText = '';
+              return;
+            }
+
+            if (msg.type === 'error') {
+              rejectSession(new Error(msg.message || 'Voice connection failed'));
+            }
+          };
+
+          ws.onerror = function() {
+            rejectSession(new Error('Voice connection failed'));
+          };
+
+          ws.onclose = function() {
+            var manual = voiceStoppedManually;
+            releaseVoiceRuntime(false);
+            setVoiceState('idle');
+            if (!manual) {
+              rejectSession(new Error('Voice connection closed'));
+              addNote('\u26a0 Voice connection closed');
+              _emit('voiceEnd', {});
+            }
+            voiceStoppedManually = false;
+          };
+        });
+      });
+    }).catch(function(err) {
+      releaseVoiceRuntime(false);
+      setVoiceState('idle');
+      throw err;
+    });
+  }
+
   function toggleVoice() {
     if (!$voiceBtn) return;
     if (voiceOn) {
-      voiceOn = false; $voiceBtn.classList.remove('von');
-      $voiceBtn.setAttribute('aria-label','Start voice'); $voiceBtn.innerHTML = svg(I_MIC);
-      addNote('\uD83C\uDF99 Voice session ended'); _emit('voiceEnd', {}); return;
+      stopVoiceRuntime(true);
+      return;
     }
     $voiceBtn.disabled = true;
-    fetch(BASE_URL + '/api/embed/session', {
-      method:'POST', headers:authHdr(), body:JSON.stringify({sessionId:SESSION_ID})
-    })
-    .then(function(r){return r.json();})
-    .then(function(session){
-      $voiceBtn.disabled = false;
-      if (session.error){addNote('\u26a0 Voice unavailable: '+session.error);return;}
-      voiceOn = true; $voiceBtn.classList.add('von');
-      $voiceBtn.setAttribute('aria-label','Stop voice'); $voiceBtn.innerHTML = svg(I_STOP);
-      addNote('\uD83C\uDF99 Voice ready (' + (session.provider||'ai') + ')');
-      _emit('voiceSession', session);
-      document.dispatchEvent(new CustomEvent('clara:voiceSession',{detail:session}));
-    })
-    .catch(function(){$voiceBtn.disabled=false;addNote('\u26a0 Could not start voice session');});
+    startVoiceRuntime()
+      .then(function(session) {
+        $voiceBtn.disabled = false;
+        addNote('\uD83C\uDF99 Voice ready');
+        _emit('voiceSession', session);
+        document.dispatchEvent(new CustomEvent('clara:voiceSession', { detail: session }));
+      })
+      .catch(function(err) {
+        $voiceBtn.disabled = false;
+        addNote('\u26a0 ' + ((err && err.message) || 'Could not start voice session'));
+      });
   }
 
   /* ── 9. Headless SDK event emitter ──────────────────────────────────────── */
@@ -387,6 +648,7 @@
       if (cfg && cfg.customLauncherSvg) { $toggleBtn.innerHTML = svg(I_CLOSE); }
       setTimeout(function(){ if ($textarea) $textarea.focus(); }, 280);
     } else {
+      if (voiceOn) stopVoiceRuntime(false);
       $panel.classList.remove('open');
       $toggleBtn.setAttribute('aria-expanded','false');
       $toggleBtn.setAttribute('aria-label','Open chat');
@@ -462,11 +724,12 @@
 
       // Request a voice session token (OpenAI or Gemini)
       startVoice: function() {
-        return fetch(BASE_URL + '/api/embed/session', {
-          method:'POST', headers:authHdr(), body:JSON.stringify({sessionId:SESSION_ID})
-        }).then(function(r){return r.json();}).then(function(session){
+        return startVoiceRuntime().then(function(session){
           _emit('voiceSession', session); return session;
         });
+      },
+      stopVoice: function() {
+        stopVoiceRuntime(false);
       },
 
       // Clear conversation history
@@ -519,6 +782,10 @@
     init();
   }
 
+  window.addEventListener('pagehide', function() {
+    if (voiceOn) stopVoiceRuntime(false);
+  });
+
   /* ── 14. Public API (floating / inline modes) ────────────────────────────── */
   window.ClaraWidget = {
     open:   function(){ if ($panel && !isOpen) togglePanel(); },
@@ -526,6 +793,8 @@
     send:   function(text){ if ($textarea){ $textarea.value = text||''; sendMessage(); } },
     isOpen: function(){ return isOpen; },
     getConfig: function(){ return cfg; },
+    startVoice: function(){ return startVoiceRuntime(); },
+    stopVoice: function(){ stopVoiceRuntime(false); },
     // Re-applies latest design config from server without page reload
     refreshDesign: function() {
       fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY} })

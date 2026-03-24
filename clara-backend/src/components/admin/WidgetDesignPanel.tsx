@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronDown, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LiveCodeEditor } from "@/components/admin/live-code-editor";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -78,33 +79,50 @@ const FONT_OPTIONS = [
   { label: "Georgia (serif)", value: "Georgia,serif" },
 ];
 
-const COLOUR_PATTERN = /^#(?:[0-9a-fA-F]{3,8})$/;
+const DESIGN_TS_EXTRA_LIB = `
+declare interface ClaraWidgetDesign {
+  /** Primary widget brand colour used for the header and user bubbles. */
+  primaryColour: string;
+  /** Accent colour used for focus states and subtle highlights. */
+  accentColour: string;
+  /** Floating launcher button and launcher label background colour. */
+  launcherColour: string;
+  /** Overall widget theme. */
+  widgetTheme: "light" | "dark";
+  /** Floating widget placement. */
+  widgetPosition: "bottom-right" | "bottom-left";
+  /** Floating launcher size in pixels. */
+  widgetButtonSize: number;
+  /** Widget panel corner radius. */
+  widgetBorderRadius: number;
+  /** Font family applied to the widget UI. */
+  widgetFontFamily: string;
+  /** Max panel height in pixels. */
+  widgetChatHeight: number;
+  /** Show or hide the branding footer. */
+  widgetShowBranding: boolean;
+  /** Optional floating launcher label. */
+  widgetLauncherLabel: string;
+  /** Assistant display name shown in the header. */
+  assistantName: string;
+  /** Initial assistant greeting. */
+  welcomeMessage: string;
+  /** Assistant avatar URL. */
+  avatarUrl: string;
+  /** Widget rendering mode. */
+  widgetMode: "floating" | "inline" | "headless";
+  /** Custom CSS injected into the widget shadow root. */
+  customCss: string;
+  /** SVG markup for the launcher icon. */
+  customLauncherSvg: string;
+  /** HTML snippet rendered inside the header. */
+  customHeaderHtml: string;
+  /** Branding footer text override. */
+  customPoweredBy: string;
+}
+`;
 
-const DESIGN_JSON_SCHEMA: Record<string, unknown> = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    primaryColour: { type: "string", pattern: COLOUR_PATTERN.source },
-    accentColour: { type: "string", pattern: COLOUR_PATTERN.source },
-    launcherColour: { type: "string", pattern: COLOUR_PATTERN.source },
-    widgetTheme: { enum: ["light", "dark"] },
-    widgetPosition: { enum: ["bottom-right", "bottom-left"] },
-    widgetButtonSize: { type: "number", minimum: 40, maximum: 80 },
-    widgetBorderRadius: { type: "number", minimum: 0, maximum: 40 },
-    widgetFontFamily: { type: "string" },
-    widgetChatHeight: { type: "number", minimum: 300, maximum: 900 },
-    widgetShowBranding: { type: "boolean" },
-    widgetLauncherLabel: { type: "string" },
-    assistantName: { type: "string" },
-    welcomeMessage: { type: "string" },
-    avatarUrl: { type: "string" },
-    widgetMode: { enum: ["floating", "inline", "headless"] },
-    customCss: { type: "string" },
-    customLauncherSvg: { type: "string" },
-    customHeaderHtml: { type: "string" },
-    customPoweredBy: { type: "string" },
-  },
-};
+const COLOUR_PATTERN = /^#(?:[0-9a-fA-F]{3,8})$/;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -146,8 +164,30 @@ function normalizeDesign(input: Partial<WidgetDesign>, base: WidgetDesign = DEFA
   };
 }
 
-function serializeDesign(design: WidgetDesign) {
-  return JSON.stringify(design, null, 2);
+function serializeDesignCode(design: WidgetDesign) {
+  return `const design: ClaraWidgetDesign = ${JSON.stringify(design, null, 2)};
+
+export default design;
+`;
+}
+
+function parseDesignCode(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error("Design code cannot be empty.");
+
+  const executableWithReturn = trimmed.replace(/export\s+default\s+design\s*;?\s*$/m, "return design;");
+  if (executableWithReturn === trimmed) {
+    throw new Error("Design code must end with 'export default design;'.");
+  }
+
+  const executable = executableWithReturn.replace(/const\s+design\s*:\s*ClaraWidgetDesign\s*=/, "const design =");
+
+  const result = Function(`"use strict";\n${executable}`)() as unknown;
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error("Design code must export an object.");
+  }
+
+  return result as Partial<WidgetDesign>;
 }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -347,7 +387,8 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [advancedDesignCode, setAdvancedDesignCode] = useState(() => serializeDesign(DEFAULTS));
+  const [advancedTab, setAdvancedTab] = useState("design");
+  const [advancedDesignCode, setAdvancedDesignCode] = useState(() => serializeDesignCode(DEFAULTS));
   const [advancedDesignError, setAdvancedDesignError] = useState<string | null>(null);
   const syncingFromCodeRef = useRef(false);
 
@@ -362,7 +403,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           launcherColour: data.launcherColour ?? data.primaryColour,
         }, DEFAULTS);
         setDesign(nextDesign);
-        setAdvancedDesignCode(serializeDesign(nextDesign));
+        setAdvancedDesignCode(serializeDesignCode(nextDesign));
         setAdvancedDesignError(null);
       })
       .catch(() => {})
@@ -379,7 +420,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
       syncingFromCodeRef.current = false;
       return;
     }
-    setAdvancedDesignCode(serializeDesign(design));
+    setAdvancedDesignCode(serializeDesignCode(design));
     setAdvancedDesignError(null);
   }, [design]);
 
@@ -388,16 +429,12 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
     setSaved(false);
 
     if (!raw.trim()) {
-      setAdvancedDesignError("Design JSON cannot be empty.");
+      setAdvancedDesignError("Design code cannot be empty.");
       return;
     }
 
     try {
-      const parsed = JSON.parse(raw) as Partial<WidgetDesign>;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        setAdvancedDesignError("Design JSON must be an object.");
-        return;
-      }
+      const parsed = parseDesignCode(raw);
       syncingFromCodeRef.current = true;
       setDesign((prev) => normalizeDesign(parsed, prev));
       setAdvancedDesignError(null);
@@ -448,7 +485,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
   const handleReset = () => {
     if (!confirm("Reset to factory defaults? Your current design will be lost.")) return;
     setDesign(DEFAULTS);
-    setAdvancedDesignCode(serializeDesign(DEFAULTS));
+    setAdvancedDesignCode(serializeDesignCode(DEFAULTS));
     setAdvancedDesignError(null);
     setSaved(false);
   };
@@ -678,7 +715,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
                 <span className="text-sm font-semibold">Advanced design editor</span>
               </div>
               <p className="text-xs text-white/45">
-                Edit the full widget design as code. Valid JSON updates all visual controls, color pickers, and the live preview immediately.
+                Edit the full widget design as code. All bottom editors stay synced with the visual controls, top editors, and live preview.
               </p>
             </div>
             <CollapsibleTrigger asChild>
@@ -690,24 +727,70 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           </div>
 
           <CollapsibleContent className="border-t border-white/[0.08] px-5 py-5">
-            <div className="space-y-3">
-              <LiveCodeEditor
-                title="Widget design JSON"
-                description="This editor is two-way synced with every design input above. When JSON is valid, form controls and preview update instantly."
-                language="json"
-                value={advancedDesignCode}
-                onChange={handleAdvancedDesignChange}
-                path={`inmemory://widget/${kbId}/design.json`}
-                height={420}
-                schema={DESIGN_JSON_SCHEMA}
-                minimap
-              />
-              {advancedDesignError ? (
-                <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
-                  {advancedDesignError}
-                </p>
-              ) : null}
-            </div>
+            <Tabs value={advancedTab} onValueChange={setAdvancedTab} className="space-y-4">
+              <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-xl bg-[#0b1020] p-2 text-white/50">
+                <TabsTrigger value="design" className="bg-transparent px-3 py-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white">design.ts</TabsTrigger>
+                <TabsTrigger value="css" className="bg-transparent px-3 py-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white">custom.css</TabsTrigger>
+                <TabsTrigger value="header" className="bg-transparent px-3 py-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white">header.html</TabsTrigger>
+                <TabsTrigger value="launcher" className="bg-transparent px-3 py-2 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white">launcher.svg</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="design" className="mt-0 space-y-3">
+                <LiveCodeEditor
+                  title="Widget design code"
+                  description="Native TypeScript-style design module with autocomplete for widget properties. Changes sync both ways with all form controls."
+                  language="typescript"
+                  value={advancedDesignCode}
+                  onChange={handleAdvancedDesignChange}
+                  path={`inmemory://widget/${kbId}/design.ts`}
+                  height={420}
+                  minimap
+                  typescriptExtraLibs={[{ filePath: `ts:widget/${kbId}/design-types.d.ts`, content: DESIGN_TS_EXTRA_LIB }]}
+                />
+                {advancedDesignError ? (
+                  <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+                    {advancedDesignError}
+                  </p>
+                ) : null}
+              </TabsContent>
+
+              <TabsContent value="css" className="mt-0">
+                <LiveCodeEditor
+                  title="Advanced custom CSS"
+                  description="Same CSS as the main editor above, available here in the hidden developer workspace."
+                  language="css"
+                  value={design.customCss}
+                  onChange={(value) => set("customCss", value)}
+                  path={`inmemory://widget/${kbId}/advanced-custom.css`}
+                  height={360}
+                  minimap
+                />
+              </TabsContent>
+
+              <TabsContent value="header" className="mt-0">
+                <LiveCodeEditor
+                  title="Advanced header HTML"
+                  description="Header slot markup synced with the top editor and preview."
+                  language="html"
+                  value={design.customHeaderHtml}
+                  onChange={(value) => set("customHeaderHtml", value)}
+                  path={`inmemory://widget/${kbId}/advanced-header.html`}
+                  height={320}
+                />
+              </TabsContent>
+
+              <TabsContent value="launcher" className="mt-0">
+                <LiveCodeEditor
+                  title="Advanced launcher SVG"
+                  description="Floating launcher icon markup synced with the top editor and preview."
+                  language="html"
+                  value={design.customLauncherSvg}
+                  onChange={(value) => set("customLauncherSvg", value)}
+                  path={`inmemory://widget/${kbId}/advanced-launcher.svg`}
+                  height={360}
+                />
+              </TabsContent>
+            </Tabs>
           </CollapsibleContent>
         </div>
       </Collapsible>
