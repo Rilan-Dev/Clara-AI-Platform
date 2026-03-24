@@ -60,7 +60,6 @@ export type AssistantConfig = {
   primaryColour: string;
   accentColour: string;
   launcherColour: string;
-  launcherColour: string;
 
   // Widget layout & design
   widgetTheme: "light" | "dark";
