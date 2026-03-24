@@ -84,7 +84,7 @@ export function LiveCodeEditor({
   const tone = markerTone(markers);
   const StatusIcon = tone.icon;
 
-  const beforeMount = useCallback((monaco: typeof import("monaco-editor")) => {
+  const beforeMount = useCallback((monaco: any) => {
     if (language === "json" && schema) {
       monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
         validate: true,
