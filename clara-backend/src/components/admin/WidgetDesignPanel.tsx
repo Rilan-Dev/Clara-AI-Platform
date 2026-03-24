@@ -248,9 +248,9 @@ function escapeForInlineJson(value: unknown) {
     .replace(/\u2029/g, "\\u2029");
 }
 
-function buildFloatingPreviewDoc(origin: string, design: WidgetDesign) {
-  const previewConfig = {
-    ...design,
+function buildFloatingPreviewDoc(origin: string, initialDesign: WidgetDesign) {
+  const initialPreviewConfig = {
+    ...initialDesign,
     kbId: "preview-kb",
     kbName: "Admin preview",
     defaultLanguage: "en",
@@ -258,7 +258,7 @@ function buildFloatingPreviewDoc(origin: string, design: WidgetDesign) {
     widgetMode: "floating",
   };
 
-  const configJson = escapeForInlineJson(previewConfig);
+  const configJson = escapeForInlineJson(initialPreviewConfig);
 
   return `<!doctype html>
 <html>
@@ -323,8 +323,12 @@ function buildFloatingPreviewDoc(origin: string, design: WidgetDesign) {
       </div>
     </div>
     <script>
-      const previewConfig = ${configJson};
+      window.__CLARA_PREVIEW_CONFIG = ${configJson};
       const originalFetch = window.fetch.bind(window);
+
+      function getPreviewConfig() {
+        return window.__CLARA_PREVIEW_CONFIG;
+      }
 
       function jsonResponse(body) {
         return Promise.resolve(new Response(JSON.stringify(body), {
@@ -365,13 +369,79 @@ function buildFloatingPreviewDoc(origin: string, design: WidgetDesign) {
       window.fetch = function(input, init) {
         const url = typeof input === "string" ? input : input.url;
         if (url.indexOf("/api/embed/config") !== -1) {
-          return jsonResponse(previewConfig);
+          return jsonResponse(getPreviewConfig());
         }
         if (url.indexOf("/api/embed/chat") !== -1) {
           return streamChatResponse(init && init.body ? init.body : "{}");
         }
         return originalFetch(input, init);
       };
+
+      function refreshFloatingWidgetRuntime() {
+        const config = getPreviewConfig();
+        if (!window.ClaraWidget || typeof window.ClaraWidget.refreshDesign !== "function") return;
+
+        window.ClaraWidget.refreshDesign();
+
+        const host = document.getElementById("clara-widget-host");
+        const shadowRoot = host && host.shadowRoot;
+        if (!shadowRoot) return;
+
+        const title = shadowRoot.getElementById("hn");
+        if (title) title.textContent = config.assistantName || "Clara";
+
+        const extra = shadowRoot.getElementById("hdr-extra");
+        if (extra) extra.innerHTML = config.customHeaderHtml || "";
+
+        const branding = shadowRoot.getElementById("pw");
+        if (branding) {
+          if (config.widgetShowBranding === false) {
+            branding.style.display = "none";
+          } else {
+            branding.style.display = "";
+            if (config.customPoweredBy) {
+              branding.textContent = config.customPoweredBy;
+            } else {
+              branding.innerHTML = 'Powered by <a href="https://clara.ai" target="_blank" rel="noopener noreferrer">Clara AI</a>';
+            }
+          }
+        }
+
+        const launcherLabel = shadowRoot.getElementById("launcher-lbl");
+        if (launcherLabel) {
+          launcherLabel.textContent = config.widgetLauncherLabel || "";
+          launcherLabel.style.display = config.widgetLauncherLabel ? "" : "none";
+        }
+
+        const messages = shadowRoot.getElementById("msgs");
+        if (messages && !messages.querySelector("[data-preview-welcome='true']")) {
+          const firstAssistant = messages.querySelector(".ma");
+          if (firstAssistant) {
+            firstAssistant.setAttribute("data-preview-welcome", "true");
+            firstAssistant.textContent = config.welcomeMessage || "Hi! How can I help you today?";
+          }
+        } else if (messages) {
+          const previewWelcome = messages.querySelector("[data-preview-welcome='true']");
+          if (previewWelcome) previewWelcome.textContent = config.welcomeMessage || "Hi! How can I help you today?";
+        }
+      }
+
+      window.addEventListener("message", function(event) {
+        if (event.origin !== window.location.origin) return;
+        if (!event.data || event.data.type !== "clara-admin-preview-config") return;
+
+        window.__CLARA_PREVIEW_CONFIG = {
+          ...getPreviewConfig(),
+          ...event.data.payload,
+          widgetMode: "floating",
+          voiceEnabled: false,
+          kbId: "preview-kb",
+          kbName: "Admin preview",
+          defaultLanguage: "en",
+        };
+
+        refreshFloatingWidgetRuntime();
+      });
     </script>
     <script src="${origin}/embed/clara.js" data-key="preview-key" data-mode="floating"></script>
   </body>
@@ -406,8 +476,29 @@ function PreviewFrame({
 }
 
 function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const srcDoc = useMemo(() => (origin ? buildFloatingPreviewDoc(origin, design) : ""), [design, origin]);
+  const initialDesignRef = useRef(design);
+  const srcDoc = useMemo(() => (origin ? buildFloatingPreviewDoc(origin, initialDesignRef.current) : ""), [origin]);
+
+  const previewConfig = useMemo(
+    () => ({
+      type: "clara-admin-preview-config",
+      payload: {
+        ...design,
+      },
+    }),
+    [design]
+  );
+
+  const postPreviewConfig = useCallback(() => {
+    if (!frameRef.current?.contentWindow || !origin) return;
+    frameRef.current.contentWindow.postMessage(previewConfig, origin);
+  }, [origin, previewConfig]);
+
+  useEffect(() => {
+    postPreviewConfig();
+  }, [postPreviewConfig]);
 
   return (
     <PreviewFrame
@@ -415,8 +506,10 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
       subtitle="Real clara.js runtime inside an isolated page"
     >
       <iframe
+        ref={frameRef}
         title="Floating widget sandbox preview"
         srcDoc={srcDoc}
+        onLoad={postPreviewConfig}
         className="h-[560px] w-full bg-[#09101f]"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
       />
