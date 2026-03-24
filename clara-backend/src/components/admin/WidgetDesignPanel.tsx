@@ -10,8 +10,8 @@
  * Live preview mirrors the real widget using the same CSS logic as clara.js.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronDown, Code2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { ChevronDown, Code2, ExternalLink, Layers3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -237,144 +237,243 @@ function RangeInput({ value, min, max, step = 1, unit = "", onChange }: {
   );
 }
 
-// ── Live Preview ──────────────────────────────────────────────────────────────
+type PreviewMode = "floating" | "inline";
 
-function WidgetPreview({ d }: { d: WidgetDesign }) {
-  const dark    = d.widgetTheme === "dark";
-  const bg      = dark ? "#1c1c2a" : "#ffffff";
-  const surface = dark ? "#27273b" : "#f5f5fb";
-  const txt     = dark ? "#e2e2f0" : "#1a1a2e";
-  const sub     = dark ? "#9898b8" : "#6b7280";
-  const bdr     = dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.09)";
-  const customPoweredBy = d.customPoweredBy?.trim() || "Powered by Clara AI";
-  const hasCustomLauncher = /^<svg[\s>]/i.test(d.customLauncherSvg?.trim() ?? "");
-  const launcherColour = d.launcherColour || d.primaryColour;
-  const positionRight = d.widgetPosition !== "bottom-left";
-  const panelOffset = positionRight ? "mr-4" : "ml-4";
+function escapeForInlineJson(value: unknown) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
 
-  const fakeMessages = [
-    { role: "assistant", text: d.welcomeMessage || "Hi! How can I help?" },
-    { role: "user",      text: "What services do you offer?" },
-    { role: "assistant", text: "We offer web development, mobile apps, and AI integrations. What can I help you with?" },
-  ];
+function buildFloatingPreviewDoc(origin: string, design: WidgetDesign) {
+  const previewConfig = {
+    ...design,
+    kbId: "preview-kb",
+    kbName: "Admin preview",
+    defaultLanguage: "en",
+    voiceEnabled: false,
+    widgetMode: "floating",
+  };
+
+  const configJson = escapeForInlineJson(previewConfig);
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: Inter, system-ui, sans-serif;
+        background: radial-gradient(circle at top, rgba(99,102,241,0.14), transparent 40%), #0b1020;
+        color: #cbd5e1;
+      }
+      body {
+        position: relative;
+        overflow: hidden;
+      }
+      .preview-shell {
+        min-height: 100vh;
+        padding: 32px 28px 100px;
+        box-sizing: border-box;
+      }
+      .preview-card {
+        max-width: 520px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 24px;
+        padding: 20px;
+        background: rgba(15,23,42,0.58);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.56);
+      }
+      h1 {
+        margin: 14px 0 10px;
+        font-size: 28px;
+        line-height: 1.1;
+        color: white;
+      }
+      p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.7;
+        color: rgba(255,255,255,0.7);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="preview-shell">
+      <div class="preview-card">
+        <div class="eyebrow">Floating sandbox · real clara.js runtime</div>
+        <h1>Preview the launcher on a real page surface.</h1>
+        <p>Open the widget, type a message, and inspect styling in the actual embed runtime path. Design edits from the admin panel are injected live into this sandbox.</p>
+      </div>
+    </div>
+    <script>
+      const previewConfig = ${configJson};
+      const originalFetch = window.fetch.bind(window);
+
+      function jsonResponse(body) {
+        return Promise.resolve(new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        }));
+      }
+
+      function streamChatResponse(body) {
+        const request = JSON.parse(body || "{}");
+        const messages = Array.isArray(request.messages) ? request.messages : [];
+        const lastUser = messages.filter((message) => message && message.role === "user").slice(-1)[0];
+        const question = lastUser && typeof lastUser.content === "string" ? lastUser.content.trim() : "your question";
+        const answer = "This floating sandbox is running the real clara.js widget path. Current preview changes are live, and this sample reply echoes your latest question: " + question + ". Save the design to publish it to real embeds.";
+        const chunks = answer.match(/.{1,28}(\s|$)/g) || [answer];
+        const stream = new ReadableStream({
+          start(controller) {
+            let index = 0;
+            function push() {
+              if (index >= chunks.length) {
+                controller.close();
+                return;
+              }
+              const payload = JSON.stringify({ type: "token", payload: chunks[index] }) + "\n";
+              controller.enqueue(new TextEncoder().encode(payload));
+              index += 1;
+              setTimeout(push, 35);
+            }
+            push();
+          },
+        });
+        return Promise.resolve(new Response(stream, {
+          status: 200,
+          headers: { "Content-Type": "application/x-ndjson" }
+        }));
+      }
+
+      window.fetch = function(input, init) {
+        const url = typeof input === "string" ? input : input.url;
+        if (url.indexOf("/api/embed/config") !== -1) {
+          return jsonResponse(previewConfig);
+        }
+        if (url.indexOf("/api/embed/chat") !== -1) {
+          return streamChatResponse(init && init.body ? init.body : "{}");
+        }
+        return originalFetch(input, init);
+      };
+    </script>
+    <script src="${origin}/embed/clara.js" data-key="preview-key" data-mode="floating"></script>
+  </body>
+</html>`;
+}
+
+function PreviewFrame({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0a1120] shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+      <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.03] px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-white">{title}</p>
+          <p className="text-xs text-white/40">{subtitle}</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-white/35">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const srcDoc = useMemo(() => (origin ? buildFloatingPreviewDoc(origin, design) : ""), [design, origin]);
 
   return (
-    <div className={`relative flex h-[520px] rounded-2xl overflow-hidden ${positionRight ? "items-end justify-end" : "items-start justify-start"}`}
-      style={{ background: dark ? "#0f0f1a" : "#f0f0f5" }}>
-      {/* Simulated page background */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="p-6 space-y-3">
-          {[80, 65, 90, 50].map((w, i) => (
-            <div key={i} className="h-3 rounded-full bg-current opacity-20" style={{ width: `${w}%`, color: dark ? "#fff" : "#000" }} />
-          ))}
-        </div>
-      </div>
+    <PreviewFrame
+      title="Floating sandbox"
+      subtitle="Real clara.js runtime inside an isolated page"
+    >
+      <iframe
+        title="Floating widget sandbox preview"
+        srcDoc={srcDoc}
+        className="h-[560px] w-full bg-[#09101f]"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      />
+    </PreviewFrame>
+  );
+}
 
-      {/* Widget panel */}
-      <div id="panel" className={`relative ${panelOffset} flex flex-col overflow-hidden shadow-2xl`}
-        style={{
-          width: 300,
-          height: Math.min(d.widgetChatHeight, 440),
-          borderRadius: d.widgetBorderRadius,
-          background: bg,
-          border: `1px solid ${bdr}`,
-          fontFamily: d.widgetFontFamily,
-          boxShadow: `0 0 0 1px ${d.accentColour}14, 0 24px 60px rgba(0,0,0,0.24)`,
-        }}>
-        {/* Header */}
-        <div id="hdr" className="flex items-center gap-2 px-3 py-2.5 flex-shrink-0"
-          style={{ background: d.primaryColour, boxShadow: `inset 0 2px 0 ${d.accentColour}` }}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(255,255,255,0.2)" }}>
-              {d.avatarUrl
-                ? /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={d.avatarUrl} className="w-7 h-7 rounded-full object-cover" alt="" />
-                : <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
-                  <rect x="3" y="11" width="18" height="10" rx="2"/>
-                  <path d="M9 11V7a3 3 0 0 1 6 0v4"/>
-                  <circle cx="9" cy="16" r="1" fill="white" stroke="none"/>
-                  <circle cx="15" cy="16" r="1" fill="white" stroke="none"/>
-                </svg>}
-          </div>
-          <span className="text-xs font-semibold text-white truncate flex-1">{d.assistantName || "Clara"}</span>
-          {d.customHeaderHtml?.trim() && (
-            <div className="max-w-[120px] overflow-hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white">
-              <div dangerouslySetInnerHTML={{ __html: d.customHeaderHtml }} />
-            </div>
-          )}
-          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.18)" }}>
-            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </div>
-        </div>
+function InlineEmbedPreview({ design, kbId }: { design: WidgetDesign; kbId: string }) {
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const previewConfig = useMemo(
+    () => ({
+      type: "clara-admin-preview-config",
+      payload: {
+        kbId,
+        kbName: "Admin preview",
+        assistantName: design.assistantName,
+        avatarUrl: design.avatarUrl || null,
+        welcomeMessage: design.welcomeMessage,
+        primaryColour: design.primaryColour,
+        accentColour: design.accentColour,
+        defaultLanguage: "en",
+        widgetTheme: design.widgetTheme,
+        widgetBorderRadius: design.widgetBorderRadius,
+        widgetFontFamily: design.widgetFontFamily,
+        widgetShowBranding: design.widgetShowBranding,
+        customCss: design.customCss || null,
+        customPoweredBy: design.customPoweredBy || null,
+        customHeaderHtml: design.customHeaderHtml || null,
+      },
+    }),
+    [design, kbId]
+  );
 
-        {/* Messages */}
-        <div className="flex-1 overflow-hidden p-3 space-y-2">
-          {fakeMessages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className="text-[11px] leading-relaxed rounded-xl px-2.5 py-1.5 max-w-[85%]"
-                style={m.role === "user"
-                  ? { background: d.primaryColour, color: "#fff", borderBottomRightRadius: 3 }
-                  : { background: surface, color: txt, border: `1px solid ${bdr}`, borderBottomLeftRadius: 3 }}>
-                {m.text}
-              </div>
-            </div>
-          ))}
-        </div>
+  const postPreviewConfig = useCallback(() => {
+    if (!frameRef.current?.contentWindow || !origin) return;
+    frameRef.current.contentWindow.postMessage(previewConfig, origin);
+  }, [origin, previewConfig]);
 
-        {/* Input */}
-        <div className="flex items-center gap-1.5 px-2.5 py-2 border-t flex-shrink-0"
-          style={{ borderColor: bdr, background: bg }}>
-          <div className="flex-1 h-7 rounded-lg text-[11px] px-2.5 flex items-center"
-            style={{ background: surface, border: `1.5px solid ${d.accentColour}30`, color: sub, boxShadow: `inset 0 0 0 1px ${d.accentColour}12` }}>
-            Ask a question…
-          </div>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: d.primaryColour }}>
-            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round">
-              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-          </div>
-        </div>
+  useEffect(() => {
+    postPreviewConfig();
+  }, [postPreviewConfig]);
 
-        {/* Branding */}
-        {d.widgetShowBranding && (
-          <div id="pw" className="text-center py-1.5 flex-shrink-0" style={{ fontSize: 9, color: sub }}>
-            {customPoweredBy}
-          </div>
-        )}
-      </div>
-
-      {/* FAB button */}
-      <div className={`absolute bottom-4 flex flex-col gap-1.5 ${positionRight ? "right-4 items-end" : "left-4 items-start"}`}>
-        {d.widgetLauncherLabel && (
-          <div id="launcher-lbl" className="text-xs font-semibold text-white rounded-full px-3 py-1"
-            style={{ background: launcherColour, boxShadow: "0 2px 10px rgba(0,0,0,0.22)" }}>
-            {d.widgetLauncherLabel}
-          </div>
-        )}
-        <div id="tbtn" className="rounded-full flex items-center justify-center"
-          style={{ width: d.widgetButtonSize, height: d.widgetButtonSize, background: launcherColour, boxShadow: "0 4px 16px rgba(0,0,0,0.28)" }}>
-          {hasCustomLauncher ? (
-            <span
-              className="flex items-center justify-center"
-              style={{ width: d.widgetButtonSize * 0.46, height: d.widgetButtonSize * 0.46 }}
-              dangerouslySetInnerHTML={{ __html: d.customLauncherSvg }}
-            />
-          ) : (
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round"
-              style={{ width: d.widgetButtonSize * 0.46, height: d.widgetButtonSize * 0.46 }}>
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          )}
-        </div>
-      </div>
-
-      {d.customCss && (
-        <style dangerouslySetInnerHTML={{ __html: d.customCss }} />
-      )}
-    </div>
+  return (
+    <PreviewFrame
+      title="Inline embed preview"
+      subtitle="Real /embed/widget page surface in preview mode"
+    >
+      <iframe
+        ref={frameRef}
+        title="Inline widget preview"
+        src="/embed/widget?preview=1"
+        onLoad={postPreviewConfig}
+        className="h-[560px] w-full bg-white"
+        sandbox="allow-scripts allow-same-origin allow-forms"
+      />
+    </PreviewFrame>
   );
 }
 
@@ -382,6 +481,7 @@ function WidgetPreview({ d }: { d: WidgetDesign }) {
 
 export function WidgetDesignPanel({ kbId }: { kbId: string }) {
   const [design, setDesign]   = useState<WidgetDesign>(DEFAULTS);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("floating");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
@@ -697,11 +797,46 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
         </div>
 
         {/* ── Live Preview ── */}
-        <div className="space-y-3 lg:sticky lg:top-6 self-start">
-          <p className="text-xs font-medium uppercase tracking-widest text-white/30">Live Preview</p>
-          <WidgetPreview d={design} />
+        <div className="space-y-4 lg:sticky lg:top-6 self-start">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-widest text-white/30">Live Preview</p>
+                <p className="mt-1 text-sm text-white/55">
+                  Switch between the real floating widget runtime and the real inline embed surface. Both stay synced with your current unsaved edits.
+                </p>
+              </div>
+              <div className="inline-flex rounded-xl border border-white/[0.08] bg-[#0b1020] p-1">
+                {([
+                  { id: "floating", label: "Floating sandbox", icon: Layers3 },
+                  { id: "inline", label: "Inline embed", icon: ExternalLink },
+                ] as const).map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setPreviewMode(id)}
+                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                      previewMode === id
+                        ? "bg-indigo-600/20 text-indigo-200 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]"
+                        : "text-white/50 hover:bg-white/[0.04] hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {previewMode === "floating" ? (
+            <FloatingSandboxPreview design={design} />
+          ) : (
+            <InlineEmbedPreview design={design} kbId={kbId} />
+          )}
+
           <p className="text-xs text-white/30 text-center">
-            Preview mirrors the real widget. Save to push changes live.
+            Preview is local to this panel until you save. Saved config flow is unchanged.
           </p>
         </div>
       </div>

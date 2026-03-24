@@ -84,6 +84,7 @@ export function LiveCodeEditor({
   const tone = markerTone(markers);
   const StatusIcon = tone.icon;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const beforeMount = useCallback((monaco: any) => {
     if (language === "json" && schema) {
       monaco.languages.json.jsonDefaults.setDiagnosticsOptions({

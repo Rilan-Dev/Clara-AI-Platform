@@ -43,6 +43,7 @@ type Message = {
 function WidgetContent() {
   const searchParams   = useSearchParams();
   const apiKey         = searchParams.get("key") ?? "";
+  const isPreview      = searchParams.get("preview") === "1";
 
   const [config, setConfig]             = useState<AssistantConfig | null>(null);
   const [error, setError]               = useState<string | null>(null);
@@ -54,6 +55,11 @@ function WidgetContent() {
 
   // Load assistant config
   useEffect(() => {
+    if (isPreview) {
+      setConfigLoading(true);
+      setError(null);
+      return;
+    }
     if (!apiKey) {
       setError("No API key provided");
       setConfigLoading(false);
@@ -71,7 +77,29 @@ function WidgetContent() {
       })
       .catch(() => setError("Failed to load assistant configuration"))
       .finally(() => setConfigLoading(false));
-  }, [apiKey]);
+  }, [apiKey, isPreview]);
+
+  useEffect(() => {
+    if (!isPreview) return;
+
+    function handlePreviewMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; payload?: AssistantConfig } | null;
+      if (data?.type !== "clara-admin-preview-config" || !data.payload) return;
+
+      setConfig(data.payload);
+      setMessages([{ id: "welcome", role: "assistant", content: data.payload.welcomeMessage }]);
+      setError(null);
+      setConfigLoading(false);
+    }
+
+    window.addEventListener("message", handlePreviewMessage);
+    window.parent?.postMessage({ type: "clara-admin-preview-ready" }, window.location.origin);
+
+    return () => {
+      window.removeEventListener("message", handlePreviewMessage);
+    };
+  }, [isPreview]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -93,6 +121,39 @@ function WidgetContent() {
 
     const assistantId = `a_${Date.now()}`;
     setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+
+    if (isPreview) {
+      const previewAnswer = [
+        `This is the real inline embed surface in preview mode for ${config.assistantName}.`,
+        `Your latest question was: "${userMessage.content}".`,
+        "Unsaved design changes from the admin panel are applied here live.",
+      ].join(" ");
+
+      const chunks = previewAnswer.match(/.{1,26}(\s|$)/g) ?? [previewAnswer];
+      let index = 0;
+
+      const pushChunk = () => {
+        const nextChunk = chunks[index];
+        if (!nextChunk) {
+          setLoading(false);
+          return;
+        }
+
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantId
+              ? { ...message, content: message.content + nextChunk }
+              : message
+          )
+        );
+
+        index += 1;
+        window.setTimeout(pushChunk, 35);
+      };
+
+      pushChunk();
+      return;
+    }
 
     try {
       const res = await fetch(apiUrl("/api/embed/chat"), {
@@ -158,7 +219,7 @@ function WidgetContent() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, config, messages, apiKey]);
+  }, [input, loading, config, messages, apiKey, isPreview]);
 
   const primary     = config?.primaryColour  ?? "#6366f1";
   const accent      = config?.accentColour   ?? "#a5b4fc";
@@ -175,7 +236,7 @@ function WidgetContent() {
   if (configLoading) {
     return (
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", minHeight:"100vh", fontFamily:"system-ui,sans-serif", color:"#9ca3af", fontSize:"14px" }}>
-        Loading assistant…
+        {isPreview ? "Waiting for preview…" : "Loading assistant…"}
       </div>
     );
   }
