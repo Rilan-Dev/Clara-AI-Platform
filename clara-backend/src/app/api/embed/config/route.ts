@@ -55,6 +55,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         welcomeMessage: config.welcomeMessage,
         primaryColour:  config.primaryColour,
         accentColour:   config.accentColour,
+        launcherColour: config.launcherColour,
         defaultLanguage: config.defaultLanguage,
         voiceEnabled:   resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
         // Widget design fields — all consumed by clara.js to style the widget
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         customHeaderHtml:    config.customHeaderHtml,
         customPoweredBy:     config.customPoweredBy,
       },
-      { headers: corsHeaders }
+      { headers: { ...corsHeaders, "Cache-Control": "no-store" } }
     );
   } catch (err) {
     console.error("[embed/config]:", err);

@@ -3,7 +3,7 @@
  * Run from the clara-backend directory:
  *   node fix-cors-origins.mjs
  *
- * Adds localhost dev origins to the AmazeTechCLANS Customer Support API key.
+ * Adds https:// and localhost dev origins to the AmazeTechCLANS embed API key.
  * Safe to run multiple times (idempotent).
  */
 import { createRequire } from "module";
@@ -28,9 +28,11 @@ const DATABASE_URL = process.env.DATABASE_URL ||
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 
-const KEY_PREFIX = "clr_343289e12eb8";
+// The prefix of the embed API key shown in the Clara Deploy tab.
+// Token: clr_b9b4d8507e2981c048e4fca1f9d3ce2bf616e1c17bc5ad3b
+const KEY_PREFIX = "clr_b9b4d8";
 
-const NEW_ORIGINS = [
+const REQUIRED_ORIGINS = [
   "http://amazetechclans.com",
   "https://amazetechclans.com",
   "http://www.amazetechclans.com",
@@ -60,10 +62,12 @@ async function main() {
     console.log("\n📋 Before update:");
     console.table(before.rows);
 
-    // Apply fix
+    // Merge: keep existing origins, add any missing ones
+    const existing = (before.rows[0].allowed_origins ?? []);
+    const merged = [...new Set([...existing, ...REQUIRED_ORIGINS])];
     const result = await client.query(
       `UPDATE api_keys SET allowed_origins = $1 WHERE key_prefix = $2 RETURNING id, name, key_prefix, allowed_origins`,
-      [NEW_ORIGINS, KEY_PREFIX]
+      [merged, KEY_PREFIX]
     );
 
     console.log("\n✅  After update:");

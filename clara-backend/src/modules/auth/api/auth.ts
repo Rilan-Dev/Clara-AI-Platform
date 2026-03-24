@@ -204,11 +204,14 @@ export async function updateMeHandler(req: NextRequest): Promise<NextResponse> {
     const body = await req.json() as { fullName?: string; avatarUrl?: string | null };
     if (body.fullName !== undefined && !body.fullName.trim())
       return NextResponse.json({ error: "fullName cannot be empty" }, { status: 400 });
-    const updated = await updateUser(auth.user.id, {
-      fullName:  body.fullName?.trim(),
-      avatarUrl: body.avatarUrl,
-    });
-    await writeAuditLog({ userId: auth.user.id, action: "user.update_profile", resourceType: "user", resourceId: auth.user.id, newData: body, ipAddress: getIp(req) });
+    // Skip DB write when using the skip-auth fake user (no real user row exists)
+    const isSkipAuthUser = auth.user.id === "00000000-0000-0000-0000-000000000000";
+    const updated = isSkipAuthUser
+      ? { ...auth.user, ...(body.fullName ? { fullName: body.fullName.trim() } : {}), ...(body.avatarUrl !== undefined ? { avatarUrl: body.avatarUrl } : {}) }
+      : await updateUser(auth.user.id, { fullName: body.fullName?.trim(), avatarUrl: body.avatarUrl });
+    if (!isSkipAuthUser) {
+      await writeAuditLog({ userId: auth.user.id, action: "user.update_profile", resourceType: "user", resourceId: auth.user.id, newData: body, ipAddress: getIp(req) });
+    }
     return NextResponse.json({ user: updated });
   } catch (err) {
     if (err instanceof NextResponse) return err;

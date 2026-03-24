@@ -94,9 +94,15 @@ function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boole
   // No Origin header → server-to-server / curl / Postman — always allow
   if (!origin) return true;
   // Localhost is always allowed for developer convenience
-  // (localhost can never be a real production origin so this is safe)
   if (LOCALHOST_RE.test(origin)) return true;
-  return resolveAllowedOrigin(origin, allowedOrigins) !== "null";
+  // Normalise http↔https: if the DB has http://example.com, also accept https://example.com
+  // and vice versa. This prevents breakage when a site upgrades to HTTPS but the stored
+  // origin still has the http:// variant.
+  const normalised = [
+    origin,
+    origin.startsWith("https://") ? origin.replace("https://", "http://") : origin.replace("http://", "https://"),
+  ];
+  return normalised.some(o => resolveAllowedOrigin(o, allowedOrigins) !== "null");
 }
 
 // ── Main validator ────────────────────────────────────────────────────────────

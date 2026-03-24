@@ -226,7 +226,7 @@ export type AssistantConfig = {
   systemPrompt: string; welcomeMessage: string; outOfScopeReply: string; rules: string[];
   defaultLanguage: string; allowedLanguages: string[]; alwaysRespondIn: string | null;
   voiceId: string; speed: number; temperature: number; maxTokens: number;
-  citeSources: boolean; strictMode: boolean; primaryColour: string; accentColour: string;
+  citeSources: boolean; strictMode: boolean; primaryColour: string; accentColour: string; launcherColour: string;
   createdAt: string; updatedAt: string;
 };
 

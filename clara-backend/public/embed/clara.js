@@ -47,6 +47,7 @@
   var isThinking = false;
   var voiceOn    = false;
   var history    = [];
+  var refreshTimer = null;
   var $panel, $toggleBtn, $msgs, $textarea, $sendBtn, $voiceBtn;
 
   /* ── 3. Utilities ────────────────────────────────────────────────────────── */
@@ -58,6 +59,7 @@
   function buildCSS(c) {
     var primary  = c.primaryColour  || '#6366f1';
     var accent   = c.accentColour   || '#818cf8';
+    var launcher = c.launcherColour || primary;
     var theme    = c.widgetTheme    || FALLBACK_THEME;
     var pos      = c.widgetPosition || FALLBACK_POS;
     var btnSize  = (c.widgetButtonSize  || 56) + 'px';
@@ -75,14 +77,14 @@
       '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}',
       '#launcher{position:fixed;z-index:2147483647;bottom:24px;'+(right?'right:24px':'left:24px')+
         ';display:flex;flex-direction:column;align-items:'+(right?'flex-end':'flex-start')+';gap:8px}',
-      '#tbtn{width:'+btnSize+';height:'+btnSize+';border-radius:50%;background:'+primary+';'+
+      '#tbtn{width:'+btnSize+';height:'+btnSize+';border-radius:50%;background:'+launcher+';'+
         'border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;'+
         'box-shadow:0 4px 20px rgba(0,0,0,0.28);transition:transform .2s,box-shadow .2s}',
       '#tbtn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,0,0,0.36)}',
       '#tbtn svg{width:calc('+btnSize+' * 0.46);height:calc('+btnSize+' * 0.46);'+
         'fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
       '#launcher-lbl{font-family:'+font+';font-size:13px;font-weight:600;color:#fff;'+
-        'background:'+primary+';border-radius:20px;padding:6px 14px;cursor:pointer;'+
+        'background:'+launcher+';border-radius:20px;padding:6px 14px;cursor:pointer;'+
         'box-shadow:0 2px 10px rgba(0,0,0,0.22);transition:opacity .15s;white-space:nowrap}',
       '#launcher-lbl:hover{opacity:.88}',
       '#panel{width:380px;max-width:calc(100vw - 32px);height:'+chatH+';max-height:calc(100dvh - 100px);'+
@@ -475,7 +477,7 @@
 
       // Re-fetch design config from server (useful after a PATCH /api/embed/design)
       refreshConfig: function() {
-        return fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY} })
+        return fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY}, cache:'no-store' })
           .then(function(r){return r.json();})
           .then(function(data){ window.ClaraSDK.config = data; _emit('configRefreshed', data); return data; });
       },
@@ -489,7 +491,7 @@
 
   /* ── 13. Init ─────────────────────────────────────────────────────────────── */
   function init() {
-    fetch(BASE_URL + '/api/embed/config', { headers: { 'Authorization': 'Bearer ' + API_KEY } })
+    fetch(BASE_URL + '/api/embed/config', { headers: { 'Authorization': 'Bearer ' + API_KEY }, cache:'no-store' })
       .then(function(r){ if(!r.ok) throw new Error('Config error ('+r.status+')'); return r.json(); })
       .then(function(data){
         if (data.error) throw new Error(data.error);
@@ -500,6 +502,12 @@
           buildHeadlessSDK(cfg);
         } else {
           buildWidget(cfg);
+          if (refreshTimer) clearInterval(refreshTimer);
+          refreshTimer = setInterval(function() {
+            if (window.ClaraWidget && typeof window.ClaraWidget.refreshDesign === 'function') {
+              window.ClaraWidget.refreshDesign().catch(function(){});
+            }
+          }, 30000);
         }
       })
       .catch(function(err){ console.warn('[Clara] Widget failed to initialise:', err.message||err); });

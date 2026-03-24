@@ -32,8 +32,8 @@ import type { AuthContext, PermissionKey } from "./models";
 export async function requireAuth(request: Request): Promise<AuthContext> {
   // TEMP: bypass auth when SKIP_AUTH=true — remove for production
   if (process.env.SKIP_AUTH === "true") {
-    const fakeUser = { id: "00000000-0000-0000-0000-000000000000", email: "admin@clara.local", isSuperAdmin: true, status: "active", name: "Admin" };
-    const fakeSession = { id: "skip-auth", userId: "00000000-0000-0000-0000-000000000000" };
+    const fakeUser = { id: "00000000-0000-0000-0000-000000000000", email: "admin@clara.local", fullName: "Platform Admin", isSuperAdmin: true, status: "active", avatarUrl: null, emailVerified: true, lastLoginAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const fakeSession = { id: "skip-auth", userId: "00000000-0000-0000-0000-000000000000", expiresAt: new Date(Date.now() + 86400000).toISOString(), ipAddress: null, userAgent: null, createdAt: new Date().toISOString() };
     return { user: fakeUser as unknown as AuthContext["user"], session: fakeSession as unknown as AuthContext["session"] };
   }
 

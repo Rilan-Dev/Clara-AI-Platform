@@ -115,6 +115,7 @@ export async function putConfigHandler(
       strictMode:      Boolean(body.strictMode),
       primaryColour:   body.primaryColour ? String(body.primaryColour).trim() : "#6366f1",
       accentColour:    body.accentColour  ? String(body.accentColour).trim()  : "#a5b4fc",
+      launcherColour:  body.launcherColour ? String(body.launcherColour).trim() : String(body.primaryColour ?? "#6366f1").trim(),
       widgetTheme:        (body.widgetTheme === "dark" ? "dark" : "light"),
       widgetPosition:     (body.widgetPosition === "bottom-left" ? "bottom-left" : "bottom-right"),
       widgetButtonSize:   body.widgetButtonSize   ? Math.min(Math.max(Number(body.widgetButtonSize), 40), 80) : 56,
@@ -125,7 +126,7 @@ export async function putConfigHandler(
       widgetLauncherLabel: body.widgetLauncherLabel ? String(body.widgetLauncherLabel).trim() : null,
       // Full design control fields (migration 019)
       widgetMode:        (body.widgetMode === "inline" || body.widgetMode === "headless"
-                            ? body.widgetMode : "floating") as "floating" | "inline" | "headless",
+                             ? body.widgetMode : "floating") as "floating" | "inline" | "headless",
       customCss:         body.customCss         ? String(body.customCss).trim()         : null,
       customLauncherSvg: body.customLauncherSvg ? String(body.customLauncherSvg).trim() : null,
       customHeaderHtml:  body.customHeaderHtml  ? String(body.customHeaderHtml).trim()  : null,
@@ -172,6 +173,7 @@ export async function patchConfigHandler(
     if (body.strictMode       !== undefined) input.strictMode       = Boolean(body.strictMode);
     if (body.primaryColour    !== undefined) input.primaryColour    = String(body.primaryColour).trim();
     if (body.accentColour     !== undefined) input.accentColour     = String(body.accentColour).trim();
+    if (body.launcherColour   !== undefined) input.launcherColour   = String(body.launcherColour).trim();
     if (body.widgetTheme      !== undefined) input.widgetTheme      = body.widgetTheme === "dark" ? "dark" : "light";
     if (body.widgetPosition   !== undefined) input.widgetPosition   = body.widgetPosition === "bottom-left" ? "bottom-left" : "bottom-right";
     if (body.widgetButtonSize   !== undefined) input.widgetButtonSize   = Math.min(Math.max(Number(body.widgetButtonSize), 40), 80);
@@ -180,6 +182,12 @@ export async function patchConfigHandler(
     if (body.widgetChatHeight   !== undefined) input.widgetChatHeight   = Math.min(Math.max(Number(body.widgetChatHeight), 300), 900);
     if (body.widgetShowBranding !== undefined) input.widgetShowBranding = Boolean(body.widgetShowBranding);
     if (body.widgetLauncherLabel !== undefined) input.widgetLauncherLabel = body.widgetLauncherLabel ? String(body.widgetLauncherLabel).trim() : null;
+    if (body.launcherColour !== undefined) input.launcherColour = String(body.launcherColour).trim();
+    if (body.widgetMode !== undefined) input.widgetMode = body.widgetMode === "inline" || body.widgetMode === "headless" ? body.widgetMode : "floating";
+    if (body.customCss !== undefined) input.customCss = body.customCss ? String(body.customCss).trim() : null;
+    if (body.customLauncherSvg !== undefined) input.customLauncherSvg = body.customLauncherSvg ? String(body.customLauncherSvg).trim() : null;
+    if (body.customHeaderHtml !== undefined) input.customHeaderHtml = body.customHeaderHtml ? String(body.customHeaderHtml).trim() : null;
+    if (body.customPoweredBy !== undefined) input.customPoweredBy = body.customPoweredBy ? String(body.customPoweredBy).trim() : null;
 
     const config = await patchAssistantConfig(kbId, input);
     if (!config) {

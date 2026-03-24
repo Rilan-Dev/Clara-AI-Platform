@@ -117,6 +117,7 @@ export async function restoreSnapshotHandler(
       strictMode:       s.strictMode,
       primaryColour:    s.primaryColour,
       accentColour:     s.accentColour,
+      launcherColour:   s.launcherColour ?? s.primaryColour,
       // Widget layout (migration 016-017)
       widgetTheme:        s.widgetTheme        ?? "light",
       widgetPosition:     s.widgetPosition     ?? "bottom-right",

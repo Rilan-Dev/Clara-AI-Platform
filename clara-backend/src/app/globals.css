@@ -6,6 +6,17 @@
 
 @layer base {
   :root {
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+
     --primary: 0 45% 30%;
     --primary-foreground: 43 96% 94%;
     --primary-light: 0 45% 45%;
@@ -114,6 +125,17 @@
   }
 
   .dark {
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+
     --primary: 0 45% 55%;
     --primary-foreground: 43 96% 94%;
     --primary-light: 0 45% 65%;

@@ -59,6 +59,8 @@ export type AssistantConfig = {
   // Branding / colours
   primaryColour: string;
   accentColour: string;
+  launcherColour: string;
+  launcherColour: string;
 
   // Widget layout & design
   widgetTheme: "light" | "dark";

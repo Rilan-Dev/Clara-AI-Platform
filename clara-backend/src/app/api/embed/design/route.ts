@@ -44,6 +44,7 @@ const ALLOWED_FIELDS = new Set([
   // Colours
   "primaryColour",
   "accentColour",
+  "launcherColour",
   // Layout
   "widgetTheme",
   "widgetPosition",
@@ -103,6 +104,7 @@ function sanitize(raw: Record<string, unknown>): { patch: DesignPatch; rejected:
     switch (key) {
       case "primaryColour":
       case "accentColour":
+      case "launcherColour":
         if (typeof val === "string" && /^#[0-9a-fA-F]{3,8}$/.test(val.trim())) {
           patch[key] = val.trim().toLowerCase();
         }
@@ -191,10 +193,11 @@ function sanitize(raw: Record<string, unknown>): { patch: DesignPatch; rejected:
 
 // ── Column map (camelCase → snake_case) ──────────────────────────────────────
 
-const COL_MAP: Record<string, string> = {
-  primaryColour:       "primary_colour",
-  accentColour:        "accent_colour",
-  widgetTheme:         "widget_theme",
+  const COL_MAP: Record<string, string> = {
+    primaryColour:       "primary_colour",
+    accentColour:        "accent_colour",
+    launcherColour:      "launcher_colour",
+    widgetTheme:         "widget_theme",
   widgetPosition:      "widget_position",
   widgetButtonSize:    "widget_button_size",
   widgetBorderRadius:  "widget_border_radius",
@@ -235,9 +238,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         assistantName:       config.assistantName,
         avatarUrl:           config.avatarUrl,
         welcomeMessage:      config.welcomeMessage,
-        primaryColour:       config.primaryColour,
-        accentColour:        config.accentColour,
-        widgetTheme:         config.widgetTheme,
+         primaryColour:       config.primaryColour,
+         accentColour:        config.accentColour,
+         launcherColour:      config.launcherColour,
+         widgetTheme:         config.widgetTheme,
         widgetPosition:      config.widgetPosition,
         widgetButtonSize:    config.widgetButtonSize,
         widgetBorderRadius:  config.widgetBorderRadius,
@@ -251,7 +255,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         customHeaderHtml:    config.customHeaderHtml,
         customPoweredBy:     config.customPoweredBy,
       },
-      { headers: corsHeaders }
+      { headers: { ...corsHeaders, "Cache-Control": "no-store" } }
     );
   } catch (err) {
     console.error("[embed/design] GET:", err);
@@ -315,9 +319,9 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const result = await pool.query<Record<string, unknown>>(
       `UPDATE assistant_configs
          SET ${sets.join(", ")}
-       WHERE kb_id = $${idx}
-       RETURNING primary_colour, accent_colour,
-                 widget_theme, widget_position, widget_button_size,
+        WHERE kb_id = $${idx}
+        RETURNING primary_colour, accent_colour, launcher_colour,
+                  widget_theme, widget_position, widget_button_size,
                  widget_border_radius, widget_font_family, widget_chat_height,
                  widget_show_branding, widget_launcher_label,
                  widget_mode, custom_css, custom_launcher_svg,
@@ -343,6 +347,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
           welcomeMessage:      row.welcome_message,
           primaryColour:       row.primary_colour,
           accentColour:        row.accent_colour,
+          launcherColour:      row.launcher_colour,
           widgetTheme:         row.widget_theme,
           widgetPosition:      row.widget_position,
           widgetButtonSize:    row.widget_button_size,
