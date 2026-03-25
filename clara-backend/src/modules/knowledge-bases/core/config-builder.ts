@@ -25,6 +25,12 @@ export type SessionPromptContext = {
   documentCount?: number;
   /** Titles of indexed documents (shown in prompt so model knows what exists) */
   documentTitles?: string[];
+  /**
+   * Surface this prompt is for.
+   * - "realtime" / "voice" (default): registers rag_search tool — must call it
+   * - "embed": RAG context already injected — do NOT output tool-call text
+   */
+  surface?: "embed" | "realtime" | "voice" | "chat";
 };
 
 /**
@@ -67,14 +73,23 @@ export function buildSystemPrompt(
     );
   }
 
-  // Explicit tool-use instruction — without this the realtime model answers
-  // from general knowledge instead of calling rag_search.
-  parts.push(
-    "IMPORTANT: You MUST call the rag_search function before answering ANY user question. " +
-    "Do not answer from general knowledge. Always call rag_search first, wait for the result, " +
-    "then answer based only on what was returned. " +
-    "Never fabricate information that is not present in the retrieved context."
-  );
+  // Tool-use instruction — only for realtime/voice surface where rag_search is actually registered.
+  // Embed chat pre-injects context into the system message, so no tool call is needed there.
+  if (ctx.surface !== "embed") {
+    parts.push(
+      "IMPORTANT: You MUST call the rag_search function before answering ANY user question. " +
+      "Do not answer from general knowledge. Always call rag_search first, wait for the result, " +
+      "then answer based only on what was returned. " +
+      "Never fabricate information that is not present in the retrieved context."
+    );
+  } else {
+    parts.push(
+      "IMPORTANT: You MUST answer ONLY using the context provided above under 'Context from knowledge base'. " +
+      "Do not answer from general knowledge. If the context does not contain a relevant answer, " +
+      "say you could not find that information in the knowledge base. " +
+      "Never fabricate information that is not present in the retrieved context."
+    );
+  }
 
   // ── 3. Behaviour Rules ─────────────────────────────────────────────────────
   if (config.rules.length > 0) {
@@ -135,6 +150,17 @@ export function buildSystemPrompt(
     "a well-briefed human expert, not a search engine. " +
     "Remember: always call rag_search before every answer, without exception."
   );
+
+  // ── 8. Embed-specific UX override ─────────────────────────────────────────
+  // For embed chat the context is pre-injected — suppress all tool-call language.
+  if (ctx.surface === "embed") {
+    parts.push(
+      "Respond directly and completely to the user's question using only the provided context. " +
+      "Do not mention 'retrieval', 'documents', 'RAG', 'context', or any internal process. " +
+      "Never output '[Calling rag_search...]' or any function-call text. " +
+      "Speak like a knowledgeable human expert. Keep answers clear, accurate and complete."
+    );
+  }
 
   return parts.join("\n\n");
 }

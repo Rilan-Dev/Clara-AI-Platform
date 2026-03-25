@@ -84,15 +84,38 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const providerConfig = toProviderConfig(resolved);
 
-    // RAG search
+    // RAG search — with timeout so slow Qdrant never hangs the response
     const t0 = Date.now();
-    const searchResults = await searchKbEmbedded(kb.qdrantCollection, query, 6, {
-      providerConfig,
+    let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
+    try {
+      const searchPromise = searchKbEmbedded(kb.qdrantCollection, query, 8, { providerConfig });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("search_timeout")), 8000)
+      );
+      searchResults = await Promise.race([searchPromise, timeoutPromise]);
+    } catch (searchErr) {
+      const msg = (searchErr as Error).message;
+      if (msg !== "search_timeout") throw searchErr;
+      // On timeout we proceed with empty context — AI will say it couldn't find info
+      console.warn("[embed/chat] RAG search timed out, proceeding without context");
+    }
+
+    // Deduplicate by snippet prefix and sort by score
+    const seen = new Set<string>();
+    const dedupedResults = searchResults.filter(r => {
+      const key = r.snippet.slice(0, 80).toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    const context = searchResults
-      .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
-      .join("\n\n");
+    // Build rich context — include title and full snippet for each source
+    const context = dedupedResults.length > 0
+      ? dedupedResults
+          .slice(0, 6)
+          .map((r, i) => `[S${i + 1}] **${r.title}**\n${r.snippet.trim()}`)
+          .join("\n\n---\n\n")
+      : "No relevant information was found in the knowledge base for this query.";
 
     const latencyMs = Date.now() - t0;
 
@@ -100,13 +123,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     void logQueryEvent({
       kbId: kb.id,
       queryText: query,
-      sourceCount: searchResults.length,
+      sourceCount: dedupedResults.length,
       latencyMs,
       sessionId: body.sessionId,
     });
 
-    // Build system prompt from KB config
-    const systemPrompt = buildSystemPrompt(config, { kbName: kb.name });
+    // Build system prompt from KB config — pass surface:"embed" so the prompt
+    // never contains rag_search tool-call instructions (context is pre-injected)
+    const systemPrompt = buildSystemPrompt(config, { kbName: kb.name, surface: "embed" });
 
     const chatMessages: ChatMessage[] = [
       {
@@ -129,15 +153,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
         // Emit sources as first event so callers can display citations
-        write({
-          type: "sources",
-          payload: searchResults.map((r, i) => ({
-            index: i + 1,
-            title: r.title,
-            snippet: r.snippet.slice(0, 200),
-            score: r.score,
-          })),
-        });
+        if (dedupedResults.length > 0) {
+          write({
+            type: "sources",
+            payload: dedupedResults.slice(0, 6).map((r, i) => ({
+              index: i + 1,
+              title: r.title,
+              snippet: r.snippet.slice(0, 200),
+              score: r.score,
+            })),
+          });
+        }
 
         (async () => {
           try {
