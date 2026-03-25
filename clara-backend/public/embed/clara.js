@@ -506,15 +506,23 @@
         }
 
         dc.onopen = function() {
-          var queued = voiceSendQueue;
-          voiceSendQueue = [];
-          for (var i = 0; i < queued.length; i++) {
-            try { dc.send(queued[i]); } catch (e) {}
-          }
-
           voiceSendJson({
             type: 'session.update',
             session: {
+              instructions: 'You are Clara, a helpful voice assistant for this knowledge base. Answer naturally, briefly, and use provided knowledge base context when it is available.',
+              tools: [{
+                type: 'function',
+                name: 'rag_search',
+                description: 'Search the active knowledge base for relevant information.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    query: { type: 'string' }
+                  },
+                  required: ['query']
+                }
+              }],
+              tool_choice: 'auto',
               modalities: ['audio', 'text'],
               turn_detection: {
                 type: 'server_vad',
@@ -522,9 +530,16 @@
                 prefix_padding_ms: 300,
                 silence_duration_ms: 600,
                 create_response: false,
-              }
+              },
             }
           });
+
+          var queued = voiceSendQueue;
+          voiceSendQueue = [];
+          for (var i = 0; i < queued.length; i++) {
+            try { dc.send(queued[i]); } catch (e) {}
+          }
+
           setVoiceState('connected');
           resolveSession();
         };
