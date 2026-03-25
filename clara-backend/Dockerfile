@@ -15,7 +15,7 @@ RUN npm install --ignore-scripts --legacy-peer-deps
 FROM base AS builder
 WORKDIR /app/clara-backend
 COPY --from=deps /app/clara-backend/node_modules ./node_modules
-COPY packages /app/packages
+COPY clara-backend/packages /app/packages
 COPY clara-backend ./
 ENV NODE_ENV=production
 # Bake NEXT_PUBLIC env vars into the client bundle at build time

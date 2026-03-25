@@ -15,7 +15,7 @@ RUN npm install --ignore-scripts --legacy-peer-deps
 FROM base AS builder
 WORKDIR /app/clara-techvision
 COPY --from=deps /app/clara-techvision/node_modules ./node_modules
-COPY packages /app/packages
+COPY clara-backend/packages /app/packages
 COPY clara-techvision ./
 ENV NODE_ENV=production
 RUN ln -s /app/clara-techvision/node_modules /app/node_modules && npm run build
