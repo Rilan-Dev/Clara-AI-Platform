@@ -58,6 +58,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         launcherColour: config.launcherColour,
         defaultLanguage: config.defaultLanguage,
         voiceEnabled:   resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
+        voiceProvider:  resolved.provider ?? "openai",
         // Widget design fields — all consumed by clara.js to style the widget
         widgetTheme:         config.widgetTheme,
         widgetPosition:      config.widgetPosition,

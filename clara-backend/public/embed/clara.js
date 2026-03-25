@@ -51,6 +51,10 @@
   var refreshTimer = null;
   var $panel, $toggleBtn, $msgs, $textarea, $sendBtn, $voiceBtn;
   var voiceWs = null;
+  var voicePeer = null;
+  var voiceDataChannel = null;
+  var voiceRemoteStream = null;
+  var voiceRemoteAudioEl = null;
   var voiceMicStream = null;
   var voiceCaptureCtx = null;
   var voicePlaybackCtx = null;
@@ -61,6 +65,7 @@
   var voicePendingAssistantId = null;
   var voicePendingAssistantText = '';
   var voiceStoppedManually = false;
+  var voiceLastUserTranscript = '';
 
   /* ── 3. Utilities ────────────────────────────────────────────────────────── */
   function uid()     { return Math.random().toString(36).slice(2, 9); }
@@ -296,70 +301,314 @@
     return wsBase + '/api/embed/voice?key=' + encodeURIComponent(API_KEY);
   }
 
-  function queueVoiceAudio(base64, sampleRate) {
-    if (!voicePlaybackCtx || !base64) return;
-    var int16 = base64ToInt16(base64);
-    if (!int16.length) return;
-    var float32 = new Float32Array(int16.length);
-    for (var i = 0; i < int16.length; i++) {
-      float32[i] = int16[i] / 32768;
-    }
-    var rate = sampleRate || 24000;
-    var buffer = voicePlaybackCtx.createBuffer(1, float32.length, rate);
-    buffer.getChannelData(0).set(float32);
-    var source = voicePlaybackCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(voicePlaybackCtx.destination);
-    var now = voicePlaybackCtx.currentTime;
-    if (voiceNextPlayTime < now) voiceNextPlayTime = now;
-    source.start(voiceNextPlayTime);
-    voiceNextPlayTime += buffer.duration;
+  function getVoiceProvider() {
+    return cfg && cfg.voiceProvider === 'gemini' ? 'gemini' : 'openai';
   }
 
-  function releaseVoiceRuntime(closeSocket) {
-    if (voicePingTimer) {
-      clearInterval(voicePingTimer);
-      voicePingTimer = null;
+  function voiceSendJson(payload) {
+    var dc = voiceDataChannel;
+    if (!dc || dc.readyState !== 'open') return false;
+    try {
+      dc.send(JSON.stringify(payload));
+      return true;
+    } catch (e) {
+      return false;
     }
-    if (voiceWorklet) {
-      try { voiceWorklet.port.onmessage = null; } catch (e) {}
-      try { voiceWorklet.disconnect(); } catch (e) {}
-      voiceWorklet = null;
+  }
+
+  function flushVoiceAssistantTurn() {
+    if (voicePendingAssistantText.trim()) {
+      history.push({ role: 'assistant', content: voicePendingAssistantText });
     }
-    if (voiceMicSource) {
-      try { voiceMicSource.disconnect(); } catch (e) {}
-      voiceMicSource = null;
-    }
-    if (voiceMicStream) {
-      try { voiceMicStream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
-      voiceMicStream = null;
-    }
-    if (voiceCaptureCtx) {
-      try { voiceCaptureCtx.close(); } catch (e) {}
-      voiceCaptureCtx = null;
-    }
-    if (voicePlaybackCtx) {
-      try { voicePlaybackCtx.close(); } catch (e) {}
-      voicePlaybackCtx = null;
-    }
-    if (closeSocket && voiceWs) {
-      try { voiceWs.close(1000, 'voice ended'); } catch (e) {}
-    }
-    voiceWs = null;
-    voiceNextPlayTime = 0;
     voicePendingAssistantId = null;
     voicePendingAssistantText = '';
   }
 
-  function stopVoiceRuntime(announce) {
-    voiceStoppedManually = true;
-    releaseVoiceRuntime(true);
-    setVoiceState('idle');
-    if (announce !== false) addNote('\uD83C\uDF99 Voice session ended');
-    _emit('voiceEnd', {});
+  function appendVoiceAssistantDelta(delta) {
+    if (!delta) return;
+    if (!voicePendingAssistantId) {
+      voicePendingAssistantId = addMsg('assistant', '');
+      voicePendingAssistantText = '';
+    }
+    voicePendingAssistantText += delta;
+    setMsg(voicePendingAssistantId, voicePendingAssistantText);
+    _emit('voiceTranscript', { role: 'assistant', text: voicePendingAssistantText, delta: delta });
   }
 
-  function startVoiceRuntime() {
+  function addVoiceUserTranscript(text) {
+    if (!text || !text.trim()) return;
+    history.push({ role: 'user', content: text });
+    addMsg('user', text);
+    _emit('voiceTranscript', { role: 'user', text: text });
+  }
+
+  function createVoiceRemoteAudioEl() {
+    if (voiceRemoteAudioEl) return voiceRemoteAudioEl;
+    var audio = document.createElement('audio');
+    audio.autoplay = true;
+    audio.playsInline = true;
+    audio.style.display = 'none';
+    document.body.appendChild(audio);
+    voiceRemoteAudioEl = audio;
+    return audio;
+  }
+
+  function waitForIceGathering(pc) {
+    if (!pc || pc.iceGatheringState === 'complete') return Promise.resolve();
+    return new Promise(function(resolve) {
+      var done = false;
+      function finish() {
+        if (done) return;
+        done = true;
+        pc.removeEventListener('icegatheringstatechange', onStateChange);
+        resolve();
+      }
+      function onStateChange() {
+        if (pc.iceGatheringState === 'complete') finish();
+      }
+      pc.addEventListener('icegatheringstatechange', onStateChange);
+      if (pc.iceGatheringState === 'complete') {
+        finish();
+        return;
+      }
+      setTimeout(finish, 8000);
+    });
+  }
+
+  function runVoiceRagAndRespond(query) {
+    var trimmed = (query || '').trim();
+    if (!trimmed || trimmed === voiceLastUserTranscript) return;
+    voiceLastUserTranscript = trimmed;
+    addVoiceUserTranscript(trimmed);
+
+    fetch(BASE_URL + '/api/embed/search', {
+      method: 'POST',
+      headers: authHdr(),
+      body: JSON.stringify({ query: trimmed, limit: 6 })
+    })
+    .then(function(res) {
+      if (!res.ok) return res.json().then(function(d){ throw new Error(d.error || ('HTTP ' + res.status)); });
+      return res.json();
+    })
+    .then(function(payload) {
+      var context = payload && typeof payload.context === 'string' ? payload.context.trim() : '';
+      if (context) {
+        voiceSendJson({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'system',
+            content: [{ type: 'input_text', text: 'Context from knowledge base:\n' + context }]
+          }
+        });
+      }
+
+      voiceSendJson({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Customer question:\n' + trimmed }]
+        }
+      });
+
+      voiceSendJson({
+        type: 'response.create',
+        response: {
+          instructions: 'Answer the customer clearly and concisely using the provided knowledge base context when relevant.',
+          tool_choice: 'none'
+        }
+      });
+    })
+    .catch(function(err) {
+      voiceSendJson({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: trimmed }]
+        }
+      });
+      voiceSendJson({
+        type: 'response.create',
+        response: {
+          instructions: 'Answer the customer clearly and concisely.',
+          tool_choice: 'none'
+        }
+      });
+      _emit('voiceError', { message: (err && err.message) || 'Voice search failed' });
+    });
+  }
+
+  function startOpenAIVoiceRuntime() {
+    var mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : null;
+    var RTC = window.RTCPeerConnection;
+    if (voicePeer && voiceDataChannel && voiceDataChannel.readyState === 'open') {
+      return Promise.resolve({ transport: 'webrtc-sdp-proxy', status: voiceState || 'connected' });
+    }
+    if (!mediaDevices || typeof mediaDevices.getUserMedia !== 'function') {
+      return Promise.reject(new Error('Microphone access is unavailable in this browser.'));
+    }
+    if (!RTC) {
+      return Promise.reject(new Error('Live voice is unavailable in this browser.'));
+    }
+
+    setVoiceState('connecting');
+    voiceStoppedManually = false;
+    voiceLastUserTranscript = '';
+
+    return mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      }
+    }).then(function(mic) {
+      voiceMicStream = mic;
+      var pc = new RTC();
+      voicePeer = pc;
+      voiceRemoteStream = new MediaStream();
+
+      pc.ontrack = function(event) {
+        var incoming = event.streams && event.streams[0];
+        if (!incoming) return;
+        incoming.getTracks().forEach(function(track) {
+          if (!voiceRemoteStream.getTracks().includes(track)) {
+            voiceRemoteStream.addTrack(track);
+          }
+        });
+        var audioEl = createVoiceRemoteAudioEl();
+        audioEl.srcObject = voiceRemoteStream;
+        audioEl.muted = false;
+        audioEl.play().catch(function(){});
+      };
+
+      var dc = pc.createDataChannel('oai-events');
+      voiceDataChannel = dc;
+
+      return new Promise(function(resolve, reject) {
+        var settled = false;
+        function resolveSession() {
+          if (settled) return;
+          settled = true;
+          resolve({ transport: 'webrtc-sdp-proxy', status: 'connected' });
+        }
+        function rejectSession(err) {
+          if (settled) return;
+          settled = true;
+          reject(err);
+        }
+
+        dc.onopen = function() {
+          voiceSendJson({
+            type: 'session.update',
+            session: {
+              modalities: ['audio', 'text'],
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 600,
+                create_response: false,
+              }
+            }
+          });
+          setVoiceState('connected');
+          resolveSession();
+        };
+
+        dc.onclose = function() {
+          var manual = voiceStoppedManually;
+          releaseVoiceRuntime(false);
+          setVoiceState('idle');
+          if (!manual) {
+            rejectSession(new Error('Voice connection closed'));
+            addNote('\u26a0 Voice connection closed');
+            _emit('voiceEnd', {});
+          }
+          voiceStoppedManually = false;
+        };
+
+        dc.onmessage = function(event) {
+          var msg;
+          try { msg = JSON.parse(event.data); } catch (e) { return; }
+          if (!msg || !msg.type) return;
+
+          if (msg.type === 'input_audio_buffer.speech_started') {
+            if (voiceState === 'speaking') voiceSendJson({ type: 'response.cancel' });
+            setVoiceState('listening');
+            voiceLastUserTranscript = '';
+            return;
+          }
+
+          if (msg.type === 'conversation.item.input_audio_transcription.completed') {
+            var userText = typeof msg.transcript === 'string' ? msg.transcript.trim() : '';
+            if (userText) runVoiceRagAndRespond(userText);
+            return;
+          }
+
+          if (msg.type === 'response.created') {
+            setVoiceState('speaking');
+            return;
+          }
+
+          if (msg.type === 'response.audio_transcript.delta' || msg.type === 'response.text.delta') {
+            appendVoiceAssistantDelta(typeof msg.delta === 'string' ? msg.delta : '');
+            setVoiceState('speaking');
+            return;
+          }
+
+          if (msg.type === 'response.done') {
+            flushVoiceAssistantTurn();
+            setVoiceState('listening');
+            return;
+          }
+
+          if (msg.type === 'error') {
+            rejectSession(new Error((msg.error && msg.error.message) || msg.message || 'Voice connection failed'));
+          }
+        };
+
+        pc.addTrack(mic.getAudioTracks()[0], mic);
+
+        pc.createOffer()
+          .then(function(offer) {
+            return pc.setLocalDescription(offer).then(function() { return offer; });
+          })
+          .then(function(offer) {
+            return waitForIceGathering(pc).then(function() { return offer; });
+          })
+          .then(function(offer) {
+            var sdpOffer = (pc.localDescription && pc.localDescription.sdp) || offer.sdp || '';
+            return fetch(BASE_URL + '/api/embed/voice-connect', {
+              method: 'POST',
+              headers: authHdr(),
+              body: JSON.stringify({ sdpOffer: sdpOffer })
+            });
+          })
+          .then(function(res) {
+            if (!res.ok) return res.json().then(function(d){ throw new Error(d.error || ('HTTP ' + res.status)); });
+            return res.json();
+          })
+          .then(function(payload) {
+            if (!payload || !payload.sdpAnswer) throw new Error('Voice connection failed');
+            return pc.setRemoteDescription({ type: 'answer', sdp: payload.sdpAnswer });
+          })
+          .catch(function(err) {
+            rejectSession(err);
+            releaseVoiceRuntime(false);
+            setVoiceState('idle');
+          });
+      });
+    }).catch(function(err) {
+      releaseVoiceRuntime(false);
+      setVoiceState('idle');
+      throw err;
+    });
+  }
+
+  function startRelayVoiceRuntime() {
     var mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : null;
     var AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (voiceWs && (voiceWs.readyState === 0 || voiceWs.readyState === 1)) {
@@ -451,34 +700,20 @@
             }
 
             if (msg.type === 'transcript.user' && typeof msg.text === 'string' && msg.text.trim()) {
-              history.push({ role: 'user', content: msg.text });
-              addMsg('user', msg.text);
-              _emit('voiceTranscript', { role: 'user', text: msg.text });
+              addVoiceUserTranscript(msg.text);
               return;
             }
 
             if (msg.type === 'transcript.ai.delta' && typeof msg.delta === 'string') {
-              if (!voicePendingAssistantId) {
-                voicePendingAssistantId = addMsg('assistant', '');
-                voicePendingAssistantText = '';
-              }
-              voicePendingAssistantText += msg.delta;
-              setMsg(voicePendingAssistantId, voicePendingAssistantText);
-              _emit('voiceTranscript', { role: 'assistant', text: voicePendingAssistantText, delta: msg.delta });
+              appendVoiceAssistantDelta(msg.delta);
               return;
             }
 
             if (msg.type === 'transcript.ai.done') {
               if (typeof msg.text === 'string' && msg.text.trim() && !voicePendingAssistantText) {
-                voicePendingAssistantId = voicePendingAssistantId || addMsg('assistant', '');
-                voicePendingAssistantText = msg.text;
-                setMsg(voicePendingAssistantId, voicePendingAssistantText);
+                appendVoiceAssistantDelta(msg.text);
               }
-              if (voicePendingAssistantText.trim()) {
-                history.push({ role: 'assistant', content: voicePendingAssistantText });
-              }
-              voicePendingAssistantId = null;
-              voicePendingAssistantText = '';
+              flushVoiceAssistantTurn();
               return;
             }
 
@@ -509,6 +744,93 @@
       setVoiceState('idle');
       throw err;
     });
+  }
+
+  function queueVoiceAudio(base64, sampleRate) {
+    if (!voicePlaybackCtx || !base64) return;
+    var int16 = base64ToInt16(base64);
+    if (!int16.length) return;
+    var float32 = new Float32Array(int16.length);
+    for (var i = 0; i < int16.length; i++) {
+      float32[i] = int16[i] / 32768;
+    }
+    var rate = sampleRate || 24000;
+    var buffer = voicePlaybackCtx.createBuffer(1, float32.length, rate);
+    buffer.getChannelData(0).set(float32);
+    var source = voicePlaybackCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(voicePlaybackCtx.destination);
+    var now = voicePlaybackCtx.currentTime;
+    if (voiceNextPlayTime < now) voiceNextPlayTime = now;
+    source.start(voiceNextPlayTime);
+    voiceNextPlayTime += buffer.duration;
+  }
+
+  function releaseVoiceRuntime(closeSocket) {
+    if (voicePingTimer) {
+      clearInterval(voicePingTimer);
+      voicePingTimer = null;
+    }
+    if (voiceWorklet) {
+      try { voiceWorklet.port.onmessage = null; } catch (e) {}
+      try { voiceWorklet.disconnect(); } catch (e) {}
+      voiceWorklet = null;
+    }
+    if (voiceMicSource) {
+      try { voiceMicSource.disconnect(); } catch (e) {}
+      voiceMicSource = null;
+    }
+    if (voiceMicStream) {
+      try { voiceMicStream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
+      voiceMicStream = null;
+    }
+    if (voiceCaptureCtx) {
+      try { voiceCaptureCtx.close(); } catch (e) {}
+      voiceCaptureCtx = null;
+    }
+    if (voicePlaybackCtx) {
+      try { voicePlaybackCtx.close(); } catch (e) {}
+      voicePlaybackCtx = null;
+    }
+    if (voiceDataChannel) {
+      try { voiceDataChannel.close(); } catch (e) {}
+      voiceDataChannel = null;
+    }
+    if (voicePeer) {
+      try { voicePeer.close(); } catch (e) {}
+      voicePeer = null;
+    }
+    if (voiceRemoteStream) {
+      try { voiceRemoteStream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
+      voiceRemoteStream = null;
+    }
+    if (voiceRemoteAudioEl) {
+      try { voiceRemoteAudioEl.pause(); } catch (e) {}
+      try { voiceRemoteAudioEl.srcObject = null; } catch (e) {}
+      try { if (voiceRemoteAudioEl.parentNode) voiceRemoteAudioEl.parentNode.removeChild(voiceRemoteAudioEl); } catch (e) {}
+      voiceRemoteAudioEl = null;
+    }
+    if (closeSocket && voiceWs) {
+      try { voiceWs.close(1000, 'voice ended'); } catch (e) {}
+    }
+    voiceWs = null;
+    voiceNextPlayTime = 0;
+    voiceLastUserTranscript = '';
+    voicePendingAssistantId = null;
+    voicePendingAssistantText = '';
+  }
+
+  function stopVoiceRuntime(announce) {
+    voiceStoppedManually = true;
+    releaseVoiceRuntime(true);
+    setVoiceState('idle');
+    if (announce !== false) addNote('\uD83C\uDF99 Voice session ended');
+    _emit('voiceEnd', {});
+  }
+
+  function startVoiceRuntime() {
+    if (getVoiceProvider() === 'gemini') return startRelayVoiceRuntime();
+    return startOpenAIVoiceRuntime();
   }
 
   function toggleVoice() {
