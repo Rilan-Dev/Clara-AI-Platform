@@ -64,7 +64,15 @@ http.createServer = (...args) => {
 };
 
 import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 const __dir    = dirname(fileURLToPath(import.meta.url));
-const serverJs = resolve(__dir, "..", "server.js");
+const serverCandidates = [
+  resolve(__dir, "..", "server.js"),
+  resolve(__dir, "..", ".next-app", "standalone", "clara-backend", "server.js"),
+];
+const serverJs = serverCandidates.find((candidate) => existsSync(candidate));
+if (!serverJs) {
+  throw new Error("Could not locate standalone Next server.js for relay startup");
+}
 await import(serverJs);
