@@ -65,6 +65,7 @@
   var voicePendingAssistantId = null;
   var voicePendingAssistantText = '';
   var voicePendingUserTranscript = '';
+  var voiceSendQueue = [];
   var voiceStoppedManually = false;
   var voiceLastUserTranscript = '';
 
@@ -307,14 +308,16 @@
   }
 
   function voiceSendJson(payload) {
+    var msg = JSON.stringify(payload);
     var dc = voiceDataChannel;
-    if (!dc || dc.readyState !== 'open') return false;
-    try {
-      dc.send(JSON.stringify(payload));
-      return true;
-    } catch (e) {
-      return false;
+    if (dc && dc.readyState === 'open') {
+      try {
+        dc.send(msg);
+        return true;
+      } catch (e) {}
     }
+    voiceSendQueue.push(msg);
+    return false;
   }
 
   function flushVoiceAssistantTurn() {
@@ -503,6 +506,12 @@
         }
 
         dc.onopen = function() {
+          var queued = voiceSendQueue;
+          voiceSendQueue = [];
+          for (var i = 0; i < queued.length; i++) {
+            try { dc.send(queued[i]); } catch (e) {}
+          }
+
           voiceSendJson({
             type: 'session.update',
             session: {
@@ -844,6 +853,7 @@
     voiceNextPlayTime = 0;
     voiceLastUserTranscript = '';
     voicePendingUserTranscript = '';
+    voiceSendQueue = [];
     voicePendingAssistantId = null;
     voicePendingAssistantText = '';
   }
