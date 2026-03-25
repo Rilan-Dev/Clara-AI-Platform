@@ -389,7 +389,7 @@
       return Promise.all([
         voiceCaptureCtx.resume(),
         voicePlaybackCtx.resume(),
-        voiceCaptureCtx.audioWorklet.addModule(BASE_URL + '/worklets/audio-recorder-worklet.js')
+        voiceCaptureCtx.audioWorklet.addModule(BASE_URL + '/api/embed/worklet')
       ]).then(function() {
         voiceMicSource = voiceCaptureCtx.createMediaStreamSource(mic);
         voiceWorklet = new AudioWorkletNode(voiceCaptureCtx, 'audio-recorder-worklet');
@@ -768,10 +768,12 @@
           if (refreshTimer) clearInterval(refreshTimer);
           refreshTimer = setInterval(function() {
             if (window.ClaraWidget && typeof window.ClaraWidget.refreshDesign === 'function') {
-              var refreshResult = window.ClaraWidget.refreshDesign();
-              if (refreshResult && typeof refreshResult.catch === 'function') {
-                refreshResult.catch(function(){});
-              }
+              try {
+                var refreshResult = window.ClaraWidget.refreshDesign();
+                if (refreshResult && typeof refreshResult.then === 'function') {
+                  refreshResult.catch(function(){});
+                }
+              } catch (e) {}
             }
           }, 30000);
         }
