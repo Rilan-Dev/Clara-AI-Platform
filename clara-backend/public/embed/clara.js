@@ -768,7 +768,10 @@
           if (refreshTimer) clearInterval(refreshTimer);
           refreshTimer = setInterval(function() {
             if (window.ClaraWidget && typeof window.ClaraWidget.refreshDesign === 'function') {
-              window.ClaraWidget.refreshDesign().catch(function(){});
+              var refreshResult = window.ClaraWidget.refreshDesign();
+              if (refreshResult && typeof refreshResult.catch === 'function') {
+                refreshResult.catch(function(){});
+              }
             }
           }, 30000);
         }
@@ -797,7 +800,7 @@
     stopVoice: function(){ stopVoiceRuntime(false); },
     // Re-applies latest design config from server without page reload
     refreshDesign: function() {
-      fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY} })
+      return fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY} })
         .then(function(r){return r.json();})
         .then(function(data){
           cfg = data;

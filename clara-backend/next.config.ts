@@ -17,6 +17,15 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: join(__dirname, ".."),
   headers: async () => [
     {
+      source: "/worklets/:path*",
+      headers: [
+        { key: "Access-Control-Allow-Origin", value: "*" },
+        { key: "Access-Control-Allow-Methods", value: "GET, OPTIONS" },
+        { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400" },
+      ],
+    },
+    {
       source: "/(.*)",
       headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },
