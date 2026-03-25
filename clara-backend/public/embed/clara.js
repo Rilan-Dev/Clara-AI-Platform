@@ -64,6 +64,7 @@
   var voiceNextPlayTime = 0;
   var voicePendingAssistantId = null;
   var voicePendingAssistantText = '';
+  var voicePendingUserTranscript = '';
   var voiceStoppedManually = false;
   var voiceLastUserTranscript = '';
 
@@ -456,6 +457,7 @@
     setVoiceState('connecting');
     voiceStoppedManually = false;
     voiceLastUserTranscript = '';
+    voicePendingUserTranscript = '';
 
     return mediaDevices.getUserMedia({
       audio: {
@@ -539,11 +541,21 @@
             if (voiceState === 'speaking') voiceSendJson({ type: 'response.cancel' });
             setVoiceState('listening');
             voiceLastUserTranscript = '';
+            voicePendingUserTranscript = '';
+            return;
+          }
+
+          if (msg.type === 'conversation.item.input_audio_transcription.delta') {
+            var userDelta = typeof msg.delta === 'string' ? msg.delta : '';
+            if (userDelta) voicePendingUserTranscript += userDelta;
             return;
           }
 
           if (msg.type === 'conversation.item.input_audio_transcription.completed') {
-            var userText = typeof msg.transcript === 'string' ? msg.transcript.trim() : '';
+            var userText = typeof msg.transcript === 'string' && msg.transcript.trim()
+              ? msg.transcript.trim()
+              : voicePendingUserTranscript.trim();
+            voicePendingUserTranscript = '';
             if (userText) runVoiceRagAndRespond(userText);
             return;
           }
@@ -593,7 +605,22 @@
           })
           .then(function(payload) {
             if (!payload || !payload.sdpAnswer) throw new Error('Voice connection failed');
-            return pc.setRemoteDescription({ type: 'answer', sdp: payload.sdpAnswer });
+            return pc.setRemoteDescription({ type: 'answer', sdp: payload.sdpAnswer }).then(function() {
+              var welcomeMessage = typeof payload.welcomeMessage === 'string' ? payload.welcomeMessage.trim() : '';
+              if (welcomeMessage) {
+                voicePendingAssistantId = addMsg('assistant', '');
+                voicePendingAssistantText = '';
+                voiceSendJson({
+                  type: 'response.create',
+                  response: {
+                    instructions: 'Greet the user with this message verbatim: ' + JSON.stringify(welcomeMessage),
+                    tool_choice: 'none'
+                  }
+                });
+              } else {
+                setVoiceState('listening');
+              }
+            });
           })
           .catch(function(err) {
             rejectSession(err);
@@ -816,6 +843,7 @@
     voiceWs = null;
     voiceNextPlayTime = 0;
     voiceLastUserTranscript = '';
+    voicePendingUserTranscript = '';
     voicePendingAssistantId = null;
     voicePendingAssistantText = '';
   }
