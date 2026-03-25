@@ -15,7 +15,7 @@ RUN npm install --ignore-scripts --legacy-peer-deps
 FROM base AS builder
 WORKDIR /app/clara-omen-insurance
 COPY --from=deps /app/clara-omen-insurance/node_modules ./node_modules
-COPY packages /app/packages
+COPY clara-backend/packages /app/packages
 COPY clara-omen-insurance ./
 ENV NODE_ENV=production
 RUN ln -s /app/clara-omen-insurance/node_modules /app/node_modules && npm run build
