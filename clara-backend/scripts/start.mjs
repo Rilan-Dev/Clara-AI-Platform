@@ -69,7 +69,7 @@ import { fileURLToPath } from "node:url";
 const __dir    = dirname(fileURLToPath(import.meta.url));
 const serverCandidates = [
   resolve(__dir, "..", "server.js"),
-  resolve(__dir, "..", ".next-app", "standalone", "clara-backend", "server.js"),
+  resolve(__dir, "..", ".next", "standalone", "server.js"),
 ];
 const serverJs = serverCandidates.find((candidate) => existsSync(candidate));
 if (!serverJs) {

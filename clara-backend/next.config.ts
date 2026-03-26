@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const nextConfig: NextConfig = {
-  distDir: ".next-app",
+  // Standard Vercel output uses .next
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   output: "standalone",
   serverExternalPackages: ["pg"],
@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   experimental: {
     externalDir: true,
   },
-  outputFileTracingRoot: join(__dirname, ".."),
+  outputFileTracingRoot: __dirname,
   headers: async () => [
     {
       source: "/worklets/:path*",

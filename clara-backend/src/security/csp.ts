@@ -4,7 +4,7 @@ export const CSP_HEADER_VALUE = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
-  "connect-src 'self' wss: https://api.openai.com https://realtime.openai.com",
+  "connect-src 'self' wss: https://*.up.railway.app https://api.openai.com https://realtime.openai.com https://*.vercel.app",
   "media-src 'self' blob:",
   "report-uri /api/csp-report",
 ].join("; ");
