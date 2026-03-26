@@ -1268,7 +1268,7 @@ function ControlsPanel({ d, set }: {
         <Field label="Launcher label text" hint='Optional text shown next to the floating button. E.g. "Chat with us". Leave empty for icon-only.'>
           <TextInput value={d.widgetLauncherLabel} onChange={(v) => set("widgetLauncherLabel", v)} placeholder="Chat with us  (or leave empty)" />
         </Field>
-        <Field label=\"Custom launcher icon (SVG)\" hint=\"Paste the raw SVG markup for a custom icon on the floating button. Leave blank to use the default chat bubble icon.\">
+        <Field label="Custom launcher icon (SVG)" hint="Paste the raw SVG markup for a custom icon on the floating button. Leave blank to use the default chat bubble icon.">
           <textarea value={d.customLauncherSvg} rows={3}
             onChange={(e) => set("customLauncherSvg", e.target.value)}
             placeholder={'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>'}
