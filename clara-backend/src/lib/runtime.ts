@@ -8,10 +8,10 @@ export function getApiBaseUrl() {
   const envBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (envBase) return trimTrailingSlash(envBase);
 
-  // Fallback for production if the Vercel environment variable is missing
-  if (process.env.NODE_ENV === "production" || typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-    return "https://clara-backend-production.up.railway.app";
-  }
+  // // Fallback for production if the Vercel environment variable is missing
+  // if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
+  //   return "https://clara-backend-production.up.railway.app";
+  // }
 
   return "";
 }
