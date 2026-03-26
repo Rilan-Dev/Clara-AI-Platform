@@ -1259,7 +1259,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
             onChange={(v) => set("customInjectJs", v)}
             path={`inmemory://widget/${kbId}/hooks.js`} height={420} minimap />
           <p className="mt-3 text-xs text-amber-300/70 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-            <strong className="text-amber-200">Note:</strong> Hook code runs on the visitor's page. Keep it minimal. Errors are silently caught.
+            <strong className="text-amber-200">Note:</strong> Hook code runs on the visitor&apos;s page. Keep it minimal. Errors are silently caught.
           </p>
         </TabsContent>
       </Tabs>
