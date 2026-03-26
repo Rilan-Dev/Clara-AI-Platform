@@ -219,6 +219,13 @@ export async function patchConfigHandler(req: NextRequest, kbId: string): Promis
     if (body.customThemeCss!==undefined)    input.customThemeCss    = s(body.customThemeCss);
     if (body.customInjectJs!==undefined)    input.customInjectJs    = s(body.customInjectJs);
     if (body.customPoweredBy!==undefined)   input.customPoweredBy   = s(body.customPoweredBy);
+    // Voice mode design
+    if (body.voiceBtnBg!==undefined)           input.voiceBtnBg           = s(body.voiceBtnBg);
+    if (body.voiceBtnSize!==undefined)         input.voiceBtnSize         = Number(body.voiceBtnSize);
+    if (body.voiceBtnRadius!==undefined)       input.voiceBtnRadius       = Number(body.voiceBtnRadius);
+    if (body.voiceBtnActiveColor!==undefined)  input.voiceBtnActiveColor  = s(body.voiceBtnActiveColor);
+    if (body.voicePanelBg!==undefined)         input.voicePanelBg         = s(body.voicePanelBg);
+    if (body.voiceWaveColor!==undefined)       input.voiceWaveColor       = s(body.voiceWaveColor);
 
     const config = await patchAssistantConfig(kbId, input);
     if (!config) return NextResponse.json({error:"AssistantConfig not found"},{status:404});

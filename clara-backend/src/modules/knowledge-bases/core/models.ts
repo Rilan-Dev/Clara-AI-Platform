@@ -149,6 +149,14 @@ export type AssistantConfig = {
   customInjectJs: string | null;
   customPoweredBy: string | null;
 
+  // Voice mode design
+  voiceBtnBg: string | null;
+  voiceBtnSize: number;
+  voiceBtnRadius: number;
+  voiceBtnActiveColor: string | null;
+  voicePanelBg: string | null;
+  voiceWaveColor: string | null;
+
   createdAt: string;
   updatedAt: string;
 };

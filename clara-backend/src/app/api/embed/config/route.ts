@@ -1,11 +1,8 @@
 /**
  * GET /api/embed/config
- * ─────────────────────────────────────────────────────────────────────────────
- * Returns the public assistant configuration for a KB — validated by API key.
- * Only non-sensitive display fields are returned (name, colours, welcome msg).
- * The system prompt, rules, and model settings stay server-side.
- *
- * Used by the embed widget on first load to render the correct branding.
+ * Returns the full public assistant configuration for a KB — validated by API key.
+ * ALL design fields are included so the deployed widget renders exactly as customised.
+ * Sensitive fields (system prompt, rules, model settings) are excluded.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -45,21 +42,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    // Only return safe public-facing fields (no system prompt, rules, model settings)
     return NextResponse.json(
       {
-        kbId:           kb.id,
-        kbName:         kb.name,
-        assistantName:  config.assistantName,
-        avatarUrl:      config.avatarUrl,
-        welcomeMessage: config.welcomeMessage,
-        primaryColour:  config.primaryColour,
-        accentColour:   config.accentColour,
-        launcherColour: config.launcherColour,
+        // ── Identity ──────────────────────────────────────────────────────────
+        kbId:            kb.id,
+        kbName:          kb.name,
+        assistantName:   config.assistantName,
+        avatarUrl:       config.avatarUrl,
+        welcomeMessage:  config.welcomeMessage,
         defaultLanguage: config.defaultLanguage,
-        voiceEnabled:   resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
-        voiceProvider:  resolved.provider ?? "openai",
-        // Widget design fields — all consumed by clara.js to style the widget
+
+        // ── Voice ─────────────────────────────────────────────────────────────
+        voiceEnabled:    resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
+        voiceProvider:   resolved.provider ?? "openai",
+
+        // ── Core colours ──────────────────────────────────────────────────────
+        primaryColour:   config.primaryColour,
+        accentColour:    config.accentColour,
+        launcherColour:  config.launcherColour,
+
+        // ── Widget layout ─────────────────────────────────────────────────────
         widgetTheme:         config.widgetTheme,
         widgetPosition:      config.widgetPosition,
         widgetButtonSize:    config.widgetButtonSize,
@@ -68,14 +70,98 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         widgetChatHeight:    config.widgetChatHeight,
         widgetShowBranding:  config.widgetShowBranding,
         widgetLauncherLabel: config.widgetLauncherLabel,
-        // Full design control fields
         widgetMode:          config.widgetMode,
-        customCss:           config.customCss,
-        customLauncherSvg:   config.customLauncherSvg,
-        customHeaderHtml:    config.customHeaderHtml,
+
+        // ── Header ────────────────────────────────────────────────────────────
+        headerBg:         config.headerBg,
+        headerTextColor:  config.headerTextColor,
+        headerHeight:     config.headerHeight,
+        headerBlur:       config.headerBlur,
+        showStatusDot:    config.showStatusDot,
+        statusDotColor:   config.statusDotColor,
+        avatarShape:      config.avatarShape,
+
+        // ── Chat area ─────────────────────────────────────────────────────────
+        chatAreaBg:       config.chatAreaBg,
+
+        // ── User bubble ───────────────────────────────────────────────────────
+        userBubbleBg:      config.userBubbleBg,
+        userBubbleText:    config.userBubbleText,
+        userBubbleRadius:  config.userBubbleRadius,
+        userBubblePadding: config.userBubblePadding,
+        userBubbleShadow:  config.userBubbleShadow,
+
+        // ── Bot bubble ────────────────────────────────────────────────────────
+        botBubbleBg:      config.botBubbleBg,
+        botBubbleText:    config.botBubbleText,
+        botBubbleRadius:  config.botBubbleRadius,
+        botBubbleBorder:  config.botBubbleBorder,
+        botBubblePadding: config.botBubblePadding,
+        botBubbleShadow:  config.botBubbleShadow,
+
+        // ── Message list ──────────────────────────────────────────────────────
+        messageGap:        config.messageGap,
+        messageMaxWidth:   config.messageMaxWidth,
+        messageFontSize:   config.messageFontSize,
+        messageLineHeight: config.messageLineHeight,
+
+        // ── Timestamps ────────────────────────────────────────────────────────
+        showTimestamps:    config.showTimestamps,
+        timestampColor:    config.timestampColor,
+        timestampFontSize: config.timestampFontSize,
+
+        // ── Typing indicator ──────────────────────────────────────────────────
+        typingDotColor:    config.typingDotColor,
+        typingDotSize:     config.typingDotSize,
+
+        // ── Input area ────────────────────────────────────────────────────────
+        inputBg:               config.inputBg,
+        inputBorder:           config.inputBorder,
+        inputBorderFocus:      config.inputBorderFocus,
+        inputRadius:           config.inputRadius,
+        inputTextColor:        config.inputTextColor,
+        inputPlaceholderColor: config.inputPlaceholderColor,
+        inputPadding:          config.inputPadding,
+        inputAreaBg:           config.inputAreaBg,
+        inputAreaBorder:       config.inputAreaBorder,
+
+        // ── Send button ───────────────────────────────────────────────────────
+        sendBtnBg:          config.sendBtnBg,
+        sendBtnHoverBg:     config.sendBtnHoverBg,
+        sendBtnTextColor:   config.sendBtnTextColor,
+        sendBtnRadius:      config.sendBtnRadius,
+        sendBtnSize:        config.sendBtnSize,
+
+        // ── Scrollbar ─────────────────────────────────────────────────────────
+        scrollbarWidth:      config.scrollbarWidth,
+        scrollbarColor:      config.scrollbarColor,
+        scrollbarTrackColor: config.scrollbarTrackColor,
+
+        // ── Branding footer ───────────────────────────────────────────────────
+        footerBg:            config.footerBg,
+        footerTextColor:     config.footerTextColor,
         customPoweredBy:     config.customPoweredBy,
+
+        // ── Animations ────────────────────────────────────────────────────────
+        animationsEnabled:     config.animationsEnabled,
+        messageAnimationStyle: config.messageAnimationStyle,
+
+        // ── Advanced code overrides ───────────────────────────────────────────
+        customCss:          config.customCss,
+        customLauncherSvg:  config.customLauncherSvg,
+        customHeaderHtml:   config.customHeaderHtml,
+        customFooterHtml:   config.customFooterHtml,
+        customThemeCss:     config.customThemeCss,
+        customInjectJs:     config.customInjectJs,
+        // ── Voice mode design ────────────────────────────────────────────────
+        voiceBtnBg:          config.voiceBtnBg,
+        voiceBtnSize:        config.voiceBtnSize,
+        voiceBtnRadius:      config.voiceBtnRadius,
+        voiceBtnActiveColor: config.voiceBtnActiveColor,
+        voicePanelBg:        config.voicePanelBg,
+        voiceWaveColor:      config.voiceWaveColor,
       },
-      { headers: { ...corsHeaders, "Cache-Control": "no-store" } }
+      { headers: { ...corsHeaders, "Cache-Control": "no-store" } },
     );
   } catch (err) {
     console.error("[embed/config]:", err);

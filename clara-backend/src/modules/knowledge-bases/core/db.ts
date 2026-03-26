@@ -119,6 +119,13 @@ function toConfig(row: Record<string,unknown>): AssistantConfig {
     customThemeCss: strN(row.custom_theme_css),
     customInjectJs: strN(row.custom_inject_js),
     customPoweredBy: strN(row.custom_powered_by),
+    // Voice mode design
+    voiceBtnBg: strN(row.voice_btn_bg),
+    voiceBtnSize: num(row.voice_btn_size, 36),
+    voiceBtnRadius: num(row.voice_btn_radius, 10),
+    voiceBtnActiveColor: strN(row.voice_btn_active_color),
+    voicePanelBg: strN(row.voice_panel_bg),
+    voiceWaveColor: strN(row.voice_wave_color),
     createdAt: String(row.created_at), updatedAt: String(row.updated_at),
   };
 }
@@ -264,6 +271,10 @@ export async function patchAssistantConfig(kbId: string, input: PatchAssistantCo
     customHeaderHtml:"custom_header_html", customFooterHtml:"custom_footer_html",
     customThemeCss:"custom_theme_css", customInjectJs:"custom_inject_js",
     customPoweredBy:"custom_powered_by",
+    // Voice mode design
+    voiceBtnBg:"voice_btn_bg", voiceBtnSize:"voice_btn_size",
+    voiceBtnRadius:"voice_btn_radius", voiceBtnActiveColor:"voice_btn_active_color",
+    voicePanelBg:"voice_panel_bg", voiceWaveColor:"voice_wave_color",
   };
 
   const sets: string[]=[]; const params: unknown[]=[]; let i=1;

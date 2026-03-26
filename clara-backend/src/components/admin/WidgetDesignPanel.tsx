@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import {
   Code2, Eye, RefreshCw, Palette, Layout, Type,
-  MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check,
+  MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check, Mic,
 } from "lucide-react";
 import { Button }          from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +51,9 @@ type WidgetDesign = {
   animationsEnabled: boolean; messageAnimationStyle: "fade"|"slide"|"pop"|"none";
   customCss: string; customLauncherSvg: string; customHeaderHtml: string;
   customFooterHtml: string; customThemeCss: string; customInjectJs: string;
+  // Voice mode design
+  voiceBtnBg: string; voiceBtnSize: number; voiceBtnRadius: number;
+  voiceBtnActiveColor: string; voicePanelBg: string; voiceWaveColor: string;
 };
 
 
@@ -91,6 +94,9 @@ const D: WidgetDesign = {
   customCss:"",              customLauncherSvg:"",
   customHeaderHtml:"",       customFooterHtml:"",
   customThemeCss:"",         customInjectJs:"",
+  // Voice mode design
+  voiceBtnBg:"",             voiceBtnSize:36,    voiceBtnRadius:10,
+  voiceBtnActiveColor:"#ef4444", voicePanelBg:"", voiceWaveColor:"#6366f1",
 };
 
 const FONTS = [
@@ -1262,12 +1268,41 @@ function ControlsPanel({ d, set }: {
         <Field label="Launcher label text" hint='Optional text shown next to the floating button. E.g. "Chat with us". Leave empty for icon-only.'>
           <TextInput value={d.widgetLauncherLabel} onChange={(v) => set("widgetLauncherLabel", v)} placeholder="Chat with us  (or leave empty)" />
         </Field>
-        <Field label="Custom launcher icon (SVG)" hint="Paste the raw SVG markup for a custom icon on the floating button. Leave blank to use the default chat bubble icon.">
+        <Field label=\"Custom launcher icon (SVG)\" hint=\"Paste the raw SVG markup for a custom icon on the floating button. Leave blank to use the default chat bubble icon.\">
           <textarea value={d.customLauncherSvg} rows={3}
             onChange={(e) => set("customLauncherSvg", e.target.value)}
             placeholder={'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>'}
             className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
               text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none" />
+        </Field>
+      </div>
+
+      <SectionHeader icon={Mic} label="Voice Mode Design" />
+      <div className="space-y-3 pb-2">
+        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 mb-1">
+          <p className="text-xs text-white/60 leading-relaxed">
+            <strong className="text-white/90">Voice button styling.</strong>{" "}
+            The voice button appears in the input area when voice is enabled for this assistant.
+            Enable voice in the AI Settings tab. Design it here.
+          </p>
+        </div>
+        <Field label="Voice button background" hint="Background of the mic button. Leave empty for the default grey.">
+          <ColourInput value={d.voiceBtnBg} onChange={(v) => set("voiceBtnBg", v)} placeholder="empty = grey (light) / dark grey (dark theme)" />
+        </Field>
+        <Field label="Active / recording colour" hint="Colour of the button while the microphone is recording. Red (#ef4444) is the standard signal.">
+          <ColourInput value={d.voiceBtnActiveColor} onChange={(v) => set("voiceBtnActiveColor", v)} placeholder="#ef4444" />
+        </Field>
+        <Field label="Voice button size" hint="Width and height of the mic button in pixels.">
+          <RangeInput value={d.voiceBtnSize} min={24} max={64} unit="px" onChange={(v) => set("voiceBtnSize", v)} />
+        </Field>
+        <Field label="Voice button corner radius" hint="0 = square. 50 = perfect circle.">
+          <RangeInput value={d.voiceBtnRadius} min={0} max={50} unit="px" onChange={(v) => set("voiceBtnRadius", v)} />
+        </Field>
+        <Field label="Voice panel background" hint="Background of the fullscreen voice overlay. Leave empty for the theme default.">
+          <ColourInput value={d.voicePanelBg} onChange={(v) => set("voicePanelBg", v)} placeholder="empty = theme default" />
+        </Field>
+        <Field label="Voice waveform colour" hint="Colour of the animated waveform bars shown while speaking.">
+          <ColourInput value={d.voiceWaveColor} onChange={(v) => set("voiceWaveColor", v)} placeholder="#6366f1" />
         </Field>
       </div>
     </div>
@@ -2068,6 +2103,13 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           customFooterHtml:  String(data.customFooterHtml  ?? ""),
           customThemeCss:    String(data.customThemeCss    ?? ""),
           customInjectJs:    String(data.customInjectJs    ?? ""),
+          // Voice mode design
+          voiceBtnBg:          String(data.voiceBtnBg          ?? ""),
+          voiceBtnSize:        Number(data.voiceBtnSize        ?? 36),
+          voiceBtnRadius:      Number(data.voiceBtnRadius      ?? 10),
+          voiceBtnActiveColor: String(data.voiceBtnActiveColor ?? "#ef4444"),
+          voicePanelBg:        String(data.voicePanelBg        ?? ""),
+          voiceWaveColor:      String(data.voiceWaveColor      ?? "#6366f1"),
         });
       })
       .catch(() => {})
@@ -2095,7 +2137,9 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
         "botBubbleBorder","inputBg","inputBorder","inputBorderFocus","inputTextColor",
         "inputPlaceholderColor","inputAreaBg","inputAreaBorder","sendBtnBg","sendBtnHoverBg",
         "footerBg","footerTextColor","avatarUrl","widgetLauncherLabel","customCss",
-        "customLauncherSvg","customHeaderHtml","customFooterHtml","customThemeCss","customInjectJs"];
+        "customLauncherSvg","customHeaderHtml","customFooterHtml","customThemeCss","customInjectJs",
+        // Voice fields
+        "voiceBtnBg","voiceBtnActiveColor","voicePanelBg","voiceWaveColor"];
       for (const k of nullable) if (body[k] === "") body[k] = null;
 
       const res = await fetch(apiUrl(`/api/kbs/${kbId}/config`), {

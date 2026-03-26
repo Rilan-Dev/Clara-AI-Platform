@@ -77,6 +77,15 @@ type AssistantConfig = {
   footerTextColor?: string | null;
   animationsEnabled?: boolean;
   messageAnimationStyle?: string;
+  // Voice mode design
+  voiceEnabled?: boolean;
+  voiceProvider?: string;
+  voiceBtnBg?: string | null;
+  voiceBtnSize?: number;
+  voiceBtnRadius?: number;
+  voiceBtnActiveColor?: string;
+  voicePanelBg?: string | null;
+  voiceWaveColor?: string;
 };
 
 type Message = {
@@ -99,6 +108,7 @@ function WidgetContent() {
   const [configLoading, setCL]        = useState(true);
   const [avatarImgErr, setAvatarImgErr] = useState(false);
   const [sendHovered, setSendHovered] = useState(false);
+  const [voiceActive, setVoiceActive] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
 
@@ -156,8 +166,10 @@ function WidgetContent() {
       let i = 0;
       const tick = () => {
         if (i >= chunks.length) { setLoading(false); return; }
-        setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: m.content + chunks[i] } : m));
-        i++; window.setTimeout(tick, 35);
+        const token = chunks[i];   // capture BEFORE incrementing
+        i++;
+        setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: m.content + token } : m));
+        window.setTimeout(tick, 35);
       };
       tick(); return;
     }
@@ -251,6 +263,12 @@ function WidgetContent() {
   const sendR    = config?.sendBtnRadius   ?? 10;
   const sendSz   = config?.sendBtnSize     ?? 36;
   const sendTxt  = (config?.sendBtnTextColor && config.sendBtnTextColor.trim()) ? config.sendBtnTextColor.trim() : "#ffffff";
+  // Voice button
+  const voiceBtnBg      = (config?.voiceBtnBg && config.voiceBtnBg.trim()) ? config.voiceBtnBg.trim() : (dark ? "#2a2a40" : "#e5e7eb");
+  const voiceBtnSz      = config?.voiceBtnSize   ?? 36;
+  const voiceBtnR       = config?.voiceBtnRadius  ?? 10;
+  const voiceActive2Color = (config?.voiceBtnActiveColor && config.voiceBtnActiveColor.trim()) ? config.voiceBtnActiveColor.trim() : "#ef4444";
+  const showVoice = Boolean(config?.voiceEnabled);
   const dotColor   = (config?.typingDotColor  && config.typingDotColor.trim())  ? config.typingDotColor.trim()  : "#9ca3af";
   const dotSz      = config?.typingDotSize   ?? 6;
   const scrollW    = config?.scrollbarWidth  ?? 4;
@@ -429,6 +447,30 @@ function WidgetContent() {
               outline:"none",lineHeight:1.5,maxHeight:100,overflowY:"auto",
               opacity:loading?0.5:1,background:inputBg,color:inputTxt,
             }}/>
+          {/* Voice button — only shown when voiceEnabled is true */}
+          {showVoice && (
+            <button
+              onClick={()=>setVoiceActive(v=>!v)}
+              title={voiceActive ? "Stop voice" : "Start voice"}
+              className="clara-voice-btn"
+              style={{
+                flexShrink:0,width:voiceBtnSz,height:voiceBtnSz,borderRadius:voiceBtnR,
+                background: voiceActive ? voiceActive2Color : voiceBtnBg,
+                color: voiceActive ? "#fff" : (dark?"#9ca3af":"#6b7280"),
+                border:"none",cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                transition:"background 0.18s, transform 0.1s",
+                transform: voiceActive ? "scale(1.08)" : "scale(1)",
+              }}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                {voiceActive
+                  ? <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm0 16a7 7 0 0 1-7-7H3a9 9 0 0 0 8 8.94V21h2v-2.06A9 9 0 0 0 21 10h-2a7 7 0 0 1-7 7z"/>
+                  : <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 3.02-3.04 5.35-6.12 5.35S5.58 14.02 5.09 11H3.07c.52 3.85 3.65 6.83 7.43 7.18V21h3v-2.82c3.78-.35 6.91-3.33 7.43-7.18h-2.02z"/>
+                }
+              </svg>
+            </button>
+          )}
+          {/* Send button */}
           <button onClick={()=>void sendMessage()}
             disabled={!input.trim()||loading}
             onMouseEnter={()=>setSendHovered(true)}
