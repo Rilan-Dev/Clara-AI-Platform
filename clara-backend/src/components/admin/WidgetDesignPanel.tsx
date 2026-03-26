@@ -1812,7 +1812,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
             <span className="text-[11px] text-amber-300/80">💡</span>
             <span className="text-[11px] text-white/40">
               This template is <strong className="text-white/60">not saved to the database</strong> — use{" "}
-              <strong className="text-white/60">"Sync from visual"</strong> to regenerate from your Visual Controls at any time.
+              <strong className="text-white/60">&quot;Sync from visual&quot;</strong> to regenerate from your Visual Controls at any time.
               Tailwind classes like <code className="bg-white/10 rounded px-1">rounded-2xl</code>, <code className="bg-white/10 rounded px-1">shadow-xl</code>, <code className="bg-white/10 rounded px-1">bg-indigo-600</code> all work.
             </span>
           </div>
