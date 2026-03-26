@@ -98,8 +98,8 @@ export async function restoreSnapshotHandler(
     }
 
     // Restore: write the snapshot's config as the live config
-    const s = snap.snapshot;
-    const input: PutAssistantConfigInput = {
+    const s = snap.snapshot as any;
+    const input = {
       assistantName:    s.assistantName,
       avatarUrl:        s.avatarUrl,
       systemPrompt:     s.systemPrompt,
@@ -118,7 +118,6 @@ export async function restoreSnapshotHandler(
       primaryColour:    s.primaryColour,
       accentColour:     s.accentColour,
       launcherColour:   s.launcherColour ?? s.primaryColour,
-      // Widget layout (migration 016-017)
       widgetTheme:        s.widgetTheme        ?? "light",
       widgetPosition:     s.widgetPosition     ?? "bottom-right",
       widgetButtonSize:   s.widgetButtonSize   ?? 56,
@@ -127,13 +126,13 @@ export async function restoreSnapshotHandler(
       widgetChatHeight:   s.widgetChatHeight   ?? 580,
       widgetShowBranding: s.widgetShowBranding ?? true,
       widgetLauncherLabel: s.widgetLauncherLabel ?? null,
-      // Full design control (migration 019)
       widgetMode:         s.widgetMode         ?? "floating",
       customCss:          s.customCss          ?? null,
       customLauncherSvg:  s.customLauncherSvg  ?? null,
       customHeaderHtml:   s.customHeaderHtml   ?? null,
       customPoweredBy:    s.customPoweredBy    ?? null,
-    };
+      ...s
+    } as PutAssistantConfigInput;
 
     const restoredConfig = await putAssistantConfig(kbId, input);
     return NextResponse.json({ restored: true, config: restoredConfig });
