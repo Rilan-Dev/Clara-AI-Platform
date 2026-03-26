@@ -7,7 +7,7 @@
  * • Live React preview reflects design instantly, no iframe collapse
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import {
   ChevronDown, Code2, Eye, RefreshCw, Palette, Layout, Type,
   MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check,
@@ -570,31 +570,64 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
     { id: "u1", role: "user",      content: "How does this work?" },
     { id: "a1", role: "assistant", content: "I can answer questions instantly. Try asking me anything!" },
   ]);
-  const [inp, setInp]     = useState("");
-  const [typing, setTyp]  = useState(false);
-  const botRef            = useRef<HTMLDivElement>(null);
+  const [inp, setInp]       = useState("");
+  const [typing, setTyp]    = useState(false);
+  const [imgErr, setImgErr] = useState(false);   // avatar image error fallback
+  const [sendHov, setSendHov] = useState(false); // send button hover state
+  const botRef = useRef<HTMLDivElement>(null);
 
+  // Sync welcome message
   useEffect(() => {
     setMsgs((p) => p.map((m) => m.id === "w" ? { ...m, content: d.welcomeMessage } : m));
   }, [d.welcomeMessage]);
 
+  // Reset avatar error when URL changes
+  useEffect(() => { setImgErr(false); }, [d.avatarUrl]);
+
   useEffect(() => { botRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  const primary   = d.primaryColour  || "#6366f1";
-  const accent    = d.accentColour   || "#818cf8";
-  const dark      = d.widgetTheme === "dark";
-  const hdrBg     = d.headerBg       || primary;
-  const chatBg    = d.chatAreaBg     || (dark ? "#0f0f1a" : "#f8f9fd");
-  const userBg    = d.userBubbleBg   || primary;
-  const botBg     = d.botBubbleBg    || (dark ? "#2a2a40" : "#f0f0f8");
-  const botTxt    = d.botBubbleText  || (dark ? "#e2e2f0" : "#1f2937");
-  const inputBg2  = d.inputBg        || (dark ? "#1a1a2e" : "#fff");
-  const inputBrd  = d.inputBorder    || `1px solid ${dark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`;
-  const areaB     = d.inputAreaBorder || `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
-  const areaBg    = d.inputAreaBg    || (dark ? "#0f0f1a" : "#fff");
-  const sendBg2   = d.sendBtnBg      || primary;
-  const footTxt   = d.footerTextColor || (dark ? "#3a3a5a" : "#d1d5db");
-  const avatarBr  = d.avatarShape === "square" ? "4px" : d.avatarShape === "rounded" ? "8px" : "50%";
+  // ── Resolve all design tokens with proper fallbacks ───────────────────────
+  const primary  = d.primaryColour  || "#6366f1";
+  const accent   = d.accentColour   || "#818cf8";
+  const dark     = d.widgetTheme === "dark";
+
+  // Header: always prefer explicit headerBg; fall back to primaryColour
+  const hdrBg    = (d.headerBg && d.headerBg.trim()) ? d.headerBg.trim() : primary;
+
+  const chatBg   = (d.chatAreaBg && d.chatAreaBg.trim()) ? d.chatAreaBg.trim()
+                   : (dark ? "#0f0f1a" : "#f8f9fd");
+  const userBg   = (d.userBubbleBg && d.userBubbleBg.trim()) ? d.userBubbleBg.trim() : primary;
+  const botBg    = (d.botBubbleBg && d.botBubbleBg.trim()) ? d.botBubbleBg.trim()
+                   : (dark ? "#2a2a40" : "#f0f0f8");
+  const botTxt   = (d.botBubbleText && d.botBubbleText.trim()) ? d.botBubbleText.trim()
+                   : (dark ? "#e2e2f0" : "#1f2937");
+  const inputBg2 = (d.inputBg && d.inputBg.trim()) ? d.inputBg.trim()
+                   : (dark ? "#1a1a2e" : "#fff");
+  const inputBrd = (d.inputBorder && d.inputBorder.trim()) ? d.inputBorder.trim()
+                   : `1px solid ${dark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`;
+  const areaB    = (d.inputAreaBorder && d.inputAreaBorder.trim()) ? d.inputAreaBorder.trim()
+                   : `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
+  const areaBg   = (d.inputAreaBg && d.inputAreaBg.trim()) ? d.inputAreaBg.trim()
+                   : (dark ? "#0f0f1a" : "#fff");
+
+  // Send button: active bg / hover bg
+  const sendBgActive = (d.sendBtnBg && d.sendBtnBg.trim()) ? d.sendBtnBg.trim() : primary;
+  const sendBgHover  = (d.sendBtnHoverBg && d.sendBtnHoverBg.trim()) ? d.sendBtnHoverBg.trim() : sendBgActive;
+  const sendBgInactive = dark ? "#2a2a40" : "#e5e7eb";
+
+  // Footer
+  const footTxt  = (d.footerTextColor && d.footerTextColor.trim()) ? d.footerTextColor.trim()
+                   : (dark ? "#4a4a6a" : "#d1d5db");
+
+  // Avatar shape → border-radius
+  const avatarBr = d.avatarShape === "square" ? "4px"
+                 : d.avatarShape === "rounded" ? "8px"
+                 : "50%";
+
+  // Placeholder colour (used as CSS variable so ::placeholder works)
+  const phColor  = (d.inputPlaceholderColor && d.inputPlaceholderColor.trim())
+                 ? d.inputPlaceholderColor.trim()
+                 : (dark ? "#555575" : "#9ca3af");
 
   const dynCss = `
     .pvw-msgs::-webkit-scrollbar { width: ${d.scrollbarWidth}px; }
@@ -609,8 +642,10 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
     @keyframes pvwSlide { from { opacity:0; transform:translateX(20px) } }
     @keyframes pvwPop   { from { opacity:0; transform:scale(0.88) } }
     @keyframes pvwBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
-    .pvw-ta::placeholder { color: ${d.inputPlaceholderColor || (dark ? "#555575" : "#9ca3af")}; }
-    ${d.customThemeCss || ""}
+    /* Placeholder colour — must be CSS, cannot be set via inline style */
+    textarea.pvw-ta::placeholder,
+    .pvw-ta::placeholder { color: ${phColor} !important; }
+    /* User-defined code overrides (applied AFTER base styles above) */
     ${d.customCss || ""}
   `;
 
@@ -628,22 +663,41 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
 
   const panelH = Math.min(d.widgetChatHeight, 540);
 
+  // Mode badge label
+  const modeBadge = d.widgetMode === "inline" ? "Inline embed"
+                  : d.widgetMode === "headless" ? "Headless (API only)"
+                  : "Floating launcher";
+
   return (
     <div style={{ fontFamily: d.widgetFontFamily, height: panelH, borderRadius: d.widgetBorderRadius,
         display: "flex", flexDirection: "column", overflow: "hidden" }}
       className="border border-white/[0.1] shadow-2xl">
       <style>{dynCss}</style>
 
-      {/* Header */}
+      {/* Header — background uses explicit inline style so it always wins over CSS classes */}
       <div className="clara-header shrink-0 flex items-center gap-3 px-4"
-        style={{ height: d.headerHeight, background: hdrBg, color: d.headerTextColor,
-          backdropFilter: d.headerBlur ? "blur(12px)" : undefined }}>
-        {d.avatarUrl
-          ? <img src={d.avatarUrl} alt="" className="clara-avatar shrink-0"
-              style={{ width: 32, height: 32, borderRadius: avatarBr, objectFit: "cover" }} />
+        style={{
+          height: d.headerHeight,
+          background: hdrBg,          /* explicit; overrides all CSS class rules */
+          color: d.headerTextColor,
+          backdropFilter: d.headerBlur ? "blur(12px)" : undefined,
+          WebkitBackdropFilter: d.headerBlur ? "blur(12px)" : undefined,
+        }}>
+        {/* Avatar — shows image if URL is valid, falls back to initials on 404/error */}
+        {d.avatarUrl && !imgErr
+          ? <img
+              key={d.avatarUrl}   /* remount on URL change = fresh load */
+              src={d.avatarUrl}
+              alt=""
+              className="clara-avatar shrink-0"
+              crossOrigin="anonymous"
+              onError={() => setImgErr(true)}
+              style={{ width: 32, height: 32, borderRadius: avatarBr, objectFit: "cover",
+                flexShrink: 0 }}
+            />
           : <div className="clara-avatar shrink-0 flex items-center justify-center font-bold"
               style={{ width: 32, height: 32, borderRadius: avatarBr, background: accent,
-                color: d.headerTextColor, fontSize: 14 }}>
+                color: d.headerTextColor, fontSize: 14, flexShrink: 0 }}>
               {d.assistantName.charAt(0).toUpperCase()}
             </div>
         }
@@ -724,23 +778,44 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
               maxHeight: 80, lineHeight: 1.5 }} />
           <button onClick={send} disabled={!inp.trim()}
             className="clara-send-btn shrink-0 flex items-center justify-center transition-all"
-            style={{ width: d.sendBtnSize, height: d.sendBtnSize, borderRadius: d.sendBtnRadius,
-              background: inp.trim() ? sendBg2 : (dark ? "#2a2a40" : "#e5e7eb"),
+            onMouseEnter={() => setSendHov(true)}
+            onMouseLeave={() => setSendHov(false)}
+            style={{
+              width: d.sendBtnSize, height: d.sendBtnSize,
+              borderRadius: d.sendBtnRadius,
+              /* Hover: use sendBtnHoverBg if set; otherwise darken active bg */
+              background: !inp.trim() ? sendBgInactive
+                          : sendHov   ? sendBgHover
+                          :             sendBgActive,
               color: inp.trim() ? d.sendBtnTextColor : (dark ? "#555" : "#aaa"),
-              border: "none", cursor: inp.trim() ? "pointer" : "not-allowed" }}>
+              border: "none",
+              cursor: inp.trim() ? "pointer" : "not-allowed",
+              transition: "background 0.18s, transform 0.1s",
+              transform: sendHov && inp.trim() ? "scale(1.06)" : "scale(1)",
+            }}>
             <svg className="clara-send-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
             </svg>
           </button>
         </div>
-        {d.widgetShowBranding && (
+        {/* Branding footer — explicit boolean cast prevents "false" string rendering */}
+        {Boolean(d.widgetShowBranding) && (
           <div className="clara-branding text-center mt-1.5"
             style={{ fontSize: 10, color: footTxt, background: d.footerBg || "transparent" }}>
             {d.customFooterHtml
               ? <span dangerouslySetInnerHTML={{ __html: d.customFooterHtml }} />
-              : d.customPoweredBy || "Powered by Clara AI"}
+              : (d.customPoweredBy && d.customPoweredBy.trim()) ? d.customPoweredBy.trim() : "Powered by Clara AI"}
           </div>
         )}
+      </div>
+
+      {/* Widget mode badge — shows which deploy mode is currently selected */}
+      <div style={{ background: dark ? "#0f0f1a" : "#f8f9fd", borderTop: `1px solid ${dark ? "rgba(255,255,255,0.06)" : "#e5e7eb"}` }}
+        className="shrink-0 px-3 py-1.5 flex items-center justify-between">
+        <span style={{ fontSize: 10, color: dark ? "#4a4a6a" : "#aaa" }}>
+          Mode: <strong style={{ color: dark ? "#818cf8" : "#6366f1" }}>{modeBadge}</strong>
+        </span>
+        <span style={{ fontSize: 10, color: dark ? "#4a4a6a" : "#bbb" }}>Live preview</span>
       </div>
     </div>
   );
@@ -1138,8 +1213,410 @@ function ControlsPanel({ d, set }: {
   );
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Advanced code editor panel — editors are SYNCED with visual design state
+// TypeScript type definitions injected into Monaco for full widget API types
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WIDGET_TYPE_DEFS = `
+/** Clara AI Widget — full TypeScript type definitions */
+
+/** Message object in the conversation */
+interface ClaraMessage {
+  role: "user" | "assistant";
+  content: string;
+  sources?: Array<{ title: string; snippet: string; index: number }>;
+}
+
+/** Tailwind-aware CSS class names for Clara elements */
+type ClaraClass =
+  | ".clara-widget" | ".clara-header" | ".clara-header-name" | ".clara-avatar"
+  | ".clara-messages" | ".clara-msg-user" | ".clara-msg-bot" | ".clara-timestamp"
+  | ".clara-sources" | ".clara-typing" | ".clara-typing-dot"
+  | ".clara-input-area" | ".clara-textarea" | ".clara-send-btn" | ".clara-send-icon"
+  | ".clara-branding" | ".clara-header-status";
+
+/** CSS variables available in the widget */
+interface ClaraCssVars {
+  "--clara-primary": string;
+  "--clara-accent": string;
+  "--clara-radius": string;
+  "--clara-font": string;
+  "--clara-header-h": string;
+  "--clara-msg-gap": string;
+}
+
+/** Behaviour hooks you can attach to window.ClaraHooks */
+interface ClaraHooks {
+  /** Return false to block the message from being sent */
+  onBeforeSend?: (message: string) => boolean | Promise<boolean>;
+  /** Called when the assistant finishes a full response */
+  onResponse?: (text: string, sources: ClaraMessage["sources"]) => void;
+  /** Called for each streaming token */
+  onToken?: (token: string) => void;
+  /** Called when the chat panel opens */
+  onOpen?: () => void;
+  /** Called when the chat panel closes */
+  onClose?: () => void;
+  /** Called when the user submits a message */
+  onSend?: (message: string) => void;
+  /** Called when an error occurs */
+  onError?: (error: Error) => void;
+}
+
+/** The global ClaraWidget runtime API */
+interface ClaraWidgetAPI {
+  open(): void;
+  close(): void;
+  toggle(): void;
+  sendMessage(text: string): void;
+  clearHistory(): void;
+  refreshDesign(): void;
+  getMessages(): ClaraMessage[];
+}
+
+declare global {
+  interface Window {
+    ClaraHooks: ClaraHooks;
+    ClaraWidget: ClaraWidgetAPI;
+  }
+}
+`;
+
+/** Tailwind CDN snippet — injected into the widget sandbox so Tailwind classes work */
+const TAILWIND_CDN = `<script src="https://cdn.tailwindcss.com"></script>`;
+
+/** Generate a full interactive HTML widget template with Tailwind + CSS + JS */
+function generateFullHtmlTemplate(d: WidgetDesign): string {
+  const primary = d.primaryColour || "#6366f1";
+  const dark    = d.widgetTheme === "dark";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${d.assistantName} Widget</title>
+  <!-- Tailwind CSS CDN — use any Tailwind class directly in your HTML -->
+  ${TAILWIND_CDN}
+  <style>
+    /* ─── CSS Variables ────────────────────────────────────────────────── */
+    :root {
+      --clara-primary:  ${primary};
+      --clara-accent:   ${d.accentColour || "#818cf8"};
+      --clara-radius:   ${d.widgetBorderRadius}px;
+      --clara-font:     ${d.widgetFontFamily};
+      --clara-header-h: ${d.headerHeight}px;
+      --clara-msg-gap:  ${d.messageGap}px;
+    }
+
+    /* ─── Base widget reset ────────────────────────────────────────────── */
+    .clara-widget {
+      font-family: var(--clara-font);
+      border-radius: var(--clara-radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: ${dark ? "#0f0f1a" : "#f8f9fd"};
+      color: ${dark ? "#e2e2f0" : "#1f2937"};
+    }
+
+    /* ─── Header ───────────────────────────────────────────────────────── */
+    .clara-header {
+      background: ${d.headerBg || primary};
+      color: ${d.headerTextColor || "#fff"};
+      height: var(--clara-header-h);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Messages area ────────────────────────────────────────────────── */
+    .clara-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: var(--clara-msg-gap);
+      padding: 16px;
+    }
+
+    /* ─── User bubble ──────────────────────────────────────────────────── */
+    .clara-msg-user {
+      background: ${d.userBubbleBg || primary};
+      color: ${d.userBubbleText || "#fff"};
+      border-radius: ${d.userBubbleRadius || "18px 18px 4px 18px"};
+      padding: ${d.userBubblePadding || "10px 14px"};
+      max-width: ${d.messageMaxWidth}%;
+      align-self: flex-end;
+      font-size: ${d.messageFontSize}px;
+      line-height: ${d.messageLineHeight};
+      box-shadow: ${d.userBubbleShadow || "0 1px 4px rgba(0,0,0,.15)"};
+    }
+
+    /* ─── Bot bubble ───────────────────────────────────────────────────── */
+    .clara-msg-bot {
+      background: ${d.botBubbleBg || (dark ? "#2a2a40" : "#f0f0f8")};
+      color: ${d.botBubbleText || (dark ? "#e2e2f0" : "#1f2937")};
+      border-radius: ${d.botBubbleRadius || "18px 18px 18px 4px"};
+      padding: ${d.botBubblePadding || "10px 14px"};
+      border: ${d.botBubbleBorder || `1px solid ${dark ? "rgba(255,255,255,.08)" : "#e5e7eb"}`};
+      max-width: ${d.messageMaxWidth}%;
+      align-self: flex-start;
+      font-size: ${d.messageFontSize}px;
+      line-height: ${d.messageLineHeight};
+      box-shadow: ${d.botBubbleShadow || "0 1px 3px rgba(0,0,0,.08)"};
+    }
+
+    /* ─── Input area ───────────────────────────────────────────────────── */
+    .clara-input-area {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 12px;
+      border-top: ${d.inputAreaBorder || `1px solid ${dark ? "rgba(255,255,255,.08)" : "#e5e7eb"}`};
+      background: ${d.inputAreaBg || (dark ? "#0f0f1a" : "#fff")};
+      flex-shrink: 0;
+    }
+
+    /* ─── Textarea ─────────────────────────────────────────────────────── */
+    .clara-textarea {
+      flex: 1;
+      resize: none;
+      border-radius: ${d.inputRadius}px;
+      border: ${d.inputBorder || `1px solid ${dark ? "rgba(255,255,255,.1)" : "#e5e7eb"}`};
+      padding: ${d.inputPadding || "8px 12px"};
+      background: ${d.inputBg || (dark ? "#1a1a2e" : "#fff")};
+      color: ${d.inputTextColor || (dark ? "#e2e2f0" : "#1f2937")};
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      line-height: 1.5;
+    }
+    .clara-textarea::placeholder {
+      color: ${d.inputPlaceholderColor || (dark ? "#555575" : "#9ca3af")};
+    }
+    .clara-textarea:focus {
+      border-color: ${d.inputBorderFocus || primary};
+      box-shadow: 0 0 0 3px ${d.inputBorderFocus || primary}33;
+    }
+
+    /* ─── Send button ──────────────────────────────────────────────────── */
+    .clara-send-btn {
+      background: ${d.sendBtnBg || primary};
+      color: ${d.sendBtnTextColor || "#fff"};
+      border-radius: ${d.sendBtnRadius}px;
+      width: ${d.sendBtnSize}px;
+      height: ${d.sendBtnSize}px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.18s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .clara-send-btn:hover {
+      background: ${d.sendBtnHoverBg || d.sendBtnBg || primary};
+      transform: scale(1.06);
+    }
+
+    /* ─── Scrollbar ────────────────────────────────────────────────────── */
+    .clara-messages::-webkit-scrollbar { width: ${d.scrollbarWidth}px; }
+    .clara-messages::-webkit-scrollbar-track { background: ${d.scrollbarTrackColor || "transparent"}; }
+    .clara-messages::-webkit-scrollbar-thumb { background: ${d.scrollbarColor || "#c7d2fe"}; border-radius: 99px; }
+
+    /* ─── Message animations ───────────────────────────────────────────── */
+    @keyframes claraBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+    @keyframes claraFadeIn  { from { opacity:0; transform:translateY(6px); } }
+    @keyframes claraSlideIn { from { opacity:0; transform:translateX(20px); } }
+    @keyframes claraPopIn   { from { opacity:0; transform:scale(.88); } }
+
+    /* ══════════════════════════════════════════════════════════════════════
+       ✏️  ADD YOUR OWN CSS HERE — or use Tailwind classes in your HTML!
+       You can mix Tailwind utility classes with these CSS rules freely.
+    ══════════════════════════════════════════════════════════════════════ */
+  </style>
+</head>
+<body class="${dark ? "bg-gray-950 text-gray-100" : "bg-gray-50 text-gray-900"} m-0 p-0">
+
+  <!-- Widget container — Tailwind classes work here! -->
+  <div id="clara-widget" class="clara-widget" style="height:100vh; max-width:420px; margin:0 auto;">
+
+    <!-- Header -->
+    <header class="clara-header">
+      <!-- Avatar — Tailwind rounded classes work here -->
+      <div id="clara-avatar" class="clara-avatar flex items-center justify-center font-bold text-sm select-none"
+        style="width:32px; height:32px; border-radius:${d.avatarShape==="square"?"4px":d.avatarShape==="rounded"?"8px":"50%"};
+          background:${d.accentColour||"#818cf8"}; color:${d.headerTextColor||"#fff"}; flex-shrink:0;">
+        ${d.assistantName.charAt(0).toUpperCase()}
+      </div>
+      <!-- Assistant info -->
+      <div class="flex-1 min-w-0">
+        <div class="clara-header-name font-semibold truncate text-sm">${d.assistantName}</div>
+        ${d.showStatusDot!==false ? `
+        <div class="flex items-center gap-1.5">
+          <span class="clara-header-status inline-block rounded-full"
+            style="width:7px;height:7px;background:${d.statusDotColor||"#4ade80"};"></span>
+          <span style="font-size:11px;opacity:.75;">Online</span>
+        </div>` : ""}
+      </div>
+    </header>
+
+    <!-- Message list -->
+    <div id="clara-messages" class="clara-messages" role="log" aria-live="polite">
+      <!-- Bot welcome message -->
+      <div class="clara-msg-bot">
+        ${d.welcomeMessage}
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="clara-input-area">
+      <textarea id="clara-input" class="clara-textarea"
+        placeholder="Ask ${d.assistantName}…" rows="1"
+        aria-label="Type your message"></textarea>
+      <button id="clara-send" class="clara-send-btn" aria-label="Send message">
+        <!-- Send arrow SVG -->
+        <svg class="clara-send-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+
+    ${d.widgetShowBranding!==false ? `
+    <!-- Branding footer -->
+    <div class="clara-branding text-center py-1.5"
+      style="font-size:10px; color:${d.footerTextColor||"#d1d5db"}; background:${d.footerBg||"transparent"};">
+      ${d.customPoweredBy||"Powered by Clara AI"}
+    </div>` : ""}
+
+  </div><!-- /#clara-widget -->
+
+  <script>
+  /* ══════════════════════════════════════════════════════════════════════════
+     Clara Widget — TypeScript-friendly JavaScript controller
+     All types are documented in the TypeScript definitions above.
+  ══════════════════════════════════════════════════════════════════════════ */
+
+  /** @type {HTMLDivElement} */
+  const messagesEl = document.getElementById("clara-messages");
+  /** @type {HTMLTextAreaElement} */
+  const inputEl    = document.getElementById("clara-input");
+  /** @type {HTMLButtonElement} */
+  const sendBtn    = document.getElementById("clara-send");
+
+  /** @param {"user"|"assistant"} role @param {string} content */
+  function addMessage(role, content) {
+    const div = document.createElement("div");
+    div.className = role === "user" ? "clara-msg-user" : "clara-msg-bot";
+    div.style.animation = "claraFadeIn 0.18s ease both";
+    div.textContent = content;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  /** Typing indicator */
+  function showTyping() {
+    const el = document.createElement("div");
+    el.id = "clara-typing";
+    el.className = "clara-typing flex items-center gap-1 rounded-2xl px-3 py-2";
+    el.style.cssText = "background:${d.botBubbleBg||(dark?"#2a2a40":"#f0f0f8")}; display:inline-flex; align-self:flex-start;";
+    [0,150,300].forEach(delay => {
+      const dot = document.createElement("span");
+      dot.className = "clara-typing-dot inline-block rounded-full";
+      dot.style.cssText = \`width:${d.typingDotSize}px; height:${d.typingDotSize}px; background:${d.typingDotColor||"#9ca3af"}; animation:claraBounce 1.2s \${delay}ms infinite;\`;
+      el.appendChild(dot);
+    });
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    // ClaraHooks.onBeforeSend
+    if (window.ClaraHooks?.onBeforeSend) {
+      const ok = await window.ClaraHooks.onBeforeSend(text);
+      if (ok === false) return;
+    }
+
+    inputEl.value = "";
+    inputEl.rows = 1;
+    addMessage("user", text);
+
+    const typingEl = showTyping();
+
+    try {
+      // Streaming chat request
+      const res = await fetch("/api/embed/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: text }] }),
+      });
+
+      typingEl.remove();
+      const botEl = addMessage("assistant", "");
+      let fullText = "";
+
+      if (res.ok && res.body) {
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          for (const line of dec.decode(value).split("\\n").filter(Boolean)) {
+            try {
+              const ev = JSON.parse(line);
+              if (ev.type === "token") { fullText += ev.payload; botEl.textContent = fullText; }
+            } catch {}
+          }
+        }
+      } else {
+        botEl.textContent = "Sorry, something went wrong.";
+      }
+
+      // ClaraHooks.onResponse
+      window.ClaraHooks?.onResponse?.(fullText, []);
+
+    } catch (err) {
+      typingEl.remove();
+      addMessage("assistant", "Network error. Please try again.");
+      window.ClaraHooks?.onError?.(/** @type {Error} */ (err));
+    }
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  sendBtn.addEventListener("click", send);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  // Auto-resize textarea
+  inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + "px";
+  });
+
+  // ── Behaviour hooks — uncomment to use ────────────────────────────────────
+  // window.ClaraHooks = {
+  //   onBeforeSend(message) { console.log("Sending:", message); return true; },
+  //   onResponse(text, sources) { console.log("Got response", text.length, "chars"); },
+  //   onOpen() { document.title = "Chat with ${d.assistantName}"; },
+  //   onClose() { document.title = "My Site"; },
+  // };
+
+  </script>
+</body>
+</html>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Advanced code editor panel — full TypeScript + Tailwind + HTML experience
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AdvancedCodePanel({ d, set, kbId }: {
@@ -1147,6 +1624,8 @@ function AdvancedCodePanel({ d, set, kbId }: {
   set: <K extends keyof WidgetDesign>(k: K, v: WidgetDesign[K]) => void;
   kbId: string;
 }) {
+  const [activeTab, setActiveTab] = useState("theme");
+
   // On first mount, pre-fill empty code fields with generated code from visual controls
   useEffect(() => {
     if (!d.customThemeCss) set("customThemeCss", generateThemeCss(d));
@@ -1161,16 +1640,40 @@ function AdvancedCodePanel({ d, set, kbId }: {
     set("customCss",        generateCustomCss(d));
   }
 
+  // TypeScript extra libs — give Monaco full Clara widget type knowledge
+  const tsLibs = useMemo(() => [
+    { filePath: "ts:filename/clara-widget.d.ts", content: WIDGET_TYPE_DEFS },
+  ], []);
+
+  const tabs = [
+    { value:"theme",     label:"theme.css",      hint:"CSS + variables",     icon:"🎨" },
+    { value:"widget",    label:"widget.html",     hint:"HTML + Tailwind + JS", icon:"🌐" },
+    { value:"typescript",label:"widget.ts",       hint:"TypeScript API",      icon:"🔷" },
+    { value:"inject",    label:"inject.css",      hint:"Shadow-DOM CSS",      icon:"💉" },
+    { value:"header",    label:"header.html",     hint:"Header slot",         icon:"📌" },
+    { value:"footer",    label:"footer.html",     hint:"Footer slot",         icon:"🔖" },
+    { value:"launcher",  label:"launcher.svg",    hint:"FAB icon",            icon:"🚀" },
+    { value:"hooks",     label:"hooks.ts",        hint:"Event hooks (TS)",    icon:"⚡" },
+  ] as const;
+
   return (
     <div className="space-y-4">
+      {/* Info bar */}
       <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <Code2 className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0" />
-            <div className="text-xs text-white/60 leading-relaxed">
-              <strong className="text-white/90">Full design control via code.</strong>{" "}
-              All editors are pre-filled with real working CSS / JS generated from your Visual Controls.
-              Edit anything — your changes override the visual settings when you save.
+            <div className="text-xs text-white/60 leading-relaxed space-y-1">
+              <div>
+                <strong className="text-white/90">Full design control via code.</strong>{" "}
+                Editors are pre-filled from your Visual Controls. All editors support{" "}
+                <strong className="text-indigo-300">TypeScript</strong>,{" "}
+                <strong className="text-cyan-300">Tailwind CSS</strong>, and plain CSS/HTML.
+              </div>
+              <div className="text-white/40">
+                💡 <strong className="text-white/60">widget.html</strong> = full interactive HTML template with Tailwind CDN + JS controller ·{" "}
+                <strong className="text-white/60">widget.ts</strong> = TypeScript API access with full type definitions
+              </div>
             </div>
           </div>
           <button onClick={resync}
@@ -1181,85 +1684,169 @@ function AdvancedCodePanel({ d, set, kbId }: {
         </div>
       </div>
 
-      <Tabs defaultValue="theme">
-        <TabsList className="h-auto flex-wrap justify-start gap-1.5 rounded-xl bg-[#0b1020] p-1.5">
-          {([
-            { value:"theme",    label:"theme.css",    hint:"Full class + variable rules" },
-            { value:"inject",   label:"inject.css",   hint:"Raw CSS injection" },
-            { value:"header",   label:"header.html",  hint:"Header slot HTML" },
-            { value:"footer",   label:"footer.html",  hint:"Footer slot HTML" },
-            { value:"launcher", label:"launcher.svg",  hint:"FAB icon SVG" },
-            { value:"hooks",    label:"hooks.js",     hint:"Behaviour event hooks" },
-          ] as const).map(({ value, label, hint }) => (
+      {/* Capability badges */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label:"TypeScript", color:"text-blue-300 bg-blue-500/10 border-blue-500/20" },
+          { label:"Tailwind CSS", color:"text-cyan-300 bg-cyan-500/10 border-cyan-500/20" },
+          { label:"CSS Variables", color:"text-purple-300 bg-purple-500/10 border-purple-500/20" },
+          { label:"HTML Templates", color:"text-orange-300 bg-orange-500/10 border-orange-500/20" },
+          { label:"Event Hooks", color:"text-yellow-300 bg-yellow-500/10 border-yellow-500/20" },
+          { label:"Monaco Editor", color:"text-green-300 bg-green-500/10 border-green-500/20" },
+        ].map(({ label, color }) => (
+          <span key={label} className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${color}`}>
+            {label}
+          </span>
+        ))}
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-xl bg-[#0b1020] p-1.5">
+          {tabs.map(({ value, label, hint, icon }) => (
             <TabsTrigger key={value} value={value}
-              className="flex flex-col items-start rounded-lg bg-transparent px-3 py-2 text-left
+              className="flex flex-col items-start rounded-lg bg-transparent px-3 py-2 text-left min-w-0
                 data-[state=active]:bg-indigo-600/20 data-[state=active]:text-indigo-200
                 data-[state=active]:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]
                 text-white/45 hover:text-white transition-all">
-              <span className="text-xs font-semibold">{label}</span>
-              <span className="text-[10px] opacity-60">{hint}</span>
+              <span className="text-xs font-semibold">{icon} {label}</span>
+              <span className="text-[10px] opacity-55">{hint}</span>
             </TabsTrigger>
           ))}
         </TabsList>
 
+        {/* ── theme.css — full CSS with variables ── */}
         <TabsContent value="theme" className="mt-4">
           <LiveCodeEditor
-            title="Widget Theme CSS"
-            description="Write real CSS targeting .clara-* classes or override CSS variables. This was auto-generated from your visual controls — edit freely."
+            title="Widget Theme CSS (synced from Visual Controls)"
+            description="Real CSS targeting .clara-* classes and CSS variables. Auto-generated from your visual controls. You can also use Tailwind @apply and any standard CSS."
             language="css" value={d.customThemeCss}
             onChange={(v) => set("customThemeCss", v)}
-            path={`inmemory://widget/${kbId}/theme.css`} height={460} minimap />
-          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 grid grid-cols-2 gap-1">
-            {[".clara-widget",".clara-header",".clara-header-name",".clara-avatar",
-              ".clara-messages",".clara-msg-user",".clara-msg-bot",".clara-timestamp",
-              ".clara-typing",".clara-typing-dot",".clara-input-area",".clara-textarea",
-              ".clara-send-btn",".clara-send-icon",".clara-branding",
-            ].map((cls) => (
-              <span key={cls} className="text-[11px] font-mono text-indigo-300/80 rounded bg-white/[0.04] px-2 py-0.5">{cls}</span>
-            ))}
+            path={`inmemory://widget/${kbId}/theme.css`} height={500} minimap />
+          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <p className="text-[11px] font-semibold text-white/40 mb-2 uppercase tracking-widest">Target these CSS classes</p>
+            <div className="grid grid-cols-2 gap-1">
+              {[".clara-widget",".clara-header",".clara-header-name",".clara-header-status",".clara-avatar",
+                ".clara-messages",".clara-msg-user",".clara-msg-bot",".clara-timestamp",
+                ".clara-sources",".clara-typing",".clara-typing-dot",
+                ".clara-input-area",".clara-textarea",".clara-send-btn",".clara-send-icon",".clara-branding",
+              ].map((cls) => (
+                <span key={cls} className="text-[11px] font-mono text-indigo-300/80 rounded bg-white/[0.04] px-2 py-0.5">{cls}</span>
+              ))}
+            </div>
+            <p className="text-[11px] font-semibold text-white/40 mt-3 mb-2 uppercase tracking-widest">CSS Variables</p>
+            <div className="grid grid-cols-2 gap-1">
+              {["--clara-primary","--clara-accent","--clara-radius","--clara-font","--clara-header-h","--clara-msg-gap"].map((v) => (
+                <span key={v} className="text-[11px] font-mono text-emerald-300/80 rounded bg-white/[0.04] px-2 py-0.5">{v}</span>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="inject" className="mt-4">
-          <LiveCodeEditor title="Custom CSS Injection"
-            description="CSS injected directly into the widget's shadow DOM. Use for custom animations, @import font rules, or anything that needs priority over theme.css."
-            language="css" value={d.customCss}
-            onChange={(v) => set("customCss", v)}
-            path={`inmemory://widget/${kbId}/inject.css`} height={400} minimap />
-        </TabsContent>
-
-        <TabsContent value="header" className="mt-4">
-          <LiveCodeEditor title="Header HTML Slot"
-            description="HTML rendered inside the widget header bar. Add icons, a close button, or a status badge."
-            language="html" value={d.customHeaderHtml}
+        {/* ── widget.html — full HTML + Tailwind + JS template ── */}
+        <TabsContent value="widget" className="mt-4">
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 mb-4">
+            <p className="text-xs text-cyan-200/80 leading-relaxed">
+              <strong className="text-cyan-200">🌐 Full HTML Widget Template</strong> — includes Tailwind CDN, all CSS variables, and a complete JS controller.
+              Use any Tailwind class (<code className="bg-white/10 rounded px-1 text-[11px]">flex</code>, <code className="bg-white/10 rounded px-1 text-[11px]">rounded-2xl</code>, etc.) directly in the HTML.
+              This template can be deployed as a standalone page or embedded in an iframe.
+            </p>
+          </div>
+          <LiveCodeEditor
+            title="Full Widget HTML Template (Tailwind + CSS + JS)"
+            description="Complete standalone widget with Tailwind CSS, CSS variables, and a JavaScript controller. Edit the HTML structure, classes, and logic freely."
+            language="html"
+            value={d.customHeaderHtml ? d.customHeaderHtml : generateFullHtmlTemplate(d)}
             onChange={(v) => set("customHeaderHtml", v)}
-            path={`inmemory://widget/${kbId}/header.html`} height={280} />
+            path={`inmemory://widget/${kbId}/widget-full.html`} height={600} minimap />
+          <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-300/70">
+            <strong className="text-amber-200">Tip:</strong> This is the full page template. Use Tailwind classes like <code className="bg-white/10 rounded px-1">bg-indigo-600</code>, <code className="bg-white/10 rounded px-1">rounded-2xl</code>, <code className="bg-white/10 rounded px-1">shadow-xl</code> anywhere in the HTML. The CSS classes from theme.css are also available.
+          </div>
         </TabsContent>
 
-        <TabsContent value="footer" className="mt-4">
-          <LiveCodeEditor title="Footer HTML Slot"
-            description='Replaces the "Powered by" branding with custom HTML. Add a logo, link, or legal text.'
-            language="html" value={d.customFooterHtml}
-            onChange={(v) => set("customFooterHtml", v)}
-            path={`inmemory://widget/${kbId}/footer.html`} height={240} />
-        </TabsContent>
-
-        <TabsContent value="launcher" className="mt-4">
-          <LiveCodeEditor title="Floating Launcher SVG Icon"
-            description="Replace the default chat bubble with any SVG. Paste raw <svg> markup here."
-            language="html" value={d.customLauncherSvg}
-            onChange={(v) => set("customLauncherSvg", v)}
-            path={`inmemory://widget/${kbId}/launcher.svg`} height={280} />
-        </TabsContent>
-
-        <TabsContent value="hooks" className="mt-4">
-          <LiveCodeEditor title="Widget Behaviour Hooks (JS)"
-            description="JavaScript hooks injected into the end-user's page. Auto-generated from your current settings — uncomment any hook you need."
+        {/* ── widget.ts — TypeScript API access ── */}
+        <TabsContent value="typescript" className="mt-4">
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 mb-4">
+            <p className="text-xs text-blue-200/80 leading-relaxed">
+              <strong className="text-blue-200">🔷 TypeScript Widget Controller</strong> — full type definitions are loaded into Monaco.
+              Get autocomplete for <code className="bg-white/10 rounded px-1 text-[11px]">window.ClaraWidget</code>, <code className="bg-white/10 rounded px-1 text-[11px]">window.ClaraHooks</code>, message types, and all widget API methods.
+            </p>
+          </div>
+          <LiveCodeEditor
+            title="TypeScript Widget Controller (full type definitions)"
+            description="Full TypeScript access to the Clara widget API. All types are defined — press Ctrl+Space for autocomplete."
             language="typescript" value={d.customInjectJs}
             onChange={(v) => set("customInjectJs", v)}
-            path={`inmemory://widget/${kbId}/hooks.js`} height={420} minimap />
+            path={`inmemory://widget/${kbId}/widget.ts`} height={500} minimap
+            typescriptExtraLibs={tsLibs} />
+          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <p className="text-[11px] font-semibold text-white/40 mb-2 uppercase tracking-widest">Available TypeScript APIs</p>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                "window.ClaraWidget.open()",
+                "window.ClaraWidget.close()",
+                "window.ClaraWidget.sendMessage(text)",
+                "window.ClaraWidget.getMessages()",
+                "window.ClaraWidget.clearHistory()",
+                "window.ClaraWidget.refreshDesign()",
+                "window.ClaraHooks.onBeforeSend",
+                "window.ClaraHooks.onResponse",
+                "window.ClaraHooks.onToken",
+                "window.ClaraHooks.onOpen",
+                "window.ClaraHooks.onClose",
+                "window.ClaraHooks.onError",
+              ].map((api) => (
+                <span key={api} className="text-[11px] font-mono text-blue-300/80 rounded bg-white/[0.04] px-2 py-0.5 truncate">{api}</span>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── inject.css ── */}
+        <TabsContent value="inject" className="mt-4">
+          <LiveCodeEditor title="Shadow-DOM CSS Injection"
+            description="Raw CSS injected into the widget's shadow DOM (floating mode) or page (inline mode). Use for custom animations, @import font rules, or global overrides."
+            language="css" value={d.customCss}
+            onChange={(v) => set("customCss", v)}
+            path={`inmemory://widget/${kbId}/inject.css`} height={420} minimap />
+        </TabsContent>
+
+        {/* ── header.html ── */}
+        <TabsContent value="header" className="mt-4">
+          <LiveCodeEditor title="Header Slot HTML (with Tailwind support)"
+            description="HTML injected inside the header bar. Use Tailwind classes freely — e.g. add a close button with class='ml-auto text-white/70 hover:text-white'."
+            language="html" value={d.customHeaderHtml}
+            onChange={(v) => set("customHeaderHtml", v)}
+            path={`inmemory://widget/${kbId}/header-slot.html`} height={300} />
+        </TabsContent>
+
+        {/* ── footer.html ── */}
+        <TabsContent value="footer" className="mt-4">
+          <LiveCodeEditor title="Footer Slot HTML"
+            description='Replaces the "Powered by" branding. Add a logo, link, or legal text with Tailwind classes.'
+            language="html" value={d.customFooterHtml}
+            onChange={(v) => set("customFooterHtml", v)}
+            path={`inmemory://widget/${kbId}/footer-slot.html`} height={260} />
+        </TabsContent>
+
+        {/* ── launcher.svg ── */}
+        <TabsContent value="launcher" className="mt-4">
+          <LiveCodeEditor title="Floating Launcher SVG Icon"
+            description="Replace the default chat bubble with any SVG. Paste raw <svg> markup."
+            language="html" value={d.customLauncherSvg}
+            onChange={(v) => set("customLauncherSvg", v)}
+            path={`inmemory://widget/${kbId}/launcher.svg`} height={300} />
+        </TabsContent>
+
+        {/* ── hooks.ts — TypeScript event hooks ── */}
+        <TabsContent value="hooks" className="mt-4">
+          <LiveCodeEditor title="Widget Event Hooks (TypeScript)"
+            description="Full TypeScript hooks with autocomplete. Auto-generated template — uncomment any hook you need. Press Ctrl+Space for suggestions."
+            language="typescript" value={d.customInjectJs}
+            onChange={(v) => set("customInjectJs", v)}
+            path={`inmemory://widget/${kbId}/hooks.ts`} height={460} minimap
+            typescriptExtraLibs={tsLibs} />
           <p className="mt-3 text-xs text-amber-300/70 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-            <strong className="text-amber-200">Note:</strong> Hook code runs on the visitor&apos;s page. Keep it minimal. Errors are silently caught.
+            <strong className="text-amber-200">Note:</strong> Hook code runs on the visitor&apos;s page. TypeScript is transpiled at runtime. Errors are silently caught.
           </p>
         </TabsContent>
       </Tabs>
