@@ -115,6 +115,10 @@ export async function putConfigHandler(req: NextRequest, kbId: string): Promise<
       customHeaderHtml:s(body.customHeaderHtml), customFooterHtml:s(body.customFooterHtml),
       customThemeCss:s(body.customThemeCss), customInjectJs:s(body.customInjectJs),
       customPoweredBy:s(body.customPoweredBy),
+      // Voice mode design
+      voiceBtnBg:s(body.voiceBtnBg), voiceBtnSize:Number(body.voiceBtnSize)||36,
+      voiceBtnRadius:Number(body.voiceBtnRadius)||10, voiceBtnActiveColor:sn(body.voiceBtnActiveColor,"#ef4444"),
+      voicePanelBg:s(body.voicePanelBg), voiceWaveColor:sn(body.voiceWaveColor,"#6366f1"),
     };
     const config = await putAssistantConfig(kbId, input);
     return NextResponse.json(config);
