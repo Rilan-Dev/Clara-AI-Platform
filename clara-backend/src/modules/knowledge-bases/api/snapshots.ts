@@ -16,7 +16,7 @@ import {
   getSnapshot,
   snapshotConfig,
 } from "../core/snapshots-db";
-import type { PutAssistantConfigInput } from "../core/models";
+import type { AssistantConfig, PutAssistantConfigInput } from "../core/models";
 
 // ── GET /api/kbs/[kbId]/config/snapshots ─────────────────────────────────────
 
@@ -98,7 +98,7 @@ export async function restoreSnapshotHandler(
     }
 
     // Restore: write the snapshot's config as the live config
-    const s = snap.snapshot as any;
+    const s = snap.snapshot as Partial<AssistantConfig>;
     const input = {
       assistantName:    s.assistantName,
       avatarUrl:        s.avatarUrl,
