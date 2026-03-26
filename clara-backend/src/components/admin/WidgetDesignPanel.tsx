@@ -713,7 +713,8 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
             </div>
           )}
         </div>
-        {d.customHeaderHtml && (
+        {/* Header slot — guard: skip if it looks like a full HTML page (corruption from old bug) */}
+        {d.customHeaderHtml && !d.customHeaderHtml.includes("<!DOCTYPE") && !d.customHeaderHtml.includes("<html") && d.customHeaderHtml.length < 2000 && (
           <div dangerouslySetInnerHTML={{ __html: d.customHeaderHtml }} className="flex items-center" />
         )}
       </div>
@@ -1625,6 +1626,10 @@ function AdvancedCodePanel({ d, set, kbId }: {
   kbId: string;
 }) {
   const [activeTab, setActiveTab] = useState("theme");
+  // widgetHtml is LOCAL-ONLY — it's always generated from visual settings
+  // It is NOT saved to the DB (the full HTML template is a deploy artifact, not a stored config)
+  const [widgetHtml, setWidgetHtml] = useState(() => generateFullHtmlTemplate(d));
+  const [widgetHtmlCopied, setWidgetHtmlCopied] = useState(false);
 
   // On first mount, pre-fill empty code fields with generated code from visual controls
   useEffect(() => {
@@ -1638,6 +1643,14 @@ function AdvancedCodePanel({ d, set, kbId }: {
     set("customThemeCss", generateThemeCss(d));
     set("customInjectJs",  generateInjectJs(d));
     set("customCss",        generateCustomCss(d));
+    setWidgetHtml(generateFullHtmlTemplate(d));
+  }
+
+  function copyWidgetHtml() {
+    navigator.clipboard.writeText(widgetHtml).then(() => {
+      setWidgetHtmlCopied(true);
+      setTimeout(() => setWidgetHtmlCopied(false), 2000);
+    }).catch(() => {});
   }
 
   // TypeScript extra libs — give Monaco full Clara widget type knowledge
@@ -1742,24 +1755,66 @@ function AdvancedCodePanel({ d, set, kbId }: {
           </div>
         </TabsContent>
 
-        {/* ── widget.html — full HTML + Tailwind + JS template ── */}
+        {/* ── widget.html — full HTML + Tailwind + JS template (LOCAL-ONLY, not saved to DB) ── */}
         <TabsContent value="widget" className="mt-4">
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 mb-4">
-            <p className="text-xs text-cyan-200/80 leading-relaxed">
-              <strong className="text-cyan-200">🌐 Full HTML Widget Template</strong> — includes Tailwind CDN, all CSS variables, and a complete JS controller.
-              Use any Tailwind class (<code className="bg-white/10 rounded px-1 text-[11px]">flex</code>, <code className="bg-white/10 rounded px-1 text-[11px]">rounded-2xl</code>, etc.) directly in the HTML.
-              This template can be deployed as a standalone page or embedded in an iframe.
-            </p>
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 mb-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs text-cyan-200/80 leading-relaxed">
+                <strong className="text-cyan-200">🌐 Full HTML Widget Template</strong> — generated from your Visual Controls.
+                Includes <strong className="text-cyan-100">Tailwind CDN</strong>, all CSS variables, and a complete JS controller.
+                The live iframe preview on the right shows exactly how it renders with Tailwind classes loaded.
+              </p>
+              <button onClick={copyWidgetHtml}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30
+                  bg-cyan-600/10 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-600/20 transition-all">
+                {widgetHtmlCopied ? <><Check className="h-3 w-3" /> Copied!</> : <>📋 Copy code</>}
+              </button>
+            </div>
           </div>
-          <LiveCodeEditor
-            title="Full Widget HTML Template (Tailwind + CSS + JS)"
-            description="Complete standalone widget with Tailwind CSS, CSS variables, and a JavaScript controller. Edit the HTML structure, classes, and logic freely."
-            language="html"
-            value={d.customHeaderHtml ? d.customHeaderHtml : generateFullHtmlTemplate(d)}
-            onChange={(v) => set("customHeaderHtml", v)}
-            path={`inmemory://widget/${kbId}/widget-full.html`} height={600} minimap />
-          <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-300/70">
-            <strong className="text-amber-200">Tip:</strong> This is the full page template. Use Tailwind classes like <code className="bg-white/10 rounded px-1">bg-indigo-600</code>, <code className="bg-white/10 rounded px-1">rounded-2xl</code>, <code className="bg-white/10 rounded px-1">shadow-xl</code> anywhere in the HTML. The CSS classes from theme.css are also available.
+          {/* Split: editor + live iframe preview with Tailwind */}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div>
+              <LiveCodeEditor
+                title="Full Widget HTML Template (Tailwind + CSS + JS)"
+                description="Complete standalone widget. Tailwind classes work here — see the live preview update on the right as you edit."
+                language="html"
+                value={widgetHtml}
+                onChange={setWidgetHtml}
+                path={`inmemory://widget/${kbId}/widget-full.html`} height={560} minimap />
+            </div>
+            {/* Live Tailwind iframe preview */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live HTML Preview</p>
+                <span className="text-[10px] text-cyan-400/70 bg-cyan-500/10 border border-cyan-500/20 rounded px-2 py-0.5">Tailwind loaded ✓</span>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
+                <div className="flex items-center gap-1.5 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                  {["rose-400/70","amber-300/70","emerald-400/70"].map((c) => (
+                    <span key={c} className={`h-2 w-2 rounded-full bg-${c}`} />
+                  ))}
+                  <span className="ml-2 text-[10px] text-white/30">widget.html — live render</span>
+                </div>
+                <iframe
+                  title="Widget HTML preview"
+                  srcDoc={widgetHtml}
+                  className="w-full bg-white"
+                  style={{ height: 520 }}
+                  sandbox="allow-scripts allow-same-origin"
+                />
+              </div>
+              <p className="text-[11px] text-white/25 text-center">
+                Renders the actual HTML with Tailwind CDN. Edit the code → see it live.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center gap-2">
+            <span className="text-[11px] text-amber-300/80">💡</span>
+            <span className="text-[11px] text-white/40">
+              This template is <strong className="text-white/60">not saved to the database</strong> — use{" "}
+              <strong className="text-white/60">"Sync from visual"</strong> to regenerate from your Visual Controls at any time.
+              Tailwind classes like <code className="bg-white/10 rounded px-1">rounded-2xl</code>, <code className="bg-white/10 rounded px-1">shadow-xl</code>, <code className="bg-white/10 rounded px-1">bg-indigo-600</code> all work.
+            </span>
           </div>
         </TabsContent>
 
@@ -1944,7 +1999,12 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
             ? data.messageAnimationStyle : "fade") as WidgetDesign["messageAnimationStyle"],
           customCss:         String(data.customCss         ?? ""),
           customLauncherSvg: String(data.customLauncherSvg ?? ""),
-          customHeaderHtml:  String(data.customHeaderHtml  ?? ""),
+          customHeaderHtml: (() => {
+            const raw = String(data.customHeaderHtml ?? "");
+            // Clear if corrupted (contains a full HTML page from the old widget.html bug)
+            if (raw.includes("<!DOCTYPE") || raw.includes("<html") || raw.length > 2000) return "";
+            return raw;
+          })(),
           customFooterHtml:  String(data.customFooterHtml  ?? ""),
           customThemeCss:    String(data.customThemeCss    ?? ""),
           customInjectJs:    String(data.customInjectJs    ?? ""),
@@ -1964,6 +2024,12 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
     setSaving(true); setErr(null); setSaved(false);
     try {
       const body: Record<string, unknown> = { ...design };
+      // Guard: if customHeaderHtml was corrupted by the old widget.html bug, clear it
+      if (typeof body.customHeaderHtml === "string" &&
+          (body.customHeaderHtml.includes("<!DOCTYPE") || body.customHeaderHtml.includes("<html") ||
+           (body.customHeaderHtml as string).length > 2000)) {
+        body.customHeaderHtml = null;
+      }
       // Coerce empty strings to null for nullable DB columns
       const nullable = ["headerBg","chatAreaBg","userBubbleBg","botBubbleBg","botBubbleText",
         "botBubbleBorder","inputBg","inputBorder","inputBorderFocus","inputTextColor",
