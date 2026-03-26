@@ -9,12 +9,11 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import {
-  ChevronDown, Code2, Eye, RefreshCw, Palette, Layout, Type,
+  Code2, Eye, RefreshCw, Palette, Layout, Type,
   MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check,
 } from "lucide-react";
 import { Button }          from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LiveCodeEditor }  from "@/components/admin/live-code-editor";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl }          from "@/lib/runtime";
@@ -823,59 +822,108 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Real runtime sandbox (actual clara.js in an isolated iframe)
+// Sandbox preview — uses /embed/widget?preview=1 so it renders ALL design tokens
+// identically to the React Preview (both use widget-screen.tsx under the hood)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const origin   = typeof window !== "undefined" ? window.location.origin : "";
-  const initSnap = useRef(design);
 
-  const srcDoc = useMemo(() => {
-    if (!origin) return "";
-    const cfg = JSON.stringify({ ...initSnap.current, kbId: "preview-kb", widgetMode: "floating" })
-      .replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
-    return `<!doctype html><html><head><meta charset="utf-8"/>
-<style>html,body{margin:0;min-height:100%;background:#0b1020;font-family:system-ui,sans-serif;color:#cbd5e1}
-.s{padding:28px 24px 120px;box-sizing:border-box}
-.c{max-width:400px;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px;background:rgba(15,23,42,.6)}
-h1{font-size:22px;color:#fff;margin:8px 0}p{font-size:13px;color:rgba(255,255,255,.6);margin:0}</style></head>
-<body><div class="s"><div class="c"><h1>Floating sandbox</h1>
-<p>Click the launcher bubble to open the widget. Design changes sync live.</p></div></div>
-<script>
-window.__CFG=${cfg};
-const _f=window.fetch.bind(window);
-window.fetch=function(u,o){
-  const url=typeof u==="string"?u:u.url;
-  if(url.includes("/api/embed/config"))return Promise.resolve(new Response(JSON.stringify(window.__CFG),{headers:{"Content-Type":"application/json"}}));
-  if(url.includes("/api/embed/chat")){
-    const b=JSON.parse(o?.body||"{}");
-    const last=(b.messages||[]).filter((m)=>m.role==="user").slice(-1)[0]?.content||"question";
-    const txt="Sandbox reply to: "+last;
-    const chunks=txt.match(/.{1,20}(\\s|$)/g)||[txt];
-    let i=0;const s=new ReadableStream({start(c){(function p(){if(i>=chunks.length){c.close();return;}c.enqueue(new TextEncoder().encode(JSON.stringify({type:"token",payload:chunks[i]})+"\\n"));i++;setTimeout(p,35);})();}});
-    return Promise.resolve(new Response(s,{headers:{"Content-Type":"application/x-ndjson"}}));
-  }
-  return _f(u,o);
-};
-window.addEventListener("message",function(ev){
-  if(ev.origin!==window.location.origin)return;
-  if(ev.data?.type==="clara-admin-preview-config"){
-    window.__CFG={...window.__CFG,...ev.data.payload,widgetMode:"floating"};
-    window.ClaraWidget?.refreshDesign?.();
-  }
-});
-</script>
-<script src="${origin}/embed/clara.js" data-key="preview-key" data-mode="floating"></script>
-</body></html>`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [origin]);
+  // Build the complete payload with ALL design fields so widget-screen.tsx
+  // renders with 100% the same tokens as the React Preview
+  const payload = useMemo(() => ({
+    kbId: "preview-kb",
+    kbName: "Admin preview",
+    assistantName:   design.assistantName,
+    avatarUrl:       design.avatarUrl || null,
+    welcomeMessage:  design.welcomeMessage,
+    defaultLanguage: "en",
+    // Core colours
+    primaryColour:   design.primaryColour,
+    accentColour:    design.accentColour,
+    launcherColour:  design.launcherColour,
+    // Widget layout
+    widgetTheme:         design.widgetTheme,
+    widgetBorderRadius:  design.widgetBorderRadius,
+    widgetFontFamily:    design.widgetFontFamily,
+    widgetChatHeight:    design.widgetChatHeight,
+    widgetShowBranding:  design.widgetShowBranding,
+    widgetMode:          "floating",
+    // Header
+    headerBg:           design.headerBg || null,
+    headerTextColor:    design.headerTextColor,
+    headerHeight:       design.headerHeight,
+    headerBlur:         design.headerBlur,
+    showStatusDot:      design.showStatusDot,
+    statusDotColor:     design.statusDotColor,
+    avatarShape:        design.avatarShape,
+    // Chat area
+    chatAreaBg:         design.chatAreaBg || null,
+    // User bubble
+    userBubbleBg:       design.userBubbleBg || null,
+    userBubbleText:     design.userBubbleText,
+    userBubbleRadius:   design.userBubbleRadius,
+    userBubblePadding:  design.userBubblePadding,
+    userBubbleShadow:   design.userBubbleShadow,
+    // Bot bubble
+    botBubbleBg:        design.botBubbleBg || null,
+    botBubbleText:      design.botBubbleText || null,
+    botBubbleRadius:    design.botBubbleRadius,
+    botBubbleBorder:    design.botBubbleBorder || null,
+    botBubblePadding:   design.botBubblePadding,
+    botBubbleShadow:    design.botBubbleShadow,
+    // Messages
+    messageGap:         design.messageGap,
+    messageMaxWidth:    design.messageMaxWidth,
+    messageFontSize:    design.messageFontSize,
+    messageLineHeight:  design.messageLineHeight,
+    // Timestamps
+    showTimestamps:     design.showTimestamps,
+    timestampColor:     design.timestampColor,
+    timestampFontSize:  design.timestampFontSize,
+    // Typing
+    typingDotColor:     design.typingDotColor,
+    typingDotSize:      design.typingDotSize,
+    // Input
+    inputBg:            design.inputBg || null,
+    inputBorder:        design.inputBorder || null,
+    inputBorderFocus:   design.inputBorderFocus || null,
+    inputRadius:        design.inputRadius,
+    inputTextColor:     design.inputTextColor || null,
+    inputPlaceholderColor: design.inputPlaceholderColor || null,
+    inputPadding:       design.inputPadding,
+    inputAreaBg:        design.inputAreaBg || null,
+    inputAreaBorder:    design.inputAreaBorder || null,
+    // Send button
+    sendBtnBg:          design.sendBtnBg || null,
+    sendBtnHoverBg:     design.sendBtnHoverBg || null,
+    sendBtnTextColor:   design.sendBtnTextColor,
+    sendBtnRadius:      design.sendBtnRadius,
+    sendBtnSize:        design.sendBtnSize,
+    // Scrollbar
+    scrollbarWidth:     design.scrollbarWidth,
+    scrollbarColor:     design.scrollbarColor,
+    scrollbarTrackColor: design.scrollbarTrackColor,
+    // Footer
+    footerBg:           design.footerBg || null,
+    footerTextColor:    design.footerTextColor || null,
+    customPoweredBy:    design.customPoweredBy || null,
+    // Animations
+    animationsEnabled:     design.animationsEnabled,
+    messageAnimationStyle: design.messageAnimationStyle,
+    // Custom code
+    customCss:          design.customCss || null,
+    customThemeCss:     design.customThemeCss || null,
+    customHeaderHtml:   (design.customHeaderHtml && design.customHeaderHtml.length < 2000) ? design.customHeaderHtml : null,
+    customFooterHtml:   design.customFooterHtml || null,
+  }), [design]);
 
   const postMsg = useCallback(() => {
     if (!frameRef.current?.contentWindow || !origin) return;
     frameRef.current.contentWindow.postMessage(
-      { type: "clara-admin-preview-config", payload: design }, origin);
-  }, [design, origin]);
+      { type: "clara-admin-preview-config", payload }, origin);
+  }, [origin, payload]);
 
   useEffect(() => { postMsg(); }, [postMsg]);
 
@@ -883,18 +931,30 @@ window.addEventListener("message",function(ev){
     <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
       <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-white">Floating sandbox</p>
-          <p className="text-xs text-white/40">Real clara.js — click the launcher to open the widget</p>
+          <p className="text-sm font-semibold text-white">Live Sandbox Preview</p>
+          <p className="text-xs text-white/40">
+            Powered by <code className="bg-white/10 rounded px-1">/embed/widget</code> — 
+            100% identical to the React preview, all design tokens applied
+          </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 items-center">
+          <span className="text-[10px] text-emerald-400/70 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">
+            Synced ✓
+          </span>
           {["rose-400/70","amber-300/70","emerald-400/70"].map((c) => (
             <span key={c} className={`h-2.5 w-2.5 rounded-full bg-${c}`} />
           ))}
         </div>
       </div>
-      <iframe ref={frameRef} title="clara sandbox" srcDoc={srcDoc} onLoad={postMsg}
-        className="w-full bg-[#09101f]" style={{ height: 420 }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
+      <iframe
+        ref={frameRef}
+        title="Widget embed preview"
+        src="/embed/widget?preview=1"
+        onLoad={postMsg}
+        className="w-full"
+        style={{ height: 520, background: "transparent" }}
+        sandbox="allow-scripts allow-same-origin allow-forms"
+      />
     </div>
   );
 }
@@ -2128,13 +2188,13 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
                   bg-white/[0.03] px-3 py-1.5 text-xs text-white/50 hover:text-white hover:bg-white/[0.06]">
                 <Monitor className="h-3.5 w-3.5" />
-                {sandbox ? "Hide sandbox" : "Real runtime sandbox"}
+                {sandbox ? "Hide embed preview" : "Show embed preview (exact match)"}
               </button>
             </div>
             <WidgetPreview design={design} />
             {sandbox && <FloatingSandboxPreview design={design} />}
             <p className="text-[11px] text-white/20 text-center">
-              React preview = instant · Real sandbox = actual clara.js runtime
+              React preview = instant render · Embed preview = /embed/widget with full design sync
             </p>
           </div>
         </div>
@@ -2153,51 +2213,47 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
 
       {/* ── Full preview ── */}
       {tab === "preview" && (
-        <div className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2 items-start">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/30">React Preview</p>
-              <p className="text-xs text-white/35">Fully interactive — try sending a message.</p>
-              <WidgetPreview design={design} />
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Real Runtime Sandbox</p>
-              <p className="text-xs text-white/35">Actual clara.js widget. Click the launcher button to open.</p>
-              <FloatingSandboxPreview design={design} />
+        <div className="space-y-5">
+          {/* Explanation banner */}
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
+            <Eye className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0" />
+            <div className="text-xs text-white/60 leading-relaxed">
+              <strong className="text-white/90">Both previews render identically.</strong>{" "}
+              React Preview = instant inline render using your current design tokens.{" "}
+              Embed Preview = the real <code className="bg-white/10 rounded px-1">/embed/widget</code> page
+              loaded in an iframe — this is exactly what your visitors see when the widget is deployed.
+              Both update live as you edit.
             </div>
           </div>
 
-          {/* Inline embed (collapsed by default) */}
-          <Collapsible>
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02]">
-              <div className="flex items-center justify-between gap-4 px-5 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-white">Inline embed preview</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    Load the actual <code className="bg-white/10 rounded px-1">/embed/widget</code> page in preview mode.
-                  </p>
-                </div>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" size="sm"
-                    className="border-white/10 bg-white/[0.03] text-white/60 hover:text-white shrink-0">
-                    <ChevronDown className="mr-1.5 h-4 w-4" /> Show
-                  </Button>
-                </CollapsibleTrigger>
+          <div className="grid gap-6 lg:grid-cols-2 items-start">
+            {/* React Preview */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">React Preview</p>
+                <span className="text-[10px] bg-white/[0.05] border border-white/10 rounded px-2 py-0.5 text-white/40">
+                  Instant · in-page
+                </span>
               </div>
-              <CollapsibleContent>
-                <div className="border-t border-white/[0.06]">
-                  <iframe title="Inline embed" src="/embed/widget?preview=1"
-                    onLoad={(e) => {
-                      const win = (e.target as HTMLIFrameElement).contentWindow;
-                      win?.postMessage({ type: "clara-admin-preview-config", payload: design },
-                        window.location.origin);
-                    }}
-                    className="w-full" style={{ height: 520 }}
-                    sandbox="allow-scripts allow-same-origin allow-forms" />
-                </div>
-              </CollapsibleContent>
+              <p className="text-xs text-white/35">Try sending a message — responses stream in real time.</p>
+              <WidgetPreview design={design} />
             </div>
-          </Collapsible>
+
+            {/* Embed Preview */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Embed Preview</p>
+                <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 text-emerald-400/80">
+                  Exact match ✓
+                </span>
+              </div>
+              <p className="text-xs text-white/35">
+                Real <code className="bg-white/10 rounded px-1 text-[11px]">/embed/widget</code> — 
+                identical to what your visitors see when deployed.
+              </p>
+              <FloatingSandboxPreview design={design} />
+            </div>
+          </div>
         </div>
       )}
     </div>

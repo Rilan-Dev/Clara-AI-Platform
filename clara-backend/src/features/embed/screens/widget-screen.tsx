@@ -97,6 +97,8 @@ function WidgetContent() {
   const [input, setInput]             = useState("");
   const [loading, setLoading]         = useState(false);
   const [configLoading, setCL]        = useState(true);
+  const [avatarImgErr, setAvatarImgErr] = useState(false);
+  const [sendHovered, setSendHovered] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
 
@@ -124,6 +126,7 @@ function WidgetContent() {
       const d = ev.data as { type?: string; payload?: AssistantConfig } | null;
       if (d?.type !== "clara-admin-preview-config" || !d.payload) return;
       setConfig(d.payload);
+      setAvatarImgErr(false);  // reset avatar error on new config
       setMessages([{ id: "welcome", role: "assistant", content: d.payload.welcomeMessage }]);
       setError(null);
       setCL(false);
@@ -191,54 +194,76 @@ function WidgetContent() {
   }, [input, loading, config, messages, apiKey, isPreview]);
 
 
-  // ── Resolve design tokens ───────────────────────────────────────────────────
-  const primary     = config?.primaryColour   ?? "#6366f1";
-  const accent      = config?.accentColour    ?? "#818cf8";
-  const dark        = config?.widgetTheme === "dark";
-  const hdrBg       = config?.headerBg        || primary;
-  const hdrTxt      = config?.headerTextColor || "#ffffff";
-  const hdrH        = config?.headerHeight    ?? 60;
-  const chatBg      = config?.chatAreaBg      || (dark ? "#0f0f1a" : "#f8f9fd");
-  const userBg      = config?.userBubbleBg    || primary;
-  const userTxt     = config?.userBubbleText  || "#ffffff";
-  const userR       = config?.userBubbleRadius  || "18px 18px 4px 18px";
-  const userP       = config?.userBubblePadding || "10px 14px";
-  const userShadow  = config?.userBubbleShadow  || "0 1px 4px rgba(0,0,0,0.15)";
-  const botBg       = config?.botBubbleBg     || (dark ? "#2a2a40" : "#f0f0f8");
-  const botTxt      = config?.botBubbleText   || (dark ? "#e2e2f0" : "#1f2937");
-  const botR        = config?.botBubbleRadius  || "18px 18px 18px 4px";
-  const botP        = config?.botBubblePadding || "10px 14px";
-  const botBorder   = config?.botBubbleBorder || `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
-  const botShadow   = config?.botBubbleShadow || "0 1px 3px rgba(0,0,0,0.08)";
-  const msgGap      = config?.messageGap      ?? 12;
-  const msgMaxW     = config?.messageMaxWidth ?? 85;
-  const fontSize    = config?.messageFontSize ?? 13;
-  const lineH       = config?.messageLineHeight ?? 1.5;
-  const fontFamily  = config?.widgetFontFamily || "system-ui,-apple-system,sans-serif";
+  // ── Resolve design tokens — explicit trim guards so empty string → fallback ─
+  const primary  = (config?.primaryColour  && config.primaryColour.trim())  ? config.primaryColour.trim()  : "#6366f1";
+  const accent   = (config?.accentColour   && config.accentColour.trim())   ? config.accentColour.trim()   : "#818cf8";
+  const dark     = config?.widgetTheme === "dark";
+
+  const hdrBg    = (config?.headerBg       && config.headerBg.trim())       ? config.headerBg.trim()       : primary;
+  const hdrTxt   = (config?.headerTextColor && config.headerTextColor.trim()) ? config.headerTextColor.trim() : "#ffffff";
+  const hdrH     = config?.headerHeight    ?? 60;
+
+  const chatBg   = (config?.chatAreaBg     && config.chatAreaBg.trim())     ? config.chatAreaBg.trim()
+                   : (dark ? "#0f0f1a" : "#f8f9fd");
+
+  const userBg   = (config?.userBubbleBg   && config.userBubbleBg.trim())   ? config.userBubbleBg.trim()   : primary;
+  const userTxt  = (config?.userBubbleText  && config.userBubbleText.trim()) ? config.userBubbleText.trim() : "#ffffff";
+  const userR    = config?.userBubbleRadius  || "18px 18px 4px 18px";
+  const userP    = config?.userBubblePadding || "10px 14px";
+  const userShadow = config?.userBubbleShadow || "0 1px 4px rgba(0,0,0,0.15)";
+
+  const botBg    = (config?.botBubbleBg    && config.botBubbleBg.trim())    ? config.botBubbleBg.trim()
+                   : (dark ? "#2a2a40" : "#f0f0f8");
+  const botTxt   = (config?.botBubbleText  && config.botBubbleText.trim())  ? config.botBubbleText.trim()
+                   : (dark ? "#e2e2f0" : "#1f2937");
+  const botR     = config?.botBubbleRadius  || "18px 18px 18px 4px";
+  const botP     = config?.botBubblePadding || "10px 14px";
+  const botBorder  = (config?.botBubbleBorder && config.botBubbleBorder.trim()) ? config.botBubbleBorder.trim()
+                   : `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
+  const botShadow  = config?.botBubbleShadow || "0 1px 3px rgba(0,0,0,0.08)";
+
+  const msgGap   = config?.messageGap      ?? 12;
+  const msgMaxW  = config?.messageMaxWidth ?? 85;
+  const fontSize = config?.messageFontSize ?? 13;
+  const lineH    = config?.messageLineHeight ?? 1.5;
+
+  const fontFamily  = (config?.widgetFontFamily && config.widgetFontFamily.trim())
+                      ? config.widgetFontFamily.trim() : "system-ui,-apple-system,sans-serif";
   const radius      = config?.widgetBorderRadius ?? 18;
-  const inputBg     = config?.inputBg         || (dark ? "#1a1a2e" : "#ffffff");
-  const inputBrd    = config?.inputBorder      || `1px solid ${dark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`;
-  const inputR      = config?.inputRadius     ?? 12;
-  const inputTxt    = config?.inputTextColor  || (dark ? "#e2e2f0" : "#1f2937");
-  const inputPh     = config?.inputPlaceholderColor || (dark ? "#555575" : "#9ca3af");
+
+  const inputBg  = (config?.inputBg        && config.inputBg.trim())        ? config.inputBg.trim()
+                   : (dark ? "#1a1a2e" : "#ffffff");
+  const inputBrd = (config?.inputBorder    && config.inputBorder.trim())    ? config.inputBorder.trim()
+                   : `1px solid ${dark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`;
+  const inputR   = config?.inputRadius     ?? 12;
+  const inputTxt = (config?.inputTextColor && config.inputTextColor.trim()) ? config.inputTextColor.trim()
+                   : (dark ? "#e2e2f0" : "#1f2937");
+  const inputPh  = (config?.inputPlaceholderColor && config.inputPlaceholderColor.trim())
+                   ? config.inputPlaceholderColor.trim()
+                   : (dark ? "#555575" : "#9ca3af");
   const inputPad    = config?.inputPadding    || "8px 12px";
-  const inputAreaBg = config?.inputAreaBg     || (dark ? "#0f0f1a" : "#ffffff");
-  const inputAreaB  = config?.inputAreaBorder || `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
-  const sendBg      = config?.sendBtnBg       || primary;
-  const sendR       = config?.sendBtnRadius   ?? 10;
-  const sendSz      = config?.sendBtnSize     ?? 36;
-  const sendTxt     = config?.sendBtnTextColor || "#ffffff";
-  const dotColor    = config?.typingDotColor  || "#9ca3af";
-  const dotSz       = config?.typingDotSize   ?? 6;
-  const scrollW     = config?.scrollbarWidth  ?? 4;
-  const scrollC     = config?.scrollbarColor  || "#c7d2fe";
-  const scrollT     = config?.scrollbarTrackColor || "transparent";
-  const footerTxt   = config?.footerTextColor || (dark ? "#3a3a5a" : "#d1d5db");
-  const footerBg2   = config?.footerBg        || "transparent";
-  const avatarBr    = config?.avatarShape === "square" ? "4px" : config?.avatarShape === "rounded" ? "8px" : "50%";
-  const animStyle   = config?.messageAnimationStyle ?? "fade";
-  const themeCss    = config?.customThemeCss  ?? "";
-  const customCss   = config?.customCss       ?? "";
+  const inputAreaBg = (config?.inputAreaBg    && config.inputAreaBg.trim())    ? config.inputAreaBg.trim()
+                      : (dark ? "#0f0f1a" : "#ffffff");
+  const inputAreaB  = (config?.inputAreaBorder && config.inputAreaBorder.trim()) ? config.inputAreaBorder.trim()
+                      : `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
+
+  const sendBg   = (config?.sendBtnBg      && config.sendBtnBg.trim())      ? config.sendBtnBg.trim()      : primary;
+  const sendR    = config?.sendBtnRadius   ?? 10;
+  const sendSz   = config?.sendBtnSize     ?? 36;
+  const sendTxt  = (config?.sendBtnTextColor && config.sendBtnTextColor.trim()) ? config.sendBtnTextColor.trim() : "#ffffff";
+  const dotColor   = (config?.typingDotColor  && config.typingDotColor.trim())  ? config.typingDotColor.trim()  : "#9ca3af";
+  const dotSz      = config?.typingDotSize   ?? 6;
+  const scrollW    = config?.scrollbarWidth  ?? 4;
+  const scrollC    = (config?.scrollbarColor && config.scrollbarColor.trim())   ? config.scrollbarColor.trim()   : "#c7d2fe";
+  const scrollT    = (config?.scrollbarTrackColor && config.scrollbarTrackColor.trim()) ? config.scrollbarTrackColor.trim() : "transparent";
+  const footerTxt  = (config?.footerTextColor && config.footerTextColor.trim()) ? config.footerTextColor.trim()
+                     : (dark ? "#4a4a6a" : "#d1d5db");
+  const footerBg2  = (config?.footerBg       && config.footerBg.trim())         ? config.footerBg.trim()         : "transparent";
+  const avatarBr   = config?.avatarShape === "square" ? "4px"
+                   : config?.avatarShape === "rounded" ? "8px" : "50%";
+  const animStyle  = config?.messageAnimationStyle ?? "fade";
+  const themeCss   = config?.customThemeCss  ?? "";
+  const customCss  = config?.customCss       ?? "";
 
   const globalCss = `
     .cw-msgs::-webkit-scrollbar { width: ${scrollW}px; }
@@ -254,7 +279,8 @@ function WidgetContent() {
     @keyframes cwSlideIn { from { opacity:0; transform:translateX(20px) } }
     @keyframes cwPopIn   { from { opacity:0; transform:scale(0.88) } }
     @keyframes cwBounce  { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
-    .clara-textarea::placeholder { color: ${inputPh}; }
+    textarea.clara-textarea::placeholder,
+    .clara-textarea::placeholder { color: ${inputPh} !important; }
     ${themeCss}
     ${customCss}
   `;
@@ -292,15 +318,23 @@ function WidgetContent() {
 
       {/* Header */}
       <div className="clara-header" style={{
-        display:"flex",alignItems:"center",gap:"12px",padding:`0 16px`,
-        height:hdrH,background:hdrBg,color:hdrTxt,flexShrink:0,
-        backdropFilter:config?.headerBlur?"blur(12px)":undefined,
+        display:"flex",alignItems:"center",gap:"12px",padding:"0 16px",
+        height:hdrH,
+        background:hdrBg,    /* explicit inline style — always wins over CSS class rules */
+        color:hdrTxt,
+        flexShrink:0,
+        backdropFilter:       config?.headerBlur ? "blur(12px)" : undefined,
+        WebkitBackdropFilter: config?.headerBlur ? "blur(12px)" : undefined,
       }}>
-        {config?.avatarUrl
-          ? <img src={config.avatarUrl} alt="" className="clara-avatar"
+        {config?.avatarUrl && !avatarImgErr
+          ? <img
+              key={config.avatarUrl}
+              src={config.avatarUrl} alt="" className="clara-avatar"
+              onError={() => setAvatarImgErr(true)}
               style={{ width:32,height:32,borderRadius:avatarBr,objectFit:"cover",flexShrink:0 }} />
           : <div className="clara-avatar" style={{
-              width:32,height:32,borderRadius:avatarBr,background:accent,color:primary,
+              width:32,height:32,borderRadius:avatarBr,background:accent,
+              color:hdrTxt,   /* use header text colour, not primary */
               display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,
               fontSize:14,flexShrink:0 }}>
               {avatarLetter}
@@ -397,28 +431,36 @@ function WidgetContent() {
             }}/>
           <button onClick={()=>void sendMessage()}
             disabled={!input.trim()||loading}
+            onMouseEnter={()=>setSendHovered(true)}
+            onMouseLeave={()=>setSendHovered(false)}
             className="clara-send-btn"
             style={{
               flexShrink:0,width:sendSz,height:sendSz,borderRadius:sendR,
-              background:(!input.trim()||loading)?(dark?"#2a2a40":"#e5e7eb"):sendBg,
+              background: (!input.trim()||loading)
+                ? (dark?"#2a2a40":"#e5e7eb")
+                : sendHovered
+                  ? ((config?.sendBtnHoverBg && config.sendBtnHoverBg.trim()) ? config.sendBtnHoverBg.trim() : sendBg)
+                  : sendBg,
               color:(!input.trim()||loading)?(dark?"#555":"#aaa"):sendTxt,
               border:"none",
               cursor:(!input.trim()||loading)?"not-allowed":"pointer",
               display:"flex",alignItems:"center",justifyContent:"center",
-              transition:"background 0.2s",
+              transition:"background 0.18s, transform 0.1s",
+              transform: sendHovered && input.trim() && !loading ? "scale(1.06)" : "scale(1)",
             }}>
             <svg className="clara-send-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
           </button>
         </div>
-        {config?.widgetShowBranding!==false&&(
-          <div className="clara-branding" style={{textAlign:"center",marginTop:8,
-            background:footerBg2}}>
+        {Boolean(config?.widgetShowBranding) && (
+          <div className="clara-branding" style={{textAlign:"center",marginTop:8,background:footerBg2}}>
             {config?.customFooterHtml
               ? <span dangerouslySetInnerHTML={{__html:config.customFooterHtml}}/>
               : <span style={{fontSize:10,color:footerTxt}}>
-                  {config?.customPoweredBy??"Powered by Clara AI"}
+                  {(config?.customPoweredBy && config.customPoweredBy.trim())
+                    ? config.customPoweredBy.trim()
+                    : "Powered by Clara AI"}
                 </span>
             }
           </div>
