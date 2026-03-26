@@ -16,14 +16,8 @@ export type KnowledgeBase = {
   updatedAt: string;
 };
 
-export type CreateKbInput = {
-  name: string;
-  description?: string;
-};
-
-export type UpdateKbInput = Partial<Pick<CreateKbInput, "name" | "description"> & {
-  status: "active" | "archived";
-}>;
+export type CreateKbInput  = { name: string; description?: string; };
+export type UpdateKbInput  = Partial<Pick<CreateKbInput, "name" | "description"> & { status: "active" | "archived"; }>;
 
 // ── Assistant Config ──────────────────────────────────────────────────────────
 
@@ -39,7 +33,7 @@ export type AssistantConfig = {
   systemPrompt: string;
   welcomeMessage: string;
   outOfScopeReply: string;
-  rules: string[];          // plain-English rule strings
+  rules: string[];
 
   // Language
   defaultLanguage: string;
@@ -70,47 +64,97 @@ export type AssistantConfig = {
   widgetChatHeight: number;
   widgetShowBranding: boolean;
   widgetLauncherLabel: string | null;
-  // Full design control
   widgetMode: "floating" | "inline" | "headless";
+
+  // ── Extended deep design fields ─────────────────────────────────────────────
+  // Header
+  headerBg: string | null;
+  headerTextColor: string;
+  headerHeight: number;
+  headerBlur: boolean;
+  showStatusDot: boolean;
+  statusDotColor: string;
+  avatarShape: "circle" | "rounded" | "square";
+
+  // Chat area
+  chatAreaBg: string | null;
+
+  // User bubble
+  userBubbleBg: string | null;
+  userBubbleText: string;
+  userBubbleRadius: string;
+  userBubblePadding: string;
+  userBubbleShadow: string;
+
+  // Bot bubble
+  botBubbleBg: string | null;
+  botBubbleText: string | null;
+  botBubbleRadius: string;
+  botBubbleBorder: string | null;
+  botBubblePadding: string;
+  botBubbleShadow: string;
+
+  // Message list
+  messageGap: number;
+  messageMaxWidth: number;
+  messageFontSize: number;
+  messageLineHeight: number;
+
+  // Timestamps
+  showTimestamps: boolean;
+  timestampColor: string;
+  timestampFontSize: number;
+
+  // Typing indicator
+  typingDotColor: string;
+  typingDotSize: number;
+
+  // Input area
+  inputBg: string | null;
+  inputBorder: string | null;
+  inputBorderFocus: string | null;
+  inputRadius: number;
+  inputTextColor: string | null;
+  inputPlaceholderColor: string | null;
+  inputPadding: string;
+  inputAreaBg: string | null;
+  inputAreaBorder: string | null;
+
+  // Send button
+  sendBtnBg: string | null;
+  sendBtnHoverBg: string | null;
+  sendBtnTextColor: string;
+  sendBtnRadius: number;
+  sendBtnSize: number;
+
+  // Scrollbar
+  scrollbarWidth: number;
+  scrollbarColor: string;
+  scrollbarTrackColor: string;
+
+  // Footer
+  footerBg: string | null;
+  footerTextColor: string | null;
+
+  // Animations
+  animationsEnabled: boolean;
+  messageAnimationStyle: "fade" | "slide" | "pop" | "none";
+
+  // Advanced code overrides
   customCss: string | null;
   customLauncherSvg: string | null;
   customHeaderHtml: string | null;
+  customFooterHtml: string | null;
+  customThemeCss: string | null;
+  customInjectJs: string | null;
   customPoweredBy: string | null;
 
   createdAt: string;
   updatedAt: string;
 };
 
-/** Full replace (PUT) — all fields required except id/kbId/timestamps */
+/** Full replace (PUT) */
 export type PutAssistantConfigInput = Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">;
 
-/** Partial update (PATCH) — any subset of config fields */
+/** Partial update (PATCH) */
 export type PatchAssistantConfigInput = Partial<PutAssistantConfigInput>;
-
-// ── KB AI Overrides ───────────────────────────────────────────────────────────
-
-export type AIProvider = "openai" | "gemini";
-
-export type KBAIOverrides = {
-  id: string;
-  kbId: string;
-  provider: AIProvider | null;
-  chatModel: string | null;
-  embeddingModel: string | null;
-  realtimeModel: string | null;
-  transcriptionModel: string | null;
-  disableVoice: boolean;
-  disablePublicEmbed: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type PatchKBAIOverridesInput = Partial<{
-  provider: AIProvider | null;
-  chatModel: string | null;
-  embeddingModel: string | null;
-  realtimeModel: string | null;
-  transcriptionModel: string | null;
-  disableVoice: boolean;
-  disablePublicEmbed: boolean;
-}>;
