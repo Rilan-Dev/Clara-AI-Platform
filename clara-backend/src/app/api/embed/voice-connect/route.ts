@@ -88,7 +88,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const resolved     = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    // Use surface:"chat" so resolveAIConfig doesn't throw on voice/embed flags.
+    // We only need model/voice/temperature params here — the session itself is
+    // what gates access, not the surface assertion.
+    const resolved     = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
     const model        = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice        = resolved.voiceId       ?? config.voiceId    ?? "alloy";

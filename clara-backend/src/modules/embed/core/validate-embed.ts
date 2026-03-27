@@ -237,13 +237,9 @@ export function requireVoiceAccess(
   ctx: EmbedContext,
   corsHeaders: Record<string, string>
 ): NextResponse | null {
-  if (!ctx.planLimits) {
-    // No plan found — deny by default
-    return NextResponse.json(
-      { error: "Voice access requires an active subscription. Please check your billing." },
-      { status: 403, headers: corsHeaders }
-    );
-  }
+  // No subscription plan found → allow voice (self-hosted / trial / no billing configured).
+  // Voice is blocked only when there is an explicit plan that disables it.
+  if (!ctx.planLimits) return null;
 
   if (!ctx.planLimits.voiceEnabled) {
     return NextResponse.json(

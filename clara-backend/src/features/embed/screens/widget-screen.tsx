@@ -169,24 +169,14 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
     dcRef.current = dc;
 
     dc.onopen = () => {
-      // Configure session — same as clara.js dc.onopen
-      sendJSON({
-        type: "session.update",
-        session: {
-          instructions: `You are Clara, a helpful voice assistant. Answer naturally and concisely using knowledge base context when available.`,
-          tools: [{ type: "function", name: "rag_search",
-            description: "Search the active knowledge base.",
-            parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
-          }],
-          tool_choice: "auto",
-          modalities: ["audio", "text"],
-          turn_detection: {
-            type: "server_vad", threshold: 0.5,
-            prefix_padding_ms: 300, silence_duration_ms: 600, create_response: false,
-          },
-        },
-      });
-      // Flush queued messages
+      // DO NOT send session.update here.
+      // The server (/api/embed/voice-connect) already configured the session
+      // with voice, modalities, turn_detection, input_audio_transcription, and
+      // tools. Sending session.update here would overwrite those settings,
+      // wiping out transcription and breaking the RAG → respond flow.
+      //
+      // Just flush any messages queued before the channel opened, then
+      // mark state as listening.
       const q = sendQueueRef.current.splice(0);
       for (const m of q) { try { dc.send(m); } catch {} }
       setVoiceState("listening");
@@ -233,36 +223,37 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
         onAssistantDoneRef.current?.();
         setVoiceState("listening");
       }
-      // rag_search tool call
+      // rag_search tool call — model-initiated (server configured tool_choice:auto)
+      // This fires if the model decides to call rag_search itself. We handle it
+      // so the model isn't left waiting for a tool response.
       if (type === "response.function_call_arguments.done") {
         const callId = String(msg.call_id ?? "");
         const name   = String(msg.name ?? "");
         if (name === "rag_search" && callId) {
           let args: Record<string, unknown> = {};
           try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {}
-          const q = String(args.query ?? "").trim();
-          if (q) {
-            fetch(baseUrl + "/api/embed/search", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ query: q, limit: 5 }),
+          const q = String(args.query ?? "").trim() || lastTranscriptRef.current;
+          const searchUrl = baseUrl + "/api/embed/search";
+          fetch(searchUrl, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ query: q, limit: 5 }),
+          })
+            .then((r) => r.ok ? r.json() : { context: "", sources: [] })
+            .then((payload: Record<string, unknown>) => {
+              sendJSON({ type: "conversation.item.create", item: {
+                type: "function_call_output", call_id: callId,
+                output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }),
+              }});
+              sendJSON({ type: "response.create", response: { tool_choice: "none" } });
             })
-              .then((r) => r.ok ? r.json() : { context: "" })
-              .then((payload: Record<string, unknown>) => {
-                sendJSON({ type: "conversation.item.create", item: {
-                  type: "function_call_output", call_id: callId,
-                  output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }),
-                }});
-                sendJSON({ type: "response.create" });
-              })
-              .catch(() => {
-                sendJSON({ type: "conversation.item.create", item: {
-                  type: "function_call_output", call_id: callId,
-                  output: JSON.stringify({ error: "search failed" }),
-                }});
-                sendJSON({ type: "response.create" });
-              });
-          }
+            .catch(() => {
+              sendJSON({ type: "conversation.item.create", item: {
+                type: "function_call_output", call_id: callId,
+                output: JSON.stringify({ error: "search failed" }),
+              }});
+              sendJSON({ type: "response.create", response: { tool_choice: "none" } });
+            });
         }
       }
     };
@@ -361,35 +352,40 @@ function WidgetContent() {
     };
 
     voice.onVoiceRagRef.current = (query) => {
+      // Fetch KB context then inject it + fire response.create.
+      // tool_choice:"none" prevents the model from calling rag_search again
+      // (it already has the context) which would cause a second response.
       fetch(baseUrl + "/api/embed/search", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query, limit: 5 }),
+        body: JSON.stringify({ query, limit: 6 }),
       })
-        .then((r) => r.ok ? r.json() : { context: "" })
+        .then((r) => r.ok ? r.json() : { context: "", sources: [] })
         .then((payload: Record<string, unknown>) => {
           const context = String(payload.context ?? "").trim();
           if (context) {
             voice.sendJSON({ type: "conversation.item.create", item: {
               type: "message", role: "system",
-              content: [{ type: "input_text", text: `Context from knowledge base:\n${context}` }],
+              content: [{ type: "input_text",
+                text: `Relevant information from the knowledge base:\n${context}` }],
             }});
           }
-          voice.sendJSON({ type: "conversation.item.create", item: {
-            type: "message", role: "user",
-            content: [{ type: "input_text", text: `Customer question:\n${query}` }],
-          }});
-          voice.sendJSON({ type: "response.create", response: {
-            instructions: "Answer the customer clearly and concisely using the provided knowledge base context.",
-            tool_choice: "none",
-          }});
-        })
-        .catch(() => {
+          // Inject the actual user question so the model answers it
           voice.sendJSON({ type: "conversation.item.create", item: {
             type: "message", role: "user",
             content: [{ type: "input_text", text: query }],
           }});
-          voice.sendJSON({ type: "response.create" });
+          // Fire exactly ONE response.create with tool_choice:none so the model
+          // speaks the answer immediately without calling rag_search again.
+          voice.sendJSON({ type: "response.create", response: { tool_choice: "none" } });
+        })
+        .catch(() => {
+          // Fallback: answer without context
+          voice.sendJSON({ type: "conversation.item.create", item: {
+            type: "message", role: "user",
+            content: [{ type: "input_text", text: query }],
+          }});
+          voice.sendJSON({ type: "response.create", response: { tool_choice: "none" } });
         });
     };
 
@@ -444,7 +440,11 @@ function WidgetContent() {
     return () => window.removeEventListener("message", handle);
   }, [isPreview]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    const scroller = bottomRef.current?.parentElement;
+    if (!scroller) return;
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
   // ── Chat send ─────────────────────────────────────────────────────────────
   const sendMessage = useCallback(async () => {
