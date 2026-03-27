@@ -242,6 +242,85 @@ function WidgetContent() {
     setMessages((prev) => [...prev, { id: `vu${Date.now()}`, role: "user", content: trimmed }]);
   }, []);
 
+  const sendVoiceJson = useCallback((payload: unknown) => {
+    const dc = dataChannelRef.current;
+    if (!dc || dc.readyState !== "open") return false;
+    try {
+      dc.send(JSON.stringify(payload));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const runVoiceRagAndRespond = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed || !apiKey) return;
+
+    addVoiceUserTranscript(trimmed);
+
+    try {
+      const res = await fetch(apiUrl("/api/embed/search"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query: trimmed, limit: 6 }),
+      });
+
+      let context = "";
+      if (res.ok) {
+        const payload = await res.json().catch(() => ({} as { context?: string }));
+        context = typeof payload.context === "string" ? payload.context.trim() : "";
+      }
+
+      if (context) {
+        sendVoiceJson({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "system",
+            content: [{ type: "input_text", text: `Context from knowledge base:\n${context}` }],
+          },
+        });
+      }
+
+      sendVoiceJson({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: `Customer question:\n${trimmed}` }],
+        },
+      });
+
+      sendVoiceJson({
+        type: "response.create",
+        response: {
+          instructions: "Answer the customer clearly and concisely using the provided knowledge base context when relevant.",
+          tool_choice: "none",
+        },
+      });
+    } catch {
+      sendVoiceJson({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: trimmed }],
+        },
+      });
+      sendVoiceJson({
+        type: "response.create",
+        response: {
+          instructions: "Answer the customer clearly and concisely.",
+          tool_choice: "none",
+        },
+      });
+    }
+  }, [addVoiceUserTranscript, apiKey, sendVoiceJson]);
+
   const waitForIceGathering = useCallback((pc: RTCPeerConnection) => {
     if (pc.iceGatheringState === "complete") return Promise.resolve();
     return new Promise<void>((resolve) => {
@@ -351,10 +430,19 @@ function WidgetContent() {
       setVoiceActive(true);
     };
 
+    dc.onclose = () => {
+      stopVoiceRuntime();
+    };
+
     dc.onmessage = (event) => {
       let msg: Record<string, unknown> | null = null;
       try { msg = JSON.parse(event.data); } catch { return; }
       if (!msg?.type) return;
+
+      if (msg.type === "input_audio_buffer.speech_started") {
+        pendingUserTranscriptRef.current = "";
+        return;
+      }
 
       if (msg.type === "conversation.item.input_audio_transcription.delta") {
         const delta = typeof msg.delta === "string" ? msg.delta : "";
@@ -367,7 +455,12 @@ function WidgetContent() {
           ? msg.transcript.trim()
           : pendingUserTranscriptRef.current.trim();
         pendingUserTranscriptRef.current = "";
-        if (transcript) addVoiceUserTranscript(transcript);
+        if (transcript) void runVoiceRagAndRespond(transcript);
+        return;
+      }
+
+      if (msg.type === "response.created") {
+        setVoiceActive(true);
         return;
       }
 
@@ -382,6 +475,11 @@ function WidgetContent() {
       }
 
       if (msg.type === "error") {
+        setMessages((prev) => [...prev, {
+          id: `ve${Date.now()}`,
+          role: "assistant",
+          content: typeof msg.message === "string" ? msg.message : "Voice connection failed.",
+        }]);
         stopVoiceRuntime();
       }
     };
@@ -412,7 +510,18 @@ function WidgetContent() {
     }
 
     await pc.setRemoteDescription({ type: "answer", sdp: payload.sdpAnswer });
-  }, [addVoiceUserTranscript, apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, stopVoiceRuntime, waitForIceGathering]);
+
+    const welcomeMessage = typeof payload.welcomeMessage === "string" ? payload.welcomeMessage.trim() : "";
+    if (welcomeMessage) {
+      sendVoiceJson({
+        type: "response.create",
+        response: {
+          instructions: `Greet the user with this message verbatim: ${JSON.stringify(welcomeMessage)}`,
+          tool_choice: "none",
+        },
+      });
+    }
+  }, [apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, runVoiceRagAndRespond, sendVoiceJson, stopVoiceRuntime, waitForIceGathering]);
 
   const sendMessage = useCallback(async (overrideText?: string) => {
     const nextText = (overrideText ?? input).trim();
