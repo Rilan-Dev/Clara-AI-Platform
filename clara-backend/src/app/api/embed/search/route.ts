@@ -35,7 +35,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const validation = await validateEmbedRequest(req);
       if (!validation.ok) return validation.response;
       kbId        = validation.ctx.kbId;
-      corsHeaders = buildCorsHeaders(req.headers.get("origin"), validation.ctx.allowedOrigins);
+      corsHeaders = buildCorsHeaders(req.headers.get("origin"), validation.ctx.allowedOrigins, req.nextUrl.origin);
     }
 
     const body  = (await req.json()) as { query?: string; limit?: number };

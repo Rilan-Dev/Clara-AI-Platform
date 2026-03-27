@@ -226,7 +226,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const { ctx } = validation;
 
     const origin = req.headers.get("origin");
-    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
+  const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
     const config = await getAssistantConfig(ctx.kbId);
     if (!config) {
@@ -274,7 +274,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const { ctx } = validation;
 
     const origin = req.headers.get("origin");
-    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
+  const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
     let body: Record<string, unknown>;
     try {

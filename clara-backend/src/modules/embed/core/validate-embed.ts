@@ -53,9 +53,10 @@ const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 export function buildCorsHeaders(
   origin: string | null,
-  allowedOrigins: string[]
+  allowedOrigins: string[],
+  selfOrigin?: string | null,
 ): Record<string, string> {
-  const allowOrigin = resolveAllowedOrigin(origin, allowedOrigins);
+  const allowOrigin = resolveAllowedOrigin(origin, allowedOrigins, selfOrigin);
   return {
     "Access-Control-Allow-Origin":      allowOrigin,
     "Access-Control-Allow-Methods":     "GET, POST, PATCH, PUT, DELETE, OPTIONS",
@@ -66,7 +67,11 @@ export function buildCorsHeaders(
   };
 }
 
-function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[]): string {
+function normalizeOrigin(origin: string): string {
+  return origin.replace(/\/$/, "").toLowerCase();
+}
+
+function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[], selfOrigin?: string | null): string {
   if (!allowedOrigins || allowedOrigins.length === 0) return origin ?? "*";
   if (!origin) return "null";
 
@@ -74,10 +79,12 @@ function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[]): 
   // accepts the response even if the DB list only has the production domain.
   if (LOCALHOST_RE.test(origin)) return origin;
 
-  const normalizedOrigin = origin.replace(/\/$/, "").toLowerCase();
+  const normalizedOrigin = normalizeOrigin(origin);
+
+  if (selfOrigin && normalizedOrigin === normalizeOrigin(selfOrigin)) return origin;
 
   for (const allowed of allowedOrigins) {
-    const normalizedAllowed = allowed.replace(/\/$/, "").toLowerCase();
+    const normalizedAllowed = normalizeOrigin(allowed);
     if (normalizedAllowed.startsWith("*.")) {
       if (normalizedOrigin.endsWith(normalizedAllowed.slice(1))) return origin;
     } else if (normalizedOrigin === normalizedAllowed) {
@@ -88,13 +95,14 @@ function resolveAllowedOrigin(origin: string | null, allowedOrigins: string[]): 
   return "null";
 }
 
-function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boolean {
+function isOriginAllowed(origin: string | null, allowedOrigins: string[], selfOrigin?: string | null): boolean {
   // Empty list → unrestricted (key created without an origin whitelist)
   if (!allowedOrigins || allowedOrigins.length === 0) return true;
   // No Origin header → server-to-server / curl / Postman — always allow
   if (!origin) return true;
   // Localhost is always allowed for developer convenience
   if (LOCALHOST_RE.test(origin)) return true;
+  if (selfOrigin && normalizeOrigin(origin) === normalizeOrigin(selfOrigin)) return true;
   // Normalise http↔https: if the DB has http://example.com, also accept https://example.com
   // and vice versa. This prevents breakage when a site upgrades to HTTPS but the stored
   // origin still has the http:// variant.
@@ -102,7 +110,7 @@ function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boole
     origin,
     origin.startsWith("https://") ? origin.replace("https://", "http://") : origin.replace("http://", "https://"),
   ];
-  return normalised.some(o => resolveAllowedOrigin(o, allowedOrigins) !== "null");
+  return normalised.some(o => resolveAllowedOrigin(o, allowedOrigins, selfOrigin) !== "null");
 }
 
 // ── Main validator ────────────────────────────────────────────────────────────
@@ -137,11 +145,12 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
 
   // ── 3. Origin check ─────────────────────────────────────────────────────────
   const origin = req.headers.get("origin");
-  if (!isOriginAllowed(origin, keyCtx.allowedOrigins)) {
+  const selfOrigin = req.nextUrl.origin;
+  if (!isOriginAllowed(origin, keyCtx.allowedOrigins, selfOrigin)) {
     // Include CORS headers even on rejection so the browser can read the error
     // message in the console instead of showing a blank "CORS error".
     // This matches the standard approach used by Stripe, Pusher, etc.
-    const rejectCorsHeaders = buildCorsHeaders(origin, []);
+    const rejectCorsHeaders = buildCorsHeaders(origin, [], selfOrigin);
     return {
       ok: false,
       response: NextResponse.json(
@@ -256,7 +265,7 @@ export function handlePreflight(req: NextRequest, allowedOrigins: string[] = [])
   const origin = req.headers.get("origin");
   // For preflight, always echo the origin back (embed endpoints are public-key-authenticated,
   // not restricted by origin at the OPTIONS level — the actual GET/POST validates origin).
-  const headers = buildCorsHeaders(origin, allowedOrigins);
+  const headers = buildCorsHeaders(origin, allowedOrigins, req.nextUrl.origin);
   // Override: always allow the requesting origin on OPTIONS so the preflight succeeds
   if (origin) headers["Access-Control-Allow-Origin"] = origin;
   return new NextResponse(null, { status: 204, headers });
@@ -275,7 +284,7 @@ export async function validateEmbedDesignRequest(req: NextRequest): Promise<Vali
 
   const { ctx } = base;
   const origin = req.headers.get("origin");
-  const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
+  const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
   // Gate: design editing must be explicitly enabled on this key by the admin
   if (!ctx.designEditEnabled) {

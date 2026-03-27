@@ -40,7 +40,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { ctx } = validation;
 
     const origin      = req.headers.get("origin");
-    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
+    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
     // ── 2. Voice access gate (Phase 3) ────────────────────────────────────────
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);

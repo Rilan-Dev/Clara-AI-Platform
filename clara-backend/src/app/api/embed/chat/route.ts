@@ -42,7 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { ctx } = validation;
 
     const origin = req.headers.get("origin");
-    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins);
+    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
     const body = (await req.json()) as {
       messages?: Array<{ role: string; content: string }>;
