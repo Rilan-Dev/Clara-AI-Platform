@@ -513,6 +513,10 @@
         }
 
         dc.onopen = function() {
+          // CRITICAL: include input_audio_transcription so OpenAI transcribes
+          // user speech and sends conversation.item.input_audio_transcription.completed.
+          // Without this field, session.update may reset transcription to disabled,
+          // causing the AI to receive audio but never fire transcription events.
           voiceSendJson({
             type: 'session.update',
             session: {
@@ -523,20 +527,25 @@
                 description: 'Search the active knowledge base for relevant information.',
                 parameters: {
                   type: 'object',
-                  properties: {
-                    query: { type: 'string' }
-                  },
+                  properties: { query: { type: 'string' } },
                   required: ['query']
                 }
               }],
               tool_choice: 'auto',
               modalities: ['audio', 'text'],
+              // Explicit transcription config so the update never accidentally
+              // disables it. whisper-1 is universally supported; the server
+              // may have set a newer model — this call preserves that unless
+              // it's explicitly overridden here.
+              input_audio_transcription: {
+                model: 'gpt-4o-mini-transcribe',
+              },
               turn_detection: {
                 type: 'server_vad',
-                threshold: 0.5,
+                threshold: 0.4,           // slightly more sensitive than 0.5
                 prefix_padding_ms: 300,
-                silence_duration_ms: 600,
-                create_response: false,
+                silence_duration_ms: 700,  // 700ms pause = end of utterance
+                create_response: false,    // we drive response.create manually
               },
             }
           });
@@ -605,6 +614,38 @@
           if (msg.type === 'response.done') {
             flushVoiceAssistantTurn();
             setVoiceState('listening');
+            return;
+          }
+
+          // Handle rag_search tool call if the model calls it autonomously.
+          // Without this, the model waits forever for a tool response.
+          if (msg.type === 'response.function_call_arguments.done') {
+            var callId = typeof msg.call_id === 'string' ? msg.call_id : '';
+            var fnName  = typeof msg.name    === 'string' ? msg.name    : '';
+            if (fnName === 'rag_search' && callId) {
+              var fnArgs = {};
+              try { fnArgs = JSON.parse(typeof msg.arguments === 'string' ? msg.arguments : '{}'); } catch(e) {}
+              var q = (typeof fnArgs.query === 'string' ? fnArgs.query : '').trim() || voiceLastUserTranscript;
+              fetch(BASE_URL + '/api/embed/search', {
+                method: 'POST', headers: authHdr(),
+                body: JSON.stringify({ query: q, limit: 6 })
+              })
+              .then(function(r){ return r.ok ? r.json() : { context: '', sources: [] }; })
+              .then(function(p){
+                voiceSendJson({ type: 'conversation.item.create', item: {
+                  type: 'function_call_output', call_id: callId,
+                  output: JSON.stringify({ context: p.context || '', sources: p.sources || [] })
+                }});
+                voiceSendJson({ type: 'response.create', response: { tool_choice: 'none' } });
+              })
+              .catch(function(){
+                voiceSendJson({ type: 'conversation.item.create', item: {
+                  type: 'function_call_output', call_id: callId,
+                  output: JSON.stringify({ error: 'search failed' })
+                }});
+                voiceSendJson({ type: 'response.create', response: { tool_choice: 'none' } });
+              });
+            }
             return;
           }
 

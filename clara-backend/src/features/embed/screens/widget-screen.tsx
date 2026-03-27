@@ -66,6 +66,7 @@ type VoiceState = "idle" | "connecting" | "connected" | "listening" | "speaking"
 function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const voiceStateRef = useRef<VoiceState>("idle");
 
   const pcRef            = useRef<RTCPeerConnection | null>(null);
   const dcRef            = useRef<RTCDataChannel | null>(null);
@@ -82,6 +83,7 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
   const onAssistantDeltaRef  = useRef<((d: string) => void) | null>(null);
   const onAssistantDoneRef   = useRef<(() => void) | null>(null);
   const onVoiceRagRef        = useRef<((q: string) => void) | null>(null);
+  const onAutoplayBlockedRef = useRef<(() => void) | null>(null);
 
   const sendJSON = useCallback((payload: unknown) => {
     const dc  = dcRef.current;
@@ -90,6 +92,11 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
       try { dc.send(msg); return; } catch {}
     }
     sendQueueRef.current.push(msg);
+  }, []);
+
+  const applyVoiceState = useCallback((next: VoiceState) => {
+    voiceStateRef.current = next;
+    setVoiceState(next);
   }, []);
 
   const release = useCallback(() => {
@@ -113,9 +120,11 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
   const stop = useCallback(() => {
     manualStopRef.current = true;
     release();
-    setVoiceState("idle");
+    applyVoiceState("idle");
     setVoiceError(null);
-  }, [release]);
+    // Note: autoplayBlocked state lives in WidgetContent, not here.
+    // It resets automatically when voice restarts and audio plays.
+  }, [applyVoiceState, release]);
 
   const start = useCallback(async () => {
     if (!config) return;
@@ -124,7 +133,7 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
     lastTranscriptRef.current = "";
     pendingTranscriptRef.current = "";
     setVoiceError(null);
-    setVoiceState("connecting");
+    applyVoiceState("connecting");
 
     // ── 1. Microphone ──────────────────────────────────────────────────────
     let mic: MediaStream;
@@ -140,7 +149,7 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
         err.name === "NotReadableError"? "Microphone is in use by another app (Zoom, Teams…). Close it and try again." :
         `Microphone error: ${err.message || err.name}`;
       setVoiceError(msg);
-      setVoiceState("error");
+      applyVoiceState("error");
       return;
     }
     micRef.current = mic;
@@ -161,7 +170,12 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
       if (audioElRef.current) {
         audioElRef.current.srcObject = remoteStream;
         audioElRef.current.muted = false;
-        audioElRef.current.play().catch(() => {});
+        audioElRef.current.play().catch((err: unknown) => {
+          if ((err as DOMException)?.name === "NotAllowedError") {
+            // Autoplay blocked — tell the UI to show "Tap to enable audio"
+            onAutoplayBlockedRef.current?.();
+          }
+        });
       }
     };
 
@@ -169,23 +183,15 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
     dcRef.current = dc;
 
     dc.onopen = () => {
-      // DO NOT send session.update here.
-      // The server (/api/embed/voice-connect) already configured the session
-      // with voice, modalities, turn_detection, input_audio_transcription, and
-      // tools. Sending session.update here would overwrite those settings,
-      // wiping out transcription and breaking the RAG → respond flow.
-      //
-      // Just flush any messages queued before the channel opened, then
-      // mark state as listening.
       const q = sendQueueRef.current.splice(0);
       for (const m of q) { try { dc.send(m); } catch {} }
-      setVoiceState("listening");
+      applyVoiceState("listening");
     };
 
     dc.onclose = () => {
       if (manualStopRef.current) return;
       setVoiceError("Voice connection closed. Click the mic to reconnect.");
-      setVoiceState("error");
+      applyVoiceState("error");
       release();
     };
 
@@ -195,8 +201,10 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
       const type = String(msg?.type ?? "");
 
       if (type === "input_audio_buffer.speech_started") {
-        sendJSON({ type: "response.cancel" });
-        setVoiceState("listening");
+        if (voiceStateRef.current === "speaking") {
+          sendJSON({ type: "response.cancel" });
+        }
+        applyVoiceState("listening");
         lastTranscriptRef.current = "";
         pendingTranscriptRef.current = "";
       }
@@ -214,14 +222,14 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
           onVoiceRagRef.current?.(t);
         }
       }
-      if (type === "response.created") { setVoiceState("speaking"); }
+      if (type === "response.created") { applyVoiceState("speaking"); }
       if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
         const d = String(msg.delta ?? "");
-        if (d) { onAssistantDeltaRef.current?.(d); setVoiceState("speaking"); }
+        if (d) { onAssistantDeltaRef.current?.(d); applyVoiceState("speaking"); }
       }
       if (type === "response.done") {
         onAssistantDoneRef.current?.();
-        setVoiceState("listening");
+        applyVoiceState("listening");
       }
       // rag_search tool call — model-initiated (server configured tool_choice:auto)
       // This fires if the model decides to call rag_search itself. We handle it
@@ -260,7 +268,7 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
 
     // Add mic track
     const audioTrack = mic.getAudioTracks()[0];
-    if (!audioTrack) { release(); setVoiceError("No audio track from mic"); setVoiceState("error"); return; }
+    if (!audioTrack) { release(); setVoiceError("No audio track from mic"); applyVoiceState("error"); return; }
     pc.addTrack(audioTrack, mic);
 
     // ── 3. SDP offer ───────────────────────────────────────────────────────
@@ -296,7 +304,7 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
     } catch (e) {
       release();
       setVoiceError((e as Error).message || "Voice connection failed. Ensure voice is enabled for this assistant.");
-      setVoiceState("error");
+      applyVoiceState("error");
       return;
     }
 
@@ -309,10 +317,11 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
         tool_choice: "none",
       }});
     }
-  }, [config, apiKey, sendJSON, release]);
+  }, [config, apiKey, applyVoiceState, sendJSON, release]);
 
   return { voiceState, voiceError, start, stop, sendJSON, audioElRef,
-    onUserTranscriptRef, onAssistantDeltaRef, onAssistantDoneRef, onVoiceRagRef };
+    onUserTranscriptRef, onAssistantDeltaRef, onAssistantDoneRef,
+    onVoiceRagRef, onAutoplayBlockedRef };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -331,7 +340,8 @@ function WidgetContent() {
   const [loading, setLoading] = useState(false);
   const [configLoading, setCL] = useState(true);
   const [avatarImgErr, setAvatarImgErr] = useState(false);
-  const [sendHovered, setSendHov] = useState(false);
+  const [sendHovered, setSendHov]       = useState(false);
+  const [autoplayBlocked, setAutoplay]  = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // ── Voice runtime ─────────────────────────────────────────────────────────
@@ -406,6 +416,9 @@ function WidgetContent() {
       pendingVoiceAssistantIdRef.current = null;
       pendingVoiceAssistantTextRef.current = "";
     };
+
+    // Show "Tap to enable audio" banner if browser blocks autoplay
+    voice.onAutoplayBlockedRef.current = () => { setAutoplay(true); };
   }, [apiKey, voice]);
 
   // ── Config loading ─────────────────────────────────────────────────────────
@@ -542,7 +555,9 @@ function WidgetContent() {
   const animStyle  = config?.messageAnimationStyle ?? "fade";
   const themeCss   = config?.customThemeCss   ?? "";
   const customCss  = config?.customCss        ?? "";
-  const showVoice  = Boolean(config?.voiceEnabled) && !isPreview;
+  // Always show voice button on deployed widget (voice-connect handles access
+  // control server-side). Disable only in preview mode.
+  const showVoice  = !isPreview;
   const vBtnBg     = t(config?.voiceBtnBg,     dark ? "#2a2a40" : "#e5e7eb");
   const vBtnSz     = config?.voiceBtnSize      ?? 36;
   const vBtnR      = config?.voiceBtnRadius    ?? 10;
@@ -644,6 +659,27 @@ function WidgetContent() {
           fontSize:11,color:"#dc2626",flexShrink:0 }}>
           {voice.voiceError}
         </div>
+      )}
+
+      {/* ── Autoplay blocked banner (tap to enable AI audio output) ── */}
+      {autoplayBlocked && (
+        <button
+          onClick={() => {
+            const el = voiceAudioRef.current;
+            if (!el) return;
+            void el.play().then(() => setAutoplay(false)).catch(() => {});
+          }}
+          style={{
+            display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+            padding:"10px 16px",background:"#fffbeb",borderBottom:"1px solid #fde68a",
+            fontSize:12,color:"#92400e",cursor:"pointer",border:"none",width:"100%",
+            fontWeight:600,flexShrink:0,
+          }}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905H6.44l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06z"/>
+          </svg>
+          Tap to enable AI audio
+        </button>
       )}
 
       {/* ── Messages ── */}
