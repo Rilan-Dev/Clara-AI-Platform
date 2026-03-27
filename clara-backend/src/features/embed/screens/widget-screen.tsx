@@ -119,6 +119,14 @@ function WidgetContent() {
   const [sendHovered, setSendHovered] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingAssistantIdRef = useRef<string | null>(null);
+  const pendingAssistantTextRef = useRef("");
+  const pendingUserTranscriptRef = useRef("");
 
 
   // Load config from API
@@ -182,6 +190,229 @@ function WidgetContent() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const stopVoiceRuntime = useCallback(() => {
+    try { dataChannelRef.current?.close(); } catch {}
+    try { peerRef.current?.close(); } catch {}
+    try { micStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    try { remoteStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    try {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.pause();
+        remoteAudioRef.current.srcObject = null;
+        remoteAudioRef.current.remove();
+      }
+    } catch {}
+    dataChannelRef.current = null;
+    peerRef.current = null;
+    micStreamRef.current = null;
+    remoteStreamRef.current = null;
+    remoteAudioRef.current = null;
+    pendingAssistantIdRef.current = null;
+    pendingAssistantTextRef.current = "";
+    pendingUserTranscriptRef.current = "";
+    setVoiceActive(false);
+  }, []);
+
+  useEffect(() => stopVoiceRuntime, [stopVoiceRuntime]);
+
+  const appendVoiceAssistantDelta = useCallback((delta: string) => {
+    if (!delta) return;
+    if (!pendingAssistantIdRef.current) {
+      const id = `va${Date.now()}`;
+      pendingAssistantIdRef.current = id;
+      pendingAssistantTextRef.current = "";
+      setMessages((prev) => [...prev, { id, role: "assistant", content: "" }]);
+    }
+    pendingAssistantTextRef.current += delta;
+    const targetId = pendingAssistantIdRef.current;
+    setMessages((prev) => prev.map((m) => (
+      m.id === targetId ? { ...m, content: pendingAssistantTextRef.current } : m
+    )));
+  }, []);
+
+  const flushVoiceAssistantTurn = useCallback(() => {
+    pendingAssistantIdRef.current = null;
+    pendingAssistantTextRef.current = "";
+  }, []);
+
+  const addVoiceUserTranscript = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((prev) => [...prev, { id: `vu${Date.now()}`, role: "user", content: trimmed }]);
+  }, []);
+
+  const waitForIceGathering = useCallback((pc: RTCPeerConnection) => {
+    if (pc.iceGatheringState === "complete") return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        pc.removeEventListener("icegatheringstatechange", onState);
+        resolve();
+      };
+      const onState = () => {
+        if (pc.iceGatheringState === "complete") finish();
+      };
+      pc.addEventListener("icegatheringstatechange", onState);
+      window.setTimeout(finish, 8000);
+    });
+  }, []);
+
+  const ensureRemoteAudio = useCallback(() => {
+    if (remoteAudioRef.current) return remoteAudioRef.current;
+    const audio = document.createElement("audio");
+    audio.autoplay = true;
+    audio.setAttribute("playsinline", "true");
+    audio.style.display = "none";
+    document.body.appendChild(audio);
+    remoteAudioRef.current = audio;
+    return audio;
+  }, []);
+
+  const startVoiceRuntime = useCallback(async () => {
+    if (!config || !apiKey) return;
+    if (config.voiceProvider && config.voiceProvider !== "openai") {
+      setMessages((prev) => [...prev, {
+        id: `ve${Date.now()}`,
+        role: "assistant",
+        content: "This widget voice runtime currently supports the configured OpenAI voice path only.",
+      }]);
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof window.RTCPeerConnection === "undefined") {
+      setMessages((prev) => [...prev, {
+        id: `ve${Date.now()}`,
+        role: "assistant",
+        content: "Voice is unavailable in this browser.",
+      }]);
+      return;
+    }
+    if (peerRef.current && dataChannelRef.current?.readyState === "open") {
+      setVoiceActive(true);
+      return;
+    }
+
+    const mic = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    });
+    micStreamRef.current = mic;
+
+    const pc = new RTCPeerConnection();
+    peerRef.current = pc;
+    const remoteStream = new MediaStream();
+    remoteStreamRef.current = remoteStream;
+
+    pc.ontrack = (event) => {
+      const stream = event.streams?.[0];
+      if (!stream) return;
+      stream.getTracks().forEach((track) => {
+        if (!remoteStream.getTracks().includes(track)) remoteStream.addTrack(track);
+      });
+      const audio = ensureRemoteAudio();
+      audio.srcObject = remoteStream;
+      audio.muted = false;
+      void audio.play().catch(() => {});
+    };
+
+    const dc = pc.createDataChannel("oai-events");
+    dataChannelRef.current = dc;
+
+    dc.onopen = () => {
+      try {
+        dc.send(JSON.stringify({
+          type: "session.update",
+          session: {
+            instructions: `You are ${config.assistantName || "Clara"}, a helpful voice assistant for this knowledge base. Answer naturally, briefly, and use provided knowledge base context when it is available.`,
+            tools: [{
+              type: "function",
+              name: "rag_search",
+              description: "Search the active knowledge base for relevant information.",
+              parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+            }],
+            tool_choice: "auto",
+            modalities: ["audio", "text"],
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 600,
+              create_response: false,
+            },
+          },
+        }));
+      } catch {}
+      setVoiceActive(true);
+    };
+
+    dc.onmessage = (event) => {
+      let msg: Record<string, unknown> | null = null;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      if (!msg?.type) return;
+
+      if (msg.type === "conversation.item.input_audio_transcription.delta") {
+        const delta = typeof msg.delta === "string" ? msg.delta : "";
+        if (delta) pendingUserTranscriptRef.current += delta;
+        return;
+      }
+
+      if (msg.type === "conversation.item.input_audio_transcription.completed") {
+        const transcript = typeof msg.transcript === "string" && msg.transcript.trim()
+          ? msg.transcript.trim()
+          : pendingUserTranscriptRef.current.trim();
+        pendingUserTranscriptRef.current = "";
+        if (transcript) addVoiceUserTranscript(transcript);
+        return;
+      }
+
+      if (msg.type === "response.audio_transcript.delta" || msg.type === "response.text.delta") {
+        appendVoiceAssistantDelta(typeof msg.delta === "string" ? msg.delta : "");
+        return;
+      }
+
+      if (msg.type === "response.done") {
+        flushVoiceAssistantTurn();
+        return;
+      }
+
+      if (msg.type === "error") {
+        stopVoiceRuntime();
+      }
+    };
+
+    pc.addTrack(mic.getAudioTracks()[0], mic);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForIceGathering(pc);
+    const sdpOffer = pc.localDescription?.sdp || offer.sdp || "";
+
+    const res = await fetch(apiUrl("/api/embed/voice-connect"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ sdpOffer }),
+    });
+    const payload = await res.json().catch(() => ({} as { error?: string; sdpAnswer?: string }));
+    if (!res.ok || !payload?.sdpAnswer) {
+      stopVoiceRuntime();
+      setMessages((prev) => [...prev, {
+        id: `ve${Date.now()}`,
+        role: "assistant",
+        content: payload?.error || "Voice connection failed.",
+      }]);
+      return;
+    }
+
+    await pc.setRemoteDescription({ type: "answer", sdp: payload.sdpAnswer });
+  }, [addVoiceUserTranscript, apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, stopVoiceRuntime, waitForIceGathering]);
 
   const sendMessage = useCallback(async (overrideText?: string) => {
     const nextText = (overrideText ?? input).trim();
@@ -250,18 +481,18 @@ function WidgetContent() {
       }
 
       if (data.payload.action === "startVoice") {
-        setVoiceActive(true);
+        void startVoiceRuntime();
         return;
       }
 
       if (data.payload.action === "stopVoice") {
-        setVoiceActive(false);
+        stopVoiceRuntime();
       }
     }
 
     window.addEventListener("message", handleWidgetCommand);
     return () => window.removeEventListener("message", handleWidgetCommand);
-  }, [sendMessage]);
+  }, [sendMessage, startVoiceRuntime, stopVoiceRuntime]);
 
 
   // ── Resolve design tokens — explicit trim guards so empty string → fallback ─
@@ -512,7 +743,7 @@ function WidgetContent() {
           {/* Voice button — only shown when voiceEnabled is true */}
           {showVoice && (
             <button
-              onClick={()=>setVoiceActive(v=>!v)}
+              onClick={()=>{ if (voiceActive) stopVoiceRuntime(); else void startVoiceRuntime(); }}
               title={voiceActive ? "Stop voice" : "Start voice"}
               className="clara-voice-btn"
               style={{
