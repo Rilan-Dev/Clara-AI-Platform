@@ -127,6 +127,7 @@ function WidgetContent() {
   const pendingAssistantIdRef = useRef<string | null>(null);
   const pendingAssistantTextRef = useRef("");
   const pendingUserTranscriptRef = useRef("");
+  const voiceSendQueueRef = useRef<string[]>([]);
 
 
   // Load config from API
@@ -211,6 +212,7 @@ function WidgetContent() {
     pendingAssistantIdRef.current = null;
     pendingAssistantTextRef.current = "";
     pendingUserTranscriptRef.current = "";
+    voiceSendQueueRef.current = [];
     setVoiceActive(false);
   }, []);
 
@@ -244,11 +246,16 @@ function WidgetContent() {
 
   const sendVoiceJson = useCallback((payload: unknown) => {
     const dc = dataChannelRef.current;
-    if (!dc || dc.readyState !== "open") return false;
+    const msg = JSON.stringify(payload);
+    if (!dc || dc.readyState !== "open") {
+      voiceSendQueueRef.current.push(msg);
+      return false;
+    }
     try {
-      dc.send(JSON.stringify(payload));
+      dc.send(msg);
       return true;
     } catch {
+      voiceSendQueueRef.current.push(msg);
       return false;
     }
   }, []);
@@ -427,6 +434,13 @@ function WidgetContent() {
           },
         }));
       } catch {}
+
+      const queued = voiceSendQueueRef.current;
+      voiceSendQueueRef.current = [];
+      for (const msg of queued) {
+        try { dc.send(msg); } catch {}
+      }
+
       setVoiceActive(true);
     };
 
@@ -440,6 +454,9 @@ function WidgetContent() {
       if (!msg?.type) return;
 
       if (msg.type === "input_audio_buffer.speech_started") {
+        sendVoiceJson({ type: "response.cancel" });
+        pendingAssistantIdRef.current = null;
+        pendingAssistantTextRef.current = "";
         pendingUserTranscriptRef.current = "";
         return;
       }
@@ -513,6 +530,10 @@ function WidgetContent() {
 
     const welcomeMessage = typeof payload.welcomeMessage === "string" ? payload.welcomeMessage.trim() : "";
     if (welcomeMessage) {
+      const assistantId = `va${Date.now()}`;
+      pendingAssistantIdRef.current = assistantId;
+      pendingAssistantTextRef.current = "";
+      setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
       sendVoiceJson({
         type: "response.create",
         response: {
@@ -520,6 +541,8 @@ function WidgetContent() {
           tool_choice: "none",
         },
       });
+    } else {
+      setVoiceActive(true);
     }
   }, [apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, runVoiceRagAndRespond, sendVoiceJson, stopVoiceRuntime, waitForIceGathering]);
 
