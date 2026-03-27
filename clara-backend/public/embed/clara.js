@@ -478,7 +478,7 @@
       }
     }).then(function(mic) {
       voiceMicStream = mic;
-      var pc = new RTC();
+      var pc = new RTC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
       voicePeer = pc;
       voiceRemoteStream = new MediaStream();
 

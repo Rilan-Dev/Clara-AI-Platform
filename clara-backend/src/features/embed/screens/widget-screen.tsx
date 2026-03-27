@@ -83,7 +83,8 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
   const onAssistantDeltaRef  = useRef<((d: string) => void) | null>(null);
   const onAssistantDoneRef   = useRef<(() => void) | null>(null);
   const onVoiceRagRef        = useRef<((q: string) => void) | null>(null);
-  const onAutoplayBlockedRef = useRef<(() => void) | null>(null);
+  const onAutoplayBlockedRef  = useRef<(() => void) | null>(null);
+  const cleanupAudioElRef    = useRef<(() => void) | null>(null);
 
   const sendJSON = useCallback((payload: unknown) => {
     const dc  = dcRef.current;
@@ -100,15 +101,11 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
   }, []);
 
   const release = useCallback(() => {
+    try { cleanupAudioElRef.current?.(); } catch {}
+    cleanupAudioElRef.current = null;
     try { dcRef.current?.close(); } catch {}
     try { pcRef.current?.close(); } catch {}
     try { micRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    try {
-      if (audioElRef.current) {
-        audioElRef.current.pause();
-        audioElRef.current.srcObject = null;
-      }
-    } catch {}
     try { remoteStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
     pcRef.current = null; dcRef.current = null;
     micRef.current = null; remoteStreamRef.current = null;
@@ -154,11 +151,26 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
     }
     micRef.current = mic;
 
-    // ── 2. RTCPeerConnection + data channel ────────────────────────────────
-    const pc = new RTCPeerConnection();
+    // ── 2. RTCPeerConnection ────────────────────────────────────────────────
+    // Include Google STUN so the browser can discover its public IP and
+    // generate srflx ICE candidates. Without STUN, only host (LAN) candidates
+    // are generated, which OpenAI cannot reach from the internet.
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
     pcRef.current = pc;
     const remoteStream = new MediaStream();
     remoteStreamRef.current = remoteStream;
+
+    // Create a dedicated <audio> element in JS for this session's remote stream.
+    // This avoids React ref timing issues — the element exists immediately.
+    const audioEl = document.createElement("audio");
+    audioEl.autoplay = true;
+    audioEl.muted = false;
+    audioEl.style.display = "none";
+    document.body.appendChild(audioEl);
+    // Also keep the ref in sync for the "Tap to enable audio" button
+    if (audioElRef.current) audioElRef.current.srcObject = null;
 
     pc.ontrack = (ev) => {
       const src = ev.streams?.[0];
@@ -166,23 +178,56 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
       src.getTracks().forEach((t) => {
         if (!remoteStream.getTracks().includes(t)) remoteStream.addTrack(t);
       });
-      // Attach to audio element for playback
-      if (audioElRef.current) {
-        audioElRef.current.srcObject = remoteStream;
-        audioElRef.current.muted = false;
-        audioElRef.current.play().catch((err: unknown) => {
-          if ((err as DOMException)?.name === "NotAllowedError") {
-            // Autoplay blocked — tell the UI to show "Tap to enable audio"
-            onAutoplayBlockedRef.current?.();
-          }
-        });
-      }
+      audioEl.srcObject = remoteStream;
+      audioEl.play().catch((err: unknown) => {
+        if ((err as DOMException)?.name === "NotAllowedError") {
+          onAutoplayBlockedRef.current?.();
+        }
+      });
     };
+
+    // Store reference for cleanup and "Tap to enable audio" button
+    const cleanupAudioEl = () => {
+      try { audioEl.pause(); } catch {}
+      try { audioEl.srcObject = null; } catch {}
+      try { if (audioEl.parentNode) audioEl.parentNode.removeChild(audioEl); } catch {}
+    };
+    cleanupAudioElRef.current = cleanupAudioEl;
 
     const dc = pc.createDataChannel("oai-events");
     dcRef.current = dc;
 
     dc.onopen = () => {
+      // ── CRITICAL: send session.update with transcription ALWAYS ──────────
+      // OpenAI's WebRTC stack may not apply server-side session config until
+      // the client explicitly sends session.update. Without this,
+      // conversation.item.input_audio_transcription.completed never fires
+      // so the AI is deaf: no transcripts → no RAG → no response.create.
+      sendJSON({
+        type: "session.update",
+        session: {
+          modalities: ["audio", "text"],
+          input_audio_transcription: { model: "whisper-1" },
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 700,
+            create_response: false,
+          },
+          tools: [{
+            type: "function",
+            name: "rag_search",
+            description: "Search the knowledge base for relevant information.",
+            parameters: {
+              type: "object",
+              properties: { query: { type: "string" } },
+              required: ["query"],
+            },
+          }],
+          tool_choice: "auto",
+        },
+      });
       const q = sendQueueRef.current.splice(0);
       for (const m of q) { try { dc.send(m); } catch {} }
       applyVoiceState("listening");
@@ -665,9 +710,11 @@ function WidgetContent() {
       {autoplayBlocked && (
         <button
           onClick={() => {
-            const el = voiceAudioRef.current;
-            if (!el) return;
-            void el.play().then(() => setAutoplay(false)).catch(() => {});
+            // Try to resume any audio element on the page (the dynamic one we created)
+            document.querySelectorAll("audio").forEach((el) => {
+              void el.play().catch(() => {});
+            });
+            setAutoplay(false);
           }}
           style={{
             display:"flex",alignItems:"center",justifyContent:"center",gap:8,
