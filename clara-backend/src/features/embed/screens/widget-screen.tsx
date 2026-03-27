@@ -95,10 +95,19 @@ type Message = {
   sources?: Array<{ title: string; snippet: string; index: number }>;
 };
 
+type WidgetCommandMessage = {
+  type?: string;
+  payload?: {
+    action?: "send" | "startVoice" | "stopVoice";
+    text?: string;
+  };
+} | null;
+
 function WidgetContent() {
   const searchParams = useSearchParams();
   const apiKey       = searchParams.get("key") ?? "";
   const isPreview    = searchParams.get("preview") === "1";
+  const previewKey   = searchParams.get("previewKey") ?? "";
 
   const [config, setConfig]           = useState<AssistantConfig | null>(null);
   const [error, setError]             = useState<string | null>(null);
@@ -131,31 +140,56 @@ function WidgetContent() {
   // Preview mode — wait for postMessage from admin panel
   useEffect(() => {
     if (!isPreview) return;
+    const announceReady = () => {
+      window.parent?.postMessage({ type: "clara-admin-preview-ready" }, window.location.origin);
+    };
+
+    const applyPreviewConfig = (nextConfig: AssistantConfig) => {
+      setConfig(nextConfig);
+      setAvatarImgErr(false);
+      setMessages([{ id: "welcome", role: "assistant", content: nextConfig.welcomeMessage }]);
+      setError(null);
+      setCL(false);
+    };
+
+    if (previewKey) {
+      try {
+        const storedPreview = window.sessionStorage.getItem(previewKey);
+        if (storedPreview) {
+          applyPreviewConfig(JSON.parse(storedPreview) as AssistantConfig);
+        }
+      } catch {}
+    }
+
     function handle(ev: MessageEvent) {
       if (ev.origin !== window.location.origin) return;
       const d = ev.data as { type?: string; payload?: AssistantConfig } | null;
       if (d?.type !== "clara-admin-preview-config" || !d.payload) return;
-      setConfig(d.payload);
-      setAvatarImgErr(false);  // reset avatar error on new config
-      setMessages([{ id: "welcome", role: "assistant", content: d.payload.welcomeMessage }]);
-      setError(null);
-      setCL(false);
+      applyPreviewConfig(d.payload);
     }
+
     window.addEventListener("message", handle);
-    window.parent?.postMessage({ type: "clara-admin-preview-ready" }, window.location.origin);
-    return () => window.removeEventListener("message", handle);
-  }, [isPreview]);
+    announceReady();
+    const timer = window.setInterval(() => {
+      if (!config) announceReady();
+    }, 300);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("message", handle);
+    };
+  }, [config, isPreview, previewKey]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim() || loading || !config) return;
-    const userMsg: Message = { id: `u${Date.now()}`, role: "user", content: input.trim() };
+  const sendMessage = useCallback(async (overrideText?: string) => {
+    const nextText = (overrideText ?? input).trim();
+    if (!nextText || loading || !config) return;
+    const userMsg: Message = { id: `u${Date.now()}`, role: "user", content: nextText };
     const all = [...messages, userMsg];
     setMessages(all);
-    setInput("");
+    if (overrideText === undefined) setInput("");
     setLoading(true);
     const aid = `a${Date.now()}`;
     setMessages((p) => [...p, { id: aid, role: "assistant", content: "" }]);
@@ -204,6 +238,30 @@ function WidgetContent() {
       setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: "Network error." } : m));
     } finally { setLoading(false); }
   }, [input, loading, config, messages, apiKey, isPreview]);
+
+  useEffect(() => {
+    function handleWidgetCommand(ev: MessageEvent) {
+      const data = ev.data as WidgetCommandMessage;
+      if (data?.type !== "clara-widget-command" || !data.payload) return;
+
+      if (data.payload.action === "send" && data.payload.text) {
+        void sendMessage(data.payload.text);
+        return;
+      }
+
+      if (data.payload.action === "startVoice") {
+        setVoiceActive(true);
+        return;
+      }
+
+      if (data.payload.action === "stopVoice") {
+        setVoiceActive(false);
+      }
+    }
+
+    window.addEventListener("message", handleWidgetCommand);
+    return () => window.removeEventListener("message", handleWidgetCommand);
+  }, [sendMessage]);
 
 
   // ── Resolve design tokens — explicit trim guards so empty string → fallback ─
@@ -268,6 +326,10 @@ function WidgetContent() {
   const voiceBtnSz      = config?.voiceBtnSize   ?? 36;
   const voiceBtnR       = config?.voiceBtnRadius  ?? 10;
   const voiceActive2Color = (config?.voiceBtnActiveColor && config.voiceBtnActiveColor.trim()) ? config.voiceBtnActiveColor.trim() : "#ef4444";
+  const voicePanelBg    = (config?.voicePanelBg && config.voicePanelBg.trim())
+    ? config.voicePanelBg.trim()
+    : (dark ? "rgba(39,39,59,0.92)" : "#eef2ff");
+  const voiceWaveColor  = (config?.voiceWaveColor && config.voiceWaveColor.trim()) ? config.voiceWaveColor.trim() : accent;
   const showVoice = Boolean(config?.voiceEnabled);
   const dotColor   = (config?.typingDotColor  && config.typingDotColor.trim())  ? config.typingDotColor.trim()  : "#9ca3af";
   const dotSz      = config?.typingDotSize   ?? 6;
@@ -495,6 +557,38 @@ function WidgetContent() {
             </svg>
           </button>
         </div>
+        {showVoice && voiceActive && (
+          <div style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            borderRadius: Math.max(12, voiceBtnR),
+            background: voicePanelBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: dark ? "#f5f7ff" : "#1f2937" }}>
+                Voice mode active
+              </div>
+              <div style={{ fontSize: 11, color: dark ? "#a5b0c5" : "#6b7280", marginTop: 2 }}>
+                Voice controls render through the widget runtime.
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 18 }}>
+              {[8, 14, 10, 16].map((h, i) => (
+                <span key={i} style={{
+                  width: 4,
+                  height: h,
+                  borderRadius: 999,
+                  background: voiceWaveColor,
+                  opacity: 0.95,
+                }} />
+              ))}
+            </div>
+          </div>
+        )}
         {Boolean(config?.widgetShowBranding) && (
           <div className="clara-branding" style={{textAlign:"center",marginTop:8,background:footerBg2}}>
             {config?.customFooterHtml

@@ -579,6 +579,7 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
   const [typing, setTyp]    = useState(false);
   const [imgErr, setImgErr] = useState(false);   // avatar image error fallback
   const [sendHov, setSendHov] = useState(false); // send button hover state
+  const [voiceActive, setVoiceActive] = useState(false);
   const botRef = useRef<HTMLDivElement>(null);
 
   // Sync welcome message
@@ -619,6 +620,12 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
   const sendBgActive = (d.sendBtnBg && d.sendBtnBg.trim()) ? d.sendBtnBg.trim() : primary;
   const sendBgHover  = (d.sendBtnHoverBg && d.sendBtnHoverBg.trim()) ? d.sendBtnHoverBg.trim() : sendBgActive;
   const sendBgInactive = dark ? "#2a2a40" : "#e5e7eb";
+  const voiceBtnBg = (d.voiceBtnBg && d.voiceBtnBg.trim()) ? d.voiceBtnBg.trim() : (dark ? "#2a2a40" : "#e5e7eb");
+  const voiceBtnSize = d.voiceBtnSize || 36;
+  const voiceBtnRadius = d.voiceBtnRadius || 10;
+  const voiceActiveColor = (d.voiceBtnActiveColor && d.voiceBtnActiveColor.trim()) ? d.voiceBtnActiveColor.trim() : "#ef4444";
+  const voicePanelBg = (d.voicePanelBg && d.voicePanelBg.trim()) ? d.voicePanelBg.trim() : (dark ? "rgba(39,39,59,0.92)" : "#eef2ff");
+  const voiceWaveColor = (d.voiceWaveColor && d.voiceWaveColor.trim()) ? d.voiceWaveColor.trim() : accent;
 
   // Footer
   const footTxt  = (d.footerTextColor && d.footerTextColor.trim()) ? d.footerTextColor.trim()
@@ -779,9 +786,31 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
             placeholder={`Ask ${d.assistantName}…`}
             className="clara-textarea pvw-ta flex-1 resize-none outline-none"
             style={{ borderRadius: d.inputRadius, border: inputBrd, background: inputBg2,
-              color: d.inputTextColor || (dark ? "#e2e2f0" : "#1f2937"),
-              fontSize: 13, fontFamily: "inherit", padding: d.inputPadding,
-              maxHeight: 80, lineHeight: 1.5 }} />
+               color: d.inputTextColor || (dark ? "#e2e2f0" : "#1f2937"),
+               fontSize: 13, fontFamily: "inherit", padding: d.inputPadding,
+               maxHeight: 80, lineHeight: 1.5 }} />
+          <button
+            onClick={() => setVoiceActive((v) => !v)}
+            title={voiceActive ? "Stop voice" : "Start voice"}
+            className="clara-voice-btn shrink-0 flex items-center justify-center transition-all"
+            style={{
+              width: voiceBtnSize,
+              height: voiceBtnSize,
+              borderRadius: voiceBtnRadius,
+              background: voiceActive ? voiceActiveColor : voiceBtnBg,
+              color: voiceActive ? "#fff" : (dark ? "#9ca3af" : "#6b7280"),
+              border: "none",
+              cursor: "pointer",
+              transition: "background 0.18s, transform 0.1s",
+              transform: voiceActive ? "scale(1.08)" : "scale(1)",
+            }}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+              {voiceActive
+                ? <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm0 16a7 7 0 0 1-7-7H3a9 9 0 0 0 8 8.94V21h2v-2.06A9 9 0 0 0 21 10h-2a7 7 0 0 1-7 7z"/>
+                : <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 3.02-3.04 5.35-6.12 5.35S5.58 14.02 5.09 11H3.07c.52 3.85 3.65 6.83 7.43 7.18V21h3v-2.82c3.78-.35 6.91-3.33 7.43-7.18h-2.02z"/>
+              }
+            </svg>
+          </button>
           <button onClick={send} disabled={!inp.trim()}
             className="clara-send-btn shrink-0 flex items-center justify-center transition-all"
             onMouseEnter={() => setSendHov(true)}
@@ -804,6 +833,38 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
             </svg>
           </button>
         </div>
+        {voiceActive && (
+          <div style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            borderRadius: Math.max(12, voiceBtnRadius),
+            background: voicePanelBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: dark ? "#f5f7ff" : "#1f2937" }}>
+                Voice mode active
+              </div>
+              <div style={{ fontSize: 11, color: dark ? "#a5b0c5" : "#6b7280", marginTop: 2 }}>
+                Voice controls preview your saved widget styling.
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 18 }}>
+              {[8, 14, 10, 16].map((h, i) => (
+                <span key={i} style={{
+                  width: 4,
+                  height: h,
+                  borderRadius: 999,
+                  background: voiceWaveColor,
+                  opacity: 0.95,
+                }} />
+              ))}
+            </div>
+          </div>
+        )}
         {/* Branding footer — explicit boolean cast prevents "false" string rendering */}
         {Boolean(d.widgetShowBranding) && (
           <div className="clara-branding text-center mt-1.5"
@@ -827,17 +888,11 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sandbox preview — uses /embed/widget?preview=1 so it renders ALL design tokens
-// identically to the React Preview (both use widget-screen.tsx under the hood)
-// ─────────────────────────────────────────────────────────────────────────────
-
 function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewKeyRef = useRef(`clara-admin-preview:${Math.random().toString(36).slice(2, 10)}`);
   const origin   = typeof window !== "undefined" ? window.location.origin : "";
 
-  // Build the complete payload with ALL design fields so widget-screen.tsx
-  // renders with 100% the same tokens as the React Preview
   const payload = useMemo(() => ({
     kbId: "preview-kb",
     kbName: "Admin preview",
@@ -918,6 +973,14 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
     // Animations
     animationsEnabled:     design.animationsEnabled,
     messageAnimationStyle: design.messageAnimationStyle,
+    voiceEnabled:         true,
+    voiceProvider:        "openai",
+    voiceBtnBg:           design.voiceBtnBg || null,
+    voiceBtnSize:         design.voiceBtnSize,
+    voiceBtnRadius:       design.voiceBtnRadius,
+    voiceBtnActiveColor:  design.voiceBtnActiveColor,
+    voicePanelBg:         design.voicePanelBg || null,
+    voiceWaveColor:       design.voiceWaveColor,
     // Custom code
     customCss:          design.customCss || null,
     customThemeCss:     design.customThemeCss || null,
@@ -931,7 +994,36 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
       { type: "clara-admin-preview-config", payload }, origin);
   }, [origin, payload]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(previewKeyRef.current, JSON.stringify(payload));
+    } catch {}
+  }, [payload]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window === "undefined") return;
+      try {
+        window.sessionStorage.removeItem(previewKeyRef.current);
+      } catch {}
+    };
+  }, []);
+
   useEffect(() => { postMsg(); }, [postMsg]);
+
+  useEffect(() => {
+    function handleFrameMessage(ev: MessageEvent) {
+      if (ev.origin !== origin) return;
+      if (ev.source !== frameRef.current?.contentWindow) return;
+      const data = ev.data as { type?: string } | null;
+      if (data?.type !== "clara-admin-preview-ready") return;
+      postMsg();
+    }
+
+    window.addEventListener("message", handleFrameMessage);
+    return () => window.removeEventListener("message", handleFrameMessage);
+  }, [origin, postMsg]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
@@ -940,7 +1032,7 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
           <p className="text-sm font-semibold text-white">Live Sandbox Preview</p>
           <p className="text-xs text-white/40">
             Powered by <code className="bg-white/10 rounded px-1">/embed/widget</code> — 
-            100% identical to the React preview, all design tokens applied
+            public embed renderer with live unsaved design tokens
           </p>
         </div>
         <div className="flex gap-1.5 items-center">
@@ -955,7 +1047,7 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
       <iframe
         ref={frameRef}
         title="Widget embed preview"
-        src="/embed/widget?preview=1"
+        src={`/embed/widget?preview=1&previewKey=${encodeURIComponent(previewKeyRef.current)}`}
         onLoad={postMsg}
         className="w-full"
         style={{ height: 520, background: "transparent" }}
@@ -2015,7 +2107,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
   const [saved,   setSaved]   = useState(false);
   const [err,     setErr]     = useState<string | null>(null);
   const [tab,     setTab]     = useState<"visual" | "code" | "preview">("visual");
-  const [sandbox, setSandbox] = useState(false);
+  const [sandbox, setSandbox] = useState(true);
 
   /* ── Load ── */
   useEffect(() => {
@@ -2232,13 +2324,13 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
                   bg-white/[0.03] px-3 py-1.5 text-xs text-white/50 hover:text-white hover:bg-white/[0.06]">
                 <Monitor className="h-3.5 w-3.5" />
-                {sandbox ? "Hide embed preview" : "Show embed preview (exact match)"}
+                {sandbox ? "Hide embed preview" : "Show embed preview"}
               </button>
             </div>
             <WidgetPreview design={design} />
             {sandbox && <FloatingSandboxPreview design={design} />}
             <p className="text-[11px] text-white/20 text-center">
-              React preview = instant render · Embed preview = /embed/widget with full design sync
+              React preview = fast inline approximation · Embed preview = public /embed/widget renderer
             </p>
           </div>
         </div>
@@ -2262,11 +2354,10 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
             <Eye className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0" />
             <div className="text-xs text-white/60 leading-relaxed">
-              <strong className="text-white/90">Both previews render identically.</strong>{" "}
-              React Preview = instant inline render using your current design tokens.{" "}
+              <strong className="text-white/90">Embed Preview is the public embed page.</strong>{" "}
+              React Preview = fast inline approximation using your current design tokens.{" "}
               Embed Preview = the real <code className="bg-white/10 rounded px-1">/embed/widget</code> page
-              loaded in an iframe — this is exactly what your visitors see when the widget is deployed.
-              Both update live as you edit.
+              loaded in an iframe. It uses the same renderer as the hosted embed page and updates live as you edit.
             </div>
           </div>
 
@@ -2288,12 +2379,11 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Embed Preview</p>
                 <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 text-emerald-400/80">
-                  Exact match ✓
+                  Public renderer
                 </span>
               </div>
               <p className="text-xs text-white/35">
-                Real <code className="bg-white/10 rounded px-1 text-[11px]">/embed/widget</code> — 
-                identical to what your visitors see when deployed.
+                Real <code className="bg-white/10 rounded px-1 text-[11px]">/embed/widget</code> page with live preview config.
               </p>
               <FloatingSandboxPreview design={design} />
             </div>
