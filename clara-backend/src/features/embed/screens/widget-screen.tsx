@@ -1,6 +1,6 @@
 /**
  * /embed/widget?key=clr_xxx
- * Standalone embeddable widget page — supports full extended design config.
+ * Standalone embeddable widget page — full voice + chat support.
  */
 "use client";
 /* eslint-disable @next/next/no-img-element */
@@ -8,130 +8,411 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiUrl } from "@/lib/runtime";
+// Note: apiUrl is used for internal admin API calls.
+// Voice runtime uses window.location.origin directly (works for embedded deploy).
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 type AssistantConfig = {
-  kbId: string;
-  kbName: string;
-  assistantName: string;
-  avatarUrl: string | null;
-  welcomeMessage: string;
-  primaryColour: string;
-  accentColour: string;
-  defaultLanguage: string;
-  widgetTheme?: string;
-  widgetBorderRadius?: number;
-  widgetFontFamily?: string;
-  widgetShowBranding?: boolean;
-  customCss?: string | null;
-  customThemeCss?: string | null;
-  customPoweredBy?: string | null;
-  customHeaderHtml?: string | null;
+  kbId: string; kbName: string; assistantName: string; avatarUrl: string | null;
+  welcomeMessage: string; primaryColour: string; accentColour: string;
+  defaultLanguage: string; widgetTheme?: string; widgetBorderRadius?: number;
+  widgetFontFamily?: string; widgetShowBranding?: boolean;
+  customCss?: string | null; customThemeCss?: string | null;
+  customPoweredBy?: string | null; customHeaderHtml?: string | null;
   customFooterHtml?: string | null;
-  // Extended design fields
-  headerBg?: string | null;
-  headerTextColor?: string;
-  headerHeight?: number;
-  headerBlur?: boolean;
-  showStatusDot?: boolean;
-  statusDotColor?: string;
-  avatarShape?: "circle" | "rounded" | "square";
-  chatAreaBg?: string | null;
-  userBubbleBg?: string | null;
-  userBubbleText?: string;
-  userBubbleRadius?: string;
-  userBubblePadding?: string;
-  userBubbleShadow?: string;
-  botBubbleBg?: string | null;
-  botBubbleText?: string | null;
-  botBubbleRadius?: string;
-  botBubbleBorder?: string | null;
-  botBubblePadding?: string;
-  botBubbleShadow?: string;
-  messageGap?: number;
-  messageMaxWidth?: number;
-  messageFontSize?: number;
-  messageLineHeight?: number;
-  showTimestamps?: boolean;
-  timestampColor?: string;
-  timestampFontSize?: number;
-  typingDotColor?: string;
-  typingDotSize?: number;
-  inputBg?: string | null;
-  inputBorder?: string | null;
-  inputBorderFocus?: string | null;
-  inputRadius?: number;
-  inputTextColor?: string | null;
-  inputPlaceholderColor?: string | null;
-  inputPadding?: string;
-  inputAreaBg?: string | null;
-  inputAreaBorder?: string | null;
-  sendBtnBg?: string | null;
-  sendBtnHoverBg?: string | null;
-  sendBtnTextColor?: string;
-  sendBtnRadius?: number;
-  sendBtnSize?: number;
-  scrollbarWidth?: number;
-  scrollbarColor?: string;
-  scrollbarTrackColor?: string;
-  footerBg?: string | null;
-  footerTextColor?: string | null;
-  animationsEnabled?: boolean;
-  messageAnimationStyle?: string;
-  // Voice mode design
-  voiceEnabled?: boolean;
-  voiceProvider?: string;
-  voiceBtnBg?: string | null;
-  voiceBtnSize?: number;
-  voiceBtnRadius?: number;
-  voiceBtnActiveColor?: string;
-  voicePanelBg?: string | null;
-  voiceWaveColor?: string;
+  headerBg?: string | null; headerTextColor?: string; headerHeight?: number;
+  headerBlur?: boolean; showStatusDot?: boolean; statusDotColor?: string;
+  avatarShape?: "circle" | "rounded" | "square"; chatAreaBg?: string | null;
+  userBubbleBg?: string | null; userBubbleText?: string;
+  userBubbleRadius?: string; userBubblePadding?: string; userBubbleShadow?: string;
+  botBubbleBg?: string | null; botBubbleText?: string | null;
+  botBubbleRadius?: string; botBubbleBorder?: string | null;
+  botBubblePadding?: string; botBubbleShadow?: string;
+  messageGap?: number; messageMaxWidth?: number; messageFontSize?: number;
+  messageLineHeight?: number; showTimestamps?: boolean;
+  timestampColor?: string; timestampFontSize?: number;
+  typingDotColor?: string; typingDotSize?: number;
+  inputBg?: string | null; inputBorder?: string | null;
+  inputBorderFocus?: string | null; inputRadius?: number;
+  inputTextColor?: string | null; inputPlaceholderColor?: string | null;
+  inputPadding?: string; inputAreaBg?: string | null; inputAreaBorder?: string | null;
+  sendBtnBg?: string | null; sendBtnHoverBg?: string | null;
+  sendBtnTextColor?: string; sendBtnRadius?: number; sendBtnSize?: number;
+  scrollbarWidth?: number; scrollbarColor?: string; scrollbarTrackColor?: string;
+  footerBg?: string | null; footerTextColor?: string | null;
+  animationsEnabled?: boolean; messageAnimationStyle?: string;
+  // Voice
+  voiceEnabled?: boolean; voiceProvider?: string;
+  voiceBtnBg?: string | null; voiceBtnSize?: number; voiceBtnRadius?: number;
+  voiceBtnActiveColor?: string | null; voicePanelBg?: string | null;
+  voiceWaveColor?: string | null;
 };
 
 type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
+  id: string; role: "user" | "assistant"; content: string;
   sources?: Array<{ title: string; snippet: string; index: number }>;
 };
 
-type WidgetCommandMessage = {
-  type?: string;
-  payload?: {
-    action?: "send" | "startVoice" | "stopVoice";
-    text?: string;
-  };
-} | null;
+// ─────────────────────────────────────────────────────────────────────────────
+// Voice runtime — mirrors clara.js startOpenAIVoiceRuntime() exactly
+// Uses /api/embed/voice-connect (secure SDP proxy — no API key in browser)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type VoiceState = "idle" | "connecting" | "connected" | "listening" | "speaking" | "error";
+
+function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const pcRef            = useRef<RTCPeerConnection | null>(null);
+  const dcRef            = useRef<RTCDataChannel | null>(null);
+  const micRef           = useRef<MediaStream | null>(null);
+  const audioElRef       = useRef<HTMLAudioElement | null>(null);
+  const remoteStreamRef  = useRef<MediaStream | null>(null);
+  const sendQueueRef     = useRef<string[]>([]);
+  const manualStopRef    = useRef(false);
+  const lastTranscriptRef = useRef("");
+  const pendingTranscriptRef = useRef("");
+
+  // Callbacks injected from outside
+  const onUserTranscriptRef  = useRef<((t: string) => void) | null>(null);
+  const onAssistantDeltaRef  = useRef<((d: string) => void) | null>(null);
+  const onAssistantDoneRef   = useRef<(() => void) | null>(null);
+  const onVoiceRagRef        = useRef<((q: string) => void) | null>(null);
+
+  const sendJSON = useCallback((payload: unknown) => {
+    const dc  = dcRef.current;
+    const msg = JSON.stringify(payload);
+    if (dc && dc.readyState === "open") {
+      try { dc.send(msg); return; } catch {}
+    }
+    sendQueueRef.current.push(msg);
+  }, []);
+
+  const release = useCallback(() => {
+    try { dcRef.current?.close(); } catch {}
+    try { pcRef.current?.close(); } catch {}
+    try { micRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    try {
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current.srcObject = null;
+      }
+    } catch {}
+    try { remoteStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    pcRef.current = null; dcRef.current = null;
+    micRef.current = null; remoteStreamRef.current = null;
+    sendQueueRef.current = [];
+    lastTranscriptRef.current = "";
+    pendingTranscriptRef.current = "";
+  }, []);
+
+  const stop = useCallback(() => {
+    manualStopRef.current = true;
+    release();
+    setVoiceState("idle");
+    setVoiceError(null);
+  }, [release]);
+
+  const start = useCallback(async () => {
+    if (!config) return;
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    manualStopRef.current = false;
+    lastTranscriptRef.current = "";
+    pendingTranscriptRef.current = "";
+    setVoiceError(null);
+    setVoiceState("connecting");
+
+    // ── 1. Microphone ──────────────────────────────────────────────────────
+    let mic: MediaStream;
+    try {
+      mic = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      });
+    } catch (e) {
+      const err = e as DOMException;
+      const msg =
+        err.name === "NotAllowedError" ? "Microphone access denied — click the lock icon in your browser and allow microphone access, then try again." :
+        err.name === "NotFoundError"   ? "No microphone detected. Connect a microphone and try again." :
+        err.name === "NotReadableError"? "Microphone is in use by another app (Zoom, Teams…). Close it and try again." :
+        `Microphone error: ${err.message || err.name}`;
+      setVoiceError(msg);
+      setVoiceState("error");
+      return;
+    }
+    micRef.current = mic;
+
+    // ── 2. RTCPeerConnection + data channel ────────────────────────────────
+    const pc = new RTCPeerConnection();
+    pcRef.current = pc;
+    const remoteStream = new MediaStream();
+    remoteStreamRef.current = remoteStream;
+
+    pc.ontrack = (ev) => {
+      const src = ev.streams?.[0];
+      if (!src) return;
+      src.getTracks().forEach((t) => {
+        if (!remoteStream.getTracks().includes(t)) remoteStream.addTrack(t);
+      });
+      // Attach to audio element for playback
+      if (audioElRef.current) {
+        audioElRef.current.srcObject = remoteStream;
+        audioElRef.current.muted = false;
+        audioElRef.current.play().catch(() => {});
+      }
+    };
+
+    const dc = pc.createDataChannel("oai-events");
+    dcRef.current = dc;
+
+    dc.onopen = () => {
+      // Configure session — same as clara.js dc.onopen
+      sendJSON({
+        type: "session.update",
+        session: {
+          instructions: `You are Clara, a helpful voice assistant. Answer naturally and concisely using knowledge base context when available.`,
+          tools: [{ type: "function", name: "rag_search",
+            description: "Search the active knowledge base.",
+            parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+          }],
+          tool_choice: "auto",
+          modalities: ["audio", "text"],
+          turn_detection: {
+            type: "server_vad", threshold: 0.5,
+            prefix_padding_ms: 300, silence_duration_ms: 600, create_response: false,
+          },
+        },
+      });
+      // Flush queued messages
+      const q = sendQueueRef.current.splice(0);
+      for (const m of q) { try { dc.send(m); } catch {} }
+      setVoiceState("listening");
+    };
+
+    dc.onclose = () => {
+      if (manualStopRef.current) return;
+      setVoiceError("Voice connection closed. Click the mic to reconnect.");
+      setVoiceState("error");
+      release();
+    };
+
+    dc.onmessage = (ev) => {
+      let msg: Record<string, unknown>;
+      try { msg = JSON.parse(ev.data as string) as Record<string, unknown>; } catch { return; }
+      const type = String(msg?.type ?? "");
+
+      if (type === "input_audio_buffer.speech_started") {
+        sendJSON({ type: "response.cancel" });
+        setVoiceState("listening");
+        lastTranscriptRef.current = "";
+        pendingTranscriptRef.current = "";
+      }
+      if (type === "conversation.item.input_audio_transcription.delta") {
+        const d = String(msg.delta ?? "");
+        if (d) pendingTranscriptRef.current += d;
+      }
+      if (type === "conversation.item.input_audio_transcription.completed") {
+        const t = (typeof msg.transcript === "string" && msg.transcript.trim())
+          ? msg.transcript.trim() : pendingTranscriptRef.current.trim();
+        pendingTranscriptRef.current = "";
+        if (t && t !== lastTranscriptRef.current) {
+          lastTranscriptRef.current = t;
+          onUserTranscriptRef.current?.(t);
+          onVoiceRagRef.current?.(t);
+        }
+      }
+      if (type === "response.created") { setVoiceState("speaking"); }
+      if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
+        const d = String(msg.delta ?? "");
+        if (d) { onAssistantDeltaRef.current?.(d); setVoiceState("speaking"); }
+      }
+      if (type === "response.done") {
+        onAssistantDoneRef.current?.();
+        setVoiceState("listening");
+      }
+      // rag_search tool call
+      if (type === "response.function_call_arguments.done") {
+        const callId = String(msg.call_id ?? "");
+        const name   = String(msg.name ?? "");
+        if (name === "rag_search" && callId) {
+          let args: Record<string, unknown> = {};
+          try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {}
+          const q = String(args.query ?? "").trim();
+          if (q) {
+            fetch(baseUrl + "/api/embed/search", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ query: q, limit: 5 }),
+            })
+              .then((r) => r.ok ? r.json() : { context: "" })
+              .then((payload: Record<string, unknown>) => {
+                sendJSON({ type: "conversation.item.create", item: {
+                  type: "function_call_output", call_id: callId,
+                  output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }),
+                }});
+                sendJSON({ type: "response.create" });
+              })
+              .catch(() => {
+                sendJSON({ type: "conversation.item.create", item: {
+                  type: "function_call_output", call_id: callId,
+                  output: JSON.stringify({ error: "search failed" }),
+                }});
+                sendJSON({ type: "response.create" });
+              });
+          }
+        }
+      }
+    };
+
+    // Add mic track
+    const audioTrack = mic.getAudioTracks()[0];
+    if (!audioTrack) { release(); setVoiceError("No audio track from mic"); setVoiceState("error"); return; }
+    pc.addTrack(audioTrack, mic);
+
+    // ── 3. SDP offer ───────────────────────────────────────────────────────
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Wait for ICE gathering
+    if (pc.iceGatheringState !== "complete") {
+      await new Promise<void>((resolve) => {
+        let done = false;
+        const finish = () => { if (!done) { done = true; pc.removeEventListener("icegatheringstatechange", cb); resolve(); } };
+        const cb = () => { if (pc.iceGatheringState === "complete") finish(); };
+        pc.addEventListener("icegatheringstatechange", cb);
+        if (pc.iceGatheringState === "complete") { finish(); return; }
+        setTimeout(finish, 8000);
+      });
+    }
+    const sdpOffer = pc.localDescription?.sdp || offer.sdp || "";
+
+    // ── 4. Secure SDP proxy via /api/embed/voice-connect ──────────────────
+    let sdpAnswer: string;
+    let welcomeMessage = "";
+    try {
+      const res = await fetch(baseUrl + "/api/embed/voice-connect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ sdpOffer }),
+      });
+      const payload = await res.json() as Record<string, unknown>;
+      if (!res.ok || !payload.sdpAnswer) throw new Error(String(payload.error ?? "Voice connection failed"));
+      sdpAnswer = String(payload.sdpAnswer);
+      welcomeMessage = String(payload.welcomeMessage ?? "").trim();
+    } catch (e) {
+      release();
+      setVoiceError((e as Error).message || "Voice connection failed. Ensure voice is enabled for this assistant.");
+      setVoiceState("error");
+      return;
+    }
+
+    await pc.setRemoteDescription({ type: "answer", sdp: sdpAnswer });
+
+    // Optional greeting
+    if (welcomeMessage) {
+      sendJSON({ type: "response.create", response: {
+        instructions: `Greet the user with this message verbatim: ${JSON.stringify(welcomeMessage)}`,
+        tool_choice: "none",
+      }});
+    }
+  }, [config, apiKey, sendJSON, release]);
+
+  return { voiceState, voiceError, start, stop, sendJSON, audioElRef,
+    onUserTranscriptRef, onAssistantDeltaRef, onAssistantDoneRef, onVoiceRagRef };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main widget component
+// ─────────────────────────────────────────────────────────────────────────────
 
 function WidgetContent() {
   const searchParams = useSearchParams();
-  const apiKey       = searchParams.get("key") ?? "";
-  const isPreview    = searchParams.get("preview") === "1";
-  const previewKey   = searchParams.get("previewKey") ?? "";
+  const apiKey    = searchParams.get("key") ?? "";
+  const isPreview = searchParams.get("preview") === "1";
 
-  const [config, setConfig]           = useState<AssistantConfig | null>(null);
-  const [error, setError]             = useState<string | null>(null);
-  const [messages, setMessages]       = useState<Message[]>([]);
-  const [input, setInput]             = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [configLoading, setCL]        = useState(true);
+  const [config, setConfig]  = useState<AssistantConfig | null>(null);
+  const [error,  setError]   = useState<string | null>(null);
+  const [messages, setMsgs]  = useState<Message[]>([]);
+  const [input,  setInput]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [configLoading, setCL] = useState(true);
   const [avatarImgErr, setAvatarImgErr] = useState(false);
-  const [sendHovered, setSendHovered] = useState(false);
-  const [voiceActive, setVoiceActive] = useState(false);
-  const [voiceState, setVoiceState] = useState<"idle" | "connecting" | "listening" | "speaking">("idle");
+  const [sendHovered, setSendHov] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const peerRef = useRef<RTCPeerConnection | null>(null);
-  const dataChannelRef = useRef<RTCDataChannel | null>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const remoteStreamRef = useRef<MediaStream | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  const pendingAssistantIdRef = useRef<string | null>(null);
-  const pendingAssistantTextRef = useRef("");
-  const pendingUserTranscriptRef = useRef("");
-  const voiceSendQueueRef = useRef<string[]>([]);
 
+  // ── Voice runtime ─────────────────────────────────────────────────────────
+  const voice = useVoiceRuntime(apiKey, config);
+  const voiceAudioRef = useRef<HTMLAudioElement>(null);
+  useEffect(() => { voice.audioElRef.current = voiceAudioRef.current; }, [voice.audioElRef]);
 
-  // Load config from API
+  // Voice RAG — search KB and inject context then trigger response
+  const pendingVoiceAssistantIdRef = useRef<string | null>(null);
+  const pendingVoiceAssistantTextRef = useRef("");
+
+  useEffect(() => {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+    voice.onUserTranscriptRef.current = (text) => {
+      const id = `u${Date.now()}`;
+      setMsgs((p) => [...p, { id, role: "user", content: text }]);
+    };
+
+    voice.onVoiceRagRef.current = (query) => {
+      fetch(baseUrl + "/api/embed/search", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query, limit: 5 }),
+      })
+        .then((r) => r.ok ? r.json() : { context: "" })
+        .then((payload: Record<string, unknown>) => {
+          const context = String(payload.context ?? "").trim();
+          if (context) {
+            voice.sendJSON({ type: "conversation.item.create", item: {
+              type: "message", role: "system",
+              content: [{ type: "input_text", text: `Context from knowledge base:\n${context}` }],
+            }});
+          }
+          voice.sendJSON({ type: "conversation.item.create", item: {
+            type: "message", role: "user",
+            content: [{ type: "input_text", text: `Customer question:\n${query}` }],
+          }});
+          voice.sendJSON({ type: "response.create", response: {
+            instructions: "Answer the customer clearly and concisely using the provided knowledge base context.",
+            tool_choice: "none",
+          }});
+        })
+        .catch(() => {
+          voice.sendJSON({ type: "conversation.item.create", item: {
+            type: "message", role: "user",
+            content: [{ type: "input_text", text: query }],
+          }});
+          voice.sendJSON({ type: "response.create" });
+        });
+    };
+
+    voice.onAssistantDeltaRef.current = (delta) => {
+      if (!pendingVoiceAssistantIdRef.current) {
+        const id = `a${Date.now()}`;
+        pendingVoiceAssistantIdRef.current = id;
+        pendingVoiceAssistantTextRef.current = "";
+        setMsgs((p) => [...p, { id, role: "assistant", content: "" }]);
+      }
+      pendingVoiceAssistantTextRef.current += delta;
+      const aid = pendingVoiceAssistantIdRef.current;
+      const txt = pendingVoiceAssistantTextRef.current;
+      setMsgs((p) => p.map((m) => m.id === aid ? { ...m, content: txt } : m));
+    };
+
+    voice.onAssistantDoneRef.current = () => {
+      pendingVoiceAssistantIdRef.current = null;
+      pendingVoiceAssistantTextRef.current = "";
+    };
+  }, [apiKey, voice]);
+
+  // ── Config loading ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (isPreview) { setCL(true); return; }
     if (!apiKey)   { setError("No API key provided"); setCL(false); return; }
@@ -139,436 +420,40 @@ function WidgetContent() {
       .then((r) => r.json())
       .then((data: Record<string, unknown>) => {
         if (data.error) { setError(data.error as string); return; }
-        const cfg = data as AssistantConfig;
-        setConfig(cfg);
-        setMessages([{ id: "welcome", role: "assistant", content: cfg.welcomeMessage }]);
+        setConfig(data as AssistantConfig);
+        setMsgs([{ id: "welcome", role: "assistant", content: data.welcomeMessage as string }]);
       })
       .catch(() => setError("Failed to load assistant configuration"))
       .finally(() => setCL(false));
   }, [apiKey, isPreview]);
 
-  // Preview mode — wait for postMessage from admin panel
+  // Preview mode — postMessage from admin panel
   useEffect(() => {
     if (!isPreview) return;
-    const announceReady = () => {
-      window.parent?.postMessage({ type: "clara-admin-preview-ready" }, window.location.origin);
-    };
-
-    const applyPreviewConfig = (nextConfig: AssistantConfig) => {
-      setConfig(nextConfig);
-      setAvatarImgErr(false);
-      setMessages([{ id: "welcome", role: "assistant", content: nextConfig.welcomeMessage }]);
-      setError(null);
-      setCL(false);
-    };
-
-    if (previewKey) {
-      try {
-        const storedPreview = window.sessionStorage.getItem(previewKey);
-        if (storedPreview) {
-          applyPreviewConfig(JSON.parse(storedPreview) as AssistantConfig);
-        }
-      } catch {}
-    }
-
-    function handle(ev: MessageEvent) {
+    const handle = (ev: MessageEvent) => {
       if (ev.origin !== window.location.origin) return;
       const d = ev.data as { type?: string; payload?: AssistantConfig } | null;
       if (d?.type !== "clara-admin-preview-config" || !d.payload) return;
-      applyPreviewConfig(d.payload);
-    }
-
+      setConfig(d.payload);
+      setAvatarImgErr(false);
+      setMsgs([{ id: "welcome", role: "assistant", content: d.payload.welcomeMessage }]);
+      setError(null); setCL(false);
+    };
     window.addEventListener("message", handle);
-    announceReady();
-    const timer = window.setInterval(() => {
-      if (!config) announceReady();
-    }, 300);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("message", handle);
-    };
-  }, [config, isPreview, previewKey]);
+    window.parent?.postMessage({ type: "clara-admin-preview-ready" }, window.location.origin);
+    return () => window.removeEventListener("message", handle);
+  }, [isPreview]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const stopVoiceRuntime = useCallback(() => {
-    try { dataChannelRef.current?.close(); } catch {}
-    try { peerRef.current?.close(); } catch {}
-    try { micStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    try { remoteStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    try {
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.pause();
-        remoteAudioRef.current.srcObject = null;
-        remoteAudioRef.current.remove();
-      }
-    } catch {}
-    dataChannelRef.current = null;
-    peerRef.current = null;
-    micStreamRef.current = null;
-    remoteStreamRef.current = null;
-    remoteAudioRef.current = null;
-    pendingAssistantIdRef.current = null;
-    pendingAssistantTextRef.current = "";
-    pendingUserTranscriptRef.current = "";
-    voiceSendQueueRef.current = [];
-    setVoiceActive(false);
-    setVoiceState("idle");
-  }, []);
-
-  useEffect(() => stopVoiceRuntime, [stopVoiceRuntime]);
-
-  const appendVoiceAssistantDelta = useCallback((delta: string) => {
-    if (!delta) return;
-    if (!pendingAssistantIdRef.current) {
-      const id = `va${Date.now()}`;
-      pendingAssistantIdRef.current = id;
-      pendingAssistantTextRef.current = "";
-      setMessages((prev) => [...prev, { id, role: "assistant", content: "" }]);
-    }
-    pendingAssistantTextRef.current += delta;
-    const targetId = pendingAssistantIdRef.current;
-    setMessages((prev) => prev.map((m) => (
-      m.id === targetId ? { ...m, content: pendingAssistantTextRef.current } : m
-    )));
-  }, []);
-
-  const flushVoiceAssistantTurn = useCallback(() => {
-    pendingAssistantIdRef.current = null;
-    pendingAssistantTextRef.current = "";
-  }, []);
-
-  const addVoiceUserTranscript = useCallback((text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setMessages((prev) => [...prev, { id: `vu${Date.now()}`, role: "user", content: trimmed }]);
-  }, []);
-
-  const sendVoiceJson = useCallback((payload: unknown) => {
-    const dc = dataChannelRef.current;
-    const msg = JSON.stringify(payload);
-    if (!dc || dc.readyState !== "open") {
-      voiceSendQueueRef.current.push(msg);
-      return false;
-    }
-    try {
-      dc.send(msg);
-      return true;
-    } catch {
-      voiceSendQueueRef.current.push(msg);
-      return false;
-    }
-  }, []);
-
-  const runVoiceRagAndRespond = useCallback(async (query: string) => {
-    const trimmed = query.trim();
-    if (!trimmed || !apiKey) return;
-
-    addVoiceUserTranscript(trimmed);
-
-    try {
-      const res = await fetch(apiUrl("/api/embed/search"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ query: trimmed, limit: 6 }),
-      });
-
-      let context = "";
-      if (res.ok) {
-        const payload = await res.json().catch(() => ({} as { context?: string }));
-        context = typeof payload.context === "string" ? payload.context.trim() : "";
-      }
-
-      if (context) {
-        sendVoiceJson({
-          type: "conversation.item.create",
-          item: {
-            type: "message",
-            role: "system",
-            content: [{ type: "input_text", text: `Context from knowledge base:\n${context}` }],
-          },
-        });
-      }
-
-      sendVoiceJson({
-        type: "conversation.item.create",
-        item: {
-          type: "message",
-          role: "user",
-          content: [{ type: "input_text", text: `Customer question:\n${trimmed}` }],
-        },
-      });
-
-      sendVoiceJson({
-        type: "response.create",
-        response: {
-          instructions: "Answer the customer clearly and concisely using the provided knowledge base context when relevant.",
-          tool_choice: "none",
-        },
-      });
-    } catch {
-      sendVoiceJson({
-        type: "conversation.item.create",
-        item: {
-          type: "message",
-          role: "user",
-          content: [{ type: "input_text", text: trimmed }],
-        },
-      });
-      sendVoiceJson({
-        type: "response.create",
-        response: {
-          instructions: "Answer the customer clearly and concisely.",
-          tool_choice: "none",
-        },
-      });
-    }
-  }, [addVoiceUserTranscript, apiKey, sendVoiceJson]);
-
-  const waitForIceGathering = useCallback((pc: RTCPeerConnection) => {
-    if (pc.iceGatheringState === "complete") return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        pc.removeEventListener("icegatheringstatechange", onState);
-        resolve();
-      };
-      const onState = () => {
-        if (pc.iceGatheringState === "complete") finish();
-      };
-      pc.addEventListener("icegatheringstatechange", onState);
-      window.setTimeout(finish, 8000);
-    });
-  }, []);
-
-  const ensureRemoteAudio = useCallback(() => {
-    if (remoteAudioRef.current) return remoteAudioRef.current;
-    const audio = document.createElement("audio");
-    audio.autoplay = true;
-    audio.setAttribute("playsinline", "true");
-    audio.style.display = "none";
-    document.body.appendChild(audio);
-    remoteAudioRef.current = audio;
-    return audio;
-  }, []);
-
-  const startVoiceRuntime = useCallback(async () => {
-    if (!config || !apiKey) return;
-    if (config.voiceProvider && config.voiceProvider !== "openai") {
-      setMessages((prev) => [...prev, {
-        id: `ve${Date.now()}`,
-        role: "assistant",
-        content: "This widget voice runtime currently supports the configured OpenAI voice path only.",
-      }]);
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia || typeof window.RTCPeerConnection === "undefined") {
-      setMessages((prev) => [...prev, {
-        id: `ve${Date.now()}`,
-        role: "assistant",
-        content: "Voice is unavailable in this browser.",
-      }]);
-      return;
-    }
-    if (peerRef.current && dataChannelRef.current?.readyState === "open") {
-      setVoiceActive(true);
-      if (voiceState === "idle") setVoiceState("listening");
-      return;
-    }
-
-    setVoiceState("connecting");
-
-    const mic = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-    });
-    micStreamRef.current = mic;
-
-    const pc = new RTCPeerConnection();
-    peerRef.current = pc;
-    const remoteStream = new MediaStream();
-    remoteStreamRef.current = remoteStream;
-
-    pc.ontrack = (event) => {
-      const stream = event.streams?.[0];
-      if (!stream) return;
-      stream.getTracks().forEach((track) => {
-        if (!remoteStream.getTracks().includes(track)) remoteStream.addTrack(track);
-      });
-      const audio = ensureRemoteAudio();
-      audio.srcObject = remoteStream;
-      audio.muted = false;
-      void audio.play().catch(() => {});
-    };
-
-    const dc = pc.createDataChannel("oai-events");
-    dataChannelRef.current = dc;
-
-    dc.onopen = () => {
-      try {
-        dc.send(JSON.stringify({
-          type: "session.update",
-          session: {
-            instructions: `You are ${config.assistantName || "Clara"}, a helpful voice assistant for this knowledge base. Answer naturally, briefly, and use provided knowledge base context when it is available.`,
-            tools: [{
-              type: "function",
-              name: "rag_search",
-              description: "Search the active knowledge base for relevant information.",
-              parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
-            }],
-            tool_choice: "auto",
-            modalities: ["audio", "text"],
-            turn_detection: {
-              type: "server_vad",
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 600,
-              create_response: false,
-            },
-          },
-        }));
-      } catch {}
-
-      const queued = voiceSendQueueRef.current;
-      voiceSendQueueRef.current = [];
-      for (const msg of queued) {
-        try { dc.send(msg); } catch {}
-      }
-
-      setVoiceActive(true);
-      setVoiceState("listening");
-    };
-
-    dc.onclose = () => {
-      stopVoiceRuntime();
-    };
-
-    dc.onmessage = (event) => {
-      let msg: Record<string, unknown> | null = null;
-      try { msg = JSON.parse(event.data); } catch { return; }
-      if (!msg?.type) return;
-
-      if (msg.type === "input_audio_buffer.speech_started") {
-        if (voiceState === "speaking") {
-          sendVoiceJson({ type: "response.cancel" });
-        }
-        pendingAssistantIdRef.current = null;
-        pendingAssistantTextRef.current = "";
-        pendingUserTranscriptRef.current = "";
-        setVoiceState("listening");
-        return;
-      }
-
-      if (msg.type === "conversation.item.input_audio_transcription.delta") {
-        const delta = typeof msg.delta === "string" ? msg.delta : "";
-        if (delta) pendingUserTranscriptRef.current += delta;
-        return;
-      }
-
-      if (msg.type === "conversation.item.input_audio_transcription.completed") {
-        const transcript = typeof msg.transcript === "string" && msg.transcript.trim()
-          ? msg.transcript.trim()
-          : pendingUserTranscriptRef.current.trim();
-        pendingUserTranscriptRef.current = "";
-        if (transcript) void runVoiceRagAndRespond(transcript);
-        return;
-      }
-
-      if (msg.type === "response.created") {
-        setVoiceActive(true);
-        setVoiceState("speaking");
-        return;
-      }
-
-      if (msg.type === "response.audio_transcript.delta" || msg.type === "response.text.delta") {
-        appendVoiceAssistantDelta(typeof msg.delta === "string" ? msg.delta : "");
-        setVoiceState("speaking");
-        return;
-      }
-
-      if (msg.type === "response.done") {
-        flushVoiceAssistantTurn();
-        setVoiceState("listening");
-        return;
-      }
-
-      if (msg.type === "error") {
-        setMessages((prev) => [...prev, {
-          id: `ve${Date.now()}`,
-          role: "assistant",
-          content: typeof msg.message === "string" ? msg.message : "Voice connection failed.",
-        }]);
-        stopVoiceRuntime();
-      }
-    };
-
-    pc.addTrack(mic.getAudioTracks()[0], mic);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitForIceGathering(pc);
-    const sdpOffer = pc.localDescription?.sdp || offer.sdp || "";
-
-    const res = await fetch(apiUrl("/api/embed/voice-connect"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ sdpOffer }),
-    });
-    const payload = await res.json().catch(() => ({} as { error?: string; sdpAnswer?: string }));
-    if (!res.ok || !payload?.sdpAnswer) {
-      stopVoiceRuntime();
-      setMessages((prev) => [...prev, {
-        id: `ve${Date.now()}`,
-        role: "assistant",
-        content: payload?.error || "Voice connection failed.",
-      }]);
-      return;
-    }
-
-    await pc.setRemoteDescription({ type: "answer", sdp: payload.sdpAnswer });
-
-    const welcomeMessage = typeof payload.welcomeMessage === "string" ? payload.welcomeMessage.trim() : "";
-    if (welcomeMessage) {
-      const assistantId = `va${Date.now()}`;
-      pendingAssistantIdRef.current = assistantId;
-      pendingAssistantTextRef.current = "";
-      setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
-      sendVoiceJson({
-        type: "response.create",
-        response: {
-          instructions: `Greet the user with this message verbatim: ${JSON.stringify(welcomeMessage)}`,
-          tool_choice: "none",
-        },
-      });
-    } else {
-      setVoiceActive(true);
-      setVoiceState("listening");
-    }
-  }, [apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, runVoiceRagAndRespond, sendVoiceJson, stopVoiceRuntime, voiceState, waitForIceGathering]);
-
-  const sendMessage = useCallback(async (overrideText?: string) => {
-    const nextText = (overrideText ?? input).trim();
-    if (!nextText || loading || !config) return;
-    const userMsg: Message = { id: `u${Date.now()}`, role: "user", content: nextText };
+  // ── Chat send ─────────────────────────────────────────────────────────────
+  const sendMessage = useCallback(async () => {
+    if (!input.trim() || loading || !config) return;
+    const userMsg: Message = { id: `u${Date.now()}`, role: "user", content: input.trim() };
     const all = [...messages, userMsg];
-    setMessages(all);
-    if (overrideText === undefined) setInput("");
-    setLoading(true);
+    setMsgs(all); setInput(""); setLoading(true);
     const aid = `a${Date.now()}`;
-    setMessages((p) => [...p, { id: aid, role: "assistant", content: "" }]);
+    setMsgs((p) => [...p, { id: aid, role: "assistant", content: "" }]);
 
     if (isPreview) {
       const ans = `Preview reply to: "${userMsg.content}". All design edits are live.`;
@@ -576,9 +461,8 @@ function WidgetContent() {
       let i = 0;
       const tick = () => {
         if (i >= chunks.length) { setLoading(false); return; }
-        const token = chunks[i];   // capture BEFORE incrementing
-        i++;
-        setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: m.content + token } : m));
+        const token = chunks[i]; i++;
+        setMsgs((p) => p.map((m) => m.id === aid ? { ...m, content: m.content + token } : m));
         window.setTimeout(tick, 35);
       };
       tick(); return;
@@ -591,135 +475,79 @@ function WidgetContent() {
         body: JSON.stringify({ messages: all.filter((m) => m.id !== "welcome")
           .map((m) => ({ role: m.role, content: m.content })) }),
       });
-      if (!res.ok || !res.body) {
-        setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: "Sorry, an error occurred." } : m));
-        return;
-      }
+      if (!res.ok || !res.body) { setMsgs((p) => p.map((m) => m.id === aid ? { ...m, content: "Sorry, an error occurred." } : m)); return; }
       const reader  = res.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const { done, value } = await reader.read(); if (done) break;
         for (const line of decoder.decode(value).split("\n").filter(Boolean)) {
           try {
             const ev = JSON.parse(line) as { type: string; payload: unknown };
-            if (ev.type === "token")
-              setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: m.content + String(ev.payload) } : m));
-            else if (ev.type === "sources")
-              setMessages((p) => p.map((m) => m.id === aid ? { ...m, sources: ev.payload as Message["sources"] } : m));
-          } catch { /* ignore */ }
+            if (ev.type === "token") setMsgs((p) => p.map((m) => m.id === aid ? { ...m, content: m.content + String(ev.payload) } : m));
+            else if (ev.type === "sources") setMsgs((p) => p.map((m) => m.id === aid ? { ...m, sources: ev.payload as Message["sources"] } : m));
+          } catch {}
         }
       }
-    } catch {
-      setMessages((p) => p.map((m) => m.id === aid ? { ...m, content: "Network error." } : m));
-    } finally { setLoading(false); }
+    } catch { setMsgs((p) => p.map((m) => m.id === aid ? { ...m, content: "Network error." } : m)); }
+    finally  { setLoading(false); }
   }, [input, loading, config, messages, apiKey, isPreview]);
 
-  useEffect(() => {
-    function handleWidgetCommand(ev: MessageEvent) {
-      const data = ev.data as WidgetCommandMessage;
-      if (data?.type !== "clara-widget-command" || !data.payload) return;
-
-      if (data.payload.action === "send" && data.payload.text) {
-        void sendMessage(data.payload.text);
-        return;
-      }
-
-      if (data.payload.action === "startVoice") {
-        void startVoiceRuntime();
-        return;
-      }
-
-      if (data.payload.action === "stopVoice") {
-        stopVoiceRuntime();
-      }
-    }
-
-    window.addEventListener("message", handleWidgetCommand);
-    return () => window.removeEventListener("message", handleWidgetCommand);
-  }, [sendMessage, startVoiceRuntime, stopVoiceRuntime]);
-
-
-  // ── Resolve design tokens — explicit trim guards so empty string → fallback ─
-  const primary  = (config?.primaryColour  && config.primaryColour.trim())  ? config.primaryColour.trim()  : "#6366f1";
-  const accent   = (config?.accentColour   && config.accentColour.trim())   ? config.accentColour.trim()   : "#818cf8";
-  const dark     = config?.widgetTheme === "dark";
-
-  const hdrBg    = (config?.headerBg       && config.headerBg.trim())       ? config.headerBg.trim()       : primary;
-  const hdrTxt   = (config?.headerTextColor && config.headerTextColor.trim()) ? config.headerTextColor.trim() : "#ffffff";
-  const hdrH     = config?.headerHeight    ?? 60;
-
-  const chatBg   = (config?.chatAreaBg     && config.chatAreaBg.trim())     ? config.chatAreaBg.trim()
-                   : (dark ? "#0f0f1a" : "#f8f9fd");
-
-  const userBg   = (config?.userBubbleBg   && config.userBubbleBg.trim())   ? config.userBubbleBg.trim()   : primary;
-  const userTxt  = (config?.userBubbleText  && config.userBubbleText.trim()) ? config.userBubbleText.trim() : "#ffffff";
-  const userR    = config?.userBubbleRadius  || "18px 18px 4px 18px";
-  const userP    = config?.userBubblePadding || "10px 14px";
-  const userShadow = config?.userBubbleShadow || "0 1px 4px rgba(0,0,0,0.15)";
-
-  const botBg    = (config?.botBubbleBg    && config.botBubbleBg.trim())    ? config.botBubbleBg.trim()
-                   : (dark ? "#2a2a40" : "#f0f0f8");
-  const botTxt   = (config?.botBubbleText  && config.botBubbleText.trim())  ? config.botBubbleText.trim()
-                   : (dark ? "#e2e2f0" : "#1f2937");
-  const botR     = config?.botBubbleRadius  || "18px 18px 18px 4px";
-  const botP     = config?.botBubblePadding || "10px 14px";
-  const botBorder  = (config?.botBubbleBorder && config.botBubbleBorder.trim()) ? config.botBubbleBorder.trim()
-                   : `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
-  const botShadow  = config?.botBubbleShadow || "0 1px 3px rgba(0,0,0,0.08)";
-
-  const msgGap   = config?.messageGap      ?? 12;
-  const msgMaxW  = config?.messageMaxWidth ?? 85;
-  const fontSize = config?.messageFontSize ?? 13;
-  const lineH    = config?.messageLineHeight ?? 1.5;
-
-  const fontFamily  = (config?.widgetFontFamily && config.widgetFontFamily.trim())
-                      ? config.widgetFontFamily.trim() : "system-ui,-apple-system,sans-serif";
-  const radius      = config?.widgetBorderRadius ?? 18;
-
-  const inputBg  = (config?.inputBg        && config.inputBg.trim())        ? config.inputBg.trim()
-                   : (dark ? "#1a1a2e" : "#ffffff");
-  const inputBrd = (config?.inputBorder    && config.inputBorder.trim())    ? config.inputBorder.trim()
-                   : `1px solid ${dark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`;
-  const inputR   = config?.inputRadius     ?? 12;
-  const inputTxt = (config?.inputTextColor && config.inputTextColor.trim()) ? config.inputTextColor.trim()
-                   : (dark ? "#e2e2f0" : "#1f2937");
-  const inputPh  = (config?.inputPlaceholderColor && config.inputPlaceholderColor.trim())
-                   ? config.inputPlaceholderColor.trim()
-                   : (dark ? "#555575" : "#9ca3af");
-  const inputPad    = config?.inputPadding    || "8px 12px";
-  const inputAreaBg = (config?.inputAreaBg    && config.inputAreaBg.trim())    ? config.inputAreaBg.trim()
-                      : (dark ? "#0f0f1a" : "#ffffff");
-  const inputAreaB  = (config?.inputAreaBorder && config.inputAreaBorder.trim()) ? config.inputAreaBorder.trim()
-                      : `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`;
-
-  const sendBg   = (config?.sendBtnBg      && config.sendBtnBg.trim())      ? config.sendBtnBg.trim()      : primary;
-  const sendR    = config?.sendBtnRadius   ?? 10;
-  const sendSz   = config?.sendBtnSize     ?? 36;
-  const sendTxt  = (config?.sendBtnTextColor && config.sendBtnTextColor.trim()) ? config.sendBtnTextColor.trim() : "#ffffff";
-  // Voice button
-  const voiceBtnBg      = (config?.voiceBtnBg && config.voiceBtnBg.trim()) ? config.voiceBtnBg.trim() : (dark ? "#2a2a40" : "#e5e7eb");
-  const voiceBtnSz      = config?.voiceBtnSize   ?? 36;
-  const voiceBtnR       = config?.voiceBtnRadius  ?? 10;
-  const voiceActive2Color = (config?.voiceBtnActiveColor && config.voiceBtnActiveColor.trim()) ? config.voiceBtnActiveColor.trim() : "#ef4444";
-  const voicePanelBg    = (config?.voicePanelBg && config.voicePanelBg.trim())
-    ? config.voicePanelBg.trim()
-    : (dark ? "rgba(39,39,59,0.92)" : "#eef2ff");
-  const voiceWaveColor  = (config?.voiceWaveColor && config.voiceWaveColor.trim()) ? config.voiceWaveColor.trim() : accent;
-  const showVoice = Boolean(config?.voiceEnabled);
-  const dotColor   = (config?.typingDotColor  && config.typingDotColor.trim())  ? config.typingDotColor.trim()  : "#9ca3af";
-  const dotSz      = config?.typingDotSize   ?? 6;
-  const scrollW    = config?.scrollbarWidth  ?? 4;
-  const scrollC    = (config?.scrollbarColor && config.scrollbarColor.trim())   ? config.scrollbarColor.trim()   : "#c7d2fe";
-  const scrollT    = (config?.scrollbarTrackColor && config.scrollbarTrackColor.trim()) ? config.scrollbarTrackColor.trim() : "transparent";
-  const footerTxt  = (config?.footerTextColor && config.footerTextColor.trim()) ? config.footerTextColor.trim()
-                     : (dark ? "#4a4a6a" : "#d1d5db");
-  const footerBg2  = (config?.footerBg       && config.footerBg.trim())         ? config.footerBg.trim()         : "transparent";
-  const avatarBr   = config?.avatarShape === "square" ? "4px"
-                   : config?.avatarShape === "rounded" ? "8px" : "50%";
+  // ── Design token resolution ───────────────────────────────────────────────
+  const t = (v: string | null | undefined, fb: string) =>
+    (v && v.trim()) ? v.trim() : fb;
+  const primary    = t(config?.primaryColour,  "#6366f1");
+  const accent     = t(config?.accentColour,   "#818cf8");
+  const dark       = config?.widgetTheme === "dark";
+  const hdrBg      = t(config?.headerBg,       primary);
+  const hdrTxt     = t(config?.headerTextColor,"#ffffff");
+  const hdrH       = config?.headerHeight      ?? 60;
+  const chatBg     = t(config?.chatAreaBg,     dark ? "#0f0f1a" : "#f8f9fd");
+  const userBg     = t(config?.userBubbleBg,   primary);
+  const userTxt    = t(config?.userBubbleText,  "#ffffff");
+  const userR      = config?.userBubbleRadius  || "18px 18px 4px 18px";
+  const userP      = config?.userBubblePadding || "10px 14px";
+  const userSh     = config?.userBubbleShadow  || "0 1px 4px rgba(0,0,0,0.15)";
+  const botBg      = t(config?.botBubbleBg,    dark ? "#2a2a40" : "#f0f0f8");
+  const botTxt     = t(config?.botBubbleText,  dark ? "#e2e2f0" : "#1f2937");
+  const botR       = config?.botBubbleRadius   || "18px 18px 18px 4px";
+  const botP       = config?.botBubblePadding  || "10px 14px";
+  const botBdr     = t(config?.botBubbleBorder,`1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`);
+  const botSh      = config?.botBubbleShadow   || "0 1px 3px rgba(0,0,0,0.08)";
+  const msgGap     = config?.messageGap        ?? 12;
+  const msgMaxW    = config?.messageMaxWidth    ?? 85;
+  const fontSize   = config?.messageFontSize   ?? 13;
+  const lineH      = config?.messageLineHeight ?? 1.5;
+  const fontFamily = t(config?.widgetFontFamily,"system-ui,-apple-system,sans-serif");
+  const radius     = config?.widgetBorderRadius ?? 18;
+  const inputBg2   = t(config?.inputBg,         dark ? "#1a1a2e" : "#ffffff");
+  const inputBrd   = t(config?.inputBorder,     `1px solid ${dark ? "rgba(255,255,255,0.1)" : "#e5e7eb"}`);
+  const inputR     = config?.inputRadius       ?? 12;
+  const inputTxt   = t(config?.inputTextColor,  dark ? "#e2e2f0" : "#1f2937");
+  const inputPh    = t(config?.inputPlaceholderColor, dark ? "#555575" : "#9ca3af");
+  const inputPad   = config?.inputPadding      || "8px 12px";
+  const inputAreaBg= t(config?.inputAreaBg,     dark ? "#0f0f1a" : "#ffffff");
+  const inputAreaB = t(config?.inputAreaBorder, `1px solid ${dark ? "rgba(255,255,255,0.08)" : "#e5e7eb"}`);
+  const sendBg     = t(config?.sendBtnBg,       primary);
+  const sendR2     = config?.sendBtnRadius     ?? 10;
+  const sendSz     = config?.sendBtnSize       ?? 36;
+  const sendTxt    = t(config?.sendBtnTextColor,"#ffffff");
+  const dotColor   = t(config?.typingDotColor,  "#9ca3af");
+  const dotSz      = config?.typingDotSize     ?? 6;
+  const scrollW    = config?.scrollbarWidth    ?? 4;
+  const scrollC    = t(config?.scrollbarColor,  "#c7d2fe");
+  const scrollT    = t(config?.scrollbarTrackColor,"transparent");
+  const footTxt    = t(config?.footerTextColor, dark ? "#4a4a6a" : "#d1d5db");
+  const footBg     = t(config?.footerBg,        "transparent");
+  const avatarBr   = config?.avatarShape === "square" ? "4px" : config?.avatarShape === "rounded" ? "8px" : "50%";
   const animStyle  = config?.messageAnimationStyle ?? "fade";
-  const themeCss   = config?.customThemeCss  ?? "";
-  const customCss  = config?.customCss       ?? "";
+  const themeCss   = config?.customThemeCss   ?? "";
+  const customCss  = config?.customCss        ?? "";
+  const showVoice  = Boolean(config?.voiceEnabled) && !isPreview;
+  const vBtnBg     = t(config?.voiceBtnBg,     dark ? "#2a2a40" : "#e5e7eb");
+  const vBtnSz     = config?.voiceBtnSize      ?? 36;
+  const vBtnR      = config?.voiceBtnRadius    ?? 10;
+  const vBtnActive = t(config?.voiceBtnActiveColor, "#ef4444");
+  const isVoiceActive = voice.voiceState !== "idle" && voice.voiceState !== "error";
 
   const globalCss = `
     .cw-msgs::-webkit-scrollbar { width: ${scrollW}px; }
@@ -728,41 +556,40 @@ function WidgetContent() {
     .cw-msg { animation: ${
       animStyle === "slide" ? "cwSlideIn 0.22s ease" :
       animStyle === "pop"   ? "cwPopIn 0.18s cubic-bezier(0.34,1.56,0.64,1)" :
-      animStyle === "none"  ? "none" :
-      "cwFadeIn 0.18s ease"
+      animStyle === "none"  ? "none" : "cwFadeIn 0.18s ease"
     } both; }
     @keyframes cwFadeIn  { from { opacity:0; transform:translateY(6px) } }
     @keyframes cwSlideIn { from { opacity:0; transform:translateX(20px) } }
     @keyframes cwPopIn   { from { opacity:0; transform:scale(0.88) } }
     @keyframes cwBounce  { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+    @keyframes voicePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
     textarea.clara-textarea::placeholder,
     .clara-textarea::placeholder { color: ${inputPh} !important; }
     ${themeCss}
     ${customCss}
   `;
 
-  if (configLoading) {
-    return (
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"center",
-        height:"100dvh",fontFamily:"system-ui,sans-serif",color:"#9ca3af",fontSize:"14px" }}>
-        {isPreview ? "Waiting for preview config…" : "Loading assistant…"}
+  if (configLoading) return (
+    <div style={{ display:"flex",alignItems:"center",justifyContent:"center",
+      height:"100dvh",fontFamily:"system-ui,sans-serif",color:"#9ca3af",fontSize:"14px" }}>
+      {isPreview ? "Waiting for preview config…" : "Loading assistant…"}
+    </div>
+  );
+  if (error) return (
+    <div style={{ display:"flex",alignItems:"center",justifyContent:"center",
+      height:"100dvh",fontFamily:"system-ui,sans-serif",padding:"24px" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:"32px",marginBottom:"8px" }}>⚠️</div>
+        <div style={{ color:"#dc2626",fontSize:"13px" }}>{error}</div>
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"center",
-        height:"100dvh",fontFamily:"system-ui,sans-serif",padding:"24px" }}>
-        <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:"32px",marginBottom:"8px" }}>⚠️</div>
-          <div style={{ color:"#dc2626",fontSize:"13px" }}>{error}</div>
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 
   const avatarLetter = config?.assistantName?.charAt(0)?.toUpperCase() ?? "A";
+  const vsLabel = voice.voiceState === "connecting" ? "Connecting…" :
+    voice.voiceState === "listening" ? "Listening…" :
+    voice.voiceState === "speaking"  ? "Speaking…"  :
+    voice.voiceState === "connected" ? "Connected"  : "";
 
   return (
     <div className="clara-widget" style={{
@@ -772,25 +599,19 @@ function WidgetContent() {
     }}>
       <style>{globalCss}</style>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="clara-header" style={{
         display:"flex",alignItems:"center",gap:"12px",padding:"0 16px",
-        height:hdrH,
-        background:hdrBg,    /* explicit inline style — always wins over CSS class rules */
-        color:hdrTxt,
-        flexShrink:0,
-        backdropFilter:       config?.headerBlur ? "blur(12px)" : undefined,
-        WebkitBackdropFilter: config?.headerBlur ? "blur(12px)" : undefined,
+        height:hdrH, background:hdrBg, color:hdrTxt, flexShrink:0,
+        backdropFilter:config?.headerBlur ? "blur(12px)" : undefined,
+        WebkitBackdropFilter:config?.headerBlur ? "blur(12px)" : undefined,
       }}>
         {config?.avatarUrl && !avatarImgErr
-          ? <img
-              key={config.avatarUrl}
-              src={config.avatarUrl} alt="" className="clara-avatar"
+          ? <img key={config.avatarUrl} src={config.avatarUrl} alt="" className="clara-avatar"
               onError={() => setAvatarImgErr(true)}
               style={{ width:32,height:32,borderRadius:avatarBr,objectFit:"cover",flexShrink:0 }} />
           : <div className="clara-avatar" style={{
-              width:32,height:32,borderRadius:avatarBr,background:accent,
-              color:hdrTxt,   /* use header text colour, not primary */
+              width:32,height:32,borderRadius:avatarBr,background:accent,color:hdrTxt,
               display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,
               fontSize:14,flexShrink:0 }}>
               {avatarLetter}
@@ -802,28 +623,37 @@ function WidgetContent() {
           </div>
           {config?.showStatusDot !== false && (
             <div style={{ display:"flex",alignItems:"center",gap:6 }}>
-              <span className="clara-header-status" style={{
-                width:7,height:7,borderRadius:"50%",background:config?.statusDotColor??"#4ade80",
-                display:"inline-block",flexShrink:0 }} />
-              <span style={{ fontSize:11,opacity:0.75 }}>Online</span>
+              <span style={{ width:7,height:7,borderRadius:"50%",
+                background: isVoiceActive ? (vBtnActive||"#ef4444") : (config?.statusDotColor??"#4ade80"),
+                display:"inline-block",flexShrink:0,
+                animation: isVoiceActive ? "voicePulse 1s infinite" : "none" }} />
+              <span style={{ fontSize:11,opacity:0.75 }}>
+                {isVoiceActive ? vsLabel : "Online"}
+              </span>
             </div>
           )}
         </div>
-        {config?.customHeaderHtml && (
-          <div dangerouslySetInnerHTML={{ __html: config.customHeaderHtml }}
-            style={{ display:"flex",alignItems:"center" }} />
+        {config?.customHeaderHtml && !config.customHeaderHtml.includes("<!DOCTYPE") && config.customHeaderHtml.length < 2000 && (
+          <div dangerouslySetInnerHTML={{ __html: config.customHeaderHtml }} style={{ display:"flex",alignItems:"center" }} />
         )}
       </div>
 
-      {/* Messages */}
+      {/* ── Voice error banner ── */}
+      {voice.voiceError && (
+        <div style={{ padding:"8px 16px",background:"#fef2f2",borderBottom:"1px solid #fecaca",
+          fontSize:11,color:"#dc2626",flexShrink:0 }}>
+          {voice.voiceError}
+        </div>
+      )}
+
+      {/* ── Messages ── */}
       <div className="cw-msgs clara-messages" style={{
         flex:1,overflowY:"auto",padding:"16px",
         display:"flex",flexDirection:"column",gap:msgGap,background:chatBg,
       }}>
         {messages.map((msg) => (
           <div key={msg.id} className="cw-msg" style={{
-            display:"flex",
-            justifyContent:msg.role==="user"?"flex-end":"flex-start",
+            display:"flex",justifyContent:msg.role==="user"?"flex-end":"flex-start",
           }}>
             <div className={msg.role==="user"?"clara-msg-user":"clara-msg-bot"}
               style={{
@@ -833,8 +663,8 @@ function WidgetContent() {
                 fontSize,lineHeight:lineH,
                 background:msg.role==="user"?userBg:botBg,
                 color:msg.role==="user"?userTxt:botTxt,
-                border:msg.role==="user"?"none":botBorder,
-                boxShadow:msg.role==="user"?userShadow:botShadow,
+                border:msg.role==="user"?"none":botBdr,
+                boxShadow:msg.role==="user"?userSh:botSh,
                 wordBreak:"break-word",
               }}>
               {msg.content||<span style={{display:"flex",gap:4,alignItems:"center"}}>
@@ -844,7 +674,7 @@ function WidgetContent() {
                     display:"inline-block",animation:`cwBounce 1.2s ${d}ms infinite`,
                   }}/>
                 ))}</span>}
-              {msg.sources&&msg.sources.length>0&&(
+              {msg.sources?.length && (
                 <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid rgba(0,0,0,0.1)"}}>
                   {msg.sources.slice(0,3).map((s)=>(
                     <div key={s.index} className="clara-sources" style={{fontSize:11,
@@ -854,10 +684,9 @@ function WidgetContent() {
                   ))}
                 </div>
               )}
-              {config?.showTimestamps&&(
+              {config?.showTimestamps && (
                 <div className="clara-timestamp" style={{
-                  fontSize:config?.timestampFontSize??10,
-                  color:config?.timestampColor??"#9ca3af",opacity:0.65,marginTop:4,
+                  fontSize:config?.timestampFontSize??10,color:config?.timestampColor??"#9ca3af",opacity:0.65,marginTop:4,
                 }}>now</div>
               )}
             </div>
@@ -866,9 +695,9 @@ function WidgetContent() {
         <div ref={bottomRef}/>
       </div>
 
-      {/* Input */}
+      {/* ── Input area ── */}
       <div className="clara-input-area" style={{
-        borderTop:`${inputAreaB}`,padding:"12px",
+        borderTop:inputAreaB,padding:"12px",
         paddingBottom:"calc(12px + env(safe-area-inset-bottom))",
         background:inputAreaBg,flexShrink:0,
       }}>
@@ -883,101 +712,81 @@ function WidgetContent() {
               flex:1,resize:"none",borderRadius:inputR,border:inputBrd,
               padding:inputPad,fontSize:13,fontFamily:"inherit",
               outline:"none",lineHeight:1.5,maxHeight:100,overflowY:"auto",
-              opacity:loading?0.5:1,background:inputBg,color:inputTxt,
+              opacity:loading?0.5:1,background:inputBg2,color:inputTxt,
             }}/>
-          {/* Voice button — only shown when voiceEnabled is true */}
+
+          {/* Voice button — only when voiceEnabled === true on live deploy */}
           {showVoice && (
             <button
-              onClick={()=>{ if (voiceActive) stopVoiceRuntime(); else void startVoiceRuntime(); }}
-              title={voiceActive ? "Stop voice" : "Start voice"}
+              onClick={() => isVoiceActive ? voice.stop() : void voice.start()}
+              title={isVoiceActive ? `Voice: ${voice.voiceState} — click to stop` : "Start voice"}
               className="clara-voice-btn"
               style={{
-                flexShrink:0,width:voiceBtnSz,height:voiceBtnSz,borderRadius:voiceBtnR,
-                background: voiceActive ? voiceActive2Color : voiceBtnBg,
-                color: voiceActive ? "#fff" : (dark?"#9ca3af":"#6b7280"),
+                flexShrink:0,width:vBtnSz,height:vBtnSz,borderRadius:vBtnR,
+                background: voice.voiceState === "speaking"  ? "#10b981" :
+                            voice.voiceState === "connecting" ? accent :
+                            isVoiceActive ? primary : vBtnBg,
+                color: isVoiceActive ? "#fff" : (dark?"#9ca3af":"#6b7280"),
                 border:"none",cursor:"pointer",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                transition:"background 0.18s, transform 0.1s",
-                transform: voiceActive ? "scale(1.08)" : "scale(1)",
+                transition:"background 0.18s, transform 0.12s",
+                transform: isVoiceActive ? "scale(1.08)" : "scale(1)",
+                animation: voice.voiceState === "connecting" || voice.voiceState === "speaking"
+                  ? "voicePulse 1.2s ease-in-out infinite" : "none",
               }}>
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                {voiceActive
-                  ? <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm0 16a7 7 0 0 1-7-7H3a9 9 0 0 0 8 8.94V21h2v-2.06A9 9 0 0 0 21 10h-2a7 7 0 0 1-7 7z"/>
-                  : <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 3.02-3.04 5.35-6.12 5.35S5.58 14.02 5.09 11H3.07c.52 3.85 3.65 6.83 7.43 7.18V21h3v-2.82c3.78-.35 6.91-3.33 7.43-7.18h-2.02z"/>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {isVoiceActive
+                  ? <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>
+                  : <>
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                      <line x1="12" y1="19" x2="12" y2="23"/>
+                      <line x1="8" y1="23" x2="16" y2="23"/>
+                    </>
                 }
               </svg>
             </button>
           )}
+
           {/* Send button */}
           <button onClick={()=>void sendMessage()}
             disabled={!input.trim()||loading}
-            onMouseEnter={()=>setSendHovered(true)}
-            onMouseLeave={()=>setSendHovered(false)}
+            onMouseEnter={()=>setSendHov(true)}
+            onMouseLeave={()=>setSendHov(false)}
             className="clara-send-btn"
             style={{
-              flexShrink:0,width:sendSz,height:sendSz,borderRadius:sendR,
-              background: (!input.trim()||loading)
-                ? (dark?"#2a2a40":"#e5e7eb")
-                : sendHovered
-                  ? ((config?.sendBtnHoverBg && config.sendBtnHoverBg.trim()) ? config.sendBtnHoverBg.trim() : sendBg)
-                  : sendBg,
+              flexShrink:0,width:sendSz,height:sendSz,borderRadius:sendR2,
+              background:(!input.trim()||loading)
+                ?(dark?"#2a2a40":"#e5e7eb")
+                :sendHovered?t(config?.sendBtnHoverBg,sendBg):sendBg,
               color:(!input.trim()||loading)?(dark?"#555":"#aaa"):sendTxt,
-              border:"none",
-              cursor:(!input.trim()||loading)?"not-allowed":"pointer",
+              border:"none",cursor:(!input.trim()||loading)?"not-allowed":"pointer",
               display:"flex",alignItems:"center",justifyContent:"center",
               transition:"background 0.18s, transform 0.1s",
-              transform: sendHovered && input.trim() && !loading ? "scale(1.06)" : "scale(1)",
+              transform:sendHovered&&input.trim()&&!loading?"scale(1.06)":"scale(1)",
             }}>
             <svg className="clara-send-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
           </button>
         </div>
-        {showVoice && voiceActive && (
-          <div style={{
-            marginTop: 10,
-            padding: "10px 12px",
-            borderRadius: Math.max(12, voiceBtnR),
-            background: voicePanelBg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: dark ? "#f5f7ff" : "#1f2937" }}>
-                Voice mode active
-              </div>
-              <div style={{ fontSize: 11, color: dark ? "#a5b0c5" : "#6b7280", marginTop: 2 }}>
-                Voice controls render through the widget runtime.
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 18 }}>
-              {[8, 14, 10, 16].map((h, i) => (
-                <span key={i} style={{
-                  width: 4,
-                  height: h,
-                  borderRadius: 999,
-                  background: voiceWaveColor,
-                  opacity: 0.95,
-                }} />
-              ))}
-            </div>
-          </div>
-        )}
+
         {Boolean(config?.widgetShowBranding) && (
-          <div className="clara-branding" style={{textAlign:"center",marginTop:8,background:footerBg2}}>
+          <div className="clara-branding" style={{textAlign:"center",marginTop:8,background:footBg}}>
             {config?.customFooterHtml
               ? <span dangerouslySetInnerHTML={{__html:config.customFooterHtml}}/>
-              : <span style={{fontSize:10,color:footerTxt}}>
+              : <span style={{fontSize:10,color:footTxt}}>
                   {(config?.customPoweredBy && config.customPoweredBy.trim())
-                    ? config.customPoweredBy.trim()
-                    : "Powered by Clara AI"}
+                    ? config.customPoweredBy.trim() : "Powered by Clara AI"}
                 </span>
             }
           </div>
         )}
       </div>
+
+      {/* Hidden audio element for remote WebRTC voice stream */}
+      <audio ref={voiceAudioRef} className="hidden" style={{display:"none"}} />
     </div>
   );
 }
