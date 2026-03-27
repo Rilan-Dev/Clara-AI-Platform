@@ -39,16 +39,23 @@
   if (!API_KEY) { console.warn('[Clara] data-key attribute is required'); return; }
 
   var BASE_URL   = (scriptEl.src || '').replace(/\/embed\/clara\.js[^]*$/, '');
+  var FRAME_ORIGIN = (function() {
+    try { return new URL(BASE_URL).origin; }
+    catch (e) { return window.location.origin; }
+  })();
   var SESSION_ID = 'cs_' + Math.random().toString(36).slice(2, 10);
 
   /* ── 2. Runtime state ────────────────────────────────────────────────────── */
   var cfg        = null;
   var isOpen     = false;
   var isThinking = false;
+  var frameLoaded = false;
   var voiceOn    = false;
   var voiceState = 'idle';
   var history    = [];
   var refreshTimer = null;
+  var frameCommandQueue = [];
+  var $hostEl, $shellStyle, $frame, $launcherLabel;
   var $panel, $toggleBtn, $msgs, $textarea, $sendBtn, $voiceBtn;
   var voiceWs = null;
   var voicePeer = null;
@@ -471,7 +478,7 @@
       }
     }).then(function(mic) {
       voiceMicStream = mic;
-      var pc = new RTC();
+      var pc = new RTC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
       voicePeer = pc;
       voiceRemoteStream = new MediaStream();
 
@@ -506,6 +513,10 @@
         }
 
         dc.onopen = function() {
+          // CRITICAL: include input_audio_transcription so OpenAI transcribes
+          // user speech and sends conversation.item.input_audio_transcription.completed.
+          // Without this field, session.update may reset transcription to disabled,
+          // causing the AI to receive audio but never fire transcription events.
           voiceSendJson({
             type: 'session.update',
             session: {
@@ -516,20 +527,25 @@
                 description: 'Search the active knowledge base for relevant information.',
                 parameters: {
                   type: 'object',
-                  properties: {
-                    query: { type: 'string' }
-                  },
+                  properties: { query: { type: 'string' } },
                   required: ['query']
                 }
               }],
               tool_choice: 'auto',
               modalities: ['audio', 'text'],
+              // Explicit transcription config so the update never accidentally
+              // disables it. whisper-1 is universally supported; the server
+              // may have set a newer model — this call preserves that unless
+              // it's explicitly overridden here.
+              input_audio_transcription: {
+                model: 'gpt-4o-mini-transcribe',
+              },
               turn_detection: {
                 type: 'server_vad',
-                threshold: 0.5,
+                threshold: 0.4,           // slightly more sensitive than 0.5
                 prefix_padding_ms: 300,
-                silence_duration_ms: 600,
-                create_response: false,
+                silence_duration_ms: 700,  // 700ms pause = end of utterance
+                create_response: false,    // we drive response.create manually
               },
             }
           });
@@ -598,6 +614,38 @@
           if (msg.type === 'response.done') {
             flushVoiceAssistantTurn();
             setVoiceState('listening');
+            return;
+          }
+
+          // Handle rag_search tool call if the model calls it autonomously.
+          // Without this, the model waits forever for a tool response.
+          if (msg.type === 'response.function_call_arguments.done') {
+            var callId = typeof msg.call_id === 'string' ? msg.call_id : '';
+            var fnName  = typeof msg.name    === 'string' ? msg.name    : '';
+            if (fnName === 'rag_search' && callId) {
+              var fnArgs = {};
+              try { fnArgs = JSON.parse(typeof msg.arguments === 'string' ? msg.arguments : '{}'); } catch(e) {}
+              var q = (typeof fnArgs.query === 'string' ? fnArgs.query : '').trim() || voiceLastUserTranscript;
+              fetch(BASE_URL + '/api/embed/search', {
+                method: 'POST', headers: authHdr(),
+                body: JSON.stringify({ query: q, limit: 6 })
+              })
+              .then(function(r){ return r.ok ? r.json() : { context: '', sources: [] }; })
+              .then(function(p){
+                voiceSendJson({ type: 'conversation.item.create', item: {
+                  type: 'function_call_output', call_id: callId,
+                  output: JSON.stringify({ context: p.context || '', sources: p.sources || [] })
+                }});
+                voiceSendJson({ type: 'response.create', response: { tool_choice: 'none' } });
+              })
+              .catch(function(){
+                voiceSendJson({ type: 'conversation.item.create', item: {
+                  type: 'function_call_output', call_id: callId,
+                  output: JSON.stringify({ error: 'search failed' })
+                }});
+                voiceSendJson({ type: 'response.create', response: { tool_choice: 'none' } });
+              });
+            }
             return;
           }
 
@@ -913,127 +961,180 @@
     for (var i = 0; i < fns.length; i++) { try { fns[i](data); } catch(e){} }
   }
 
-  /* ── 10. Build Shadow DOM widget (floating mode) ─────────────────────────── */
-  function buildWidget(c) {
-    var host = document.createElement('div');
-    host.id  = 'clara-widget-host';
-    document.body.appendChild(host);
-    var shadow = host.attachShadow({ mode: 'open' });
-
-    var style = document.createElement('style');
-    style.textContent = buildCSS(c);
-    shadow.appendChild(style);
-
-    var launcher = document.createElement('div');
-    launcher.id  = 'launcher';
-    shadow.appendChild(launcher);
-
-    /* Panel */
-    $panel = document.createElement('div'); $panel.id = 'panel';
-    $panel.setAttribute('role','dialog'); $panel.setAttribute('aria-modal','true');
-    $panel.setAttribute('aria-label',(c.assistantName||'Clara')+' chat');
-
-    /* Header */
-    var hdr = document.createElement('div'); hdr.id = 'hdr';
-    var av  = document.createElement('div'); av.id  = 'av';
-    if (c.avatarUrl) {
-      var img = document.createElement('img'); img.src = c.avatarUrl; img.alt = ''; av.appendChild(img);
-    } else { av.innerHTML = svg(I_BOT); }
-    var hn = document.createElement('div'); hn.id = 'hn';
-    hn.textContent = c.assistantName || 'Clara';
-
-    /* Custom header HTML slot */
-    var hdrExtra = document.createElement('div'); hdrExtra.id = 'hdr-extra';
-    if (c.customHeaderHtml) { hdrExtra.innerHTML = c.customHeaderHtml; }
-
-    var cbtn = document.createElement('button'); cbtn.id = 'cbtn';
-    cbtn.setAttribute('aria-label','Close chat'); cbtn.innerHTML = svg(I_CLOSE);
-    cbtn.onclick = togglePanel;
-    hdr.appendChild(av); hdr.appendChild(hn); hdr.appendChild(hdrExtra); hdr.appendChild(cbtn);
-    $panel.appendChild(hdr);
-
-    /* Messages */
-    $msgs = document.createElement('div'); $msgs.id = 'msgs';
-    $msgs.setAttribute('role','log'); $msgs.setAttribute('aria-live','polite');
-    $panel.appendChild($msgs);
-    if (c.welcomeMessage) addMsg('assistant', c.welcomeMessage);
-
-    /* Input row */
-    var irow = document.createElement('div'); irow.id = 'irow';
-    $textarea = document.createElement('textarea');
-    $textarea.id = 'itxt'; $textarea.placeholder = 'Ask a question\u2026'; $textarea.rows = 1;
-    $textarea.setAttribute('aria-label','Chat message');
-    $textarea.addEventListener('keydown', function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
-    $textarea.addEventListener('input', function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,88)+'px';});
-    irow.appendChild($textarea);
-
-    if (c.voiceEnabled) {
-      $voiceBtn = document.createElement('button'); $voiceBtn.id='vbtn'; $voiceBtn.className='ibtn';
-      $voiceBtn.setAttribute('aria-label','Start voice'); $voiceBtn.innerHTML=svg(I_MIC);
-      $voiceBtn.onclick = toggleVoice; irow.appendChild($voiceBtn);
-    }
-
-    $sendBtn = document.createElement('button'); $sendBtn.id='sbtn'; $sendBtn.className='ibtn';
-    $sendBtn.setAttribute('aria-label','Send message'); $sendBtn.innerHTML=svg(I_SEND);
-    $sendBtn.onclick = sendMessage; irow.appendChild($sendBtn);
-    $panel.appendChild(irow);
-
-    /* Branding footer */
-    if (c.widgetShowBranding !== false) {
-      var pw = document.createElement('div'); pw.id='pw';
-      var poweredText = c.customPoweredBy !== undefined ? c.customPoweredBy : null;
-      if (poweredText === null) {
-        pw.innerHTML = 'Powered by <a href="https://clara.ai" target="_blank" rel="noopener noreferrer">Clara AI</a>';
-      } else if (poweredText) {
-        pw.textContent = poweredText;
-      }
-      if (pw.textContent || pw.innerHTML) $panel.appendChild(pw);
-    }
-
-    launcher.appendChild($panel);
-
-    /* Launcher label */
-    if (c.widgetLauncherLabel) {
-      var lbl = document.createElement('div'); lbl.id='launcher-lbl';
-      lbl.textContent = c.widgetLauncherLabel; lbl.onclick = togglePanel;
-      launcher.appendChild(lbl);
-    }
-
-    /* FAB button — custom SVG or default chat icon */
-    $toggleBtn = document.createElement('button'); $toggleBtn.id='tbtn';
-    $toggleBtn.setAttribute('aria-label','Open chat');
-    $toggleBtn.setAttribute('aria-expanded','false');
-    $toggleBtn.setAttribute('aria-controls','panel');
-    if (c.customLauncherSvg) {
-      $toggleBtn.innerHTML = c.customLauncherSvg;
-    } else {
-      $toggleBtn.innerHTML = svg(I_CHAT);
-    }
-    $toggleBtn.onclick = togglePanel;
-    launcher.appendChild($toggleBtn);
+  function widgetFrameUrl() {
+    return BASE_URL + '/embed/widget?key=' + encodeURIComponent(API_KEY);
   }
 
-  /* ── 11. Toggle open / close ─────────────────────────────────────────────── */
-  function togglePanel() {
-    isOpen = !isOpen;
-    if (isOpen) {
-      $panel.classList.add('open');
-      $toggleBtn.setAttribute('aria-expanded','true');
-      $toggleBtn.setAttribute('aria-label','Close chat');
-      if (cfg && cfg.customLauncherSvg) { $toggleBtn.innerHTML = svg(I_CLOSE); }
-      setTimeout(function(){ if ($textarea) $textarea.focus(); }, 280);
-    } else {
-      if (voiceOn) stopVoiceRuntime(false);
-      $panel.classList.remove('open');
-      $toggleBtn.setAttribute('aria-expanded','false');
-      $toggleBtn.setAttribute('aria-label','Open chat');
-      if (cfg && cfg.customLauncherSvg) { $toggleBtn.innerHTML = cfg.customLauncherSvg; }
-      else { $toggleBtn.innerHTML = svg(I_CHAT); }
+  function destroyMountedUi() {
+    frameLoaded = false;
+    frameCommandQueue = [];
+    $frame = null;
+    $launcherLabel = null;
+    $shellStyle = null;
+    $toggleBtn = null;
+    $panel = null;
+    $hostEl = null;
+    $msgs = null;
+    $textarea = null;
+    $sendBtn = null;
+    $voiceBtn = null;
+    isOpen = false;
+
+    var oldFloating = document.getElementById('clara-widget-host');
+    if (oldFloating && oldFloating.parentNode) oldFloating.parentNode.removeChild(oldFloating);
+    var oldInline = document.getElementById('clara-inline-host');
+    if (oldInline && oldInline.parentNode) oldInline.parentNode.removeChild(oldInline);
+  }
+
+  function buildShellCSS(c) {
+    var primary  = c.primaryColour || '#6366f1';
+    var launcher = c.launcherColour || primary;
+    var pos      = c.widgetPosition || FALLBACK_POS;
+    var btnSize  = (c.widgetButtonSize || 56) + 'px';
+    var radius   = ((c.widgetBorderRadius !== undefined ? c.widgetBorderRadius : 20)) + 'px';
+    var chatH    = (c.widgetChatHeight || 580) + 'px';
+    var right    = pos !== 'bottom-left';
+    return [
+      '*,*::before,*::after{box-sizing:border-box}',
+      '#launcher{position:fixed;z-index:2147483647;bottom:24px;' + (right ? 'right:24px' : 'left:24px') + ';display:flex;flex-direction:column;align-items:' + (right ? 'flex-end' : 'flex-start') + ';gap:8px}',
+      '#launcher-lbl{font-family:system-ui,sans-serif;font-size:13px;font-weight:600;color:#fff;background:' + launcher + ';border-radius:20px;padding:6px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.22);transition:opacity .15s;white-space:nowrap}',
+      '#launcher-lbl:hover{opacity:.88}',
+      '#panel{width:380px;max-width:calc(100vw - 32px);height:' + chatH + ';max-height:calc(100dvh - 100px);border-radius:' + radius + ';box-shadow:0 12px 48px rgba(0,0,0,0.24);overflow:hidden;background:transparent;transform:scale(0.88) translateY(20px);opacity:0;pointer-events:none;transform-origin:bottom ' + (right ? 'right' : 'left') + ';transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .2s}',
+      '#panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}',
+      '#frame{display:block;width:100%;height:100%;border:0;background:transparent;border-radius:' + radius + '}',
+      '#tbtn{width:' + btnSize + ';height:' + btnSize + ';border-radius:50%;background:' + launcher + ';border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,0.28);transition:transform .2s,box-shadow .2s}',
+      '#tbtn:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,0,0,0.36)}',
+      '#tbtn svg{width:calc(' + btnSize + ' * 0.46);height:calc(' + btnSize + ' * 0.46);fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
+    ].join('\n');
+  }
+
+  function frameCommand(payload) {
+    if (!payload) return;
+    if ($frame && frameLoaded && $frame.contentWindow) {
+      try {
+        $frame.contentWindow.postMessage({ type: 'clara-widget-command', payload: payload }, FRAME_ORIGIN);
+        return;
+      } catch (e) {}
     }
+    frameCommandQueue.push(payload);
+  }
+
+  function flushFrameCommands() {
+    if (!$frame || !$frame.contentWindow || !frameLoaded) return;
+    while (frameCommandQueue.length) {
+      var payload = frameCommandQueue.shift();
+      try {
+        $frame.contentWindow.postMessage({ type: 'clara-widget-command', payload: payload }, FRAME_ORIGIN);
+      } catch (e) {}
+    }
+  }
+
+  function setLauncherVisual() {
+    if (!$toggleBtn) return;
+    $toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    $toggleBtn.setAttribute('aria-label', isOpen ? 'Close chat' : 'Open chat');
+    if (isOpen && cfg && cfg.customLauncherSvg) $toggleBtn.innerHTML = svg(I_CLOSE);
+    else $toggleBtn.innerHTML = (cfg && cfg.customLauncherSvg) || svg(I_CHAT);
+  }
+
+  function buildFloatingShell(c) {
+    var host = document.createElement('div');
+    host.id = 'clara-widget-host';
+    document.body.appendChild(host);
+    $hostEl = host;
+
+    var shadow = host.attachShadow({ mode: 'open' });
+    var style = document.createElement('style');
+    style.textContent = buildShellCSS(c);
+    shadow.appendChild(style);
+    $shellStyle = style;
+
+    var launcher = document.createElement('div');
+    launcher.id = 'launcher';
+    shadow.appendChild(launcher);
+
+    $panel = document.createElement('div');
+    $panel.id = 'panel';
+    $panel.setAttribute('role', 'dialog');
+    $panel.setAttribute('aria-modal', 'true');
+    $panel.setAttribute('aria-label', (c.assistantName || 'Clara') + ' chat');
+
+    $frame = document.createElement('iframe');
+    $frame.id = 'frame';
+    $frame.title = (c.assistantName || 'Clara') + ' widget';
+    $frame.allow = 'microphone *; autoplay *';
+    $frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    $frame.src = widgetFrameUrl();
+    $frame.onload = function() { frameLoaded = true; flushFrameCommands(); };
+    $panel.appendChild($frame);
+    launcher.appendChild($panel);
+
+    if (c.widgetLauncherLabel) {
+      var lbl = document.createElement('div');
+      lbl.id = 'launcher-lbl';
+      lbl.textContent = c.widgetLauncherLabel;
+      lbl.onclick = togglePanel;
+      launcher.appendChild(lbl);
+      $launcherLabel = lbl;
+    }
+
+    $toggleBtn = document.createElement('button');
+    $toggleBtn.id = 'tbtn';
+    $toggleBtn.setAttribute('aria-controls', 'panel');
+    $toggleBtn.onclick = togglePanel;
+    launcher.appendChild($toggleBtn);
+    setLauncherVisual();
+  }
+
+  function buildInlineEmbed(c) {
+    var host = document.createElement('div');
+    host.id = 'clara-inline-host';
+    host.style.width = '100%';
+    host.style.maxWidth = '100%';
+    host.style.height = (c.widgetChatHeight || 580) + 'px';
+    host.style.borderRadius = ((c.widgetBorderRadius !== undefined ? c.widgetBorderRadius : 20)) + 'px';
+    host.style.overflow = 'hidden';
+    host.style.background = 'transparent';
+
+    $frame = document.createElement('iframe');
+    $frame.id = 'clara-inline-frame';
+    $frame.title = (c.assistantName || 'Clara') + ' widget';
+    $frame.allow = 'microphone *; autoplay *';
+    $frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    $frame.src = widgetFrameUrl();
+    $frame.style.width = '100%';
+    $frame.style.height = '100%';
+    $frame.style.border = '0';
+    $frame.style.display = 'block';
+    $frame.onload = function() { frameLoaded = true; flushFrameCommands(); };
+    host.appendChild($frame);
+
+    if (scriptEl.parentNode) scriptEl.parentNode.insertBefore(host, scriptEl.nextSibling);
+    else document.body.appendChild(host);
+    $hostEl = host;
+  }
+
+  function renderEmbeddedMode(c, preserveOpen) {
+    var wasOpen = !!preserveOpen && isOpen;
+    destroyMountedUi();
+    if ((c.widgetMode || FALLBACK_MODE) === 'inline') buildInlineEmbed(c);
+    else buildFloatingShell(c);
+    if (wasOpen && $panel) {
+      isOpen = true;
+      $panel.classList.add('open');
+      setLauncherVisual();
+    }
+  }
+
+  function togglePanel() {
+    if (!$panel) return;
+    isOpen = !isOpen;
+    if (isOpen) $panel.classList.add('open');
+    else $panel.classList.remove('open');
+    setLauncherVisual();
     _emit('toggle', { open: isOpen });
   }
 
-  /* ── 12. Headless SDK — zero DOM, pure JS API ────────────────────────────── */
   function buildHeadlessSDK(c) {
     // In headless mode nothing is rendered. The site builds its own UI and calls
     // ClaraSDK methods. Tokens stream via event callbacks.
@@ -1127,7 +1228,6 @@
     _emit('ready', { config: c });
   }
 
-  /* ── 13. Init ─────────────────────────────────────────────────────────────── */
   function init() {
     fetch(BASE_URL + '/api/embed/config', { headers: { 'Authorization': 'Bearer ' + API_KEY }, cache:'no-store' })
       .then(function(r){ if(!r.ok) throw new Error('Config error ('+r.status+')'); return r.json(); })
@@ -1137,20 +1237,10 @@
         var mode = cfg.widgetMode || FALLBACK_MODE;
 
         if (mode === 'headless') {
+          destroyMountedUi();
           buildHeadlessSDK(cfg);
         } else {
-          buildWidget(cfg);
-          if (refreshTimer) clearInterval(refreshTimer);
-          refreshTimer = setInterval(function() {
-            if (window.ClaraWidget && typeof window.ClaraWidget.refreshDesign === 'function') {
-              try {
-                var refreshResult = window.ClaraWidget.refreshDesign();
-                if (refreshResult && typeof refreshResult.then === 'function') {
-                  refreshResult.catch(function(){});
-                }
-              } catch (e) {}
-            }
-          }, 30000);
+          renderEmbeddedMode(cfg, false);
         }
       })
       .catch(function(err){ console.warn('[Clara] Widget failed to initialise:', err.message||err); });
@@ -1166,39 +1256,31 @@
     if (voiceOn) stopVoiceRuntime(false);
   });
 
-  /* ── 14. Public API (floating / inline modes) ────────────────────────────── */
   window.ClaraWidget = {
     open:   function(){ if ($panel && !isOpen) togglePanel(); },
     close:  function(){ if ($panel && isOpen)  togglePanel(); },
-    send:   function(text){ if ($textarea){ $textarea.value = text||''; sendMessage(); } },
+    send:   function(text){
+      if ($panel && !isOpen) togglePanel();
+      frameCommand({ action: 'send', text: text || '' });
+    },
     isOpen: function(){ return isOpen; },
     getConfig: function(){ return cfg; },
-    startVoice: function(){ return startVoiceRuntime(); },
-    stopVoice: function(){ stopVoiceRuntime(false); },
-    // Re-applies latest design config from server without page reload
+    startVoice: function(){ frameCommand({ action: 'startVoice' }); return Promise.resolve({ delegated: true }); },
+    stopVoice: function(){ frameCommand({ action: 'stopVoice' }); return Promise.resolve(); },
     refreshDesign: function() {
-      return fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY} })
+      return fetch(BASE_URL + '/api/embed/config', { headers:{'Authorization':'Bearer '+API_KEY}, cache:'no-store' })
         .then(function(r){return r.json();})
         .then(function(data){
           cfg = data;
-          // Patch the Shadow DOM style in-place
-          var host = document.getElementById('clara-widget-host');
-          if (!host || !host.shadowRoot) return;
-          var styleEl = host.shadowRoot.querySelector('style');
-          if (styleEl) styleEl.textContent = buildCSS(cfg);
-          // Update FAB icon if custom SVG changed
-          if ($toggleBtn && !isOpen) {
-            $toggleBtn.innerHTML = cfg.customLauncherSvg || svg(I_CHAT);
+          if ((cfg.widgetMode || FALLBACK_MODE) === 'headless') {
+            destroyMountedUi();
+            buildHeadlessSDK(cfg);
+            return data;
           }
-          // Update powered-by text
-          var pw = host.shadowRoot.getElementById('pw');
-          if (pw) {
-            if (cfg.widgetShowBranding === false) { pw.style.display = 'none'; }
-            else if (cfg.customPoweredBy) { pw.textContent = cfg.customPoweredBy; }
-          }
+          renderEmbeddedMode(cfg, true);
+          return data;
         });
     },
-    // Event emitter passthrough for consistency
     on:  function(e, fn){ _listeners[e]=_listeners[e]||[]; _listeners[e].push(fn); return window.ClaraWidget; },
     off: function(e, fn){ if (_listeners[e]) _listeners[e]=_listeners[e].filter(function(f){return f!==fn;}); return window.ClaraWidget; },
   };
