@@ -118,6 +118,7 @@ function WidgetContent() {
   const [avatarImgErr, setAvatarImgErr] = useState(false);
   const [sendHovered, setSendHovered] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceState, setVoiceState] = useState<"idle" | "connecting" | "listening" | "speaking">("idle");
   const bottomRef = useRef<HTMLDivElement>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
@@ -214,6 +215,7 @@ function WidgetContent() {
     pendingUserTranscriptRef.current = "";
     voiceSendQueueRef.current = [];
     setVoiceActive(false);
+    setVoiceState("idle");
   }, []);
 
   useEffect(() => stopVoiceRuntime, [stopVoiceRuntime]);
@@ -377,8 +379,11 @@ function WidgetContent() {
     }
     if (peerRef.current && dataChannelRef.current?.readyState === "open") {
       setVoiceActive(true);
+      if (voiceState === "idle") setVoiceState("listening");
       return;
     }
+
+    setVoiceState("connecting");
 
     const mic = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -442,6 +447,7 @@ function WidgetContent() {
       }
 
       setVoiceActive(true);
+      setVoiceState("listening");
     };
 
     dc.onclose = () => {
@@ -454,10 +460,13 @@ function WidgetContent() {
       if (!msg?.type) return;
 
       if (msg.type === "input_audio_buffer.speech_started") {
-        sendVoiceJson({ type: "response.cancel" });
+        if (voiceState === "speaking") {
+          sendVoiceJson({ type: "response.cancel" });
+        }
         pendingAssistantIdRef.current = null;
         pendingAssistantTextRef.current = "";
         pendingUserTranscriptRef.current = "";
+        setVoiceState("listening");
         return;
       }
 
@@ -478,16 +487,19 @@ function WidgetContent() {
 
       if (msg.type === "response.created") {
         setVoiceActive(true);
+        setVoiceState("speaking");
         return;
       }
 
       if (msg.type === "response.audio_transcript.delta" || msg.type === "response.text.delta") {
         appendVoiceAssistantDelta(typeof msg.delta === "string" ? msg.delta : "");
+        setVoiceState("speaking");
         return;
       }
 
       if (msg.type === "response.done") {
         flushVoiceAssistantTurn();
+        setVoiceState("listening");
         return;
       }
 
@@ -543,8 +555,9 @@ function WidgetContent() {
       });
     } else {
       setVoiceActive(true);
+      setVoiceState("listening");
     }
-  }, [apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, runVoiceRagAndRespond, sendVoiceJson, stopVoiceRuntime, waitForIceGathering]);
+  }, [apiKey, appendVoiceAssistantDelta, config, ensureRemoteAudio, flushVoiceAssistantTurn, runVoiceRagAndRespond, sendVoiceJson, stopVoiceRuntime, voiceState, waitForIceGathering]);
 
   const sendMessage = useCallback(async (overrideText?: string) => {
     const nextText = (overrideText ?? input).trim();
