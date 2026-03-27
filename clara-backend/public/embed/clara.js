@@ -1200,17 +1200,6 @@
           buildHeadlessSDK(cfg);
         } else {
           renderEmbeddedMode(cfg, false);
-          if (refreshTimer) clearInterval(refreshTimer);
-          refreshTimer = setInterval(function() {
-            if (window.ClaraWidget && typeof window.ClaraWidget.refreshDesign === 'function') {
-              try {
-                var refreshResult = window.ClaraWidget.refreshDesign();
-                if (refreshResult && typeof refreshResult.then === 'function') {
-                  refreshResult.catch(function(){});
-                }
-              } catch (e) {}
-            }
-          }, 30000);
         }
       })
       .catch(function(err){ console.warn('[Clara] Widget failed to initialise:', err.message||err); });
@@ -1248,7 +1237,6 @@
             return data;
           }
           renderEmbeddedMode(cfg, true);
-          if ($frame) $frame.src = widgetFrameUrl() + '&v=' + Date.now();
           return data;
         });
     },
