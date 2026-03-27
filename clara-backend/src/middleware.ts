@@ -168,7 +168,11 @@ export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get("origin");
   const isApiRoute = pathname.startsWith("/api/");
-  const isEmbedWidgetRoute = pathname === "/embed/widget" || pathname.startsWith("/embed/widget/");
+  const isEmbedWidgetRoute =
+    pathname === "/embed/widget" ||
+    pathname.startsWith("/embed/widget/") ||
+    pathname === "/embed/widget-preview" ||
+    pathname.startsWith("/embed/widget-preview/");
 
   // ── CORS preflight — must be handled BEFORE any auth checks ─────────────
   if (request.method === "OPTIONS" && isApiRoute) {

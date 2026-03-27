@@ -1031,8 +1031,8 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
         <div>
           <p className="text-sm font-semibold text-white">Live Sandbox Preview</p>
           <p className="text-xs text-white/40">
-            Powered by <code className="bg-white/10 rounded px-1">/embed/widget</code> — 
-            public embed renderer with live unsaved design tokens
+            Powered by <code className="bg-white/10 rounded px-1">/embed/widget-preview</code> - 
+            shell-free widget renderer with live unsaved design tokens
           </p>
         </div>
         <div className="flex gap-1.5 items-center">
@@ -1047,7 +1047,7 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
       <iframe
         ref={frameRef}
         title="Widget embed preview"
-        src={`/embed/widget?preview=1&previewKey=${encodeURIComponent(previewKeyRef.current)}`}
+        src={`/embed/widget-preview?preview=1&previewKey=${encodeURIComponent(previewKeyRef.current)}`}
         onLoad={postMsg}
         className="w-full"
         style={{ height: 520, background: "transparent" }}
