@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SECURITY_HEADERS } from "./security/csp";
+import { EMBED_WIDGET_HEADERS, SECURITY_HEADERS } from "./security/csp";
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 
@@ -153,6 +153,14 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
+function addEmbedWidgetHeaders(response: NextResponse): NextResponse {
+  for (const [header, value] of Object.entries(EMBED_WIDGET_HEADERS)) {
+    response.headers.set(header, value);
+  }
+  response.headers.delete("X-Frame-Options");
+  return response;
+}
+
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
@@ -160,6 +168,7 @@ export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get("origin");
   const isApiRoute = pathname.startsWith("/api/");
+  const isEmbedWidgetRoute = pathname === "/embed/widget" || pathname.startsWith("/embed/widget/");
 
   // ── CORS preflight — must be handled BEFORE any auth checks ─────────────
   if (request.method === "OPTIONS" && isApiRoute) {
@@ -237,7 +246,9 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   // ── All other routes (marketing pages, embed widget, etc.) ──────────────
-  const res = addSecurityHeaders(NextResponse.next());
+  const res = isEmbedWidgetRoute
+    ? addEmbedWidgetHeaders(NextResponse.next())
+    : addSecurityHeaders(NextResponse.next());
   if (isApiRoute) applyCors(res, origin);
   return res;
 }
