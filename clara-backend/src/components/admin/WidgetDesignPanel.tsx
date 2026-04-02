@@ -12,6 +12,7 @@ import dynamic from "next/dynamic";
 import {
   ChevronDown, Code2, Eye, RefreshCw, Palette, Layout, Type,
   MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check, Radio,
+  Mic,
 } from "lucide-react";
 import { Button }          from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -470,15 +471,15 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="block text-xs font-medium text-white/65">{label}</label>
-      {children}
-      {hint && <p className="text-[11px] text-white/30 leading-snug">{hint}</p>}
-    </div>
-  );
-}
+// function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+//   return (
+//     <div className="space-y-1.5">
+//       <label className="block text-xs font-medium text-white/65">{label}</label>
+//       {children}
+//       {hint && <p className="text-[11px] text-white/30 leading-snug">{hint}</p>}
+//     </div>
+//   );
+// }
 
 function ColourInput({ value, onChange, placeholder }: {
   value: string; onChange: (v: string) => void; placeholder?: string;
@@ -2113,303 +2114,303 @@ function AdvancedCodePanel({ d, set, kbId }: {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main exported component
-// ─────────────────────────────────────────────────────────────────────────────
+// // ─────────────────────────────────────────────────────────────────────────────
+// // Main exported component
+// // ─────────────────────────────────────────────────────────────────────────────
 
-export function WidgetDesignPanel({ kbId }: { kbId: string }) {
-  const [design, setDesign] = useState<WidgetDesign>(D);
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [err,     setErr]     = useState<string | null>(null);
-  const [tab,     setTab]     = useState<"visual" | "code" | "preview">("visual");
-  const [sandbox, setSandbox] = useState(true);
+// export function WidgetDesignPanel({ kbId }: { kbId: string }) {
+//   const [design, setDesign] = useState<WidgetDesign>(D);
+//   const [loading, setLoading] = useState(true);
+//   const [saving,  setSaving]  = useState(false);
+//   const [saved,   setSaved]   = useState(false);
+//   const [err,     setErr]     = useState<string | null>(null);
+//   const [tab,     setTab]     = useState<"visual" | "code" | "preview">("visual");
+//   const [sandbox, setSandbox] = useState(true);
 
-  /* ── Load ── */
-  useEffect(() => {
-    if (!kbId) return;
-    fetch(apiUrl(`/api/kbs/${kbId}/config`), { headers: withAuthHeaders({}) })
-      .then((r) => r.json())
-      .then((data: Record<string, unknown>) => {
-        setDesign({
-          primaryColour:   String(data.primaryColour  ?? D.primaryColour),
-          accentColour:    String(data.accentColour   ?? D.accentColour),
-          launcherColour:  String(data.launcherColour ?? data.primaryColour ?? D.launcherColour),
-          widgetTheme:     data.widgetTheme === "dark" ? "dark" : "light",
-          widgetPosition:  data.widgetPosition === "bottom-left" ? "bottom-left" : "bottom-right",
-          widgetButtonSize:   Number(data.widgetButtonSize   ?? D.widgetButtonSize),
-          widgetBorderRadius: Number(data.widgetBorderRadius ?? D.widgetBorderRadius),
-          widgetFontFamily:   String(data.widgetFontFamily   ?? D.widgetFontFamily),
-          widgetChatHeight:   Number(data.widgetChatHeight   ?? D.widgetChatHeight),
-          widgetShowBranding: data.widgetShowBranding !== false,
-          widgetLauncherLabel: String(data.widgetLauncherLabel ?? ""),
-          widgetMode: (["floating","inline","headless"].includes(String(data.widgetMode ?? ""))
-            ? data.widgetMode : "floating") as WidgetDesign["widgetMode"],
-          assistantName:   String(data.assistantName   ?? D.assistantName),
-          welcomeMessage:  String(data.welcomeMessage  ?? D.welcomeMessage),
-          avatarUrl:       String(data.avatarUrl       ?? ""),
-          headerBg:        String(data.headerBg        ?? ""),
-          headerTextColor: String(data.headerTextColor ?? D.headerTextColor),
-          headerHeight:    Number(data.headerHeight    ?? D.headerHeight),
-          headerBlur:      Boolean(data.headerBlur),
-          showStatusDot:   data.showStatusDot !== false,
-          statusDotColor:  String(data.statusDotColor  ?? D.statusDotColor),
-          avatarShape:     (["circle","rounded","square"].includes(String(data.avatarShape ?? ""))
-            ? data.avatarShape : "circle") as WidgetDesign["avatarShape"],
-          chatAreaBg:      String(data.chatAreaBg      ?? ""),
-          userBubbleBg:    String(data.userBubbleBg    ?? ""),
-          userBubbleText:  String(data.userBubbleText  ?? D.userBubbleText),
-          userBubbleRadius:  String(data.userBubbleRadius  ?? D.userBubbleRadius),
-          userBubblePadding: String(data.userBubblePadding ?? D.userBubblePadding),
-          userBubbleShadow:  String(data.userBubbleShadow  ?? D.userBubbleShadow),
-          botBubbleBg:    String(data.botBubbleBg    ?? ""),
-          botBubbleText:  String(data.botBubbleText  ?? ""),
-          botBubbleRadius:  String(data.botBubbleRadius  ?? D.botBubbleRadius),
-          botBubbleBorder:  String(data.botBubbleBorder  ?? ""),
-          botBubblePadding: String(data.botBubblePadding ?? D.botBubblePadding),
-          botBubbleShadow:  String(data.botBubbleShadow  ?? D.botBubbleShadow),
-          messageGap:        Number(data.messageGap        ?? D.messageGap),
-          messageMaxWidth:   Number(data.messageMaxWidth   ?? D.messageMaxWidth),
-          messageFontSize:   Number(data.messageFontSize   ?? D.messageFontSize),
-          messageLineHeight: Number(data.messageLineHeight ?? D.messageLineHeight),
-          showTimestamps:    Boolean(data.showTimestamps),
-          timestampColor:    String(data.timestampColor    ?? D.timestampColor),
-          timestampFontSize: Number(data.timestampFontSize ?? D.timestampFontSize),
-          typingDotColor: String(data.typingDotColor ?? D.typingDotColor),
-          typingDotSize:  Number(data.typingDotSize  ?? D.typingDotSize),
-          inputBg:    String(data.inputBg    ?? ""),
-          inputBorder:String(data.inputBorder ?? ""),
-          inputBorderFocus: String(data.inputBorderFocus ?? ""),
-          inputRadius:  Number(data.inputRadius  ?? D.inputRadius),
-          inputTextColor:        String(data.inputTextColor        ?? ""),
-          inputPlaceholderColor: String(data.inputPlaceholderColor ?? ""),
-          inputPadding:   String(data.inputPadding   ?? D.inputPadding),
-          inputAreaBg:    String(data.inputAreaBg    ?? ""),
-          inputAreaBorder:String(data.inputAreaBorder ?? ""),
-          sendBtnBg:       String(data.sendBtnBg       ?? ""),
-          sendBtnHoverBg:  String(data.sendBtnHoverBg  ?? ""),
-          sendBtnTextColor:String(data.sendBtnTextColor ?? D.sendBtnTextColor),
-          sendBtnRadius:   Number(data.sendBtnRadius   ?? D.sendBtnRadius),
-          sendBtnSize:     Number(data.sendBtnSize     ?? D.sendBtnSize),
-          scrollbarWidth:      Number(data.scrollbarWidth      ?? D.scrollbarWidth),
-          scrollbarColor:      String(data.scrollbarColor      ?? D.scrollbarColor),
-          scrollbarTrackColor: String(data.scrollbarTrackColor ?? D.scrollbarTrackColor),
-          footerBg:        String(data.footerBg        ?? ""),
-          footerTextColor: String(data.footerTextColor ?? ""),
-          customPoweredBy: String(data.customPoweredBy ?? D.customPoweredBy),
-          animationsEnabled: data.animationsEnabled !== false,
-          messageAnimationStyle: (["fade","slide","pop","none"].includes(String(data.messageAnimationStyle ?? ""))
-            ? data.messageAnimationStyle : "fade") as WidgetDesign["messageAnimationStyle"],
-          customCss:         String(data.customCss         ?? ""),
-          customLauncherSvg: String(data.customLauncherSvg ?? ""),
-          customHeaderHtml: (() => {
-            const raw = String(data.customHeaderHtml ?? "");
-            // Clear if corrupted (contains a full HTML page from the old widget.html bug)
-            if (raw.includes("<!DOCTYPE") || raw.includes("<html") || raw.length > 2000) return "";
-            return raw;
-          })(),
-          customFooterHtml:  String(data.customFooterHtml  ?? ""),
-          customThemeCss:    String(data.customThemeCss    ?? ""),
-          customInjectJs:    String(data.customInjectJs    ?? ""),
-          // Voice mode design
-          voiceBtnBg:          String(data.voiceBtnBg          ?? ""),
-          voiceBtnSize:        Number(data.voiceBtnSize        ?? 36),
-          voiceBtnRadius:      Number(data.voiceBtnRadius      ?? 10),
-          voiceBtnActiveColor: String(data.voiceBtnActiveColor ?? "#ef4444"),
-          voicePanelBg:        String(data.voicePanelBg        ?? ""),
-          voiceWaveColor:      String(data.voiceWaveColor      ?? "#6366f1"),
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [kbId]);
+//   /* ── Load ── */
+//   useEffect(() => {
+//     if (!kbId) return;
+//     fetch(apiUrl(`/api/kbs/${kbId}/config`), { headers: withAuthHeaders({}) })
+//       .then((r) => r.json())
+//       .then((data: Record<string, unknown>) => {
+//         setDesign({
+//           primaryColour:   String(data.primaryColour  ?? D.primaryColour),
+//           accentColour:    String(data.accentColour   ?? D.accentColour),
+//           launcherColour:  String(data.launcherColour ?? data.primaryColour ?? D.launcherColour),
+//           widgetTheme:     data.widgetTheme === "dark" ? "dark" : "light",
+//           widgetPosition:  data.widgetPosition === "bottom-left" ? "bottom-left" : "bottom-right",
+//           widgetButtonSize:   Number(data.widgetButtonSize   ?? D.widgetButtonSize),
+//           widgetBorderRadius: Number(data.widgetBorderRadius ?? D.widgetBorderRadius),
+//           widgetFontFamily:   String(data.widgetFontFamily   ?? D.widgetFontFamily),
+//           widgetChatHeight:   Number(data.widgetChatHeight   ?? D.widgetChatHeight),
+//           widgetShowBranding: data.widgetShowBranding !== false,
+//           widgetLauncherLabel: String(data.widgetLauncherLabel ?? ""),
+//           widgetMode: (["floating","inline","headless"].includes(String(data.widgetMode ?? ""))
+//             ? data.widgetMode : "floating") as WidgetDesign["widgetMode"],
+//           assistantName:   String(data.assistantName   ?? D.assistantName),
+//           welcomeMessage:  String(data.welcomeMessage  ?? D.welcomeMessage),
+//           avatarUrl:       String(data.avatarUrl       ?? ""),
+//           headerBg:        String(data.headerBg        ?? ""),
+//           headerTextColor: String(data.headerTextColor ?? D.headerTextColor),
+//           headerHeight:    Number(data.headerHeight    ?? D.headerHeight),
+//           headerBlur:      Boolean(data.headerBlur),
+//           showStatusDot:   data.showStatusDot !== false,
+//           statusDotColor:  String(data.statusDotColor  ?? D.statusDotColor),
+//           avatarShape:     (["circle","rounded","square"].includes(String(data.avatarShape ?? ""))
+//             ? data.avatarShape : "circle") as WidgetDesign["avatarShape"],
+//           chatAreaBg:      String(data.chatAreaBg      ?? ""),
+//           userBubbleBg:    String(data.userBubbleBg    ?? ""),
+//           userBubbleText:  String(data.userBubbleText  ?? D.userBubbleText),
+//           userBubbleRadius:  String(data.userBubbleRadius  ?? D.userBubbleRadius),
+//           userBubblePadding: String(data.userBubblePadding ?? D.userBubblePadding),
+//           userBubbleShadow:  String(data.userBubbleShadow  ?? D.userBubbleShadow),
+//           botBubbleBg:    String(data.botBubbleBg    ?? ""),
+//           botBubbleText:  String(data.botBubbleText  ?? ""),
+//           botBubbleRadius:  String(data.botBubbleRadius  ?? D.botBubbleRadius),
+//           botBubbleBorder:  String(data.botBubbleBorder  ?? ""),
+//           botBubblePadding: String(data.botBubblePadding ?? D.botBubblePadding),
+//           botBubbleShadow:  String(data.botBubbleShadow  ?? D.botBubbleShadow),
+//           messageGap:        Number(data.messageGap        ?? D.messageGap),
+//           messageMaxWidth:   Number(data.messageMaxWidth   ?? D.messageMaxWidth),
+//           messageFontSize:   Number(data.messageFontSize   ?? D.messageFontSize),
+//           messageLineHeight: Number(data.messageLineHeight ?? D.messageLineHeight),
+//           showTimestamps:    Boolean(data.showTimestamps),
+//           timestampColor:    String(data.timestampColor    ?? D.timestampColor),
+//           timestampFontSize: Number(data.timestampFontSize ?? D.timestampFontSize),
+//           typingDotColor: String(data.typingDotColor ?? D.typingDotColor),
+//           typingDotSize:  Number(data.typingDotSize  ?? D.typingDotSize),
+//           inputBg:    String(data.inputBg    ?? ""),
+//           inputBorder:String(data.inputBorder ?? ""),
+//           inputBorderFocus: String(data.inputBorderFocus ?? ""),
+//           inputRadius:  Number(data.inputRadius  ?? D.inputRadius),
+//           inputTextColor:        String(data.inputTextColor        ?? ""),
+//           inputPlaceholderColor: String(data.inputPlaceholderColor ?? ""),
+//           inputPadding:   String(data.inputPadding   ?? D.inputPadding),
+//           inputAreaBg:    String(data.inputAreaBg    ?? ""),
+//           inputAreaBorder:String(data.inputAreaBorder ?? ""),
+//           sendBtnBg:       String(data.sendBtnBg       ?? ""),
+//           sendBtnHoverBg:  String(data.sendBtnHoverBg  ?? ""),
+//           sendBtnTextColor:String(data.sendBtnTextColor ?? D.sendBtnTextColor),
+//           sendBtnRadius:   Number(data.sendBtnRadius   ?? D.sendBtnRadius),
+//           sendBtnSize:     Number(data.sendBtnSize     ?? D.sendBtnSize),
+//           scrollbarWidth:      Number(data.scrollbarWidth      ?? D.scrollbarWidth),
+//           scrollbarColor:      String(data.scrollbarColor      ?? D.scrollbarColor),
+//           scrollbarTrackColor: String(data.scrollbarTrackColor ?? D.scrollbarTrackColor),
+//           footerBg:        String(data.footerBg        ?? ""),
+//           footerTextColor: String(data.footerTextColor ?? ""),
+//           customPoweredBy: String(data.customPoweredBy ?? D.customPoweredBy),
+//           animationsEnabled: data.animationsEnabled !== false,
+//           messageAnimationStyle: (["fade","slide","pop","none"].includes(String(data.messageAnimationStyle ?? ""))
+//             ? data.messageAnimationStyle : "fade") as WidgetDesign["messageAnimationStyle"],
+//           customCss:         String(data.customCss         ?? ""),
+//           customLauncherSvg: String(data.customLauncherSvg ?? ""),
+//           customHeaderHtml: (() => {
+//             const raw = String(data.customHeaderHtml ?? "");
+//             // Clear if corrupted (contains a full HTML page from the old widget.html bug)
+//             if (raw.includes("<!DOCTYPE") || raw.includes("<html") || raw.length > 2000) return "";
+//             return raw;
+//           })(),
+//           customFooterHtml:  String(data.customFooterHtml  ?? ""),
+//           customThemeCss:    String(data.customThemeCss    ?? ""),
+//           customInjectJs:    String(data.customInjectJs    ?? ""),
+//           // Voice mode design
+//           voiceBtnBg:          String(data.voiceBtnBg          ?? ""),
+//           voiceBtnSize:        Number(data.voiceBtnSize        ?? 36),
+//           voiceBtnRadius:      Number(data.voiceBtnRadius      ?? 10),
+//           voiceBtnActiveColor: String(data.voiceBtnActiveColor ?? "#ef4444"),
+//           voicePanelBg:        String(data.voicePanelBg        ?? ""),
+//           voiceWaveColor:      String(data.voiceWaveColor      ?? "#6366f1"),
+//         });
+//       })
+//       .catch(() => {})
+//       .finally(() => setLoading(false));
+//   }, [kbId]);
 
-  const set = useCallback(<K extends keyof WidgetDesign>(key: K, val: WidgetDesign[K]) => {
-    setDesign((prev) => ({ ...prev, [key]: val }));
-    setSaved(false);
-  }, []);
+//   const set = useCallback(<K extends keyof WidgetDesign>(key: K, val: WidgetDesign[K]) => {
+//     setDesign((prev) => ({ ...prev, [key]: val }));
+//     setSaved(false);
+//   }, []);
 
-  /* ── Save ── */
-  const save = async () => {
-    setSaving(true); setErr(null); setSaved(false);
-    try {
-      const body: Record<string, unknown> = { ...design };
-      // Guard: if customHeaderHtml was corrupted by the old widget.html bug, clear it
-      if (typeof body.customHeaderHtml === "string" &&
-          (body.customHeaderHtml.includes("<!DOCTYPE") || body.customHeaderHtml.includes("<html") ||
-           (body.customHeaderHtml as string).length > 2000)) {
-        body.customHeaderHtml = null;
-      }
-      // Coerce empty strings to null for nullable DB columns
-      const nullable = ["headerBg","chatAreaBg","userBubbleBg","botBubbleBg","botBubbleText",
-        "botBubbleBorder","inputBg","inputBorder","inputBorderFocus","inputTextColor",
-        "inputPlaceholderColor","inputAreaBg","inputAreaBorder","sendBtnBg","sendBtnHoverBg",
-        "footerBg","footerTextColor","avatarUrl","widgetLauncherLabel","customCss",
-        "customLauncherSvg","customHeaderHtml","customFooterHtml","customThemeCss","customInjectJs",
-        // Voice fields
-        "voiceBtnBg","voiceBtnActiveColor","voicePanelBg","voiceWaveColor"];
-      for (const k of nullable) if (body[k] === "") body[k] = null;
+//   /* ── Save ── */
+//   const save = async () => {
+//     setSaving(true); setErr(null); setSaved(false);
+//     try {
+//       const body: Record<string, unknown> = { ...design };
+//       // Guard: if customHeaderHtml was corrupted by the old widget.html bug, clear it
+//       if (typeof body.customHeaderHtml === "string" &&
+//           (body.customHeaderHtml.includes("<!DOCTYPE") || body.customHeaderHtml.includes("<html") ||
+//            (body.customHeaderHtml as string).length > 2000)) {
+//         body.customHeaderHtml = null;
+//       }
+//       // Coerce empty strings to null for nullable DB columns
+//       const nullable = ["headerBg","chatAreaBg","userBubbleBg","botBubbleBg","botBubbleText",
+//         "botBubbleBorder","inputBg","inputBorder","inputBorderFocus","inputTextColor",
+//         "inputPlaceholderColor","inputAreaBg","inputAreaBorder","sendBtnBg","sendBtnHoverBg",
+//         "footerBg","footerTextColor","avatarUrl","widgetLauncherLabel","customCss",
+//         "customLauncherSvg","customHeaderHtml","customFooterHtml","customThemeCss","customInjectJs",
+//         // Voice fields
+//         "voiceBtnBg","voiceBtnActiveColor","voicePanelBg","voiceWaveColor"];
+//       for (const k of nullable) if (body[k] === "") body[k] = null;
 
-      const res = await fetch(apiUrl(`/api/kbs/${kbId}/config`), {
-        method: "PATCH",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(body),
-      });
-      const data = await res.json() as Record<string, unknown>;
-      if (!res.ok) throw new Error((data.error as string) ?? "Failed to save");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3500);
-    } catch (e) { setErr((e as Error).message); }
-    finally { setSaving(false); }
-  };
+//       const res = await fetch(apiUrl(`/api/kbs/${kbId}/config`), {
+//         method: "PATCH",
+//         headers: withAuthHeaders({ "Content-Type": "application/json" }),
+//         body: JSON.stringify(body),
+//       });
+//       const data = await res.json() as Record<string, unknown>;
+//       if (!res.ok) throw new Error((data.error as string) ?? "Failed to save");
+//       setSaved(true);
+//       setTimeout(() => setSaved(false), 3500);
+//     } catch (e) { setErr((e as Error).message); }
+//     finally { setSaving(false); }
+//   };
 
-  const reset = () => {
-    if (!confirm("Reset ALL design settings to factory defaults?")) return;
-    setDesign(D); setSaved(false);
-  };
+//   const reset = () => {
+//     if (!confirm("Reset ALL design settings to factory defaults?")) return;
+//     setDesign(D); setSaved(false);
+//   };
 
-  if (loading) return (
-    <div className="flex items-center gap-3 text-white/40 py-10 text-sm">
-      <RefreshCw className="w-4 h-4 animate-spin" /> Loading widget design…
-    </div>
-  );
+//   if (loading) return (
+//     <div className="flex items-center gap-3 text-white/40 py-10 text-sm">
+//       <RefreshCw className="w-4 h-4 animate-spin" /> Loading widget design…
+//     </div>
+//   );
 
-  return (
-    <div className="space-y-5">
-      {/* ── Top bar ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-base font-semibold text-white">Widget Design</h2>
-          <p className="mt-0.5 text-sm text-white/50">
-            Customise every visual element. Live preview updates instantly — save when ready.
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap shrink-0">
-          <Button variant="ghost" size="sm" onClick={reset}
-            className="text-white/35 hover:text-white text-xs">Reset defaults</Button>
-          <Button size="sm" onClick={save} disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-5 gap-2">
-            {saving ? <><RefreshCw className="h-3 w-3 animate-spin" /> Saving…</> :
-             saved  ? <><Check className="h-3 w-3" /> Saved!</>                  :
-             "Save design"}
-          </Button>
-        </div>
-      </div>
+//   return (
+//     <div className="space-y-5">
+//       {/* ── Top bar ── */}
+//       <div className="flex items-start justify-between gap-4 flex-wrap">
+//         <div>
+//           <h2 className="text-base font-semibold text-white">Widget Design</h2>
+//           <p className="mt-0.5 text-sm text-white/50">
+//             Customise every visual element. Live preview updates instantly — save when ready.
+//           </p>
+//         </div>
+//         <div className="flex gap-2 flex-wrap shrink-0">
+//           <Button variant="ghost" size="sm" onClick={reset}
+//             className="text-white/35 hover:text-white text-xs">Reset defaults</Button>
+//           <Button size="sm" onClick={save} disabled={saving}
+//             className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-5 gap-2">
+//             {saving ? <><RefreshCw className="h-3 w-3 animate-spin" /> Saving…</> :
+//              saved  ? <><Check className="h-3 w-3" /> Saved!</>                  :
+//              "Save design"}
+//           </Button>
+//         </div>
+//       </div>
 
-      {err && (
-        <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{err}</p>
-      )}
+//       {err && (
+//         <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{err}</p>
+//       )}
 
-      {/* ── Tab switcher ── */}
-      <div className="flex items-center gap-1 rounded-xl bg-white/[0.03] border border-white/[0.08] p-1 w-fit">
-        {([
-          { id:"visual",  label:"Visual Controls", icon:Palette },
-          { id:"code",    label:"Code Editor",     icon:Code2   },
-          { id:"preview", label:"Preview",          icon:Eye     },
-        ] as const).map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-all ${
-              tab === id
-                ? "bg-indigo-600/20 text-indigo-200 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]"
-                : "text-white/45 hover:text-white hover:bg-white/[0.04]"
-            }`}>
-            <Icon className="h-3.5 w-3.5" />{label}
-          </button>
-        ))}
-      </div>
+//       {/* ── Tab switcher ── */}
+//       <div className="flex items-center gap-1 rounded-xl bg-white/[0.03] border border-white/[0.08] p-1 w-fit">
+//         {([
+//           { id:"visual",  label:"Visual Controls", icon:Palette },
+//           { id:"code",    label:"Code Editor",     icon:Code2   },
+//           { id:"preview", label:"Preview",          icon:Eye     },
+//         ] as const).map(({ id, label, icon: Icon }) => (
+//           <button key={id} onClick={() => setTab(id)}
+//             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-all ${
+//               tab === id
+//                 ? "bg-indigo-600/20 text-indigo-200 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]"
+//                 : "text-white/45 hover:text-white hover:bg-white/[0.04]"
+//             }`}>
+//             <Icon className="h-3.5 w-3.5" />{label}
+//           </button>
+//         ))}
+//       </div>
 
-      {/* ── Visual Controls + inline preview ── */}
-      {tab === "visual" && (
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] items-start">
-          {/* Scrollable controls column */}
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5
-            lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
-            <Suspense fallback={<div className="h-12 animate-pulse rounded-xl bg-white/5" />}>
-              <ControlsPanel d={design} set={set} />
-            </Suspense>
-          </div>
+//       {/* ── Visual Controls + inline preview ── */}
+//       {tab === "visual" && (
+//         <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] items-start">
+//           {/* Scrollable controls column */}
+//           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5
+//             lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
+//             <Suspense fallback={<div className="h-12 animate-pulse rounded-xl bg-white/5" />}>
+//               <ControlsPanel d={design} set={set} />
+//             </Suspense>
+//           </div>
 
-          {/* Live preview — always visible, no iframe, no collapse */}
-          <div className="lg:sticky lg:top-6 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
-                <p className="text-xs text-white/35 mt-0.5">Reflects every change instantly. Try sending a message!</p>
-              </div>
-              <button onClick={() => setSandbox(!sandbox)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
-                  bg-white/[0.03] px-3 py-1.5 text-xs text-white/50 hover:text-white hover:bg-white/[0.06]">
-                <Monitor className="h-3.5 w-3.5" />
-                {sandbox ? "Hide embed preview" : "Show embed preview"}
-              </button>
-            </div>
-            <WidgetPreview design={design} />
-            {sandbox && <FloatingSandboxPreview design={design} />}
-            <p className="text-[11px] text-white/20 text-center">
-              React preview = fast inline approximation · Embed preview = public /embed/widget renderer
-            </p>
-          </div>
-        </div>
-      )}
+//           {/* Live preview — always visible, no iframe, no collapse */}
+//           <div className="lg:sticky lg:top-6 space-y-3">
+//             <div className="flex items-center justify-between flex-wrap gap-2">
+//               <div>
+//                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
+//                 <p className="text-xs text-white/35 mt-0.5">Reflects every change instantly. Try sending a message!</p>
+//               </div>
+//               <button onClick={() => setSandbox(!sandbox)}
+//                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
+//                   bg-white/[0.03] px-3 py-1.5 text-xs text-white/50 hover:text-white hover:bg-white/[0.06]">
+//                 <Monitor className="h-3.5 w-3.5" />
+//                 {sandbox ? "Hide embed preview" : "Show embed preview"}
+//               </button>
+//             </div>
+//             <WidgetPreview design={design} />
+//             {sandbox && <FloatingSandboxPreview design={design} />}
+//             <p className="text-[11px] text-white/20 text-center">
+//               React preview = fast inline approximation · Embed preview = public /embed/widget renderer
+//             </p>
+//           </div>
+//         </div>
+//       )}
 
-      {/* ── Code Editor ── */}
-      {tab === "code" && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
-          <AdvancedCodePanel d={design} set={set} kbId={kbId} />
-          <div className="lg:sticky lg:top-6 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
-            <WidgetPreview design={design} />
-          </div>
-        </div>
-      )}
+//       {/* ── Code Editor ── */}
+//       {tab === "code" && (
+//         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
+//           <AdvancedCodePanel d={design} set={set} kbId={kbId} />
+//           <div className="lg:sticky lg:top-6 space-y-2">
+//             <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
+//             <WidgetPreview design={design} />
+//           </div>
+//         </div>
+//       )}
 
-      {/* ── Full preview ── */}
-      {tab === "preview" && (
-        <div className="space-y-5">
-          {/* Explanation banner */}
-          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
-            <Eye className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0" />
-            <div className="text-xs text-white/60 leading-relaxed">
-              <strong className="text-white/90">Embed Preview is the public embed page.</strong>{" "}
-              React Preview = fast inline approximation using your current design tokens.{" "}
-              Embed Preview = the real <code className="bg-white/10 rounded px-1">/embed/widget</code> page
-              loaded in an iframe. It uses the same renderer as the hosted embed page and updates live as you edit.
-            </div>
-          </div>
+//       {/* ── Full preview ── */}
+//       {tab === "preview" && (
+//         <div className="space-y-5">
+//           {/* Explanation banner */}
+//           <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
+//             <Eye className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0" />
+//             <div className="text-xs text-white/60 leading-relaxed">
+//               <strong className="text-white/90">Embed Preview is the public embed page.</strong>{" "}
+//               React Preview = fast inline approximation using your current design tokens.{" "}
+//               Embed Preview = the real <code className="bg-white/10 rounded px-1">/embed/widget</code> page
+//               loaded in an iframe. It uses the same renderer as the hosted embed page and updates live as you edit.
+//             </div>
+//           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2 items-start">
-            {/* React Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">React Preview</p>
-                <span className="text-[10px] bg-white/[0.05] border border-white/10 rounded px-2 py-0.5 text-white/40">
-                  Instant · in-page
-                </span>
-              </div>
-              <p className="text-xs text-white/35">Try sending a message — responses stream in real time.</p>
-              <WidgetPreview design={design} />
-            </div>
+//           <div className="grid gap-6 lg:grid-cols-2 items-start">
+//             {/* React Preview */}
+//             <div className="space-y-2">
+//               <div className="flex items-center gap-2">
+//                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">React Preview</p>
+//                 <span className="text-[10px] bg-white/[0.05] border border-white/10 rounded px-2 py-0.5 text-white/40">
+//                   Instant · in-page
+//                 </span>
+//               </div>
+//               <p className="text-xs text-white/35">Try sending a message — responses stream in real time.</p>
+//               <WidgetPreview design={design} />
+//             </div>
 
-            {/* Embed Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Embed Preview</p>
-                <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 text-emerald-400/80">
-                  Public renderer
-                </span>
-              </div>
-              <p className="text-xs text-white/35">
-                Real <code className="bg-white/10 rounded px-1 text-[11px]">/embed/widget</code> page with live preview config.
-              </p>
-              <FloatingSandboxPreview design={design} />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+//             {/* Embed Preview */}
+//             <div className="space-y-2">
+//               <div className="flex items-center gap-2">
+//                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Embed Preview</p>
+//                 <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 text-emerald-400/80">
+//                   Public renderer
+//                 </span>
+//               </div>
+//               <p className="text-xs text-white/35">
+//                 Real <code className="bg-white/10 rounded px-1 text-[11px]">/embed/widget</code> page with live preview config.
+//               </p>
+//               <FloatingSandboxPreview design={design} />
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Normalize raw DB/API data → WidgetDesign
@@ -2485,6 +2486,15 @@ function fromApi(data: Record<string, unknown>): WidgetDesign {
     scrollbarWidth:      n(data.scrollbarWidth, 4),
     scrollbarColor:      s(data.scrollbarColor, "#c7d2fe"),
     scrollbarTrackColor: s(data.scrollbarTrackColor, "transparent"),
+    
+    // add all required voice button fields here
+    voiceBtnBg:          sn(data.voiceBtnBg),
+    voiceBtnSize:        n(data.voiceBtnSize, 44),
+    voiceBtnRadius:      n(data.voiceBtnRadius, 999),
+    voiceBtnActiveColor: s(data.voiceBtnActiveColor, "#ef4444"),
+    voicePanelBg:        sn(data.voicePanelBg),
+    voiceWaveColor:      s(data.voiceWaveColor, primary),
+
     footerBg:        sn(data.footerBg),
     footerTextColor: sn(data.footerTextColor),
     customPoweredBy: s(data.customPoweredBy, "Powered by Clara AI"),
@@ -2588,24 +2598,24 @@ function TextBox({ value, onChange, placeholder, mono = false }: {
   );
 }
 
-function Toggle({ value, onChange, label, hint }: {
-  value: boolean; onChange: (v: boolean) => void; label: string; hint?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-xs font-medium text-white/70">{label}</p>
-        {hint && <p className="text-[11px] text-white/35">{hint}</p>}
-      </div>
-      <button onClick={() => onChange(!value)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full
-          transition-colors ${value ? "bg-indigo-600" : "bg-white/[0.12]"}`}>
-        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow
-          transition-transform ${value ? "translate-x-4" : "translate-x-1"}`} />
-      </button>
-    </div>
-  );
-}
+// function Toggle({ value, onChange, label, hint }: {
+//   value: boolean; onChange: (v: boolean) => void; label: string; hint?: string;
+// }) {
+//   return (
+//     <div className="flex items-center justify-between gap-4">
+//       <div>
+//         <p className="text-xs font-medium text-white/70">{label}</p>
+//         {hint && <p className="text-[11px] text-white/35">{hint}</p>}
+//       </div>
+//       <button onClick={() => onChange(!value)}
+//         className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full
+//           transition-colors ${value ? "bg-indigo-600" : "bg-white/[0.12]"}`}>
+//         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow
+//           transition-transform ${value ? "translate-x-4" : "translate-x-1"}`} />
+//       </button>
+//     </div>
+//   );
+// }
 
 function Seg<T extends string>({ value, opts, onChange, sm }: {
   value: T; opts: { label: string; v: T }[];
@@ -2645,199 +2655,199 @@ function Sel({ value, opts, onChange }: {
 // Live React Preview — fully driven by design state, zero iframe collapse
 // ─────────────────────────────────────────────────────────────────────────────
 
-type PM = { id: string; role: "user"|"assistant"; content: string };
+// type PM = { id: string; role: "user"|"assistant"; content: string };
 
-function WidgetPreview({ d }: { d: WidgetDesign }) {
-  const [msgs, setMsgs] = useState<PM[]>([
-    { id:"w",  role:"assistant", content: d.welcomeMessage },
-    { id:"u1", role:"user",      content: "How does this work?" },
-    { id:"a1", role:"assistant", content: "I answer questions about your documents instantly! Try asking me anything — I'll show you how it looks." },
-  ]);
-  const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
-  const bot = useRef<HTMLDivElement>(null);
+// function WidgetPreview({ d }: { d: WidgetDesign }) {
+//   const [msgs, setMsgs] = useState<PM[]>([
+//     { id:"w",  role:"assistant", content: d.welcomeMessage },
+//     { id:"u1", role:"user",      content: "How does this work?" },
+//     { id:"a1", role:"assistant", content: "I answer questions about your documents instantly! Try asking me anything — I'll show you how it looks." },
+//   ]);
+//   const [input, setInput] = useState("");
+//   const [typing, setTyping] = useState(false);
+//   const bot = useRef<HTMLDivElement>(null);
 
-  // Keep welcome in sync with design edits
-  useEffect(() => {
-    setMsgs(p => p.map(m => m.id === "w" ? { ...m, content: d.welcomeMessage } : m));
-  }, [d.welcomeMessage]);
+//   // Keep welcome in sync with design edits
+//   useEffect(() => {
+//     setMsgs(p => p.map(m => m.id === "w" ? { ...m, content: d.welcomeMessage } : m));
+//   }, [d.welcomeMessage]);
 
-  useEffect(() => { bot.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs]);
+//   useEffect(() => { bot.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs]);
 
-  const dark       = d.widgetTheme === "dark";
-  const primary    = d.primaryColour  || "#6366f1";
-  const accent     = d.accentColour   || "#818cf8";
-  const hdrBg      = d.headerBg       || primary;
-  const chatBg     = d.chatAreaBg     || (dark ? "#0f0f1a" : "#f8f9fd");
-  const userBg     = d.userBubbleBg   || primary;
-  const botBg      = d.botBubbleBg    || (dark ? "#2a2a40" : "#f0f0f8");
-  const botTxt     = d.botBubbleText  || (dark ? "#e2e2f0" : "#1f2937");
-  const inputBg    = d.inputBg        || (dark ? "#1a1a2e" : "#ffffff");
-  const inputBrd   = d.inputBorder    || `1px solid ${dark ? "rgba(255,255,255,.1)" : "#e5e7eb"}`;
-  const inputTxt   = d.inputTextColor || (dark ? "#e2e2f0" : "#1f2937");
-  const inputPh    = d.inputPlaceholderColor || (dark ? "#555575" : "#9ca3af");
-  const iaBg       = d.inputAreaBg    || (dark ? "#0f0f1a" : "#ffffff");
-  const iaB        = d.inputAreaBorder|| `1px solid ${dark ? "rgba(255,255,255,.08)" : "#e5e7eb"}`;
-  const sendBg     = d.sendBtnBg      || primary;
-  const dotClr     = d.typingDotColor || "#9ca3af";
-  const footTxt    = d.footerTextColor|| (dark ? "#3a3a5a" : "#d1d5db");
-  const avBr       = d.avatarShape==="square"?"4px":d.avatarShape==="rounded"?"8px":"50%";
+//   const dark       = d.widgetTheme === "dark";
+//   const primary    = d.primaryColour  || "#6366f1";
+//   const accent     = d.accentColour   || "#818cf8";
+//   const hdrBg      = d.headerBg       || primary;
+//   const chatBg     = d.chatAreaBg     || (dark ? "#0f0f1a" : "#f8f9fd");
+//   const userBg     = d.userBubbleBg   || primary;
+//   const botBg      = d.botBubbleBg    || (dark ? "#2a2a40" : "#f0f0f8");
+//   const botTxt     = d.botBubbleText  || (dark ? "#e2e2f0" : "#1f2937");
+//   const inputBg    = d.inputBg        || (dark ? "#1a1a2e" : "#ffffff");
+//   const inputBrd   = d.inputBorder    || `1px solid ${dark ? "rgba(255,255,255,.1)" : "#e5e7eb"}`;
+//   const inputTxt   = d.inputTextColor || (dark ? "#e2e2f0" : "#1f2937");
+//   const inputPh    = d.inputPlaceholderColor || (dark ? "#555575" : "#9ca3af");
+//   const iaBg       = d.inputAreaBg    || (dark ? "#0f0f1a" : "#ffffff");
+//   const iaB        = d.inputAreaBorder|| `1px solid ${dark ? "rgba(255,255,255,.08)" : "#e5e7eb"}`;
+//   const sendBg     = d.sendBtnBg      || primary;
+//   const dotClr     = d.typingDotColor || "#9ca3af";
+//   const footTxt    = d.footerTextColor|| (dark ? "#3a3a5a" : "#d1d5db");
+//   const avBr       = d.avatarShape==="square"?"4px":d.avatarShape==="rounded"?"8px":"50%";
 
-  const css = `
-    .cwm::-webkit-scrollbar{width:${d.scrollbarWidth}px}
-    .cwm::-webkit-scrollbar-track{background:${d.scrollbarTrackColor||"transparent"}}
-    .cwm::-webkit-scrollbar-thumb{background:${d.scrollbarColor||"#c7d2fe"};border-radius:99px}
-    .cwmsg{animation:${
-      d.messageAnimationStyle==="slide"?"cwSl .22s ease":
-      d.messageAnimationStyle==="pop"  ?"cwPo .18s cubic-bezier(.34,1.56,.64,1)":
-      d.messageAnimationStyle==="none" ?"none":"cwFd .18s ease"
-    } both}
-    @keyframes cwFd{from{opacity:0;transform:translateY(6px)}}
-    @keyframes cwSl{from{opacity:0;transform:translateX(20px)}}
-    @keyframes cwPo{from{opacity:0;transform:scale(.88)}}
-    @keyframes cwBo{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
-    .cwta::placeholder{color:${inputPh}}
-    ${d.customThemeCss||""}
-    ${d.customCss||""}
-  `;
+//   const css = `
+//     .cwm::-webkit-scrollbar{width:${d.scrollbarWidth}px}
+//     .cwm::-webkit-scrollbar-track{background:${d.scrollbarTrackColor||"transparent"}}
+//     .cwm::-webkit-scrollbar-thumb{background:${d.scrollbarColor||"#c7d2fe"};border-radius:99px}
+//     .cwmsg{animation:${
+//       d.messageAnimationStyle==="slide"?"cwSl .22s ease":
+//       d.messageAnimationStyle==="pop"  ?"cwPo .18s cubic-bezier(.34,1.56,.64,1)":
+//       d.messageAnimationStyle==="none" ?"none":"cwFd .18s ease"
+//     } both}
+//     @keyframes cwFd{from{opacity:0;transform:translateY(6px)}}
+//     @keyframes cwSl{from{opacity:0;transform:translateX(20px)}}
+//     @keyframes cwPo{from{opacity:0;transform:scale(.88)}}
+//     @keyframes cwBo{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+//     .cwta::placeholder{color:${inputPh}}
+//     ${d.customThemeCss||""}
+//     ${d.customCss||""}
+//   `;
 
-  function send() {
-    const t = input.trim(); if (!t) return;
-    const uid = `u${Date.now()}`, aid = `a${Date.now()}`;
-    setMsgs(p => [...p, { id:uid, role:"user", content:t }]);
-    setInput(""); setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      setMsgs(p => [...p, {
-        id:aid, role:"assistant",
-        content:`Preview reply to: "${t}". All design changes are reflected here live — no save needed.`,
-      }]);
-    }, 1100);
-  }
+//   function send() {
+//     const t = input.trim(); if (!t) return;
+//     const uid = `u${Date.now()}`, aid = `a${Date.now()}`;
+//     setMsgs(p => [...p, { id:uid, role:"user", content:t }]);
+//     setInput(""); setTyping(true);
+//     setTimeout(() => {
+//       setTyping(false);
+//       setMsgs(p => [...p, {
+//         id:aid, role:"assistant",
+//         content:`Preview reply to: "${t}". All design changes are reflected here live — no save needed.`,
+//       }]);
+//     }, 1100);
+//   }
 
-  const panelH = Math.min(d.widgetChatHeight, 560);
+//   const panelH = Math.min(d.widgetChatHeight, 560);
 
-  return (
-    <div style={{
-      fontFamily:d.widgetFontFamily, height:panelH, display:"flex", flexDirection:"column",
-      borderRadius:d.widgetBorderRadius, overflow:"hidden", border:"1px solid rgba(255,255,255,.1)",
-      boxShadow:"0 20px 60px rgba(0,0,0,.4)",
-    }}>
-      <style>{css}</style>
+//   return (
+//     <div style={{
+//       fontFamily:d.widgetFontFamily, height:panelH, display:"flex", flexDirection:"column",
+//       borderRadius:d.widgetBorderRadius, overflow:"hidden", border:"1px solid rgba(255,255,255,.1)",
+//       boxShadow:"0 20px 60px rgba(0,0,0,.4)",
+//     }}>
+//       <style>{css}</style>
 
-      {/* Header */}
-      <div className="clara-header" style={{
-        display:"flex", alignItems:"center", gap:12, padding:"0 16px",
-        height:d.headerHeight, background:hdrBg, color:d.headerTextColor||"#fff",
-        flexShrink:0, backdropFilter:d.headerBlur?"blur(12px)":undefined,
-      }}>
-        {d.avatarUrl
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={d.avatarUrl} alt="" className="clara-avatar"
-              style={{width:32,height:32,borderRadius:avBr,objectFit:"cover"}}/>
-          : <div className="clara-avatar" style={{
-              width:32,height:32,borderRadius:avBr,background:accent,
-              color:d.headerTextColor||"#fff",display:"flex",alignItems:"center",
-              justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0,
-            }}>{d.assistantName.charAt(0).toUpperCase()}</div>
-        }
-        <div style={{flex:1,minWidth:0}}>
-          <div className="clara-header-name" style={{fontWeight:600,fontSize:14,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-            {d.assistantName}
-          </div>
-          {d.showStatusDot && (
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <span style={{width:7,height:7,borderRadius:"50%",background:d.statusDotColor,display:"inline-block"}}/>
-              <span style={{fontSize:11,opacity:.75}}>Online</span>
-            </div>
-          )}
-        </div>
-        {d.customHeaderHtml && (
-          <div dangerouslySetInnerHTML={{__html:d.customHeaderHtml}} style={{display:"flex",alignItems:"center"}}/>
-        )}
-      </div>
+//       {/* Header */}
+//       <div className="clara-header" style={{
+//         display:"flex", alignItems:"center", gap:12, padding:"0 16px",
+//         height:d.headerHeight, background:hdrBg, color:d.headerTextColor||"#fff",
+//         flexShrink:0, backdropFilter:d.headerBlur?"blur(12px)":undefined,
+//       }}>
+//         {d.avatarUrl
+//           // eslint-disable-next-line @next/next/no-img-element
+//           ? <img src={d.avatarUrl} alt="" className="clara-avatar"
+//               style={{width:32,height:32,borderRadius:avBr,objectFit:"cover"}}/>
+//           : <div className="clara-avatar" style={{
+//               width:32,height:32,borderRadius:avBr,background:accent,
+//               color:d.headerTextColor||"#fff",display:"flex",alignItems:"center",
+//               justifyContent:"center",fontWeight:700,fontSize:14,flexShrink:0,
+//             }}>{d.assistantName.charAt(0).toUpperCase()}</div>
+//         }
+//         <div style={{flex:1,minWidth:0}}>
+//           <div className="clara-header-name" style={{fontWeight:600,fontSize:14,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+//             {d.assistantName}
+//           </div>
+//           {d.showStatusDot && (
+//             <div style={{display:"flex",alignItems:"center",gap:6}}>
+//               <span style={{width:7,height:7,borderRadius:"50%",background:d.statusDotColor,display:"inline-block"}}/>
+//               <span style={{fontSize:11,opacity:.75}}>Online</span>
+//             </div>
+//           )}
+//         </div>
+//         {d.customHeaderHtml && (
+//           <div dangerouslySetInnerHTML={{__html:d.customHeaderHtml}} style={{display:"flex",alignItems:"center"}}/>
+//         )}
+//       </div>
 
-      {/* Messages */}
-      <div className="cwm clara-messages" style={{
-        flex:1,overflowY:"auto",padding:12,display:"flex",
-        flexDirection:"column",gap:d.messageGap,background:chatBg,
-      }}>
-        {msgs.map(m => (
-          <div key={m.id} className="cwmsg" style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
-            <div className={m.role==="user"?"clara-msg-user":"clara-msg-bot"} style={{
-              maxWidth:`${d.messageMaxWidth}%`,
-              borderRadius:m.role==="user"?d.userBubbleRadius:d.botBubbleRadius,
-              padding:m.role==="user"?d.userBubblePadding:d.botBubblePadding,
-              fontSize:d.messageFontSize,lineHeight:d.messageLineHeight,
-              background:m.role==="user"?userBg:botBg,
-              color:m.role==="user"?d.userBubbleText:botTxt,
-              border:m.role==="user"?"none":(d.botBubbleBorder||`1px solid ${dark?"rgba(255,255,255,.07)":"#e5e7eb"}`),
-              boxShadow:m.role==="user"?d.userBubbleShadow:d.botBubbleShadow,
-              wordBreak:"break-word",
-            }}>
-              {m.content}
-              {d.showTimestamps && (
-                <div style={{fontSize:d.timestampFontSize,color:d.timestampColor,opacity:.65,marginTop:4}}>
-                  just now
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {typing && (
-          <div className="clara-typing" style={{display:"flex",alignItems:"center",gap:4,
-            background:botBg,border:`1px solid ${dark?"rgba(255,255,255,.07)":"#e5e7eb"}`,
-            borderRadius:18,padding:"8px 12px",alignSelf:"flex-start"}}>
-            {[0,150,300].map(dl => (
-              <span key={dl} className="clara-typing-dot" style={{
-                width:d.typingDotSize,height:d.typingDotSize,background:dotClr,borderRadius:"50%",
-                display:"inline-block",animation:`cwBo 1.2s ${dl}ms infinite`,
-              }}/>
-            ))}
-          </div>
-        )}
-        <div ref={bot}/>
-      </div>
+//       {/* Messages */}
+//       <div className="cwm clara-messages" style={{
+//         flex:1,overflowY:"auto",padding:12,display:"flex",
+//         flexDirection:"column",gap:d.messageGap,background:chatBg,
+//       }}>
+//         {msgs.map(m => (
+//           <div key={m.id} className="cwmsg" style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+//             <div className={m.role==="user"?"clara-msg-user":"clara-msg-bot"} style={{
+//               maxWidth:`${d.messageMaxWidth}%`,
+//               borderRadius:m.role==="user"?d.userBubbleRadius:d.botBubbleRadius,
+//               padding:m.role==="user"?d.userBubblePadding:d.botBubblePadding,
+//               fontSize:d.messageFontSize,lineHeight:d.messageLineHeight,
+//               background:m.role==="user"?userBg:botBg,
+//               color:m.role==="user"?d.userBubbleText:botTxt,
+//               border:m.role==="user"?"none":(d.botBubbleBorder||`1px solid ${dark?"rgba(255,255,255,.07)":"#e5e7eb"}`),
+//               boxShadow:m.role==="user"?d.userBubbleShadow:d.botBubbleShadow,
+//               wordBreak:"break-word",
+//             }}>
+//               {m.content}
+//               {d.showTimestamps && (
+//                 <div style={{fontSize:d.timestampFontSize,color:d.timestampColor,opacity:.65,marginTop:4}}>
+//                   just now
+//                 </div>
+//               )}
+//             </div>
+//           </div>
+//         ))}
+//         {typing && (
+//           <div className="clara-typing" style={{display:"flex",alignItems:"center",gap:4,
+//             background:botBg,border:`1px solid ${dark?"rgba(255,255,255,.07)":"#e5e7eb"}`,
+//             borderRadius:18,padding:"8px 12px",alignSelf:"flex-start"}}>
+//             {[0,150,300].map(dl => (
+//               <span key={dl} className="clara-typing-dot" style={{
+//                 width:d.typingDotSize,height:d.typingDotSize,background:dotClr,borderRadius:"50%",
+//                 display:"inline-block",animation:`cwBo 1.2s ${dl}ms infinite`,
+//               }}/>
+//             ))}
+//           </div>
+//         )}
+//         <div ref={bot}/>
+//       </div>
 
-      {/* Input */}
-      <div className="clara-input-area" style={{background:iaBg,borderTop:iaB,padding:10,flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
-          <textarea value={input} rows={1} className="cwta clara-textarea"
-            onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
-            placeholder={`Ask ${d.assistantName}…`}
-            style={{
-              flex:1,resize:"none",borderRadius:d.inputRadius,border:inputBrd,
-              padding:d.inputPadding,fontSize:13,fontFamily:"inherit",
-              outline:"none",lineHeight:1.5,maxHeight:80,overflowY:"auto",
-              background:inputBg,color:inputTxt,
-            }}/>
-          <button onClick={send} disabled={!input.trim()} className="clara-send-btn" style={{
-            width:d.sendBtnSize,height:d.sendBtnSize,borderRadius:d.sendBtnRadius,
-            background:input.trim()?sendBg:(dark?"#2a2a40":"#e5e7eb"),
-            color:input.trim()?d.sendBtnTextColor:(dark?"#555":"#aaa"),
-            border:"none",cursor:input.trim()?"pointer":"not-allowed",
-            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-            transition:"background .2s",
-          }}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-            </svg>
-          </button>
-        </div>
-        {d.widgetShowBranding && (
-          <div className="clara-branding" style={{textAlign:"center",marginTop:6,fontSize:10,
-            color:footTxt,background:d.footerBg||"transparent"}}>
-            {d.customFooterHtml
-              ? <span dangerouslySetInnerHTML={{__html:d.customFooterHtml}}/>
-              : (d.customPoweredBy||"Powered by Clara AI")
-            }
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+//       {/* Input */}
+//       <div className="clara-input-area" style={{background:iaBg,borderTop:iaB,padding:10,flexShrink:0}}>
+//         <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
+//           <textarea value={input} rows={1} className="cwta clara-textarea"
+//             onChange={e=>setInput(e.target.value)}
+//             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+//             placeholder={`Ask ${d.assistantName}…`}
+//             style={{
+//               flex:1,resize:"none",borderRadius:d.inputRadius,border:inputBrd,
+//               padding:d.inputPadding,fontSize:13,fontFamily:"inherit",
+//               outline:"none",lineHeight:1.5,maxHeight:80,overflowY:"auto",
+//               background:inputBg,color:inputTxt,
+//             }}/>
+//           <button onClick={send} disabled={!input.trim()} className="clara-send-btn" style={{
+//             width:d.sendBtnSize,height:d.sendBtnSize,borderRadius:d.sendBtnRadius,
+//             background:input.trim()?sendBg:(dark?"#2a2a40":"#e5e7eb"),
+//             color:input.trim()?d.sendBtnTextColor:(dark?"#555":"#aaa"),
+//             border:"none",cursor:input.trim()?"pointer":"not-allowed",
+//             display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+//             transition:"background .2s",
+//           }}>
+//             <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+//               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+//             </svg>
+//           </button>
+//         </div>
+//         {d.widgetShowBranding && (
+//           <div className="clara-branding" style={{textAlign:"center",marginTop:6,fontSize:10,
+//             color:footTxt,background:d.footerBg||"transparent"}}>
+//             {d.customFooterHtml
+//               ? <span dangerouslySetInnerHTML={{__html:d.customFooterHtml}}/>
+//               : (d.customPoweredBy||"Powered by Clara AI")
+//             }
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Floating sandbox (real clara.js runtime in isolated iframe)
@@ -3553,7 +3563,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
                 {sandbox ? "Hide sandbox" : "Real runtime sandbox"}
               </button>
             </div>
-            <WidgetPreview d={design}/>
+            <WidgetPreview design={design}/>
             {sandbox && <FloatingSandbox d={design}/>}
           </div>
         </div>
@@ -3565,7 +3575,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           <CodePanel d={design} set={set} kbId={kbId}/>
           <div className="lg:sticky lg:top-6 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
-            <WidgetPreview d={design}/>
+            <WidgetPreview design={design}/>
           </div>
         </div>
       )}
@@ -3579,7 +3589,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
               <p className="text-[11px] text-white/35">
                 Rendered directly from your design settings. Fully interactive — send a test message!
               </p>
-              <WidgetPreview d={design}/>
+              <WidgetPreview design={design}/>
             </div>
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Real Runtime Sandbox</p>
