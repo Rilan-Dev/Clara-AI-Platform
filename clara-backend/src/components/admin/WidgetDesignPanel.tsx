@@ -3353,7 +3353,7 @@ function CodePanel({ d, set, kbId }: {
           <div className="flex items-start gap-2 rounded-lg bg-amber-500/5 border border-amber-500/15 px-3 py-2">
             <Wand2 className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0"/>
             <p className="text-[11px] text-amber-300/80 leading-snug">
-              These JS hooks run on your visitors' page. Every available hook is pre-filled with a commented example — just uncomment what you need.
+              These JS hooks run on your visitors&apos; page. Every available hook is pre-filled with a commented example — just uncomment what you need.
             </p>
           </div>
           <LiveCodeEditor
