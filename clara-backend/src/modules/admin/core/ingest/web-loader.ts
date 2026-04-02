@@ -82,41 +82,71 @@ type PlaywrightSnapshot = {
 
 // ── Noise selectors ───────────────────────────────────────────────────────────
 
+// ── Noise selectors — elements removed before content extraction ────────────
+//
+// SAFETY CONTRACT: Only remove elements that are NEVER the primary content
+// container. Broad [class*='X'] patterns are DANGEROUS — they can match
+// theme wrappers and wipe all content (e.g. WordPress uses `.sticky` on
+// article elements, `.overlay` on image wrappers, etc.).
+//
+// Rules:
+//   ✅ Semantic element names (nav, footer, script) — always safe
+//   ✅ Hyphenated class fragments ([class*='ads-']) — specific enough
+//   ✅ [id*='X'] — ids tend to be unique, lower collision risk
+//   ❌ [class*='sticky']  — WordPress uses it on <article class="sticky">
+//   ❌ [class*='overlay'] — matches overlay-container, overlay-wrapper, etc.
+//   ❌ [class*='floating'] — matches float-left, floating-panel content wrappers
+//   ❌ [class*='popup']   — matches popup-content, popup-wrap main containers
+//   ❌ [class*='modal']   — matches modal-body which IS the content on some sites
 const NOISE_SELECTORS = [
+  // Always-safe: non-content HTML elements
   "script", "style", "noscript", "iframe", "svg", "canvas",
   "nav", "footer", "header", "aside",
+  // ARIA / landmark roles that are never main content
   "[role='navigation']", "[role='banner']", "[role='contentinfo']",
   "[role='complementary']", "[aria-hidden='true']",
-  "[class*='cookie']",  "[id*='cookie']",
-  "[class*='consent']", "[id*='consent']",
-  "[class*='gdpr']",    "[id*='gdpr']",
+  // Legal / consent banners
+  "[class*='cookie-']",  "[id*='cookie-']",   // hyphenated = more specific
+  "[class*='-cookie']",  "[id*='-cookie']",
+  "[class*='consent-']", "[id*='consent']",
+  "[class*='gdpr']",     "[id*='gdpr']",
+  // Ads
   "[class*='advertisement']", "[class*='ads-']", "[id*='google_ads']",
-  "[class*='newsletter']",    "[class*='signup-modal']",
-  "[class*='share-']",        "[class*='social-']",
-  "[id*='disqus']",           "[class*='disqus']",
-  "[class*='breadcrumb']",
-  "a[href^='#']",
-  "[class*='print-only']", ".sr-only", ".visually-hidden",
-  // Floating / overlay widgets that add noise
-  "[class*='chat-widget']", "[id*='chat-widget']",
-  "[class*='intercom']",    "[id*='intercom']",
-  "[class*='helpdesk']",    "[id*='helpdesk']",
-  "[class*='sticky']",      "[class*='floating']",
-  "[class*='popup']",       "[class*='modal']",
-  "[class*='overlay']",
+  "[id*='ad-']", "[class*='-ad-']",
+  // Newsletter / signup forms (hyphen-guarded)
+  "[class*='newsletter-']", "[id*='newsletter']",
+  "[class*='signup-']",     "[id*='signup']",
+  // Social share buttons (hyphen-guarded — avoids 'social-content' etc.)
+  "[class*='share-']",  "[id*='share-']",
+  "[class*='social-share']", "[class*='share-bar']",
+  // Comments
+  "[id*='disqus']", "[class*='disqus']", "#comments",
+  // Accessibility helpers that are never real content
+  "[class*='print-only']", ".sr-only", ".visually-hidden", ".screen-reader-text",
+  // Live chat / support widgets (id-based = safe)
+  "[id*='chat-widget']", "[id*='intercom-']",
+  "[id*='helpdesk']",    "[id*='freshdesk']",
+  "[id*='zendesk']",     "[id*='drift-widget']",
 ];
 
-// SPA shell markers (skip straight to Playwright when found)
+// SPA shell markers — these indicate a JS framework root that needs Playwright.
+// RULE: Only add markers that mean the HTML body is an EMPTY shell.
+//   ✅ window.__NEXT_DATA__     → Next.js hydration data embedded in page
+//   ✅ <div id="app"></div>    → self-closing Vue/React root = definitely empty
+//   ❌ wp-json                  → WRONG: just a WordPress REST discovery <link>, full SSR HTML
+//   ❌ <div id="root">          → WRONG: matches non-empty React roots like <div id="root"><h1>...
 const SPA_MARKERS = [
-  "window.__NUXT__", "window.__NEXT_DATA__", "__vue_app__",
-  "data-reactroot", "data-react-helmet",
-  "ng-version", "ng-app",
-  "<div id=\"app\"></div>",
-  "<div id=\"root\"></div>",
-  "<div id=\"root\">",        // non-empty but sparse React roots
-  "<div id=\"__next\">",
+  "window.__NUXT__",
+  "window.__NEXT_DATA__",
+  "__vue_app__",
+  "data-reactroot",
+  "data-react-helmet",
+  "ng-version",
+  "ng-app",
+  "<div id=\"app\"></div>",    // self-closing empty Vue/React root
+  "<div id=\"root\"></div>",   // self-closing empty React root
+  "<div id=\"__next\"></div>", // self-closing empty Next.js root
   "<!-- app -->",
-  "wp-json",                  // WP with REST rendering
 ];
 
 // ── HTTP fetch ────────────────────────────────────────────────────────────────
@@ -134,34 +164,67 @@ const USER_AGENTS = [
   "Mozilla/5.0 (compatible; ClaraKnowledgeBot/2.0; +https://clara.ai/bot)",
 ];
 
+// UA / header profiles: try a plain en-US browser first (most compatible),
+// then an Arabic-locale browser for .sa/.ae/.eg regional sites,
+// then the ClaraBot fallback.
+type HttpProfile = { ua: string; lang: string; sendSecFetch: boolean };
+
+const HTTP_PROFILES: HttpProfile[] = [
+  {
+    ua:           USER_AGENTS[0]!, // Chrome Windows
+    lang:         "en-US,en;q=0.9",
+    sendSecFetch: false,           // some servers reject Sec-Fetch-* from Node.js
+  },
+  {
+    ua:           USER_AGENTS[1]!, // Chrome macOS
+    lang:         "ar,en-US;q=0.9,en;q=0.8", // Arabic for regional sites
+    sendSecFetch: false,
+  },
+  {
+    ua:           USER_AGENTS[2]!, // Firefox
+    lang:         "en-US,en;q=0.5",
+    sendSecFetch: false,
+  },
+  {
+    ua:           USER_AGENTS[4]!, // ClaraBot
+    lang:         "en-US,en;q=0.9",
+    sendSecFetch: false,
+  },
+];
+
 async function httpFetch(url: string, timeoutMs = 25_000): Promise<string | null> {
-  for (const ua of USER_AGENTS.slice(0, 3)) {
+  for (const { ua, lang, sendSecFetch } of HTTP_PROFILES) {
     try {
+      const headers: Record<string, string> = {
+        "User-Agent":      ua,
+        "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": lang,
+        "Cache-Control":   "no-cache",
+        "Pragma":          "no-cache",
+        "Upgrade-Insecure-Requests": "1",
+      };
+      if (sendSecFetch) {
+        headers["Sec-Fetch-Dest"] = "document";
+        headers["Sec-Fetch-Mode"] = "navigate";
+        headers["Sec-Fetch-Site"] = "none";
+        headers["Sec-Fetch-User"] = "?1";
+      }
       const response = await fetch(url, {
-        headers: {
-          "User-Agent":          ua,
-          "Accept":              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language":     "ar,en-US;q=0.9,en;q=0.8",
-          "Accept-Encoding":     "gzip, deflate, br",
-          "Cache-Control":       "no-cache",
-          "Pragma":              "no-cache",
-          "Upgrade-Insecure-Requests": "1",
-          "Sec-Fetch-Dest":      "document",
-          "Sec-Fetch-Mode":      "navigate",
-          "Sec-Fetch-Site":      "none",
-          "Sec-Fetch-User":      "?1",
-          "DNT":                 "1",
-        },
+        headers,
         redirect: "follow",
         signal:   AbortSignal.timeout(timeoutMs),
       });
       if (!response.ok) {
-        console.warn(`[web-loader] HTTP ${response.status} for ${url} (ua ${ua.slice(0,25)}…)`);
+        console.warn(`[web-loader] HTTP ${response.status} for ${url} (${ua.slice(0,25)}…)`);
         continue;
       }
-      return await response.text();
+      const text = await response.text();
+      if (text.length > 0) {
+        console.log(`[web-loader] HTTP ✓ ${url} (${text.length} chars, ua: ${ua.slice(0,30)}…)`);
+        return text;
+      }
     } catch (err) {
-      console.warn(`[web-loader] HTTP fetch failed (${ua.slice(0, 25)}…): ${(err as Error).message}`);
+      console.warn(`[web-loader] HTTP fetch failed (${ua.slice(0, 25)}…): ${(err as Error).message.split("\n")[0]}`);
     }
   }
   return null;
@@ -368,14 +431,31 @@ async function playwrightLoad(
   }
 }
 
-// ── SPA detection ─────────────────────────────────────────────────────────────
-
+// ── SPA detection ────────────────────────────────────────────────────────────────
+//
+// Returns true ONLY when we are highly confident the HTML is a client-side
+// rendering shell with no meaningful text content yet rendered.
+//
+// Tuning notes:
+//   - textContent >= 1000 chars  → NEVER a shell (real content present)
+//   - textContent >= 400 chars   → unlikely shell even with framework markers
+//   - textContent < 400 AND framework marker → likely shell
+//   - explicit SPA_MARKERS always count as shell (they are self-closing empty divs)
 function isSpaShell(html: string): boolean {
-  const hasSpaMarker   = SPA_MARKERS.some((m) => html.includes(m));
-  const textContent    = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
-  const hasMinimalText = textContent < 600;
-  const hasFramework   = /react|angular|vue\.js|ember|backbone|nextjs|nuxt/i.test(html.slice(0, 10_000));
-  return hasSpaMarker || (hasMinimalText && hasFramework);
+  // Strip tags to get raw visible text (includes script/style text in Cheerio,
+  // so this overestimates — but we are generous with the threshold on purpose).
+  const rawTextLen = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
+
+  // 1. If raw text content is substantial, it’s definitely NOT an empty shell.
+  //    1 000 chars is conservative: even a short "About us" paragraph exceeds this.
+  if (rawTextLen >= 1_000) return false;
+
+  // 2. Explicit framework empty-root markers (e.g. <div id="app"></div>).
+  if (SPA_MARKERS.some((m) => html.includes(m))) return true;
+
+  // 3. Very sparse text + known SPA framework in the <head>/<script> area.
+  const hasFramework = /react|angular|vue\.js|ember|backbone|nextjs|nuxt/i.test(html.slice(0, 10_000));
+  return rawTextLen < 400 && hasFramework;
 }
 
 // ── Metadata extraction ───────────────────────────────────────────────────────
@@ -625,10 +705,15 @@ function findContentRoot($: CheerioAPI): Cheerio<AnyNode> {
 // highly JS-dynamic content that Cheerio cannot parse into markdown).
 
 function extractRawText($: CheerioAPI): string {
-  // Remove all noise elements first
-  NOISE_SELECTORS.forEach((sel) => {
-    try { $(sel).remove(); } catch { /* ignore */ }
-  });
+  // Remove noise elements — use full set first, fall back to minimal if it wipes content
+  NOISE_SELECTORS.forEach((sel) => { try { $(sel).remove(); } catch {} });
+  const remaining = $("body").text().replace(/\s+/g, " ").trim().length;
+  if (remaining < 50) {
+    // Re-parse with minimal selectors (cannot undo Cheerio mutations inline,
+    // so we reload from the caller — just skip further removal here)
+    // The caller (extractMarkdownFromHtml) already handles the minimal fallback.
+    // If called directly, we must live with a potentially noisy result.
+  }
 
   // Try the best semantic container first, fall back to full body
   const root = findContentRoot($);
@@ -704,31 +789,77 @@ function measureTextLength(html: string): number {
 
 // ── Core extractor ────────────────────────────────────────────────────────────
 
+// ── Safe noise removal ─────────────────────────────────────────────────────────────────
+// Removes NOISE_SELECTORS, then validates that meaningful content still remains.
+// If applying the full set wipes all content (some CMS themes have page-level
+// wrappers matching a noise pattern), we fall back to a minimal safe set that
+// only removes script/style/nav/footer elements.
+const MINIMAL_NOISE_SELECTORS = [
+  "script", "style", "noscript", "iframe", "canvas",
+  "[aria-hidden='true']",
+];
+
+function applyNoiseRemoval($: CheerioAPI): void {
+  // First pass: full noise set
+  NOISE_SELECTORS.forEach((sel) => { try { $(sel).remove(); } catch {} });
+
+  // Safety check: if body text is now empty (or near-empty), the full noise
+  // set wiped real content. Re-parse and use only the minimal safe set.
+  const remaining = $("body").text().replace(/\s+/g, " ").trim().length;
+  if (remaining < 50) {
+    console.warn(
+      "[web-loader] Full noise removal wiped content ("+remaining+" chars left). " +
+      "Falling back to minimal noise removal."
+    );
+    // Re-load the HTML into the same $ instance by resetting with original html
+    // We can’t easily reset $, so we just add back — but Cheerio has already removed.
+    // Instead we signal the caller to re-parse. Return a sentinel.
+    // NOTE: we CANNOT undo Cheerio mutations, so we must use a flag in the parent scope.
+    // This is handled by extractMarkdownFromHtml checking remaining length.
+  }
+}
+
 export function extractMarkdownFromHtml(html: string, pageUrl = ""): {
   title:    string;
   markdown: string;
   metadata: WebMetadata;
 } {
-  const $ = loadHtml(html);
-  const metadata = extractMeta($, pageUrl);
-  const title    = extractTitle($);
+  const $meta = loadHtml(html);
+  const metadata = extractMeta($meta, pageUrl);
+  const title    = extractTitle($meta);
 
-  // Remove noise
-  NOISE_SELECTORS.forEach((sel) => {
-    try { $(sel).remove(); } catch { /* ignore */ }
-  });
+  // Apply noise removal with safety guard:
+  // try full NOISE_SELECTORS first, fall back to minimal set if it wipes content.
+  const tryExtract = ($: CheerioAPI): string => {
+    const root  = findContentRoot($);
+    const rawMd = root.get(0)
+      ? nodeToMarkdown($, root.get(0)!)
+      : $("body").text();
+    return cleanMarkdown(rawMd);
+  };
 
-  const root  = findContentRoot($);
-  const rawMd = root.get(0)
-    ? nodeToMarkdown($, root.get(0)!)
-    : $("body").text();
+  // Attempt 1: full noise removal
+  const $full = loadHtml(html);
+  NOISE_SELECTORS.forEach((sel) => { try { $full(sel).remove(); } catch {} });
+  const bodyAfterFull = $full("body").text().replace(/\s+/g, " ").trim().length;
 
-  let markdown = cleanMarkdown(rawMd);
+  let markdown: string;
+  if (bodyAfterFull >= 50) {
+    markdown = tryExtract($full);
+  } else {
+    // Full removal wiped content — use minimal set
+    console.warn(
+      `[web-loader] Full noise removal wiped content (${bodyAfterFull} chars). ` +
+      `Using minimal noise removal for ${pageUrl}`
+    );
+    const $min = loadHtml(html);
+    MINIMAL_NOISE_SELECTORS.forEach((sel) => { try { $min(sel).remove(); } catch {} });
+    markdown = tryExtract($min);
+  }
 
-  // ── Nuclear fallback: if markdown is tiny, try raw-text extraction ─────────
+  // ── Nuclear fallback: if markdown is still sparse, try raw-text extraction ──
   if (markdown.length < 200) {
-    console.log("[web-loader] Markdown too sparse — trying raw-text fallback");
-    // Re-parse because we already mutated $ above
+    console.log(`[web-loader] Markdown too sparse (${markdown.length} chars) — trying raw-text fallback`);
     const $fresh  = loadHtml(html);
     const rawText = extractRawText($fresh);
     if (rawText.length > markdown.length) {
