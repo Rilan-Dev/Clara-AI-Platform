@@ -25,8 +25,9 @@
   - `OPENAI_CHAT_MODEL` (Default: `gpt-4o-mini`)
   - `OPENAI_EMBEDDING_MODEL` (Default: `text-embedding-3-small`)
   - `OPENAI_EMBEDDING_DIMENSION` (Default: 1536 or 3072)
-  - `OPENAI_REALTIME_MODEL` (Default: `gpt-4o-realtime-preview`)
+  - `OPENAI_REALTIME_MODEL` (Default: `gpt-realtime-mini`)
   - `OPENAI_REALTIME_VOICE` (Default: `alloy`)
+  - `OPENAI_REALTIME_TRANSCRIPTION_MODEL` (Default: `gpt-4o-mini-transcribe`)
   - `NEXT_PUBLIC_OPENAI_REALTIME_MODEL`
 
 ## 2. Architecture Mapping
