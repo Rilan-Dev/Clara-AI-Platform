@@ -1,0 +1,57 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@clara/api-client": [
+        "./packages/api-client/src/index.ts"
+      ],
+      "@clara/types": [
+        "./packages/types/src/index.ts"
+      ],
+      "@clara/ui": [
+        "./packages/ui/src/index.tsx"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next-app/types/**/*.ts",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/server/**",
+    "src/vite/**",
+    "vite.config.ts",
+    "scripts/**",
+    "**/*_DELETE_ME.ts",
+    "**/*_DELETE_ME.tsx"
+  ]
+}
