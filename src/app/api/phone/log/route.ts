@@ -1,25 +1,25 @@
 /**
- * POST /api/phone/log — internal route to update call log from phone-stream.mjs
+ * GET /api/phone/log
+ * Returns call logs for a KB — metadata only, no AI logic.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { updateCallLog } from "@/modules/phone/core/db";
+import { query } from "@/lib/db";
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  if (req.headers.get("x-phone-internal") !== "1") {
-    return NextResponse.json({ error: "Internal only" }, { status: 403 });
-  }
+export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    const body = await req.json() as Record<string, unknown>;
-    const callSid = body.callSid as string;
-    if (!callSid) return NextResponse.json({ error: "callSid required" }, { status: 400 });
-    await updateCallLog(callSid, {
-      status:       (body.status as string) ?? "completed",
-      endedAt:      new Date(),
-      durationSec:  body.durationSec ? Number(body.durationSec) : undefined,
-      turnCount:    body.turnCount   ? Number(body.turnCount)   : undefined,
-      transcript:   body.transcript  ? body.transcript          : undefined,
-    });
-    return NextResponse.json({ ok: true });
+    const kbId = req.nextUrl.searchParams.get("kbId");
+    if (!kbId) return NextResponse.json({ error: "kbId required" }, { status: 400 });
+
+    const rows = await query(
+      `SELECT id, call_sid, provider, status, from_number, to_number,
+              answered_at, ended_at, duration_sec, turn_count, transcript, created_at
+       FROM phone_call_logs
+       WHERE kb_id = $1
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      [kbId],
+    );
+    return NextResponse.json({ logs: rows });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

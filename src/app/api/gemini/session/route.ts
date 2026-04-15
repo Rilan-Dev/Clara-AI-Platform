@@ -1,1 +1,10 @@
-export { postGeminiSession as POST } from "@/modules/assistant/api/geminiSession";
+/**
+ * POST /api/gemini/session
+ * Proxied to clara-engine (Gemini Live session config, alias route).
+ */
+import { NextRequest } from "next/server";
+import { engineProxy } from "@/lib/engine-proxy";
+
+export async function POST(req: NextRequest) {
+  return engineProxy(req, "/api/realtime/gemini-session");
+}

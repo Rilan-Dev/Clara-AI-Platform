@@ -1,38 +1,42 @@
 /**
- * GET /api/phone/vonage/answer
- * Vonage answer webhook — returns NCCO JSON directing call to our WebSocket.
+ * GET/POST /api/phone/vonage/answer
+ *
+ * Vonage webhook: incoming call → returns NCCO that tells Vonage
+ * to connect the call audio to the clara-engine WebSocket.
+ *
+ * No AI logic here — just the NCCO redirect.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { ensureMigrated }            from "@/lib/db/migrate";
-import { getPhoneConfigByNumber }    from "@/modules/phone/core/db";
-import { VonageAdapter }             from "@/modules/phone/providers/vonage";
+import { query } from "@/lib/db";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "";
+async function handle(req: NextRequest): Promise<NextResponse> {
+  const { searchParams } = req.nextUrl;
+  const toNumber = searchParams.get("to") ?? "";
+  const uuid     = searchParams.get("uuid") ?? `vonage-${Date.now()}`;
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  try {
-    await ensureMigrated();
-    const { searchParams } = new URL(req.url);
-    const toNumber  = searchParams.get("to")          ?? "";
-    const callUuid  = searchParams.get("uuid")        ?? searchParams.get("conversation_uuid") ?? "";
+  const rows = await query<{ kb_id: string }>(
+    `SELECT kb_id FROM phone_configs WHERE phone_number = $1 AND enabled = true LIMIT 1`,
+    [toNumber],
+  );
 
-    const config = await getPhoneConfigByNumber(toNumber);
-    if (!config?.enabled) {
-      return NextResponse.json([{ action: "talk", text: "This number is not configured. Goodbye.", bargeIn: false }]);
-    }
-
-    const adapter = new VonageAdapter();
-    const wsBase  = APP_URL.replace(/^https?/, "wss");
-    const wsUrl   = `${wsBase}/api/phone/vonage/stream`;
-    const ncco    = adapter.buildAnswerResponse(wsUrl, callUuid, config);
-
-    console.log(`[phone/vonage] ${callUuid} to ${toNumber} → KB ${config.kbId}`);
-    return new NextResponse(ncco, { headers: { "Content-Type": "application/json" } });
-  } catch (err) {
-    console.error("[phone/vonage/answer]:", err);
-    return NextResponse.json([{ action: "talk", text: "A system error occurred. Please try again.", bargeIn: false }]);
+  if (!rows.length) {
+    return NextResponse.json([{ action: "talk", text: "This number is not configured." }]);
   }
+
+  const kbId = rows[0].kb_id;
+  const engineWs = process.env.CLARA_ENGINE_WS_URL
+    ?? process.env.CLARA_ENGINE_URL?.replace(/^http/, "ws")
+    ?? "ws://localhost:4000";
+
+  const streamUrl = `${engineWs}/ws?type=phone&kbId=${kbId}&provider=vonage&callSid=${uuid}`;
+
+  return NextResponse.json([
+    {
+      action:    "connect",
+      endpoint:  [{ type: "websocket", uri: streamUrl, "content-type": "audio/l16;rate=16000" }],
+    },
+  ]);
 }
 
-// Vonage also POSTs to the answer URL in some configurations
-export const POST = GET;
+export const GET  = handle;
+export const POST = handle;

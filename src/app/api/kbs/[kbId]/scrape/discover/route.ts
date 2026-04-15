@@ -1,11 +1,13 @@
-// POST /api/kbs/[kbId]/scrape/discover
+/**
+ * POST /api/kbs/[kbId]/scrape/discover
+ * Triggers the web crawler (BullMQ job) — proxied to clara-engine.
+ */
 import { NextRequest } from "next/server";
-import { discoverHandler } from "@/modules/knowledge-bases/api/scrape";
+import { engineProxy } from "@/lib/engine-proxy";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ kbId: string }> }
+  { params }: { params: { kbId: string } },
 ) {
-  const { kbId } = await params;
-  return discoverHandler(req, kbId);
+  return engineProxy(req, `/api/kbs/${params.kbId}/scrape/discover`);
 }

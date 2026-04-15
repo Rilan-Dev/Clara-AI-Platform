@@ -19,7 +19,7 @@ COPY clara-backend/packages /app/packages
 COPY clara-backend ./
 ENV NODE_ENV=production
 # Bake NEXT_PUBLIC env vars into the client bundle at build time
-ARG SKIP_AUTH=true
+ARG SKIP_AUTH=false
 ENV SKIP_AUTH=$SKIP_AUTH
 
 RUN ln -s /app/clara-backend/node_modules /app/node_modules && npm run build

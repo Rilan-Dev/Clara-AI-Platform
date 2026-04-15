@@ -1,0 +1,15 @@
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLARA ENGINE — Private AI Microservice Connection
+# ═══════════════════════════════════════════════════════════════════════════════
+# The Clara Engine runs on your private VPS and serves all AI logic.
+# Without these vars pointing to a live engine, ALL AI features return 503.
+
+# Base HTTP URL of your running clara-engine instance
+CLARA_ENGINE_URL=https://engine.yourdomain.com
+
+# WebSocket URL (for phone call streams) — usually same host, ws:// scheme
+CLARA_ENGINE_WS_URL=wss://engine.yourdomain.com
+
+# Must match CLARA_ENGINE_SECRET in the engine's .env
+CLARA_ENGINE_SECRET=change-me-use-openssl-rand-hex-32
