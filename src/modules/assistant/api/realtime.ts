@@ -24,35 +24,27 @@ import {
 } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 
-// ── Legacy / fallback constants (used when no kbId is supplied) ───────────────
-
 const VOICE_MAX_RESPONSE_TOKENS = Number(
   process.env.OPENAI_REALTIME_MAX_TOKENS ?? 500
 );
 
 const VOICE_VAD = {
   type: "server_vad",
-  threshold:         Number(process.env.OPENAI_REALTIME_VAD_THRESHOLD ?? 0.5),
-  prefix_padding_ms: Number(process.env.OPENAI_REALTIME_VAD_PREFIX_MS  ?? 300),
+  threshold: Number(process.env.OPENAI_REALTIME_VAD_THRESHOLD ?? 0.5),
+  prefix_padding_ms: Number(process.env.OPENAI_REALTIME_VAD_PREFIX_MS ?? 300),
   silence_duration_ms: Number(process.env.OPENAI_REALTIME_VAD_SILENCE_MS ?? 700),
-  /**
-   * FIX V1+V2+V3: create_response:false prevents the VAD auto-trigger from
-   * racing with the client's performRagAndRespond() path. See original fix notes.
-   */
   create_response: false,
 } as const;
 
 const TRANSCRIPTION_MODEL =
   process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ?? "gpt-4o-mini-transcribe";
 
-// ── Main handler ──────────────────────────────────────────────────────────────
-
 export async function postRealtimeSession(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : null;
+    const requestedRagMode = typeof body?.ragMode === "string" ? body.ragMode : "hybrid";
 
-    // ── Resolve configuration ─────────────────────────────────────────────────
     let instructions: string;
     let voice: string;
     let temperature: number;
@@ -63,7 +55,6 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     let model: string;
 
     if (kbId) {
-      // ── KB-aware path: load config from DB ────────────────────────────────
       await ensureMigrated();
 
       const kb = await getKnowledgeBaseById(kbId);
@@ -90,30 +81,25 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         );
       }
 
-      // Build the full system prompt from AssistantConfig
       instructions = buildSystemPrompt(config, {
         kbName: kb.name,
-        // documentCount / documentTitles will be added in Phase 2 once
-        // the documents table exists; for now the prompt references the KB name.
       });
 
-      voice        = resolved.voiceId ?? config.voiceId;
-      temperature  = resolved.temperature ?? config.temperature;
-      maxTokens    = resolved.maxTokens ?? config.maxTokens;
+      voice = resolved.voiceId ?? config.voiceId;
+      temperature = resolved.temperature ?? config.temperature;
+      maxTokens = resolved.maxTokens ?? config.maxTokens;
       transcriptionModel = resolved.transcriptionModel ?? TRANSCRIPTION_MODEL;
       transcriptionLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
       model = resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini");
 
-      // Tool description reflects the actual KB, not the legacy insurance copy
       toolDescription =
-        `Retrieve relevant snippets from the "${kb.name}" knowledge base. ` +
-        `Call this whenever the user asks a question that requires specific ` +
-        `information from the documents.`;
+        `Retrieve grounded evidence from the \"${kb.name}\" knowledge base. ` +
+        `Use kbId for KB-wide search, documentId only when the user explicitly scopes to one document, ` +
+        `and pass ragMode=${requestedRagMode} so the server can use classic, hybrid, or agentic retrieval.`;
     } else {
-      // ── Legacy path: env-var defaults (backward compatible) ───────────────
       const languagePreferences = resolveLanguagePreferences({
-        assistant: typeof body?.language  === "string" ? body.language  : undefined,
-        customer:  Array.isArray(body?.languages)      ? body.languages as string[] : undefined,
+        assistant: typeof body?.language === "string" ? body.language : undefined,
+        customer: Array.isArray(body?.languages) ? body.languages as string[] : undefined,
       });
 
       instructions =
@@ -123,9 +109,9 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         "If you have insufficient information, say so briefly. " +
         "Be concise, warm, and professionally supportive.";
 
-      voice        = process.env.OPENAI_REALTIME_VOICE ?? "alloy";
-      temperature  = Number(process.env.OPENAI_REALTIME_TEMPERATURE ?? 0.8);
-      maxTokens    = VOICE_MAX_RESPONSE_TOKENS;
+      voice = process.env.OPENAI_REALTIME_VOICE ?? "alloy";
+      temperature = Number(process.env.OPENAI_REALTIME_TEMPERATURE ?? 0.8);
+      maxTokens = VOICE_MAX_RESPONSE_TOKENS;
       transcriptionModel = TRANSCRIPTION_MODEL;
       transcriptionLanguage = languagePreferences.assistant;
       model = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
@@ -152,34 +138,39 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         parameters: {
           type: "object",
           properties: {
-            query:      { type: "string", description: "The user's question in natural language." },
-            documentId: { type: "string", description: "The ID of the document to search (or knowledge base ID)." },
+            query: { type: "string", description: "The user's question in natural language." },
+            kbId: { type: "string", description: "Knowledge base identifier for KB-wide retrieval." },
+            documentId: { type: "string", description: "Optional document identifier when search should be restricted to a single document." },
+            ragMode: {
+              type: "string",
+              enum: ["classic", "hybrid", "agentic"],
+              description: "Retrieval mode to request from the server.",
+            },
           },
-          required: ["query", "documentId"],
+          required: ["query"],
         },
       },
     ];
 
-    // ── Call OpenAI Realtime sessions API ─────────────────────────────────────
     const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
-        Authorization:  `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "OpenAI-Beta":  "realtime=v1",
+        "OpenAI-Beta": "realtime=v1",
       },
       body: JSON.stringify({
         model,
         voice,
-        modalities:                 ["audio", "text"],
+        modalities: ["audio", "text"],
         instructions,
         tools,
-        tool_choice:                "auto",
+        tool_choice: "auto",
         temperature,
         max_response_output_tokens: maxTokens,
-        turn_detection:             VOICE_VAD,
+        turn_detection: VOICE_VAD,
         input_audio_transcription: {
-          model:    transcriptionModel,
+          model: transcriptionModel,
           language: transcriptionLanguage,
         },
       }),
@@ -194,10 +185,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     }
 
     const session = await res.json();
-
-    // Attach kbId to the session response so the client hook can pass it back
-    // in subsequent API calls (rag/search, etc.) without additional state.
-    return NextResponse.json({ ...session, kbId: kbId ?? null, provider: "openai" });
+    return NextResponse.json({ ...session, kbId: kbId ?? null, provider: "openai", ragMode: requestedRagMode });
   } catch (error) {
     console.error("[realtime] postRealtimeSession:", error);
     if (error instanceof AIConfigResolutionError) {
