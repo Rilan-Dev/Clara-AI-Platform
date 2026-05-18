@@ -39,13 +39,21 @@ export async function searchKbEmbedded(
     ...(options?.filter ? { filter: options.filter } : {}),
   };
 
-  let results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
+  let results: unknown[] = [];
+  try {
+    results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
 
-  // Fallback: if nothing passes threshold, retry without it
-  if (!Array.isArray(results) || results.length === 0) {
-    const fallback: Record<string, unknown> = { ...searchParams };
-    delete fallback.score_threshold;
-    results = await client.search(collectionName, fallback as Parameters<typeof client.search>[1]);
+    // Fallback: if nothing passes threshold, retry without it
+    if (!Array.isArray(results) || results.length === 0) {
+      const fallback: Record<string, unknown> = { ...searchParams };
+      delete fallback.score_threshold;
+      results = await client.search(collectionName, fallback as Parameters<typeof client.search>[1]);
+    }
+  } catch (err) {
+    console.warn(`[searchKbEmbedded] Failed to search collection '${collectionName}':`, (err as Error).message);
+    // If the collection doesn't exist (e.g. unseeded demo), just return no results
+    // rather than throwing a 500 error, so the LLM can still reply gracefully.
+    return [];
   }
 
   return (

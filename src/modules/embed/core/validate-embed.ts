@@ -121,6 +121,35 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
   const authHeader = req.headers.get("authorization") ?? "";
   const rawKey     = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 
+  // ── DEMO BYPASS ─────────────────────────────────────────────────────────────
+  // If the request uses the special DEMO_MODE token, bypass DB checks and 
+  // return a mock context linked to the first seeded Knowledge Base (omenKb1).
+  // This allows the landing page demo to work securely without real auth.
+  if (rawKey === "DEMO_MODE") {
+    return {
+      ok: true,
+      ctx: {
+        keyId: "demo-key",
+        kbId: "30000000-0000-0000-0000-000000000001", // omenKb1
+        orgId: "10000000-0000-0000-0000-000000000001",
+        kbName: "Demo Insurance Knowledge Base",
+        kbDescription: "Demo KB",
+        kbPersona: "You are Aria, an AI assistant for Omen United Insurance. Answer questions about insurance policies using only information from the knowledge base. Always cite your sources with [S1], [S2] notation. Be accurate, professional, and helpful.",
+        rateLimitPerHour: 1000,
+        allowedOrigins: ["*"],
+        designEditEnabled: false,
+        planLimits: {
+          orgId: "10000000-0000-0000-0000-000000000001",
+          planId: "pro",
+          planName: "Pro Plan",
+          maxReqDay: 10000,
+          voiceEnabled: true,
+          apiAccess: true,
+        }
+      }
+    };
+  }
+
   if (!rawKey) {
     return {
       ok: false,

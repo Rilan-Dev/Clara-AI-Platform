@@ -58,6 +58,8 @@ type Options = {
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
+  demoMode?: boolean;
+  demoApiKey?: string;
 };
 
 type TurnStatus = "pending" | "speaking" | "done";
@@ -304,9 +306,14 @@ export function useOpenAIRealtime(opts?: Options) {
       // response.create per user turn. The debounce (300ms) plus Qdrant
       // round-trip (~300-600ms) gives a total pre-speech latency of ~600-900ms,
       // which is far better than the previous 1500ms debounce alone.
-      const res = await fetch(apiUrl("/api/rag/search"), {
+      const endpoint = opts?.demoMode ? "/api/embed/rag" : "/api/rag/search";
+      const headers = opts?.demoMode
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+        : withAuthHeaders({ "Content-Type": "application/json" });
+
+      const res = await fetch(apiUrl(endpoint), {
         method: "POST",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        headers,
         body: JSON.stringify(
           kbIdVal
             ? { query, kbId: kbIdVal }          // KB mode — searches all docs in KB
@@ -540,9 +547,14 @@ export function useOpenAIRealtime(opts?: Options) {
           );
         }
 
-        const res = await fetch(apiUrl("/api/rag/search"), {
+        const endpoint = opts?.demoMode ? "/api/embed/rag" : "/api/rag/search";
+        const headers = opts?.demoMode
+          ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+          : withAuthHeaders({ "Content-Type": "application/json" });
+
+        const res = await fetch(apiUrl(endpoint), {
           method: "POST",
-          headers: withAuthHeaders({ "Content-Type": "application/json" }),
+          headers,
           body: JSON.stringify(
             kbIdVal
               ? { query: q, kbId: kbIdVal }       // KB mode
@@ -655,9 +667,14 @@ export function useOpenAIRealtime(opts?: Options) {
 
     try {
       // ── 1. Create ephemeral session ──────────────────────────────────────
-      const sessRes = await fetch(apiUrl("/api/realtime/session"), {
+      const endpoint = opts?.demoMode ? "/api/embed/session" : "/api/realtime/session";
+      const headers = opts?.demoMode
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+        : withAuthHeaders({ "Content-Type": "application/json" });
+
+      const sessRes = await fetch(apiUrl(endpoint), {
         method: "POST",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        headers,
         body: JSON.stringify({
           language: languagePrefs.assistant,
           languages: languagePrefs.customer,

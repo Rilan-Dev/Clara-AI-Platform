@@ -18,6 +18,8 @@ export type VoiceClientOptions = {
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
+  demoMode?: boolean;
+  demoApiKey?: string;
   onStatusChange?: (status: VoiceStatus) => void;
   onError?: (error: string | null) => void;
   onHistoryChange?: (history: VoiceTurn[]) => void;
