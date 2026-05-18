@@ -65,7 +65,7 @@ http.createServer = (...args) => {
 
 import { dirname, resolve } from "node:path";
 import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 const __dir    = dirname(fileURLToPath(import.meta.url));
 const serverCandidates = [
   resolve(__dir, "..", "server.js"),
@@ -75,4 +75,5 @@ const serverJs = serverCandidates.find((candidate) => existsSync(candidate));
 if (!serverJs) {
   throw new Error("Could not locate standalone Next server.js for relay startup");
 }
-await import(serverJs);
+await import(pathToFileURL(serverJs).href);
+
