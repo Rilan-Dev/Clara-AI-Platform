@@ -68,6 +68,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
          COALESCE(ac.assistant_name,  'Clara')   AS assistant_name,
          ac.avatar_url,
          COALESCE(ac.welcome_message, 'Hello! How can I help you with this knowledge base today?') AS welcome_message,
+         COALESCE(ac.system_prompt,    'You are Clara, a helpful voice assistant. Answer ONLY using the context provided.') AS system_prompt,
          COALESCE(ac.primary_colour,  '#6366f1') AS primary_colour,
          COALESCE(ac.accent_colour,   '#a5b4fc') AS accent_colour,
          COUNT(d.id)                              AS doc_count,
@@ -79,7 +80,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        LEFT JOIN documents  d  ON d.kb_id = kb.id
        WHERE ${whereClause}
        GROUP BY kb.id, p.id, o.id,
-                ac.assistant_name, ac.avatar_url, ac.welcome_message,
+                ac.assistant_name, ac.avatar_url, ac.welcome_message, ac.system_prompt,
                 ac.primary_colour, ac.accent_colour
        ORDER BY p.name ASC, kb.name ASC`,
       queryParams
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         name:           r.assistant_name,
         avatarUrl:      r.avatar_url,
         welcomeMessage: r.welcome_message,
+        systemPrompt:   r.system_prompt,
         primaryColour:  r.primary_colour,
         accentColour:   r.accent_colour,
       },

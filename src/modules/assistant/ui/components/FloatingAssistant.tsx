@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { withAuthHeaders } from "@/lib/client-auth";
+import { withAuthHeaders, getStoredToken } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { useAssistant } from "@/modules/assistant/core";
 import { MessageInput, MessageList } from "@/modules/assistant/ui/chat";
@@ -185,6 +185,9 @@ export function FloatingAssistant() {
 
   const loadKbs = useCallback(async () => {
     try {
+      const token = getStoredToken();
+      if (!token) return;
+
       const res  = await fetch(apiUrl("/api/kbs/all"), { headers: withAuthHeaders() });
       const data = await res.json() as { kbs?: KbEntry[] };
       const list = data.kbs ?? [];

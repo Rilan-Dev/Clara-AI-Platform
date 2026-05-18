@@ -34,6 +34,8 @@ type Options = {
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
+  demoMode?: boolean;
+  demoApiKey?: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -504,9 +506,14 @@ export function useGeminiLive(opts?: Options) {
 
           void (async () => {
             try {
-              const res = await fetch(apiUrl("/api/rag/search"), {
+              const endpoint = opts?.demoMode ? "/api/embed/rag" : "/api/rag/search";
+              const headers = opts?.demoMode
+                ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+                : withAuthHeaders({ "Content-Type": "application/json" });
+
+              const res = await fetch(apiUrl(endpoint), {
                 method: "POST",
-                headers: withAuthHeaders({ "Content-Type": "application/json" }),
+                headers,
                 body: JSON.stringify(
                   kbIdValue ? { query: q, kbId: kbIdValue } : { query: q, documentId: docId }
                 ),
@@ -765,9 +772,14 @@ export function useGeminiLive(opts?: Options) {
 
     try {
       // ── 1. Fetch session config from server (API key never in browser) ──
-      const sessRes = await fetch(apiUrl("/api/gemini/session"), {
+      const endpoint = opts?.demoMode ? "/api/embed/session" : "/api/gemini/session";
+      const headers = opts?.demoMode
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+        : withAuthHeaders({ "Content-Type": "application/json" });
+
+      const sessRes = await fetch(apiUrl(endpoint), {
         method: "POST",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        headers,
         body: JSON.stringify({
           language:  languagePrefs.assistant,
           languages: languagePrefs.customer,

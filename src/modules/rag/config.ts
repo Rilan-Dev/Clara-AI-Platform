@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 export type RagMode = "classic" | "hybrid" | "agentic";
 
 export type RagRuntimeConfig = {
@@ -9,6 +12,39 @@ export type RagRuntimeConfig = {
   enableMcp: boolean;
   graphStoreProvider: string;
 };
+
+let cachedEnv: Record<string, string> | null = null;
+let lastEnvMtime = 0;
+
+function getLiveEnv(): Record<string, string> {
+  const envPath = path.join(process.cwd(), ".env");
+  try {
+    if (!fs.existsSync(envPath)) return {};
+    const stat = fs.statSync(envPath);
+    if (cachedEnv && stat.mtimeMs === lastEnvMtime) {
+      return cachedEnv;
+    }
+    const content = fs.readFileSync(envPath, "utf-8");
+    const env: Record<string, string> = {};
+    content.split(/\r?\n/).forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return;
+      const match = trimmed.match(/^([^=]+)=(.*)$/);
+      if (match) {
+        let val = match[2].trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        env[match[1].trim()] = val;
+      }
+    });
+    cachedEnv = env;
+    lastEnvMtime = stat.mtimeMs;
+    return env;
+  } catch {
+    return {};
+  }
+}
 
 function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {
   if (value == null) return fallback;
@@ -26,12 +62,24 @@ function normalizeRagMode(value: unknown): RagMode | null {
 }
 
 export function getRagRuntimeConfig(options?: { requestedMode?: unknown }): RagRuntimeConfig {
-  const envMode = normalizeRagMode(process.env.RAG_MODE) ?? "classic";
+  const liveEnv = getLiveEnv();
+  const getEnv = (key: string): string | undefined => {
+    return liveEnv[key] ?? process.env[key];
+  };
+
+  console.log("process.env.RAG_MODE (live):", getEnv("RAG_MODE"));
+  console.log("process.env.ENABLE_GRAPH_RAG (live):", getEnv("ENABLE_GRAPH_RAG"));
+  console.log("process.env.ENABLE_AGENT_LOOP (live):", getEnv("ENABLE_AGENT_LOOP"));
+  console.log("process.env.ENABLE_SELF_EVAL (live):", getEnv("ENABLE_SELF_EVAL"));
+  console.log("process.env.ENABLE_MCP (live):", getEnv("ENABLE_MCP"));
+  console.log("process.env.GRAPH_STORE_PROVIDER (live):", getEnv("GRAPH_STORE_PROVIDER"));
+
+  const envMode = normalizeRagMode(getEnv("RAG_MODE")) ?? "classic";
   const requestedMode = normalizeRagMode(options?.requestedMode) ?? envMode;
-  const enableGraphRag = parseBooleanEnv(process.env.ENABLE_GRAPH_RAG, requestedMode !== "classic");
-  const enableAgentLoop = parseBooleanEnv(process.env.ENABLE_AGENT_LOOP, requestedMode === "agentic");
-  const enableSelfEval = parseBooleanEnv(process.env.ENABLE_SELF_EVAL, requestedMode === "agentic");
-  const enableMcp = parseBooleanEnv(process.env.ENABLE_MCP, false);
+  const enableGraphRag = parseBooleanEnv(getEnv("ENABLE_GRAPH_RAG"), requestedMode !== "classic");
+  const enableAgentLoop = parseBooleanEnv(getEnv("ENABLE_AGENT_LOOP"), requestedMode === "agentic");
+  const enableSelfEval = parseBooleanEnv(getEnv("ENABLE_SELF_EVAL"), requestedMode === "agentic");
+  const enableMcp = parseBooleanEnv(getEnv("ENABLE_MCP"), false);
 
   let ragMode: RagMode = requestedMode;
   if (ragMode === "agentic" && !enableAgentLoop) ragMode = enableGraphRag ? "hybrid" : "classic";
@@ -44,6 +92,6 @@ export function getRagRuntimeConfig(options?: { requestedMode?: unknown }): RagR
     enableAgentLoop,
     enableSelfEval,
     enableMcp,
-    graphStoreProvider: process.env.GRAPH_STORE_PROVIDER ?? "memory",
+    graphStoreProvider: getEnv("GRAPH_STORE_PROVIDER") ?? "memory",
   };
 }
