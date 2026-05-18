@@ -38,7 +38,16 @@ export default function AdminDemoScreen() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
-  const [kbs, setKbs] = useState<{ id: string; name: string; org: { id: string; name: string }; assistant?: any }[]>([]);
+  const [kbs, setKbs] = useState<{
+    id: string;
+    name: string;
+    org: { id: string; name: string };
+    assistant?: {
+      name?: string;
+      welcomeMessage?: string;
+      systemPrompt?: string;
+    };
+  }[]>([]);
   const [pendingSettings, setPendingSettings] = useState<Record<string, string>>({});
 
   // ── Load config ───────────────────────────────────────────────────────────
