@@ -7,6 +7,15 @@ import type { Components } from "react-markdown";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { splitAssistantChartBlocks } from "./chart-block";
+
+const AIChartBlock = React.lazy(() =>
+  import("./AIChartBlock").then((module) => ({ default: module.AIChartBlock }))
+);
+
+const chartFallback = (
+  <div className="not-prose my-4 h-[280px] animate-pulse rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-card)]/70" />
+);
 
 type MarkdownMessageProps = {
   content: string;
@@ -130,6 +139,14 @@ const renderers: Components = {
 
 export function MarkdownMessage({ content, variant }: MarkdownMessageProps) {
   const trimmed = content.trim();
+  const segments = React.useMemo(
+    () =>
+      variant === "assistant"
+        ? splitAssistantChartBlocks(trimmed)
+        : [{ type: "markdown" as const, content: trimmed }],
+    [trimmed, variant]
+  );
+
   if (!trimmed) {
     return null;
   }
@@ -142,13 +159,22 @@ export function MarkdownMessage({ content, variant }: MarkdownMessageProps) {
           "prose-headings:text-[color:var(--color-primary)]"
       )}
     >
-      <ReactMarkdown
-        className={"text-sm"}
-        remarkPlugins={[remarkGfm]}
-        components={renderers}
-      >
-        {trimmed}
-      </ReactMarkdown>
+      {segments.map((segment, index) =>
+        segment.type === "chart" ? (
+          <React.Suspense key={`chart-${index}`} fallback={chartFallback}>
+            <AIChartBlock chart={segment.chart} />
+          </React.Suspense>
+        ) : (
+          <ReactMarkdown
+            key={`markdown-${index}`}
+            className={"text-sm"}
+            remarkPlugins={[remarkGfm]}
+            components={renderers}
+          >
+            {segment.content}
+          </ReactMarkdown>
+        )
+      )}
     </div>
   );
 }

@@ -50,6 +50,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       assistant_name: string;
       avatar_url: string | null;
       welcome_message: string;
+      system_prompt: string;
       primary_colour: string;
       accent_colour: string;
       doc_count: string;

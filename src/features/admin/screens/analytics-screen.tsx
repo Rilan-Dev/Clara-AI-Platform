@@ -331,9 +331,9 @@ export default function AnalyticsScreen() {
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={queryData.hourlyDist} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
-                    <XAxis dataKey="hour" tickFormatter={h => `${h}:00`} tick={{ fill: CHART_COLORS.text, fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="hour" tickFormatter={(h: number) => `${h}:00`} tick={{ fill: CHART_COLORS.text, fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={tooltipStyle} labelFormatter={h => `${h}:00`} />
+                    <Tooltip contentStyle={tooltipStyle} labelFormatter={(h: number) => `${h}:00`} />
                     <Bar dataKey="count" name="Queries" fill={CHART_COLORS.secondary} radius={[3,3,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -376,7 +376,7 @@ export default function AnalyticsScreen() {
                 <LineChart data={revenueData.mrrTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                   <XAxis dataKey="month" tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+                  <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${v}`} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [`$${Number(v).toLocaleString()}`, ""]} />
                   <Legend wrapperStyle={{ color: CHART_COLORS.text, fontSize: 12 }} />
                   <Line type="monotone" dataKey="added_mrr"   name="New MRR"     stroke={CHART_COLORS.success}   strokeWidth={2} dot={{ fill: CHART_COLORS.success,   r: 3 }} />
@@ -428,7 +428,7 @@ export default function AnalyticsScreen() {
                   <BarChart data={revenueData.billingTimeline} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                     <XAxis dataKey="day" tickFormatter={fmtDate} tick={{ fill: CHART_COLORS.text, fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+                    <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${v}`} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [`$${Number(v).toFixed(2)}`, "Revenue"]} labelFormatter={fmtDate} />
                     <Bar dataKey="total_usd" name="USD" fill={CHART_COLORS.success} radius={[3,3,0,0]} />
                   </BarChart>

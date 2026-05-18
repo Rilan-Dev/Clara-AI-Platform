@@ -43,6 +43,18 @@ const CHAT_MAX_TOKENS: number = (() => {
 // is only appended when the answer is very short AND no valid citation is found.
 const SUBSTANTIAL_ANSWER_THRESHOLD = 60;
 
+const CHART_RESPONSE_INSTRUCTIONS = [
+  "When the user asks for a chart, graph, trend, comparison, breakdown, or visualization, and the available answer includes real numeric data, render the visualization as a fenced code block with language `chart`.",
+  "The chart block must contain strict JSON only, with no comments and no trailing commas.",
+  'Use this shape: {"type":"bar|line|area|pie","title":"Short title","description":"Optional note","xKey":"label","series":[{"key":"value","label":"Value","color":"#2563eb"}],"data":[{"label":"Jan","value":12}]}',
+  "Use stable snake_case keys, numeric values for every series, at most 80 rows, and at most 5 series.",
+  "Do not create a chart when the source context does not provide enough numeric data; answer normally instead.",
+].join(" ");
+
+function withChartInstructions(systemPrompt: string): string {
+  return `${systemPrompt}\n\n${CHART_RESPONSE_INSTRUCTIONS}`;
+}
+
 type ClientMessage = {
   role: "user" | "assistant" | "system";
   content: string;
@@ -179,7 +191,7 @@ async function postChatKb(
     .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
     .join("\n\n");
 
-  const systemPrompt = buildSystemPrompt(config, { kbName: kb.name });
+  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name }));
 
   const chatMessages: ChatMessage[] = [
     {
@@ -325,6 +337,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
       languageGuidance.chat,
       "Ground every answer in the provided context and the policy insight you already know.",
       "If a detail is missing, share the most relevant guidance you can and invite the customer to explore the available highlights with you.",
+      CHART_RESPONSE_INSTRUCTIONS,
     ].join(" ");
 
     const augmentedMessages: ChatMessage[] = [
