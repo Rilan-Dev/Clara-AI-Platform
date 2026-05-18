@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, Building2, CreditCard,
-  Settings, LogOut, Menu, X, ChevronRight, BarChart3, UserPen,
+  Settings, LogOut, Menu, X, ChevronRight, BarChart3, UserPen, Play,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
@@ -16,6 +16,7 @@ const ADMIN_NAV = [
   { href: "/orgs",          icon: Building2,       label: "Organisations" },
   { href: "/subscriptions", icon: CreditCard,      label: "Subscriptions" },
   { href: "/analytics",     icon: BarChart3,       label: "Analytics"     },
+  { href: "/demo",          icon: Play,            label: "Demo"          },
   { href: "/settings",      icon: Settings,        label: "Settings"      },
 ];
 

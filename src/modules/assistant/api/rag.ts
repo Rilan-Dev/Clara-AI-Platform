@@ -28,22 +28,25 @@ import { ProviderFactory } from "@/modules/ai-core/factory";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import type { ProviderConfig } from "@/modules/ai-core/types";
+import { getRagRuntimeConfig } from "@/modules/rag/config";
+import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 
 const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K   = 6;  // more results for multi-doc search
 
 type RagPayload = {
-  kbId?:       string;
+  kbId?: string;
   documentId?: string;
-  query?:      string;
-  topK?:       number;
+  query?: string;
+  topK?: number;
+  ragMode?: "classic" | "hybrid" | "agentic";
 };
 
 export async function postRagSearch(request: NextRequest): Promise<NextResponse> {
   try {
     const body = (await request.json()) as RagPayload;
     const query = (body.query ?? "").trim();
-    const topK  = Math.min(Number(body.topK ?? DEFAULT_TOP_K), 20);
+    const topK = Math.min(Number(body.topK ?? DEFAULT_TOP_K), 20);
 
     if (!query) {
       return NextResponse.json({ error: "Missing query" }, { status: 400 });
@@ -62,15 +65,16 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
 
       const resolved = await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
       const providerConfig = toProviderConfig(resolved);
+      const runtime = getRagRuntimeConfig({ requestedMode: body.ragMode });
 
       // Build Qdrant filter: optionally scope to a single document
       const filter = body.documentId
         ? { must: [{ key: "documentId", match: { value: body.documentId } }] }
         : undefined;
 
-      let results;
+      let vectorResults;
       try {
-        results = await searchKbCollection(
+        vectorResults = await searchKbCollection(
           kb.qdrantCollection,
           query,
           topK,
@@ -79,53 +83,100 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
         );
       } catch (searchErr) {
         const msg = (searchErr as Error).message;
-        // Surface missing-collection as a 503 (not 500) so callers can distinguish
-        // "KB exists but not yet indexed" from a real server error.
         if (msg.includes("does not exist")) {
           return NextResponse.json(
             {
-              error: "This knowledge base has no indexed content yet. " +
-                     "Please upload documents and wait for them to finish processing.",
+              error: "This knowledge base has no indexed content yet. Please upload documents and wait for them to finish processing.",
               detail: msg,
             },
-            { status: 503 }
+            { status: 503 },
           );
         }
         throw searchErr;
       }
 
-      // Log analytics event (fire-and-forget — never breaks the response)
-      void logQueryEvent({
-        kbId:        kb.id,
-        queryText:   query,
-        sourceCount: results.length,
-        latencyMs:   Date.now() - t0,
-      });
+      const graphHits = runtime.enableGraphRag
+        ? await retrieveGraphContext({
+            kbId: kb.id,
+            query,
+            topK: Math.min(topK, 4),
+            documentId: body.documentId,
+          })
+        : [];
 
-      // Format context: [S1] Title (filename)\nchunk\n\n[S2] ...
-      const context = results
-        .map((r, i) => {
-          const title    = r.payload?.title    ? String(r.payload.title)            : "Document";
-          const filename = r.payload?.originalFilename ? String(r.payload.originalFilename) : "";
-          const label    = filename && filename !== title ? `${title} (${filename})` : title;
-          return `[S${i + 1}] ${label}\n${r.snippet}`.trim();
+      const graphContext = graphHits
+        .map((hit, index) => {
+          const relations = hit.relations
+            .slice(0, 3)
+            .map((relation) => `${relation.source} -[${relation.type}]-> ${relation.target}`)
+            .join("; ");
+          const evidence = hit.supportingChunks
+            .slice(0, 2)
+            .map((chunk) => chunk.text)
+            .filter(Boolean)
+            .join("\n");
+
+          return [
+            `[G${index + 1}] ${hit.label}`,
+            `Type: ${hit.type}`,
+            relations ? `Relations: ${relations}` : "",
+            evidence ? `Evidence: ${evidence}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
         })
         .join("\n\n");
 
-      // Sources for citation in the UI
-      const sources = results.map((r, i) => ({
-        index:          i + 1,
-        id:             r.id,
-        title:          r.payload?.title          ? String(r.payload.title)            : "Document",
+      void logQueryEvent({
+        kbId: kb.id,
+        queryText: query,
+        sourceCount: vectorResults.length + graphHits.length,
+        latencyMs: Date.now() - t0,
+      });
+
+      const contextParts = [
+        vectorResults
+          .map((r, i) => {
+            const title = r.payload?.title ? String(r.payload.title) : "Document";
+            const filename = r.payload?.originalFilename ? String(r.payload.originalFilename) : "";
+            const label = filename && filename !== title ? `${title} (${filename})` : title;
+            return `[S${i + 1}] ${label}\n${r.snippet}`.trim();
+          })
+          .join("\n\n"),
+      ];
+
+      if (graphContext) {
+        contextParts.push(`Graph context\n${graphContext}`);
+      }
+
+      const context = contextParts.filter(Boolean).join("\n\n");
+
+      const sources = vectorResults.map((r, i) => ({
+        index: i + 1,
+        id: r.id,
+        title: r.payload?.title ? String(r.payload.title) : "Document",
         originalFilename: r.payload?.originalFilename ? String(r.payload.originalFilename) : undefined,
-        documentId:     r.payload?.documentId     ? String(r.payload.documentId)       : undefined,
-        score:          r.score,
-        snippet:        r.snippet,
+        documentId: r.payload?.documentId ? String(r.payload.documentId) : undefined,
+        score: r.score,
+        snippet: r.snippet,
+        sourceType: "vector",
+      }));
+
+      const graphSources = graphHits.map((hit, index) => ({
+        index: index + 1,
+        id: hit.id,
+        title: hit.label,
+        score: hit.score,
+        snippet: hit.supportingChunks.map((chunk) => chunk.text).filter(Boolean).join("\n").slice(0, 500),
+        sourceType: "graph",
+        relations: hit.relations,
       }));
 
       return NextResponse.json({
         context,
         sources,
+        graphSources,
+        mode: runtime.ragMode,
         kb: { id: kb.id, name: kb.name, collection: kb.qdrantCollection },
       });
     }
@@ -151,15 +202,13 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
 
     return NextResponse.json(
       { error: "Provide either kbId (recommended) or documentId (legacy)" },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     console.error("[rag] postRagSearch:", error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
-
-// ── KB collection search ──────────────────────────────────────────────────────
 
 type SearchHit = {
   id: string;
@@ -175,12 +224,12 @@ async function searchKbCollection(
   filter?: Record<string, unknown>,
   providerConfig?: ProviderConfig,
 ): Promise<SearchHit[]> {
-  const client    = getQdrantClient();
+  const client = getQdrantClient();
   const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
 
   const searchParams: Record<string, unknown> = {
-    vector:       embedding,
-    limit:        topK,
+    vector: embedding,
+    limit: topK,
     with_payload: true,
     score_threshold: SCORE_THRESHOLD,
     ...(filter ? { filter } : {}),
@@ -190,21 +239,15 @@ async function searchKbCollection(
   try {
     results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
   } catch (err) {
-    // Qdrant throws "Not Found" when the collection doesn't exist yet.
-    // This happens when documents are queued but the ingest worker hasn't
-    // processed them yet (or failed silently in production).
     const msg = err instanceof Error ? err.message : String(err);
     if (/not found/i.test(msg)) {
       throw new Error(
-        `Qdrant collection "${collectionName}" does not exist. ` +
-        `Documents may still be processing — check the ingest worker status ` +
-        `at /api/worker/ingest or re-upload your documents.`
+        `Qdrant collection "${collectionName}" does not exist. Documents may still be processing — check the ingest worker status at /api/worker/ingest or re-upload your documents.`,
       );
     }
     throw err;
   }
 
-  // Fallback: if nothing passes threshold, retry without threshold
   if (!Array.isArray(results) || results.length === 0) {
     const fallbackParams = { ...searchParams };
     delete fallbackParams.score_threshold;
@@ -213,9 +256,9 @@ async function searchKbCollection(
 
   return (results as Array<{ id: string | number; score?: number; payload?: Record<string, unknown> }>)
     .map((r) => ({
-      id:      String(r.id),
+      id: String(r.id),
       snippet: r.payload?.chunk ? String(r.payload.chunk) : "",
-      score:   r.score ?? 0,
+      score: r.score ?? 0,
       payload: r.payload as Record<string, unknown>,
     }))
     .sort((a, b) => b.score - a.score);
