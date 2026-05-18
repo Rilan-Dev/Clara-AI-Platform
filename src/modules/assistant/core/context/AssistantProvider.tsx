@@ -28,7 +28,7 @@ import {
   resolveLanguagePreferences,
   type LanguagePreferences,
 } from "../config";
-import { withAuthHeaders } from "@/lib/client-auth";
+import { withAuthHeaders, getStoredToken } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 
 // ── P5 FIX: Conversation window cap ───────────────────────────────────────────
@@ -367,10 +367,22 @@ export function AssistantProvider({
     setDocumentsError(null);
 
     try {
-        const response = await fetch(endpointConfig.documents, {
-          cache: "no-store",
-          headers: withAuthHeaders(),
-        });
+      const token = getStoredToken();
+      if (!token) {
+        if (mountedRef.current) setDocumentsLoading(false);
+        return;
+      }
+      
+      const response = await fetch(endpointConfig.documents, {
+        cache: "no-store",
+        headers: withAuthHeaders(),
+      });
+      if (response.status === 401) {
+        if (mountedRef.current) {
+          setDocuments([]);
+        }
+        return;
+      }
       if (!response.ok) {
         throw new AssistantError(
           `Failed to load documents: ${response.status}`,

@@ -24,6 +24,13 @@ type StreamEvent =
   | { type: "done" }
   | { type: "error"; payload: string };
 
+type DemoConfig = {
+  enabled: boolean;
+  chatEnabled: boolean;
+  kbName: string;
+  suggestedPrompts: string[];
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const DEMO_API_KEY = "DEMO_MODE";
@@ -46,7 +53,20 @@ export default function DemoAssistantFAB() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // ── Fetch demo config from admin panel ────────────────────────────────────
+  const [demoConfig, setDemoConfig] = useState<DemoConfig | null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch(apiUrl("/api/platform/demo-config"))
+      .then(r => r.json())
+      .then((cfg: DemoConfig) => { setDemoConfig(cfg); setConfigLoaded(true); })
+      .catch(() => setConfigLoaded(true));
+  }, []);
+
   const hasApiKey = true; // Always true for the DEMO_MODE bypass
+
+  // If config loaded and demo/chat is disabled, we'll return null at the end
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -215,14 +235,17 @@ export default function DemoAssistantFAB() {
 
   // ── Suggested prompts ─────────────────────────────────────────────────────
 
-  const suggestions = [
+  const suggestions = demoConfig?.suggestedPrompts ?? [
     "What can Clara AI do?",
     "How does RAG work?",
     "Tell me about voice AI",
     "How do I embed the widget?",
   ];
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // If config loaded and demo/chat is disabled, render nothing
+  if (configLoaded && (!demoConfig?.enabled || !demoConfig?.chatEnabled)) {
+    return null;
+  }
 
   return (
     <>

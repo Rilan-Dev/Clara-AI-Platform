@@ -27,6 +27,7 @@ import {
   type ValidatedKey,
   type OrgPlanLimits,
 } from "./api-keys-db";
+import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -122,29 +123,38 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
   const rawKey     = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 
   // ── DEMO BYPASS ─────────────────────────────────────────────────────────────
-  // If the request uses the special DEMO_MODE token, bypass DB checks and 
-  // return a mock context linked to the first seeded Knowledge Base (omenKb1).
-  // This allows the landing page demo to work securely without real auth.
+  // If the request uses the special DEMO_MODE token, bypass DB checks and
+  // return a mock context built from admin-configurable platform_env_settings.
+  // This allows the landing page demo to work without real auth, while being
+  // fully controllable from the Platform Admin Panel → Demo page.
   if (rawKey === "DEMO_MODE") {
+    const demo = await getDemoSettings();
+
+    // If demo is disabled from admin panel, reject
+    if (!demo.enabled) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Demo mode is currently disabled by the platform administrator." },
+          { status: 403 },
+        ),
+      };
+    }
+
     return {
       ok: true,
       ctx: {
         keyId: "demo-key",
-        kbId: "30000000-0000-0000-0000-000000000001", // omenKb1
-        orgId: "10000000-0000-0000-0000-000000000001",
-        kbName: "Demo Insurance Knowledge Base",
-        kbDescription: "Demo KB",
-        kbPersona: "You are Aria, an AI assistant for Omen United Insurance. Answer questions about insurance policies using only information from the knowledge base. Always cite your sources with [S1], [S2] notation. Be accurate, professional, and helpful.",
-        rateLimitPerHour: 1000,
+        kbId: demo.kbId,
+        orgId: demo.orgId,
+        rateLimitPerHour: demo.rateLimitPerHour,
         allowedOrigins: ["*"],
         designEditEnabled: false,
         planLimits: {
-          orgId: "10000000-0000-0000-0000-000000000001",
           planId: "pro",
           planName: "Pro Plan",
-          maxReqDay: 10000,
-          voiceEnabled: true,
-          apiAccess: true,
+          maxReqDay: demo.maxRequestsPerDay,
+          voiceEnabled: demo.voiceEnabled,
         }
       }
     };
@@ -344,3 +354,73 @@ function secondsUntilMidnightUTC(): number {
   midnight.setUTCHours(24, 0, 0, 0);
   return Math.ceil((midnight.getTime() - now.getTime()) / 1_000);
 }
+
+// ── Demo settings (cached) ────────────────────────────────────────────────────
+
+type DemoSettings = {
+  enabled: boolean;
+  voiceEnabled: boolean;
+  chatEnabled: boolean;
+  kbId: string;
+  kbName: string;
+  kbPersona: string;
+  orgId: string;
+  voiceGreeting: string;
+  rateLimitPerHour: number;
+  maxRequestsPerDay: number;
+};
+
+let _demoCache: { data: DemoSettings; ts: number } | null = null;
+const DEMO_CACHE_TTL = 60_000; // 60 seconds
+
+function demoVal(
+  settings: Array<{ key: string; value: string }>,
+  key: string,
+  fallback: string,
+): string {
+  return settings.find((s) => s.key === key)?.value || fallback;
+}
+
+async function getDemoSettings(): Promise<DemoSettings> {
+  const now = Date.now();
+  if (_demoCache && now - _demoCache.ts < DEMO_CACHE_TTL) {
+    return _demoCache.data;
+  }
+
+  try {
+    const all = await getPlatformEnvSettings();
+    const demo = all.filter((s) => s.key.startsWith("DEMO_"));
+
+    const data: DemoSettings = {
+      enabled:           demoVal(demo, "DEMO_ENABLED", "true") === "true",
+      voiceEnabled:      demoVal(demo, "DEMO_VOICE_ENABLED", "true") === "true",
+      chatEnabled:       demoVal(demo, "DEMO_CHAT_ENABLED", "true") === "true",
+      kbId:              demoVal(demo, "DEMO_KB_ID", "30000000-0000-0000-0000-000000000001"),
+      kbName:            demoVal(demo, "DEMO_KB_NAME", "Demo Insurance Knowledge Base"),
+      kbPersona:         demoVal(demo, "DEMO_KB_PERSONA", "You are Aria, an AI assistant. Answer questions using information from the knowledge base. Cite sources with [S1], [S2] notation."),
+      orgId:             demoVal(demo, "DEMO_ORG_ID", "10000000-0000-0000-0000-000000000001"),
+      voiceGreeting:     demoVal(demo, "DEMO_VOICE_GREETING", "Hi! I am Clara, an AI assistant. How can I help you today?"),
+      rateLimitPerHour:  parseInt(demoVal(demo, "DEMO_RATE_LIMIT_PER_HOUR", "100"), 10),
+      maxRequestsPerDay: parseInt(demoVal(demo, "DEMO_MAX_REQUESTS_PER_DAY", "1000"), 10),
+    };
+
+    _demoCache = { data, ts: now };
+    return data;
+  } catch (err) {
+    console.warn("[getDemoSettings] Failed to load, using defaults:", (err as Error).message);
+    // Return safe defaults if DB is unreachable
+    return {
+      enabled: true,
+      voiceEnabled: true,
+      chatEnabled: true,
+      kbId: "30000000-0000-0000-0000-000000000001",
+      kbName: "Demo Insurance Knowledge Base",
+      kbPersona: "You are Aria, an AI assistant. Answer questions using information from the knowledge base. Cite sources with [S1], [S2] notation.",
+      orgId: "10000000-0000-0000-0000-000000000001",
+      voiceGreeting: "Hi! I am Clara, an AI assistant. How can I help you today?",
+      rateLimitPerHour: 100,
+      maxRequestsPerDay: 1000,
+    };
+  }
+}
+

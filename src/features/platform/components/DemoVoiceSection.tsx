@@ -5,11 +5,38 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mic, PhoneOff, Loader2, Sparkles, Volume2 } from "lucide-react";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
 import { useAudioVisualizer } from "@/modules/assistant/core";
+import { apiUrl } from "@/lib/runtime";
 
 const DEMO_API_KEY = "DEMO_MODE";
 
+type DemoConfig = {
+  enabled: boolean;
+  voiceEnabled: boolean;
+  kbId: string;
+  voiceGreeting: string;
+};
+
 export default function DemoVoiceSection() {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [config, setConfig] = useState<DemoConfig | null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch(apiUrl("/api/platform/demo-config"))
+      .then(r => r.json())
+      .then((cfg: DemoConfig) => { setConfig(cfg); setConfigLoaded(true); })
+      .catch(() => setConfigLoaded(true));
+  }, []);
+
+  // If config loaded and demo/voice is disabled, render nothing
+  if (configLoaded && (!config?.enabled || !config?.voiceEnabled)) {
+    return null;
+  }
+
+  // Don't render until config is loaded
+  if (!configLoaded || !config) {
+    return <div className="h-[500px]" />;
+  }
 
   return (
     <section className="relative w-full max-w-5xl mx-auto py-24 px-6 z-20">
@@ -74,7 +101,12 @@ export default function DemoVoiceSection() {
               </button>
             </motion.div>
           ) : (
-            <DemoVoiceActive key="active" onEnd={() => setIsVoiceActive(false)} />
+            <DemoVoiceActive
+              key="active"
+              kbId={config.kbId}
+              voiceGreeting={config.voiceGreeting}
+              onEnd={() => setIsVoiceActive(false)}
+            />
           )}
         </AnimatePresence>
       </div>
@@ -82,12 +114,14 @@ export default function DemoVoiceSection() {
   );
 }
 
-function DemoVoiceActive({ onEnd }: { onEnd: () => void }) {
+function DemoVoiceActive({ kbId, voiceGreeting, onEnd }: {
+  kbId: string; voiceGreeting: string; onEnd: () => void;
+}) {
   const session = useVoiceClient({
     demoMode: true,
     demoApiKey: DEMO_API_KEY,
-    kbId: "30000000-0000-0000-0000-000000000001",
-    voiceGreeting: "Hi! I am Clara, an AI assistant powered by OpenAI Realtime and Gemini Live. How can I help you today?",
+    kbId,
+    voiceGreeting,
   });
 
   useEffect(() => {

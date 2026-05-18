@@ -132,6 +132,7 @@ const PUBLIC_PREFIXES = [
   "/api/auth",         // login, logout, register
   "/api/embed",        // public embed endpoints
   "/api/subscriptions/plans", // public pricing
+  "/api/platform/demo-config", // public demo config
   "/api/health",
   "/api/gemini",
   "/_next",

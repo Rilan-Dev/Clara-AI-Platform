@@ -84,20 +84,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const providerConfig = toProviderConfig(resolved);
 
-    // RAG search — with timeout so slow Qdrant never hangs the response
+    // RAG search — with timeout so slow Qdrant/embedding cold start never hangs the response
     const t0 = Date.now();
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
       const searchPromise = searchKbEmbedded(kb.qdrantCollection, query, 8, { providerConfig });
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("search_timeout")), 8000)
+        setTimeout(() => reject(new Error("search_timeout")), 15000)
       );
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
     } catch (searchErr) {
       const msg = (searchErr as Error).message;
       if (msg !== "search_timeout") throw searchErr;
       // On timeout we proceed with empty context — AI will say it couldn't find info
-      console.warn("[embed/chat] RAG search timed out, proceeding without context");
+      console.warn("[embed/chat] RAG search timed out (>15s), proceeding without context");
     }
 
     // Deduplicate by snippet prefix and sort by score

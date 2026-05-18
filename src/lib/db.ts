@@ -20,11 +20,11 @@ import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg
 // ── Environment ───────────────────────────────────────────────────────────────
 
 const PG_CONFIG = {
-  host:     process.env.POSTGRES_HOST     ?? "180.188.231.138",
-  port:     Number(process.env.POSTGRES_PORT ?? "5434"),
-  user:     process.env.POSTGRES_USER     ?? "atc",
-  password: process.env.POSTGRES_PASSWORD ?? "Postgres@ATC",
-  database: process.env.POSTGRES_DB       ?? "postgres",
+  host:     process.env.POSTGRES_HOST,
+  port:     Number(process.env.POSTGRES_PORT ?? "5432"),
+  user:     process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD,
+  database: process.env.POSTGRES_DB,
   // Keep pool small: Next.js can have many concurrent edge/serverless invocations.
   max:             Number(process.env.PG_POOL_MAX  ?? "10"),
   idleTimeoutMillis:  30_000,
