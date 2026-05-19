@@ -265,9 +265,17 @@ export function parseAIChartBlock(rawJson: string): ParsedAIChart | null {
 
 export function splitAssistantChartBlocks(content: string): MarkdownChartSegment[] {
   const segments: MarkdownChartSegment[] = [];
-  const chartFencePattern = /```(?:chart|ai-chart)(?:\s+json)?[^\S\r\n]*(?:\r?\n)?([\s\S]*?)```/gi;
+  const chartFencePattern = /```(?:(?:chart|ai-chart)(?:\s+json)?|json)[^\S\r\n]*(?:\r?\n)?([\s\S]*?)```/gi;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+
+  function pushMarkdownSegment(markdown: string) {
+    const nestedSegments = splitBareChartJsonBlocks(markdown);
+    for (const segment of nestedSegments) {
+      if (segment.type === "markdown" && !segment.content.trim()) continue;
+      segments.push(segment);
+    }
+  }
 
   while ((match = chartFencePattern.exec(content)) !== null) {
     const chart = parseAIChartBlock(match[1] ?? "");
@@ -277,7 +285,7 @@ export function splitAssistantChartBlocks(content: string): MarkdownChartSegment
     }
 
     if (match.index > lastIndex) {
-      segments.push({ type: "markdown", content: content.slice(lastIndex, match.index) });
+      pushMarkdownSegment(content.slice(lastIndex, match.index));
     }
 
     segments.push({ type: "chart", chart });
@@ -285,8 +293,96 @@ export function splitAssistantChartBlocks(content: string): MarkdownChartSegment
   }
 
   if (lastIndex < content.length) {
-    segments.push({ type: "markdown", content: content.slice(lastIndex) });
+    pushMarkdownSegment(content.slice(lastIndex));
   }
 
   return segments.length > 0 ? segments : [{ type: "markdown", content }];
+}
+
+function splitBareChartJsonBlocks(content: string): MarkdownChartSegment[] {
+  const segments: MarkdownChartSegment[] = [];
+  let lastIndex = 0;
+  let cursor = 0;
+
+  while (cursor < content.length) {
+    const start = content.indexOf("{", cursor);
+    if (start === -1) break;
+
+    const end = findJsonObjectEnd(content, start);
+    if (end === -1) {
+      cursor = start + 1;
+      continue;
+    }
+
+    const rawJson = content.slice(start, end + 1);
+    const chart = parseAIChartBlock(rawJson);
+
+    if (!chart) {
+      cursor = start + 1;
+      continue;
+    }
+
+    if (start > lastIndex) {
+      const markdown = content.slice(lastIndex, start);
+      if (markdown.trim()) {
+        segments.push({ type: "markdown", content: markdown });
+      }
+    }
+
+    segments.push({ type: "chart", chart });
+    lastIndex = end + 1;
+    cursor = end + 1;
+  }
+
+  if (lastIndex < content.length) {
+    const markdown = content.slice(lastIndex);
+    if (markdown.trim()) {
+      segments.push({ type: "markdown", content: markdown });
+    }
+  }
+
+  return segments.length > 0 ? segments : [{ type: "markdown", content }];
+}
+
+function findJsonObjectEnd(content: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < content.length; index++) {
+    const char = content[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth++;
+      continue;
+    }
+
+    if (char === "}") {
+      depth--;
+      if (depth === 0) return index;
+      if (depth < 0) return -1;
+    }
+
+    if (depth > 0 && index - start > MAX_CHART_JSON_LENGTH) {
+      return -1;
+    }
+  }
+
+  return -1;
 }
