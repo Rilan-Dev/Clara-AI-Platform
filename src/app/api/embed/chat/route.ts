@@ -30,7 +30,7 @@ import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import {
   buildConversationAwareSearchQuery,
-  buildRecentConversationContext,
+  buildRecentConversationContextBlock,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const query = lastMessage.content.trim();
     const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
-    const recentConversationContext = buildRecentConversationContext(messages);
+    const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
 
     // Load KB + config
     const [kb, config] = await Promise.all([
@@ -138,14 +138,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Build system prompt from KB config — pass surface:"embed" so the prompt
     // never contains rag_search tool-call instructions (context is pre-injected)
     const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, surface: "embed" }));
-    const recentConversationBlock = recentConversationContext
-      ? `\n\nRecent sourced conversation context for follow-up requests:\n${recentConversationContext}`
-      : "";
-
     const chatMessages: ChatMessage[] = [
       {
         role: "system",
-        content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found."}${recentConversationBlock}`,
+        content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
       },
       ...messages.map((m) => ({
         role: m.role as "user" | "assistant",

@@ -8,6 +8,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Line,
   LineChart,
   Pie,
@@ -196,6 +197,29 @@ function CartesianChart({ chart }: { chart: ParsedAIChart }) {
           />
         ))}
       </AreaChart>
+    );
+  }
+
+  if (chart.type === "composed") {
+    return (
+      <ComposedChart data={chart.data} margin={CHART_MARGIN}>
+        {common}
+        {chart.series.map((series, index) => (
+          <React.Fragment key={series.key}>
+            <Bar dataKey={series.key} fill={getSeriesColor(series)} radius={[6, 6, 0, 0]} opacity={0.72} />
+            {index === 0 && (
+              <Line
+                type="monotone"
+                dataKey={series.key}
+                stroke={getSeriesColor(series)}
+                strokeWidth={2.5}
+                dot={{ r: 2.5 }}
+                activeDot={{ r: 5 }}
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </ComposedChart>
     );
   }
 

@@ -24,7 +24,7 @@ import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import {
   CHART_RESPONSE_INSTRUCTIONS,
   buildConversationAwareSearchQuery,
-  buildRecentConversationContext,
+  buildRecentConversationContextBlock,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
 
@@ -167,7 +167,7 @@ async function postChatKb(
 
   const query = latest.content;
   const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
-  const recentConversationContext = buildRecentConversationContext(messages);
+  const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
   const t0 = Date.now();
   const sessionId = typeof body?.sessionId === "string" ? body.sessionId : undefined;
 
@@ -188,14 +188,10 @@ async function postChatKb(
     .join("\n\n");
 
   const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name }));
-  const recentConversationBlock = recentConversationContext
-    ? `\n\nRecent sourced conversation context for follow-up requests:\n${recentConversationContext}`
-    : "";
-
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
-      content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationBlock}`,
+      content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
     },
     ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
   ];

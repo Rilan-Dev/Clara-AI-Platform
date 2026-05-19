@@ -1,4 +1,4 @@
-export type AIChartType = "area" | "bar" | "line" | "pie";
+export type AIChartType = "area" | "bar" | "composed" | "line" | "pie";
 export type AIChartDatum = Record<string, string | number | null>;
 
 export type AIChartSeries = {
@@ -109,6 +109,11 @@ function normalizeChartType(value: unknown): AIChartType {
     case "column":
     case "bar":
       return "bar";
+    case "combo":
+    case "compose":
+    case "composed":
+    case "composedchart":
+      return "composed";
     case "line":
       return "line";
     case "donut":
