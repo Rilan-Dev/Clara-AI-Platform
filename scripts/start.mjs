@@ -17,21 +17,21 @@ http.createServer = (...args) => {
   const wssTwilio = new WebSocketServer({ noServer: true });
   const wssVonage = new WebSocketServer({ noServer: true });
 
-  server.on("upgrade", (req, socket, head) => {
-    try {
-      const { pathname } = new URL(req.url, "http://x");
-      if (pathname === "/api/embed/voice") {
-        wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
-      } else if (pathname === "/api/phone/twilio/stream") {
-        wssTwilio.handleUpgrade(req, socket, head, ws => wssTwilio.emit("connection", ws, req));
-      } else if (pathname === "/api/phone/vonage/stream") {
-        wssVonage.handleUpgrade(req, socket, head, ws => wssVonage.emit("connection", ws, req));
-      } else {
-        socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
-        socket.destroy();
-      }
-    } catch { socket.destroy(); }
-  });
+    server.on("upgrade", (req, socket, head) => {
+      try {
+        const { pathname } = new URL(req.url, "http://x");
+        if (pathname === "/api/embed/voice") {
+          wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
+        } else if (pathname === "/api/phone/twilio/stream") {
+          wssTwilio.handleUpgrade(req, socket, head, ws => wssTwilio.emit("connection", ws, req));
+        } else if (pathname === "/api/phone/vonage/stream") {
+          wssVonage.handleUpgrade(req, socket, head, ws => wssVonage.emit("connection", ws, req));
+        } else {
+          socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+          socket.destroy();
+        }
+      } catch { socket.destroy(); }
+    });
 
   server.once("listening", () => {
     const addr = server.address();
