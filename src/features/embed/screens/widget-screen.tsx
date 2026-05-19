@@ -206,14 +206,19 @@ function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
       sendJSON({
         type: "session.update",
         session: {
-          modalities: ["audio", "text"],
-          input_audio_transcription: { model: "whisper-1" },
-          turn_detection: {
-            type: "server_vad",
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 700,
-            create_response: false,
+          type: "realtime",
+          output_modalities: ["audio"],
+          audio: {
+            input: {
+              transcription: { model: "gpt-4o-mini-transcribe" },
+              turn_detection: {
+                type: "server_vad",
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 700,
+                create_response: false,
+              },
+            },
           },
           tools: [{
             type: "function",

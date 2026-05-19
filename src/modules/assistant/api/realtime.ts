@@ -23,6 +23,10 @@ import {
   buildSystemPrompt,
 } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+import {
+  buildOpenAIRealtimeSession,
+  createOpenAIRealtimeClientSecret,
+} from "./openai-realtime";
 
 const VOICE_MAX_RESPONSE_TOKENS = Number(
   process.env.OPENAI_REALTIME_MAX_TOKENS ?? 500
@@ -47,7 +51,6 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
 
     let instructions: string;
     let voice: string;
-    let temperature: number;
     let maxTokens: number;
     let transcriptionModel: string;
     let transcriptionLanguage: string;
@@ -86,7 +89,6 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       });
 
       voice = resolved.voiceId ?? config.voiceId;
-      temperature = resolved.temperature ?? config.temperature;
       maxTokens = resolved.maxTokens ?? config.maxTokens;
       transcriptionModel = resolved.transcriptionModel ?? TRANSCRIPTION_MODEL;
       transcriptionLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
@@ -110,7 +112,6 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         "Be concise, warm, and professionally supportive.";
 
       voice = process.env.OPENAI_REALTIME_VOICE ?? "alloy";
-      temperature = Number(process.env.OPENAI_REALTIME_TEMPERATURE ?? 0.8);
       maxTokens = VOICE_MAX_RESPONSE_TOKENS;
       transcriptionModel = TRANSCRIPTION_MODEL;
       transcriptionLanguage = languagePreferences.assistant;
@@ -132,7 +133,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
 
     const tools = [
       {
-        type: "function",
+        type: "function" as const,
         name: "rag_search",
         description: toolDescription,
         parameters: {
@@ -152,40 +153,45 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       },
     ];
 
-    const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta": "realtime=v1",
+    const realtimeSession = buildOpenAIRealtimeSession({
+      model,
+      voice,
+      instructions,
+      tools,
+      toolChoice: "auto",
+      maxOutputTokens: maxTokens,
+      turnDetection: VOICE_VAD,
+      transcription: {
+        model: transcriptionModel,
+        language: transcriptionLanguage,
       },
-      body: JSON.stringify({
-        model,
-        voice,
-        modalities: ["audio", "text"],
-        instructions,
-        tools,
-        tool_choice: "auto",
-        temperature,
-        max_response_output_tokens: maxTokens,
-        turn_detection: VOICE_VAD,
-        input_audio_transcription: {
-          model: transcriptionModel,
-          language: transcriptionLanguage,
-        },
-      }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
+    const result = await createOpenAIRealtimeClientSecret({
+      apiKey,
+      session: realtimeSession,
+    });
+
+    if (!result.ok) {
       return NextResponse.json(
-        { error: text || "Failed to create OpenAI Realtime session" },
+        { error: result.errorText || "Failed to create OpenAI Realtime session" },
         { status: 500 }
       );
     }
 
-    const session = await res.json();
-    return NextResponse.json({ ...session, kbId: kbId ?? null, provider: "openai", ragMode: requestedRagMode });
+    return NextResponse.json({
+      ...result.data,
+      model,
+      voice,
+      turn_detection: VOICE_VAD,
+      input_audio_transcription: {
+        model: transcriptionModel,
+        language: transcriptionLanguage,
+      },
+      kbId: kbId ?? null,
+      provider: "openai",
+      ragMode: requestedRagMode,
+    });
   } catch (error) {
     console.error("[realtime] postRealtimeSession:", error);
     if (error instanceof AIConfigResolutionError) {

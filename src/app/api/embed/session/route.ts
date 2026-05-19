@@ -20,6 +20,10 @@ import {
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+import {
+  buildOpenAIRealtimeSession,
+  createOpenAIRealtimeClientSecret,
+} from "@/modules/assistant/api/openai-realtime";
 
 const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
@@ -101,54 +105,64 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        Authorization:  `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta":  "realtime=v1",
+    const model = resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini");
+    const voice = resolved.voiceId ?? config.voiceId;
+    const turnDetection = {
+      type:                "server_vad" as const,
+      threshold:           0.5,
+      prefix_padding_ms:   300,
+      silence_duration_ms: 700,
+      create_response:     false,
+    };
+    const transcription = {
+      model:    resolved.transcriptionModel ?? "gpt-4o-mini-transcribe",
+      language: config.alwaysRespondIn ?? config.defaultLanguage,
+    };
+    const tools = [
+      {
+        type:        "function" as const,
+        name:        "rag_search",
+        description: `Search the "${kb.name}" knowledge base for relevant information.`,
+        parameters: {
+          type:       "object",
+          properties: { query: { type: "string", description: "User question in natural language" } },
+          required:   ["query"],
+        },
       },
-      body: JSON.stringify({
-        model: resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini"),
-        voice: resolved.voiceId ?? config.voiceId,
-        modalities: ["audio", "text"],
-        instructions,
-        temperature: resolved.temperature ?? config.temperature,
-        max_response_output_tokens: resolved.maxTokens ?? config.maxTokens,
-        turn_detection: {
-          type:                  "server_vad",
-          threshold:             0.5,
-          prefix_padding_ms:     300,
-          silence_duration_ms:   700,
-          create_response:       false,
-        },
-        input_audio_transcription: {
-          model:    resolved.transcriptionModel ?? "gpt-4o-mini-transcribe",
-          language: config.alwaysRespondIn ?? config.defaultLanguage,
-        },
-        tools: [
-          {
-            type:        "function",
-            name:        "rag_search",
-            description: `Search the "${kb.name}" knowledge base for relevant information.`,
-            parameters: {
-              type:       "object",
-              properties: { query: { type: "string", description: "User question in natural language" } },
-              required:   ["query"],
-            },
-          },
-        ],
-      }),
+    ];
+
+    const realtimeSession = buildOpenAIRealtimeSession({
+      model,
+      voice,
+      instructions,
+      maxOutputTokens: resolved.maxTokens ?? config.maxTokens,
+      turnDetection,
+      transcription,
+      tools,
+      toolChoice: "auto",
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json({ error: text }, { status: 500, headers: corsHeaders });
+    const result = await createOpenAIRealtimeClientSecret({
+      apiKey,
+      session: realtimeSession,
+    });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.errorText }, { status: 500, headers: corsHeaders });
     }
 
-    const session = (await res.json()) as Record<string, unknown>;
+    const session = result.data;
     return NextResponse.json(
-      { ...session, kbId: ctx.kbId, provider: "openai", welcomeMessage: config.welcomeMessage ?? "" },
+      {
+        ...session,
+        model,
+        voice,
+        turn_detection: turnDetection,
+        input_audio_transcription: transcription,
+        kbId: ctx.kbId,
+        provider: "openai",
+        welcomeMessage: config.welcomeMessage ?? "",
+      },
       { headers: corsHeaders }
     );
   } catch (err) {

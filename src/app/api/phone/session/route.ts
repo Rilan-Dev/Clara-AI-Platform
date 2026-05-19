@@ -16,6 +16,11 @@ import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-ba
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
 import { resolveAIConfig }           from "@/modules/ai-core/resolve";
 import { getPhoneConfigsByKb }       from "@/modules/phone/core/db";
+import {
+  buildOpenAIRealtimeSession,
+  createOpenAIRealtimeClientSecret,
+  extractOpenAIRealtimeClientSecret,
+} from "@/modules/assistant/api/openai-realtime";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // Only allow calls from localhost (phone-stream.mjs runs server-side)
@@ -63,47 +68,44 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY not set" }, { status: 500 });
 
-    // Create ephemeral session — key stays server-side
-    const sessRes = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        Authorization:  `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta":  "realtime=v1",
+    const realtimeSession = buildOpenAIRealtimeSession({
+      model,
+      voice,
+      instructions,
+      maxOutputTokens: Math.min(resolved.maxTokens ?? 500, 500),
+      turnDetection: {
+        type:                "server_vad",
+        threshold:           0.5,
+        prefix_padding_ms:   300,
+        silence_duration_ms: 700,
+        create_response:     false, // wait for RAG inject
       },
-      body: JSON.stringify({
-        model, voice, modalities: ["audio", "text"], instructions, temperature,
-        max_response_output_tokens: Math.min(resolved.maxTokens ?? 500, 500),
-        turn_detection: {
-          type:                "server_vad",
-          threshold:           0.5,
-          prefix_padding_ms:   300,
-          silence_duration_ms: 700,
-          create_response:     false, // wait for RAG inject
+      transcription: { model: transcriptionModel, language },
+      tools: [{
+        type: "function",
+        name: "rag_search",
+        description: `Search the "${kb.name}" knowledge base.`,
+        parameters: {
+          type: "object",
+          properties: { query: { type: "string" } },
+          required: ["query"],
         },
-        input_audio_transcription: { model: transcriptionModel, language },
-        tools: [{
-          type: "function", name: "rag_search",
-          description: `Search the "${kb.name}" knowledge base.`,
-          parameters: {
-            type: "object",
-            properties: { query: { type: "string" } },
-            required: ["query"],
-          },
-        }],
-      }),
+      }],
+      toolChoice: "auto",
     });
 
-    if (!sessRes.ok) {
-      const txt = await sessRes.text();
-      console.error("[phone/session] OpenAI session failed:", txt);
+    // Create ephemeral session — key stays server-side
+    const sessionResult = await createOpenAIRealtimeClientSecret({
+      apiKey,
+      session: realtimeSession,
+    });
+
+    if (!sessionResult.ok) {
+      console.error("[phone/session] OpenAI session failed:", sessionResult.errorText);
       return NextResponse.json({ error: "Session creation failed" }, { status: 500 });
     }
 
-    const sess      = await sessRes.json() as Record<string, unknown>;
-    const ephemeral =
-      ((sess?.client_secret as Record<string, unknown>)?.value as string) ??
-      (sess?.client_secret as string);
+    const ephemeral = extractOpenAIRealtimeClientSecret(sessionResult.data);
     if (!ephemeral) return NextResponse.json({ error: "No ephemeral key" }, { status: 500 });
 
     return NextResponse.json({

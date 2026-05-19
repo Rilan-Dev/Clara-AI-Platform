@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageSquare, X, Send, Mic, Loader2, Sparkles,
-  Volume2, VolumeX, Bot, ChevronDown,
+  MessageSquare, X, Send, Loader2, Sparkles,
+  Bot, ChevronDown,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
+import { MarkdownMessage } from "@/modules/assistant/ui/chat/MarkdownMessage";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,12 +44,10 @@ function genId() {
 
 export default function DemoAssistantFAB() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId] = useState(() => genId());
-  const [showVoiceHint, setShowVoiceHint] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -402,7 +401,10 @@ export default function DemoAssistantFAB() {
                   </div>
                 )}
 
-                {messages.map((msg, i) => (
+                {messages.map((msg, i) => {
+                  const hasChart = msg.role === "assistant" && /```(?:chart|ai-chart)/i.test(msg.content);
+
+                  return (
                   <motion.div
                     key={msg.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -410,7 +412,7 @@ export default function DemoAssistantFAB() {
                     transition={{ delay: i === messages.length - 1 ? 0 : 0 }}
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div className={`max-w-[85%] ${msg.role === "user" ? "" : ""}`}>
+                    <div className={hasChart ? "w-full max-w-full" : "max-w-[85%]"}>
                       {/* Avatar + name */}
                       <div className={`flex items-center gap-2 mb-1 ${msg.role === "user" ? "justify-end" : ""}`}>
                         {msg.role === "assistant" && (
@@ -431,7 +433,15 @@ export default function DemoAssistantFAB() {
                             : "bg-white/[0.05] text-white/85 border border-white/[0.06] rounded-bl-md"
                         }`}
                       >
-                        {msg.content || (
+                        {msg.content ? (
+                          msg.role === "assistant" ? (
+                            <div className="dark [&_.prose]:text-white/85 [&_.prose_p]:my-0 [&_.prose_ol]:my-2 [&_.prose_ul]:my-2 [&_.prose_li]:my-1">
+                              <MarkdownMessage content={msg.content} variant="assistant" />
+                            </div>
+                          ) : (
+                            msg.content
+                          )
+                        ) : (
                           <div className="flex items-center gap-2">
                             <div className="flex gap-1">
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -460,7 +470,8 @@ export default function DemoAssistantFAB() {
                       )}
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
 
                 {/* Scroll anchor */}
                 <div className="h-1" />

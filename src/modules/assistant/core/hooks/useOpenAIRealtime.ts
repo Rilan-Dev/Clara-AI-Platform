@@ -693,19 +693,25 @@ export function useOpenAIRealtime(opts?: Options) {
           "Ensure OPENAI_API_KEY has Realtime API access."
         );
 
-      // FIX: Read model and voice from the server session response instead of
-      // NEXT_PUBLIC_ env vars. The server already selects the correct model
-      // via OPENAI_REALTIME_MODEL (server-side only). Reading it via
-      // NEXT_PUBLIC_OPENAI_REALTIME_MODEL would bake the model name into the
-      // browser bundle, exposing internal configuration unnecessarily.
-      const realtimeModel: string =
-        typeof session?.model === "string" && session.model
-          ? session.model
-          : "gpt-realtime-mini";
+      // Read voice from the server session response instead of NEXT_PUBLIC_
+      // env vars so internal provider/model configuration stays server-side.
       const realtimeVoice: string =
         typeof session?.voice === "string" && session.voice
           ? session.voice
+          : typeof session?.audio?.output?.voice === "string" && session.audio.output.voice
+            ? session.audio.output.voice
           : "alloy";
+      const sessionConfig =
+        session?.session && typeof session.session === "object"
+          ? session.session
+          : session;
+      const sessionAudioInput = sessionConfig?.audio?.input ?? {};
+      const sessionTurnDetection =
+        sessionConfig?.turn_detection ?? sessionAudioInput?.turn_detection ?? {};
+      const sessionTranscription =
+        sessionConfig?.input_audio_transcription ??
+        sessionAudioInput?.transcription ??
+        {};
 
       // ── 2. Create RTCPeerConnection ──────────────────────────────────────
       const pc = new RTCPeerConnection();
@@ -1041,13 +1047,12 @@ export function useOpenAIRealtime(opts?: Options) {
 
       // ── 6. Exchange SDP with OpenAI Realtime ─────────────────────────────
       const sdpRes = await fetch(
-        `https://api.openai.com/v1/realtime?model=${encodeURIComponent(realtimeModel)}`,
+        "https://api.openai.com/v1/realtime/calls",
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${ephemeralKey}`,
             "Content-Type": "application/sdp",
-            "OpenAI-Beta": "realtime=v1",
           },
           body: localSDP,
         }
@@ -1085,23 +1090,14 @@ export function useOpenAIRealtime(opts?: Options) {
 
       if (myToken !== connectTokenRef.current) return;
 
-      // FIX 6: Include temperature explicitly in session.update.
-      // If session.update omits temperature the API resets it to its default
-      // (1.0), overriding the 0.8 the server set at session creation time.
-      // We read temperature from the session response so the value always
-      // matches what the server configured, without hardcoding it here.
-      const sessionTemperature: number =
-        typeof session?.temperature === "number" ? session.temperature : 0.8;
-
       sendJSON({
         type: "session.update",
         session: {
+          type: "realtime",
           instructions,
           tools,
           tool_choice: "auto",
-          voice: realtimeVoice,
-          modalities: ["audio", "text"],
-          temperature: sessionTemperature,
+          output_modalities: ["audio"],
 
           // VAD: mirror the server-side session creation values so there is no
           // inconsistency window between session creation and this update.
@@ -1109,29 +1105,37 @@ export function useOpenAIRealtime(opts?: Options) {
           // we use the same defaults as the server (threshold 0.5, 300/700ms).
           // FIX V1+V2+V3: create_response: false is echoed here to ensure
           // the update cannot accidentally re-enable auto-response generation.
-          turn_detection: {
-            type: "server_vad",
-            threshold:
-              typeof session?.turn_detection?.threshold === "number"
-                ? session.turn_detection.threshold
-                : 0.5,
-            prefix_padding_ms:
-              typeof session?.turn_detection?.prefix_padding_ms === "number"
-                ? session.turn_detection.prefix_padding_ms
-                : 300,
-            silence_duration_ms:
-              typeof session?.turn_detection?.silence_duration_ms === "number"
-                ? session.turn_detection.silence_duration_ms
-                : 700,
-            create_response: false,
+          audio: {
+            output: { voice: realtimeVoice },
+            input: {
+              turn_detection: {
+                type: "server_vad",
+                threshold:
+                  typeof sessionTurnDetection?.threshold === "number"
+                    ? sessionTurnDetection.threshold
+                    : 0.5,
+                prefix_padding_ms:
+                  typeof sessionTurnDetection?.prefix_padding_ms === "number"
+                    ? sessionTurnDetection.prefix_padding_ms
+                    : 300,
+                silence_duration_ms:
+                  typeof sessionTurnDetection?.silence_duration_ms === "number"
+                    ? sessionTurnDetection.silence_duration_ms
+                    : 700,
+                create_response: false,
+              },
+              transcription: {
+                model:
+                  typeof sessionTranscription?.model === "string"
+                    ? sessionTranscription.model
+                    : "gpt-4o-mini-transcribe",
+                language:
+                  typeof sessionTranscription?.language === "string"
+                    ? sessionTranscription.language
+                    : languagePrefs.assistant,
+              },
+            },
           },
-
-          // FIX 5: DO NOT override input_audio_transcription here.
-          //
-          // The original code set model: "whisper-1" in session.update, which
-          // conflicted with the server's "gpt-4o-mini-transcribe" setting.
-          // The server is now the single source of truth for transcription
-          // configuration. Omitting this field here preserves the server value.
         },
       });
 

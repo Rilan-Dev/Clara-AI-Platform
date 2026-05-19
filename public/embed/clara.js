@@ -513,9 +513,9 @@
         }
 
         dc.onopen = function() {
-          // CRITICAL: include input_audio_transcription so OpenAI transcribes
+          // CRITICAL: include transcription config so OpenAI transcribes
           // user speech and sends conversation.item.input_audio_transcription.completed.
-          // Without this field, session.update may reset transcription to disabled,
+          // Without this, session.update may reset transcription to disabled,
           // causing the AI to receive audio but never fire transcription events.
           voiceSendJson({
             type: 'session.update',
@@ -532,20 +532,23 @@
                 }
               }],
               tool_choice: 'auto',
-              modalities: ['audio', 'text'],
-              // Explicit transcription config so the update never accidentally
-              // disables it. whisper-1 is universally supported; the server
-              // may have set a newer model — this call preserves that unless
-              // it's explicitly overridden here.
-              input_audio_transcription: {
-                model: 'gpt-4o-mini-transcribe',
-              },
-              turn_detection: {
-                type: 'server_vad',
-                threshold: 0.4,           // slightly more sensitive than 0.5
-                prefix_padding_ms: 300,
-                silence_duration_ms: 700,  // 700ms pause = end of utterance
-                create_response: false,    // we drive response.create manually
+              type: 'realtime',
+              output_modalities: ['audio'],
+              audio: {
+                input: {
+                  // Explicit transcription config so the update never
+                  // accidentally disables speech transcripts.
+                  transcription: {
+                    model: 'gpt-4o-mini-transcribe',
+                  },
+                  turn_detection: {
+                    type: 'server_vad',
+                    threshold: 0.4,           // slightly more sensitive than 0.5
+                    prefix_padding_ms: 300,
+                    silence_duration_ms: 700,  // 700ms pause = end of utterance
+                    create_response: false,    // we drive response.create manually
+                  },
+                },
               },
             }
           });

@@ -300,7 +300,7 @@ class CallBridge {
 
     this.openaiWs = new WebSocket(
       `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
-      { headers: { Authorization: `Bearer ${ephemeralKey}`, "OpenAI-Beta": "realtime=v1" } }
+      { headers: { Authorization: `Bearer ${ephemeralKey}` } }
     );
 
     this.openaiWs.on("open", () => {

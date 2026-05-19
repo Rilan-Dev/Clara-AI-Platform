@@ -86,7 +86,6 @@ async function relayOpenAI(browserWs, cfg, apiKey) {
     {
       headers: {
         Authorization: `Bearer ${openaiKey}`,
-        "OpenAI-Beta": "realtime=v1",
       },
     }
   );
@@ -103,21 +102,25 @@ async function relayOpenAI(browserWs, cfg, apiKey) {
     upstream.send(JSON.stringify({
       type: "session.update",
       session: {
-        modalities:  ["audio", "text"],
-        voice:       cfg.voice,
-        temperature: cfg.temperature,
-        max_response_output_tokens: cfg.maxTokens,
+        type: "realtime",
+        output_modalities: ["audio"],
+        max_output_tokens: cfg.maxTokens,
         instructions: cfg.systemPrompt,
-        turn_detection: {
-          type:               "server_vad",
-          threshold:          0.5,
-          prefix_padding_ms:  300,
-          silence_duration_ms: 700,
-          create_response:    false,  // relay handles response.create
-        },
-        input_audio_transcription: {
-          model:    cfg.transcriptionModel,
-          language: cfg.language,
+        audio: {
+          output: { voice: cfg.voice },
+          input: {
+            turn_detection: {
+              type:               "server_vad",
+              threshold:          0.5,
+              prefix_padding_ms:  300,
+              silence_duration_ms: 700,
+              create_response:    false,  // relay handles response.create
+            },
+            transcription: {
+              model:    cfg.transcriptionModel,
+              language: cfg.language,
+            },
+          },
         },
         tools: [{
           type:        "function",

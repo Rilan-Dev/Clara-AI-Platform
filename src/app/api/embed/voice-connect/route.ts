@@ -20,10 +20,9 @@
  *     browser → POST /api/embed/voice-connect  { sdpOffer: "..." }
  *     server:
  *       1. validates embed API key (rate limit, voice gate, origin)
- *       2. loads KB config from DB — provider, model, voice, temperature, instructions
- *       3. creates OpenAI Realtime session server-side (ephemeral key NEVER leaves server)
- *       4. exchanges SDP with OpenAI using the ephemeral key
- *       5. returns ONLY { sdpAnswer, welcomeMessage }
+ *       2. loads KB config from DB — provider, model, voice, instructions
+ *       3. creates the OpenAI Realtime call server-side using the GA /calls API
+ *       4. returns ONLY { sdpAnswer, welcomeMessage }
  *     browser sets remote description — audio connects
  *
  *   What the browser NEVER sees:
@@ -52,6 +51,10 @@ import {
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+import {
+  buildOpenAIRealtimeSession,
+  exchangeOpenAIRealtimeSdp,
+} from "@/modules/assistant/api/openai-realtime";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -89,110 +92,71 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Use surface:"chat" so resolveAIConfig doesn't throw on voice/embed flags.
-    // We only need model/voice/temperature params here — the session itself is
+    // We only need model/voice params here — the session itself is
     // what gates access, not the surface assertion.
     const resolved     = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
     const model        = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice        = resolved.voiceId       ?? config.voiceId    ?? "alloy";
-    const temperature  = resolved.temperature   ?? config.temperature ?? 0.8;
     const maxTokens    = resolved.maxTokens     ?? config.maxTokens   ?? 1024;
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
     const language     = config.alwaysRespondIn ?? config.defaultLanguage ?? "en";
     const welcomeMsg   = config.welcomeMessage?.trim() ?? "";
 
-    // ── 5. Create ephemeral session server-side ───────────────────────────────
-    // The ephemeral key is created and consumed HERE — it never leaves the server.
+    // ── 5. Exchange SDP server-side via the Realtime GA /calls API ───────────
+    // The browser never receives an OpenAI key, model name, or provider details.
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "Voice not configured on server" }, { status: 500, headers: corsHeaders });
     }
 
-    const sessRes = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: {
-        Authorization:  `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta":  "realtime=v1",
+    const realtimeSession = buildOpenAIRealtimeSession({
+      model,
+      voice,
+      instructions,
+      maxOutputTokens: maxTokens,
+      // create_response:false so the AI waits for our RAG context injection
+      turnDetection: {
+        type:                "server_vad",
+        threshold:           0.5,
+        prefix_padding_ms:   300,
+        silence_duration_ms: 600,
+        create_response:     false,
       },
-      body: JSON.stringify({
-        model,
-        voice,
-        modalities:                 ["audio", "text"],
-        instructions,
-        temperature,
-        max_response_output_tokens: maxTokens,
-        // create_response:false so the AI waits for our RAG context injection
-        turn_detection: {
-          type:                "server_vad",
-          threshold:           0.5,
-          prefix_padding_ms:   300,
-          silence_duration_ms: 600,
-          create_response:     false,
+      transcription: {
+        model: transcriptionModel,
+        language,
+      },
+      // rag_search tool registered but client handles it via context injection
+      tools: [{
+        type:        "function",
+        name:        "rag_search",
+        description: `Search the "${kb.name}" knowledge base for relevant information.`,
+        parameters: {
+          type:       "object",
+          properties: { query: { type: "string" } },
+          required:   ["query"],
         },
-        input_audio_transcription: {
-          model:    transcriptionModel,
-          language,
-        },
-        // rag_search tool registered but client handles it via context injection
-        tools: [{
-          type:        "function",
-          name:        "rag_search",
-          description: `Search the "${kb.name}" knowledge base for relevant information.`,
-          parameters: {
-            type:       "object",
-            properties: { query: { type: "string" } },
-            required:   ["query"],
-          },
-        }],
-      }),
+      }],
+      toolChoice: "auto",
     });
 
-    if (!sessRes.ok) {
-      const errText = await sessRes.text();
-      console.error("[voice-connect] OpenAI session failed:", errText);
-      return NextResponse.json(
-        { error: "Voice session creation failed. Check server configuration." },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+    const sdpResult = await exchangeOpenAIRealtimeSdp({
+      apiKey,
+      sdpOffer: body.sdpOffer,
+      session: realtimeSession,
+    });
 
-    const session    = await sessRes.json() as Record<string, unknown>;
-    const ephemeral  =
-      ((session?.client_secret as Record<string, unknown>)?.value as string) ??
-      (session?.client_secret as string);
-
-    if (!ephemeral) {
-      return NextResponse.json({ error: "No ephemeral key in session response" }, { status: 500, headers: corsHeaders });
-    }
-
-    // ── 6. Exchange SDP server-side ───────────────────────────────────────────
-    // The browser sent us its SDP offer. We forward it to OpenAI using the
-    // ephemeral key. The SDP answer comes back here and we return it to the
-    // browser. The browser never touches OpenAI directly.
-    const sdpRes = await fetch(
-      `https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
-      {
-        method:  "POST",
-        headers: {
-          Authorization:  `Bearer ${ephemeral}`,
-          "Content-Type": "application/sdp",
-          "OpenAI-Beta":  "realtime=v1",
-        },
-        body: body.sdpOffer,
-      }
-    );
-
-    if (!sdpRes.ok) {
-      const errText = await sdpRes.text();
+    if (!sdpResult.ok) {
+      const errText = sdpResult.errorText;
       console.error("[voice-connect] SDP exchange failed:", errText);
       return NextResponse.json(
-        { error: `SDP exchange failed (${sdpRes.status})` },
+        { error: `SDP exchange failed (${sdpResult.status})` },
         { status: 500, headers: corsHeaders }
       );
     }
 
-    const sdpAnswer = await sdpRes.text();
+    const sdpAnswer = String(sdpResult.data.sdpAnswer ?? "");
 
     // ── 7. Return ONLY what the browser legitimately needs ────────────────────
     // sdpAnswer:      browser sets this as the WebRTC remote description

@@ -28,6 +28,11 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import {
+  buildConversationAwareSearchQuery,
+  buildRecentConversationContext,
+  withChartInstructions,
+} from "@/modules/assistant/api/conversation-context";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -63,6 +68,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const query = lastMessage.content.trim();
+    const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
+    const recentConversationContext = buildRecentConversationContext(messages);
 
     // Load KB + config
     const [kb, config] = await Promise.all([
@@ -88,7 +95,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const t0 = Date.now();
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
-      const searchPromise = searchKbEmbedded(kb.qdrantCollection, query, 8, { providerConfig });
+      const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("search_timeout")), 15000)
       );
@@ -130,12 +137,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Build system prompt from KB config — pass surface:"embed" so the prompt
     // never contains rag_search tool-call instructions (context is pre-injected)
-    const systemPrompt = buildSystemPrompt(config, { kbName: kb.name, surface: "embed" });
+    const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, surface: "embed" }));
+    const recentConversationBlock = recentConversationContext
+      ? `\n\nRecent sourced conversation context for follow-up requests:\n${recentConversationContext}`
+      : "";
 
     const chatMessages: ChatMessage[] = [
       {
         role: "system",
-        content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found."}`,
+        content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found."}${recentConversationBlock}`,
       },
       ...messages.map((m) => ({
         role: m.role as "user" | "assistant",

@@ -21,6 +21,12 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import {
+  CHART_RESPONSE_INSTRUCTIONS,
+  buildConversationAwareSearchQuery,
+  buildRecentConversationContext,
+  withChartInstructions,
+} from "@/modules/assistant/api/conversation-context";
 
 // ── P1 FIX: Read max-tokens from env (was hardcoded 500) ──────────────────────
 //
@@ -42,18 +48,6 @@ const CHAT_MAX_TOKENS: number = (() => {
 // it is treated as a complete response even without citation tags. The fallback
 // is only appended when the answer is very short AND no valid citation is found.
 const SUBSTANTIAL_ANSWER_THRESHOLD = 60;
-
-const CHART_RESPONSE_INSTRUCTIONS = [
-  "When the user asks for a chart, graph, trend, comparison, breakdown, or visualization, and the available answer includes real numeric data, render the visualization as a fenced code block with language `chart`.",
-  "The chart block must contain strict JSON only, with no comments and no trailing commas.",
-  'Use this shape: {"type":"bar|line|area|pie","title":"Short title","description":"Optional note","xKey":"label","series":[{"key":"value","label":"Value","color":"#2563eb"}],"data":[{"label":"Jan","value":12}]}',
-  "Use stable snake_case keys, numeric values for every series, at most 80 rows, and at most 5 series.",
-  "Do not create a chart when the source context does not provide enough numeric data; answer normally instead.",
-].join(" ");
-
-function withChartInstructions(systemPrompt: string): string {
-  return `${systemPrompt}\n\n${CHART_RESPONSE_INSTRUCTIONS}`;
-}
 
 type ClientMessage = {
   role: "user" | "assistant" | "system";
@@ -172,6 +166,8 @@ async function postChatKb(
   if (kb.status !== "active") throw new Error("Knowledge base is archived.");
 
   const query = latest.content;
+  const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
+  const recentConversationContext = buildRecentConversationContext(messages);
   const t0 = Date.now();
   const sessionId = typeof body?.sessionId === "string" ? body.sessionId : undefined;
 
@@ -179,7 +175,7 @@ async function postChatKb(
 
   // RAG search across the full KB collection
   const providerConfig = toProviderConfig(resolved);
-  const results = await searchKbEmbedded(kb.qdrantCollection, query, 6, {
+  const results = await searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 6, {
     providerConfig,
   });
   const latencyMs = Date.now() - t0;
@@ -192,11 +188,14 @@ async function postChatKb(
     .join("\n\n");
 
   const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name }));
+  const recentConversationBlock = recentConversationContext
+    ? `\n\nRecent sourced conversation context for follow-up requests:\n${recentConversationContext}`
+    : "";
 
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
-      content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}`,
+      content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationBlock}`,
     },
     ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
   ];

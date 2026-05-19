@@ -29,6 +29,11 @@ import {
 } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { resolveAIConfig }   from "@/modules/ai-core/resolve";
+import {
+  buildOpenAIRealtimeSession,
+  createOpenAIRealtimeClientSecret,
+  extractOpenAIRealtimeClientSecret,
+} from "@/modules/assistant/api/openai-realtime";
 import { insertCallLog, updateCallLog } from "./db";
 import type { PhoneCallConfig, PhoneProvider } from "./types";
 import {
@@ -103,43 +108,42 @@ export class CallHandler {
 
     const model              = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice              = resolved.voiceId ?? assistantConfig.voiceId ?? "alloy";
-    const temperature        = resolved.temperature ?? assistantConfig.temperature ?? 0.8;
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
     const language           = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
     const apiKey             = process.env.OPENAI_API_KEY!;
 
     // ── 3. Create OpenAI Realtime session + connect WebSocket ─────────────────
-    const sessRes = await fetch("https://api.openai.com/v1/realtime/sessions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "OpenAI-Beta": "realtime=v1" },
-      body: JSON.stringify({
-        model, voice, modalities: ["audio", "text"], instructions, temperature,
-        max_response_output_tokens: resolved.maxTokens ?? 500,
-        turn_detection: {
-          type: "server_vad", threshold: 0.5,
-          prefix_padding_ms: 300, silence_duration_ms: 700,
-          create_response: false, // wait for RAG inject
-        },
-        input_audio_transcription: { model: transcriptionModel, language },
-        tools: [{
-          type: "function", name: "rag_search",
-          description: `Search "${kb.name}" knowledge base.`,
-          parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
-        }],
-      }),
+    const realtimeSession = buildOpenAIRealtimeSession({
+      model,
+      voice,
+      instructions,
+      maxOutputTokens: resolved.maxTokens ?? 500,
+      turnDetection: {
+        type: "server_vad",
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 700,
+        create_response: false, // wait for RAG inject
+      },
+      transcription: { model: transcriptionModel, language },
+      tools: [{
+        type: "function",
+        name: "rag_search",
+        description: `Search "${kb.name}" knowledge base.`,
+        parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+      }],
+      toolChoice: "auto",
     });
-    if (!sessRes.ok) { this.endCall("OpenAI session failed"); return; }
+    const sessionResult = await createOpenAIRealtimeClientSecret({ apiKey, session: realtimeSession });
+    if (!sessionResult.ok) { this.endCall("OpenAI session failed"); return; }
 
-    const session   = await sessRes.json() as Record<string, unknown>;
-    const ephemeral =
-      ((session?.client_secret as Record<string, unknown>)?.value as string) ??
-      (session?.client_secret as string);
+    const ephemeral = extractOpenAIRealtimeClientSecret(sessionResult.data);
     if (!ephemeral) { this.endCall("No ephemeral key"); return; }
 
     // ── 4. Open OpenAI Realtime WebSocket (server-to-server) ─────────────────
     this.openaiWs = new WebSocket(
       `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
-      { headers: { Authorization: `Bearer ${ephemeral}`, "OpenAI-Beta": "realtime=v1" } }
+      { headers: { Authorization: `Bearer ${ephemeral}` } }
     );
 
     this.openaiWs.on("open", () => {
