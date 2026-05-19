@@ -40,6 +40,7 @@ const DEFAULT_COLORS = [
   "#0f766e",
 ] as const;
 const CHART_MARGIN = { top: 12, right: 12, bottom: 0, left: 0 } as const;
+const MIN_BAR_WIDTH_PERCENT = 3;
 
 function getChartConfig(series: AIChartSeries[]): ChartConfig {
   return series.reduce<ChartConfig>((config, item) => {
@@ -55,10 +56,82 @@ function getCssColor(key: string): string {
   return `var(--color-${key})`;
 }
 
+function getSeriesColor(series: AIChartSeries): string {
+  return series.color || getCssColor(series.key);
+}
+
 function formatLegendValue(value: string | number | null | undefined): string {
   if (typeof value === "number") return value.toLocaleString();
   if (typeof value === "string") return value;
   return "";
+}
+
+function getNumericValue(row: AIChartDatum, key: string): number | null {
+  const value = row[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getBarChartHeight(chart: ParsedAIChart): number {
+  if (chart.type !== "bar") return DEFAULT_CHART_HEIGHT;
+  return Math.max(DEFAULT_CHART_HEIGHT, Math.min(560, chart.data.length * 42 + 84));
+}
+
+function getDisplayLabel(row: AIChartDatum, key: string): string {
+  return formatLegendValue(row[key]) || "Untitled";
+}
+
+function SingleSeriesBarList({ chart }: { chart: ParsedAIChart }) {
+  const series = chart.series[0];
+  if (!series) return null;
+
+  const numericRows = chart.data
+    .map((row) => ({ row, value: getNumericValue(row, series.key) }))
+    .filter((item): item is { row: AIChartDatum; value: number } => item.value !== null);
+
+  if (numericRows.length === 0) {
+    return null;
+  }
+
+  const maxValue = Math.max(...numericRows.map((item) => item.value), 0);
+
+  return (
+    <div
+      className="space-y-3"
+      role="img"
+      aria-label={`${chart.title ?? "Chart"}: ${numericRows
+        .map((item) => `${getDisplayLabel(item.row, chart.xKey)} ${formatLegendValue(item.value)}`)
+        .join(", ")}`}
+    >
+      {numericRows.map(({ row, value }, index) => {
+        const label = getDisplayLabel(row, chart.xKey);
+        const width = maxValue > 0
+          ? Math.max((value / maxValue) * 100, value > 0 ? MIN_BAR_WIDTH_PERCENT : 0)
+          : 0;
+
+        return (
+          <div key={`${label}-${index}`} className="grid gap-1.5">
+            <div className="flex items-baseline justify-between gap-3 text-xs">
+              <span className="min-w-0 truncate font-medium text-[color:var(--color-foreground)]" title={label}>
+                {label}
+              </span>
+              <span className="shrink-0 font-mono tabular-nums text-[color:var(--color-muted-foreground)]">
+                {formatLegendValue(value)}
+              </span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-[color:var(--color-muted)]/70">
+              <div
+                className="h-full rounded-full shadow-[0_0_14px_rgba(37,99,235,0.35)]"
+                style={{
+                  width: `${width}%`,
+                  background: `linear-gradient(90deg, ${series.color}, ${series.color}cc)`,
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function CartesianChart({ chart }: { chart: ParsedAIChart }) {
@@ -90,7 +163,7 @@ function CartesianChart({ chart }: { chart: ParsedAIChart }) {
             key={series.key}
             type="monotone"
             dataKey={series.key}
-            stroke={getCssColor(series.key)}
+            stroke={getSeriesColor(series)}
             strokeWidth={2.5}
             dot={{ r: 2.5 }}
             activeDot={{ r: 5 }}
@@ -106,8 +179,8 @@ function CartesianChart({ chart }: { chart: ParsedAIChart }) {
         <defs>
           {chart.series.map((series) => (
             <linearGradient key={series.key} id={`fill-${gradientIdPrefix}-${series.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={getCssColor(series.key)} stopOpacity={0.42} />
-              <stop offset="95%" stopColor={getCssColor(series.key)} stopOpacity={0.04} />
+              <stop offset="5%" stopColor={getSeriesColor(series)} stopOpacity={0.42} />
+              <stop offset="95%" stopColor={getSeriesColor(series)} stopOpacity={0.04} />
             </linearGradient>
           ))}
         </defs>
@@ -117,7 +190,7 @@ function CartesianChart({ chart }: { chart: ParsedAIChart }) {
             key={series.key}
             type="monotone"
             dataKey={series.key}
-            stroke={getCssColor(series.key)}
+            stroke={getSeriesColor(series)}
             strokeWidth={2.2}
             fill={`url(#fill-${gradientIdPrefix}-${series.key})`}
           />
@@ -130,7 +203,7 @@ function CartesianChart({ chart }: { chart: ParsedAIChart }) {
     <BarChart data={chart.data} margin={CHART_MARGIN}>
       {common}
       {chart.series.map((series) => (
-        <Bar key={series.key} dataKey={series.key} fill={getCssColor(series.key)} radius={[6, 6, 0, 0]} />
+        <Bar key={series.key} dataKey={series.key} fill={getSeriesColor(series)} radius={[6, 6, 0, 0]} />
       ))}
     </BarChart>
   );
@@ -179,11 +252,12 @@ function PieChartBlock({ chart }: { chart: ParsedAIChart }) {
 
 export function AIChartBlock({ chart, className }: { chart: ParsedAIChart; className?: string }) {
   const config = React.useMemo(() => getChartConfig(chart.series), [chart.series]);
+  const useBarList = chart.type === "bar" && chart.series.length === 1;
 
   return (
     <figure
       className={cn(
-        "not-prose my-4 overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-card)]/85 p-4 shadow-sm",
+        "not-prose my-4 w-full min-w-0 overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-card)]/85 p-4 shadow-sm",
         className,
       )}
     >
@@ -194,13 +268,15 @@ export function AIChartBlock({ chart, className }: { chart: ParsedAIChart; class
         </figcaption>
       )}
 
-      {chart.type === "pie" ? (
+      {useBarList ? (
+        <SingleSeriesBarList chart={chart} />
+      ) : chart.type === "pie" ? (
         <PieChartBlock chart={chart} />
       ) : (
         <ChartContainer
           config={config}
-          className="w-full"
-          style={{ height: DEFAULT_CHART_HEIGHT }}
+          className="min-h-[280px] min-w-0 w-full"
+          style={{ height: getBarChartHeight(chart) }}
         >
           <CartesianChart chart={chart} />
         </ChartContainer>

@@ -36,6 +36,9 @@ const DEFAULT_COLORS = [
   "#0f766e",
 ] as const;
 
+const CURRENCY_TOKEN_PATTERN =
+  "(?:sar|rs\\.?|riyals?|usd|aed|eur|gbp|inr|[$€£₹]|ر\\.?س\\.?)";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -78,9 +81,19 @@ function toDatumValue(value: unknown): string | number | null | undefined {
   const text = value.trim();
   if (!text) return "";
 
-  const numericText = text.replace(/[$,%\s]/g, "");
+  const numericText = text.replace(/[$,%\s,]/g, "");
   if (/^-?\d+(\.\d+)?$/.test(numericText)) {
     const numberValue = Number(numericText);
+    if (Number.isFinite(numberValue)) return numberValue;
+  }
+
+  const currencyNumberPattern = new RegExp(
+    `^(?:${CURRENCY_TOKEN_PATTERN}\\s*)?-?\\d[\\d,]*(?:\\.\\d+)?\\s*(?:${CURRENCY_TOKEN_PATTERN})?(?:\\s*\\([^)]*\\))?$`,
+    "i",
+  );
+  if (currencyNumberPattern.test(text)) {
+    const match = text.match(/-?\d[\d,]*(?:\.\d+)?/);
+    const numberValue = match ? Number(match[0].replace(/,/g, "")) : Number.NaN;
     if (Number.isFinite(numberValue)) return numberValue;
   }
 
@@ -225,7 +238,7 @@ export function parseAIChartBlock(rawJson: string): ParsedAIChart | null {
 
   if (!isRecord(parsed)) return null;
 
-  const data = normalizeRows(parsed.data);
+  const data = normalizeRows(parsed.data ?? parsed.rows ?? parsed.values ?? parsed.items);
   if (data.length === 0) return null;
 
   const type = normalizeChartType(parsed.type);

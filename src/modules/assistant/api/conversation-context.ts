@@ -15,6 +15,8 @@ export const CHART_RESPONSE_INSTRUCTIONS = [
   "The chart block must contain strict JSON only, with no comments and no trailing commas.",
   'Use this shape: {"type":"bar|line|area|pie","title":"Short title","description":"Optional note","xKey":"label","series":[{"key":"value","label":"Value","color":"#2563eb"}],"data":[{"label":"Jan","value":12}]}',
   "Use stable snake_case keys, numeric values for every series, at most 80 rows, and at most 5 series.",
+  "Never output a chart block that only has a title or description; every chart block must include non-empty data rows with numeric series values.",
+  "For course, product, price, or cost comparisons, use a bar chart and include only items with actual numeric prices in the chart data; list unavailable prices separately in normal text if needed.",
   "If the user asks to visualize, chart, reformat, sort, compare, or summarize values already given earlier in this same conversation, use that prior sourced assistant answer as conversation context instead of replying out-of-scope.",
   "Do not create a chart when neither the knowledge-base context nor the prior sourced conversation contains enough numeric data; answer normally instead.",
 ].join(" ");
