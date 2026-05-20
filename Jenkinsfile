@@ -31,29 +31,25 @@ pipeline {
 
         stage('Sync Code to VPS') {
             steps {
-                sshagent(credentials: ["${SSH_CREDENTIAL_ID}"]) {
-                    sh '''
-                    rsync -az --delete --info=progress2 --human-readable \
-                    -e "ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no" \
-                    --exclude=".git" \
-                    --exclude="node_modules" \
-                    --exclude=".env" \
-                    --exclude="dist" \
-                    --exclude="build" \
-                    --exclude=".next" \
-                    --exclude=".nuxt" \
-                    --exclude=".cache" \
-                    --exclude="coverage" \
-                    --exclude="logs" \
-                    --exclude="*.log" \
-                    --exclude="__pycache__" \
-                    --exclude=".venv" \
-                    --exclude="venv" \
-                    --exclude="uploads" \
-                    --exclude="storage" \
-                    --exclude="models" \
-                    ./ $REMOTE_HOST:$PROJECT_DIR/
-                    '''
+                timeout(time: 5, unit: 'MINUTES') {
+                    sshagent(credentials: ["${SSH_CREDENTIAL_ID}"]) {
+                        sh '''
+                        rsync -az --delete --info=progress2 --human-readable \
+                        -e "ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no" \
+                        --exclude=".git" \
+                        --exclude="node_modules" \
+                        --exclude=".env" \
+                        --exclude="dist" \
+                        --exclude="build" \
+                        --exclude=".next" \
+                        --exclude=".nuxt" \
+                        --exclude=".cache" \
+                        --exclude="coverage" \
+                        --exclude="logs" \
+                        --exclude="*.log" \
+                        clara-backend/ $REMOTE_HOST:$PROJECT_DIR/
+                        '''
+                    }
                 }
             }
         }
@@ -62,17 +58,17 @@ pipeline {
             steps {
                 sshagent(credentials: ["${SSH_CREDENTIAL_ID}"]) {
                     sh '''
-                    ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no $REMOTE_HOST << EOF
+                        ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no $REMOTE_HOST << EOF
                         set -e
 
-                        cd $DOCKER_PROJECT_DIR
+                        cd $PROJECT_DIR
 
                         echo "Building and restarting Docker containers..."
-                        docker compose up -d --build clara-backend
+                        docker compose up -d --build
 
                         echo "Cleaning unused Docker images..."
                         docker image prune -f
-                    EOF
+                        EOF
                     '''
                 }
             }
@@ -89,7 +85,7 @@ pipeline {
         always {
             emailext(
                 to: 'mohammedrilan.ksa@gmail.com',
-                replyTo: 'noreply@mohammedrilan20022002@gmail.com',
+                replyTo: 'mohammedrilan20022002@gmail.com',
                 mimeType: 'text/html',
                 attachLog: true,
                 compressLog: true,
