@@ -196,13 +196,13 @@ async function sendEmail(opts: {
 
   try {
     // ── Resend (example, uncomment + install 'resend') ─────────────────────
-    // const { Resend } = await import("resend");
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    // await resend.emails.send({
-    //   from: `Clara AI <noreply@${process.env.EMAIL_FROM_DOMAIN ?? "clara.ai"}>`,
-    //   to: opts.to, subject: opts.subject,
-    //   html: opts.bodyHtml, text: opts.bodyText,
-    // });
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: `Clara AI <noreply@${process.env.EMAIL_FROM_DOMAIN ?? "clara.ai"}>`,
+      to: opts.to, subject: opts.subject,
+      html: opts.bodyHtml, text: opts.bodyText,
+    });
 
     await query(`UPDATE subscription_notifications SET status='sent', sent_at=now() WHERE id=$1`, [opts.notifId]);
     console.log(`[notifications] ✅ Sent to ${opts.to}`);

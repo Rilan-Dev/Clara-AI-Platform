@@ -87,6 +87,7 @@
     "react-resizable-panels": "^2.1.9",
     "recharts": "^2.15.4",
     "remark-gfm": "^4.0.0",
+    "resend": "^6.12.3",
     "smokey-fluid-cursor": "^1.0.7",
     "sonner": "^1.7.4",
     "stripe": "^17.7.0",
