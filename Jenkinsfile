@@ -33,12 +33,26 @@ pipeline {
             steps {
                 sshagent(credentials: ["${SSH_CREDENTIAL_ID}"]) {
                     sh '''
-                    rsync -az --delete \
-                      -e "ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no" \
-                      --exclude=".git" \
-                      --exclude="node_modules" \
-                      --exclude=".env" \
-                      ./ $REMOTE_HOST:$PROJECT_DIR/
+                    rsync -az --delete --info=progress2 --human-readable \
+                    -e "ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no" \
+                    --exclude=".git" \
+                    --exclude="node_modules" \
+                    --exclude=".env" \
+                    --exclude="dist" \
+                    --exclude="build" \
+                    --exclude=".next" \
+                    --exclude=".nuxt" \
+                    --exclude=".cache" \
+                    --exclude="coverage" \
+                    --exclude="logs" \
+                    --exclude="*.log" \
+                    --exclude="__pycache__" \
+                    --exclude=".venv" \
+                    --exclude="venv" \
+                    --exclude="uploads" \
+                    --exclude="storage" \
+                    --exclude="models" \
+                    ./ $REMOTE_HOST:$PROJECT_DIR/
                     '''
                 }
             }
