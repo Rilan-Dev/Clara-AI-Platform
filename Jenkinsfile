@@ -81,7 +81,7 @@ pipeline {
                         ssh -p "$REMOTE_PORT" -o StrictHostKeyChecking=no "$REMOTE_HOST" << EOF
                             set -e
 
-                            cd "$PROJECT_DIR"
+                            cd "$DOCKER_PROJECT_DIR"
 
                             echo "Building and restarting Docker containers..."
                             docker compose up -d --build
