@@ -104,7 +104,7 @@ pipeline {
                             ls -la
 
                             echo 'Building and restarting Docker containers...'
-                            docker compose up -d --build
+                            docker compose up -d --build clara-backend
 
                             echo 'Cleaning unused Docker images...'
                             docker image prune -f
