@@ -13,15 +13,20 @@ pipeline {
         REMOTE_HOST = 'root@180.188.231.138'
         REMOTE_PORT = '2253'
 
+        // Remote backend app folder
         PROJECT_DIR = '/docker/Clara-AI-Platform/clara-backend'
+
+        // Remote docker-compose.yml folder
         DOCKER_PROJECT_DIR = '/docker/Clara-AI-Platform'
+
+        // Local Jenkins source folder
+        // Use "." because Jenkins could not find "clara-backend/"
+        LOCAL_PROJECT_DIR = '.'
 
         GIT_REPO = 'https://github.com/Rilan-Dev/Clara-AI-Platform.git'
         GIT_CREDENTIAL = 'Git-Cred-Rilan-Dev'
         SSH_CREDENTIAL_ID = 'vps-deploy-key'
         CLONE_BRANCH_NAME = 'Vite-Converted'
-
-        LOCAL_PROJECT_DIR = '.'
     }
 
     stages {
@@ -52,8 +57,15 @@ pipeline {
                         sh '''
                             set -e
 
-                            echo "Syncing code to VPS..."
+                            echo "Checking Jenkins workspace..."
+                            pwd
+                            ls -la
 
+                            echo "Ensuring remote backend directory exists..."
+                            ssh -p "$REMOTE_PORT" -o StrictHostKeyChecking=no "$REMOTE_HOST" \
+                                "mkdir -p '$PROJECT_DIR'"
+
+                            echo "Syncing backend code to VPS..."
                             rsync -az --delete --info=progress2 --human-readable \
                                 -e "ssh -p $REMOTE_PORT -o StrictHostKeyChecking=no" \
                                 --exclude=".git" \
@@ -78,17 +90,25 @@ pipeline {
             steps {
                 sshagent(credentials: ["${SSH_CREDENTIAL_ID}"]) {
                     sh '''
-                        ssh -p "$REMOTE_PORT" -o StrictHostKeyChecking=no "$REMOTE_HOST" << EOF
+                        set -e
+
+                        ssh -p "$REMOTE_PORT" -o StrictHostKeyChecking=no "$REMOTE_HOST" "
                             set -e
 
-                            cd "$DOCKER_PROJECT_DIR"
+                            cd '$DOCKER_PROJECT_DIR'
 
-                            echo "Building and restarting Docker containers..."
+                            echo 'Current Docker compose directory:'
+                            pwd
+
+                            echo 'Checking docker-compose.yml...'
+                            ls -la
+
+                            echo 'Building and restarting Docker containers...'
                             docker compose up -d --build
 
-                            echo "Cleaning unused Docker images..."
+                            echo 'Cleaning unused Docker images...'
                             docker image prune -f
-EOF
+                        "
                     '''
                 }
             }
