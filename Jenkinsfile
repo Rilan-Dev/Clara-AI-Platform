@@ -129,9 +129,9 @@ pipeline {
                 to: 'mohammedrilan.ksa@gmail.com',
                 replyTo: 'mohammedrilan20022002@gmail.com',
                 mimeType: 'text/html',
-                debugMode: true
-                attachLog: false
-                compressLog: false
+                debugMode: true,
+                attachLog: false,
+                compressLog: false,
                 subject: "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.currentResult}",
                 body: '''
                     <!doctype html>
