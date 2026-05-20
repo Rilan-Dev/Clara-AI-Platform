@@ -203,6 +203,15 @@ pipeline {
                     </div>
                     </body>
                     </html>
+                ''',
+                presendScript: '''
+                    logger.println("EMAIL-EXT DEBUG: presendScript executed.")
+                    logger.println("EMAIL-EXT DEBUG: To = " + msg.getAllRecipients()?.toList())
+                    logger.println("EMAIL-EXT DEBUG: From = " + msg.getFrom()?.toList())
+                    logger.println("EMAIL-EXT DEBUG: Subject = " + msg.getSubject())
+                ''',
+                postsendScript: '''
+                    logger.println("EMAIL-EXT DEBUG: postsendScript executed.")
                 '''
             )
             echo 'HTML Jenkins email notification sent/requested via Email Extension plugin with console log attachment.'
