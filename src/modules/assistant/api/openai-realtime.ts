@@ -129,37 +129,59 @@ export async function createOpenAIRealtimeClientSecret(params: {
     headers["OpenAI-Safety-Identifier"] = params.safetyIdentifier;
   }
 
-  const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ session: params.session }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
 
-  if (!response.ok) {
+  try {
+    const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ session: params.session }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        errorText: await response.text(),
+      };
+    }
+
+    const payload = (await response.json()) as OpenAIRealtimeClientSecretResponse;
+    const clientSecret = payload.value ?? "";
+    const session = payload.session ?? {};
+
     return {
-      ok: false,
-      status: response.status,
-      errorText: await response.text(),
-    };
-  }
-
-  const payload = (await response.json()) as OpenAIRealtimeClientSecretResponse;
-  const clientSecret = payload.value ?? "";
-  const session = payload.session ?? {};
-
-  return {
-    ok: true,
-    data: {
-      ...session,
-      value: clientSecret,
-      expires_at: payload.expires_at,
-      client_secret: {
+      ok: true,
+      data: {
+        ...session,
         value: clientSecret,
         expires_at: payload.expires_at,
+        client_secret: {
+          value: clientSecret,
+          expires_at: payload.expires_at,
+        },
+        ephemeralKey: clientSecret,
       },
-      ephemeralKey: clientSecret,
-    },
-  };
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return {
+        ok: false,
+        status: 504,
+        errorText: "Timed out while contacting OpenAI Realtime after 15 seconds.",
+      };
+    }
+
+    return {
+      ok: false,
+      status: 502,
+      errorText: error instanceof Error ? error.message : "Failed to contact OpenAI Realtime.",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function exchangeOpenAIRealtimeSdp(params: {
