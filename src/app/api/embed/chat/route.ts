@@ -9,10 +9,8 @@
  *   - Rate limiting
  *   - Analytics logging
  *
- * Request body:
- *   { messages: [{role, content}], sessionId?: string }
- *
- * The kbId is resolved from the API key — the caller never needs to pass it.
+ * Demo requests use the OpenAI API key configured in Platform Admin → Demo.
+ * The key remains server-side and is passed only to the server-side provider.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -28,6 +26,7 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import {
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
@@ -89,7 +88,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const providerConfig = toProviderConfig(resolved);
+    // Demo traffic is intentionally isolated from the normal platform key.
+    // The admin-managed key is never sent to the browser.
+    let providerConfig = toProviderConfig(resolved);
+    if (ctx.keyId === "demo-key" && resolved.provider === "openai") {
+      const settings = await getPlatformEnvSettings();
+      const demoApiKey = settings.find(s => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim();
+      if (!demoApiKey) {
+        return NextResponse.json(
+          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
+          { status: 503, headers: corsHeaders },
+        );
+      }
+      providerConfig = { ...providerConfig, apiKey: demoApiKey };
+    }
 
     // RAG search — with timeout so slow Qdrant/embedding cold start never hangs the response
     const t0 = Date.now();
@@ -173,10 +185,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
         (async () => {
           try {
-              const completionStream = provider.chatStream(chatMessages, {
-                temperature: resolved.temperature ?? config.temperature,
-                maxTokens: resolved.maxTokens ?? config.maxTokens,
-              });
+            const completionStream = provider.chatStream(chatMessages, {
+              temperature: resolved.temperature ?? config.temperature,
+              maxTokens: resolved.maxTokens ?? config.maxTokens,
+            });
 
             for await (const delta of completionStream) {
               if (delta) write({ type: "token", payload: delta });
