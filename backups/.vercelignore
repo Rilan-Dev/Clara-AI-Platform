@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-app
+.vercel
+dist
+build
+*.log
+.env
+.env.*
+!.env.example
+deploy/
