@@ -24,6 +24,10 @@ VALUES
    'Enable the floating chat assistant (FAB) on the landing page',
    'demo', FALSE, FALSE),
 
+  ('DEMO_OPENAI_API_KEY',       '',
+   'OpenAI API key used exclusively by the public demo AI. Stored server-side and never exposed to visitors.',
+   'demo', TRUE, FALSE),
+
   ('DEMO_KB_NAME',              'Demo Insurance Knowledge Base',
    'Display name shown in the demo chat header and voice UI',
    'demo', FALSE, FALSE),
@@ -49,9 +53,13 @@ VALUES
    'demo', FALSE, FALSE),
 
   ('DEMO_SUGGESTED_PROMPTS',    '["What does my insurance cover?","How do I file a claim?","Tell me about voice AI features","How does RAG-powered search work?"]',
-   'JSON array of suggested prompts shown in the demo chat widget',
+   'JSON array of prompt strings shown to visitors in the demo chat widget',
    'demo', FALSE, FALSE)
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO UPDATE
+SET description = EXCLUDED.description,
+    category = EXCLUDED.category,
+    is_secret = EXCLUDED.is_secret,
+    requires_restart = EXCLUDED.requires_restart;
 
 -- Update the existing DEMO_KB_ID (from 025) to be in the demo category
 UPDATE platform_env_settings SET category = 'demo' WHERE key = 'DEMO_KB_ID';
