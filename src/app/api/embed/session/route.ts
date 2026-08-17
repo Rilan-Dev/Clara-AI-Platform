@@ -5,8 +5,12 @@
  * Public voice session endpoint — authenticated by API key.
  * Creates an OpenAI Realtime or Gemini Live session configured from the KB.
  *
+ * Demo mode uses the OpenAI credential configured by the platform administrator
+ * in Platform Admin → Demo. The credential stays server-side; the browser only
+ * receives OpenAI's short-lived client secret.
+ *
  * Phase 3: voice access is now gated by the org's subscription plan flag
- * (voice_enabled).  Plans without voice receive a 403 with a clear upgrade
+ * (voice_enabled). Plans without voice receive a 403 with a clear upgrade
  * message before any upstream API call is made.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -20,6 +24,7 @@ import {
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
@@ -84,7 +89,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         {
           provider:        "gemini",
-          kbId:            ctx.kbId,
+          kbId:             ctx.kbId,
           wsUrl,
           model,
           voice:           resolved.voiceId ?? process.env.GEMINI_LIVE_VOICE ?? "Aoede",
@@ -96,13 +101,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Default: OpenAI Realtime
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Voice not configured on the server" },
-        { status: 500, headers: corsHeaders }
-      );
+    // Default: OpenAI Realtime.
+    // Demo requests are identified by validateEmbedRequest() returning the
+    // special demo context. Use the admin-managed demo credential in that case.
+    const isDemo = ctx.keyId === "demo-key";
+    let apiKey: string | undefined;
+
+    if (isDemo) {
+      // Read the setting directly so an admin change takes effect immediately,
+      // even if the process was started before the setting was configured.
+      const settings = await getPlatformEnvSettings();
+      apiKey = settings.find(s => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim();
+
+      // Do not fall back to OPENAI_API_KEY for demo traffic. This keeps the demo
+      // explicitly isolated from the platform's normal OpenAI credential.
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
+          { status: 503, headers: corsHeaders }
+        );
+      }
+    } else {
+      apiKey = process.env.OPENAI_API_KEY?.trim();
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "Voice not configured on the server" },
+          { status: 500, headers: corsHeaders }
+        );
+      }
     }
 
     const model = resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini");
