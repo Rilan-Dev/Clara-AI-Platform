@@ -43,7 +43,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
-    // ── 1. Standard embed validation (key + origin + daily quota + hourly limit) ──
     const validation = await validateEmbedRequest(req);
     if (!validation.ok) return validation.response;
     const { ctx } = validation;
@@ -51,11 +50,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
-    // ── 2. Voice access gate (Phase 3) ────────────────────────────────────────
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);
     if (voiceDenied) return voiceDenied;
 
-    // ── 3. Load KB config ─────────────────────────────────────────────────────
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfig(ctx.kbId),
@@ -70,8 +67,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
-
-    // ── 4. Provider branch ────────────────────────────────────────────────────
 
     if (resolved.provider === "gemini") {
       const apiKey = process.env.GEMINI_API_KEY;
@@ -101,25 +96,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Default: OpenAI Realtime.
-    // IMPORTANT: determine demo mode directly from the incoming Authorization
-    // header. The demo validator intentionally creates a synthetic context, but
-    // relying on ctx.keyId here makes credential routing fragile if the context
-    // shape changes. DEMO_MODE is the authoritative signal for this public demo.
+    // Demo traffic is identified only by the incoming authorization header.
+    // Keep all provider credentials server-side. Prefer the explicit demo key,
+    // then the Platform Admin setting, and finally the server's OpenAI key so a
+    // fresh Docker deployment can run the visitor demo without a DB-only setup.
     const authHeader = req.headers.get("authorization") ?? "";
     const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
     let apiKey: string | undefined;
 
     if (isDemo) {
-      // Read the setting directly so an admin change takes effect immediately.
-      // Never fall back to OPENAI_API_KEY for demo traffic.
       const settings = await getPlatformEnvSettings();
       const demoSetting = settings.find((s) => s.key === "DEMO_OPENAI_API_KEY");
-      apiKey = demoSetting?.value?.trim();
+      apiKey =
+        process.env.DEMO_OPENAI_API_KEY?.trim() ||
+        demoSetting?.value?.trim() ||
+        process.env.OPENAI_API_KEY?.trim();
 
       if (!apiKey) {
         return NextResponse.json(
-          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
+          { error: "Demo OpenAI API key is not configured. Set DEMO_OPENAI_API_KEY or configure it in Platform Admin → Demo." },
           { status: 503, headers: corsHeaders }
         );
       }
@@ -176,7 +171,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.errorText }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { error: `OpenAI Realtime session creation failed (${result.status})`, details: result.errorText },
+        { status: 502, headers: corsHeaders }
+      );
     }
 
     const session = result.data;
