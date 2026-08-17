@@ -23,8 +23,11 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 # Dependencies
 COPY --from=deps /app/clara-backend/node_modules ./node_modules
 
-# Workspace packages (needed for path resolution)
-COPY packages /app/packages
+# Workspace packages live under clara-backend in this repository.
+# The previous COPY packages /app/packages referenced a non-existent
+# repository-root directory and caused Docker builds to fail with:
+# "/packages": not found.
+COPY clara-backend/packages /app/packages
 
 # Source code
 COPY clara-backend/src        ./src
