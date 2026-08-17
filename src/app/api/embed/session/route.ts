@@ -32,7 +32,7 @@ import {
 
 const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
-const GEMINI_INPUT_SAMPLE_RATE  = 16_000;
+const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!validation.ok) return validation.response;
     const { ctx } = validation;
 
-    const origin      = req.headers.get("origin");
+    const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
     // ── 2. Voice access gate (Phase 3) ────────────────────────────────────────
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const resolved     = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
 
     // ── 4. Provider branch ────────────────────────────────────────────────────
@@ -83,16 +83,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
 
       const rawModel = resolved.realtimeModel ?? process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio-preview-12-2025";
-      const model    = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
-      const wsUrl    = `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`;
+      const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
+      const wsUrl = `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`;
 
       return NextResponse.json(
         {
-          provider:        "gemini",
-          kbId:             ctx.kbId,
+          provider: "gemini",
+          kbId: ctx.kbId,
           wsUrl,
           model,
-          voice:           resolved.voiceId ?? process.env.GEMINI_LIVE_VOICE ?? "Aoede",
+          voice: resolved.voiceId ?? process.env.GEMINI_LIVE_VOICE ?? "Aoede",
           instructions,
           inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
@@ -102,19 +102,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Default: OpenAI Realtime.
-    // Demo requests are identified by validateEmbedRequest() returning the
-    // special demo context. Use the admin-managed demo credential in that case.
-    const isDemo = ctx.keyId === "demo-key";
+    // IMPORTANT: determine demo mode directly from the incoming Authorization
+    // header. The demo validator intentionally creates a synthetic context, but
+    // relying on ctx.keyId here makes credential routing fragile if the context
+    // shape changes. DEMO_MODE is the authoritative signal for this public demo.
+    const authHeader = req.headers.get("authorization") ?? "";
+    const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
     let apiKey: string | undefined;
 
     if (isDemo) {
-      // Read the setting directly so an admin change takes effect immediately,
-      // even if the process was started before the setting was configured.
+      // Read the setting directly so an admin change takes effect immediately.
+      // Never fall back to OPENAI_API_KEY for demo traffic.
       const settings = await getPlatformEnvSettings();
-      apiKey = settings.find(s => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim();
+      const demoSetting = settings.find((s) => s.key === "DEMO_OPENAI_API_KEY");
+      apiKey = demoSetting?.value?.trim();
 
-      // Do not fall back to OPENAI_API_KEY for demo traffic. This keeps the demo
-      // explicitly isolated from the platform's normal OpenAI credential.
       if (!apiKey) {
         return NextResponse.json(
           { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
@@ -134,25 +136,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const model = resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini");
     const voice = resolved.voiceId ?? config.voiceId;
     const turnDetection = {
-      type:                "server_vad" as const,
-      threshold:           0.5,
-      prefix_padding_ms:   300,
+      type: "server_vad" as const,
+      threshold: 0.5,
+      prefix_padding_ms: 300,
       silence_duration_ms: 700,
-      create_response:     false,
+      create_response: false,
     };
     const transcription = {
-      model:    resolved.transcriptionModel ?? "gpt-4o-mini-transcribe",
+      model: resolved.transcriptionModel ?? "gpt-4o-mini-transcribe",
       language: config.alwaysRespondIn ?? config.defaultLanguage,
     };
     const tools = [
       {
-        type:        "function" as const,
-        name:        "rag_search",
+        type: "function" as const,
+        name: "rag_search",
         description: `Search the "${kb.name}" knowledge base for relevant information.`,
         parameters: {
-          type:       "object",
+          type: "object",
           properties: { query: { type: "string", description: "User question in natural language" } },
-          required:   ["query"],
+          required: ["query"],
         },
       },
     ];
