@@ -4,41 +4,10 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Secure WebRTC SDP proxy for voice sessions.
  *
- * WHY THIS EXISTS — security model:
- *   The old flow had the browser calling OpenAI directly:
- *     browser → /api/embed/session → gets (ephemeralKey + model + provider)
- *     browser → https://api.openai.com/v1/realtime?model=X  ← all visible in DevTools
+ * The browser never receives an OpenAI API key. The server creates the Realtime
+ * session and returns only the SDP answer and welcome message.
  *
- *   This means any user can:
- *     • See which AI provider and model is being used
- *     • Change the model by modifying the request
- *     • Use the ephemeral key to open their own sessions
- *     • Break the integration if the platform admin switches provider (OpenAI→Gemini)
- *
- *   NEW SECURE FLOW:
- *     browser creates RTCPeerConnection, gathers ICE, creates SDP offer
- *     browser → POST /api/embed/voice-connect  { sdpOffer: "..." }
- *     server:
- *       1. validates embed API key (rate limit, voice gate, origin)
- *       2. loads KB config from DB — provider, model, voice, instructions
- *       3. creates the OpenAI Realtime call server-side using the GA /calls API
- *       4. returns ONLY { sdpAnswer, welcomeMessage }
- *     browser sets remote description — audio connects
- *
- *   What the browser NEVER sees:
- *     • Which provider is used (OpenAI, Gemini, future)
- *     • Model name (gpt-realtime-mini, gpt-4o-realtime, etc.)
- *     • Ephemeral key
- *     • API keys of any kind
- *     • KB configuration details
- *     • Voice ID, temperature, system prompt
- *
- *   Admin can switch provider from OpenAI → Gemini in the platform admin panel
- *   and the client code requires ZERO changes — it just sends an SDP offer and
- *   receives an SDP answer regardless of what's behind it.
- *
- * Request:  { sdpOffer: string }
- * Response: { sdpAnswer: string, welcomeMessage: string }
+ * Demo requests use DEMO_OPENAI_API_KEY from Platform Admin → Demo.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated }            from "@/lib/db/migrate";
@@ -51,6 +20,7 @@ import {
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import {
   buildOpenAIRealtimeSession,
   exchangeOpenAIRealtimeSdp,
@@ -92,8 +62,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Use surface:"chat" so resolveAIConfig doesn't throw on voice/embed flags.
-    // We only need model/voice params here — the session itself is
-    // what gates access, not the surface assertion.
     const resolved     = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
     const model        = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
@@ -103,13 +71,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const language     = config.alwaysRespondIn ?? config.defaultLanguage ?? "en";
     const welcomeMsg   = config.welcomeMessage?.trim() ?? "";
 
-    // ── 5. Exchange SDP server-side via the Realtime GA /calls API ───────────
-    // The browser never receives an OpenAI key, model name, or provider details.
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "Voice not configured on server" }, { status: 500, headers: corsHeaders });
+    // ── 5. Select server-side OpenAI credential ───────────────────────────────
+    // Demo traffic is explicitly isolated from the platform credential.
+    let apiKey: string | undefined;
+    if (ctx.keyId === "demo-key") {
+      const settings = await getPlatformEnvSettings();
+      apiKey = settings.find(s => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim();
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
+          { status: 503, headers: corsHeaders },
+        );
+      }
+    } else {
+      apiKey = process.env.OPENAI_API_KEY?.trim();
+      if (!apiKey) {
+        return NextResponse.json({ error: "Voice not configured on server" }, { status: 500, headers: corsHeaders });
+      }
     }
 
+    // ── 6. Exchange SDP server-side via the Realtime GA /calls API ───────────
     const realtimeSession = buildOpenAIRealtimeSession({
       model,
       voice,
@@ -127,7 +108,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         model: transcriptionModel,
         language,
       },
-      // rag_search tool registered but client handles it via context injection
       tools: [{
         type:        "function",
         name:        "rag_search",
@@ -158,12 +138,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const sdpAnswer = String(sdpResult.data.sdpAnswer ?? "");
 
-    // ── 7. Return ONLY what the browser legitimately needs ────────────────────
-    // sdpAnswer:      browser sets this as the WebRTC remote description
-    // welcomeMessage: optional greeting the assistant speaks on connect
-    //
-    // Nothing else. No provider. No model. No ephemeral key. No kbId.
-    // The browser is completely blind to the infrastructure behind this.
+    // Return only what the browser needs. Never return any API credential.
     return NextResponse.json(
       { sdpAnswer, welcomeMessage: welcomeMsg },
       { headers: corsHeaders }
