@@ -1,9 +1,10 @@
 /**
  * POST /api/embed/session
- * OPTIONS /api/embed/session  (CORS preflight)
+ * OPTIONS /api/embed/session
  *
  * Public demo voice-session endpoint. Demo traffic is resolved entirely from
- * Platform Admin → Demo settings; visitors never choose an organisation or KB.
+ * Platform Admin → Demo settings; visitors never choose an organisation, KB,
+ * provider, model, or voice.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -26,8 +27,11 @@ const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
-
 type DemoProvider = "openai" | "gemini";
+
+function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
+  return settings.find((s) => s.key === key)?.value?.trim() ?? "";
+}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -64,43 +68,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
 
-    // Demo provider is controlled by Platform Admin → Demo.  This is
-    // deliberately independent from the organisation's default AI provider so
-    // a broken production OpenAI credential cannot break the public demo.
     const settings = isDemo ? await getPlatformEnvSettings() : [];
-    const demoProviderRaw =
-      settings.find((s) => s.key === "DEMO_AI_PROVIDER")?.value?.trim().toLowerCase() ||
-      process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() ||
-      "gemini";
+    const demoProviderRaw = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
+      process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
     const demoProvider: DemoProvider = demoProviderRaw === "openai" ? "openai" : "gemini";
-    const effectiveProvider: DemoProvider = isDemo ? demoProvider : resolved.provider;
 
-    if (effectiveProvider === "gemini") {
-      const apiKey =
-        (isDemo ? settings.find((s) => s.key === "DEMO_GEMINI_API_KEY")?.value?.trim() : undefined) ||
-        process.env.DEMO_GEMINI_API_KEY?.trim() ||
-        process.env.GEMINI_API_KEY?.trim();
-
+    if (isDemo && demoProvider === "gemini") {
+      const apiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
       if (!apiKey) {
         return NextResponse.json(
-          { error: "Demo Gemini voice is not configured. Set DEMO_GEMINI_API_KEY or configure Gemini in Platform Admin → Demo." },
+          { error: "Demo Gemini voice is not configured. Set the provider to OpenAI or configure Gemini in Platform Admin → Demo." },
           { status: 503, headers: corsHeaders }
         );
       }
 
-      const rawModel =
-        (isDemo ? settings.find((s) => s.key === "DEMO_GEMINI_LIVE_MODEL")?.value?.trim() : undefined) ||
-        process.env.DEMO_GEMINI_LIVE_MODEL?.trim() ||
-        resolved.realtimeModel ||
-        process.env.GEMINI_LIVE_MODEL ||
-        "gemini-2.5-flash-native-audio-preview-12-2025";
+      const rawModel = setting(settings, "DEMO_GEMINI_LIVE_MODEL") ||
+        process.env.DEMO_GEMINI_LIVE_MODEL?.trim() || "";
+      if (!rawModel) {
+        return NextResponse.json(
+          { error: "Demo Gemini realtime model is not configured. Switch Platform Admin → Demo to OpenAI or configure a supported Gemini realtime model." },
+          { status: 503, headers: corsHeaders }
+        );
+      }
       const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
-      const voice =
-        (isDemo ? settings.find((s) => s.key === "DEMO_GEMINI_LIVE_VOICE")?.value?.trim() : undefined) ||
-        process.env.DEMO_GEMINI_LIVE_VOICE?.trim() ||
-        resolved.voiceId ||
-        process.env.GEMINI_LIVE_VOICE ||
-        "Aoede";
+      const voice = setting(settings, "DEMO_GEMINI_LIVE_VOICE") || process.env.DEMO_GEMINI_LIVE_VOICE?.trim() || "Aoede";
 
       return NextResponse.json(
         {
@@ -118,20 +109,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    if (isDemo && demoProvider !== "openai") {
+      return NextResponse.json(
+        { error: `Unsupported Demo AI provider: ${demoProviderRaw}` },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     const apiKey =
-      (isDemo ? settings.find((s) => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim() : undefined) ||
-      process.env.DEMO_OPENAI_API_KEY?.trim() ||
-      (isDemo ? undefined : process.env.OPENAI_API_KEY?.trim());
+      (isDemo ? setting(settings, "DEMO_OPENAI_API_KEY") : "") ||
+      (isDemo ? process.env.DEMO_OPENAI_API_KEY?.trim() : process.env.OPENAI_API_KEY?.trim()) ||
+      "";
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Demo OpenAI voice is not configured. Set DEMO_OPENAI_API_KEY in Platform Admin → Demo." },
+        { error: "Demo OpenAI voice is not configured. Set the OpenAI API key in Platform Admin → Demo." },
         { status: 503, headers: corsHeaders }
       );
     }
 
-    const model = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
-    const voice = resolved.voiceId ?? config.voiceId;
+    const model = (isDemo ? setting(settings, "DEMO_OPENAI_REALTIME_MODEL") : "") ||
+      (isDemo ? process.env.DEMO_OPENAI_REALTIME_MODEL?.trim() : "") ||
+      resolved.realtimeModel || process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-mini";
+    const voice = (isDemo ? setting(settings, "DEMO_OPENAI_VOICE") : "") ||
+      (isDemo ? process.env.DEMO_OPENAI_VOICE?.trim() : "") ||
+      resolved.voiceId || config.voiceId || "alloy";
+    const transcriptionModel = (isDemo ? setting(settings, "DEMO_OPENAI_TRANSCRIPTION_MODEL") : "") ||
+      (isDemo ? process.env.DEMO_OPENAI_TRANSCRIPTION_MODEL?.trim() : "") ||
+      resolved.transcriptionModel || "gpt-4o-mini-transcribe";
+
     const turnDetection = {
       type: "server_vad" as const,
       threshold: 0.5,
@@ -140,7 +146,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       create_response: false,
     };
     const transcription = {
-      model: resolved.transcriptionModel ?? "gpt-4o-mini-transcribe",
+      model: transcriptionModel,
       language: config.alwaysRespondIn ?? config.defaultLanguage,
     };
     const tools = [
@@ -167,10 +173,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       toolChoice: "auto",
     });
 
-    const result = await createOpenAIRealtimeClientSecret({
-      apiKey,
-      session: realtimeSession,
-    });
+    const result = await createOpenAIRealtimeClientSecret({ apiKey, session: realtimeSession });
 
     if (!result.ok) {
       return NextResponse.json(
