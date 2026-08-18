@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/shared/layouts/app-shell";
 import "@/app/globals.css";
+import "@/features/platform/landing-scroll-fix.css";
 
 export const metadata: Metadata = {
   title: {
