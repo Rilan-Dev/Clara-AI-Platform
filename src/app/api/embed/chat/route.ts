@@ -1,30 +1,19 @@
 /**
  * POST /api/embed/chat
- * OPTIONS /api/embed/chat  (CORS preflight)
- * ─────────────────────────────────────────────────────────────────────────────
- * Public streaming chat endpoint — authenticated by API key.
- * Wraps the internal RAG + LLM pipeline with:
- *   - API key validation
- *   - CORS headers
- *   - Rate limiting
- *   - Analytics logging
- *
- * Demo requests use the OpenAI API key configured in Platform Admin → Demo.
- * The key remains server-side and is passed only to the server-side provider.
+ * OPTIONS /api/embed/chat
+ * Public visitor chat endpoint. Demo traffic uses the Platform Admin -> Demo
+ * provider for generation while preserving the KB's configured embedding
+ * provider for vector retrieval.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import {
-  validateEmbedRequest,
-  buildCorsHeaders,
-  handlePreflight,
-} from "@/modules/embed/core/validate-embed";
+import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import type { ChatMessage } from "@/modules/ai-core/types";
+import type { ChatMessage, ProviderConfig } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import {
@@ -70,7 +59,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
     const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
 
-    // Load KB + config
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfig(ctx.kbId),
@@ -88,26 +76,64 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Demo traffic is intentionally isolated from the normal platform key.
-    // The admin-managed key is never sent to the browser.
-    let providerConfig = toProviderConfig(resolved);
-    if (ctx.keyId === "demo-key" && resolved.provider === "openai") {
+    // Keep retrieval on the KB/org's configured embedding provider. This is
+    // important because Qdrant vectors must be queried with the same embedding
+    // space used during ingestion. Demo provider selection only controls the
+    // final answer generation.
+    const ragProviderConfig = toProviderConfig(resolved);
+    let providerConfig: ProviderConfig = ragProviderConfig;
+
+    if (ctx.keyId === "demo-key") {
       const settings = await getPlatformEnvSettings();
-      const demoApiKey = settings.find(s => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim();
-      if (!demoApiKey) {
-        return NextResponse.json(
-          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
-          { status: 503, headers: corsHeaders },
-        );
+      const demoProvider =
+        settings.find((s) => s.key === "DEMO_AI_PROVIDER")?.value?.trim().toLowerCase() ||
+        process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() ||
+        "gemini";
+
+      if (demoProvider === "gemini") {
+        const demoApiKey =
+          settings.find((s) => s.key === "DEMO_GEMINI_API_KEY")?.value?.trim() ||
+          process.env.DEMO_GEMINI_API_KEY?.trim() ||
+          process.env.GEMINI_API_KEY?.trim();
+        if (!demoApiKey) {
+          return NextResponse.json(
+            { error: "Demo Gemini API key is not configured. Set DEMO_GEMINI_API_KEY in Platform Admin → Demo." },
+            { status: 503, headers: corsHeaders },
+          );
+        }
+        providerConfig = {
+          provider: "gemini",
+          apiKey: demoApiKey,
+          chatModel:
+            settings.find((s) => s.key === "DEMO_GEMINI_CHAT_MODEL")?.value?.trim() ||
+            process.env.DEMO_GEMINI_CHAT_MODEL?.trim() ||
+            process.env.GEMINI_CHAT_MODEL ||
+            "gemini-2.5-flash",
+          // Embedding values are intentionally not used for the generation
+          // provider; ragProviderConfig owns vector retrieval.
+          embeddingModel: undefined,
+          embeddingDimension: undefined,
+        };
+      } else {
+        const demoApiKey =
+          settings.find((s) => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim() ||
+          process.env.DEMO_OPENAI_API_KEY?.trim();
+        if (!demoApiKey) {
+          return NextResponse.json(
+            { error: "Demo OpenAI API key is not configured. Set DEMO_OPENAI_API_KEY in Platform Admin → Demo." },
+            { status: 503, headers: corsHeaders },
+          );
+        }
+        providerConfig = { ...ragProviderConfig, provider: "openai", apiKey: demoApiKey };
       }
-      providerConfig = { ...providerConfig, apiKey: demoApiKey };
     }
 
-    // RAG search — with timeout so slow Qdrant/embedding cold start never hangs the response
     const t0 = Date.now();
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
-      const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig });
+      const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, {
+        providerConfig: ragProviderConfig,
+      });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("search_timeout")), 15000)
       );
@@ -115,11 +141,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } catch (searchErr) {
       const msg = (searchErr as Error).message;
       if (msg !== "search_timeout") throw searchErr;
-      // On timeout we proceed with empty context — AI will say it couldn't find info
       console.warn("[embed/chat] RAG search timed out (>15s), proceeding without context");
     }
 
-    // Deduplicate by snippet prefix and sort by score
     const seen = new Set<string>();
     const dedupedResults = searchResults.filter(r => {
       const key = r.snippet.slice(0, 80).toLowerCase().replace(/\s+/g, " ");
@@ -128,7 +152,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return true;
     });
 
-    // Build rich context — include title and full snippet for each source
     const context = dedupedResults.length > 0
       ? dedupedResults
           .slice(0, 6)
@@ -138,7 +161,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const latencyMs = Date.now() - t0;
 
-    // Log analytics (fire-and-forget)
     void logQueryEvent({
       kbId: kb.id,
       queryText: query,
@@ -147,8 +169,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       sessionId: body.sessionId,
     });
 
-    // Build system prompt from KB config — pass surface:"embed" so the prompt
-    // never contains rag_search tool-call instructions (context is pre-injected)
     const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, surface: "embed" }));
     const chatMessages: ChatMessage[] = [
       {
@@ -161,7 +181,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       })),
     ];
 
-    // Stream the response
     const provider = ProviderFactory.getProvider(providerConfig);
     const encoder = new TextEncoder();
 
@@ -170,7 +189,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         const write = (event: unknown) =>
           controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
-        // Emit sources as first event so callers can display citations
         if (dedupedResults.length > 0) {
           write({
             type: "sources",
