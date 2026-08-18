@@ -2,8 +2,8 @@
  * POST /api/embed/chat
  * OPTIONS /api/embed/chat
  * Public visitor chat endpoint. Demo traffic uses the Platform Admin -> Demo
- * provider for generation while preserving the KB's configured embedding
- * provider for vector retrieval.
+ * provider for generation AND retrieval. Visitors never choose a provider,
+ * model, organisation, or knowledge base.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -21,6 +21,10 @@ import {
   buildRecentConversationContextBlock,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
+
+function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
+  return settings.find((s) => s.key === key)?.value?.trim() ?? "";
+}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -76,56 +80,58 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Keep retrieval on the KB/org's configured embedding provider. This is
-    // important because Qdrant vectors must be queried with the same embedding
-    // space used during ingestion. Demo provider selection only controls the
-    // final answer generation.
-    const ragProviderConfig = toProviderConfig(resolved);
+    // Normal authenticated/organisation traffic follows its resolved AI policy.
+    // Public Demo traffic follows Platform Admin -> Demo exclusively. This keeps
+    // the visitor experience deterministic and prevents an organisation-level
+    // Gemini setting from silently breaking a Demo configured for OpenAI.
+    const isDemo = ctx.keyId === "demo-key";
+    const settings = isDemo ? await getPlatformEnvSettings() : [];
+    const demoProvider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
+      process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
+
+    let ragProviderConfig: ProviderConfig = toProviderConfig(resolved);
     let providerConfig: ProviderConfig = ragProviderConfig;
 
-    if (ctx.keyId === "demo-key") {
-      const settings = await getPlatformEnvSettings();
-      const demoProvider =
-        settings.find((s) => s.key === "DEMO_AI_PROVIDER")?.value?.trim().toLowerCase() ||
-        process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() ||
-        "gemini";
-
-      if (demoProvider === "gemini") {
-        const demoApiKey =
-          settings.find((s) => s.key === "DEMO_GEMINI_API_KEY")?.value?.trim() ||
-          process.env.DEMO_GEMINI_API_KEY?.trim() ||
-          process.env.GEMINI_API_KEY?.trim();
-        if (!demoApiKey) {
-          return NextResponse.json(
-            { error: "Demo Gemini API key is not configured. Set DEMO_GEMINI_API_KEY in Platform Admin → Demo." },
-            { status: 503, headers: corsHeaders },
-          );
-        }
-        providerConfig = {
-          provider: "gemini",
-          apiKey: demoApiKey,
-          chatModel:
-            settings.find((s) => s.key === "DEMO_GEMINI_CHAT_MODEL")?.value?.trim() ||
-            process.env.DEMO_GEMINI_CHAT_MODEL?.trim() ||
-            process.env.GEMINI_CHAT_MODEL ||
-            "gemini-2.5-flash",
-          // Embedding values are intentionally not used for the generation
-          // provider; ragProviderConfig owns vector retrieval.
-          embeddingModel: undefined,
-          embeddingDimension: undefined,
-        };
-      } else {
-        const demoApiKey =
-          settings.find((s) => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim() ||
-          process.env.DEMO_OPENAI_API_KEY?.trim();
-        if (!demoApiKey) {
-          return NextResponse.json(
-            { error: "Demo OpenAI API key is not configured. Set DEMO_OPENAI_API_KEY in Platform Admin → Demo." },
-            { status: 503, headers: corsHeaders },
-          );
-        }
-        providerConfig = { ...ragProviderConfig, provider: "openai", apiKey: demoApiKey };
+    if (isDemo && demoProvider === "openai") {
+      const demoApiKey = setting(settings, "DEMO_OPENAI_API_KEY") || process.env.DEMO_OPENAI_API_KEY?.trim() || "";
+      if (!demoApiKey) {
+        return NextResponse.json(
+          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
+          { status: 503, headers: corsHeaders },
+        );
       }
+
+      const embeddingModel = setting(settings, "DEMO_OPENAI_EMBEDDING_MODEL") ||
+        process.env.DEMO_OPENAI_EMBEDDING_MODEL?.trim() || "text-embedding-3-small";
+      const embeddingDimension = embeddingModel === "text-embedding-3-large" ? 3072 : 1536;
+      ragProviderConfig = {
+        provider: "openai",
+        apiKey: demoApiKey,
+        chatModel: setting(settings, "DEMO_OPENAI_CHAT_MODEL") || process.env.DEMO_OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini",
+        embeddingModel,
+        embeddingDimension,
+      };
+      providerConfig = ragProviderConfig;
+    } else if (isDemo && demoProvider === "gemini") {
+      const demoApiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
+      if (!demoApiKey) {
+        return NextResponse.json(
+          { error: "Demo Gemini API key is not configured. Set it in Platform Admin → Demo." },
+          { status: 503, headers: corsHeaders },
+        );
+      }
+      providerConfig = {
+        provider: "gemini",
+        apiKey: demoApiKey,
+        chatModel: setting(settings, "DEMO_GEMINI_CHAT_MODEL") || process.env.DEMO_GEMINI_CHAT_MODEL?.trim() || "gemini-3.6-flash",
+        embeddingModel: undefined,
+        embeddingDimension: undefined,
+      };
+    } else if (isDemo) {
+      return NextResponse.json(
+        { error: `Unsupported Demo AI provider: ${demoProvider}` },
+        { status: 400, headers: corsHeaders },
+      );
     }
 
     const t0 = Date.now();
