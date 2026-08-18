@@ -1,9 +1,7 @@
 /**
  * POST /api/embed/chat
- * OPTIONS /api/embed/chat
- * Public visitor chat endpoint. Demo traffic uses the Platform Admin -> Demo
- * provider for generation AND retrieval. Visitors never choose a provider,
- * model, organisation, or knowledge base.
+ * Public visitor chat endpoint. Demo traffic uses Platform Admin -> Demo
+ * provider for both retrieval and generation. Visitors never choose a KB.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -26,6 +24,20 @@ function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, k
   return settings.find((s) => s.key === key)?.value?.trim() ?? "";
 }
 
+function isBroadCoverageQuery(query: string): boolean {
+  const normalized = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  return [
+    "what does my insurance cover",
+    "what does insurance cover",
+    "what is covered by my insurance",
+    "what does my policy cover",
+    "what is my insurance",
+    "tell me about my insurance",
+    "what insurance do you offer",
+    "what policies do you offer",
+  ].some((phrase) => normalized === phrase || normalized.startsWith(`${phrase} `));
+}
+
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
 }
@@ -40,6 +52,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
+    const authHeader = req.headers.get("authorization") ?? "";
+    const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
+
+    if (isDemo) {
+      const settings = await getPlatformEnvSettings();
+      const enabled = setting(settings, "DEMO_CHAT_ENABLED") || process.env.DEMO_CHAT_ENABLED?.trim() || "true";
+      if (enabled !== "true") {
+        return NextResponse.json({ error: "Demo chat is currently disabled by the platform administrator." }, { status: 403, headers: corsHeaders });
+      }
+    }
 
     const body = (await req.json()) as {
       messages?: Array<{ role: string; content: string }>;
@@ -60,7 +82,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const query = lastMessage.content.trim();
-    const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
+    const retrievalQuery = isBroadCoverageQuery(query)
+      ? `${query}. Retrieve a broad overview of the insurance products, coverage benefits, exclusions, and policy areas available in the knowledge base. Include relevant home, health, travel, motor, personal accident, and life coverage facts when present.`
+      : buildConversationAwareSearchQuery(messages, query);
     const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
 
     const [kb, config] = await Promise.all([
@@ -80,11 +104,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Normal authenticated/organisation traffic follows its resolved AI policy.
-    // Public Demo traffic follows Platform Admin -> Demo exclusively. This keeps
-    // the visitor experience deterministic and prevents an organisation-level
-    // Gemini setting from silently breaking a Demo configured for OpenAI.
-    const isDemo = ctx.keyId === "demo-key";
     const settings = isDemo ? await getPlatformEnvSettings() : [];
     const demoProvider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
       process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
@@ -116,7 +135,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const demoApiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
       if (!demoApiKey) {
         return NextResponse.json(
-          { error: "Demo Gemini API key is not configured. Set it in Platform Admin → Demo." },
+          { error: "Demo Gemini API key is not configured. Switch Platform Admin → Demo to OpenAI or configure Gemini." },
           { status: 503, headers: corsHeaders },
         );
       }
@@ -124,9 +143,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         provider: "gemini",
         apiKey: demoApiKey,
         chatModel: setting(settings, "DEMO_GEMINI_CHAT_MODEL") || process.env.DEMO_GEMINI_CHAT_MODEL?.trim() || "gemini-3.6-flash",
-        embeddingModel: undefined,
-        embeddingDimension: undefined,
+        embeddingModel: setting(settings, "DEMO_GEMINI_EMBEDDING_MODEL") || process.env.DEMO_GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+        embeddingDimension: 3072,
       };
+      ragProviderConfig = providerConfig;
     } else if (isDemo) {
       return NextResponse.json(
         { error: `Unsupported Demo AI provider: ${demoProvider}` },
@@ -176,10 +196,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, surface: "embed" }));
+    const demoAnswerRule = isDemo
+      ? "\n\nDEMO ANSWER REQUIREMENT: The visitor is not selecting a policy. When retrieved sources contain relevant insurance information, answer the visitor's question immediately. For a broad question, synthesize the relevant coverage categories and facts from the sources in a concise summary. Never answer only with a clarification question."
+      : "";
     const chatMessages: ChatMessage[] = [
       {
         role: "system",
-        content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
+        content: `${systemPrompt}${demoAnswerRule}\n\nContext from knowledge base:\n${context}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
       },
       ...messages.map((m) => ({
         role: m.role as "user" | "assistant",
@@ -210,7 +233,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         (async () => {
           try {
             const completionStream = provider.chatStream(chatMessages, {
-              temperature: resolved.temperature ?? config.temperature,
+              temperature: isDemo ? Math.min(resolved.temperature ?? config.temperature ?? 0.7, 0.35) : (resolved.temperature ?? config.temperature),
               maxTokens: resolved.maxTokens ?? config.maxTokens,
             });
 
