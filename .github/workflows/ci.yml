@@ -2,9 +2,9 @@ name: CI/CD — Build, Scan & Push
 
 on:
   push:
-    branches: [main]
+    branches: [main, Vite-Converted]
   pull_request:
-    branches: [main]
+    branches: [main, Vite-Converted]
 
 env:
   REGISTRY: docker.io
@@ -91,6 +91,6 @@ jobs:
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           format: table
-          exit-code: "0"          # Warn but don't fail — change to "1" for strict mode
+          exit-code: "0"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
