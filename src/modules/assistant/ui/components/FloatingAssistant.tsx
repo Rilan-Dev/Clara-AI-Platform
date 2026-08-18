@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
@@ -12,13 +12,17 @@ import { apiUrl } from "@/lib/runtime";
 import { useAssistant } from "@/modules/assistant/core";
 import { MessageInput, MessageList } from "@/modules/assistant/ui/chat";
 
-// ── KB entry returned by /api/kbs/all ────────────────────────────────────────
+const VoiceChatModal = dynamic(
+  () => import("@/modules/assistant/ui/voice/VoiceChatModal"),
+  { ssr: false },
+);
+
 type KbEntry = {
   id: string;
   name: string;
   description: string | null;
   project: { id: string; name: string };
-  org:     { id: string; name: string };
+  org: { id: string; name: string };
   assistant: {
     name: string;
     avatarUrl: string | null;
@@ -30,7 +34,6 @@ type KbEntry = {
   readyCount: number;
 };
 
-// ── Small KB selector dropdown rendered inside the floating card header ───────
 function KbSelector({
   kbs,
   activeKbId,
@@ -44,7 +47,6 @@ function KbSelector({
   const ref = useRef<HTMLDivElement>(null);
   const active = kbs.find((k) => k.id === activeKbId) ?? null;
 
-  // Close on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -57,7 +59,6 @@ function KbSelector({
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger button */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -68,18 +69,17 @@ function KbSelector({
           className="inline-block w-2 h-2 rounded-full flex-shrink-0"
           style={{ background: active?.assistant.primaryColour ?? "#6366f1" }}
         />
-        <span className="truncate">
-          {active ? active.assistant.name : "Choose KB…"}
-        </span>
+        <span className="truncate">{active ? active.assistant.name : "Choose KB…"}</span>
         <svg
           className={`w-3 h-3 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
-      {/* Dropdown */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -96,7 +96,6 @@ function KbSelector({
               </div>
             ) : (
               <div className="max-h-72 overflow-y-auto py-1">
-                {/* Group by project */}
                 {Array.from(
                   kbs.reduce((map, kb) => {
                     const key = `${kb.org.name} / ${kb.project.name}`;
@@ -106,7 +105,6 @@ function KbSelector({
                   }, new Map<string, KbEntry[]>())
                 ).map(([groupLabel, groupKbs]) => (
                   <div key={groupLabel}>
-                    {/* Group header */}
                     <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                       {groupLabel}
                     </div>
@@ -118,13 +116,15 @@ function KbSelector({
                           key={kb.id}
                           type="button"
                           disabled={!hasReady}
-                          onClick={() => { onSelect(kb.id); setOpen(false); }}
+                          onClick={() => {
+                            onSelect(kb.id);
+                            setOpen(false);
+                          }}
                           className={`w-full text-left px-3 py-2 flex items-start gap-2.5 transition-colors
                             ${isActive ? "bg-primary/10 text-primary" : ""}
                             ${hasReady ? "hover:bg-muted/60 cursor-pointer" : "opacity-40 cursor-not-allowed"}
                           `}
                         >
-                          {/* Colour dot */}
                           <span
                             className="inline-block w-2 h-2 rounded-full mt-1 flex-shrink-0"
                             style={{ background: kb.assistant.primaryColour }}
@@ -142,7 +142,7 @@ function KbSelector({
                           </div>
                           {isActive && (
                             <svg className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 1.414L8 12.586l7.293-7.293z" clipRule="evenodd" />
                             </svg>
                           )}
                         </button>
@@ -159,7 +159,6 @@ function KbSelector({
   );
 }
 
-// ── Main FloatingAssistant ────────────────────────────────────────────────────
 export function FloatingAssistant() {
   const {
     messages,
@@ -178,8 +177,6 @@ export function FloatingAssistant() {
   const [open, setOpen] = useState(false);
   const [activeSourcesMessageId, setActiveSourcesMessageId] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
-
-  // ── KB list ──────────────────────────────────────────────────────────────
   const [kbs, setKbs] = useState<KbEntry[]>([]);
   const [kbsLoaded, setKbsLoaded] = useState(false);
 
@@ -188,54 +185,45 @@ export function FloatingAssistant() {
       const token = getStoredToken();
       if (!token) return;
 
-      const res  = await fetch(apiUrl("/api/kbs/all"), { headers: withAuthHeaders() });
-      const data = await res.json() as { kbs?: KbEntry[] };
+      const res = await fetch(apiUrl("/api/kbs/all"), { headers: withAuthHeaders() });
+      const data = (await res.json()) as { kbs?: KbEntry[] };
       const list = data.kbs ?? [];
       setKbs(list);
-      // Auto-select first ready KB if nothing is selected
       if (!activeKbId && list.length > 0) {
         const first = list.find((k) => k.readyCount > 0) ?? list[0];
         if (first) setActiveKbId(first.id);
       }
     } catch {
-      /* fail silently — KB selector will just be empty */
+      // Keep the selector empty when the KB endpoint is unavailable.
     } finally {
       setKbsLoaded(true);
     }
   }, [activeKbId, setActiveKbId]);
 
-  // Load KBs once on mount (and whenever the floating panel opens)
   useEffect(() => {
     void loadKbs();
   }, [loadKbs]);
 
-  // Reload when the panel opens so the list is fresh
   useEffect(() => {
     if (open && !kbsLoaded) void loadKbs();
   }, [open, kbsLoaded, loadKbs]);
 
-  // ── Active KB metadata ────────────────────────────────────────────────────
   const activeKb = kbs.find((k) => k.id === activeKbId) ?? null;
 
-  // ── Push KB-specific suggested prompts into context when KB changes ───────
-  // This replaces any stale document-based suggestions with ones that are
-  // relevant to the selected KB's name and assistant name.
   useEffect(() => {
     if (!activeKb) return;
     const kbName = activeKb.name;
     const aiName = activeKb.assistant.name;
-    const kbSuggestions = [
+    setKbSuggestedPrompts([
       `What are the key topics covered in "${kbName}"?`,
       `Give me a summary of the most important information in "${kbName}".`,
       `What can ${aiName} help me with?`,
       `What should I know about "${kbName}"?`,
       `Walk me through the highlights of "${kbName}".`,
       `What are the most frequently asked questions about "${kbName}"?`,
-    ];
-    setKbSuggestedPrompts(kbSuggestions);
+    ]);
   }, [activeKb, setKbSuggestedPrompts]);
 
-  // ── Handle KB switch ──────────────────────────────────────────────────────
   const handleSelectKb = useCallback(
     (id: string) => {
       if (id !== activeKbId) {
@@ -246,14 +234,7 @@ export function FloatingAssistant() {
     [activeKbId, clearMessages, setActiveKbId]
   );
 
-  // ── Chat enabled when a KB is selected (or a legacy document is active) ──
   const canChat = Boolean(activeKbId) || Boolean(activeDocument);
-
-  // ── Voice modal ───────────────────────────────────────────────────────────
-  const VoiceChatModal = useMemo(
-    () => dynamic(() => import("@/modules/assistant/ui/voice/VoiceChatModal"), { ssr: false }),
-    []
-  );
 
   const voiceGreeting = activeDocument
     ? overviewFor(activeDocument.id)?.voiceIntro ??
@@ -267,22 +248,17 @@ export function FloatingAssistant() {
     });
   };
 
-  // ── Header subtitle ───────────────────────────────────────────────────────
   const subtitle = activeKb
     ? activeKb.name
     : activeDocument
-    ? activeDocument.title
-    : "Select a knowledge base to start";
+      ? activeDocument.title
+      : "Select a knowledge base to start";
 
-  const assistantDisplayName = activeKb
-    ? activeKb.assistant.name
-    : "Clara Assistant";
-
+  const assistantDisplayName = activeKb ? activeKb.assistant.name : "Clara Assistant";
   const accentColour = activeKb?.assistant.primaryColour ?? undefined;
 
   return (
     <>
-      {/* ── FAB button ── */}
       <motion.div
         className="fixed z-40 bottom-6 right-6"
         initial={{ scale: 0, opacity: 0 }}
@@ -315,7 +291,6 @@ export function FloatingAssistant() {
         </div>
       </motion.div>
 
-      {/* ── Floating card ── */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -326,11 +301,8 @@ export function FloatingAssistant() {
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
           >
             <Card className="flex h-[85vh] flex-col border border-[color:var(--color-border)] bg-background shadow-2xl">
-
-              {/* ── Header ── */}
               <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-[color:var(--color-border)] px-4 py-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  {/* Avatar — uses KB colour if available */}
                   <div
                     className="flex items-center justify-center w-10 h-10 text-base font-semibold rounded-xl flex-shrink-0 text-primary-foreground"
                     style={
@@ -341,18 +313,12 @@ export function FloatingAssistant() {
                   >
                     {assistantDisplayName.charAt(0).toUpperCase()}
                   </div>
-
-                  {/* Name + subtitle */}
                   <div className="flex flex-col min-w-0">
                     <CardTitle className="text-base font-semibold leading-tight truncate">
                       {assistantDisplayName}
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {subtitle}
-                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
                   </div>
-
-                  {/* Streaming indicator */}
                   {isStreaming && (
                     <motion.span
                       className="relative inline-flex w-2 h-2 flex-shrink-0"
@@ -364,17 +330,8 @@ export function FloatingAssistant() {
                     </motion.span>
                   )}
                 </div>
-
-                {/* ── Controls row ── */}
                 <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  {/* KB selector dropdown */}
-                  <KbSelector
-                    kbs={kbs}
-                    activeKbId={activeKbId}
-                    onSelect={handleSelectKb}
-                  />
-
-                  {/* Voice button */}
+                  <KbSelector kbs={kbs} activeKbId={activeKbId} onSelect={handleSelectKb} />
                   <Button
                     type="button"
                     variant={canChat ? "ghost_primary" : "ghost"}
@@ -384,26 +341,18 @@ export function FloatingAssistant() {
                   >
                     Voice
                   </Button>
-
-                  {/* Close */}
                   <Button type="button" variant="ghost" size="sm" onClick={handleToggle}>
                     Close
                   </Button>
                 </div>
               </CardHeader>
 
-              {/* ── Body ── */}
               <CardContent className="flex flex-col flex-1 min-h-0 p-0">
-                {/* Empty state — no KB selected yet */}
                 {!canChat && kbsLoaded && (
                   <div className="flex flex-col items-center justify-center flex-1 gap-3 px-6 text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-2xl">
-                      📚
-                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-2xl">📚</div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        No knowledge base selected
-                      </p>
+                      <p className="text-sm font-semibold text-foreground">No knowledge base selected</p>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                         Use the <span className="font-medium text-foreground">Choose KB…</span> dropdown above to select a project knowledge base to chat with.
                       </p>
@@ -411,16 +360,12 @@ export function FloatingAssistant() {
                     {kbs.length === 0 && (
                       <p className="text-xs text-muted-foreground">
                         No knowledge bases found — create one in{" "}
-                        <Link href="/admin/orgs" className="text-primary hover:underline">
-                          Admin → Orgs
-                        </Link>
-                        .
+                        <Link href="/admin/orgs" className="text-primary hover:underline">Admin → Orgs</Link>.
                       </p>
                     )}
                   </div>
                 )}
 
-                {/* Chat — shown when KB or document is active */}
                 {canChat && (
                   <>
                     <MessageList
@@ -446,14 +391,11 @@ export function FloatingAssistant() {
         )}
       </AnimatePresence>
 
-      {/* ── Voice modal ── */}
       {voiceOpen && (
         <VoiceChatModal
           kbId={activeKbId ?? null}
           documentId={!activeKbId ? (activeDocument?.id ?? null) : null}
-          overviewContext={
-            activeDocument ? overviewFor(activeDocument.id)?.context : undefined
-          }
+          overviewContext={activeDocument ? overviewFor(activeDocument.id)?.context : undefined}
           voiceGreeting={voiceGreeting}
           language={language}
           suggestedPrompts={canChat ? suggestedPrompts : undefined}
