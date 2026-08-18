@@ -1,17 +1,9 @@
 /**
  * POST /api/embed/session
  * OPTIONS /api/embed/session  (CORS preflight)
- * ─────────────────────────────────────────────────────────────────────────────
- * Public voice session endpoint — authenticated by API key.
- * Creates an OpenAI Realtime or Gemini Live session configured from the KB.
  *
- * Demo mode uses the OpenAI credential configured by the platform administrator
- * in Platform Admin → Demo. The credential stays server-side; the browser only
- * receives OpenAI's short-lived client secret.
- *
- * Phase 3: voice access is now gated by the org's subscription plan flag
- * (voice_enabled). Plans without voice receive a 403 with a clear upgrade
- * message before any upstream API call is made.
+ * Public demo voice-session endpoint. Demo traffic is resolved entirely from
+ * Platform Admin → Demo settings; visitors never choose an organisation or KB.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -35,6 +27,8 @@ const GEMINI_LIVE_WSS_URL =
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
 
+type DemoProvider = "openai" | "gemini";
+
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
 }
@@ -49,6 +43,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
+    const authHeader = req.headers.get("authorization") ?? "";
+    const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
 
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);
     if (voiceDenied) return voiceDenied;
@@ -60,7 +56,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (!kb || !config) {
       return NextResponse.json(
-        { error: "KB configuration not found" },
+        { error: "Demo knowledge-base configuration not found", kbId: ctx.kbId },
         { status: 404, headers: corsHeaders }
       );
     }
@@ -68,67 +64,73 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name });
 
-    if (resolved.provider === "gemini") {
-      const apiKey = process.env.GEMINI_API_KEY;
+    // Demo provider is controlled by Platform Admin → Demo.  This is
+    // deliberately independent from the organisation's default AI provider so
+    // a broken production OpenAI credential cannot break the public demo.
+    const settings = isDemo ? await getPlatformEnvSettings() : [];
+    const demoProviderRaw =
+      settings.find((s) => s.key === "DEMO_AI_PROVIDER")?.value?.trim().toLowerCase() ||
+      process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() ||
+      "gemini";
+    const demoProvider: DemoProvider = demoProviderRaw === "openai" ? "openai" : "gemini";
+    const effectiveProvider: DemoProvider = isDemo ? demoProvider : resolved.provider;
+
+    if (effectiveProvider === "gemini") {
+      const apiKey =
+        (isDemo ? settings.find((s) => s.key === "DEMO_GEMINI_API_KEY")?.value?.trim() : undefined) ||
+        process.env.DEMO_GEMINI_API_KEY?.trim() ||
+        process.env.GEMINI_API_KEY?.trim();
+
       if (!apiKey) {
         return NextResponse.json(
-          { error: "Gemini voice is not configured on the server" },
-          { status: 500, headers: corsHeaders }
+          { error: "Demo Gemini voice is not configured. Set DEMO_GEMINI_API_KEY or configure Gemini in Platform Admin → Demo." },
+          { status: 503, headers: corsHeaders }
         );
       }
 
-      const rawModel = resolved.realtimeModel ?? process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio-preview-12-2025";
+      const rawModel =
+        (isDemo ? settings.find((s) => s.key === "DEMO_GEMINI_LIVE_MODEL")?.value?.trim() : undefined) ||
+        process.env.DEMO_GEMINI_LIVE_MODEL?.trim() ||
+        resolved.realtimeModel ||
+        process.env.GEMINI_LIVE_MODEL ||
+        "gemini-2.5-flash-native-audio-preview-12-2025";
       const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
-      const wsUrl = `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`;
+      const voice =
+        (isDemo ? settings.find((s) => s.key === "DEMO_GEMINI_LIVE_VOICE")?.value?.trim() : undefined) ||
+        process.env.DEMO_GEMINI_LIVE_VOICE?.trim() ||
+        resolved.voiceId ||
+        process.env.GEMINI_LIVE_VOICE ||
+        "Aoede";
 
       return NextResponse.json(
         {
           provider: "gemini",
           kbId: ctx.kbId,
-          wsUrl,
+          wsUrl: `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`,
           model,
-          voice: resolved.voiceId ?? process.env.GEMINI_LIVE_VOICE ?? "Aoede",
+          voice,
           instructions,
           inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
+          welcomeMessage: config.welcomeMessage ?? "",
         },
         { headers: corsHeaders }
       );
     }
 
-    // Demo traffic is identified only by the incoming authorization header.
-    // Keep all provider credentials server-side. Prefer the explicit demo key,
-    // then the Platform Admin setting, and finally the server's OpenAI key so a
-    // fresh Docker deployment can run the visitor demo without a DB-only setup.
-    const authHeader = req.headers.get("authorization") ?? "";
-    const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
-    let apiKey: string | undefined;
+    const apiKey =
+      (isDemo ? settings.find((s) => s.key === "DEMO_OPENAI_API_KEY")?.value?.trim() : undefined) ||
+      process.env.DEMO_OPENAI_API_KEY?.trim() ||
+      (isDemo ? undefined : process.env.OPENAI_API_KEY?.trim());
 
-    if (isDemo) {
-      const settings = await getPlatformEnvSettings();
-      const demoSetting = settings.find((s) => s.key === "DEMO_OPENAI_API_KEY");
-      apiKey =
-        process.env.DEMO_OPENAI_API_KEY?.trim() ||
-        demoSetting?.value?.trim() ||
-        process.env.OPENAI_API_KEY?.trim();
-
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: "Demo OpenAI API key is not configured. Set DEMO_OPENAI_API_KEY or configure it in Platform Admin → Demo." },
-          { status: 503, headers: corsHeaders }
-        );
-      }
-    } else {
-      apiKey = process.env.OPENAI_API_KEY?.trim();
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: "Voice not configured on the server" },
-          { status: 500, headers: corsHeaders }
-        );
-      }
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Demo OpenAI voice is not configured. Set DEMO_OPENAI_API_KEY in Platform Admin → Demo." },
+        { status: 503, headers: corsHeaders }
+      );
     }
 
-    const model = resolved.realtimeModel ?? (process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini");
+    const model = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice = resolved.voiceId ?? config.voiceId;
     const turnDetection = {
       type: "server_vad" as const,
