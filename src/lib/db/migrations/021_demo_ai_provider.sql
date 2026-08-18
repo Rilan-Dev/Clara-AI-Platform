@@ -19,7 +19,7 @@ VALUES
   ('DEMO_OPENAI_API_KEY', '',
    'OpenAI API key used only by the public Demo experience.',
    'demo', TRUE, FALSE),
-  ('DEMO_OPENAI_CHAT_MODEL', 'gpt-4o-mini',
+  ('DEMO_OPENAI_CHAT_MODEL', 'gpt-5.4-mini',
    'OpenAI chat model used for Demo RAG answer generation.',
    'demo', FALSE, FALSE),
   ('DEMO_OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small',

@@ -58,6 +58,7 @@ export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  let corsHeaders: Record<string, string> = {};
   try {
     await ensureMigrated();
 
@@ -65,7 +66,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const internalKbId = req.headers.get("x-kb-id") ?? "";
 
     let kbId: string;
-    let corsHeaders: Record<string, string> = {};
     let providerOverride: ProviderConfig | undefined;
     let isDemo = false;
 

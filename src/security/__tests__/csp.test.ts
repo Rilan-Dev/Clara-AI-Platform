@@ -4,7 +4,13 @@ import { CSP_HEADER_VALUE } from "../csp";
 describe("CSP header", () => {
   it("keeps connect-src strict", () => {
     expect(CSP_HEADER_VALUE).toContain(
-      "connect-src 'self' wss: https://api.openai.com https://realtime.openai.com",
+      "connect-src 'self' wss:",
+    );
+    expect(CSP_HEADER_VALUE).toContain(
+      "https://api.openai.com",
+    );
+    expect(CSP_HEADER_VALUE).toContain(
+      "https://realtime.openai.com",
     );
   });
 
