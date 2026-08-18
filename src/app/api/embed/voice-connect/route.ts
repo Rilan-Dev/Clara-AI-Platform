@@ -72,9 +72,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const demoProvider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
         process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
 
-      // The current public widget voice transport is OpenAI WebRTC. Keep the
-      // provider switch visible in Admin, but fail explicitly instead of
-      // silently using a Gemini/org credential when Demo is configured otherwise.
       if (demoProvider !== "openai") {
         return NextResponse.json(
           { error: "Public Demo voice currently requires the Demo AI provider to be OpenAI. Switch Platform Admin → Demo to OpenAI." },
