@@ -1,0 +1,23 @@
+/*
+ * Landing-page mobile scroll fix.
+ *
+ * The landing root previously used Tailwind's `overflow-x-hidden`.
+ * Per CSS overflow rules, combining overflow-x:hidden with the default
+ * overflow-y:visible can turn the element into a scroll container. On
+ * touch browsers this creates a nested scrolling context and can make
+ * vertical gestures appear to interact with the fixed WebGL background
+ * instead of scrolling the document.
+ */
+
+main:has(.interactive-gradient-background) > .overflow-x-hidden {
+  overflow-x: clip;
+  overflow-y: visible;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
+}
+
+@media (pointer: coarse) {
+  html {
+    scroll-behavior: auto;
+  }
+}
