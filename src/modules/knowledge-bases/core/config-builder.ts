@@ -76,8 +76,11 @@ export function buildSystemPrompt(
       "Do not answer factual policy questions from general knowledge. " +
       "Treat a broad or naturally worded question as in-scope when the retrieved passages contain " +
       "related facts. Synthesize the relevant passages instead of refusing merely because there is " +
-      "no exact phrase match. If several passages cover different products or coverage areas, give a " +
-      "useful concise summary and ask which area the user wants to explore. " +
+      "no exact phrase match. " +
+      "For broad questions that match multiple products or coverage areas, ALWAYS give a useful " +
+      "summary of the relevant retrieved facts FIRST. Do not ask the user to choose a policy type " +
+      "before answering. A follow-up question may be offered only AFTER the answer if it would help " +
+      "narrow the discussion. " +
       "Never fabricate information that is not present in the retrieved context."
     );
   }
@@ -117,8 +120,9 @@ export function buildSystemPrompt(
       "Strict mode is ON. Use it as a knowledge-safety rule, not as a trigger for refusing broad questions. " +
       "If retrieved context contains relevant information, answer the user's question from that context even " +
       "when the wording is broad, abbreviated, contains spelling mistakes, or does not exactly match a source. " +
-      "If the user asks a clearly in-domain but ambiguous question, ask a short clarification or provide a " +
-      "brief summary of the relevant retrieved information. " +
+      "If the user asks a clearly in-domain but ambiguous question, DO NOT refuse and DO NOT ask for clarification " +
+      "instead of answering. First provide the best concise answer supported by the retrieved information; only " +
+      "then ask one optional follow-up question if additional specificity would genuinely help. " +
       "Only when the question is genuinely outside the assistant's configured domain OR there is no relevant " +
       "knowledge-base information should you refuse. For a genuinely out-of-scope request, say exactly: " +
       `"${config.outOfScopeReply}"`
@@ -151,12 +155,14 @@ export function buildSystemPrompt(
   // ── 8. Embed-specific UX override ─────────────────────────────────────────
   if (ctx.surface === "embed") {
     parts.push(
-      "Respond directly and completely to the user's question using only the provided knowledge-base context. " +
-      "Do not mention 'retrieval', 'documents', 'RAG', 'context', or any internal process. " +
-      "Never output '[Calling rag_search...]' or any function-call text. " +
-      "Speak like a knowledgeable human expert. Keep answers clear, accurate and complete. " +
-      "If the question is broad but related to the configured insurance domain, summarize the relevant coverage " +
-      "facts from the supplied snippets and invite the user to narrow down the policy type if needed."
+      "PUBLIC VISITOR CHAT RULE: Respond directly to the user's question using only the supplied knowledge-base " +
+      "context. Never make the visitor choose a knowledge base, product, policy type, provider, model, or other " +
+      "configuration. If the visitor asks a broad question such as 'What does my insurance cover?', answer first " +
+      "with the relevant coverage categories and facts present in the retrieved snippets. Do not respond with only " +
+      "a clarification question. Do not repeat the configured out-of-scope reply when relevant snippets are present. " +
+      "A short follow-up such as 'If you mean a specific policy, I can explain that too' is allowed only after " +
+      "giving the useful answer. Never mention 'retrieval', 'documents', 'RAG', 'context', or internal processes. " +
+      "Never output '[Calling rag_search...]' or function-call text."
     );
   }
 
