@@ -3,7 +3,7 @@
  * OPTIONS /api/embed/session
  *
  * Public demo voice-session endpoint. Demo traffic is resolved entirely from
- * Platform Admin → Demo settings; visitors never choose an organisation, KB,
+ * Platform Admin -> Demo settings; visitors never choose an organisation, KB,
  * provider, model, or voice.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -61,24 +61,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!kb || !config) {
       return NextResponse.json(
         { error: "Demo knowledge-base configuration not found", kbId: ctx.kbId },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
-    const instructions = buildSystemPrompt(config, { kbName: kb.name });
-
+    // Demo is intentionally independent from the KB/org AI policy. This is
+    // critical for the public demo: visitors must use Platform Admin -> Demo
+    // settings and must not fail because a tenant AI configuration is missing.
     const settings = isDemo ? await getPlatformEnvSettings() : [];
     const demoProviderRaw = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
       process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
     const demoProvider: DemoProvider = demoProviderRaw === "openai" ? "openai" : "gemini";
 
+    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const instructions = buildSystemPrompt(config, { kbName: kb.name });
+
     if (isDemo && demoProvider === "gemini") {
       const apiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
       if (!apiKey) {
         return NextResponse.json(
-          { error: "Demo Gemini voice is not configured. Set the provider to OpenAI or configure Gemini in Platform Admin → Demo." },
-          { status: 503, headers: corsHeaders }
+          { error: "Demo Gemini voice is not configured. Set the provider to OpenAI or configure Gemini in Platform Admin -> Demo." },
+          { status: 503, headers: corsHeaders },
         );
       }
 
@@ -86,8 +89,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         process.env.DEMO_GEMINI_LIVE_MODEL?.trim() || "";
       if (!rawModel) {
         return NextResponse.json(
-          { error: "Demo Gemini realtime model is not configured. Switch Platform Admin → Demo to OpenAI or configure a supported Gemini realtime model." },
-          { status: 503, headers: corsHeaders }
+          { error: "Demo Gemini realtime model is not configured. Switch Platform Admin -> Demo to OpenAI or configure a supported Gemini realtime model." },
+          { status: 503, headers: corsHeaders },
         );
       }
       const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
@@ -105,14 +108,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
           welcomeMessage: config.welcomeMessage ?? "",
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
     if (isDemo && demoProvider !== "openai") {
       return NextResponse.json(
         { error: `Unsupported Demo AI provider: ${demoProviderRaw}` },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -123,20 +126,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Demo OpenAI voice is not configured. Set the OpenAI API key in Platform Admin → Demo." },
-        { status: 503, headers: corsHeaders }
+        { error: "Demo OpenAI voice is not configured. Set the OpenAI API key in Platform Admin -> Demo." },
+        { status: 503, headers: corsHeaders },
       );
     }
 
     const model = (isDemo ? setting(settings, "DEMO_OPENAI_REALTIME_MODEL") : "") ||
       (isDemo ? process.env.DEMO_OPENAI_REALTIME_MODEL?.trim() : "") ||
-      resolved.realtimeModel || process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-mini";
+      resolved?.realtimeModel || process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-mini";
     const voice = (isDemo ? setting(settings, "DEMO_OPENAI_VOICE") : "") ||
       (isDemo ? process.env.DEMO_OPENAI_VOICE?.trim() : "") ||
-      resolved.voiceId || config.voiceId || "alloy";
+      resolved?.voiceId || config.voiceId || "alloy";
     const transcriptionModel = (isDemo ? setting(settings, "DEMO_OPENAI_TRANSCRIPTION_MODEL") : "") ||
       (isDemo ? process.env.DEMO_OPENAI_TRANSCRIPTION_MODEL?.trim() : "") ||
-      resolved.transcriptionModel || "gpt-4o-mini-transcribe";
+      resolved?.transcriptionModel || "gpt-4o-mini-transcribe";
 
     const turnDetection = {
       type: "server_vad" as const,
@@ -166,7 +169,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       model,
       voice,
       instructions,
-      maxOutputTokens: resolved.maxTokens ?? config.maxTokens,
+      maxOutputTokens: resolved?.maxTokens ?? config.maxTokens,
       turnDetection,
       transcription,
       tools,
@@ -177,8 +180,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (!result.ok) {
       return NextResponse.json(
-        { error: `OpenAI Realtime session creation failed (${result.status})`, details: result.errorText },
-        { status: 502, headers: corsHeaders }
+        {
+          error: `OpenAI Realtime session creation failed (${result.status})`,
+          details: result.errorText,
+          model,
+        },
+        { status: 502, headers: corsHeaders },
       );
     }
 
@@ -194,7 +201,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         provider: "openai",
         welcomeMessage: config.welcomeMessage ?? "",
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (err) {
     if (err instanceof AIConfigResolutionError) {
