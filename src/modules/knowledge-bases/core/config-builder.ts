@@ -1,16 +1,8 @@
 /**
  * src/modules/knowledge-bases/core/config-builder.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Composes the full OpenAI Realtime session system prompt from a KB's
- * AssistantConfig row. Runs server-side only — the raw config is never
- * exposed to the browser bundle.
- *
- * The resulting prompt has five layers:
- *   1. Identity       — who the assistant is and who it serves
- *   2. Knowledge Base — which KB it has access to and how many documents
- *   3. Behaviour Rules— enumerated plain-English rules from config.rules[]
- *   4. Language       — output-language policy
- *   5. Strict mode    — refuse / redirect out-of-scope questions
+ * Composes the full AI session system prompt from a KB's AssistantConfig row.
+ * Runs server-side only — the raw config is never exposed to the browser bundle.
  */
 
 import type { AssistantConfig } from "./models";
@@ -34,11 +26,7 @@ export type SessionPromptContext = {
 };
 
 /**
- * Builds the complete system prompt string for an OpenAI Realtime session.
- *
- * @param config   The AssistantConfig row for this KB
- * @param ctx      Runtime context (KB name, org name, doc list)
- * @returns        Full system prompt string ready to pass to the API
+ * Builds the complete system prompt string for an AI session.
  */
 export function buildSystemPrompt(
   config: AssistantConfig,
@@ -84,9 +72,12 @@ export function buildSystemPrompt(
     );
   } else {
     parts.push(
-      "IMPORTANT: You MUST answer ONLY using the context provided above under 'Context from knowledge base'. " +
-      "Do not answer from general knowledge. If the context does not contain a relevant answer, " +
-      "say you could not find that information in the knowledge base. " +
+      "IMPORTANT: You MUST answer using the retrieved knowledge-base context provided above. " +
+      "Do not answer factual policy questions from general knowledge. " +
+      "Treat a broad or naturally worded question as in-scope when the retrieved passages contain " +
+      "related facts. Synthesize the relevant passages instead of refusing merely because there is " +
+      "no exact phrase match. If several passages cover different products or coverage areas, give a " +
+      "useful concise summary and ask which area the user wants to explore. " +
       "Never fabricate information that is not present in the retrieved context."
     );
   }
@@ -123,9 +114,14 @@ export function buildSystemPrompt(
   // ── 5. Strict mode / out-of-scope handling ─────────────────────────────────
   if (config.strictMode) {
     parts.push(
-      "Strict mode is ON. If a question cannot be answered from the documents " +
-      "in this knowledge base, do NOT speculate or use general knowledge. " +
-      `Instead, say exactly: "${config.outOfScopeReply}"`
+      "Strict mode is ON. Use it as a knowledge-safety rule, not as a trigger for refusing broad questions. " +
+      "If retrieved context contains relevant information, answer the user's question from that context even " +
+      "when the wording is broad, abbreviated, contains spelling mistakes, or does not exactly match a source. " +
+      "If the user asks a clearly in-domain but ambiguous question, ask a short clarification or provide a " +
+      "brief summary of the relevant retrieved information. " +
+      "Only when the question is genuinely outside the assistant's configured domain OR there is no relevant " +
+      "knowledge-base information should you refuse. For a genuinely out-of-scope request, say exactly: " +
+      `"${config.outOfScopeReply}"`
     );
   } else {
     parts.push(
@@ -148,17 +144,19 @@ export function buildSystemPrompt(
     "Keep answers concise, warm, and conversational. " +
     "Do not mention 'retrieval', 'documents', 'RAG', or 'context' — speak like " +
     "a well-briefed human expert, not a search engine. " +
-    "Remember: always call rag_search before every answer, without exception."
+    "For a broad in-domain question, give the most useful answer supported by the " +
+    "retrieved material instead of repeating the out-of-scope message."
   );
 
   // ── 8. Embed-specific UX override ─────────────────────────────────────────
-  // For embed chat the context is pre-injected — suppress all tool-call language.
   if (ctx.surface === "embed") {
     parts.push(
-      "Respond directly and completely to the user's question using only the provided context. " +
+      "Respond directly and completely to the user's question using only the provided knowledge-base context. " +
       "Do not mention 'retrieval', 'documents', 'RAG', 'context', or any internal process. " +
       "Never output '[Calling rag_search...]' or any function-call text. " +
-      "Speak like a knowledgeable human expert. Keep answers clear, accurate and complete."
+      "Speak like a knowledgeable human expert. Keep answers clear, accurate and complete. " +
+      "If the question is broad but related to the configured insurance domain, summarize the relevant coverage " +
+      "facts from the supplied snippets and invite the user to narrow down the policy type if needed."
     );
   }
 
