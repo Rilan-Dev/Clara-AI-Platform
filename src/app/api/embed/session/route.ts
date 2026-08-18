@@ -65,16 +65,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Demo is intentionally independent from the KB/org AI policy. This is
-    // critical for the public demo: visitors must use Platform Admin -> Demo
-    // settings and must not fail because a tenant AI configuration is missing.
     const settings = isDemo ? await getPlatformEnvSettings() : [];
     const demoProviderRaw = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
       process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
     const demoProvider: DemoProvider = demoProviderRaw === "openai" ? "openai" : "gemini";
 
+    // Tenant AI configuration must never be resolved for public Demo traffic.
+    // This prevents a stale/missing tenant provider from breaking the demo.
     const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
-    const instructions = buildSystemPrompt(config, { kbName: kb.name });
+    const instructions = buildSystemPrompt(config, { kbName: kb.name, surface: "realtime" });
 
     if (isDemo && demoProvider === "gemini") {
       const apiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
@@ -133,10 +132,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const model = (isDemo ? setting(settings, "DEMO_OPENAI_REALTIME_MODEL") : "") ||
       (isDemo ? process.env.DEMO_OPENAI_REALTIME_MODEL?.trim() : "") ||
-      resolved?.realtimeModel || process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-mini";
+      resolved?.realtimeModel || process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-2.1";
     const voice = (isDemo ? setting(settings, "DEMO_OPENAI_VOICE") : "") ||
       (isDemo ? process.env.DEMO_OPENAI_VOICE?.trim() : "") ||
-      resolved?.voiceId || config.voiceId || "alloy";
+      resolved?.voiceId || config.voiceId || "marin";
     const transcriptionModel = (isDemo ? setting(settings, "DEMO_OPENAI_TRANSCRIPTION_MODEL") : "") ||
       (isDemo ? process.env.DEMO_OPENAI_TRANSCRIPTION_MODEL?.trim() : "") ||
       resolved?.transcriptionModel || "gpt-4o-mini-transcribe";
@@ -152,19 +151,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       model: transcriptionModel,
       language: config.alwaysRespondIn ?? config.defaultLanguage,
     };
-    const tools = [
-      {
-        type: "function" as const,
-        name: "rag_search",
-        description: `Search the "${kb.name}" knowledge base for relevant information.`,
-        parameters: {
-          type: "object",
-          properties: { query: { type: "string", description: "User question in natural language" } },
-          required: ["query"],
-        },
-      },
-    ];
 
+    // The browser-side hook already performs the KB retrieval before issuing
+    // response.create. Keep the Realtime session free of an automatic tool call
+    // so there is exactly one response path per user turn.
     const realtimeSession = buildOpenAIRealtimeSession({
       model,
       voice,
@@ -172,8 +162,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       maxOutputTokens: resolved?.maxTokens ?? config.maxTokens,
       turnDetection,
       transcription,
-      tools,
-      toolChoice: "auto",
+      tools: [],
+      toolChoice: "none",
     });
 
     const result = await createOpenAIRealtimeClientSecret({ apiKey, session: realtimeSession });
@@ -185,7 +175,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           details: result.errorText,
           model,
         },
-        { status: 502, headers: corsHeaders },
+        { status: result.status >= 400 && result.status < 600 ? result.status : 502, headers: corsHeaders },
       );
     }
 
