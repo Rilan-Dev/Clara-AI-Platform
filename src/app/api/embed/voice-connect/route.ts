@@ -63,7 +63,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let voice = resolved.voiceId ?? config.voiceId ?? "alloy";
     let maxTokens = resolved.maxTokens ?? config.maxTokens ?? 1024;
     let transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
-    let language = config.alwaysRespondIn ?? config.defaultLanguage ?? "en";
+    const language = config.alwaysRespondIn ?? config.defaultLanguage ?? "en";
     let welcomeMsg = config.welcomeMessage?.trim() ?? "";
     let apiKey: string | undefined;
 
