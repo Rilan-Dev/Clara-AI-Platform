@@ -55,8 +55,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const authHeader = req.headers.get("authorization") ?? "";
     const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
 
+    const settings = isDemo ? await getPlatformEnvSettings() : [];
     if (isDemo) {
-      const settings = await getPlatformEnvSettings();
       const enabled = setting(settings, "DEMO_CHAT_ENABLED") || process.env.DEMO_CHAT_ENABLED?.trim() || "true";
       if (enabled !== "true") {
         return NextResponse.json({ error: "Demo chat is currently disabled by the platform administrator." }, { status: 403, headers: corsHeaders });
@@ -96,26 +96,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
-    if (!resolved.flags.publicEmbedEnabled) {
+    // Demo traffic is fully controlled by Platform Admin -> Demo settings.
+    // Never resolve the tenant AI policy for the public demo because a stale or
+    // missing tenant provider must not block the platform's own demo.
+    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    if (!isDemo && resolved && !resolved.flags.publicEmbedEnabled) {
       return NextResponse.json(
         { error: "Public embed is disabled for this knowledge base" },
         { status: 403, headers: corsHeaders },
       );
     }
 
-    const settings = isDemo ? await getPlatformEnvSettings() : [];
     const demoProvider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
       process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
 
-    let ragProviderConfig: ProviderConfig = toProviderConfig(resolved);
-    let providerConfig: ProviderConfig = ragProviderConfig;
+    let ragProviderConfig: ProviderConfig;
+    let providerConfig: ProviderConfig;
 
     if (isDemo && demoProvider === "openai") {
       const demoApiKey = setting(settings, "DEMO_OPENAI_API_KEY") || process.env.DEMO_OPENAI_API_KEY?.trim() || "";
       if (!demoApiKey) {
         return NextResponse.json(
-          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." },
+          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin -> Demo." },
           { status: 503, headers: corsHeaders },
         );
       }
@@ -135,7 +137,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const demoApiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
       if (!demoApiKey) {
         return NextResponse.json(
-          { error: "Demo Gemini API key is not configured. Switch Platform Admin → Demo to OpenAI or configure Gemini." },
+          { error: "Demo Gemini API key is not configured. Switch Platform Admin -> Demo to OpenAI or configure Gemini." },
           { status: 503, headers: corsHeaders },
         );
       }
@@ -152,6 +154,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { error: `Unsupported Demo AI provider: ${demoProvider}` },
         { status: 400, headers: corsHeaders },
       );
+    } else {
+      if (!resolved) {
+        return NextResponse.json({ error: "AI configuration could not be resolved" }, { status: 500, headers: corsHeaders });
+      }
+      ragProviderConfig = toProviderConfig(resolved);
+      providerConfig = ragProviderConfig;
     }
 
     const t0 = Date.now();
@@ -233,8 +241,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         (async () => {
           try {
             const completionStream = provider.chatStream(chatMessages, {
-              temperature: isDemo ? Math.min(resolved.temperature ?? config.temperature ?? 0.7, 0.35) : (resolved.temperature ?? config.temperature),
-              maxTokens: resolved.maxTokens ?? config.maxTokens,
+              temperature: isDemo ? Math.min(resolved?.temperature ?? config.temperature ?? 0.7, 0.35) : (resolved?.temperature ?? config.temperature),
+              maxTokens: resolved?.maxTokens ?? config.maxTokens,
             });
 
             for await (const delta of completionStream) {
