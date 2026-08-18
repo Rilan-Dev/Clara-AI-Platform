@@ -8,8 +8,9 @@ type InteractiveGradientBackgroundProps = {
 };
 
 const CANVAS_ID = "landing-smokey-fluid-canvas";
-const IDLE_WAKE_DELAY_MS = 1800;
-const IDLE_WAKE_INTERVAL_MS = 900;
+const IDLE_WAKE_DELAY_MS = 2400;
+const IDLE_WAKE_INTERVAL_MS = 1400;
+const MOBILE_BREAKPOINT = 768;
 
 function pinCanvasToLayer(canvas: HTMLCanvasElement) {
   Object.assign(canvas.style, {
@@ -24,16 +25,12 @@ function pinCanvasToLayer(canvas: HTMLCanvasElement) {
 
 function syncCanvasSize(canvas: HTMLCanvasElement) {
   const rect = canvas.parentElement?.getBoundingClientRect();
-  const width = Math.max(1, Math.floor((rect?.width || window.innerWidth) * (window.devicePixelRatio || 1)));
-  const height = Math.max(1, Math.floor((rect?.height || window.innerHeight) * (window.devicePixelRatio || 1)));
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const width = Math.max(1, Math.floor((rect?.width || window.innerWidth) * dpr));
+  const height = Math.max(1, Math.floor((rect?.height || window.innerHeight) * dpr));
 
-  if (canvas.width !== width) {
-    canvas.width = width;
-  }
-
-  if (canvas.height !== height) {
-    canvas.height = height;
-  }
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
 }
 
 export default function InteractiveGradientBackground({
@@ -45,48 +42,65 @@ export default function InteractiveGradientBackground({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const isTouchDevice = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const isSmallScreen = window.innerWidth < MOBILE_BREAKPOINT;
+
+    // The fluid simulation is intentionally disabled on mobile/touch devices.
+    // A continuously rendered WebGL simulation behind a long landing page can
+    // compete with scrolling, audio, and touch input on lower-power devices.
+    if (mediaQuery.matches || isTouchDevice || isSmallScreen) {
+      canvas.style.display = "none";
+      return;
+    }
+
     let cancelled = false;
-    let idleWakeId = 0;
+    let idleWakeId: number | undefined;
+    let resizeFrame = 0;
     let lastUserMove = performance.now();
+
     pinCanvasToLayer(canvas);
     syncCanvasSize(canvas);
 
     try {
       initFluid({
         id: CANVAS_ID,
-        simResolution: 96,
-        dyeResolution: 720,
-        captureResolution: 512,
+        simResolution: 64,
+        dyeResolution: 512,
+        captureResolution: 384,
         densityDissipation: 1.45,
         velocityDissipation: 1.1,
         pressure: 0.08,
-        pressureIteration: 16,
-        curl: 26,
+        pressureIteration: 12,
+        curl: 22,
         splatRadius: 0.115,
-        splatForce: 4400,
+        splatForce: 3600,
         shading: true,
-        colorUpdateSpeed: 2.4,
+        colorUpdateSpeed: 2.0,
         paused: false,
         backColor: { r: 0, g: 0, b: 0 },
         transparent: true,
       });
 
-      if (!cancelled && canvas.isConnected) {
-        // The library injects a fixed-position style for standalone demos.
-        // Inline styles keep this instance scoped to the landing background layer.
-        pinCanvasToLayer(canvas);
-        syncCanvasSize(canvas);
-      }
+      if (cancelled || !canvas.isConnected) return;
+
+      pinCanvasToLayer(canvas);
+      syncCanvasSize(canvas);
 
       const markUserMove = () => {
         lastUserMove = performance.now();
       };
 
       const handleResize = () => {
-        syncCanvasSize(canvas);
+        if (resizeFrame) return;
+        resizeFrame = window.requestAnimationFrame(() => {
+          resizeFrame = 0;
+          if (!cancelled) syncCanvasSize(canvas);
+        });
       };
 
       const dispatchFluidMove = (x: number, y: number) => {
+        if (cancelled || document.hidden) return;
         window.dispatchEvent(
           new MouseEvent("mousemove", {
             clientX: x,
@@ -105,7 +119,6 @@ export default function InteractiveGradientBackground({
         const time = performance.now() * 0.001;
         const x = rect.left + rect.width * (0.62 + Math.sin(time * 0.6) * 0.18);
         const y = rect.top + rect.height * (0.54 + Math.cos(time * 0.5) * 0.14);
-
         dispatchFluidMove(x, y);
       };
 
@@ -119,15 +132,18 @@ export default function InteractiveGradientBackground({
         cancelled = true;
         window.removeEventListener("pointermove", markUserMove);
         window.removeEventListener("resize", handleResize);
-        window.clearInterval(idleWakeId);
+        if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+        if (idleWakeId !== undefined) window.clearInterval(idleWakeId);
       };
     } catch {
+      canvas.style.display = "none";
       canvas.parentElement?.classList.add("interactive-gradient-background--fallback");
     }
 
     return () => {
       cancelled = true;
-      window.clearInterval(idleWakeId);
+      if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+      if (idleWakeId !== undefined) window.clearInterval(idleWakeId);
     };
   }, []);
 
