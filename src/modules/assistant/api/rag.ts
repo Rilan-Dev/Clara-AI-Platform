@@ -1,22 +1,5 @@
 /**
- * src/modules/assistant/api/rag.ts
- * ─────────────────────────────────────────────────────────────────────────────
- * RAG search handler — Phase 2 update.
- *
- * Accepts two search modes:
- *
- *   Mode A — KB-aware (Phase 2, preferred):
- *     { kbId: string, query: string, documentId?: string }
- *     Searches the full Qdrant collection for the KB (all documents).
- *     Optionally filters to a single document if documentId is supplied.
- *     Returns context with multi-document source attribution [S1], [S2], etc.
- *
- *   Mode B — Legacy (backward compatible):
- *     { documentId: string, query: string }
- *     Looks up the document's Qdrant collection from the old catalog and
- *     searches it. Works exactly as before for existing integrations.
- *
- * All voice hook calls should migrate to Mode A by passing kbId.
+ * RAG search handler used by authenticated chat and the public embed flow.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -32,7 +15,7 @@ import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 
 const SCORE_THRESHOLD = 0.25;
-const DEFAULT_TOP_K   = 6;  // more results for multi-doc search
+const DEFAULT_TOP_K = 6;
 
 type RagPayload = {
   kbId?: string;
@@ -42,7 +25,10 @@ type RagPayload = {
   ragMode?: "classic" | "hybrid" | "agentic";
 };
 
-export async function postRagSearch(request: NextRequest): Promise<NextResponse> {
+export async function postRagSearch(
+  request: NextRequest,
+  providerOverride?: ProviderConfig,
+): Promise<NextResponse> {
   try {
     const body = (await request.json()) as RagPayload;
     const query = (body.query ?? "").trim();
@@ -52,7 +38,6 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
       return NextResponse.json({ error: "Missing query" }, { status: 400 });
     }
 
-    // ── Mode A: KB-aware multi-document search ────────────────────────────────
     if (body.kbId) {
       const t0 = Date.now();
       const kb = await getKnowledgeBaseById(body.kbId);
@@ -63,11 +48,15 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
         return NextResponse.json({ error: "Knowledge base is archived" }, { status: 400 });
       }
 
-      const resolved = await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
-      const providerConfig = toProviderConfig(resolved);
+      // Public Demo passes an explicit provider so KB/org settings cannot
+      // silently route Demo retrieval to another provider. Normal requests
+      // continue using the resolved KB AI policy.
+      const resolved = providerOverride
+        ? null
+        : await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
+      const providerConfig = providerOverride ?? toProviderConfig(resolved!);
       const runtime = getRagRuntimeConfig({ requestedMode: body.ragMode });
 
-      // Build Qdrant filter: optionally scope to a single document
       const filter = body.documentId
         ? { must: [{ key: "documentId", match: { value: body.documentId } }] }
         : undefined;
@@ -181,7 +170,6 @@ export async function postRagSearch(request: NextRequest): Promise<NextResponse>
       });
     }
 
-    // ── Mode B: Legacy document-scoped search (backward compatible) ───────────
     if (body.documentId) {
       const documentRecord = await getDocumentById(body.documentId);
       if (!documentRecord) {
