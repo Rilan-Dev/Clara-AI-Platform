@@ -1,14 +1,29 @@
 const OUT_OF_SCOPE_REDIRECT =
   "If the conversation drifts away from this policy, acknowledge the request and guide the customer back to how you can help with this coverage.";
 
-const LANGUAGE_LABELS: Record<string, string> = {
-  en: "English",
-  ar: "Arabic",
-  es: "Spanish",
-  fr: "French",
-  hi: "Hindi",
-  ur: "Urdu",
-};
+/**
+ * Canonical language catalog used by assistant configuration and runtime
+ * prompt generation. Keep this list in sync with the language controls shown
+ * in the KB configuration UI.
+ */
+export const SUPPORTED_LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "ar", label: "Arabic" },
+  { code: "fr", label: "French" },
+  { code: "es", label: "Spanish" },
+  { code: "de", label: "German" },
+  { code: "zh", label: "Chinese" },
+  { code: "ja", label: "Japanese" },
+  { code: "pt", label: "Portuguese" },
+  { code: "tr", label: "Turkish" },
+  { code: "ru", label: "Russian" },
+  { code: "hi", label: "Hindi" },
+  { code: "ur", label: "Urdu" },
+] as const;
+
+const LANGUAGE_LABELS: Record<string, string> = Object.fromEntries(
+  SUPPORTED_LANGUAGES.map(({ code, label }) => [code, label]),
+);
 
 export type LanguagePreferences = {
   assistant: string;
@@ -57,43 +72,54 @@ const CHAT_SYSTEM_INSTRUCTIONS = [
 const ADAPT_PHRASE =
   "If the customer switches languages, mirror them briefly before guiding the conversation back to the preferred languages for clarity.";
 
-function normaliseLanguageCode(code: string): string {
+export function normaliseLanguageCode(code: string): string {
   return code.trim().toLowerCase();
+}
+
+export function isSupportedLanguage(code: string): boolean {
+  return Boolean(LANGUAGE_LABELS[normaliseLanguageCode(code)]);
 }
 
 export function describeLanguage(code: string): string {
   const normalised = normaliseLanguageCode(code);
   const label = LANGUAGE_LABELS[normalised];
-  return label ? `${label} (${normalised})` : code;
+  return label ? `${label} (${normalised})` : normalised || "English (en)";
 }
 
 function cleanLanguagePreferences(
   preferences: Partial<LanguagePreferences> | undefined,
 ): LanguagePreferences {
-  const primary =
+  const primaryCandidate =
     preferences?.assistant && preferences.assistant.trim().length > 0
       ? normaliseLanguageCode(preferences.assistant)
       : LANGUAGE_DEFAULTS.assistant;
 
+  const primary = isSupportedLanguage(primaryCandidate)
+    ? primaryCandidate
+    : LANGUAGE_DEFAULTS.assistant;
+
   const customerList =
-    Array.isArray(preferences?.customer) && preferences?.customer?.length
-      ? (preferences?.customer as string[])
+    Array.isArray(preferences?.customer) && preferences.customer.length
+      ? preferences.customer
       : LANGUAGE_DEFAULTS.customer;
 
   const cleaned = Array.from(
     new Set(
       customerList
-        .map((code) => normaliseLanguageCode(code))
-        .filter(Boolean),
+        .filter((code): code is string => typeof code === "string")
+        .map(normaliseLanguageCode)
+        .filter(isSupportedLanguage),
     ),
   );
 
-  const customer =
-    cleaned.length > 0 ? cleaned : [LANGUAGE_DEFAULTS.assistant];
+  // The configured assistant/default language must always be available to the
+  // customer language set. This prevents an inconsistent DB configuration
+  // from producing contradictory runtime instructions.
+  if (!cleaned.includes(primary)) cleaned.unshift(primary);
 
   return {
     assistant: primary,
-    customer,
+    customer: cleaned.length > 0 ? cleaned : [primary],
   };
 }
 
@@ -152,10 +178,6 @@ export function buildLanguageGuidance(preferences: LanguagePreferences) {
 }
 
 export const assistantPrompts = {
-  /**
-   * High-level conversational nudges that drive the assistant experience.
-   * Update these exports to retune tone or focus without touching component code.
-   */
   suggestedPrompts: SUGGESTED_PROMPT_PRESETS,
 
   createFallbackSummary,
