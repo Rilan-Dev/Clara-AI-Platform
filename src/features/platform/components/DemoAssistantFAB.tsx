@@ -63,9 +63,7 @@ export default function DemoAssistantFAB() {
       .catch(() => setConfigLoaded(true));
   }, []);
 
-  const hasApiKey = true; // Always true for the DEMO_MODE bypass
-
-  // If config loaded and demo/chat is disabled, we'll return null at the end
+  const hasApiKey = true; // DEMO_MODE is validated server-side; no visitor key is required.
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -235,14 +233,15 @@ export default function DemoAssistantFAB() {
   // ── Suggested prompts ─────────────────────────────────────────────────────
 
   const suggestions = demoConfig?.suggestedPrompts ?? [
-    "What can Clara AI do?",
-    "How does RAG work?",
-    "Tell me about voice AI",
-    "How do I embed the widget?",
+    "What does my insurance cover?",
+    "How do I file a claim?",
+    "What is Omen United Insurance?",
+    "Tell me about your policies",
   ];
 
-  // If config loaded and demo/chat is disabled, render nothing
-  if (configLoaded && (!demoConfig?.enabled || !demoConfig?.chatEnabled)) {
+  // Only an explicit DB/admin response of enabled=false hides the demo.
+  // A failed config request must not remove the public demo from the landing page.
+  if (configLoaded && demoConfig && (!demoConfig.enabled || !demoConfig.chatEnabled)) {
     return null;
   }
 
@@ -258,11 +257,9 @@ export default function DemoAssistantFAB() {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
           >
-            {/* Pulse rings */}
             <div className="absolute inset-0 rounded-full bg-indigo-500/20 animate-pulse-ring" />
             <div className="absolute inset-0 rounded-full bg-violet-500/15 animate-pulse-ring" style={{ animationDelay: "0.7s" }} />
 
-            {/* Orbiting particles */}
             <div className="absolute inset-[-12px] animate-orbit">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
             </div>
@@ -283,7 +280,6 @@ export default function DemoAssistantFAB() {
               <Sparkles className="w-7 h-7 text-white relative z-10 group-hover:scale-110 transition-transform" />
             </button>
 
-            {/* Label */}
             <motion.div
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -316,7 +312,6 @@ export default function DemoAssistantFAB() {
             exit={{ opacity: 0, scale: 0.5, y: 40 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            {/* ── Header ─────────────────────────────────────────────── */}
             <div
               className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]"
               style={{
@@ -346,7 +341,6 @@ export default function DemoAssistantFAB() {
               </div>
             </div>
 
-            {/* ── No API Key Warning ─────────────────────────────────── */}
             {!hasApiKey && (
               <div className="flex-1 flex items-center justify-center px-6">
                 <div className="text-center">
@@ -361,7 +355,6 @@ export default function DemoAssistantFAB() {
               </div>
             )}
 
-            {/* ── Messages ───────────────────────────────────────────── */}
             {hasApiKey && (
               <div
                 ref={scrollRef}
@@ -413,7 +406,6 @@ export default function DemoAssistantFAB() {
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div className={hasChart ? "w-full max-w-full" : "max-w-[85%]"}>
-                      {/* Avatar + name */}
                       <div className={`flex items-center gap-2 mb-1 ${msg.role === "user" ? "justify-end" : ""}`}>
                         {msg.role === "assistant" && (
                           <div className="w-5 h-5 rounded-md bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
@@ -425,7 +417,6 @@ export default function DemoAssistantFAB() {
                         </span>
                       </div>
 
-                      {/* Bubble */}
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                           msg.role === "user"
@@ -453,7 +444,6 @@ export default function DemoAssistantFAB() {
                         )}
                       </div>
 
-                      {/* Sources */}
                       {msg.sources && msg.sources.length > 0 && (
                         <div className="mt-2 space-y-1">
                           <p className="text-[10px] text-white/30 uppercase tracking-wider">Sources</p>
@@ -473,12 +463,10 @@ export default function DemoAssistantFAB() {
                   );
                 })}
 
-                {/* Scroll anchor */}
                 <div className="h-1" />
               </div>
             )}
 
-            {/* ── Input Area ──────────────────────────────────────────── */}
             {hasApiKey && (
               <form
                 onSubmit={handleSubmit}
@@ -525,7 +513,6 @@ export default function DemoAssistantFAB() {
               </form>
             )}
 
-            {/* ── Scroll to bottom button ─────────────────────────────── */}
             {messages.length > 4 && (
               <button
                 onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })}
@@ -534,7 +521,7 @@ export default function DemoAssistantFAB() {
                 <ChevronDown className="w-4 h-4" />
               </button>
             )}
-            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
