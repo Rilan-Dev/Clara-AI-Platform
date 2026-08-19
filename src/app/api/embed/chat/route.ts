@@ -8,30 +8,218 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import type { ChatMessage, ProviderConfig } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
-import { buildConversationAwareSearchQuery, buildRecentConversationContextBlock, withChartInstructions } from "@/modules/assistant/api/conversation-context";
-function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string { return settings.find((s) => s.key === key)?.value?.trim() ?? ""; }
-function isBroadCoverageQuery(query: string): boolean { const normalized = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); return ["what does my insurance cover", "what does insurance cover", "what is covered by my insurance", "what does my policy cover", "what is my insurance", "tell me about my insurance", "what insurance do you offer", "what policies do you offer"].some((phrase) => normalized === phrase || normalized.startsWith(`${phrase} `)); }
-export async function OPTIONS(req: NextRequest): Promise<NextResponse> { return handlePreflight(req); }
+import { getDemoAIConfig } from "@/modules/ai-core/demo-config";
+import {
+  buildConversationAwareSearchQuery,
+  buildRecentConversationContextBlock,
+  withChartInstructions,
+} from "@/modules/assistant/api/conversation-context";
+
+function isDemoRequest(req: NextRequest): boolean {
+  return (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
+}
+
+function isBroadCoverageQuery(query: string): boolean {
+  const normalized = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  return [
+    "what does my insurance cover",
+    "what does insurance cover",
+    "what is covered by my insurance",
+    "what does my policy cover",
+    "what is my insurance",
+    "tell me about my insurance",
+    "what insurance do you offer",
+    "what policies do you offer",
+    "what is omen insurance",
+    "what is oman insurance",
+    "what is omen united insurance",
+    "what is oman united insurance",
+    "who is omen united insurance",
+    "who is oman united insurance",
+  ].some((phrase) => normalized === phrase || normalized.startsWith(`${phrase} `));
+}
+
+export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
+  return handlePreflight(req);
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    await ensureMigrated(); const validation = await validateEmbedRequest(req); if (!validation.ok) return validation.response; const { ctx } = validation;
-    const origin = req.headers.get("origin"); const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin); const isDemo = (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE"; const settings = await getPlatformEnvSettings();
-    if (isDemo) { const enabled = setting(settings, "DEMO_CHAT_ENABLED") || process.env.DEMO_CHAT_ENABLED?.trim() || "true"; if (enabled !== "true") return NextResponse.json({ error: "Demo chat is currently disabled by the platform administrator." }, { status: 403, headers: corsHeaders }); }
-    const body = (await req.json()) as { messages?: Array<{ role: string; content: string }>; sessionId?: string }; const messages = (body.messages ?? []).filter((m) => m.role && m.content && typeof m.content === "string");
-    if (!messages.length) return NextResponse.json({ error: "messages array is required" }, { status: 400, headers: corsHeaders }); if (messages[messages.length - 1]?.role !== "user") return NextResponse.json({ error: "Last message must be from user" }, { status: 400, headers: corsHeaders });
-    const query = messages[messages.length - 1].content.trim(); const retrievalQuery = isBroadCoverageQuery(query) ? `${query}. Retrieve a broad overview of the insurance products, coverage benefits, exclusions, and policy areas available in the knowledge base. Include relevant home, health, travel, motor, personal accident, and life coverage facts when present.` : buildConversationAwareSearchQuery(messages, query); const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
-    const [kb, config, resolved] = await Promise.all([getKnowledgeBaseById(ctx.kbId), getAssistantConfig(ctx.kbId), resolveAIConfig({ kbId: ctx.kbId, surface: "chat" })]);
-    if (!kb || !config) return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders }); if (!resolved.flags.publicEmbedEnabled) return NextResponse.json({ error: "Public embed is disabled for this knowledge base" }, { status: 403, headers: corsHeaders });
-    const providerConfig: ProviderConfig = toProviderConfig(resolved); console.info("[embed/chat] tenant configuration", { orgId: resolved.orgId, projectId: resolved.projectId, kbId: resolved.kbId, provider: resolved.provider, chatModel: resolved.chatModel, embeddingModel: resolved.embeddingModel, allowedLanguages: resolved.allowedLanguages, defaultLanguage: resolved.defaultLanguage, maxTokens: resolved.maxTokens, temperature: resolved.temperature, flags: resolved.flags, apiKeyConfigured: Boolean(providerConfig.apiKey) });
-    if (!providerConfig.apiKey) { const envName = resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY"; return NextResponse.json({ error: `${resolved.provider} is selected for this tenant, but ${envName} is not configured on the server.` }, { status: 503, headers: corsHeaders }); }
-    const t0 = Date.now(); let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
-    try { const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig }); const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000)); searchResults = await Promise.race([searchPromise, timeoutPromise]); } catch (searchErr) { if ((searchErr as Error).message !== "search_timeout") throw searchErr; console.warn("[embed/chat] RAG search timed out (>15s)", { orgId: resolved.orgId, kbId: resolved.kbId }); }
-    const seen = new Set<string>(); const dedupedResults = searchResults.filter((r) => { const key = r.snippet.slice(0, 80).toLowerCase().replace(/\s+/g, " "); if (seen.has(key)) return false; seen.add(key); return true; }); const context = dedupedResults.length ? dedupedResults.slice(0, 6).map((r, i) => `[S${i + 1}] **${r.title}**\n${r.snippet.trim()}`).join("\n\n---\n\n") : "No relevant information was found in the knowledge base for this query.";
-    const latencyMs = Date.now() - t0; void logQueryEvent({ kbId: kb.id, queryText: query, sourceCount: dedupedResults.length, latencyMs, sessionId: body.sessionId });
-    const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, surface: "embed", allowedLanguages: resolved.allowedLanguages })); const demoAnswerRule = isDemo ? "\n\nDEMO ANSWER REQUIREMENT: The visitor is not selecting a policy. When retrieved sources contain relevant insurance information, answer the visitor's question immediately. For a broad question, synthesize the relevant coverage categories and facts from the sources in a concise summary. Never answer only with a clarification question." : "";
-    const chatMessages: ChatMessage[] = [{ role: "system", content: `${systemPrompt}${demoAnswerRule}\n\nContext from knowledge base:\n${context}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}` }, ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))]; const provider = ProviderFactory.getProvider(providerConfig); const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({ start(controller) { const write = (event: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)); if (dedupedResults.length) write({ type: "sources", payload: dedupedResults.slice(0, 6).map((r, i) => ({ index: i + 1, title: r.title, snippet: r.snippet.slice(0, 200), score: r.score })) }); (async () => { try { const completionStream = provider.chatStream(chatMessages, { temperature: resolved.temperature ?? config.temperature, maxTokens: resolved.maxTokens ?? config.maxTokens }); for await (const delta of completionStream) if (delta) write({ type: "token", payload: delta }); } catch (err) { write({ type: "error", payload: (err as Error).message }); } finally { write({ type: "done" }); controller.close(); } })(); } });
-    return new NextResponse(stream, { headers: { ...corsHeaders, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" } });
-  } catch (err) { console.error("[embed/chat]:", err); return NextResponse.json({ error: "Internal error" }, { status: 500 }); }
+    await ensureMigrated();
+
+    const validation = await validateEmbedRequest(req);
+    if (!validation.ok) return validation.response;
+    const { ctx } = validation;
+    const origin = req.headers.get("origin");
+    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
+    const isDemo = isDemoRequest(req);
+
+    const body = (await req.json()) as {
+      messages?: Array<{ role: string; content: string }>;
+      sessionId?: string;
+    };
+    const messages = (body.messages ?? []).filter(
+      (message) => message.role && message.content && typeof message.content === "string",
+    );
+
+    if (!messages.length) {
+      return NextResponse.json({ error: "messages array is required" }, { status: 400, headers: corsHeaders });
+    }
+    if (messages[messages.length - 1]?.role !== "user") {
+      return NextResponse.json({ error: "Last message must be from user" }, { status: 400, headers: corsHeaders });
+    }
+
+    const query = messages[messages.length - 1].content.trim();
+    const retrievalQuery = isBroadCoverageQuery(query)
+      ? `${query}. Retrieve a broad overview of the insurance products, company information, coverage benefits, exclusions, claims, and policy areas available in the knowledge base. Include relevant home, health, travel, motor, personal accident, and life coverage facts when present.`
+      : buildConversationAwareSearchQuery(messages, query);
+    const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
+
+    const [kb, config] = await Promise.all([
+      getKnowledgeBaseById(ctx.kbId),
+      getAssistantConfig(ctx.kbId),
+    ]);
+    if (!kb || !config) {
+      return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
+    }
+
+    // Public demo traffic uses the provider configured in Platform Admin -> Demo.
+    // It must not depend on a tenant/project AI assignment or the private
+    // OPENAI_API_KEY/GEMINI_API_KEY variables used by authenticated tenants.
+    const demoConfig = isDemo ? await getDemoAIConfig() : null;
+    if (isDemo && !demoConfig) {
+      return NextResponse.json(
+        { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
+    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    if (!isDemo && !resolved!.flags.publicEmbedEnabled) {
+      return NextResponse.json({ error: "Public embed is disabled for this knowledge base" }, { status: 403, headers: corsHeaders });
+    }
+
+    const providerConfig: ProviderConfig = isDemo
+      ? {
+          provider: demoConfig!.provider,
+          apiKey: demoConfig!.apiKey,
+          chatModel: demoConfig!.chatModel,
+          embeddingModel: demoConfig!.embeddingModel,
+          embeddingDimension: demoConfig!.embeddingDimension,
+        }
+      : toProviderConfig(resolved!);
+
+    const allowedLanguages = isDemo
+      ? (config.allowedLanguages ?? [config.defaultLanguage ?? "en"])
+      : resolved!.allowedLanguages;
+    const maxTokens = isDemo ? config.maxTokens : resolved!.maxTokens ?? config.maxTokens;
+    const temperature = isDemo ? config.temperature : resolved!.temperature ?? config.temperature;
+
+    console.info("[embed/chat] runtime configuration", {
+      demo: isDemo,
+      orgId: resolved?.orgId ?? ctx.orgId,
+      projectId: resolved?.projectId ?? null,
+      kbId: ctx.kbId,
+      provider: providerConfig.provider,
+      chatModel: providerConfig.chatModel,
+      embeddingModel: providerConfig.embeddingModel,
+      allowedLanguages,
+      apiKeyConfigured: Boolean(providerConfig.apiKey),
+    });
+
+    const t0 = Date.now();
+    let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
+    try {
+      const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig });
+      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
+      searchResults = await Promise.race([searchPromise, timeoutPromise]);
+    } catch (searchErr) {
+      if ((searchErr as Error).message !== "search_timeout") throw searchErr;
+      console.warn("[embed/chat] RAG search timed out (>15s)", { kbId: ctx.kbId });
+    }
+
+    const seen = new Set<string>();
+    const dedupedResults = searchResults.filter((result) => {
+      const key = result.snippet.slice(0, 80).toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const context = dedupedResults.length
+      ? dedupedResults.slice(0, 6).map((result, index) => `[S${index + 1}] **${result.title}**\n${result.snippet.trim()}`).join("\n\n---\n\n")
+      : "No relevant information was found in the knowledge base for this query.";
+
+    const latencyMs = Date.now() - t0;
+    void logQueryEvent({
+      kbId: kb.id,
+      queryText: query,
+      sourceCount: dedupedResults.length,
+      latencyMs,
+      sessionId: body.sessionId,
+    });
+
+    const systemPrompt = withChartInstructions(
+      buildSystemPrompt(config, {
+        kbName: kb.name,
+        surface: "embed",
+        allowedLanguages,
+      }),
+    );
+
+    const demoAnswerRule = isDemo
+      ? `\n\nDEMO SCOPE REQUIREMENT: This is the public Omen United Insurance demo. The retrieved context is authoritative evidence that the visitor's question is in scope whenever it contains relevant insurance/company information. Treat "Omen", "Oman", "Omen United", and "Oman United Insurance" as valid references to the configured Omen United Insurance knowledge base, including minor spelling mistakes. If retrieved sources contain relevant facts, answer the question directly from those sources. NEVER output the configured out-of-scope reply when relevant sources are present. For questions such as "what is omen insurance", explain what the company/insurance is using the retrieved facts rather than refusing or asking the visitor to choose a policy.`
+      : "";
+
+    const chatMessages: ChatMessage[] = [
+      {
+        role: "system",
+        content: `${systemPrompt}${demoAnswerRule}\n\nContext from knowledge base:\n${context}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
+      },
+      ...messages.map((message) => ({ role: message.role as "user" | "assistant", content: message.content })),
+    ];
+
+    const provider = ProviderFactory.getProvider(providerConfig);
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const write = (event: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        if (dedupedResults.length) {
+          write({
+            type: "sources",
+            payload: dedupedResults.slice(0, 6).map((result, index) => ({
+              index: index + 1,
+              title: result.title,
+              snippet: result.snippet.slice(0, 200),
+              score: result.score,
+            })),
+          });
+        }
+
+        (async () => {
+          try {
+            const completionStream = provider.chatStream(chatMessages, {
+              temperature,
+              maxTokens,
+            });
+            for await (const delta of completionStream) {
+              if (delta) write({ type: "token", payload: delta });
+            }
+          } catch (err) {
+            write({ type: "error", payload: (err as Error).message });
+          } finally {
+            write({ type: "done" });
+            controller.close();
+          }
+        })();
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: { ...corsHeaders, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
+    });
+  } catch (err) {
+    console.error("[embed/chat]:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }
