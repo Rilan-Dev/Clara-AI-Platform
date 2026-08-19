@@ -9,6 +9,13 @@ import { apiUrl } from "@/lib/runtime";
 
 const DEMO_API_KEY = "DEMO_MODE";
 
+const FALLBACK_DEMO_CONFIG: DemoConfig = {
+  enabled: true,
+  voiceEnabled: true,
+  kbId: "30000000-0000-0000-0000-000000000001",
+  voiceGreeting: "Hi! I am Clara, your Omen Insurance assistant. How can I help you today?",
+};
+
 type DemoConfig = {
   enabled: boolean;
   voiceEnabled: boolean;
@@ -28,15 +35,18 @@ export default function DemoVoiceSection() {
       .catch(() => setConfigLoaded(true));
   }, []);
 
-  // If config loaded and demo/voice is disabled, render nothing
-  if (configLoaded && (!config?.enabled || !config?.voiceEnabled)) {
+  // Only an explicit DB/admin response of enabled=false hides the demo.
+  // A failed config request must not remove the public voice demo.
+  if (configLoaded && config && (!config.enabled || !config.voiceEnabled)) {
     return null;
   }
 
-  // Don't render until config is loaded
-  if (!configLoaded || !config) {
+  // While the first config request is in flight, keep the layout stable.
+  if (!configLoaded) {
     return <div className="h-[500px]" />;
   }
+
+  const effectiveConfig = config ?? FALLBACK_DEMO_CONFIG;
 
   return (
     <section className="relative w-full max-w-5xl mx-auto py-24 px-6 z-20">
@@ -66,12 +76,11 @@ export default function DemoVoiceSection() {
           transition={{ delay: 0.2 }}
           className="text-white/50 text-lg max-w-2xl mx-auto"
         >
-          Try a real-time, low-latency conversation with Clara directly from your browser. Powered by OpenAI Realtime and Gemini Live.
+          Try a real-time, low-latency conversation with Clara directly from your browser. Powered by OpenAI Realtime.
         </motion.p>
       </div>
 
       <div className="relative rounded-3xl overflow-hidden glass-card border border-white/[0.08] min-h-[500px] flex items-center justify-center p-8 bg-black/40">
-        {/* Background ambient light */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-2xl bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
 
         <AnimatePresence mode="wait">
@@ -91,7 +100,7 @@ export default function DemoVoiceSection() {
               </div>
               <h3 className="text-xl font-medium text-white mb-2">Ready to talk?</h3>
               <p className="text-sm text-white/40 mb-8 max-w-sm mx-auto">
-                Make sure your microphone is connected. You can ask Clara about our pricing, features, or integrations.
+                Make sure your microphone is connected. Ask Clara about Omen Insurance policies, coverage, claims, or services.
               </p>
               <button
                 onClick={() => setIsVoiceActive(true)}
@@ -103,8 +112,8 @@ export default function DemoVoiceSection() {
           ) : (
             <DemoVoiceActive
               key="active"
-              kbId={config.kbId}
-              voiceGreeting={config.voiceGreeting}
+              kbId={effectiveConfig.kbId}
+              voiceGreeting={effectiveConfig.voiceGreeting}
               onEnd={() => setIsVoiceActive(false)}
             />
           )}
@@ -166,7 +175,6 @@ function DemoVoiceActive({ kbId, voiceGreeting, onEnd }: {
         className="hidden"
       />
 
-      {/* Visualizer Area */}
       <div className="flex-1 w-full flex flex-col items-center justify-center relative min-h-[250px]">
         {session.status === "error" ? (
           <div className="text-center">
@@ -191,10 +199,8 @@ function DemoVoiceActive({ kbId, voiceGreeting, onEnd }: {
               />
             </div>
             
-            {/* Audio Bars */}
             <div className="flex gap-3 items-center justify-center z-10 h-32">
               {[0, 1, 2, 3, 4, 5, 6].map((i) => {
-                // Symmetrical wave effect
                 const mirrorIndex = i > 3 ? 6 - i : i;
                 const level = levels[mirrorIndex] ?? 0;
                 return (
@@ -215,7 +221,6 @@ function DemoVoiceActive({ kbId, voiceGreeting, onEnd }: {
         )}
       </div>
 
-      {/* Transcripts */}
       <div className="h-28 w-full max-w-2xl mx-auto flex flex-col justify-center text-center px-4 mt-8">
         <AnimatePresence mode="wait">
           {activeTurn && activeTurn.question && (
@@ -247,7 +252,6 @@ function DemoVoiceActive({ kbId, voiceGreeting, onEnd }: {
         </AnimatePresence>
       </div>
 
-      {/* End Session Button */}
       <div className="mt-8">
         <button
           onClick={() => {
