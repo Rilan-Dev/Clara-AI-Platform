@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Brain, Eye, EyeOff } from "lucide-react";
 import axios, { isAxiosError } from "axios";
 import { setStoredToken } from "@/lib/client-auth";
@@ -13,8 +13,18 @@ const authClient = axios.create({
   timeout: 15_000,
 });
 
+function getSafeRedirect(value: string | null): string {
+  // Only allow same-origin relative paths. Never redirect to an external URL.
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+  return value;
+}
+
 export default function AdminLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = getSafeRedirect(searchParams.get("redirect"));
   const [email, setEmail]       = useState("admin@clara.ai");
   const [password, setPassword] = useState("");
   const [show, setShow]         = useState(false);
@@ -32,7 +42,13 @@ export default function AdminLogin() {
       if (data.token) {
         setStoredToken(data.token);
       }
-      router.push("/dashboard");
+
+      // Preserve the protected route that originally sent the user to login.
+      // router.replace avoids leaving the login page in browser history and
+      // router.refresh makes the newly-established auth cookie visible to the
+      // protected route/middleware on the next navigation.
+      router.replace(redirectTo);
+      router.refresh();
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         const msg = (err.response?.data as { error?: string })?.error;
