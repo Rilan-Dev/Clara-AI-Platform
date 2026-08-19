@@ -145,12 +145,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       threshold: 0.5,
       prefix_padding_ms: 300,
       silence_duration_ms: 700,
+      // The client explicitly calls response.create after RAG retrieval.
+      // Automatic responses would race that path and can truncate/interrupt
+      // an answer before the intended response completes.
       create_response: false,
+      // Do not let server VAD accidentally cancel an assistant response because
+      // of microphone/echo activity. The UI's explicit interrupt action remains
+      // available when the user actually wants to stop the answer.
+      interrupt_response: false,
     };
     const transcription = {
       model: transcriptionModel,
       language: config.alwaysRespondIn ?? config.defaultLanguage,
     };
+
+    // Realtime output was previously inheriting config.maxTokens, whose current
+    // default is 1000. That is too small for a reliable knowledge-base answer,
+    // especially once instructions + retrieved context consume the response
+    // budget. Give Realtime a dedicated ceiling of 4096 output tokens. OpenAI
+    // charges for tokens actually generated, not for the unused ceiling, so this
+    // does not force every turn to consume 4096 tokens.
+    const realtimeMaxOutputTokens = 4096;
 
     // The browser-side hook already performs the KB retrieval before issuing
     // response.create. Keep the Realtime session free of an automatic tool call
@@ -159,7 +174,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       model,
       voice,
       instructions,
-      maxOutputTokens: resolved?.maxTokens ?? config.maxTokens,
+      maxOutputTokens: realtimeMaxOutputTokens,
       turnDetection,
       transcription,
       tools: [],
@@ -185,6 +200,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...session,
         model,
         voice,
+        max_output_tokens: realtimeMaxOutputTokens,
         turn_detection: turnDetection,
         input_audio_transcription: transcription,
         kbId: ctx.kbId,
