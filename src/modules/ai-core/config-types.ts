@@ -7,6 +7,7 @@ export type AISurface = "chat" | "rag-embedding" | "realtime" | "embed";
 export type ResolutionSource =
   | "env"
   | "org"
+  | "project"
   | "kb_override"
   | "assistant_config"
   | null;
@@ -17,16 +18,13 @@ export type VoiceResolutionSource = ResolutionSource;
 
 export interface PlatformAIDefaults {
   provider: AIProvider;
-  models: Record<
-    AIProvider,
-    {
-      chat: string | null;
-      embedding: string | null;
-      realtime: string | null;
-      transcription: string | null;
-      defaultVoice: string | null;
-    }
-  >;
+  models: Record<AIProvider, {
+    chat: string | null;
+    embedding: string | null;
+    realtime: string | null;
+    transcription: string | null;
+    defaultVoice: string | null;
+  }>;
   limits: {
     chatMaxTokens: number | null;
     realtimeMaxTokens: number | null;
