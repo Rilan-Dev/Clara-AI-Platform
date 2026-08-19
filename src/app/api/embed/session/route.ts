@@ -2,9 +2,9 @@
  * POST /api/embed/session
  * OPTIONS /api/embed/session
  *
- * Public demo voice-session endpoint. Demo traffic is resolved entirely from
- * Platform Admin -> Demo settings; visitors never choose an organisation, KB,
- * provider, model, or voice.
+ * Public embed voice-session endpoint. The embed key resolves the KB and its
+ * owning organisation first; AI provider/model/voice/limits are then resolved
+ * through the shared tenant-aware AI resolver. Secrets remain server-side.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -16,8 +16,11 @@ import {
 } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
-import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
+import {
+  AIConfigResolutionError,
+  getProviderApiKey,
+  resolveAIConfig,
+} from "@/modules/ai-core/resolve";
 import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
@@ -27,10 +30,10 @@ const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
-type DemoProvider = "openai" | "gemini";
 
-function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
-  return settings.find((s) => s.key === key)?.value?.trim() ?? "";
+function envNumber(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) ? value : fallback;
 }
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
@@ -47,53 +50,63 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
-    const authHeader = req.headers.get("authorization") ?? "";
-    const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
-
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);
     if (voiceDenied) return voiceDenied;
 
-    const [kb, config] = await Promise.all([
+    const [kb, config, resolved] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfig(ctx.kbId),
+      resolveAIConfig({ kbId: ctx.kbId, surface: "embed" }),
     ]);
 
     if (!kb || !config) {
       return NextResponse.json(
-        { error: "Demo knowledge-base configuration not found", kbId: ctx.kbId },
+        { error: "Knowledge-base configuration not found", kbId: ctx.kbId },
         { status: 404, headers: corsHeaders },
       );
     }
 
-    const settings = isDemo ? await getPlatformEnvSettings() : [];
-    const demoProviderRaw = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
-      process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
-    const demoProvider: DemoProvider = demoProviderRaw === "openai" ? "openai" : "gemini";
-
-    // Tenant AI configuration must never be resolved for public Demo traffic.
-    // This prevents a stale/missing tenant provider from breaking the demo.
-    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const instructions = buildSystemPrompt(config, { kbName: kb.name, surface: "realtime" });
+    const apiKey = getProviderApiKey(resolved.provider);
 
-    if (isDemo && demoProvider === "gemini") {
-      const apiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
-      if (!apiKey) {
+    console.info("[embed/session] tenant configuration", {
+      orgId: resolved.orgId,
+      kbId: resolved.kbId,
+      provider: resolved.provider,
+      providerSource: resolved.sources.provider,
+      realtimeModel: resolved.realtimeModel,
+      realtimeModelSource: resolved.sources.realtimeModel,
+      voiceId: resolved.voiceId,
+      voiceSource: resolved.sources.voiceId,
+      transcriptionModel: resolved.transcriptionModel,
+      transcriptionSource: resolved.sources.transcriptionModel,
+      maxTokens: resolved.maxTokens,
+      maxTokensSource: resolved.sources.maxTokens,
+      temperature: resolved.temperature,
+      temperatureSource: resolved.sources.temperature,
+      flags: resolved.flags,
+      apiKeyConfigured: Boolean(apiKey),
+    });
+
+    if (!apiKey) {
+      const envName = resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+      return NextResponse.json(
+        { error: `${resolved.provider} is selected for this tenant, but ${envName} is not configured on the server.` },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
+    if (resolved.provider === "gemini") {
+      if (!resolved.realtimeModel) {
         return NextResponse.json(
-          { error: "Demo Gemini voice is not configured. Set the provider to OpenAI or configure Gemini in Platform Admin -> Demo." },
+          { error: "Gemini realtime model is not configured for this tenant." },
           { status: 503, headers: corsHeaders },
         );
       }
 
-      const rawModel = setting(settings, "DEMO_GEMINI_LIVE_MODEL") ||
-        process.env.DEMO_GEMINI_LIVE_MODEL?.trim() || "";
-      if (!rawModel) {
-        return NextResponse.json(
-          { error: "Demo Gemini realtime model is not configured. Switch Platform Admin -> Demo to OpenAI or configure a supported Gemini realtime model." },
-          { status: 503, headers: corsHeaders },
-        );
-      }
-      const model = rawModel.startsWith("models/") ? rawModel : `models/${rawModel}`;
-      const voice = setting(settings, "DEMO_GEMINI_LIVE_VOICE") || process.env.DEMO_GEMINI_LIVE_VOICE?.trim() || "Aoede";
+      const model = resolved.realtimeModel.startsWith("models/")
+        ? resolved.realtimeModel
+        : `models/${resolved.realtimeModel}`;
 
       return NextResponse.json(
         {
@@ -101,80 +114,58 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           kbId: ctx.kbId,
           wsUrl: `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`,
           model,
-          voice,
+          voice: resolved.voiceId,
           instructions,
           inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
           welcomeMessage: config.welcomeMessage ?? "",
+          config: {
+            orgId: resolved.orgId,
+            provider: resolved.provider,
+            realtimeModel: resolved.realtimeModel,
+            voiceId: resolved.voiceId,
+            transcriptionModel: resolved.transcriptionModel,
+            maxTokens: resolved.maxTokens,
+            temperature: resolved.temperature,
+          },
         },
         { headers: corsHeaders },
       );
     }
 
-    if (isDemo && demoProvider !== "openai") {
+    if (!resolved.realtimeModel) {
       return NextResponse.json(
-        { error: `Unsupported Demo AI provider: ${demoProviderRaw}` },
-        { status: 400, headers: corsHeaders },
-      );
-    }
-
-    const apiKey =
-      (isDemo ? setting(settings, "DEMO_OPENAI_API_KEY") : "") ||
-      (isDemo ? process.env.DEMO_OPENAI_API_KEY?.trim() : process.env.OPENAI_API_KEY?.trim()) ||
-      "";
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Demo OpenAI voice is not configured. Set the OpenAI API key in Platform Admin -> Demo." },
+        { error: "OpenAI realtime model is not configured for this tenant." },
         { status: 503, headers: corsHeaders },
       );
     }
 
-    const model = (isDemo ? setting(settings, "DEMO_OPENAI_REALTIME_MODEL") : "") ||
-      (isDemo ? process.env.DEMO_OPENAI_REALTIME_MODEL?.trim() : "") ||
-      resolved?.realtimeModel || process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-2.1";
-    const voice = (isDemo ? setting(settings, "DEMO_OPENAI_VOICE") : "") ||
-      (isDemo ? process.env.DEMO_OPENAI_VOICE?.trim() : "") ||
-      resolved?.voiceId || config.voiceId || "marin";
-    const transcriptionModel = (isDemo ? setting(settings, "DEMO_OPENAI_TRANSCRIPTION_MODEL") : "") ||
-      (isDemo ? process.env.DEMO_OPENAI_TRANSCRIPTION_MODEL?.trim() : "") ||
-      resolved?.transcriptionModel || "gpt-4o-mini-transcribe";
-
     const turnDetection = {
       type: "server_vad" as const,
-      threshold: 0.5,
-      prefix_padding_ms: 300,
-      silence_duration_ms: 700,
-      // The client explicitly calls response.create after RAG retrieval.
-      // Automatic responses would race that path and can truncate/interrupt
-      // an answer before the intended response completes.
+      threshold: envNumber("OPENAI_REALTIME_VAD_THRESHOLD", 0.5),
+      prefix_padding_ms: envNumber("OPENAI_REALTIME_VAD_PREFIX_MS", 300),
+      silence_duration_ms: envNumber("OPENAI_REALTIME_VAD_SILENCE_MS", 700),
       create_response: false,
-      // Do not let server VAD accidentally cancel an assistant response because
-      // of microphone/echo activity. The UI's explicit interrupt action remains
-      // available when the user actually wants to stop the answer.
       interrupt_response: false,
     };
-    const transcription = {
-      model: transcriptionModel,
-      language: config.alwaysRespondIn ?? config.defaultLanguage,
-    };
 
-    // Realtime output was previously inheriting config.maxTokens, whose current
-    // default is 1000. That is too small for a reliable knowledge-base answer,
-    // especially once instructions + retrieved context consume the response
-    // budget. Give Realtime a dedicated ceiling of 4096 output tokens. OpenAI
-    // charges for tokens actually generated, not for the unused ceiling, so this
-    // does not force every turn to consume 4096 tokens.
-    const realtimeMaxOutputTokens = 4096;
+    const transcription = resolved.transcriptionModel
+      ? {
+          model: resolved.transcriptionModel,
+          language: config.alwaysRespondIn ?? config.defaultLanguage,
+        }
+      : undefined;
 
-    // The browser-side hook already performs the KB retrieval before issuing
-    // response.create. Keep the Realtime session free of an automatic tool call
-    // so there is exactly one response path per user turn.
+    // The effective output limit is resolved from Assistant -> KB override ->
+    // Organisation -> server environment. The handler deliberately contains no
+    // provider/model/token constant so tenant settings remain authoritative.
+    const realtimeMaxOutputTokens = resolved.maxTokens;
+
     const realtimeSession = buildOpenAIRealtimeSession({
-      model,
-      voice,
+      model: resolved.realtimeModel,
+      voice: resolved.voiceId ?? undefined,
       instructions,
-      maxOutputTokens: realtimeMaxOutputTokens,
+      maxOutputTokens: realtimeMaxOutputTokens ?? undefined,
       turnDetection,
       transcription,
       tools: [],
@@ -188,24 +179,40 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         {
           error: `OpenAI Realtime session creation failed (${result.status})`,
           details: result.errorText,
-          model,
+          model: resolved.realtimeModel,
+          orgId: resolved.orgId,
+          kbId: resolved.kbId,
         },
-        { status: result.status >= 400 && result.status < 600 ? result.status : 502, headers: corsHeaders },
+        {
+          status: result.status >= 400 && result.status < 600 ? result.status : 502,
+          headers: corsHeaders,
+        },
       );
     }
 
-    const session = result.data;
     return NextResponse.json(
       {
-        ...session,
-        model,
-        voice,
+        ...result.data,
+        model: resolved.realtimeModel,
+        voice: resolved.voiceId,
         max_output_tokens: realtimeMaxOutputTokens,
         turn_detection: turnDetection,
         input_audio_transcription: transcription,
-        kbId: ctx.kbId,
-        provider: "openai",
+        kbId: resolved.kbId,
+        orgId: resolved.orgId,
+        provider: resolved.provider,
         welcomeMessage: config.welcomeMessage ?? "",
+        config: {
+          orgId: resolved.orgId,
+          provider: resolved.provider,
+          realtimeModel: resolved.realtimeModel,
+          voiceId: resolved.voiceId,
+          transcriptionModel: resolved.transcriptionModel,
+          maxTokens: resolved.maxTokens,
+          temperature: resolved.temperature,
+          sources: resolved.sources,
+          flags: resolved.flags,
+        },
       },
       { headers: corsHeaders },
     );
