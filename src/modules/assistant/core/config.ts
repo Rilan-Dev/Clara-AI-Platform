@@ -3,22 +3,70 @@ const OUT_OF_SCOPE_REDIRECT =
 
 /**
  * Canonical language catalog used by assistant configuration and runtime
- * prompt generation. Keep this list in sync with the language controls shown
- * in the KB configuration UI.
+ * prompt generation.
+ *
+ * These are ISO-639-1 language codes supported by OpenAI speech models and
+ * suitable for the platform's language policy. Language selection is enforced
+ * through instructions; it is not sent as a model-specific response-language
+ * parameter because OpenAI model support varies by endpoint/model.
  */
 export const SUPPORTED_LANGUAGES = [
-  { code: "en", label: "English" },
+  { code: "af", label: "Afrikaans" },
   { code: "ar", label: "Arabic" },
-  { code: "fr", label: "French" },
-  { code: "es", label: "Spanish" },
-  { code: "de", label: "German" },
+  { code: "hy", label: "Armenian" },
+  { code: "az", label: "Azerbaijani" },
+  { code: "be", label: "Belarusian" },
+  { code: "bs", label: "Bosnian" },
+  { code: "bg", label: "Bulgarian" },
+  { code: "ca", label: "Catalan" },
   { code: "zh", label: "Chinese" },
-  { code: "ja", label: "Japanese" },
-  { code: "pt", label: "Portuguese" },
-  { code: "tr", label: "Turkish" },
-  { code: "ru", label: "Russian" },
+  { code: "hr", label: "Croatian" },
+  { code: "cs", label: "Czech" },
+  { code: "da", label: "Danish" },
+  { code: "nl", label: "Dutch" },
+  { code: "en", label: "English" },
+  { code: "et", label: "Estonian" },
+  { code: "fi", label: "Finnish" },
+  { code: "fr", label: "French" },
+  { code: "gl", label: "Galician" },
+  { code: "de", label: "German" },
+  { code: "el", label: "Greek" },
+  { code: "he", label: "Hebrew" },
   { code: "hi", label: "Hindi" },
+  { code: "hu", label: "Hungarian" },
+  { code: "is", label: "Icelandic" },
+  { code: "id", label: "Indonesian" },
+  { code: "it", label: "Italian" },
+  { code: "ja", label: "Japanese" },
+  { code: "kn", label: "Kannada" },
+  { code: "kk", label: "Kazakh" },
+  { code: "ko", label: "Korean" },
+  { code: "lv", label: "Latvian" },
+  { code: "lt", label: "Lithuanian" },
+  { code: "mk", label: "Macedonian" },
+  { code: "ms", label: "Malay" },
+  { code: "mr", label: "Marathi" },
+  { code: "ne", label: "Nepali" },
+  { code: "no", label: "Norwegian" },
+  { code: "fa", label: "Persian" },
+  { code: "pl", label: "Polish" },
+  { code: "pt", label: "Portuguese" },
+  { code: "ro", label: "Romanian" },
+  { code: "ru", label: "Russian" },
+  { code: "sr", label: "Serbian" },
+  { code: "sk", label: "Slovak" },
+  { code: "sl", label: "Slovenian" },
+  { code: "es", label: "Spanish" },
+  { code: "sw", label: "Swahili" },
+  { code: "sv", label: "Swedish" },
+  { code: "tl", label: "Tagalog" },
+  { code: "ta", label: "Tamil" },
+  { code: "th", label: "Thai" },
+  { code: "tr", label: "Turkish" },
+  { code: "uk", label: "Ukrainian" },
   { code: "ur", label: "Urdu" },
+  { code: "vi", label: "Vietnamese" },
+  { code: "cy", label: "Welsh" },
 ] as const;
 
 const LANGUAGE_LABELS: Record<string, string> = Object.fromEntries(
@@ -112,9 +160,6 @@ function cleanLanguagePreferences(
     ),
   );
 
-  // The configured assistant/default language must always be available to the
-  // customer language set. This prevents an inconsistent DB configuration
-  // from producing contradictory runtime instructions.
   if (!cleaned.includes(primary)) cleaned.unshift(primary);
 
   return {
@@ -179,11 +224,8 @@ export function buildLanguageGuidance(preferences: LanguagePreferences) {
 
 export const assistantPrompts = {
   suggestedPrompts: SUGGESTED_PROMPT_PRESETS,
-
   createFallbackSummary,
-
   language: LANGUAGE_DEFAULTS,
-
   voice: {
     sessionInstructions: VOICE_SESSION_INSTRUCTIONS,
     quickResponseInstructions:
@@ -194,7 +236,6 @@ export const assistantPrompts = {
     followUpContextLabel: "Additional supporting detail:",
     outOfScopeRedirect: OUT_OF_SCOPE_REDIRECT,
   },
-
   chat: {
     systemInstructions: CHAT_SYSTEM_INSTRUCTIONS,
   },
