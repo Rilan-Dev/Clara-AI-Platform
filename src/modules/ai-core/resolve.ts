@@ -1,9 +1,6 @@
 import { getProjectById } from "@/modules/organisations/core/db";
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
-import {
-  getAssistantConfig,
-  getKnowledgeBaseById,
-} from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import type {
@@ -22,9 +19,16 @@ export class AIConfigResolutionError extends Error {
   }
 }
 
-function parsePositiveInt(value: string | undefined, fallback: number): number {
+function parsePositiveInt(value: string | undefined): number | null {
+  if (!value?.trim()) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseNumber(value: string | undefined): number | null {
+  if (!value?.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function getPlatformAIDefaults(): PlatformAIDefaults {
@@ -50,19 +54,14 @@ export function getPlatformAIDefaults(): PlatformAIDefaults {
       },
     },
     limits: {
-      chatMaxTokens: parsePositiveInt(process.env.OPENAI_CHAT_MAX_TOKENS, 1500),
-      realtimeMaxTokens: parsePositiveInt(process.env.OPENAI_REALTIME_MAX_TOKENS, 500),
-      maxTemperature: Number.isFinite(Number(process.env.OPENAI_REALTIME_TEMPERATURE))
-        ? Number(process.env.OPENAI_REALTIME_TEMPERATURE)
-        : 1,
+      chatMaxTokens: parsePositiveInt(process.env.OPENAI_CHAT_MAX_TOKENS),
+      realtimeMaxTokens: parsePositiveInt(process.env.OPENAI_REALTIME_MAX_TOKENS),
+      maxTemperature: parseNumber(process.env.OPENAI_REALTIME_TEMPERATURE),
     },
   };
 }
 
-function getAllowedValues(
-  map: ProviderScopedList | undefined,
-  provider: AIProvider,
-): string[] | null {
+function getAllowedValues(map: ProviderScopedList | undefined, provider: AIProvider): string[] | null {
   const values = map?.[provider];
   return Array.isArray(values) && values.length > 0 ? values : null;
 }
@@ -72,9 +71,7 @@ function pickAllowedString(
   allowed: string[] | null,
   fallback: string | null,
 ): string | null {
-  if (!allowed || allowed.length === 0) {
-    return candidate ?? fallback ?? null;
-  }
+  if (!allowed || allowed.length === 0) return candidate ?? fallback ?? null;
   if (candidate && allowed.includes(candidate)) return candidate;
   if (fallback && allowed.includes(fallback)) return fallback;
   return allowed[0] ?? null;
@@ -86,29 +83,18 @@ function clampNumber(value: number | null, max: number | null): number | null {
   return Math.min(value, max);
 }
 
-function assertSurfaceEnabled(
-  surface: AISurface,
-  flags: ResolvedAIConfig["flags"],
-): void {
+function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags"]): void {
   if (surface === "realtime" || surface === "embed") {
-    if (!flags.voiceEnabled) {
-      throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
-    }
-    if (!flags.realtimeEnabled) {
-      throw new AIConfigResolutionError("Realtime is disabled for this organisation.");
-    }
+    if (!flags.voiceEnabled) throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
+    if (!flags.realtimeEnabled) throw new AIConfigResolutionError("Realtime is disabled for this organisation.");
   }
-
   if (surface === "embed" && !flags.publicEmbedEnabled) {
     throw new AIConfigResolutionError("Public embed is disabled for this knowledge base.");
   }
 }
 
-export async function resolveAIConfig(
-  input: ResolveAIConfigInput,
-): Promise<ResolvedAIConfig> {
+export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<ResolvedAIConfig> {
   const defaults = getPlatformAIDefaults();
-
   const kb = input.kbId ? await getKnowledgeBaseById(input.kbId) : null;
   const project = kb ? await getProjectById(kb.projectId) : null;
   const orgId = input.orgId ?? project?.orgId ?? null;
@@ -121,7 +107,6 @@ export async function resolveAIConfig(
 
   let provider: AIProvider = defaults.provider;
   let providerSource: ResolvedAIConfig["sources"]["provider"] = "env";
-
   if (orgSettings?.defaultProvider) {
     provider = orgSettings.defaultProvider;
     providerSource = "org";
@@ -131,11 +116,9 @@ export async function resolveAIConfig(
     providerSource = "kb_override";
   }
 
-  const allowedProviders =
-    orgSettings?.allowedProviders?.length
-      ? orgSettings.allowedProviders
-      : (["openai", "gemini"] as AIProvider[]);
-
+  const allowedProviders = orgSettings?.allowedProviders?.length
+    ? orgSettings.allowedProviders
+    : (["openai", "gemini"] as AIProvider[]);
   if (!allowedProviders.includes(provider)) {
     provider = allowedProviders[0] ?? defaults.provider;
     providerSource = "org";
@@ -148,66 +131,30 @@ export async function resolveAIConfig(
   const defaultVoice = defaults.models[provider].defaultVoice;
 
   const chatCandidate = kbOverrides?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
-  const embeddingCandidate =
-    kbOverrides?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
-  const realtimeCandidate =
-    kbOverrides?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
-  const transcriptionCandidate =
-    kbOverrides?.transcriptionModel ??
-    orgSettings?.defaultTranscriptionModel ??
-    defaultTranscription;
+  const embeddingCandidate = kbOverrides?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
+  const realtimeCandidate = kbOverrides?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
+  const transcriptionCandidate = kbOverrides?.transcriptionModel ?? orgSettings?.defaultTranscriptionModel ?? defaultTranscription;
 
-  const chatModel = pickAllowedString(
-    chatCandidate,
-    getAllowedValues(orgSettings?.allowedChatModels, provider),
-    defaultChat,
-  );
-  const embeddingModel = pickAllowedString(
-    embeddingCandidate,
-    getAllowedValues(orgSettings?.allowedEmbeddingModels, provider),
-    defaultEmbedding,
-  );
-  const realtimeModel = pickAllowedString(
-    realtimeCandidate,
-    getAllowedValues(orgSettings?.allowedRealtimeModels, provider),
-    defaultRealtime,
-  );
-  const voiceId =
-    input.surface === "realtime" || input.surface === "embed"
-      ? pickAllowedString(
-          assistantConfig?.voiceId ?? defaultVoice,
-          getAllowedValues(orgSettings?.allowedVoices, provider),
-          defaultVoice,
-        )
-      : null;
+  const chatModel = pickAllowedString(chatCandidate, getAllowedValues(orgSettings?.allowedChatModels, provider), defaultChat);
+  const embeddingModel = pickAllowedString(embeddingCandidate, getAllowedValues(orgSettings?.allowedEmbeddingModels, provider), defaultEmbedding);
+  const realtimeModel = pickAllowedString(realtimeCandidate, getAllowedValues(orgSettings?.allowedRealtimeModels, provider), defaultRealtime);
+  const voiceId = input.surface === "realtime" || input.surface === "embed"
+    ? pickAllowedString(assistantConfig?.voiceId ?? defaultVoice, getAllowedValues(orgSettings?.allowedVoices, provider), defaultVoice)
+    : null;
 
   const flags = {
-    voiceEnabled:
-      (orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
+    voiceEnabled: (orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
     realtimeEnabled: orgSettings?.enableRealtime ?? true,
-    publicEmbedEnabled:
-      (orgSettings?.enablePublicEmbed ?? true) &&
-      !(kbOverrides?.disablePublicEmbed ?? false),
+    publicEmbedEnabled: (orgSettings?.enablePublicEmbed ?? true) && !(kbOverrides?.disablePublicEmbed ?? false),
   };
-
   assertSurfaceEnabled(input.surface, flags);
 
   const rawTemperature = assistantConfig?.temperature ?? null;
   const rawMaxTokens = assistantConfig?.maxTokens ?? null;
-
-  const temperature = clampNumber(
-    rawTemperature,
-    orgSettings?.maxTemperature ?? defaults.limits.maxTemperature,
-  );
-
-  const maxTokensCap =
-    input.surface === "chat"
-      ? orgSettings?.maxChatTokens ?? defaults.limits.chatMaxTokens
-      : orgSettings?.maxRealtimeTokens ?? defaults.limits.realtimeMaxTokens;
-
-  // Tenant/assistant settings win. If no assistant override exists, the org/env
-  // limit itself becomes the effective generation ceiling. Nothing is hardcoded
-  // in the request handlers.
+  const temperature = clampNumber(rawTemperature, orgSettings?.maxTemperature ?? defaults.limits.maxTemperature);
+  const maxTokensCap = input.surface === "chat"
+    ? orgSettings?.maxChatTokens ?? defaults.limits.chatMaxTokens
+    : orgSettings?.maxRealtimeTokens ?? defaults.limits.realtimeMaxTokens;
   const maxTokens = clampNumber(rawMaxTokens ?? maxTokensCap, maxTokensCap);
 
   if (input.surface === "chat" && !chatModel) {
@@ -235,38 +182,13 @@ export async function resolveAIConfig(
     flags,
     sources: {
       provider: providerSource,
-      chatModel:
-        kbOverrides?.chatModel != null
-          ? "kb_override"
-          : orgSettings?.defaultChatModel != null
-          ? "org"
-          : "env",
-      embeddingModel:
-        kbOverrides?.embeddingModel != null
-          ? "kb_override"
-          : orgSettings?.defaultEmbeddingModel != null
-          ? "org"
-          : "env",
-      realtimeModel:
-        kbOverrides?.realtimeModel != null
-          ? "kb_override"
-          : orgSettings?.defaultRealtimeModel != null
-          ? "org"
-          : "env",
-      transcriptionModel:
-        kbOverrides?.transcriptionModel != null
-          ? "kb_override"
-          : orgSettings?.defaultTranscriptionModel != null
-          ? "org"
-          : "env",
+      chatModel: kbOverrides?.chatModel != null ? "kb_override" : orgSettings?.defaultChatModel != null ? "org" : "env",
+      embeddingModel: kbOverrides?.embeddingModel != null ? "kb_override" : orgSettings?.defaultEmbeddingModel != null ? "org" : "env",
+      realtimeModel: kbOverrides?.realtimeModel != null ? "kb_override" : orgSettings?.defaultRealtimeModel != null ? "org" : "env",
+      transcriptionModel: kbOverrides?.transcriptionModel != null ? "kb_override" : orgSettings?.defaultTranscriptionModel != null ? "org" : "env",
       voiceId: assistantConfig?.voiceId != null ? "assistant_config" : "env",
-      temperature: assistantConfig?.temperature != null ? "assistant_config" : null,
-      maxTokens:
-        assistantConfig?.maxTokens != null
-          ? "assistant_config"
-          : orgSettings?.maxRealtimeTokens != null || orgSettings?.maxChatTokens != null
-          ? "org"
-          : "env",
+      temperature: assistantConfig?.temperature != null ? "assistant_config" : orgSettings?.maxTemperature != null ? "org" : defaults.limits.maxTemperature != null ? "env" : null,
+      maxTokens: assistantConfig?.maxTokens != null ? "assistant_config" : orgSettings?.maxRealtimeTokens != null || orgSettings?.maxChatTokens != null ? "org" : defaults.limits.realtimeMaxTokens != null || defaults.limits.chatMaxTokens != null ? "env" : null,
     },
   };
 
@@ -299,14 +221,11 @@ export function getProviderApiKey(provider: AIProvider): string | undefined {
 
 export function toProviderConfig(resolved: ResolvedAIConfig): ProviderConfig {
   const embeddingDimension = Number(process.env[`${resolved.provider.toUpperCase()}_EMBEDDING_DIMENSION`]);
-
   return {
     provider: resolved.provider,
     apiKey: getProviderApiKey(resolved.provider),
     chatModel: resolved.chatModel ?? undefined,
     embeddingModel: resolved.embeddingModel ?? undefined,
-    embeddingDimension: Number.isFinite(embeddingDimension) && embeddingDimension > 0
-      ? embeddingDimension
-      : undefined,
+    embeddingDimension: Number.isFinite(embeddingDimension) && embeddingDimension > 0 ? embeddingDimension : undefined,
   };
 }
