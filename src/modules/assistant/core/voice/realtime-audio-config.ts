@@ -41,6 +41,19 @@ export function getRealtimeAudioPolicy(): RealtimeAudioPolicy {
   };
 }
 
+/**
+ * Keep browser microphone processing in one place so the realtime hook cannot
+ * accidentally fall back to `{ audio: true }` and lose noise/echo handling.
+ */
+export function buildMicrophoneConstraints(policy: RealtimeAudioPolicy) {
+  return {
+    echoCancellation: policy.echoCancellation,
+    noiseSuppression: policy.noiseSuppression,
+    autoGainControl: policy.autoGainControl,
+    channelCount: 1,
+  } as const;
+}
+
 export function hasUsableTranscript(text: string, minLength: number): boolean {
   const normalized = text.normalize("NFKC").replace(/\s+/g, " ").trim();
   if (normalized.length < minLength) return false;
