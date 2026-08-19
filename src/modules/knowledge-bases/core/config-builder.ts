@@ -6,7 +6,11 @@
  */
 
 import type { AssistantConfig } from "./models";
-import { describeLanguage } from "@/modules/assistant/core/config";
+import {
+  buildLanguageGuidance,
+  describeLanguage,
+  resolveLanguagePreferences,
+} from "@/modules/assistant/core/config";
 
 export type SessionPromptContext = {
   /** KB display name, e.g. "HR Policy Docs" */
@@ -94,24 +98,25 @@ export function buildSystemPrompt(
   }
 
   // ── 4. Language policy ─────────────────────────────────────────────────────
-  if (config.alwaysRespondIn) {
-    const lang = describeLanguage(config.alwaysRespondIn);
-    parts.push(`Always respond in ${lang}, regardless of the language the user speaks.`);
-  } else {
-    const defaultLang = describeLanguage(config.defaultLanguage);
-    parts.push(`Default response language: ${defaultLang}.`);
+  // Normalize persisted values before composing the prompt so a stale/invalid
+  // DB value cannot silently produce contradictory language instructions.
+  const languagePreferences = resolveLanguagePreferences({
+    assistant: config.alwaysRespondIn ?? config.defaultLanguage,
+    customer: config.allowedLanguages,
+  });
+  const languageGuidance = buildLanguageGuidance(languagePreferences);
 
-    if (config.allowedLanguages.length > 1) {
-      const others = config.allowedLanguages
-        .filter((l) => l !== config.defaultLanguage)
-        .map(describeLanguage)
-        .join(", ");
-      parts.push(
-        `You may also respond in: ${others}. ` +
-        `Mirror the language the user is speaking, then guide the conversation ` +
-        `back to ${defaultLang} if they switch away.`
-      );
-    }
+  if (config.alwaysRespondIn) {
+    const forcedLanguage = describeLanguage(languagePreferences.assistant);
+    parts.push(
+      `Language policy: Always respond in ${forcedLanguage}, regardless of the language the user speaks. ` +
+      "Do not switch output language unless this configuration is changed."
+    );
+  } else {
+    parts.push(
+      `Language policy: ${languageGuidance.session} ` +
+      `The configured customer languages are ${languagePreferences.customer.map(describeLanguage).join(", ")}.`
+    );
   }
 
   // ── 5. Strict mode / out-of-scope handling ─────────────────────────────────
@@ -177,18 +182,18 @@ export function buildLanguageGuidanceFromConfig(config: AssistantConfig): {
   session: string;
   follow: string;
 } {
-  const primary = describeLanguage(config.defaultLanguage);
-  const adapt =
-    "If the user switches languages, mirror them briefly, then guide the " +
-    `conversation back to ${primary}.`;
+  const preferences = resolveLanguagePreferences({
+    assistant: config.alwaysRespondIn ?? config.defaultLanguage,
+    customer: config.allowedLanguages,
+  });
+  const guidance = buildLanguageGuidance(preferences);
 
-  const session = config.alwaysRespondIn
-    ? `Always respond in ${describeLanguage(config.alwaysRespondIn)}.`
-    : [`Default to ${primary}.`, adapt].join(" ");
-
-  const follow = config.alwaysRespondIn
-    ? `Continue in ${describeLanguage(config.alwaysRespondIn)}.`
-    : [`When expanding on an answer, continue in ${primary} unless the user requests otherwise.`, adapt].join(" ");
-
-  return { session, follow };
+  return {
+    session: config.alwaysRespondIn
+      ? `Always respond in ${describeLanguage(preferences.assistant)}. Do not switch output language unless this configuration is changed.`
+      : guidance.session,
+    follow: config.alwaysRespondIn
+      ? `Continue in ${describeLanguage(preferences.assistant)}.`
+      : guidance.follow,
+  };
 }
