@@ -25,16 +25,12 @@ import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
 } from "@/modules/assistant/api/openai-realtime";
+import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
 
 const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
-
-function envNumber(name: string, fallback: number): number {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) ? value : fallback;
-}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -68,6 +64,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const instructions = buildSystemPrompt(config, { kbName: kb.name, surface: "realtime" });
     const apiKey = getProviderApiKey(resolved.provider);
+    const audioPolicy = getRealtimeAudioPolicy();
 
     console.info("[embed/session] tenant configuration", {
       orgId: resolved.orgId,
@@ -84,6 +81,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       maxTokensSource: resolved.sources.maxTokens,
       temperature: resolved.temperature,
       temperatureSource: resolved.sources.temperature,
+      audioPolicy,
       flags: resolved.flags,
       apiKeyConfigured: Boolean(apiKey),
     });
@@ -119,6 +117,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
           welcomeMessage: config.welcomeMessage ?? "",
+          audioPolicy,
           config: {
             orgId: resolved.orgId,
             provider: resolved.provider,
@@ -142,9 +141,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const turnDetection = {
       type: "server_vad" as const,
-      threshold: envNumber("OPENAI_REALTIME_VAD_THRESHOLD", 0.5),
-      prefix_padding_ms: envNumber("OPENAI_REALTIME_VAD_PREFIX_MS", 300),
-      silence_duration_ms: envNumber("OPENAI_REALTIME_VAD_SILENCE_MS", 700),
+      threshold: audioPolicy.vadThreshold,
+      prefix_padding_ms: audioPolicy.prefixPaddingMs,
+      silence_duration_ms: audioPolicy.silenceDurationMs,
       create_response: false,
       interrupt_response: false,
     };
@@ -156,9 +155,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         }
       : undefined;
 
-    // The effective output limit is resolved from Assistant -> KB override ->
-    // Organisation -> server environment. The handler deliberately contains no
-    // provider/model/token constant so tenant settings remain authoritative.
     const realtimeMaxOutputTokens = resolved.maxTokens;
 
     const realtimeSession = buildOpenAIRealtimeSession({
@@ -198,6 +194,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         max_output_tokens: realtimeMaxOutputTokens,
         turn_detection: turnDetection,
         input_audio_transcription: transcription,
+        audio_policy: audioPolicy,
         kbId: resolved.kbId,
         orgId: resolved.orgId,
         provider: resolved.provider,
