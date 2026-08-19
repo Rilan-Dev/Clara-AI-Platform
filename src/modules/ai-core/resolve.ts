@@ -35,26 +35,26 @@ export function getPlatformAIDefaults(): PlatformAIDefaults {
     provider: normalizedProvider,
     models: {
       openai: {
-        chat: process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini",
-        embedding: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
-        realtime: process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini",
-        transcription:
-          process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ?? "gpt-4o-mini-transcribe",
-        defaultVoice: process.env.OPENAI_REALTIME_VOICE ?? "alloy",
+        chat: process.env.OPENAI_CHAT_MODEL?.trim() || null,
+        embedding: process.env.OPENAI_EMBEDDING_MODEL?.trim() || null,
+        realtime: process.env.OPENAI_REALTIME_MODEL?.trim() || null,
+        transcription: process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL?.trim() || null,
+        defaultVoice: process.env.OPENAI_REALTIME_VOICE?.trim() || null,
       },
       gemini: {
-        chat: process.env.GEMINI_CHAT_MODEL ?? "gemini-2.0-flash",
-        embedding: process.env.GEMINI_EMBEDDING_MODEL ?? "text-embedding-004",
-        realtime:
-          process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio-preview-12-2025",
+        chat: process.env.GEMINI_CHAT_MODEL?.trim() || null,
+        embedding: process.env.GEMINI_EMBEDDING_MODEL?.trim() || null,
+        realtime: process.env.GEMINI_LIVE_MODEL?.trim() || null,
         transcription: null,
-        defaultVoice: process.env.GEMINI_LIVE_VOICE ?? "Aoede",
+        defaultVoice: process.env.GEMINI_LIVE_VOICE?.trim() || null,
       },
     },
     limits: {
       chatMaxTokens: parsePositiveInt(process.env.OPENAI_CHAT_MAX_TOKENS, 1500),
       realtimeMaxTokens: parsePositiveInt(process.env.OPENAI_REALTIME_MAX_TOKENS, 500),
-      maxTemperature: 1,
+      maxTemperature: Number.isFinite(Number(process.env.OPENAI_REALTIME_TEMPERATURE))
+        ? Number(process.env.OPENAI_REALTIME_TEMPERATURE)
+        : 1,
     },
   };
 }
@@ -90,7 +90,7 @@ function assertSurfaceEnabled(
   surface: AISurface,
   flags: ResolvedAIConfig["flags"],
 ): void {
-  if (surface === "realtime") {
+  if (surface === "realtime" || surface === "embed") {
     if (!flags.voiceEnabled) {
       throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
     }
@@ -99,16 +99,8 @@ function assertSurfaceEnabled(
     }
   }
 
-  if (surface === "embed") {
-    if (!flags.publicEmbedEnabled) {
-      throw new AIConfigResolutionError("Public embed is disabled for this knowledge base.");
-    }
-    if (!flags.voiceEnabled) {
-      throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
-    }
-    if (!flags.realtimeEnabled) {
-      throw new AIConfigResolutionError("Realtime is disabled for this organisation.");
-    }
+  if (surface === "embed" && !flags.publicEmbedEnabled) {
+    throw new AIConfigResolutionError("Public embed is disabled for this knowledge base.");
   }
 }
 
@@ -213,19 +205,22 @@ export async function resolveAIConfig(
       ? orgSettings?.maxChatTokens ?? defaults.limits.chatMaxTokens
       : orgSettings?.maxRealtimeTokens ?? defaults.limits.realtimeMaxTokens;
 
-  const maxTokens = clampNumber(rawMaxTokens, maxTokensCap);
+  // Tenant/assistant settings win. If no assistant override exists, the org/env
+  // limit itself becomes the effective generation ceiling. Nothing is hardcoded
+  // in the request handlers.
+  const maxTokens = clampNumber(rawMaxTokens ?? maxTokensCap, maxTokensCap);
 
   if (input.surface === "chat" && !chatModel) {
-    throw new AIConfigResolutionError("No chat model could be resolved.");
+    throw new AIConfigResolutionError("No chat model is configured for this tenant. Set the organisation/KB model or the corresponding server environment value.");
   }
   if (input.surface === "rag-embedding" && !embeddingModel) {
-    throw new AIConfigResolutionError("No embedding model could be resolved.");
+    throw new AIConfigResolutionError("No embedding model is configured for this tenant. Set the organisation/KB model or the corresponding server environment value.");
   }
   if ((input.surface === "realtime" || input.surface === "embed") && !realtimeModel) {
-    throw new AIConfigResolutionError("No realtime model could be resolved.");
+    throw new AIConfigResolutionError("No realtime model is configured for this tenant. Set the organisation/KB model or the corresponding server environment value.");
   }
 
-  return {
+  const resolved: ResolvedAIConfig = {
     orgId,
     kbId: input.kbId ?? null,
     provider,
@@ -266,15 +261,52 @@ export async function resolveAIConfig(
           : "env",
       voiceId: assistantConfig?.voiceId != null ? "assistant_config" : "env",
       temperature: assistantConfig?.temperature != null ? "assistant_config" : null,
-      maxTokens: assistantConfig?.maxTokens != null ? "assistant_config" : null,
+      maxTokens:
+        assistantConfig?.maxTokens != null
+          ? "assistant_config"
+          : orgSettings?.maxRealtimeTokens != null || orgSettings?.maxChatTokens != null
+          ? "org"
+          : "env",
     },
   };
+
+  console.info("[ai-config] resolved", {
+    surface: input.surface,
+    orgId,
+    kbId: input.kbId ?? null,
+    provider: resolved.provider,
+    providerSource: resolved.sources.provider,
+    chatModel: resolved.chatModel,
+    embeddingModel: resolved.embeddingModel,
+    realtimeModel: resolved.realtimeModel,
+    transcriptionModel: resolved.transcriptionModel,
+    voiceId: resolved.voiceId,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
+    sources: resolved.sources,
+    flags: resolved.flags,
+    apiKeyConfigured: Boolean(process.env[resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY"]?.trim()),
+  });
+
+  return resolved;
+}
+
+export function getProviderApiKey(provider: AIProvider): string | undefined {
+  const envKey = provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+  const value = process.env[envKey]?.trim();
+  return value || undefined;
 }
 
 export function toProviderConfig(resolved: ResolvedAIConfig): ProviderConfig {
+  const embeddingDimension = Number(process.env[`${resolved.provider.toUpperCase()}_EMBEDDING_DIMENSION`]);
+
   return {
     provider: resolved.provider,
+    apiKey: getProviderApiKey(resolved.provider),
     chatModel: resolved.chatModel ?? undefined,
     embeddingModel: resolved.embeddingModel ?? undefined,
+    embeddingDimension: Number.isFinite(embeddingDimension) && embeddingDimension > 0
+      ? embeddingDimension
+      : undefined,
   };
 }
