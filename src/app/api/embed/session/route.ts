@@ -173,7 +173,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const transcription = transcriptionModel
       ? {
           model: transcriptionModel,
-          language: defaultLanguage,
+          language: defaultLanguage ?? undefined,
         }
       : undefined;
 
