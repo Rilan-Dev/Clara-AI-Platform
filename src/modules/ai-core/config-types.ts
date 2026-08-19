@@ -28,9 +28,9 @@ export interface PlatformAIDefaults {
     }
   >;
   limits: {
-    chatMaxTokens: number;
-    realtimeMaxTokens: number;
-    maxTemperature: number;
+    chatMaxTokens: number | null;
+    realtimeMaxTokens: number | null;
+    maxTemperature: number | null;
   };
 }
 
