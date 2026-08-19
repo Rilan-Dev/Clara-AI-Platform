@@ -1,7 +1,8 @@
 /**
  * POST /api/embed/chat
- * Public visitor chat endpoint. Demo traffic uses Platform Admin -> Demo
- * provider for both retrieval and generation. Visitors never choose a KB.
+ * Public visitor chat endpoint. The embed key resolves the KB and owning
+ * organisation; AI provider/model/limits then come from the shared tenant-aware
+ * resolver. Provider secrets remain server-side in environment configuration.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -55,11 +56,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const authHeader = req.headers.get("authorization") ?? "";
     const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
 
-    const settings = isDemo ? await getPlatformEnvSettings() : [];
+    const settings = await getPlatformEnvSettings();
     if (isDemo) {
       const enabled = setting(settings, "DEMO_CHAT_ENABLED") || process.env.DEMO_CHAT_ENABLED?.trim() || "true";
       if (enabled !== "true") {
-        return NextResponse.json({ error: "Demo chat is currently disabled by the platform administrator." }, { status: 403, headers: corsHeaders });
+        return NextResponse.json(
+          { error: "Demo chat is currently disabled by the platform administrator." },
+          { status: 403, headers: corsHeaders },
+        );
       }
     }
 
@@ -69,7 +73,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     };
 
     const messages = (body.messages ?? []).filter(
-      (m) => m.role && m.content && typeof m.content === "string"
+      (m) => m.role && m.content && typeof m.content === "string",
     );
 
     if (messages.length === 0) {
@@ -87,99 +91,73 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : buildConversationAwareSearchQuery(messages, query);
     const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
 
-    const [kb, config] = await Promise.all([
+    const [kb, config, resolved] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfig(ctx.kbId),
+      resolveAIConfig({ kbId: ctx.kbId, surface: "chat" }),
     ]);
 
     if (!kb || !config) {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    // Demo traffic is fully controlled by Platform Admin -> Demo settings.
-    // Never resolve the tenant AI policy for the public demo because a stale or
-    // missing tenant provider must not block the platform's own demo.
-    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
-    if (!isDemo && resolved && !resolved.flags.publicEmbedEnabled) {
+    if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json(
         { error: "Public embed is disabled for this knowledge base" },
         { status: 403, headers: corsHeaders },
       );
     }
 
-    const demoProvider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
-      process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
+    const providerConfig: ProviderConfig = toProviderConfig(resolved);
 
-    let ragProviderConfig: ProviderConfig;
-    let providerConfig: ProviderConfig;
+    console.info("[embed/chat] tenant configuration", {
+      orgId: resolved.orgId,
+      kbId: resolved.kbId,
+      provider: resolved.provider,
+      providerSource: resolved.sources.provider,
+      chatModel: resolved.chatModel,
+      chatModelSource: resolved.sources.chatModel,
+      embeddingModel: resolved.embeddingModel,
+      embeddingModelSource: resolved.sources.embeddingModel,
+      maxTokens: resolved.maxTokens,
+      maxTokensSource: resolved.sources.maxTokens,
+      temperature: resolved.temperature,
+      temperatureSource: resolved.sources.temperature,
+      flags: resolved.flags,
+      apiKeyConfigured: Boolean(providerConfig.apiKey),
+    });
 
-    if (isDemo && demoProvider === "openai") {
-      const demoApiKey = setting(settings, "DEMO_OPENAI_API_KEY") || process.env.DEMO_OPENAI_API_KEY?.trim() || "";
-      if (!demoApiKey) {
-        return NextResponse.json(
-          { error: "Demo OpenAI API key is not configured. Set it in Platform Admin -> Demo." },
-          { status: 503, headers: corsHeaders },
-        );
-      }
-
-      const embeddingModel = setting(settings, "DEMO_OPENAI_EMBEDDING_MODEL") ||
-        process.env.DEMO_OPENAI_EMBEDDING_MODEL?.trim() || "text-embedding-3-small";
-      const embeddingDimension = embeddingModel === "text-embedding-3-large" ? 3072 : 1536;
-      ragProviderConfig = {
-        provider: "openai",
-        apiKey: demoApiKey,
-        chatModel: setting(settings, "DEMO_OPENAI_CHAT_MODEL") || process.env.DEMO_OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini",
-        embeddingModel,
-        embeddingDimension,
-      };
-      providerConfig = ragProviderConfig;
-    } else if (isDemo && demoProvider === "gemini") {
-      const demoApiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
-      if (!demoApiKey) {
-        return NextResponse.json(
-          { error: "Demo Gemini API key is not configured. Switch Platform Admin -> Demo to OpenAI or configure Gemini." },
-          { status: 503, headers: corsHeaders },
-        );
-      }
-      providerConfig = {
-        provider: "gemini",
-        apiKey: demoApiKey,
-        chatModel: setting(settings, "DEMO_GEMINI_CHAT_MODEL") || process.env.DEMO_GEMINI_CHAT_MODEL?.trim() || "gemini-3.6-flash",
-        embeddingModel: setting(settings, "DEMO_GEMINI_EMBEDDING_MODEL") || process.env.DEMO_GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
-        embeddingDimension: 3072,
-      };
-      ragProviderConfig = providerConfig;
-    } else if (isDemo) {
+    if (!providerConfig.apiKey) {
+      const envName = resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
       return NextResponse.json(
-        { error: `Unsupported Demo AI provider: ${demoProvider}` },
-        { status: 400, headers: corsHeaders },
+        { error: `${resolved.provider} is selected for this tenant, but ${envName} is not configured on the server.` },
+        { status: 503, headers: corsHeaders },
       );
-    } else {
-      if (!resolved) {
-        return NextResponse.json({ error: "AI configuration could not be resolved" }, { status: 500, headers: corsHeaders });
-      }
-      ragProviderConfig = toProviderConfig(resolved);
-      providerConfig = ragProviderConfig;
     }
 
     const t0 = Date.now();
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
       const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, {
-        providerConfig: ragProviderConfig,
+        providerConfig,
       });
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("search_timeout")), 15000)
+        setTimeout(() => reject(new Error("search_timeout")), 15000),
       );
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
     } catch (searchErr) {
       const msg = (searchErr as Error).message;
       if (msg !== "search_timeout") throw searchErr;
-      console.warn("[embed/chat] RAG search timed out (>15s), proceeding without context");
+      console.warn("[embed/chat] RAG search timed out (>15s), proceeding without context", {
+        orgId: resolved.orgId,
+        kbId: resolved.kbId,
+        provider: resolved.provider,
+        embeddingModel: resolved.embeddingModel,
+      });
     }
 
     const seen = new Set<string>();
-    const dedupedResults = searchResults.filter(r => {
+    const dedupedResults = searchResults.filter((r) => {
       const key = r.snippet.slice(0, 80).toLowerCase().replace(/\s+/g, " ");
       if (seen.has(key)) return false;
       seen.add(key);
@@ -241,8 +219,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         (async () => {
           try {
             const completionStream = provider.chatStream(chatMessages, {
-              temperature: isDemo ? Math.min(resolved?.temperature ?? config.temperature ?? 0.7, 0.35) : (resolved?.temperature ?? config.temperature),
-              maxTokens: resolved?.maxTokens ?? config.maxTokens,
+              temperature: resolved.temperature ?? config.temperature,
+              maxTokens: resolved.maxTokens ?? config.maxTokens,
             });
 
             for await (const delta of completionStream) {
