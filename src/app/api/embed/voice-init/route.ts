@@ -28,26 +28,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const [kb, config] = await Promise.all([getKnowledgeBaseById(ctx.kbId), getAssistantConfig(ctx.kbId)]);
     if (!kb || !config) return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
-    const voice = resolved.voiceId ?? config.voiceId ?? process.env.OPENAI_REALTIME_VOICE ?? "marin";
-    if ((resolved.provider ?? "openai") === "openai" && !isSupportedOpenAIRealtimeVoice(voice)) {
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "realtime" });
+    const voice = resolved.voiceId;
+    if (!voice) {
+      return NextResponse.json({ error: "No voice is assigned to this project." }, { status: 400, headers: corsHeaders });
+    }
+    if (resolved.provider === "openai" && !isSupportedOpenAIRealtimeVoice(voice)) {
       return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400, headers: corsHeaders });
     }
 
-    const systemPrompt = buildSystemPrompt(config, { kbName: kb.name });
+    const systemPrompt = buildSystemPrompt(config, {
+      kbName: kb.name,
+      surface: "realtime",
+      allowedLanguages: resolved.allowedLanguages,
+    });
+
     return NextResponse.json({
       kbId: ctx.kbId,
-      provider: resolved.provider ?? "openai",
-      model: resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-2.1-mini",
+      projectId: resolved.projectId,
+      provider: resolved.provider,
+      model: resolved.realtimeModel,
       voice,
-      geminiModel: resolved.realtimeModel ?? process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio-preview-12-2025",
-      geminiVoice: process.env.GEMINI_LIVE_VOICE ?? "Aoede",
       temperature: resolved.temperature ?? config.temperature ?? 0.7,
       maxTokens: resolved.maxTokens ?? config.maxTokens ?? 1024,
       systemPrompt,
       kbName: kb.name,
-      transcriptionModel: resolved.transcriptionModel ?? process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ?? "gpt-4o-mini-transcribe",
-      language: config.alwaysRespondIn ?? config.defaultLanguage ?? "en",
+      transcriptionModel: resolved.transcriptionModel,
+      language: resolved.defaultLanguage,
+      allowedLanguages: resolved.allowedLanguages,
     }, { headers: corsHeaders });
   } catch (err) {
     if (err instanceof AIConfigResolutionError) return NextResponse.json({ error: err.message }, { status: 400 });
