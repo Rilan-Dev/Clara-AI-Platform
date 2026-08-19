@@ -2,9 +2,8 @@
  * POST /api/embed/session
  * OPTIONS /api/embed/session
  *
- * Public embed voice-session endpoint. The embed key resolves the KB and its
- * owning organisation first; AI provider/model/voice/limits are then resolved
- * through the shared tenant-aware AI resolver. Secrets remain server-side.
+ * Public embed voice-session endpoint. Demo traffic uses the Platform Admin
+ * demo provider configuration and does not require a tenant/project AI record.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -21,6 +20,7 @@ import {
   getProviderApiKey,
   resolveAIConfig,
 } from "@/modules/ai-core/resolve";
+import { getDemoAIConfig } from "@/modules/ai-core/demo-config";
 import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
@@ -31,6 +31,10 @@ const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
+
+function isDemoRequest(req: NextRequest): boolean {
+  return (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
+}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -49,12 +53,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);
     if (voiceDenied) return voiceDenied;
 
-    const [kb, config, resolved] = await Promise.all([
+    const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfig(ctx.kbId),
-      resolveAIConfig({ kbId: ctx.kbId, surface: "embed" }),
     ]);
-
     if (!kb || !config) {
       return NextResponse.json(
         { error: "Knowledge-base configuration not found", kbId: ctx.kbId },
@@ -62,49 +64,57 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const instructions = buildSystemPrompt(config, { kbName: kb.name, surface: "realtime" });
-    const apiKey = getProviderApiKey(resolved.provider);
-    const audioPolicy = getRealtimeAudioPolicy();
-
-    console.info("[embed/session] tenant configuration", {
-      orgId: resolved.orgId,
-      kbId: resolved.kbId,
-      provider: resolved.provider,
-      providerSource: resolved.sources.provider,
-      realtimeModel: resolved.realtimeModel,
-      realtimeModelSource: resolved.sources.realtimeModel,
-      voiceId: resolved.voiceId,
-      voiceSource: resolved.sources.voiceId,
-      transcriptionModel: resolved.transcriptionModel,
-      transcriptionSource: resolved.sources.transcriptionModel,
-      maxTokens: resolved.maxTokens,
-      maxTokensSource: resolved.sources.maxTokens,
-      temperature: resolved.temperature,
-      temperatureSource: resolved.sources.temperature,
-      audioPolicy,
-      flags: resolved.flags,
-      apiKeyConfigured: Boolean(apiKey),
-    });
-
-    if (!apiKey) {
-      const envName = resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+    const isDemo = isDemoRequest(req);
+    const demoConfig = isDemo ? await getDemoAIConfig() : null;
+    if (isDemo && !demoConfig) {
       return NextResponse.json(
-        { error: `${resolved.provider} is selected for this tenant, but ${envName} is not configured on the server.` },
+        { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
         { status: 503, headers: corsHeaders },
       );
     }
 
-    if (resolved.provider === "gemini") {
-      if (!resolved.realtimeModel) {
+    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const provider = isDemo ? demoConfig!.provider : resolved!.provider;
+    const realtimeModel = isDemo ? demoConfig!.realtimeModel : resolved!.realtimeModel;
+    const voiceId = isDemo ? demoConfig!.voiceId : resolved!.voiceId;
+    const transcriptionModel = isDemo
+      ? demoConfig!.transcriptionModel
+      : resolved!.transcriptionModel;
+    const allowedLanguages = isDemo
+      ? (config.allowedLanguages ?? [config.defaultLanguage ?? "en"])
+      : resolved!.allowedLanguages;
+    const defaultLanguage = isDemo
+      ? config.alwaysRespondIn ?? config.defaultLanguage ?? allowedLanguages[0] ?? "en"
+      : resolved!.defaultLanguage;
+    const maxTokens = isDemo ? config.maxTokens : resolved!.maxTokens;
+    const temperature = isDemo ? config.temperature : resolved!.temperature;
+    const apiKey = isDemo
+      ? demoConfig!.apiKey
+      : getProviderApiKey(resolved!.provider);
+    const audioPolicy = getRealtimeAudioPolicy();
+
+    if (!apiKey) {
+      const envName = provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+      return NextResponse.json(
+        { error: `${provider} is selected for this tenant, but ${envName} is not configured on the server.` },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
+    if (provider === "gemini") {
+      if (!realtimeModel) {
         return NextResponse.json(
-          { error: "Gemini realtime model is not configured for this tenant." },
+          { error: "Gemini realtime model is not configured for the Demo." },
           { status: 503, headers: corsHeaders },
         );
       }
 
-      const model = resolved.realtimeModel.startsWith("models/")
-        ? resolved.realtimeModel
-        : `models/${resolved.realtimeModel}`;
+      const model = realtimeModel.startsWith("models/") ? realtimeModel : `models/${realtimeModel}`;
+      const instructions = buildSystemPrompt(config, {
+        kbName: kb.name,
+        surface: "realtime",
+        allowedLanguages,
+      });
 
       return NextResponse.json(
         {
@@ -112,32 +122,44 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           kbId: ctx.kbId,
           wsUrl: `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`,
           model,
-          voice: resolved.voiceId,
+          voice: voiceId,
           instructions,
           inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
           welcomeMessage: config.welcomeMessage ?? "",
           audioPolicy,
           config: {
-            orgId: resolved.orgId,
-            provider: resolved.provider,
-            realtimeModel: resolved.realtimeModel,
-            voiceId: resolved.voiceId,
-            transcriptionModel: resolved.transcriptionModel,
-            maxTokens: resolved.maxTokens,
-            temperature: resolved.temperature,
+            orgId: resolved?.orgId ?? ctx.orgId,
+            provider,
+            realtimeModel,
+            voiceId,
+            transcriptionModel,
+            maxTokens,
+            temperature,
           },
         },
         { headers: corsHeaders },
       );
     }
 
-    if (!resolved.realtimeModel) {
+    if (!realtimeModel) {
       return NextResponse.json(
         { error: "OpenAI realtime model is not configured for this tenant." },
         { status: 503, headers: corsHeaders },
       );
     }
+    if (!voiceId) {
+      return NextResponse.json(
+        { error: "OpenAI realtime voice is not configured for this tenant." },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
+    const instructions = buildSystemPrompt(config, {
+      kbName: kb.name,
+      surface: "realtime",
+      allowedLanguages,
+    });
 
     const turnDetection = {
       type: "server_vad" as const,
@@ -148,20 +170,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       interrupt_response: false,
     };
 
-    const transcription = resolved.transcriptionModel
+    const transcription = transcriptionModel
       ? {
-          model: resolved.transcriptionModel,
-          language: config.alwaysRespondIn ?? config.defaultLanguage,
+          model: transcriptionModel,
+          language: defaultLanguage,
         }
       : undefined;
 
-    const realtimeMaxOutputTokens = resolved.maxTokens;
-
     const realtimeSession = buildOpenAIRealtimeSession({
-      model: resolved.realtimeModel,
-      voice: resolved.voiceId ?? undefined,
+      model: realtimeModel,
+      voice: voiceId,
       instructions,
-      maxOutputTokens: realtimeMaxOutputTokens ?? undefined,
+      maxOutputTokens: maxTokens ?? undefined,
       turnDetection,
       transcription,
       tools: [],
@@ -171,13 +191,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const result = await createOpenAIRealtimeClientSecret({ apiKey, session: realtimeSession });
 
     if (!result.ok) {
+      console.error("[embed/session] OpenAI Realtime session creation failed", {
+        status: result.status,
+        provider,
+        model: realtimeModel,
+        demo: isDemo,
+      });
       return NextResponse.json(
         {
           error: `OpenAI Realtime session creation failed (${result.status})`,
           details: result.errorText,
-          model: resolved.realtimeModel,
-          orgId: resolved.orgId,
-          kbId: resolved.kbId,
+          model: realtimeModel,
+          orgId: resolved?.orgId ?? ctx.orgId,
+          kbId: ctx.kbId,
         },
         {
           status: result.status >= 400 && result.status < 600 ? result.status : 502,
@@ -189,26 +215,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         ...result.data,
-        model: resolved.realtimeModel,
-        voice: resolved.voiceId,
-        max_output_tokens: realtimeMaxOutputTokens,
+        model: realtimeModel,
+        voice: voiceId,
+        max_output_tokens: maxTokens,
         turn_detection: turnDetection,
         input_audio_transcription: transcription,
         audio_policy: audioPolicy,
-        kbId: resolved.kbId,
-        orgId: resolved.orgId,
-        provider: resolved.provider,
+        kbId: ctx.kbId,
+        orgId: resolved?.orgId ?? ctx.orgId,
+        provider,
         welcomeMessage: config.welcomeMessage ?? "",
         config: {
-          orgId: resolved.orgId,
-          provider: resolved.provider,
-          realtimeModel: resolved.realtimeModel,
-          voiceId: resolved.voiceId,
-          transcriptionModel: resolved.transcriptionModel,
-          maxTokens: resolved.maxTokens,
-          temperature: resolved.temperature,
-          sources: resolved.sources,
-          flags: resolved.flags,
+          orgId: resolved?.orgId ?? ctx.orgId,
+          provider,
+          realtimeModel,
+          voiceId,
+          transcriptionModel,
+          maxTokens,
+          temperature,
+          sources: resolved?.sources,
+          flags: resolved?.flags,
         },
       },
       { headers: corsHeaders },
