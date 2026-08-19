@@ -1,5 +1,9 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { getRealtimeAudioPolicy, hasUsableTranscript } from "./realtime-audio-config";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  buildMicrophoneConstraints,
+  getRealtimeAudioPolicy,
+  hasUsableTranscript,
+} from "./realtime-audio-config";
 
 afterEach(() => {
   delete process.env.REALTIME_VAD_THRESHOLD;
@@ -45,6 +49,28 @@ describe("realtime audio policy", () => {
       noiseSuppression: false,
       echoCancellation: false,
       autoGainControl: true,
+    });
+  });
+
+  it("builds explicit mono microphone constraints for noisy environments", () => {
+    const policy = getRealtimeAudioPolicy();
+    expect(buildMicrophoneConstraints(policy)).toEqual({
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: 1,
+    });
+  });
+
+  it("honours disabled browser audio processing when explicitly configured", () => {
+    process.env.REALTIME_NOISE_SUPPRESSION = "false";
+    process.env.REALTIME_ECHO_CANCELLATION = "false";
+    process.env.REALTIME_AUTO_GAIN_CONTROL = "false";
+    expect(buildMicrophoneConstraints(getRealtimeAudioPolicy())).toEqual({
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      channelCount: 1,
     });
   });
 });
