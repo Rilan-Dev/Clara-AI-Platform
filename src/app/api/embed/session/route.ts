@@ -3,7 +3,8 @@
  * OPTIONS /api/embed/session
  *
  * Public embed voice-session endpoint. Demo traffic uses the Platform Admin
- * demo provider configuration and does not require a tenant/project AI record.
+ * demo API key, while runtime models/language/voice are resolved from the
+ * selected KB's project -> organisation -> platform configuration chain.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -73,24 +74,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
-    const provider = isDemo ? demoConfig!.provider : resolved!.provider;
-    const realtimeModel = isDemo ? demoConfig!.realtimeModel : resolved!.realtimeModel;
-    const voiceId = isDemo ? demoConfig!.voiceId : resolved!.voiceId;
-    const transcriptionModel = isDemo
-      ? demoConfig!.transcriptionModel
-      : resolved!.transcriptionModel;
-    const allowedLanguages = isDemo
-      ? (config.allowedLanguages ?? [config.defaultLanguage ?? "en"])
-      : resolved!.allowedLanguages;
-    const defaultLanguage = isDemo
-      ? config.alwaysRespondIn ?? config.defaultLanguage ?? allowedLanguages[0] ?? "en"
-      : resolved!.defaultLanguage;
-    const maxTokens = isDemo ? config.maxTokens : resolved!.maxTokens;
-    const temperature = isDemo ? config.temperature : resolved!.temperature;
-    const apiKey = isDemo
-      ? demoConfig!.apiKey
-      : getProviderApiKey(resolved!.provider);
+    // Always resolve the selected KB's effective tenant configuration. Demo mode
+    // only changes where the public API key comes from; it must not silently
+    // replace project/org model, voice, or language settings with Demo defaults.
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const provider = resolved.provider;
+    const realtimeModel = resolved.realtimeModel;
+    const voiceId = resolved.voiceId;
+    const transcriptionModel = resolved.transcriptionModel;
+    const allowedLanguages = resolved.allowedLanguages;
+    const defaultLanguage = resolved.defaultLanguage;
+    const maxTokens = resolved.maxTokens ?? config.maxTokens;
+    const temperature = resolved.temperature ?? config.temperature;
+
+    if (isDemo && demoConfig!.provider !== provider) {
+      return NextResponse.json(
+        {
+          error: "Demo API provider does not match the selected knowledge base configuration.",
+          configuredProvider: provider,
+          demoProvider: demoConfig!.provider,
+        },
+        { status: 503, headers: corsHeaders },
+      );
+    }
+
+    const apiKey = isDemo ? demoConfig!.apiKey : getProviderApiKey(provider);
     const audioPolicy = getRealtimeAudioPolicy();
 
     if (!apiKey) {
@@ -101,10 +109,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    console.info("[embed/session] runtime configuration", {
+      demo: isDemo,
+      orgId: resolved.orgId ?? ctx.orgId,
+      projectId: resolved.projectId,
+      kbId: ctx.kbId,
+      provider,
+      realtimeModel,
+      transcriptionModel,
+      voiceId,
+      allowedLanguages,
+      defaultLanguage,
+      sources: resolved.sources,
+    });
+
     if (provider === "gemini") {
       if (!realtimeModel) {
         return NextResponse.json(
-          { error: "Gemini realtime model is not configured for the Demo." },
+          { error: "Gemini realtime model is not configured for this tenant." },
           { status: 503, headers: corsHeaders },
         );
       }
@@ -120,6 +142,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         {
           provider: "gemini",
           kbId: ctx.kbId,
+          orgId: resolved.orgId ?? ctx.orgId,
+          projectId: resolved.projectId,
           wsUrl: `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`,
           model,
           voice: voiceId,
@@ -129,13 +153,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           welcomeMessage: config.welcomeMessage ?? "",
           audioPolicy,
           config: {
-            orgId: resolved?.orgId ?? ctx.orgId,
+            orgId: resolved.orgId ?? ctx.orgId,
+            projectId: resolved.projectId,
             provider,
             realtimeModel,
             voiceId,
             transcriptionModel,
             maxTokens,
             temperature,
+            allowedLanguages,
+            defaultLanguage,
+            sources: resolved.sources,
+            flags: resolved.flags,
           },
         },
         { headers: corsHeaders },
@@ -173,7 +202,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const transcription = transcriptionModel
       ? {
           model: transcriptionModel,
-          language: defaultLanguage ?? undefined,
+          language: defaultLanguage || undefined,
         }
       : undefined;
 
@@ -202,7 +231,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           error: `OpenAI Realtime session creation failed (${result.status})`,
           details: result.errorText,
           model: realtimeModel,
-          orgId: resolved?.orgId ?? ctx.orgId,
+          orgId: resolved.orgId ?? ctx.orgId,
+          projectId: resolved.projectId,
           kbId: ctx.kbId,
         },
         {
@@ -222,19 +252,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         input_audio_transcription: transcription,
         audio_policy: audioPolicy,
         kbId: ctx.kbId,
-        orgId: resolved?.orgId ?? ctx.orgId,
+        orgId: resolved.orgId ?? ctx.orgId,
+        projectId: resolved.projectId,
         provider,
         welcomeMessage: config.welcomeMessage ?? "",
         config: {
-          orgId: resolved?.orgId ?? ctx.orgId,
+          orgId: resolved.orgId ?? ctx.orgId,
+          projectId: resolved.projectId,
           provider,
           realtimeModel,
           voiceId,
           transcriptionModel,
           maxTokens,
           temperature,
-          sources: resolved?.sources,
-          flags: resolved?.flags,
+          allowedLanguages,
+          defaultLanguage,
+          sources: resolved.sources,
+          flags: resolved.flags,
         },
       },
       { headers: corsHeaders },
