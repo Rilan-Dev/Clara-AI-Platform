@@ -83,9 +83,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    // Public demo traffic uses the provider configured in Platform Admin -> Demo.
-    // It must not depend on a tenant/project AI assignment or the private
-    // OPENAI_API_KEY/GEMINI_API_KEY variables used by authenticated tenants.
     const demoConfig = isDemo ? await getDemoAIConfig() : null;
     if (isDemo && !demoConfig) {
       return NextResponse.json(
@@ -94,37 +91,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
-    if (!isDemo && !resolved!.flags.publicEmbedEnabled) {
+    // Demo mode supplies the public API credential, not a second set of runtime
+    // model/language settings. Resolve the selected KB through project -> org ->
+    // platform precedence so chat and voice use the same effective configuration.
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json({ error: "Public embed is disabled for this knowledge base" }, { status: 403, headers: corsHeaders });
     }
+    if (isDemo && demoConfig!.provider !== resolved.provider) {
+      return NextResponse.json(
+        {
+          error: "Demo API provider does not match the selected knowledge base configuration.",
+          configuredProvider: resolved.provider,
+          demoProvider: demoConfig!.provider,
+        },
+        { status: 503, headers: corsHeaders },
+      );
+    }
 
+    const resolvedProviderConfig = toProviderConfig(resolved);
     const providerConfig: ProviderConfig = isDemo
       ? {
-          provider: demoConfig!.provider,
+          provider: resolved.provider,
           apiKey: demoConfig!.apiKey,
-          chatModel: demoConfig!.chatModel,
-          embeddingModel: demoConfig!.embeddingModel,
-          embeddingDimension: demoConfig!.embeddingDimension,
+          chatModel: resolved.chatModel,
+          embeddingModel: resolved.embeddingModel,
+          embeddingDimension: resolvedProviderConfig.embeddingDimension,
         }
-      : toProviderConfig(resolved!);
+      : resolvedProviderConfig;
 
-    const allowedLanguages = isDemo
-      ? (config.allowedLanguages ?? [config.defaultLanguage ?? "en"])
-      : resolved!.allowedLanguages;
-    const maxTokens = isDemo ? config.maxTokens : resolved!.maxTokens ?? config.maxTokens;
-    const temperature = isDemo ? config.temperature : resolved!.temperature ?? config.temperature;
+    const allowedLanguages = resolved.allowedLanguages;
+    const maxTokens = resolved.maxTokens ?? config.maxTokens;
+    const temperature = resolved.temperature ?? config.temperature;
 
     console.info("[embed/chat] runtime configuration", {
       demo: isDemo,
-      orgId: resolved?.orgId ?? ctx.orgId,
-      projectId: resolved?.projectId ?? null,
+      orgId: resolved.orgId ?? ctx.orgId,
+      projectId: resolved.projectId,
       kbId: ctx.kbId,
       provider: providerConfig.provider,
       chatModel: providerConfig.chatModel,
       embeddingModel: providerConfig.embeddingModel,
       allowedLanguages,
+      defaultLanguage: resolved.defaultLanguage,
       apiKeyConfigured: Boolean(providerConfig.apiKey),
+      sources: resolved.sources,
     });
 
     const t0 = Date.now();
