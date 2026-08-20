@@ -157,7 +157,16 @@ export function KBAIOverridesEditor({
   }
 
   async function resetToInherited() {
-    const resetDraft = toDraft(null);
+    // Load the inherited (baseline) values from the project config
+    const resetDraft: Draft = {
+      provider: null,  // null means inherit from project
+      chatModel: "",
+      embeddingModel: "",
+      realtimeModel: "",
+      transcriptionModel: "",
+      disableVoice: false,
+      disablePublicEmbed: false,
+    };
     setDraft(resetDraft);
     setError(null);
     setReprocessMessage(null);
