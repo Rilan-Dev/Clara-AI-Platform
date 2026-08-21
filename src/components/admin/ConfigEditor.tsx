@@ -45,7 +45,7 @@ export function ConfigEditor({ config: initial, kbName, onSave }: Props) {
   useEffect(() => { setCfg(initial); }, [initial]);
 
   useEffect(() => {
-    if (activeTab !== "voice" || voiceCatalog || voiceCatalogLoading) return;
+    if (activeTab !== "voice") return;
     let cancelled = false;
     setVoiceCatalogLoading(true);
     setVoiceCatalogError(null);
@@ -65,7 +65,7 @@ export function ConfigEditor({ config: initial, kbName, onSave }: Props) {
         if (!cancelled) setVoiceCatalogLoading(false);
       });
     return () => { cancelled = true; };
-  }, [activeTab, voiceCatalog, voiceCatalogLoading]);
+  }, [activeTab]);
 
   const set = <K extends keyof AssistantConfig>(key: K, value: AssistantConfig[K]) => {
     setCfg((c) => ({ ...c, [key]: value }));

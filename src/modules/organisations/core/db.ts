@@ -146,15 +146,26 @@ export async function createProject(
   orgId: string,
   input: CreateProjectInput
 ): Promise<Project> {
-  const rows = await query<Record<string, unknown>>(
-    `INSERT INTO projects (org_id, name, description)
-     VALUES ($1, $2, $3)
-     RETURNING *`,
-    [orgId, input.name, input.description ?? null]
-  );
-  return toProject(rows[0]!);
+  return withTransaction(async (client) => {
+    // 1. Create the project
+    const projectRow = await client.query(
+      `INSERT INTO projects (org_id, name, description)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [orgId, input.name, input.description ?? null]
+    );
+    const project = toProject(projectRow.rows[0]);
+    
+    // 2. Create default AI configuration for the project
+    await client.query(
+      `INSERT INTO project_ai_configs (id, project_id, provider, model, temperature, max_tokens, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, 'openai', 'gpt-4o-mini', 0.7, 1000, NOW(), NOW())`,
+      [project.id]
+    );
+    
+    return project;
+  });
 }
-
 export async function listProjects(orgId: string): Promise<Project[]> {
   const rows = await query<Record<string, unknown>>(
     "SELECT * FROM projects WHERE org_id = $1 ORDER BY name ASC",

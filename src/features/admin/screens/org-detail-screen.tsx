@@ -345,17 +345,7 @@ export default function OrgDetailPage() {
         </div>
       )}
 
-      {/* Org AI Settings */}
-      {settingsLoading ? (
-        <div className="space-y-3">
-          <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
-          <div className="h-[28rem] rounded-2xl bg-white/[0.04] animate-pulse" />
-        </div>
-      ) : (
-        <OrgAISettingsEditor orgName={displayName} settings={settings} onSave={saveAISettings} />
-      )}
-      {settingsError && <p className="text-sm text-rose-400">{settingsError}</p>}
-
+      
       {/* Projects */}
       <ProjectsSection
         orgId={id}
@@ -372,6 +362,18 @@ export default function OrgDetailPage() {
         isSuperAdmin={true}
         onSaved={(updated) => setEditedOrg(updated)}
       />
+
+      {/* Org AI Settings */}
+      {settingsLoading ? (
+        <div className="space-y-3">
+          <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
+          <div className="h-[28rem] rounded-2xl bg-white/[0.04] animate-pulse" />
+        </div>
+      ) : (
+        <OrgAISettingsEditor orgName={displayName} settings={settings} onSave={saveAISettings} />
+      )}
+      {settingsError && <p className="text-sm text-rose-400">{settingsError}</p>}
+
     </div>
   );
 }

@@ -1,35 +1,28 @@
 "use client";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Brain, Eye, EyeOff } from "lucide-react";
 import axios, { isAxiosError } from "axios";
 import { setStoredToken } from "@/lib/client-auth";
-import { getApiBaseUrl } from "@/lib/runtime";
+import { AUTH_LOGIN_ENDPOINT, getSafeRedirect } from "./login-redirect";
 
-// Auth calls go directly to the backend's own /api/auth/login route.
-// On success the backend sets the `clara_platform_token` httpOnly cookie.
+// Authentication is intentionally same-origin. The login API sets the
+// HttpOnly session cookie used by Next middleware to protect /dashboard and
+// other platform pages. Calling a separate API origin would scope that cookie
+// to the API host and leaves the UI host unauthenticated after a successful
+// login.
 const authClient = axios.create({
-  baseURL: getApiBaseUrl(),
   timeout: 15_000,
 });
 
-function getSafeRedirect(value: string | null): string {
-  // Only allow same-origin relative paths. Never redirect to an external URL.
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard";
-  }
-  return value;
-}
-
-export default function AdminLogin() {
-  const router = useRouter();
+function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get("redirect"));
-  const [email, setEmail]       = useState("admin@clara.ai");
+  const [email, setEmail] = useState("admin@clara.ai");
   const [password, setPassword] = useState("");
-  const [show, setShow]         = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,18 +30,27 @@ export default function AdminLogin() {
     setError("");
 
     try {
-      // POST /api/auth/login (backend's own route — sets `clara_platform_token`)
-      const { data } = await authClient.post<{ token?: string }>("/api/auth/login", { email, password });
-      if (data.token) {
-        setStoredToken(data.token);
+      // Keep login on the current origin so the Set-Cookie response from
+      // /api/auth/login is stored for the same host that serves /dashboard.
+      const { data } = await authClient.post<{ token?: string }>(
+        AUTH_LOGIN_ENDPOINT,
+        { email, password },
+        { withCredentials: true },
+      );
+
+      if (!data.token) {
+        setError("Login succeeded but no session token was returned. Please try again.");
+        return;
       }
 
-      // Preserve the protected route that originally sent the user to login.
-      // router.replace avoids leaving the login page in browser history and
-      // router.refresh makes the newly-established auth cookie visible to the
-      // protected route/middleware on the next navigation.
-      router.replace(redirectTo);
-      router.refresh();
+      // Keep the bearer token for client-side API calls as before. The
+      // HttpOnly cookie is the authoritative browser session for middleware.
+      setStoredToken(data.token);
+
+      // Do a full navigation rather than an in-place router transition. This
+      // guarantees the next request is made with the freshly-issued cookie and
+      // avoids the login page remaining mounted after authentication.
+      window.location.replace(redirectTo);
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         const msg = (err.response?.data as { error?: string })?.error;
@@ -71,7 +73,6 @@ export default function AdminLogin() {
           <h1 className="text-2xl font-bold text-white">Platform Admin</h1>
           <p className="text-white/40 text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
-
         <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -83,29 +84,27 @@ export default function AdminLogin() {
               <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
               <div className="relative">
                 <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
-                  placeholder="••••••••"
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
-                <button type="button" onClick={() => setShow(!show)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
+                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
-
-            {error && (
-              <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <button type="submit" disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
-              {loading ? "Signing in…" : "Sign in"}
+            {error && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
+            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
-          <p className="text-center text-xs text-white/20 mt-4">Default: admin@clara.ai / Admin1234!</p>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLogin() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center"><div className="text-white/40">Loading...</div></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
