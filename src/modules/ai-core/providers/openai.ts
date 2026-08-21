@@ -12,8 +12,7 @@ export class OpenAIProvider implements LLMProvider {
 
   constructor(config?: ProviderConfig) {
     this.config = config ?? { provider: "openai" };
-    const apiKey =
-      this.config.apiKey ?? process.env.OPENAI_API_KEY;
+    const apiKey = this.config.apiKey ?? process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error(
         "OPENAI_API_KEY is not set. Add it to your environment or provide it in the config."
@@ -42,10 +41,17 @@ export class OpenAIProvider implements LLMProvider {
           max_tokens: options?.maxTokens,
         };
 
+    // GPT-5-family models currently only support the default temperature (1).
+    // Do not send the temperature parameter for these models, even when the
+    // assistant configuration contains a custom value such as 0.7.
+    const temperatureOptions = isGpt5Family
+      ? {}
+      : { temperature: options?.temperature ?? 0.2 };
+
     const stream = await this.client.chat.completions.create({
       model,
       messages: openaiMessages,
-      temperature: options?.temperature ?? 0.2,
+      ...temperatureOptions,
       ...completionOptions,
       stop: options?.stop,
       stream: true,
