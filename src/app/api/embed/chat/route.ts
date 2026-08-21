@@ -91,9 +91,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Demo mode supplies the public API credential, not a second set of runtime
-    // model/language settings. Resolve the selected KB through project -> org ->
-    // platform precedence so chat and voice use the same effective configuration.
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
     if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json({ error: "Public embed is disabled for this knowledge base" }, { status: 403, headers: corsHeaders });
@@ -149,9 +146,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       console.warn("[embed/chat] RAG search timed out (>15s)", { kbId: ctx.kbId });
     }
 
-    const provider = ProviderFactory.create(providerConfig);
+    const provider = ProviderFactory.getProvider(providerConfig);
+    const baseSystemPrompt = buildSystemPrompt(config, {
+      kbName: kb.name,
+      surface: "embed",
+      allowedLanguages,
+    });
     const systemPrompt = withChartInstructions(
-      buildSystemPrompt(config, allowedLanguages, resolved.defaultLanguage, recentConversationContextBlock),
+      recentConversationContextBlock
+        ? `${baseSystemPrompt}\n\n${recentConversationContextBlock}`
+        : baseSystemPrompt,
     );
 
     const completion = provider.chatStream(
@@ -164,7 +168,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(searchResults.length
           ? [{
               role: "system" as const,
-              content: `Knowledge base context:\n${searchResults.map((result) => result.content).join("\n\n")}`,
+              content: `Knowledge base context:\n${searchResults.map((result) => result.snippet).join("\n\n")}`,
             }]
           : []),
       ],
@@ -187,9 +191,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     void logQueryEvent({
       kbId: ctx.kbId,
-      query,
+      queryText: query,
       latencyMs: Date.now() - t0,
-      resultCount: searchResults.length,
+      sourceCount: searchResults.length,
       sessionId: body.sessionId,
     }).catch((error) => console.error("[embed/chat] failed to log query event", error));
 
