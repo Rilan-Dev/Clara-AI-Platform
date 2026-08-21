@@ -85,6 +85,43 @@ function clampNumber(value: number | null, max: number | null): number | null {
   return Math.min(value, max);
 }
 
+// OpenAI Realtime `audio.output.voice` accepts voice IDs, not model names.
+// Keep this validation at the shared AI configuration boundary so every
+// Realtime/embed caller is protected from stale or invalid project settings.
+const OPENAI_REALTIME_VOICES = new Set([
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar",
+]);
+
+function normalizeRealtimeVoice(
+  provider: AIProvider,
+  candidate: string | null,
+  organisationVoices: string[],
+  platformVoice: string | null,
+): string | null {
+  if (provider !== "openai") return candidate;
+
+  if (candidate && OPENAI_REALTIME_VOICES.has(candidate)) return candidate;
+
+  const configuredFallback = organisationVoices.find((voice) => OPENAI_REALTIME_VOICES.has(voice));
+  if (configuredFallback) return configuredFallback;
+
+  if (platformVoice && OPENAI_REALTIME_VOICES.has(platformVoice)) return platformVoice;
+
+  // Safe OpenAI Realtime fallback. This is deliberately only used when no
+  // valid OpenAI voice is configured; values such as `gpt-realtime-whisper`
+  // are model identifiers and must never be sent as output voices.
+  return "alloy";
+}
+
 function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags"]): void {
   if (surface === "realtime" || surface === "embed") {
     if (!flags.voiceEnabled) throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
@@ -261,11 +298,15 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     throw new AIConfigResolutionError("No languages are assigned to this project.");
   }
 
-  if ((input.surface === "realtime" || input.surface === "embed") && !projectSelection.voiceId) {
+  const voiceId =
+    input.surface === "realtime" || input.surface === "embed"
+      ? normalizeRealtimeVoice(provider, projectSelection.voiceId, organisationFallbackVoices, defaultVoice)
+      : null;
+
+  if ((input.surface === "realtime" || input.surface === "embed") && !voiceId) {
     throw new AIConfigResolutionError(`No ${provider} voice is configured for this project or platform.`);
   }
 
-  const voiceId = input.surface === "realtime" || input.surface === "embed" ? projectSelection.voiceId : null;
   const flags = {
     voiceEnabled: (orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
     realtimeEnabled: orgSettings?.enableRealtime ?? true,
