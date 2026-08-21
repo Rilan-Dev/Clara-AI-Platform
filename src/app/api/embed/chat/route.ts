@@ -114,8 +114,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ? {
           provider: resolved.provider,
           apiKey: demoConfig!.apiKey,
-          chatModel: resolved.chatModel,
-          embeddingModel: resolved.embeddingModel,
+          chatModel: resolved.chatModel ?? undefined,
+          embeddingModel: resolved.embeddingModel ?? undefined,
           embeddingDimension: resolvedProviderConfig.embeddingDimension,
         }
       : resolvedProviderConfig;
@@ -149,88 +149,64 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       console.warn("[embed/chat] RAG search timed out (>15s)", { kbId: ctx.kbId });
     }
 
-    const seen = new Set<string>();
-    const dedupedResults = searchResults.filter((result) => {
-      const key = result.snippet.slice(0, 80).toLowerCase().replace(/\s+/g, " ");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    const context = dedupedResults.length
-      ? dedupedResults.slice(0, 6).map((result, index) => `[S${index + 1}] **${result.title}**\n${result.snippet.trim()}`).join("\n\n---\n\n")
-      : "No relevant information was found in the knowledge base for this query.";
-
-    const latencyMs = Date.now() - t0;
-    void logQueryEvent({
-      kbId: kb.id,
-      queryText: query,
-      sourceCount: dedupedResults.length,
-      latencyMs,
-      sessionId: body.sessionId,
-    });
-
+    const provider = ProviderFactory.create(providerConfig);
     const systemPrompt = withChartInstructions(
-      buildSystemPrompt(config, {
-        kbName: kb.name,
-        surface: "embed",
-        allowedLanguages,
-      }),
+      buildSystemPrompt(config, allowedLanguages, resolved.defaultLanguage, recentConversationContextBlock),
     );
 
-    const demoAnswerRule = isDemo
-      ? `\n\nDEMO SCOPE REQUIREMENT: This is the public Omen United Insurance demo. The retrieved context is authoritative evidence that the visitor's question is in scope whenever it contains relevant insurance/company information. Treat "Omen", "Oman", "Omen United", and "Oman United Insurance" as valid references to the configured Omen United Insurance knowledge base, including minor spelling mistakes. If retrieved sources contain relevant facts, answer the question directly from those sources. NEVER output the configured out-of-scope reply when relevant sources are present. For questions such as "what is omen insurance", explain what the company/insurance is using the retrieved facts rather than refusing or asking the visitor to choose a policy.`
-      : "";
+    const completion = provider.chatStream(
+      [
+        { role: "system", content: systemPrompt },
+        ...messages.map((message): ChatMessage => ({
+          role: message.role as ChatMessage["role"],
+          content: message.content,
+        })),
+        ...(searchResults.length
+          ? [{
+              role: "system" as const,
+              content: `Knowledge base context:\n${searchResults.map((result) => result.content).join("\n\n")}`,
+            }]
+          : []),
+      ],
+      { maxTokens, temperature },
+    );
 
-    const chatMessages: ChatMessage[] = [
-      {
-        role: "system",
-        content: `${systemPrompt}${demoAnswerRule}\n\nContext from knowledge base:\n${context}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
-      },
-      ...messages.map((message) => ({ role: message.role as "user" | "assistant", content: message.content })),
-    ];
-
-    const provider = ProviderFactory.getProvider(providerConfig);
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        const write = (event: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-        if (dedupedResults.length) {
-          write({
-            type: "sources",
-            payload: dedupedResults.slice(0, 6).map((result, index) => ({
-              index: index + 1,
-              title: result.title,
-              snippet: result.snippet.slice(0, 200),
-              score: result.score,
-            })),
-          });
-        }
-
-        (async () => {
-          try {
-            const completionStream = provider.chatStream(chatMessages, {
-              temperature,
-              maxTokens,
-            });
-            for await (const delta of completionStream) {
-              if (delta) write({ type: "token", payload: delta });
-            }
-          } catch (err) {
-            write({ type: "error", payload: (err as Error).message });
-          } finally {
-            write({ type: "done" });
-            controller.close();
+      async start(controller) {
+        try {
+          for await (const chunk of completion) {
+            controller.enqueue(encoder.encode(chunk));
           }
-        })();
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
       },
     });
 
+    void logQueryEvent({
+      kbId: ctx.kbId,
+      query,
+      latencyMs: Date.now() - t0,
+      resultCount: searchResults.length,
+      sessionId: body.sessionId,
+    }).catch((error) => console.error("[embed/chat] failed to log query event", error));
+
     return new NextResponse(stream, {
-      headers: { ...corsHeaders, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
     });
-  } catch (err) {
-    console.error("[embed/chat]:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  } catch (error) {
+    console.error("[embed/chat] request failed", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 500 },
+    );
   }
 }
