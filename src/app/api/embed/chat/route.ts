@@ -6,18 +6,14 @@ import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import type { ChatMessage, ProviderConfig } from "@/modules/ai-core/types";
+import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { getDemoAIConfig } from "@/modules/ai-core/demo-config";
+import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
-
-function isDemoRequest(req: NextRequest): boolean {
-  return (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
-}
 
 function isBroadCoverageQuery(query: string): boolean {
   const normalized = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -52,7 +48,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { ctx } = validation;
     const origin = req.headers.get("origin");
     const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
-    const isDemo = isDemoRequest(req);
 
     const body = (await req.json()) as {
       messages?: Array<{ role: string; content: string }>;
@@ -83,46 +78,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const demoConfig = isDemo ? await getDemoAIConfig() : null;
-    if (isDemo && !demoConfig) {
-      return NextResponse.json(
-        { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
-        { status: 503, headers: corsHeaders },
-      );
-    }
-
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
     if (!resolved.flags.publicEmbedEnabled) {
-      return NextResponse.json({ error: "Public embed is disabled for this knowledge base" }, { status: 403, headers: corsHeaders });
-    }
-    if (isDemo && demoConfig!.provider !== resolved.provider) {
       return NextResponse.json(
-        {
-          error: "Demo API provider does not match the selected knowledge base configuration.",
-          configuredProvider: resolved.provider,
-          demoProvider: demoConfig!.provider,
-        },
-        { status: 503, headers: corsHeaders },
+        { error: "Public embed is disabled for this knowledge base" },
+        { status: 403, headers: corsHeaders },
       );
     }
 
-    const resolvedProviderConfig = toProviderConfig(resolved);
-    const providerConfig: ProviderConfig = isDemo
-      ? {
-          provider: resolved.provider,
-          apiKey: demoConfig!.apiKey,
-          chatModel: resolved.chatModel ?? undefined,
-          embeddingModel: resolved.embeddingModel ?? undefined,
-          embeddingDimension: resolvedProviderConfig.embeddingDimension,
-        }
-      : resolvedProviderConfig;
+    const providerConfig = toProviderConfig(resolved);
+    if (!providerConfig.apiKey) {
+      const envName = resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+      return NextResponse.json(
+        { error: `${resolved.provider} is selected for this tenant, but ${envName} is not configured on the server.` },
+        { status: 503, headers: corsHeaders },
+      );
+    }
 
     const allowedLanguages = resolved.allowedLanguages;
     const maxTokens = resolved.maxTokens ?? config.maxTokens;
     const temperature = resolved.temperature ?? config.temperature;
 
     console.info("[embed/chat] runtime configuration", {
-      demo: isDemo,
       orgId: resolved.orgId ?? ctx.orgId,
       projectId: resolved.projectId,
       kbId: ctx.kbId,
@@ -142,9 +119,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
     } catch (searchErr) {
-      if ((searchErr as Error).message !== "search_timeout") throw searchErr;
+      if ((searchErr as Error).message !== "search_timeout") {
+        console.error("[embed/chat] RAG search failed", searchErr);
+        return NextResponse.json(
+          { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
+          { status: 502, headers: corsHeaders },
+        );
+      }
       console.warn("[embed/chat] RAG search timed out (>15s)", { kbId: ctx.kbId });
     }
+
+    const seen = new Set<string>();
+    const sources = searchResults.filter((result) => {
+      const key = result.snippet.slice(0, 100).toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 6);
 
     const provider = ProviderFactory.getProvider(providerConfig);
     const baseSystemPrompt = buildSystemPrompt(config, {
@@ -158,6 +149,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         : baseSystemPrompt,
     );
 
+    const context = sources.length
+      ? sources.map((result, index) => `[S${index + 1}] ${result.snippet}`).join("\n\n")
+      : "No relevant information was found in the knowledge base for this query.";
+
     const completion = provider.chatStream(
       [
         { role: "system", content: systemPrompt },
@@ -165,27 +160,46 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           role: message.role as ChatMessage["role"],
           content: message.content,
         })),
-        ...(searchResults.length
-          ? [{
-              role: "system" as const,
-              content: `Knowledge base context:\n${searchResults.map((result) => result.snippet).join("\n\n")}`,
-            }]
-          : []),
+        { role: "system", content: `Knowledge base context:\n${context}` },
       ],
       { maxTokens, temperature },
     );
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        try {
-          for await (const chunk of completion) {
-            controller.enqueue(encoder.encode(chunk));
-          }
-          controller.close();
-        } catch (error) {
-          controller.error(error);
+      start(controller) {
+        const write = (event: { type: string; payload?: unknown }) => {
+          controller.enqueue(encoder.encode(encodeNDJSONEvent(event)));
+        };
+
+        if (sources.length > 0) {
+          write({
+            type: "sources",
+            payload: sources.map((result, index) => ({
+              index: index + 1,
+              title: result.title,
+              snippet: result.snippet.slice(0, 200),
+              score: result.score,
+            })),
+          });
         }
+
+        void (async () => {
+          try {
+            for await (const chunk of completion) {
+              if (chunk) write({ type: "token", payload: chunk });
+            }
+          } catch (error) {
+            console.error("[embed/chat] provider stream failed", error);
+            write({
+              type: "error",
+              payload: error instanceof Error ? error.message : "AI provider stream failed",
+            });
+          } finally {
+            write({ type: "done" });
+            controller.close();
+          }
+        })();
       },
     });
 
@@ -193,7 +207,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       kbId: ctx.kbId,
       queryText: query,
       latencyMs: Date.now() - t0,
-      sourceCount: searchResults.length,
+      sourceCount: sources.length,
       sessionId: body.sessionId,
     }).catch((error) => console.error("[embed/chat] failed to log query event", error));
 
@@ -201,7 +215,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       status: 200,
       headers: {
         ...corsHeaders,
-        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
       },
@@ -210,7 +224,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     console.error("[embed/chat] request failed", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
