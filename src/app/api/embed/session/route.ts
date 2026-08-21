@@ -2,18 +2,18 @@
  * POST /api/embed/session
  * OPTIONS /api/embed/session
  *
- * Public embed voice-session endpoint. Demo traffic uses the Platform Admin
- * demo API key, while runtime models/language/voice are resolved from the
- * selected KB's project -> organisation -> platform configuration chain.
+ * Public embed voice-session endpoint. The API key identifies the KB; all
+ * provider, model, language, voice, and limits come from the effective
+ * project -> organisation -> platform configuration chain.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { ensureMigrated } from "@/lib/db/migrate";
 import {
   validateEmbedRequest,
   requireVoiceAccess,
   buildCorsHeaders,
   handlePreflight,
 } from "@/modules/embed/core/validate-embed";
+import { ensureMigrated } from "@/lib/db/migrate";
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import {
@@ -21,7 +21,6 @@ import {
   getProviderApiKey,
   resolveAIConfig,
 } from "@/modules/ai-core/resolve";
-import { getDemoAIConfig } from "@/modules/ai-core/demo-config";
 import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
@@ -32,10 +31,6 @@ const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
-
-function isDemoRequest(req: NextRequest): boolean {
-  return (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
-}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -65,18 +60,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const isDemo = isDemoRequest(req);
-    const demoConfig = isDemo ? await getDemoAIConfig() : null;
-    if (isDemo && !demoConfig) {
-      return NextResponse.json(
-        { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
-        { status: 503, headers: corsHeaders },
-      );
-    }
-
-    // Always resolve the selected KB's effective tenant configuration. Demo mode
-    // only changes where the public API key comes from; it must not silently
-    // replace project/org model, voice, or language settings with Demo defaults.
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const provider = resolved.provider;
     const realtimeModel = resolved.realtimeModel;
@@ -86,19 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const defaultLanguage = resolved.defaultLanguage;
     const maxTokens = resolved.maxTokens ?? config.maxTokens;
     const temperature = resolved.temperature ?? config.temperature;
-
-    if (isDemo && demoConfig!.provider !== provider) {
-      return NextResponse.json(
-        {
-          error: "Demo API provider does not match the selected knowledge base configuration.",
-          configuredProvider: provider,
-          demoProvider: demoConfig!.provider,
-        },
-        { status: 503, headers: corsHeaders },
-      );
-    }
-
-    const apiKey = isDemo ? demoConfig!.apiKey : getProviderApiKey(provider);
+    const apiKey = getProviderApiKey(provider);
     const audioPolicy = getRealtimeAudioPolicy();
 
     if (!apiKey) {
@@ -110,7 +81,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     console.info("[embed/session] runtime configuration", {
-      demo: isDemo,
       orgId: resolved.orgId ?? ctx.orgId,
       projectId: resolved.projectId,
       kbId: ctx.kbId,
@@ -224,7 +194,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         status: result.status,
         provider,
         model: realtimeModel,
-        demo: isDemo,
       });
       return NextResponse.json(
         {
