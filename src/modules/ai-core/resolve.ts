@@ -98,11 +98,11 @@ function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags
 /**
  * Resolve tenant AI settings with project -> org -> platform/env precedence.
  *
- * A project AI record is optional at runtime. This is important for public demo
- * KBs and fresh installations: the platform must remain usable when an admin
- * has configured OpenAI through the platform defaults but has not yet created
- * the per-project assignment record. Once project settings exist, they remain
- * authoritative and still enforce their language/voice boundary.
+ * A project AI record is optional at runtime. For projects that have a record
+ * but have not yet assigned a project voice, we still allow the configured
+ * organisation/platform voice to act as the fallback. This is important for
+ * public demo KBs and fresh installations: creating a project AI record must
+ * not silently disable the landing-page voice demo.
  */
 export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<ResolvedAIConfig> {
   const defaults = getPlatformAIDefaults();
@@ -175,46 +175,69 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     defaultRealtime,
   );
 
-  // If project settings are absent, use platform defaults for runtime selection.
-  // English is the safe default for the current demo and can be overridden by
-  // DEFAULT_LANGUAGE_CODE. The voice comes from the provider's platform default.
   const fallbackLanguageCode = process.env.DEFAULT_LANGUAGE_CODE?.trim().toLowerCase() || "en";
-  const runtimeProjectSettings: ProjectAISettings =
-    projectSettings ?? {
-      id: "platform-default",
-      projectId: project?.id ?? "",
-      orgId: orgId ?? "",
-      provider,
-      chatModel: null,
-      embeddingModel: null,
-      realtimeModel: null,
-      transcriptionModel: null,
-      defaultLanguageId: "platform-default-language",
-      defaultVoiceId: defaultVoice ? "platform-default-voice" : null,
-      languages: [
-        {
-          id: "platform-default-language",
-          orgId: orgId ?? "",
-          code: fallbackLanguageCode,
-          name: fallbackLanguageCode === "en" ? "English" : fallbackLanguageCode,
-          nativeName: null,
-          enabled: true,
-        },
-      ],
-      voices: defaultVoice
-        ? [
-            {
-              id: "platform-default-voice",
-              orgId: orgId ?? "",
-              provider,
-              voiceId: defaultVoice,
-              name: defaultVoice,
-              enabled: true,
-              metadata: { source: "platform-default" },
-            },
-          ]
-        : [],
-    };
+
+  // A project assignment remains authoritative for languages. For voices,
+  // however, an empty project assignment falls back to the organisation's
+  // provider voice allow-list and finally the platform/env default. This keeps
+  // public demos functional while still preventing an assistant from selecting
+  // a provider voice outside the organisation boundary.
+  const organisationFallbackVoices = getAllowedValues(orgSettings?.allowedVoices, provider) ?? [];
+  const fallbackVoiceId = organisationFallbackVoices[0] ?? defaultVoice;
+
+  const runtimeProjectSettings: ProjectAISettings = projectSettings
+    ? {
+        ...projectSettings,
+        voices:
+          projectSettings.voices.length > 0 || !fallbackVoiceId
+            ? projectSettings.voices
+            : [
+                {
+                  id: "platform-default-voice",
+                  orgId: orgId ?? "",
+                  provider,
+                  voiceId: fallbackVoiceId,
+                  name: fallbackVoiceId,
+                  enabled: true,
+                  metadata: { source: organisationFallbackVoices.length > 0 ? "organisation-default" : "platform-default" },
+                },
+              ],
+      }
+    : {
+        id: "platform-default",
+        projectId: project?.id ?? "",
+        orgId: orgId ?? "",
+        provider,
+        chatModel: null,
+        embeddingModel: null,
+        realtimeModel: null,
+        transcriptionModel: null,
+        defaultLanguageId: "platform-default-language",
+        defaultVoiceId: fallbackVoiceId ? "platform-default-voice" : null,
+        languages: [
+          {
+            id: "platform-default-language",
+            orgId: orgId ?? "",
+            code: fallbackLanguageCode,
+            name: fallbackLanguageCode === "en" ? "English" : fallbackLanguageCode,
+            nativeName: null,
+            enabled: true,
+          },
+        ],
+        voices: fallbackVoiceId
+          ? [
+              {
+                id: "platform-default-voice",
+                orgId: orgId ?? "",
+                provider,
+                voiceId: fallbackVoiceId,
+                name: fallbackVoiceId,
+                enabled: true,
+                metadata: { source: organisationFallbackVoices.length > 0 ? "organisation-default" : "platform-default" },
+              },
+            ]
+          : [],
+      };
 
   const projectSelection = resolveProjectRuntimeSelection({
     provider,
@@ -321,7 +344,14 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
             : orgSettings?.defaultTranscriptionModel != null
               ? "org"
               : "env",
-      voiceId: projectSettings?.defaultVoiceId ? "project" : "env",
+      voiceId:
+        projectSettings?.voices?.length
+          ? "project"
+          : organisationFallbackVoices.length > 0
+            ? "org"
+            : defaultVoice
+              ? "env"
+              : null,
       temperature:
         assistantConfig?.temperature != null
           ? "assistant_config"
