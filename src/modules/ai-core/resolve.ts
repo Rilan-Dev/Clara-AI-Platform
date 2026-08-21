@@ -133,13 +133,9 @@ function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags
 }
 
 /**
- * Resolve tenant AI settings with project -> org -> platform/env precedence.
- *
- * A project AI record is optional at runtime. For projects that have a record
- * but have not yet assigned a project voice, we still allow the configured
- * organisation/platform voice to act as the fallback. This is important for
- * public demo KBs and fresh installations: creating a project AI record must
- * not silently disable the landing-page voice demo.
+ * Resolve tenant AI settings with project -> org -> platform precedence for
+ * provider/model infrastructure and KB assistant config for user-facing
+ * language and voice preferences.
  */
 export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<ResolvedAIConfig> {
   const defaults = getPlatformAIDefaults();
@@ -214,11 +210,8 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   const fallbackLanguageCode = process.env.DEFAULT_LANGUAGE_CODE?.trim().toLowerCase() || "en";
 
-  // A project assignment remains authoritative for languages. For voices,
-  // however, an empty project assignment falls back to the organisation's
-  // provider voice allow-list and finally the platform/env default. This keeps
-  // public demos functional while still preventing an assistant from selecting
-  // a provider voice outside the organisation boundary.
+  // Keep the complete organisation voice allow-list available so an assistant
+  // can select any valid configured voice, not only the first organisation voice.
   const organisationFallbackVoices = getAllowedValues(orgSettings?.allowedVoices, provider) ?? [];
   const fallbackVoiceId = organisationFallbackVoices[0] ?? defaultVoice;
 
@@ -279,6 +272,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const projectSelection = resolveProjectRuntimeSelection({
     provider,
     assistantLanguage: assistantConfig?.alwaysRespondIn ?? assistantConfig?.defaultLanguage,
+    assistantAllowedLanguages: assistantConfig?.allowedLanguages,
     assistantVoice: assistantConfig?.voiceId,
     assignedLanguages: runtimeProjectSettings.languages,
     assignedVoices: runtimeProjectSettings.voices,
@@ -295,7 +289,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   });
 
   if (projectSelection.allowedLanguages.length === 0) {
-    throw new AIConfigResolutionError("No languages are assigned to this project.");
+    throw new AIConfigResolutionError("No languages are configured for this assistant.");
   }
 
   const voiceId =
@@ -386,13 +380,15 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
               ? "org"
               : "env",
       voiceId:
-        projectSettings?.voices?.length
-          ? "project"
-          : organisationFallbackVoices.length > 0
-            ? "org"
-            : defaultVoice
-              ? "env"
-              : null,
+        assistantConfig?.voiceId
+          ? "assistant_config"
+          : projectSettings?.voices?.length
+            ? "project"
+            : organisationFallbackVoices.length > 0
+              ? "org"
+              : defaultVoice
+                ? "env"
+                : null,
       temperature:
         assistantConfig?.temperature != null
           ? "assistant_config"
