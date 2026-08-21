@@ -6,6 +6,15 @@ const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
 const DEFAULT_EMBEDDING_MODEL =
   process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
 
+/**
+ * GPT-5.6 reasoning models use the provider default sampling configuration.
+ * Sending a custom temperature (including the application's default 0.7)
+ * causes OpenAI to reject the request with an unsupported-value error.
+ */
+export function supportsTemperature(model: string): boolean {
+  return !/^gpt-5(?:\.\d+)?(?:-(?:luna|terra|sol))?$/i.test(model.trim());
+}
+
 export class OpenAIProvider implements LLMProvider {
   private config: ProviderConfig;
   private client: OpenAI;
@@ -33,14 +42,21 @@ export class OpenAIProvider implements LLMProvider {
       content: m.content,
     }));
 
-    const stream = await this.client.chat.completions.create({
+    const request: Parameters<typeof this.client.chat.completions.create>[0] = {
       model,
       messages: openaiMessages,
-      temperature: options?.temperature ?? 0.2,
       max_tokens: options?.maxTokens,
       stop: options?.stop,
       stream: true,
-    });
+    };
+
+    // GPT-5.6 Luna/Terra/Sol reject custom temperature values. Omit the field
+    // completely so the API applies its model default.
+    if (supportsTemperature(model)) {
+      request.temperature = options?.temperature ?? 0.2;
+    }
+
+    const stream = await this.client.chat.completions.create(request);
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
