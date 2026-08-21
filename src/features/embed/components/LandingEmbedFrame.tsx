@@ -2,73 +2,214 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Loader2, PhoneOff, Send, Sparkles, Volume2, X } from "lucide-react";
-import { MarkdownMessage } from "@/modules/assistant/ui/chat/MarkdownMessage";
+import { Loader2, PhoneOff, Sparkles, Volume2 } from "lucide-react";
+import { apiUrl } from "@/lib/runtime";
 
 type Config = {
-  kbId: string; kbName: string; assistantName: string; avatarUrl: string | null; welcomeMessage: string;
-  primaryColour?: string | null; accentColour?: string | null; launcherColour?: string | null;
-  widgetTheme?: string | null; widgetPosition?: string | null; widgetLauncherLabel?: string | null;
-  widgetFontFamily?: string | null; voiceEnabled?: boolean; voiceWaveColor?: string | null;
+  kbId: string;
+  kbName: string;
+  assistantName: string;
+  avatarUrl: string | null;
+  welcomeMessage: string;
+  primaryColour?: string | null;
+  accentColour?: string | null;
+  voiceEnabled?: boolean;
+  voiceWaveColor?: string | null;
 };
-type Message = { id: string; role: "user" | "assistant"; content: string; sources?: Array<{ index: number; title: string; snippet: string; score?: number }> };
-type VoiceState = "idle" | "connecting" | "listening" | "speaking" | "error";
-const PROMPTS = ["What does my insurance cover?", "How do I file a claim?", "What is your insurance?", "Tell me about your policies"];
-const makeId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-function useEmbedVoice(apiKey: string, config: Config | null, onUser: (text: string) => void, onAssistant: (delta: string) => void, onDone: () => void) {
+type VoiceState = "idle" | "connecting" | "listening" | "speaking" | "error";
+
+type VoiceRuntime = { state: VoiceState; error: string | null; start: () => Promise<void>; stop: () => void };
+
+function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) => void, onAssistant: (delta: string) => void): VoiceRuntime {
   const [state, setState] = useState<VoiceState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null), dcRef = useRef<RTCDataChannel | null>(null), micRef = useRef<MediaStream | null>(null), remoteRef = useRef<MediaStream | null>(null), audioRef = useRef<HTMLAudioElement | null>(null);
-  const stoppedRef = useRef(false), transcriptRef = useRef(""), lastTranscriptRef = useRef("");
-  const send = useCallback((payload: unknown) => { const dc = dcRef.current; if (dc?.readyState === "open") { try { dc.send(JSON.stringify(payload)); } catch {} } }, []);
-  const cleanup = useCallback(() => { try { dcRef.current?.close(); } catch {} try { pcRef.current?.close(); } catch {} try { micRef.current?.getTracks().forEach((t) => t.stop()); } catch {} try { remoteRef.current?.getTracks().forEach((t) => t.stop()); } catch {} try { audioRef.current?.pause(); } catch {} try { audioRef.current?.remove(); } catch {} pcRef.current = null; dcRef.current = null; micRef.current = null; remoteRef.current = null; audioRef.current = null; transcriptRef.current = ""; }, []);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dcRef = useRef<RTCDataChannel | null>(null);
+  const micRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const remoteRef = useRef<MediaStream | null>(null);
+  const stoppedRef = useRef(false);
+  const transcriptRef = useRef("");
+  const lastTranscriptRef = useRef("");
+
+  const send = useCallback((payload: unknown) => {
+    const dc = dcRef.current;
+    if (dc?.readyState === "open") { try { dc.send(JSON.stringify(payload)); } catch {} }
+  }, []);
+
+  const cleanup = useCallback(() => {
+    try { dcRef.current?.close(); } catch {}
+    try { pcRef.current?.close(); } catch {}
+    try { micRef.current?.getTracks().forEach((track) => track.stop()); } catch {}
+    try { remoteRef.current?.getTracks().forEach((track) => track.stop()); } catch {}
+    try { audioRef.current?.pause(); } catch {}
+    try { audioRef.current?.remove(); } catch {}
+    dcRef.current = null; pcRef.current = null; micRef.current = null; remoteRef.current = null; audioRef.current = null;
+    transcriptRef.current = "";
+  }, []);
+
   const stop = useCallback(() => { stoppedRef.current = true; cleanup(); setState("idle"); setError(null); }, [cleanup]);
+
   const start = useCallback(async () => {
-    if (!config || config.voiceEnabled === false) return;
-    stoppedRef.current = false; setError(null); setState("connecting"); lastTranscriptRef.current = "";
+    if (!config.voiceEnabled || ["connecting", "listening", "speaking"].includes(state)) return;
+    stoppedRef.current = false; setError(null); setState("connecting"); transcriptRef.current = ""; lastTranscriptRef.current = "";
     try {
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); micRef.current = mic;
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }); pcRef.current = pc;
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      micRef.current = mic;
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+      pcRef.current = pc;
       const remote = new MediaStream(); remoteRef.current = remote;
-      const audio = document.createElement("audio"); audio.autoplay = true; audio.style.display = "none"; document.body.appendChild(audio); audioRef.current = audio;
-      pc.ontrack = (event) => { const stream = event.streams?.[0]; if (!stream) return; stream.getTracks().forEach((track) => { if (!remote.getTracks().includes(track)) remote.addTrack(track); }); audio.srcObject = remote; void audio.play().catch(() => undefined); };
-      const dc = pc.createDataChannel("oai-events"); dcRef.current = dc;
-      dc.onopen = () => { send({ type: "session.update", session: { type: "realtime", output_modalities: ["audio"], audio: { input: { transcription: { model: "gpt-4o-mini-transcribe" }, turn_detection: { type: "server_vad", threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700, create_response: false } } }, tools: [{ type: "function", name: "rag_search", description: "Search the active knowledge base for relevant information.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } }], tool_choice: "auto" } }); setState("listening"); };
-      dc.onmessage = (event) => {
-        let msg: Record<string, unknown>; try { msg = JSON.parse(String(event.data)); } catch { return; } const type = String(msg.type ?? "");
-        if (type === "input_audio_buffer.speech_started") { transcriptRef.current = ""; setState("listening"); return; }
-        if (type === "conversation.item.input_audio_transcription.delta") { transcriptRef.current += String(msg.delta ?? ""); return; }
-        if (type === "conversation.item.input_audio_transcription.completed") {
-          const text = String(msg.transcript ?? "").trim() || transcriptRef.current.trim(); transcriptRef.current = ""; if (!text || text === lastTranscriptRef.current) return; lastTranscriptRef.current = text; onUser(text);
-          fetch("/api/embed/search", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: text, limit: 6 }) }).then((r) => r.ok ? r.json() : { context: "" }).then((payload: { context?: string }) => { const context = String(payload.context ?? "").trim(); if (context) send({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `Relevant knowledge-base information:\n${context}` }] } }); send({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } }); send({ type: "response.create", response: { tool_choice: "none" } }); }).catch(() => { send({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } }); send({ type: "response.create", response: { tool_choice: "none" } }); }); return;
-        }
-        if (type === "response.created") { setState("speaking"); return; }
-        if (type === "response.audio_transcript.delta" || type === "response.text.delta") { const delta = String(msg.delta ?? ""); if (delta) onAssistant(delta); setState("speaking"); return; }
-        if (type === "response.done") { onDone(); setState("listening"); return; }
-        if (type === "response.function_call_arguments.done") { const name = String(msg.name ?? ""), callId = String(msg.call_id ?? ""); if (name !== "rag_search" || !callId) return; let args: { query?: string } = {}; try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {} fetch("/api/embed/search", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: String(args.query ?? ""), limit: 6 }) }).then((r) => r.ok ? r.json() : { context: "", sources: [] }).then((payload: Record<string, unknown>) => { send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }) } }); send({ type: "response.create", response: { tool_choice: "none" } }); }); return; }
-        if (type === "error") { setError(String((msg.error as Record<string, unknown> | undefined)?.message ?? msg.message ?? "Voice connection failed")); setState("error"); }
+      const audio = document.createElement("audio"); audio.autoplay = true; document.body.appendChild(audio); audioRef.current = audio;
+      pc.ontrack = (event) => {
+        const stream = event.streams?.[0]; if (!stream) return;
+        stream.getTracks().forEach((track) => { if (!remote.getTracks().includes(track)) remote.addTrack(track); });
+        audio.srcObject = remote; void audio.play().catch(() => undefined);
       };
-      pc.addTrack(mic.getAudioTracks()[0], mic); const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
-      if (pc.iceGatheringState !== "complete") await new Promise<void>((resolve) => { let settled = false; const finish = () => { if (settled) return; settled = true; pc.removeEventListener("icegatheringstatechange", check); resolve(); }; const check = () => { if (pc.iceGatheringState === "complete") finish(); }; pc.addEventListener("icegatheringstatechange", check); window.setTimeout(finish, 8000); });
-      const res = await fetch("/api/embed/voice-connect", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ sdpOffer: pc.localDescription?.sdp ?? offer.sdp ?? "" }) }); const payload = await res.json().catch(() => ({})); if (!res.ok || !payload.sdpAnswer) throw new Error(String(payload.error ?? `Voice connection failed: ${res.status}`)); await pc.setRemoteDescription({ type: "answer", sdp: String(payload.sdpAnswer) }); if (payload.welcomeMessage) send({ type: "response.create", response: { instructions: `Greet the user with this message: ${JSON.stringify(String(payload.welcomeMessage))}`, tool_choice: "none" } });
-    } catch (err) { cleanup(); if (!stoppedRef.current) { setError((err as Error).message || "Unable to start voice session"); setState("error"); } }
-  }, [apiKey, cleanup, config, onAssistant, onDone, onUser, send]);
+
+      const dc = pc.createDataChannel("oai-events"); dcRef.current = dc; dc.onopen = () => setState("listening");
+      dc.onclose = () => { if (!stoppedRef.current) { cleanup(); setError("Voice connection closed. Please try again."); setState("error"); } };
+      dc.onmessage = (event) => {
+        let msg: Record<string, unknown>; try { msg = JSON.parse(String(event.data)); } catch { return; }
+        const type = String(msg.type ?? "");
+        if (type === "input_audio_buffer.speech_started") {
+          transcriptRef.current = ""; setState("listening");
+        } else if (type === "conversation.item.input_audio_transcription.delta") {
+          transcriptRef.current += String(msg.delta ?? "");
+        } else if (type === "conversation.item.input_audio_transcription.completed") {
+          const text = String(msg.transcript ?? transcriptRef.current).trim(); transcriptRef.current = "";
+          if (!text || text === lastTranscriptRef.current) return;
+          lastTranscriptRef.current = text; onUser(text);
+          void fetch(apiUrl("/api/embed/search"), { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: text, limit: 6 }) })
+            .then((r) => r.ok ? r.json() : { context: "", sources: [] })
+            .then((payload: { context?: string }) => {
+              const context = String(payload.context ?? "").trim();
+              if (context) send({ type: "conversation.item.create", item: { type: "message", role: "system", content: [{ type: "input_text", text: `Relevant knowledge-base information:\n${context}` }] } });
+              send({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
+              send({ type: "response.create", response: { tool_choice: "none" } });
+            })
+            .catch(() => {
+              send({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
+              send({ type: "response.create", response: { tool_choice: "none" } });
+            });
+        } else if (type === "response.created") {
+          setState("speaking");
+        } else if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
+          const delta = String(msg.delta ?? ""); if (delta) onAssistant(delta); setState("speaking");
+        } else if (type === "response.done") {
+          setState("listening");
+        } else if (type === "response.function_call_arguments.done") {
+          const name = String(msg.name ?? ""); const callId = String(msg.call_id ?? ""); if (name !== "rag_search" || !callId) return;
+          let args: { query?: string } = {}; try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {}
+          void fetch(apiUrl("/api/embed/search"), { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: String(args.query ?? lastTranscriptRef.current), limit: 6 }) })
+            .then((r) => r.ok ? r.json() : { context: "", sources: [] })
+            .then((payload: { context?: string; sources?: unknown[] }) => {
+              send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }) } });
+              send({ type: "response.create", response: { tool_choice: "none" } });
+            })
+            .catch(() => {
+              send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify({ context: "" }) } });
+              send({ type: "response.create", response: { tool_choice: "none" } });
+            });
+        } else if (type === "error") {
+          const detail = msg.error as Record<string, unknown> | undefined; setError(String(detail?.message ?? msg.message ?? "Voice session error")); setState("error");
+        }
+      };
+
+      const track = mic.getAudioTracks()[0]; if (!track) throw new Error("No microphone audio track was available.");
+      pc.addTrack(track, mic);
+      const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+      if (pc.iceGatheringState !== "complete") await new Promise<void>((resolve) => {
+        let finished = false;
+        const finish = () => { if (finished) return; finished = true; pc.removeEventListener("icegatheringstatechange", check); resolve(); };
+        const check = () => { if (pc.iceGatheringState === "complete") finish(); };
+        pc.addEventListener("icegatheringstatechange", check); window.setTimeout(finish, 8000);
+      });
+
+      const response = await fetch(apiUrl("/api/embed/voice-connect"), { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ sdpOffer: pc.localDescription?.sdp ?? offer.sdp ?? "" }) });
+      const payload = await response.json().catch(() => ({})) as { sdpAnswer?: string; welcomeMessage?: string; error?: string };
+      if (!response.ok || !payload.sdpAnswer) throw new Error(payload.error ?? `Voice connection failed (${response.status})`);
+      await pc.setRemoteDescription({ type: "answer", sdp: payload.sdpAnswer });
+      if (payload.welcomeMessage) send({ type: "response.create", response: { instructions: `Greet the user with this message: ${JSON.stringify(payload.welcomeMessage)}`, tool_choice: "none" } });
+    } catch (err) {
+      cleanup();
+      if (!stoppedRef.current) {
+        const e = err as DOMException;
+        const message = e?.name === "NotAllowedError" ? "Microphone access was denied. Allow microphone access and try again." : e?.name === "NotFoundError" ? "No microphone was detected." : (err as Error)?.message || "Unable to start voice session.";
+        setError(message); setState("error");
+      }
+    }
+  }, [apiKey, cleanup, config, onAssistant, onUser, send, state]);
+
   useEffect(() => () => cleanup(), [cleanup]);
   return { state, error, start, stop };
 }
 
+function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config }) {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [levels, setLevels] = useState([0.2, 0.4, 0.3, 0.5, 0.3, 0.4, 0.2]);
+  const onUser = useCallback((text: string) => { setQuestion(text); setAnswer(""); }, []);
+  const onAssistant = useCallback((delta: string) => setAnswer((value) => value + delta), []);
+  const voice = useEmbedVoice(apiKey, config, onUser, onAssistant);
+  const primary = config.primaryColour || "#6366f1";
+  const wave = config.voiceWaveColor || config.accentColour || "#818cf8";
+  const active = ["connecting", "listening", "speaking"].includes(voice.state);
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => setLevels((current) => current.map((value) => Math.max(0.15, Math.min(1, value * 0.65 + Math.random() * 0.55)))), 100);
+    return () => window.clearInterval(timer);
+  }, [active]);
+
+  return (
+    <section className="relative w-full max-w-5xl mx-auto py-24 px-6 z-20 text-white">
+      <div className="text-center mb-12">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-6"><Sparkles className="w-3.5 h-3.5" /> Interactive Demo</div>
+        <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Experience Voice AI</h2>
+        <p className="text-white/50 text-lg max-w-2xl mx-auto">Try a real-time, low-latency conversation with {config.assistantName} directly from your browser. Powered by your configured voice provider.</p>
+      </div>
+      <div className="relative rounded-3xl overflow-hidden border border-white/[0.08] min-h-[500px] flex items-center justify-center p-8 bg-black/40">
+        <div className="absolute inset-0 pointer-events-none blur-[100px]" style={{ background: `${primary}14` }} />
+        <AnimatePresence mode="wait">
+          {!active ? (
+            <motion.div key="start" initial={{ opacity: 0, scale: .95 }} animate={{ opacity: 1, scale: 1 }} className="text-center relative z-10">
+              <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 relative" style={{ background: `${primary}22` }}><div className="absolute inset-0 rounded-full border animate-pulse" style={{ borderColor: `${primary}55` }} /><div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${wave})` }}><Volume2 className="w-8 h-8 text-white" /></div></div>
+              <h3 className="text-xl font-medium text-white mb-2">{voice.state === "error" ? "Connection failed" : "Ready to talk?"}</h3>
+              <p className="text-sm text-white/40 mb-8 max-w-sm mx-auto">{voice.error || `Make sure your microphone is connected. Ask ${config.assistantName} about policies, coverage, claims, or services.`}</p>
+              <button onClick={() => void voice.start()} disabled={!config.voiceEnabled} className="px-8 py-3 rounded-xl bg-white text-black font-semibold hover:bg-white/90 transition-all hover:scale-105 disabled:opacity-50">{config.voiceEnabled ? "Start Voice Session" : "Voice unavailable"}</button>
+            </motion.div>
+          ) : (
+            <motion.div key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full flex flex-col items-center justify-center relative z-10 py-12">
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-white/5 rounded-full px-4 py-1.5 border border-white/10"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span className="text-xs text-white/60 font-medium tracking-wide">{voice.state === "speaking" ? "SPEAKING" : voice.state === "connecting" ? "CONNECTING" : "LIVE"}</span></div>
+              {voice.state === "connecting" ? <div className="flex flex-col items-center"><Loader2 className="w-12 h-12 text-indigo-400 animate-spin mb-6" /><p className="text-sm text-indigo-300 animate-pulse font-medium">Establishing secure connection...</p></div> : <div className="flex gap-3 items-center justify-center z-10 h-32">{levels.map((level, index) => <motion.div key={index} animate={{ height: Math.max(16, level * 120) }} transition={{ duration: .08 }} className="w-4 rounded-full opacity-90" style={{ backgroundColor: wave }} />)}</div>}
+              <div className="h-28 w-full max-w-2xl flex flex-col justify-center text-center px-4 mt-8">{question && <><p className="text-xs text-white/30 uppercase tracking-wider mb-1 font-semibold">You said</p><p className="text-lg text-white/90 line-clamp-1">{question}</p></>}{answer && <><p className="text-xs text-indigo-400 uppercase tracking-wider mb-1 mt-3 font-semibold">{config.assistantName}</p><p className="text-lg text-indigo-100 line-clamp-2 leading-snug">{answer}</p></>}</div>
+              <button onClick={voice.stop} className="mt-8 flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30" title="End Session"><PhoneOff className="w-6 h-6 text-red-400" /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingEmbedFrame({ apiKey, mode }: { apiKey: string; mode: "fab" | "voice" }) {
-  const [config, setConfig] = useState<Config | null>(null), [error, setError] = useState<string | null>(null), [open, setOpen] = useState(false), [messages, setMessages] = useState<Message[]>([]), [input, setInput] = useState(""), [streaming, setStreaming] = useState(false), [userTranscript, setUserTranscript] = useState(""), [voiceAnswer, setVoiceAnswer] = useState("");
-  const abortRef = useRef<AbortController | null>(null);
-  useEffect(() => { if (!apiKey) { setError("Missing embed API key"); return; } fetch("/api/embed/config", { headers: { Authorization: `Bearer ${apiKey}` } }).then(async (res) => { const data = await res.json(); if (!res.ok || data.error) throw new Error(data.error ?? `Config request failed: ${res.status}`); setConfig(data as Config); setMessages([{ id: "welcome", role: "assistant", content: String(data.welcomeMessage ?? "Hello! How can I help?") }]); }).catch((err) => setError(err.message || "Unable to load assistant configuration")); }, [apiKey]);
-  const sendMessage = useCallback(async (text: string) => { if (!config || !text.trim() || streaming) return; const user = { id: makeId("u"), role: "user" as const, content: text.trim() }, history = [...messages.filter((m) => m.id !== "welcome"), user], assistant = { id: makeId("a"), role: "assistant" as const, content: "" }; setMessages((current) => [...current, user, assistant]); setInput(""); setStreaming(true); abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller; try { const res = await fetch("/api/embed/chat", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) }), signal: controller.signal }); if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error ?? `Chat request failed: ${res.status}`); const reader = res.body.getReader(), decoder = new TextDecoder(); let buffer = ""; while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() ?? ""; for (const line of lines) { if (!line.trim()) continue; const event = JSON.parse(line) as { type: string; payload: unknown }; if (event.type === "token") setMessages((current) => current.map((m) => m.id === assistant.id ? { ...m, content: m.content + String(event.payload ?? "") } : m)); if (event.type === "sources") setMessages((current) => current.map((m) => m.id === assistant.id ? { ...m, sources: (event.payload ?? []) as Message["sources"] } : m)); if (event.type === "error") throw new Error(String(event.payload ?? "Chat error")); } } if (buffer.trim()) { const event = JSON.parse(buffer) as { type: string; payload: unknown }; if (event.type === "token") setMessages((current) => current.map((m) => m.id === assistant.id ? { ...m, content: m.content + String(event.payload ?? "") } : m)); } } catch (err) { if ((err as Error).name !== "AbortError") setMessages((current) => current.map((m) => m.id === assistant.id ? { ...m, content: (err as Error).message || "Sorry, I encountered an error." } : m)); } finally { setStreaming(false); abortRef.current = null; } }, [apiKey, config, messages, streaming]);
-  const onVoiceUser = useCallback((text: string) => { setUserTranscript(text); setVoiceAnswer(""); }, []), onVoiceAssistant = useCallback((delta: string) => setVoiceAnswer((value) => value + delta), []), onVoiceDone = useCallback(() => undefined, []);
-  const voice = useEmbedVoice(apiKey, config, onVoiceUser, onVoiceAssistant, onVoiceDone);
-  useEffect(() => { if (mode === "fab") window.parent?.postMessage({ type: "clara:fab-state", open }, window.location.origin); }, [mode, open]);
-  if (error) return <div className="min-h-screen bg-transparent flex items-center justify-center text-xs text-red-300 p-4 text-center">{error}</div>;
-  if (!config) return <div className="min-h-screen bg-transparent flex items-center justify-center"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /></div>;
-  const primary = config.primaryColour || "#6366f1", accent = config.accentColour || "#8b5cf6", dark = config.widgetTheme !== "light";
-  if (mode === "voice") return <section className="relative w-full max-w-5xl mx-auto py-24 px-6 z-20 text-white"><div className="text-center mb-12"><motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-6"><Sparkles className="w-3.5 h-3.5" />Interactive Demo</motion.div><h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Experience Voice AI</h2><p className="text-white/50 text-lg max-w-2xl mx-auto">Try a real-time, low-latency conversation with {config.assistantName} directly from your browser. Powered by your configured voice provider.</p></div><div className="relative rounded-3xl overflow-hidden glass-card border border-white/[0.08] min-h-[500px] flex items-center justify-center p-8 bg-black/40"><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-2xl blur-[100px] rounded-full pointer-events-none" style={{ background: `${primary}1a` }} /><AnimatePresence mode="wait">{voice.state === "idle" || voice.state === "error" ? <motion.div key="start" initial={{ opacity: 0, scale: .95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .95 }} className="text-center relative z-10"><div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 relative" style={{ background: `${primary}33` }}><div className="absolute inset-0 rounded-full border animate-pulse-ring" style={{ borderColor: `${primary}4d` }} /><div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}><Volume2 className="w-8 h-8 text-white" /></div></div>{voice.state === "error" ? <><h3 className="text-xl font-medium text-red-300 mb-2">Connection Failed</h3><p className="text-sm text-red-300/60 mb-6 max-w-sm mx-auto">{voice.error}</p></> : <><h3 className="text-xl font-medium text-white mb-2">Ready to talk?</h3><p className="text-sm text-white/40 mb-8 max-w-sm mx-auto">Make sure your microphone is connected. Ask {config.assistantName} about policies, coverage, claims, or services.</p></>}<button onClick={() => void voice.start()} disabled={!config.voiceEnabled} className="px-8 py-3 rounded-xl bg-white text-black font-semibold hover:bg-white/90 transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] disabled:opacity-50">{config.voiceEnabled ? "Start Voice Session" : "Voice Unavailable"}</button></motion.div> : <motion.div key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full flex flex-col items-center justify-center relative z-10 py-12"><div className="absolute top-4 right-4 flex items-center gap-2 bg-white/5 rounded-full px-4 py-1.5 border border-white/10"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span className="text-xs text-white/60 font-medium tracking-wide">{voice.state === "speaking" ? "SPEAKING" : voice.state === "connecting" ? "CONNECTING" : "LIVE"}</span></div><div className="flex-1 w-full flex flex-col items-center justify-center min-h-[250px]">{voice.state === "connecting" ? <div className="flex flex-col items-center"><Loader2 className="w-12 h-12 animate-spin mb-6" style={{ color: primary }} /><p className="text-sm animate-pulse font-medium" style={{ color: accent }}>Establishing secure connection...</p></div> : <div className="relative w-full flex justify-center items-center h-full"><div className="absolute inset-0 flex items-center justify-center pointer-events-none"><motion.div animate={{ scale: voice.state === "speaking" ? 1.25 : 1 }} transition={{ duration: .15 }} className="w-[280px] h-[280px] rounded-full blur-3xl" style={{ background: `${primary}4d` }} /></div><div className="flex gap-3 items-center justify-center z-10 h-32">{[0,1,2,3,4,5,6].map((i) => <motion.div key={i} animate={{ height: voice.state === "speaking" ? [18, 80 + (i % 3) * 18, 28] : 18 }} transition={{ duration: .35, repeat: voice.state === "speaking" ? Infinity : 0 }} className="w-4 rounded-full opacity-90" style={{ background: config.voiceWaveColor || accent, minHeight: 16 }} />)}</div></div>}</div><div className="h-28 w-full max-w-2xl mx-auto flex flex-col justify-center text-center px-4 mt-8">{userTranscript && <div className="mb-2"><p className="text-xs text-white/30 uppercase tracking-wider mb-1 font-semibold">You said</p><p className="text-lg text-white/90 line-clamp-1">{userTranscript}</p></div>}{voiceAnswer && <div><p className="text-xs uppercase tracking-wider mb-1 font-semibold" style={{ color: accent }}>{config.assistantName}</p><p className="text-lg text-indigo-100 line-clamp-2 leading-snug">{voiceAnswer}</p></div>}</div><button onClick={voice.stop} className="mt-8 group relative flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all overflow-hidden" title="End Session"><div className="absolute inset-0 bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity" /><PhoneOff className="w-6 h-6 text-red-400 group-hover:text-red-300 relative z-10" /></button></motion.div>}</AnimatePresence></div></section>;
-  return <div className="fixed inset-0 pointer-events-none" style={{ fontFamily: config.widgetFontFamily || "system-ui,-apple-system,sans-serif" }}><AnimatePresence>{!open && <motion.div className={`fixed bottom-6 ${config.widgetPosition === "bottom-left" ? "left-6" : "right-6"} z-[9999] pointer-events-auto`} initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}><div className="absolute inset-0 rounded-full animate-pulse-ring" style={{ background: `${primary}33` }} /><button onClick={() => setOpen(true)} className="relative w-16 h-16 rounded-full shadow-2xl flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer" style={{ background: `linear-gradient(135deg, ${config.launcherColour || primary}, ${accent})`, boxShadow: `0 20px 50px ${primary}4d` }} aria-label={`Open ${config.assistantName}`}><Sparkles className="w-7 h-7 text-white relative z-10 group-hover:scale-110 transition-transform" /></button><div className={`absolute ${config.widgetPosition === "bottom-left" ? "left-full ml-3" : "right-full mr-3"} top-1/2 -translate-y-1/2 whitespace-nowrap`}><div className="glass-premium rounded-xl px-4 py-2 text-sm font-medium text-white/90 flex items-center gap-2"><Bot className="w-4 h-4" style={{ color: accent }} /> {config.widgetLauncherLabel || `Try ${config.assistantName}`}</div></div></motion.div>}</AnimatePresence><AnimatePresence>{open && <motion.div className={`fixed bottom-6 ${config.widgetPosition === "bottom-left" ? "left-6" : "right-6"} z-[9999] w-[420px] max-w-[calc(100vw-2rem)] h-[680px] max-h-[calc(100vh-3rem)] flex flex-col rounded-3xl overflow-hidden pointer-events-auto`} style={{ background: dark ? "rgba(8,8,20,.95)" : "rgba(255,255,255,.98)", backdropFilter: "blur(40px) saturate(1.6)", border: "1px solid rgba(255,255,255,.08)", boxShadow: `0 25px 80px rgba(0,0,0,.6), 0 0 60px ${primary}26` }} initial={{ opacity: 0, scale: .5, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .5, y: 40 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}><div className="flex items-center justify-between px-5 py-4 border-b border-white/[.06]" style={{ background: `linear-gradient(135deg, ${primary}1f, ${accent}14)` }}><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>{config.avatarUrl ? <img src={config.avatarUrl} alt="" className="w-10 h-10 object-cover" /> : <Sparkles className="w-5 h-5 text-white" />}</div><div><div className="text-sm font-bold" style={{ color: dark ? "#fff" : "#111827" }}>{config.assistantName}</div><div className="flex items-center gap-1.5 text-[11px]" style={{ color: dark ? "rgba(255,255,255,.4)" : "#6b7280" }}><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Online — {config.kbName}</div></div></div><button onClick={() => setOpen(false)} className="w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[.06]" aria-label="Close"><X className="w-4 h-4" /></button></div><div className="flex-1 overflow-y-auto px-5 py-4 space-y-4" style={{ scrollbarWidth: "thin" }}>{messages.length === 1 && <div className="flex flex-col items-center justify-center min-h-full text-center"><div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: `${primary}26` }}><Sparkles className="w-8 h-8" style={{ color: accent }} /></div><p className="text-base font-semibold mb-2" style={{ color: dark ? "rgba(255,255,255,.9)" : "#111827" }}>{config.welcomeMessage}</p><p className="text-sm mb-6 max-w-[300px]" style={{ color: dark ? "rgba(255,255,255,.4)" : "#6b7280" }}>Ask about {config.kbName}, policies, coverage, benefits, claims, and other information in the knowledge base.</p><div className="grid grid-cols-2 gap-2 w-full max-w-sm">{PROMPTS.map((prompt) => <button key={prompt} onClick={() => void sendMessage(prompt)} className="glass-card rounded-xl px-3 py-2.5 text-xs text-left transition-colors" style={{ color: dark ? "rgba(255,255,255,.6)" : "#4b5563" }}>{prompt}</button>)}</div></div>}{messages.map((message) => <motion.div key={message.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}><div className="max-w-[88%]"><div className={`flex items-center gap-2 mb-1 ${message.role === "user" ? "justify-end" : ""}`}>{message.role === "assistant" && <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}><Bot className="w-3 h-3 text-white" /></div>}<span className="text-[10px] uppercase tracking-wider" style={{ color: dark ? "rgba(255,255,255,.3)" : "#9ca3af" }}>{message.role === "user" ? "You" : config.assistantName}</span></div><div className="rounded-2xl px-4 py-3 text-sm leading-relaxed" style={{ background: message.role === "user" ? `linear-gradient(135deg, ${primary}, ${accent})` : dark ? "rgba(255,255,255,.05)" : "#f3f4f6", color: message.role === "user" ? "#fff" : dark ? "rgba(255,255,255,.85)" : "#1f2937", border: message.role === "assistant" ? "1px solid rgba(255,255,255,.06)" : undefined }}>{message.content ? message.role === "assistant" ? <div className="dark [&_.prose]:text-white/85 [&_.prose_p]:my-0"><MarkdownMessage content={message.content} variant="assistant" /></div> : message.content : <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs opacity-50">Thinking...</span></div>}</div>{message.sources?.length ? <div className="mt-2 space-y-1"><p className="text-[10px] uppercase tracking-wider opacity-40">Sources</p>{message.sources.slice(0, 3).map((source) => <div key={source.index} className="rounded-lg px-3 py-1.5 text-[11px]" style={{ border: `1px solid ${primary}33`, background: `${primary}0f`, color: `${accent}cc` }}><span className="font-medium" style={{ color: accent }}>[S{source.index}]</span> {source.title}</div>)}</div> : null}</div></motion.div>)}</div><form onSubmit={(event) => { event.preventDefault(); void sendMessage(input); }} className="px-4 pb-4 pt-2 border-t border-white/[.06]"><div className="flex items-end gap-2 rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(255,255,255,.08)", background: dark ? "rgba(255,255,255,.03)" : "#f9fafb" }}><textarea value={input} onChange={(event) => setInput(event.target.value)} rows={1} placeholder={`Ask ${config.assistantName} anything...`} disabled={streaming} className="flex-1 bg-transparent text-sm resize-none outline-none min-h-[24px] max-h-[100px]" style={{ color: dark ? "rgba(255,255,255,.9)" : "#111827" }} /><button type="submit" disabled={streaming || !input.trim()} className="w-9 h-9 rounded-xl flex items-center justify-center text-white disabled:opacity-30 shrink-0" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>{streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button></div></form></motion.div>}</AnimatePresence></div>;
+  const [config, setConfig] = useState<Config | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!apiKey) { setError("Missing embed API key"); return; }
+    let cancelled = false;
+    fetch(apiUrl("/api/embed/config"), { headers: { Authorization: `Bearer ${apiKey}` }, cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error) throw new Error(data.error ?? `Config request failed (${response.status})`);
+        if (!cancelled) setConfig(data as Config);
+      })
+      .catch((err) => { if (!cancelled) setError((err as Error).message || "Unable to load assistant configuration"); });
+    return () => { cancelled = true; };
+  }, [apiKey]);
+  if (error) return <div className="min-h-screen flex items-center justify-center bg-transparent px-4 text-center text-xs text-red-300">{error}</div>;
+  if (!config) return <div className="min-h-screen flex items-center justify-center bg-transparent"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /></div>;
+  if (mode === "fab") return <iframe title={`${config.assistantName} chat assistant`} src={`/embed/widget?key=${encodeURIComponent(apiKey)}`} className="fixed inset-0 w-full h-full border-0" allow="microphone; autoplay" referrerPolicy="strict-origin-when-cross-origin" />;
+  if (config.voiceEnabled === false) return <div className="min-h-screen flex items-center justify-center bg-transparent text-sm text-white/50">Voice is not enabled for this assistant.</div>;
+  return <VoiceExperience apiKey={apiKey} config={config} />;
 }
