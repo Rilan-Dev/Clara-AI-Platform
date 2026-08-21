@@ -1,5 +1,8 @@
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type {
+  ChatCompletionCreateParamsStreaming,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
 import { LLMProvider, ChatMessage, ChatOptions, ProviderConfig } from "../types";
 
 const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
@@ -8,8 +11,8 @@ const DEFAULT_EMBEDDING_MODEL =
 
 /**
  * GPT-5.6 reasoning models use the provider default sampling configuration.
- * Sending a custom temperature (including the application's default 0.7)
- * causes OpenAI to reject the request with an unsupported-value error.
+ * Sending a custom temperature causes OpenAI to reject the request with an
+ * unsupported-value error, so the field must be omitted entirely.
  */
 export function supportsTemperature(model: string): boolean {
   return !/^gpt-5(?:\.\d+)?(?:-(?:luna|terra|sol))?$/i.test(model.trim());
@@ -21,8 +24,7 @@ export class OpenAIProvider implements LLMProvider {
 
   constructor(config?: ProviderConfig) {
     this.config = config ?? { provider: "openai" };
-    const apiKey =
-      this.config.apiKey ?? process.env.OPENAI_API_KEY;
+    const apiKey = this.config.apiKey ?? process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error(
         "OPENAI_API_KEY is not set. Add it to your environment or provide it in the config."
@@ -42,7 +44,7 @@ export class OpenAIProvider implements LLMProvider {
       content: m.content,
     }));
 
-    const request: Parameters<typeof this.client.chat.completions.create>[0] = {
+    const request: ChatCompletionCreateParamsStreaming = {
       model,
       messages: openaiMessages,
       max_tokens: options?.maxTokens,
@@ -60,9 +62,7 @@ export class OpenAIProvider implements LLMProvider {
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
-      if (delta) {
-        yield delta;
-      }
+      if (delta) yield delta;
     }
   }
 
@@ -99,9 +99,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   getModelName(type: "chat" | "embedding"): string {
-    if (type === "chat") {
-      return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
-    }
+    if (type === "chat") return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
     return this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
   }
 
