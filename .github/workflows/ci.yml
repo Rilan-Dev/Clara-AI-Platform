@@ -39,9 +39,9 @@ jobs:
     name: Build & Push Image
     runs-on: ubuntu-latest
     needs: lint
-    # Pushes to either production branch publish the deployable image. Pull
-    # requests still run lint/typecheck/tests without publishing credentials.
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Vite-Converted')
+    # Pull requests build the exact Docker image but never publish it. Pushes
+    # to main/Vite-Converted build and publish the deployable image.
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Vite-Converted'))
     permissions:
       contents: read
       packages: write
@@ -53,6 +53,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USER }}
@@ -65,14 +66,14 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=
-            type=raw,value=latest
-            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' }}
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}},enable=${{ github.event_name == 'push' }}
 
-      - name: Build & push image
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
