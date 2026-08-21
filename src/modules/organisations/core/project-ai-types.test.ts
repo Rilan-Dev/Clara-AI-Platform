@@ -6,6 +6,7 @@ describe("project AI runtime isolation", () => {
     const result = resolveProjectRuntimeSelection({
       provider: "openai",
       assistantLanguage: "fr",
+      assistantVoice: null,
       assignedLanguages: [
         { code: "en", enabled: true },
         { code: "ar", enabled: true },
