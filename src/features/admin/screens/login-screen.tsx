@@ -1,25 +1,21 @@
 "use client";
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Brain, Eye, EyeOff } from "lucide-react";
 import axios, { isAxiosError } from "axios";
 import { setStoredToken } from "@/lib/client-auth";
-import { getApiBaseUrl } from "@/lib/runtime";
+import { AUTH_LOGIN_ENDPOINT, getSafeRedirect } from "./login-redirect";
 
+// Authentication is intentionally same-origin. The login API sets the
+// HttpOnly session cookie used by Next middleware to protect /dashboard and
+// other platform pages. Calling a separate API origin would scope that cookie
+// to the API host and leaves the UI host unauthenticated after a successful
+// login.
 const authClient = axios.create({
-  baseURL: getApiBaseUrl(),
   timeout: 15_000,
 });
 
-function getSafeRedirect(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard";
-  }
-  return value;
-}
-
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get("redirect"));
   const [email, setEmail] = useState("admin@clara.ai");
@@ -32,11 +28,29 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+
     try {
-      const { data } = await authClient.post<{ token?: string }>("/api/auth/login", { email, password });
-      if (data.token) setStoredToken(data.token);
-      router.replace(redirectTo);
-      router.refresh();
+      // Keep login on the current origin so the Set-Cookie response from
+      // /api/auth/login is stored for the same host that serves /dashboard.
+      const { data } = await authClient.post<{ token?: string }>(
+        AUTH_LOGIN_ENDPOINT,
+        { email, password },
+        { withCredentials: true },
+      );
+
+      if (!data.token) {
+        setError("Login succeeded but no session token was returned. Please try again.");
+        return;
+      }
+
+      // Keep the bearer token for client-side API calls as before. The
+      // HttpOnly cookie is the authoritative browser session for middleware.
+      setStoredToken(data.token);
+
+      // Do a full navigation rather than an in-place router transition. This
+      // guarantees the next request is made with the freshly-issued cookie and
+      // avoids the login page remaining mounted after authentication.
+      window.location.replace(redirectTo);
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         const msg = (err.response?.data as { error?: string })?.error;
