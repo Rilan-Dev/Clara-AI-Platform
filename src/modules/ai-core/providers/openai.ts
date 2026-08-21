@@ -33,11 +33,20 @@ export class OpenAIProvider implements LLMProvider {
       content: m.content,
     }));
 
+    const isGpt5Family = model.toLowerCase().startsWith("gpt-5");
+    const completionOptions = isGpt5Family
+      ? {
+          max_completion_tokens: options?.maxTokens,
+        }
+      : {
+          max_tokens: options?.maxTokens,
+        };
+
     const stream = await this.client.chat.completions.create({
       model,
       messages: openaiMessages,
       temperature: options?.temperature ?? 0.2,
-      max_tokens: options?.maxTokens,
+      ...completionOptions,
       stop: options?.stop,
       stream: true,
     });
