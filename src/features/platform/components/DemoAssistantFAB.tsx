@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 /**
  * The landing page only hosts the customer-facing embed runtime. The iframe
- * owns the FAB, chat UI, configuration and authenticated API calls.
+ * owns the FAB, chat UI, identity, styling and authenticated API calls.
  */
 export default function DemoAssistantFAB() {
   const [open, setOpen] = useState(false);
@@ -25,11 +25,7 @@ export default function DemoAssistantFAB() {
       title="Clara AI chat assistant"
       src={src}
       className="fixed bottom-0 right-0 z-[9998] border-0 bg-transparent"
-      style={{
-        width: open ? 460 : 120,
-        height: open ? 740 : 120,
-        pointerEvents: "auto",
-      }}
+      style={{ width: open ? 460 : 280, height: open ? 740 : 120, pointerEvents: "auto" }}
       allow="microphone; autoplay"
       referrerPolicy="strict-origin-when-cross-origin"
     />
