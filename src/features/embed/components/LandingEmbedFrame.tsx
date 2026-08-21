@@ -19,12 +19,7 @@ type Config = {
 
 type VoiceState = "idle" | "connecting" | "listening" | "speaking" | "error";
 
-type VoiceRuntime = {
-  state: VoiceState;
-  error: string | null;
-  start: () => Promise<void>;
-  stop: () => void;
-};
+type VoiceRuntime = { state: VoiceState; error: string | null; start: () => Promise<void>; stop: () => void };
 
 function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) => void, onAssistant: (delta: string) => void): VoiceRuntime {
   const [state, setState] = useState<VoiceState>("idle");
@@ -40,9 +35,7 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
 
   const send = useCallback((payload: unknown) => {
     const dc = dcRef.current;
-    if (dc?.readyState === "open") {
-      try { dc.send(JSON.stringify(payload)); } catch {}
-    }
+    if (dc?.readyState === "open") { try { dc.send(JSON.stringify(payload)); } catch {} }
   }, []);
 
   const cleanup = useCallback(() => {
@@ -52,83 +45,42 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
     try { remoteRef.current?.getTracks().forEach((track) => track.stop()); } catch {}
     try { audioRef.current?.pause(); } catch {}
     try { audioRef.current?.remove(); } catch {}
-    dcRef.current = null;
-    pcRef.current = null;
-    micRef.current = null;
-    remoteRef.current = null;
-    audioRef.current = null;
+    dcRef.current = null; pcRef.current = null; micRef.current = null; remoteRef.current = null; audioRef.current = null;
     transcriptRef.current = "";
   }, []);
 
-  const stop = useCallback(() => {
-    stoppedRef.current = true;
-    cleanup();
-    setState("idle");
-    setError(null);
-  }, [cleanup]);
+  const stop = useCallback(() => { stoppedRef.current = true; cleanup(); setState("idle"); setError(null); }, [cleanup]);
 
   const start = useCallback(async () => {
     if (!config.voiceEnabled || ["connecting", "listening", "speaking"].includes(state)) return;
-    stoppedRef.current = false;
-    setError(null);
-    setState("connecting");
-    transcriptRef.current = "";
-    lastTranscriptRef.current = "";
-
+    stoppedRef.current = false; setError(null); setState("connecting"); transcriptRef.current = ""; lastTranscriptRef.current = "";
     try {
-      const mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-      });
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
       micRef.current = mic;
-
       const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
       pcRef.current = pc;
-      const remote = new MediaStream();
-      remoteRef.current = remote;
-
-      const audio = document.createElement("audio");
-      audio.autoplay = true;
-      audio.playsInline = true;
-      document.body.appendChild(audio);
-      audioRef.current = audio;
+      const remote = new MediaStream(); remoteRef.current = remote;
+      const audio = document.createElement("audio"); audio.autoplay = true; document.body.appendChild(audio); audioRef.current = audio;
       pc.ontrack = (event) => {
-        const stream = event.streams?.[0];
-        if (!stream) return;
+        const stream = event.streams?.[0]; if (!stream) return;
         stream.getTracks().forEach((track) => { if (!remote.getTracks().includes(track)) remote.addTrack(track); });
-        audio.srcObject = remote;
-        void audio.play().catch(() => undefined);
+        audio.srcObject = remote; void audio.play().catch(() => undefined);
       };
 
-      const dc = pc.createDataChannel("oai-events");
-      dcRef.current = dc;
-      dc.onopen = () => setState("listening");
-      dc.onclose = () => {
-        if (!stoppedRef.current) {
-          cleanup();
-          setError("Voice connection closed. Please try again.");
-          setState("error");
-        }
-      };
+      const dc = pc.createDataChannel("oai-events"); dcRef.current = dc; dc.onopen = () => setState("listening");
+      dc.onclose = () => { if (!stoppedRef.current) { cleanup(); setError("Voice connection closed. Please try again."); setState("error"); } };
       dc.onmessage = (event) => {
-        let msg: Record<string, unknown>;
-        try { msg = JSON.parse(String(event.data)); } catch { return; }
+        let msg: Record<string, unknown>; try { msg = JSON.parse(String(event.data)); } catch { return; }
         const type = String(msg.type ?? "");
         if (type === "input_audio_buffer.speech_started") {
-          transcriptRef.current = "";
-          setState("listening");
+          transcriptRef.current = ""; setState("listening");
         } else if (type === "conversation.item.input_audio_transcription.delta") {
           transcriptRef.current += String(msg.delta ?? "");
         } else if (type === "conversation.item.input_audio_transcription.completed") {
-          const text = String(msg.transcript ?? transcriptRef.current).trim();
-          transcriptRef.current = "";
+          const text = String(msg.transcript ?? transcriptRef.current).trim(); transcriptRef.current = "";
           if (!text || text === lastTranscriptRef.current) return;
-          lastTranscriptRef.current = text;
-          onUser(text);
-          void fetch(apiUrl("/api/embed/search"), {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ query: text, limit: 6 }),
-          })
+          lastTranscriptRef.current = text; onUser(text);
+          void fetch(apiUrl("/api/embed/search"), { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: text, limit: 6 }) })
             .then((r) => r.ok ? r.json() : { context: "", sources: [] })
             .then((payload: { context?: string }) => {
               const context = String(payload.context ?? "").trim();
@@ -143,22 +95,13 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
         } else if (type === "response.created") {
           setState("speaking");
         } else if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
-          const delta = String(msg.delta ?? "");
-          if (delta) onAssistant(delta);
-          setState("speaking");
+          const delta = String(msg.delta ?? ""); if (delta) onAssistant(delta); setState("speaking");
         } else if (type === "response.done") {
           setState("listening");
         } else if (type === "response.function_call_arguments.done") {
-          const name = String(msg.name ?? "");
-          const callId = String(msg.call_id ?? "");
-          if (name !== "rag_search" || !callId) return;
-          let args: { query?: string } = {};
-          try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {}
-          void fetch(apiUrl("/api/embed/search"), {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ query: String(args.query ?? lastTranscriptRef.current), limit: 6 }),
-          })
+          const name = String(msg.name ?? ""); const callId = String(msg.call_id ?? ""); if (name !== "rag_search" || !callId) return;
+          let args: { query?: string } = {}; try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {}
+          void fetch(apiUrl("/api/embed/search"), { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ query: String(args.query ?? lastTranscriptRef.current), limit: 6 }) })
             .then((r) => r.ok ? r.json() : { context: "", sources: [] })
             .then((payload: { context?: string; sources?: unknown[] }) => {
               send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }) } });
@@ -169,46 +112,31 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
               send({ type: "response.create", response: { tool_choice: "none" } });
             });
         } else if (type === "error") {
-          const detail = msg.error as Record<string, unknown> | undefined;
-          setError(String(detail?.message ?? msg.message ?? "Voice session error"));
-          setState("error");
+          const detail = msg.error as Record<string, unknown> | undefined; setError(String(detail?.message ?? msg.message ?? "Voice session error")); setState("error");
         }
       };
 
-      const track = mic.getAudioTracks()[0];
-      if (!track) throw new Error("No microphone audio track was available.");
+      const track = mic.getAudioTracks()[0]; if (!track) throw new Error("No microphone audio track was available.");
       pc.addTrack(track, mic);
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      if (pc.iceGatheringState !== "complete") {
-        await new Promise<void>((resolve) => {
-          let finished = false;
-          const finish = () => { if (finished) return; finished = true; pc.removeEventListener("icegatheringstatechange", check); resolve(); };
-          const check = () => { if (pc.iceGatheringState === "complete") finish(); };
-          pc.addEventListener("icegatheringstatechange", check);
-          window.setTimeout(finish, 8000);
-        });
-      }
-
-      const response = await fetch(apiUrl("/api/embed/voice-connect"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ sdpOffer: pc.localDescription?.sdp ?? offer.sdp ?? "" }),
+      const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+      if (pc.iceGatheringState !== "complete") await new Promise<void>((resolve) => {
+        let finished = false;
+        const finish = () => { if (finished) return; finished = true; pc.removeEventListener("icegatheringstatechange", check); resolve(); };
+        const check = () => { if (pc.iceGatheringState === "complete") finish(); };
+        pc.addEventListener("icegatheringstatechange", check); window.setTimeout(finish, 8000);
       });
+
+      const response = await fetch(apiUrl("/api/embed/voice-connect"), { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ sdpOffer: pc.localDescription?.sdp ?? offer.sdp ?? "" }) });
       const payload = await response.json().catch(() => ({})) as { sdpAnswer?: string; welcomeMessage?: string; error?: string };
       if (!response.ok || !payload.sdpAnswer) throw new Error(payload.error ?? `Voice connection failed (${response.status})`);
       await pc.setRemoteDescription({ type: "answer", sdp: payload.sdpAnswer });
-
-      if (payload.welcomeMessage) {
-        send({ type: "response.create", response: { instructions: `Greet the user with this message: ${JSON.stringify(payload.welcomeMessage)}`, tool_choice: "none" } });
-      }
+      if (payload.welcomeMessage) send({ type: "response.create", response: { instructions: `Greet the user with this message: ${JSON.stringify(payload.welcomeMessage)}`, tool_choice: "none" } });
     } catch (err) {
       cleanup();
       if (!stoppedRef.current) {
         const e = err as DOMException;
         const message = e?.name === "NotAllowedError" ? "Microphone access was denied. Allow microphone access and try again." : e?.name === "NotFoundError" ? "No microphone was detected." : (err as Error)?.message || "Unable to start voice session.";
-        setError(message);
-        setState("error");
+        setError(message); setState("error");
       }
     }
   }, [apiKey, cleanup, config, onAssistant, onUser, send, state]);
@@ -227,7 +155,6 @@ function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config })
   const primary = config.primaryColour || "#6366f1";
   const wave = config.voiceWaveColor || config.accentColour || "#818cf8";
   const active = ["connecting", "listening", "speaking"].includes(voice.state);
-
   useEffect(() => {
     if (!active) return;
     const timer = window.setInterval(() => setLevels((current) => current.map((value) => Math.max(0.15, Math.min(1, value * 0.65 + Math.random() * 0.55)))), 100);
@@ -246,10 +173,7 @@ function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config })
         <AnimatePresence mode="wait">
           {!active ? (
             <motion.div key="start" initial={{ opacity: 0, scale: .95 }} animate={{ opacity: 1, scale: 1 }} className="text-center relative z-10">
-              <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 relative" style={{ background: `${primary}22` }}>
-                <div className="absolute inset-0 rounded-full border animate-pulse" style={{ borderColor: `${primary}55` }} />
-                <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${wave})` }}><Volume2 className="w-8 h-8 text-white" /></div>
-              </div>
+              <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 relative" style={{ background: `${primary}22` }}><div className="absolute inset-0 rounded-full border animate-pulse" style={{ borderColor: `${primary}55` }} /><div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${wave})` }}><Volume2 className="w-8 h-8 text-white" /></div></div>
               <h3 className="text-xl font-medium text-white mb-2">{voice.state === "error" ? "Connection failed" : "Ready to talk?"}</h3>
               <p className="text-sm text-white/40 mb-8 max-w-sm mx-auto">{voice.error || `Make sure your microphone is connected. Ask ${config.assistantName} about policies, coverage, claims, or services.`}</p>
               <button onClick={() => void voice.start()} disabled={!config.voiceEnabled} className="px-8 py-3 rounded-xl bg-white text-black font-semibold hover:bg-white/90 transition-all hover:scale-105 disabled:opacity-50">{config.voiceEnabled ? "Start Voice Session" : "Voice unavailable"}</button>
@@ -271,7 +195,6 @@ function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config })
 export default function LandingEmbedFrame({ apiKey, mode }: { apiKey: string; mode: "fab" | "voice" }) {
   const [config, setConfig] = useState<Config | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     if (!apiKey) { setError("Missing embed API key"); return; }
     let cancelled = false;
@@ -284,7 +207,6 @@ export default function LandingEmbedFrame({ apiKey, mode }: { apiKey: string; mo
       .catch((err) => { if (!cancelled) setError((err as Error).message || "Unable to load assistant configuration"); });
     return () => { cancelled = true; };
   }, [apiKey]);
-
   if (error) return <div className="min-h-screen flex items-center justify-center bg-transparent px-4 text-center text-xs text-red-300">{error}</div>;
   if (!config) return <div className="min-h-screen flex items-center justify-center bg-transparent"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /></div>;
   if (mode === "fab") return <iframe title={`${config.assistantName} chat assistant`} src={`/embed/widget?key=${encodeURIComponent(apiKey)}`} className="fixed inset-0 w-full h-full border-0" allow="microphone; autoplay" referrerPolicy="strict-origin-when-cross-origin" />;
