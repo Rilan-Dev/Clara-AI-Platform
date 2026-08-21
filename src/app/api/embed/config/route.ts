@@ -50,11 +50,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         assistantName:   config.assistantName,
         avatarUrl:       config.avatarUrl,
         welcomeMessage:  config.welcomeMessage,
-        defaultLanguage: config.defaultLanguage,
+        defaultLanguage: resolved.defaultLanguage ?? config.defaultLanguage,
+        allowedLanguages: resolved.allowedLanguages,
 
         // ── Voice ─────────────────────────────────────────────────────────────
         voiceEnabled:    resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
         voiceProvider:   resolved.provider ?? "openai",
+        voiceId:         resolved.voiceId,
 
         // ── Core colours ──────────────────────────────────────────────────────
         primaryColour:   config.primaryColour,
