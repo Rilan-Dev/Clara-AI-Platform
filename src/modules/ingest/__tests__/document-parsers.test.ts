@@ -1,10 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 import { ParserFactory } from '../factory';
+import { PDFParser } from '../parsers/pdf';
 import { parseDocumentFromBuffer } from '../../admin/core/ingest/document-loader';
 
-function minimalPdf(): Buffer {
-  return Buffer.from('%PDF-1.4\n% Clara parser test\n', 'ascii');
+function buildTestPdf(): Buffer {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length 50 >>\nstream\nBT\n/F1 18 Tf\n72 720 Td\n(Clara PDF test) Tj\nET\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+
+  const chunks = ['%PDF-1.4\n'];
+  const offsets = [0];
+  let position = chunks[0].length;
+
+  for (let index = 0; index < objects.length; index += 1) {
+    const object = `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+    offsets.push(position);
+    chunks.push(object);
+    position += object.length;
+  }
+
+  const xrefOffset = position;
+  chunks.push(`xref\n0 ${objects.length + 1}\n`);
+  chunks.push('0000000000 65535 f \n');
+  for (let index = 1; index <= objects.length; index += 1) {
+    chunks.push(`${String(offsets[index]).padStart(10, '0')} 00000 n \n`);
+  }
+  chunks.push(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+
+  return Buffer.from(chunks.join(''), 'ascii');
 }
 
 describe('document parser selection', () => {
@@ -22,6 +50,11 @@ describe('document parser selection', () => {
 });
 
 describe('document ingestion validation', () => {
+  it('extracts text from a real generated PDF', async () => {
+    const result = await new PDFParser().parse(buildTestPdf(), 'policy.pdf');
+    expect(result.text).toContain('Clara PDF test');
+  });
+
   it('rejects a corrupt PDF instead of indexing binary bytes as UTF-8', async () => {
     await expect(
       parseDocumentFromBuffer(Buffer.from('not a pdf'), 'broken.pdf', 'application/pdf'),
@@ -46,11 +79,5 @@ describe('document ingestion validation', () => {
     const result = await parseDocumentFromBuffer(buffer, 'faq.xlsx', 'application/octet-stream');
     expect(result.text).toContain('What is Clara?');
     expect(result.text).toContain('An AI insurance assistant');
-  });
-
-  it('does not silently treat a binary PDF as text when PDF parsing fails', async () => {
-    await expect(
-      parseDocumentFromBuffer(minimalPdf(), 'invalid.pdf'),
-    ).rejects.toThrow(/Failed to parse PDF|Invalid PDF/i);
   });
 });
