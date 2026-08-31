@@ -33,7 +33,9 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
     }
 
     const metadata = await document.getMetadata().catch(() => null);
-    const info = metadata && "info" in metadata ? metadata.info : undefined;
+    const info = metadata && "info" in metadata
+      ? (metadata.info as Record<string, unknown>)
+      : undefined;
 
     return {
       text: pages.join("\n\n"),
