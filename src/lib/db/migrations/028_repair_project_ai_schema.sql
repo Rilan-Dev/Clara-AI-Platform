@@ -2,9 +2,22 @@
 -- skipped or the database was created from an older schema. All statements are
 -- idempotent so this is safe on fully migrated databases as well.
 
+-- 011_project_ai_catalog.sql already creates this composite key. This repair
+-- migration may run on databases where 011 was previously applied, so check
+-- the catalog explicitly before creating the constraint. Checking pg_constraint
+-- avoids PostgreSQL's duplicate-relation error that is not covered by the
+-- duplicate_object exception condition.
 DO $$ BEGIN
-  ALTER TABLE projects ADD CONSTRAINT projects_id_org_id_unique UNIQUE (id, org_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'projects'::regclass
+      AND conname = 'projects_id_org_id_unique'
+  ) THEN
+    ALTER TABLE projects
+      ADD CONSTRAINT projects_id_org_id_unique UNIQUE (id, org_id);
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS organisation_languages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
