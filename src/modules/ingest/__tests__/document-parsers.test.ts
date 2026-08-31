@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 import { ParserFactory } from '../factory';
-import { parseDocumentFromBuffer } from '../../modules/admin/core/ingest/document-loader';
+import { parseDocumentFromBuffer } from '../../admin/core/ingest/document-loader';
 
 function minimalPdf(): Buffer {
   return Buffer.from('%PDF-1.4\n% Clara parser test\n', 'ascii');
