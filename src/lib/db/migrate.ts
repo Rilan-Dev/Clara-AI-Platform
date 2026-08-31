@@ -6,9 +6,8 @@
  * Two entry points:
  *
  *  1. runMigrationsOnStartup() — called once from src/instrumentation.ts at
- *     server boot. Runs ALL pending migrations. Schema migrations (001-006)
- *     throw on failure. Seed migrations (007+) warn and skip if data isn't
- *     ready yet (e.g. orgs not seeded yet).
+ *     server boot. Runs ALL pending migrations. Schema migrations fail fast.
+ *     Data/demo seed migrations may warn and retry on the next restart.
  *
  *  2. ensureMigrated() — legacy lazy guard called per-route. No-ops after
  *     startup has already run migrations.
@@ -20,8 +19,21 @@ import { pool } from "@/lib/db";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
 
-// Migrations at or above this prefix are best-effort seed migrations.
-const SEED_THRESHOLD = "007";
+// Only migrations that are explicitly data/demo seeds are best-effort. Schema
+// migrations such as 009_org_ai_settings and 011_project_ai_catalog must fail
+// fast; silently skipping them can leave a running application without tables
+// that its application code requires.
+const SEED_MIGRATION_PATTERNS = [
+  /^007_seed_/,
+  /^021_demo_/,
+  /^025_demo_/,
+  /^026_demo_/,
+  /^027_demo_/,
+];
+
+function isSeedMigration(filename: string): boolean {
+  return SEED_MIGRATION_PATTERNS.some((pattern) => pattern.test(filename));
+}
 
 // Process-level flag so ensureMigrated() is a cheap no-op after startup.
 let migrated = false;
@@ -58,7 +70,7 @@ async function runMigrations(): Promise<void> {
   for (const filename of files) {
     if (applied.has(filename)) continue;
 
-    const isSeed = filename >= SEED_THRESHOLD;
+    const isSeed = isSeedMigration(filename);
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), "utf-8");
     const client = await pool.connect();
 
@@ -75,14 +87,14 @@ async function runMigrations(): Promise<void> {
     } catch (err) {
       await client.query("ROLLBACK");
       if (isSeed) {
-        // Seed migrations may fail on a fresh DB before `npm run seed` is run.
-        // Log a warning and skip — will be retried on next restart.
+        // Seed migrations may depend on data being populated separately. They
+        // are retried on the next restart and must not prevent schema startup.
         console.warn(
-          `[migrate] skipped seed migration ${filename} (run "npm run seed" to populate demo data):`,
+          `[migrate] skipped seed migration ${filename} (will retry on next restart):`,
           (err as Error).message
         );
       } else {
-        console.error(`[migrate] FAILED on ${filename}:`, err);
+        console.error(`[migrate] FAILED on required schema migration ${filename}:`, err);
         throw err;
       }
     } finally {
