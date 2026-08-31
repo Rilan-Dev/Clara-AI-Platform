@@ -43,40 +43,53 @@ export async function postIngest(request: NextRequest) {
     let originalFilename: string | undefined;
 
     if (hasFile) {
-      const arrayBuffer = await (fileEntry as File).arrayBuffer();
+      const file = fileEntry as File;
+      const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      originalFilename = (fileEntry as File).name;
-      const document = await parseDocumentFromBuffer(buffer, originalFilename);
-      const content = document.text.trim();
+      originalFilename = file.name;
 
-      if (!content) {
+      try {
+        const document = await parseDocumentFromBuffer(buffer, originalFilename, file.type || undefined);
+        const content = document.text.trim();
+
+        if (!content) {
+          return NextResponse.json(
+            { error: `Unable to extract readable text from ${originalFilename}.` },
+            { status: 422 },
+          );
+        }
+
+        const segments = chunkText(content);
+        if (segments.length === 0) {
+          return NextResponse.json(
+            { error: `Document ${originalFilename} produced no text chunks to ingest.` },
+            { status: 422 },
+          );
+        }
+
+        documentTitle = title ?? document.title ?? "Untitled";
+        chunks = segments.map((segment, index) => ({
+          text: segment,
+          title: documentTitle,
+          url: sourceUrl,
+          metadata: {
+            ...document.metadata,
+            sourceType: "upload",
+            originalFilename,
+            mimeType: file.type || undefined,
+            order: index,
+            uploadedAt: new Date().toISOString(),
+          },
+        }));
+      } catch (parseError) {
+        const message = parseError instanceof Error ? parseError.message : "Unable to parse the uploaded document.";
         return NextResponse.json(
-          { error: "Unable to extract readable text from the uploaded file." },
+          {
+            error: `Document processing failed for ${originalFilename}: ${message}`,
+          },
           { status: 422 },
         );
       }
-
-      const segments = chunkText(content);
-      if (segments.length === 0) {
-        return NextResponse.json(
-          { error: "Document produced no text chunks to ingest." },
-          { status: 422 },
-        );
-      }
-
-      documentTitle = title ?? document.title ?? "Untitled";
-      chunks = segments.map((segment, index) => ({
-        text: segment,
-        title: documentTitle,
-        url: sourceUrl,
-        metadata: {
-          ...document.metadata,
-          sourceType: "upload",
-          originalFilename,
-          order: index,
-          uploadedAt: new Date().toISOString(),
-        },
-      }));
     }
 
     if (!hasFile && hasUrl && sourceUrl) {
