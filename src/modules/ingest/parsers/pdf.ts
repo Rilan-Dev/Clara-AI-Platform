@@ -21,7 +21,10 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
   try {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
-      const content = await page.getTextContent({ includeMarkedContent: false });
+      // Keep this compatible with the installed pdfjs-dist typings. The
+      // parser does not need marked-content items, and filtering them below
+      // already ensures only text-bearing items are included.
+      const content = await page.getTextContent();
       const text = content.items
         .map((item) => ("str" in item ? item.str : ""))
         .filter(Boolean)
