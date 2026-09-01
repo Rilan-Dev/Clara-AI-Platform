@@ -32,7 +32,6 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
         .trim();
 
       if (text) pages.push(text);
-      page.cleanup();
     }
 
     const metadata = await document.getMetadata().catch(() => null);
@@ -52,6 +51,9 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
       title: typeof info?.Title === "string" ? info.Title : "",
     };
   } finally {
+    // PDFDocumentProxy.destroy() releases the document/page resources. The
+    // installed pdfjs-dist typings do not expose PDFPageProxy.cleanup(), so
+    // calling page.cleanup() here makes the production build fail type-checking.
     await document.destroy();
   }
 }
