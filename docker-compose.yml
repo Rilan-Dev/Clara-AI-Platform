@@ -40,11 +40,9 @@ services:
       - clara-net
 
   # ──────────────── Clara Backend ────────────────
-  # The backend Dockerfile lives at the repository root and expects the
-  # repository root as its build context.
   clara-backend:
     build:
-      context: .
+      context: ./clara-backend
       dockerfile: Dockerfile
     container_name: clara-backend
     restart: unless-stopped
@@ -66,7 +64,7 @@ services:
   # ──────────────── Clara Worker (BullMQ) ────────────────
   clara-worker:
     build:
-      context: .
+      context: ./clara-backend
       dockerfile: Dockerfile.worker
     container_name: clara-worker
     restart: unless-stopped
