@@ -44,8 +44,13 @@ export function resolveProjectRuntimeSelection(input: ProjectRuntimeSelectionInp
 
   const voices = input.assignedVoices.filter((voice) => voice.enabled && voice.provider === input.provider);
   const assistantVoice = input.assistantVoice?.trim() || null;
+  const configuredVoice =
+    assistantVoice &&
+    (voices.length === 0 || voices.some((voice) => voice.voiceId === assistantVoice))
+      ? assistantVoice
+      : null;
   const voiceId =
-    assistantVoice ??
+    configuredVoice ??
     (input.defaultVoice?.provider === input.provider && voices.some((voice) => voice.voiceId === input.defaultVoice?.voiceId)
       ? input.defaultVoice.voiceId
       : null) ??
