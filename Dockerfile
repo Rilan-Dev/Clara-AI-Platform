@@ -1,19 +1,18 @@
-# Clara Backend — Next.js standalone Dockerfile
+# Clara AI Platform — Next.js standalone Dockerfile
 # Build context is the repository root (`.`).
-# The Next.js application lives under `clara-backend/`.
 
 FROM mcr.microsoft.com/playwright:v1.56.1-noble AS base
-WORKDIR /app/clara-backend
+WORKDIR /app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 FROM base AS deps
-COPY clara-backend/package.json clara-backend/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm install --ignore-scripts --legacy-peer-deps
 
 FROM base AS builder
-COPY --from=deps /app/clara-backend/node_modules ./node_modules
-COPY clara-backend/packages ./packages
-COPY clara-backend/. ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY packages ./packages
+COPY . ./
 ENV NODE_ENV=production
 
 # Bake NEXT_PUBLIC env vars into the client bundle at build time.
@@ -31,15 +30,15 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
     cp -r node_modules/ws .next/standalone/node_modules/ws
 
 FROM base AS runner
-WORKDIR /app/clara-backend
+WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-COPY --from=builder /app/clara-backend/public ./public
-COPY --from=builder /app/clara-backend/.next/standalone ./
-COPY --from=builder /app/clara-backend/.next/static ./.next/static
-COPY --from=builder /app/clara-backend/scripts ./scripts
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/scripts ./scripts
 
 USER pwuser
 EXPOSE 3000
