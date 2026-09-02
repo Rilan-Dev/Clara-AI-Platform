@@ -7,6 +7,18 @@ import { DocumentParser, ParsedDocument } from "../types";
 const pdfParseModule = require("pdf-parse/lib/pdf-parse.js");
 const pdfParse = pdfParseModule.default || pdfParseModule;
 
+type PdfJsMetadata = {
+  info?: Record<string, unknown>;
+};
+
+type PdfJsDocumentCompat = {
+  getMetadata?: () => Promise<PdfJsMetadata>;
+};
+
+type PdfJsLoadingTaskCompat = {
+  destroy?: () => Promise<void>;
+};
+
 async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loadingTask = pdfjs.getDocument({
@@ -34,24 +46,42 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
       if (text) pages.push(text);
     }
 
-    // PDFDocumentProxy metadata methods are not exposed by the installed
-    // pdfjs-dist typings used by CI. The fallback parser does not require
-    // PDF-level metadata; callers already receive the filename and page count.
+    // Some pdfjs-dist builds expose getMetadata at runtime without declaring
+    // it on the imported PDFDocumentProxy type. Use a narrow compatibility
+    // guard so metadata remains available when the runtime provides it while
+    // keeping TypeScript compatible with the installed declarations.
+    const documentCompat = document as unknown as PdfJsDocumentCompat;
+    let info: Record<string, unknown> | undefined;
+
+    if (typeof documentCompat.getMetadata === "function") {
+      try {
+        const metadata = await documentCompat.getMetadata();
+        info = metadata?.info;
+      } catch {
+        // Metadata is optional; text extraction should still succeed.
+      }
+    }
+
     return {
       text: pages.join("\n\n"),
       metadata: {
         pageCount: document.numPages,
+        info,
         sourceType: "pdf",
         originalFilename: "",
         parser: "pdfjs",
       },
-      title: "",
+      title: typeof info?.Title === "string" ? info.Title : "",
     };
   } finally {
-    // Destroy the loading task rather than calling PDFDocumentProxy.destroy(),
-    // which is not part of the installed pdfjs-dist typings. The loading task
-    // owns the worker lifecycle and exposes the supported destroy() API.
-    await loadingTask.destroy();
+    // The installed pdfjs-dist typings do not expose the loading-task
+    // lifecycle method, although supported runtimes may provide it. Guard the
+    // optional runtime API so cleanup is performed when available without
+    // making the production type-check depend on an incompatible declaration.
+    const loadingTaskCompat = loadingTask as unknown as PdfJsLoadingTaskCompat;
+    if (typeof loadingTaskCompat.destroy === "function") {
+      await loadingTaskCompat.destroy();
+    }
   }
 }
 
