@@ -57,7 +57,8 @@ function validateBinarySignature(buffer: Buffer, filename: string, mimeType?: st
 
   if ([".docx", ".xlsx"].includes(ext) || mimeType?.includes("openxmlformats-officedocument")) {
     if (!isZipContainer(buffer)) {
-      throw new Error(`Invalid Office document ${filename}: the uploaded file is not a valid OOXML/ZIP container`);
+      const documentType = ext === ".docx" ? "DOCX" : ext === ".xlsx" ? "XLSX" : "Office";
+      throw new Error(`Invalid ${documentType} document ${filename}: the uploaded file is not a valid OOXML/ZIP container`);
     }
   }
 }
