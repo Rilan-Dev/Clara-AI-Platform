@@ -147,7 +147,7 @@ export async function createProject(
   input: CreateProjectInput
 ): Promise<Project> {
   return withTransaction(async (client) => {
-    // 1. Create the project
+    // 1. Create the project.
     const projectRow = await client.query(
       `INSERT INTO projects (org_id, name, description)
        VALUES ($1, $2, $3)
@@ -155,17 +155,23 @@ export async function createProject(
       [orgId, input.name, input.description ?? null]
     );
     const project = toProject(projectRow.rows[0]);
-    
-    // 2. Create default AI configuration for the project
+
+    // 2. Create the project-scoped AI settings row used by the current
+    //    tenant/project AI resolver. Do not use the removed legacy
+    //    `project_ai_configs` table or hard-code a provider/model here.
+    //    Runtime resolution intentionally falls back through project → org →
+    //    platform/environment configuration until the project is configured.
     await client.query(
-      `INSERT INTO project_ai_configs (id, project_id, provider, model, temperature, max_tokens, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, 'openai', 'gpt-4o-mini', 0.7, 1000, NOW(), NOW())`,
-      [project.id]
+      `INSERT INTO project_ai_settings (project_id, org_id)
+       VALUES ($1, $2)
+       ON CONFLICT (project_id) DO NOTHING`,
+      [project.id, orgId]
     );
-    
+
     return project;
   });
 }
+
 export async function listProjects(orgId: string): Promise<Project[]> {
   const rows = await query<Record<string, unknown>>(
     "SELECT * FROM projects WHERE org_id = $1 ORDER BY name ASC",

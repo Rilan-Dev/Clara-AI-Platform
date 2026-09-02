@@ -107,15 +107,15 @@ export default function LandingPage() {
     fetch(apiUrl("/api/subscriptions/plans"))
       .then(r => r.json())
       .then(d => setPlans(d.plans ?? []))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return (
     <div className="overflow-x-hidden">
       {/* Cursor-reactive blurred gradient background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
+      {/* <div className="fixed inset-0 z-10 pointer-events-none">
         <InteractiveGradientBackground />
-      </div>
+      </div> */}
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <section className="relative pt-28 pb-32 px-6 min-h-screen flex items-center">
@@ -219,7 +219,9 @@ export default function LandingPage() {
 
       {/* ── Live Voice Demo Section ─────────────────────────────────────── */}
       <Suspense fallback={<div className="h-[500px]" />}>
-        <DemoVoiceSection />
+        <div className="z-0">
+          <DemoVoiceSection />
+        </div>
       </Suspense>
 
       {/* ── Stats ───────────────────────────────────────────────────────── */}
@@ -327,11 +329,10 @@ export default function LandingPage() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
                   whileHover={{ y: -4 }}
-                  className={`rounded-2xl p-5 text-left flex flex-col transition-all ${
-                    plan.id === "pro"
+                  className={`rounded-2xl p-5 text-left flex flex-col transition-all ${plan.id === "pro"
                       ? "glass-premium border-indigo-500/40 shadow-lg shadow-indigo-500/10"
                       : "glass-card"
-                  }`}
+                    }`}
                 >
                   {plan.id === "pro" && (
                     <div className="text-[10px] font-bold text-indigo-400 mb-2 uppercase tracking-wider">Most Popular</div>
@@ -350,11 +351,10 @@ export default function LandingPage() {
                   </ul>
                   <Link
                     href={plan.price_usd === -1 ? "/contact" : `/signup?plan=${plan.id}`}
-                    className={`text-center py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] ${
-                      plan.id === "pro"
+                    className={`text-center py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] ${plan.id === "pro"
                         ? "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/20"
                         : "border border-white/10 text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04]"
-                    }`}
+                      }`}
                   >
                     {plan.price_usd === -1 ? "Contact sales" : "Get started"}
                   </Link>

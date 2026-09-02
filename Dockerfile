@@ -1,4 +1,4 @@
-# Clara Backend — Next.js standalone Dockerfile
+# Clara AI Platform — Next.js standalone Dockerfile
 # Build context is the repository root (`.`).
 
 FROM mcr.microsoft.com/playwright:v1.56.1-noble AS base

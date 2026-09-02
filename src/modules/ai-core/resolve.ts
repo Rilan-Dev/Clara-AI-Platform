@@ -85,6 +85,43 @@ function clampNumber(value: number | null, max: number | null): number | null {
   return Math.min(value, max);
 }
 
+// OpenAI Realtime `audio.output.voice` accepts voice IDs, not model names.
+// Keep this validation at the shared AI configuration boundary so every
+// Realtime/embed caller is protected from stale or invalid project settings.
+const OPENAI_REALTIME_VOICES = new Set([
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar",
+]);
+
+function normalizeRealtimeVoice(
+  provider: AIProvider,
+  candidate: string | null,
+  organisationVoices: string[],
+  platformVoice: string | null,
+): string | null {
+  if (provider !== "openai") return candidate;
+
+  if (candidate && OPENAI_REALTIME_VOICES.has(candidate)) return candidate;
+
+  const configuredFallback = organisationVoices.find((voice) => OPENAI_REALTIME_VOICES.has(voice));
+  if (configuredFallback) return configuredFallback;
+
+  if (platformVoice && OPENAI_REALTIME_VOICES.has(platformVoice)) return platformVoice;
+
+  // Safe OpenAI Realtime fallback. This is deliberately only used when no
+  // valid OpenAI voice is configured; values such as `gpt-realtime-whisper`
+  // are model identifiers and must never be sent as output voices.
+  return "alloy";
+}
+
 function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags"]): void {
   if (surface === "realtime" || surface === "embed") {
     if (!flags.voiceEnabled) throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
@@ -96,13 +133,9 @@ function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags
 }
 
 /**
- * Resolve tenant AI settings with project -> org -> platform/env precedence.
- *
- * A project AI record is optional at runtime. This is important for public demo
- * KBs and fresh installations: the platform must remain usable when an admin
- * has configured OpenAI through the platform defaults but has not yet created
- * the per-project assignment record. Once project settings exist, they remain
- * authoritative and still enforce their language/voice boundary.
+ * Resolve tenant AI settings with project -> org -> platform precedence for
+ * provider/model infrastructure and KB assistant config for user-facing
+ * language and voice preferences.
  */
 export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<ResolvedAIConfig> {
   const defaults = getPlatformAIDefaults();
@@ -175,50 +208,71 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     defaultRealtime,
   );
 
-  // If project settings are absent, use platform defaults for runtime selection.
-  // English is the safe default for the current demo and can be overridden by
-  // DEFAULT_LANGUAGE_CODE. The voice comes from the provider's platform default.
   const fallbackLanguageCode = process.env.DEFAULT_LANGUAGE_CODE?.trim().toLowerCase() || "en";
-  const runtimeProjectSettings: ProjectAISettings =
-    projectSettings ?? {
-      id: "platform-default",
-      projectId: project?.id ?? "",
-      orgId: orgId ?? "",
-      provider,
-      chatModel: null,
-      embeddingModel: null,
-      realtimeModel: null,
-      transcriptionModel: null,
-      defaultLanguageId: "platform-default-language",
-      defaultVoiceId: defaultVoice ? "platform-default-voice" : null,
-      languages: [
-        {
-          id: "platform-default-language",
-          orgId: orgId ?? "",
-          code: fallbackLanguageCode,
-          name: fallbackLanguageCode === "en" ? "English" : fallbackLanguageCode,
-          nativeName: null,
-          enabled: true,
-        },
-      ],
-      voices: defaultVoice
-        ? [
-            {
-              id: "platform-default-voice",
-              orgId: orgId ?? "",
-              provider,
-              voiceId: defaultVoice,
-              name: defaultVoice,
-              enabled: true,
-              metadata: { source: "platform-default" },
-            },
-          ]
-        : [],
-    };
+
+  // Keep the complete organisation voice allow-list available so an assistant
+  // can select any valid configured voice, not only the first organisation voice.
+  const organisationFallbackVoices = getAllowedValues(orgSettings?.allowedVoices, provider) ?? [];
+  const fallbackVoiceId = organisationFallbackVoices[0] ?? defaultVoice;
+
+  const runtimeProjectSettings: ProjectAISettings = projectSettings
+    ? {
+        ...projectSettings,
+        voices:
+          projectSettings.voices.length > 0 || !fallbackVoiceId
+            ? projectSettings.voices
+            : [
+                {
+                  id: "platform-default-voice",
+                  orgId: orgId ?? "",
+                  provider,
+                  voiceId: fallbackVoiceId,
+                  name: fallbackVoiceId,
+                  enabled: true,
+                  metadata: { source: organisationFallbackVoices.length > 0 ? "organisation-default" : "platform-default" },
+                },
+              ],
+      }
+    : {
+        id: "platform-default",
+        projectId: project?.id ?? "",
+        orgId: orgId ?? "",
+        provider,
+        chatModel: null,
+        embeddingModel: null,
+        realtimeModel: null,
+        transcriptionModel: null,
+        defaultLanguageId: "platform-default-language",
+        defaultVoiceId: fallbackVoiceId ? "platform-default-voice" : null,
+        languages: [
+          {
+            id: "platform-default-language",
+            orgId: orgId ?? "",
+            code: fallbackLanguageCode,
+            name: fallbackLanguageCode === "en" ? "English" : fallbackLanguageCode,
+            nativeName: null,
+            enabled: true,
+          },
+        ],
+        voices: fallbackVoiceId
+          ? [
+              {
+                id: "platform-default-voice",
+                orgId: orgId ?? "",
+                provider,
+                voiceId: fallbackVoiceId,
+                name: fallbackVoiceId,
+                enabled: true,
+                metadata: { source: organisationFallbackVoices.length > 0 ? "organisation-default" : "platform-default" },
+              },
+            ]
+          : [],
+      };
 
   const projectSelection = resolveProjectRuntimeSelection({
     provider,
     assistantLanguage: assistantConfig?.alwaysRespondIn ?? assistantConfig?.defaultLanguage,
+    assistantAllowedLanguages: assistantConfig?.allowedLanguages,
     assistantVoice: assistantConfig?.voiceId,
     assignedLanguages: runtimeProjectSettings.languages,
     assignedVoices: runtimeProjectSettings.voices,
@@ -235,14 +289,18 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   });
 
   if (projectSelection.allowedLanguages.length === 0) {
-    throw new AIConfigResolutionError("No languages are assigned to this project.");
+    throw new AIConfigResolutionError("No languages are configured for this assistant.");
   }
 
-  if ((input.surface === "realtime" || input.surface === "embed") && !projectSelection.voiceId) {
+  const voiceId =
+    input.surface === "realtime" || input.surface === "embed"
+      ? normalizeRealtimeVoice(provider, projectSelection.voiceId, organisationFallbackVoices, defaultVoice)
+      : null;
+
+  if ((input.surface === "realtime" || input.surface === "embed") && !voiceId) {
     throw new AIConfigResolutionError(`No ${provider} voice is configured for this project or platform.`);
   }
 
-  const voiceId = input.surface === "realtime" || input.surface === "embed" ? projectSelection.voiceId : null;
   const flags = {
     voiceEnabled: (orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
     realtimeEnabled: orgSettings?.enableRealtime ?? true,
@@ -321,7 +379,16 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
             : orgSettings?.defaultTranscriptionModel != null
               ? "org"
               : "env",
-      voiceId: projectSettings?.defaultVoiceId ? "project" : "env",
+      voiceId:
+        assistantConfig?.voiceId
+          ? "assistant_config"
+          : projectSettings?.voices?.length
+            ? "project"
+            : organisationFallbackVoices.length > 0
+              ? "org"
+              : defaultVoice
+                ? "env"
+                : null,
       temperature:
         assistantConfig?.temperature != null
           ? "assistant_config"

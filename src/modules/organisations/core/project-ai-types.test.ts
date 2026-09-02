@@ -17,6 +17,30 @@ describe("project AI runtime isolation", () => {
     expect(result.defaultLanguage).toBe("en");
   });
 
+  it("uses the assistant's configured language list when it is explicitly configured", () => {
+    const result = resolveProjectRuntimeSelection({
+      provider: "openai",
+      assistantLanguage: "ar",
+      assistantAllowedLanguages: ["en", "ar", "ta", "ur"],
+      assistantVoice: null,
+      assignedLanguages: [{ code: "en", enabled: true }],
+      assignedVoices: [],
+    });
+    expect(result.allowedLanguages).toEqual(["en", "ar", "ta", "ur"]);
+    expect(result.defaultLanguage).toBe("ar");
+  });
+
+  it("uses the assistant's configured voice when the project has no voice assignment", () => {
+    const result = resolveProjectRuntimeSelection({
+      provider: "openai",
+      assistantLanguage: "en",
+      assistantVoice: "sage",
+      assignedLanguages: [{ code: "en", enabled: true }],
+      assignedVoices: [],
+    });
+    expect(result.voiceId).toBe("sage");
+  });
+
   it("does not allow an assistant voice from another project", () => {
     const result = resolveProjectRuntimeSelection({
       provider: "openai",

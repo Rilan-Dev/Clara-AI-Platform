@@ -2,9 +2,30 @@
 -- Languages and voices are owned by an organisation and may only be assigned
 -- to projects belonging to that same organisation.
 
+-- PostgreSQL creates a backing relation (normally an index) for a UNIQUE
+-- constraint. Older/partially migrated databases can therefore have the
+-- relation projects_id_org_id_unique even when the constraint itself is not
+-- present. A plain EXCEPTION WHEN duplicate_object is not sufficient because
+-- ALTER TABLE may report the existing backing relation as a duplicate
+-- relation. Check both catalogs before attempting the ALTER TABLE.
 DO $$ BEGIN
-  ALTER TABLE projects ADD CONSTRAINT projects_id_org_id_unique UNIQUE (id, org_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'projects'::regclass
+      AND conname = 'projects_id_org_id_unique'
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'projects_id_org_id_unique'
+      AND n.nspname = current_schema()
+  ) THEN
+    ALTER TABLE projects
+      ADD CONSTRAINT projects_id_org_id_unique UNIQUE (id, org_id);
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS organisation_languages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

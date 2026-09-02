@@ -152,7 +152,7 @@ function VoiceActive({ config, apiKey, onEnd }: {
   );
 }
 
-function VoiceContent() {
+export default function EmbedVoicePage() {
   const searchParams = useSearchParams();
   const apiKey = searchParams.get("key")?.trim() ?? "";
   const [config, setConfig] = useState<VoiceConfig | null>(null);
@@ -194,7 +194,7 @@ function VoiceContent() {
           <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
           Interactive Voice AI
         </div>
-        <div className="absolute top-7 right-7 text-xs text-white/40">{config.assistantName}</div>
+        <div className="absolute top-7 right-7 text-xs text-white/40">{config?.assistantName}</div>
 
         <AnimatePresence mode="wait">
           {!active ? (
@@ -205,21 +205,24 @@ function VoiceContent() {
                   <Volume2 className="w-8 h-8 text-white" />
                 </div>
               </div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-white mb-3">Ready to talk with {config.assistantName}?</h1>
+              <h1 className="text-2xl md:text-3xl font-semibold text-white mb-3">Ready to talk with {config?.assistantName}?</h1>
               <p className="text-sm md:text-base text-white/45 mb-8">Make sure your microphone is connected. Start a real-time conversation using the same assistant, knowledge base, language, and AI configuration as the public embed.</p>
               <button onClick={() => setActive(true)} className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-white text-black font-semibold hover:bg-white/90 transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)]">
                 <Mic className="w-4 h-4" /> Start Voice Session
               </button>
             </motion.div>
           ) : (
-            <VoiceActive key="active" config={config} apiKey={apiKey} onEnd={() => setActive(false)} />
+            config && (
+              <VoiceActive
+                key="active"
+                config={config}
+                apiKey={apiKey}
+                onEnd={() => setActive(false)}
+              />
+            )
           )}
         </AnimatePresence>
       </div>
     </section>
   );
-}
-
-export default function EmbedVoicePage() {
-  return <VoiceContent />;
 }

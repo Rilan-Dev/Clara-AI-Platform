@@ -11,7 +11,7 @@
  */
 
 import { DocumentParser, ParsedDocument } from "../types";
-import { extractMarkdownFromHtml } from "@/modules/admin/core/ingest/web-loader";
+import { extractMarkdownFromHtml } from "../../admin/core/ingest/web-loader";
 
 export class HtmlParser implements DocumentParser {
   supports(filename: string, mimeType?: string): boolean {
