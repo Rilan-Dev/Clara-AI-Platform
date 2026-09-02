@@ -1,5 +1,5 @@
 # Clara Background Worker — BullMQ crawl job processor
-# Build context: repository root (.)
+# Build context: repository root (`.`)
 # Run: docker compose up clara-worker
 #
 # This service processes clara:crawl queue jobs (website discovery).
@@ -7,39 +7,33 @@
 # Playwright is needed because many sites are SPAs (React/Next.js/Nuxt).
 
 FROM mcr.microsoft.com/playwright:v1.56.1-noble AS deps
-WORKDIR /app/clara-backend
+WORKDIR /app
 
-# Install ALL deps (including devDeps for tsx TypeScript runner)
-COPY clara-backend/package.json clara-backend/package-lock.json* ./
-RUN npm install --ignore-scripts --legacy-peer-deps
+# Install ALL deps (including devDeps for tsx TypeScript runner).
+COPY package.json package-lock.json* ./
+RUN npm install --ignore-scripts --legacy-peer-deps && test -x node_modules/.bin/tsx
 
 # ── Runner ──────────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/playwright:v1.56.1-noble AS runner
-WORKDIR /app/clara-backend
+WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Dependencies
-COPY --from=deps /app/clara-backend/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 
-# Workspace packages live under clara-backend in this repository.
-# The previous COPY packages /app/packages referenced a non-existent
-# repository-root directory and caused Docker builds to fail with:
-# "/packages": not found.
-COPY clara-backend/packages /app/packages
+# Workspace packages
+COPY packages ./packages
 
 # Source code
-COPY clara-backend/src        ./src
-COPY clara-backend/workers    ./workers
-COPY clara-backend/tsconfig.json        ./tsconfig.json
-COPY clara-backend/tsconfig.worker.json ./tsconfig.worker.json
-
-# Allow node_modules to be found at /app/node_modules (monorepo symlink)
-RUN ln -sf /app/clara-backend/node_modules /app/node_modules 2>/dev/null || true
+COPY src ./src
+COPY workers ./workers
+COPY tsconfig.json ./tsconfig.json
+COPY tsconfig.worker.json ./tsconfig.worker.json
 
 USER pwuser
 
-# tsx runs TypeScript directly — no build step needed for the worker
-# all-workers.ts starts BOTH the crawl worker AND the retry worker in one process
+# tsx runs TypeScript directly — no build step needed for the worker.
+# all-workers.ts starts BOTH the crawl worker AND the retry worker in one process.
 CMD ["node_modules/.bin/tsx", "--tsconfig", "tsconfig.worker.json", "workers/all-workers.ts"]

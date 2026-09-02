@@ -5,6 +5,7 @@
 
 # Dependencies (re-installed in build stage)
 node_modules
+**/node_modules
 .pnp
 .pnp.js
 

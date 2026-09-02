@@ -67,7 +67,7 @@ services:
   clara-worker:
     build:
       context: .
-      dockerfile: clara-backend/Dockerfile.worker
+      dockerfile: Dockerfile.worker
     container_name: clara-worker
     restart: unless-stopped
     env_file:
