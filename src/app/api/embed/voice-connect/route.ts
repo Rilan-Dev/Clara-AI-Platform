@@ -1,6 +1,6 @@
 /**
  * POST /api/embed/voice-connect
- * Secure WebRTC SDP proxy for the public Demo voice experience.
+ * Secure WebRTC SDP proxy for the public embed voice experience.
  * The browser never receives an OpenAI API key.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -9,26 +9,23 @@ import { validateEmbedRequest, requireVoiceAccess, buildCorsHeaders, handlePrefl
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, getProviderApiKey, resolveAIConfig } from "@/modules/ai-core/resolve";
-import { getDemoAIConfig } from "@/modules/ai-core/demo-config";
 import { buildOpenAIRealtimeSession, exchangeOpenAIRealtimeSdp } from "@/modules/assistant/api/openai-realtime";
 import { isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
-
-function isDemoRequest(req: NextRequest): boolean {
-  return (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
-}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  let corsHeaders: Record<string, string> = {};
   try {
     await ensureMigrated();
     const validation = await validateEmbedRequest(req);
     if (!validation.ok) return validation.response;
     const { ctx } = validation;
     const origin = req.headers.get("origin");
-    const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
+    corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
+
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);
     if (voiceDenied) return voiceDenied;
 
@@ -45,50 +42,53 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const isDemo = isDemoRequest(req);
-    const demoConfig = isDemo ? await getDemoAIConfig() : null;
-    if (isDemo && !demoConfig) {
-      return NextResponse.json(
-        { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
-        { status: 503, headers: corsHeaders },
-      );
-    }
-
-    const resolved = isDemo ? null : await resolveAIConfig({ kbId: ctx.kbId, surface: "realtime" });
-    const provider = isDemo ? demoConfig!.provider : resolved!.provider;
+    // Public embed voice always uses the real tenant configuration. There is no
+    // DEMO_MODE branch here: provider/model/voice/language are resolved through
+    // project -> organisation -> platform defaults.
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "realtime" });
+    const provider = resolved.provider;
     if (provider !== "openai") {
       return NextResponse.json(
-        { error: "Public WebRTC voice currently requires OpenAI. Switch the Demo provider to OpenAI in Platform Admin → Demo." },
+        { error: `Public WebRTC voice currently requires OpenAI. The configured provider is ${provider}.` },
         { status: 503, headers: corsHeaders },
       );
     }
 
-    const model = isDemo ? demoConfig!.realtimeModel : resolved!.realtimeModel;
-    const voice = isDemo ? demoConfig!.voiceId : resolved!.voiceId;
-    const transcriptionModel = isDemo ? demoConfig!.transcriptionModel : resolved!.transcriptionModel;
-    const allowedLanguages = isDemo
-      ? (config.allowedLanguages ?? [config.defaultLanguage ?? "en"])
-      : resolved!.allowedLanguages;
-    const language = isDemo
-      ? config.alwaysRespondIn ?? config.defaultLanguage ?? allowedLanguages[0] ?? "en"
-      : resolved!.defaultLanguage;
-    const maxTokens = isDemo ? config.maxTokens ?? 1024 : resolved!.maxTokens ?? config.maxTokens ?? 1024;
-    const apiKey = isDemo ? demoConfig!.apiKey : getProviderApiKey("openai");
+    const model = resolved.realtimeModel;
+    const voice = resolved.voiceId;
+    const transcriptionModel = resolved.transcriptionModel;
+    const allowedLanguages = resolved.allowedLanguages;
+    const language = resolved.defaultLanguage;
+    const maxTokens = resolved.maxTokens ?? config.maxTokens ?? 1024;
+    const apiKey = getProviderApiKey("openai");
 
-    if (!model) return NextResponse.json({ error: "No realtime model is configured." }, { status: 400, headers: corsHeaders });
-    if (!voice) return NextResponse.json({ error: "No realtime voice is configured." }, { status: 400, headers: corsHeaders });
+    if (!model) return NextResponse.json({ error: "No realtime model is configured for this tenant." }, { status: 400, headers: corsHeaders });
+    if (!voice) return NextResponse.json({ error: "No realtime voice is configured for this tenant." }, { status: 400, headers: corsHeaders });
     if (!isSupportedOpenAIRealtimeVoice(voice)) {
       return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400, headers: corsHeaders });
     }
     if (!language) {
-      return NextResponse.json({ error: "No enabled language is configured." }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ error: "No enabled language is configured for this project." }, { status: 400, headers: corsHeaders });
     }
     if (!apiKey) {
       return NextResponse.json(
-        { error: isDemo ? "Demo OpenAI API key is not configured. Set it in Platform Admin → Demo." : "Voice not configured on server" },
+        { error: "Voice is not configured on the server: OPENAI_API_KEY is missing." },
         { status: 503, headers: corsHeaders },
       );
     }
+
+    console.info("[embed/voice-connect] runtime configuration", {
+      orgId: resolved.orgId ?? ctx.orgId,
+      projectId: resolved.projectId,
+      kbId: ctx.kbId,
+      provider,
+      realtimeModel: model,
+      transcriptionModel,
+      voice,
+      allowedLanguages,
+      defaultLanguage: language,
+      sources: resolved.sources,
+    });
 
     const instructions = buildSystemPrompt(config, {
       kbName: kb.name,
@@ -129,14 +129,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     if (!sdpResult.ok) {
-      console.error("[voice-connect] SDP exchange failed", {
+      console.error("[embed/voice-connect] SDP exchange failed", {
         status: sdpResult.status,
         model,
         voice,
-        demo: isDemo,
       });
       return NextResponse.json(
-        { error: `SDP exchange failed (${sdpResult.status})`, details: sdpResult.errorText },
+        {
+          error: `SDP exchange failed (${sdpResult.status})`,
+          details: sdpResult.errorText,
+          model,
+          voice,
+          orgId: resolved.orgId ?? ctx.orgId,
+          projectId: resolved.projectId,
+          kbId: ctx.kbId,
+        },
         { status: sdpResult.status >= 400 && sdpResult.status < 600 ? sdpResult.status : 502, headers: corsHeaders },
       );
     }
@@ -145,14 +152,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       {
         sdpAnswer: String(sdpResult.data.sdpAnswer ?? ""),
         welcomeMessage: config.welcomeMessage ?? "",
+        provider,
+        model,
+        voice,
+        transcriptionModel,
+        kbId: ctx.kbId,
+        orgId: resolved.orgId ?? ctx.orgId,
+        projectId: resolved.projectId,
       },
       { headers: corsHeaders },
     );
   } catch (err) {
     if (err instanceof AIConfigResolutionError) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
+      return NextResponse.json({ error: err.message }, { status: 400, headers: corsHeaders });
     }
     console.error("[embed/voice-connect]:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Internal error" }, { status: 500, headers: corsHeaders });
   }
 }

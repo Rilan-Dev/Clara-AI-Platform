@@ -1,10 +1,22 @@
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type {
+  ChatCompletionCreateParamsStreaming,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
 import { LLMProvider, ChatMessage, ChatOptions, ProviderConfig } from "../types";
 
 const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
 const DEFAULT_EMBEDDING_MODEL =
   process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
+
+/**
+ * GPT-5.6 reasoning models use the provider default sampling configuration.
+ * Sending a custom temperature causes OpenAI to reject the request with an
+ * unsupported-value error, so the field must be omitted entirely.
+ */
+export function supportsTemperature(model: string): boolean {
+  return !/^gpt-5(?:\.\d+)?(?:-(?:luna|terra|sol))?$/i.test(model.trim());
+}
 
 export class OpenAIProvider implements LLMProvider {
   private config: ProviderConfig;
@@ -32,36 +44,25 @@ export class OpenAIProvider implements LLMProvider {
       content: m.content,
     }));
 
-    const isGpt5Family = model.toLowerCase().startsWith("gpt-5");
-    const completionOptions = isGpt5Family
-      ? {
-          max_completion_tokens: options?.maxTokens,
-        }
-      : {
-          max_tokens: options?.maxTokens,
-        };
-
-    // GPT-5-family models currently only support the default temperature (1).
-    // Do not send the temperature parameter for these models, even when the
-    // assistant configuration contains a custom value such as 0.7.
-    const temperatureOptions = isGpt5Family
-      ? {}
-      : { temperature: options?.temperature ?? 0.2 };
-
-    const stream = await this.client.chat.completions.create({
+    const request: ChatCompletionCreateParamsStreaming = {
       model,
       messages: openaiMessages,
-      ...temperatureOptions,
-      ...completionOptions,
+      max_tokens: options?.maxTokens,
       stop: options?.stop,
       stream: true,
-    });
+    };
+
+    // GPT-5.6 Luna/Terra/Sol reject custom temperature values. Omit the field
+    // completely so the API applies its model default.
+    if (supportsTemperature(model)) {
+      request.temperature = options?.temperature ?? 0.2;
+    }
+
+    const stream = await this.client.chat.completions.create(request);
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
-      if (delta) {
-        yield delta;
-      }
+      if (delta) yield delta;
     }
   }
 
@@ -98,9 +99,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   getModelName(type: "chat" | "embedding"): string {
-    if (type === "chat") {
-      return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
-    }
+    if (type === "chat") return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
     return this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
   }
 
