@@ -34,27 +34,24 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
       if (text) pages.push(text);
     }
 
-    const metadata = await document.getMetadata().catch(() => null);
-    const info = metadata && "info" in metadata
-      ? (metadata.info as Record<string, unknown>)
-      : undefined;
-
+    // PDFDocumentProxy metadata methods are not exposed by the installed
+    // pdfjs-dist typings used by CI. The fallback parser does not require
+    // PDF-level metadata; callers already receive the filename and page count.
     return {
       text: pages.join("\n\n"),
       metadata: {
         pageCount: document.numPages,
-        info,
         sourceType: "pdf",
         originalFilename: "",
         parser: "pdfjs",
       },
-      title: typeof info?.Title === "string" ? info.Title : "",
+      title: "",
     };
   } finally {
-    // PDFDocumentProxy.destroy() releases the document/page resources. The
-    // installed pdfjs-dist typings do not expose PDFPageProxy.cleanup(), so
-    // calling page.cleanup() here makes the production build fail type-checking.
-    await document.destroy();
+    // Destroy the loading task rather than calling PDFDocumentProxy.destroy(),
+    // which is not part of the installed pdfjs-dist typings. The loading task
+    // owns the worker lifecycle and exposes the supported destroy() API.
+    await loadingTask.destroy();
   }
 }
 
