@@ -42,12 +42,12 @@ services:
   # ──────────────── Clara Backend ────────────────
   clara-backend:
     build:
-      context: ./clara-backend
+      context: .
       dockerfile: Dockerfile
     container_name: clara-backend
     restart: unless-stopped
     env_file:
-      - clara-backend/.env
+      - .env
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -64,12 +64,12 @@ services:
   # ──────────────── Clara Worker (BullMQ) ────────────────
   clara-worker:
     build:
-      context: ./clara-backend
+      context: .
       dockerfile: Dockerfile.worker
     container_name: clara-worker
     restart: unless-stopped
     env_file:
-      - clara-backend/.env
+      - .env
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
