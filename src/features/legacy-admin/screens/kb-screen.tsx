@@ -16,6 +16,7 @@ import { ApiKeysManager } from "@/components/admin/ApiKeysManager";
 import { ScrapeWizard, ScrapeActiveBanner } from "@/components/admin/ScrapeWizard";
 import { Button } from "@/components/ui/button";
 import { apiFetchJson } from "@/lib/runtime";
+import { isPendingDocumentStuck } from "@/modules/knowledge-bases/core/ingest-queue-state";
 
 export default function KbDashboardPage() {
   const { kbId = "" } = useParams<{ kbId: string }>();
@@ -49,10 +50,10 @@ export default function KbDashboardPage() {
     }
   }, [refetchKb, refetchDocs]);
 
-  // Derived stats
   const total       = docs.length;
   const ready       = docs.filter((d) => d.status === "ready").length;
   const processing  = docs.filter((d) => d.status === "pending" || d.status === "processing").length;
+  const stuck       = docs.filter((d) => isPendingDocumentStuck(d)).length;
   const failed      = docs.filter((d) => d.status === "failed").length;
   const totalChunks = docs.reduce((s, d) => s + (d.chunkCount ?? 0), 0);
 
@@ -72,14 +73,12 @@ export default function KbDashboardPage() {
 
   return (
     <div className="p-8 max-w-5xl">
-      {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/admin/orgs" className="hover:text-foreground transition-colors">Organisations</Link>
         <span>/</span>
         <span className="text-foreground font-medium">{kbLoading ? "…" : kb?.name}</span>
       </nav>
 
-      {/* KB header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
@@ -100,7 +99,6 @@ export default function KbDashboardPage() {
           )}
         </div>
 
-        {/* Action buttons */}
         <div className="flex items-center gap-2 shrink-0">
           {kb && <VoicePreviewButton kbId={kb.id} kbName={kb.name} />}
           <Link href={`/admin/kbs/${kbId}/config`}>
@@ -129,7 +127,6 @@ export default function KbDashboardPage() {
         </div>
       </div>
 
-      {/* Archived banner */}
       {kb?.status === "archived" && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-muted bg-muted/20 px-5 py-4">
           <svg className="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +140,6 @@ export default function KbDashboardPage() {
         </div>
       )}
 
-      {/* Stats row */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Documents"    value={total} />
         <StatCard label="Ready"        value={ready}                      color="success" />
@@ -151,7 +147,6 @@ export default function KbDashboardPage() {
         <StatCard label="Total Chunks" value={totalChunks.toLocaleString()} />
       </div>
 
-      {/* Failed alert */}
       {failed > 0 && (
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-3">
           <svg className="h-5 w-5 shrink-0 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,10 +159,8 @@ export default function KbDashboardPage() {
         </div>
       )}
 
-      {/* Live scrape banner — visible from any tab when a job is running */}
       {tab !== "scrape" && <ScrapeActiveBanner kbId={kbId} />}
 
-      {/* ── Tabs ── */}
       <div className="mb-6 flex gap-1 rounded-lg bg-muted/50 p-1 border border-border w-fit">
         {([
           ["documents", "Documents"],
@@ -187,29 +180,29 @@ export default function KbDashboardPage() {
         ))}
       </div>
 
-      {/* ── Documents tab ── */}
       {tab === "documents" && (
         <div className="space-y-4">
-          {processing > 0 && (
+          {stuck > 0 && (
             <div className="flex items-center justify-between gap-4 rounded-xl border border-warning/30 bg-warning/5 px-5 py-3">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-warning animate-pulse" />
                 <p className="text-sm text-warning">
-                  {processing} document{processing > 1 ? "s" : ""} still processing…
-                  {" "}If stuck for more than 30 s, click &ldquo;Process queue&rdquo;.
+                  {stuck} document{stuck > 1 ? "s have" : " has"} been waiting in the queue for more than 30 seconds.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={handleDrainQueue} disabled={draining}
                 className="shrink-0 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning">
-                {draining
-                  ? <span className="flex items-center gap-1.5">
-                      <svg className="h-3.5 w-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Processing…
-                    </span>
-                  : "Process queue"}
+                {draining ? "Processing…" : "Process queue"}
               </Button>
+            </div>
+          )}
+
+          {processing > 0 && stuck === 0 && (
+            <div className="rounded-xl border border-border bg-muted/20 px-5 py-3">
+              <p className="text-sm text-foreground/80">
+                {processing} document{processing > 1 ? "s are" : " is"} being processed automatically.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">No action is required. The table checks for updates every 4 seconds.</p>
             </div>
           )}
 
@@ -237,12 +230,10 @@ export default function KbDashboardPage() {
         </div>
       )}
 
-      {/* ── Scrape tab ── */}
       {tab === "scrape" && (
         <ScrapeWizard kbId={kbId} />
       )}
 
-      {/* ── Analytics tab ── */}
       {tab === "analytics" && (
         analyticsLoading || !analytics
           ? <div className="space-y-4">
@@ -254,7 +245,6 @@ export default function KbDashboardPage() {
           : <AnalyticsDashboard analytics={analytics} />
       )}
 
-      {/* ── Deploy tab ── */}
       {tab === "deploy" && (
         <div className="rounded-xl border border-border bg-card p-6 shadow-soft">
           <ApiKeysManager kbId={kbId} />
