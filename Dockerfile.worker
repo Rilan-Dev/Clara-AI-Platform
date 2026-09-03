@@ -2,8 +2,8 @@
 # Build context: repository root (`.`)
 # Run: docker compose up clara-worker
 #
-# This service processes clara:crawl queue jobs (website discovery).
-# It runs crawlWebsite() which takes 2-10 min — no HTTP timeout constraints.
+# This service processes Clara's BullMQ crawl/retry queues and the
+# PostgreSQL-backed document ingest queue.
 # Playwright is needed because many sites are SPAs (React/Next.js/Nuxt).
 
 FROM mcr.microsoft.com/playwright:v1.56.1-noble AS deps
@@ -34,6 +34,6 @@ COPY tsconfig.worker.json ./tsconfig.worker.json
 
 USER pwuser
 
-# tsx runs TypeScript directly — no build step needed for the worker.
-# all-workers.ts starts BOTH the crawl worker AND the retry worker in one process.
-CMD ["node_modules/.bin/tsx", "--tsconfig", "tsconfig.worker.json", "workers/all-workers.ts"]
+# worker-entry starts the automatic document ingest poller, then loads the
+# existing crawl/retry workers in the same long-lived process.
+CMD ["node_modules/.bin/tsx", "--tsconfig", "tsconfig.worker.json", "workers/worker-entry.ts"]
