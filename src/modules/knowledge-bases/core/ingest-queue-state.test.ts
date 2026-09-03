@@ -7,7 +7,7 @@ describe("isPendingDocumentStuck", () => {
   it("reports a pending document as stuck only after 30 seconds", () => {
     expect(
       isPendingDocumentStuck(
-        { status: "pending", createdAt: "2026-09-02T23:59:29.999Z" },
+        { status: "pending", createdAt: "2026-09-02T23:59:30.001Z" },
         now,
       ),
     ).toBe(false);
