@@ -18,6 +18,7 @@ import { WidgetDesignPanel } from "@/components/admin/WidgetDesignPanel";
 import { PhoneCallPanel } from "@/components/admin/PhoneCallPanel";
 import { Button } from "@/components/ui/button";
 import { apiFetchJson } from "@/lib/runtime";
+import { isPendingDocumentStuck } from "@/modules/knowledge-bases/core/ingest-queue-state";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -48,6 +49,7 @@ export default function KbDashboardPage() {
   const ready = docs.filter((doc) => doc.status === "ready").length;
   const processing = docs.filter((doc) => doc.status === "pending" || doc.status === "processing").length;
   const failed = docs.filter((doc) => doc.status === "failed").length;
+  const stuck = docs.filter((doc) => isPendingDocumentStuck(doc)).length;
   const totalChunks = docs.reduce((sum, doc) => sum + (doc.chunkCount ?? 0), 0);
   const uploadCount = docs.filter((doc) => doc.sourceType !== "url").length;
   const webCount    = docs.filter((doc) => doc.sourceType === "url").length;
@@ -208,17 +210,28 @@ export default function KbDashboardPage() {
 
       {tab === "documents" && (
         <div className="space-y-4">
-          {processing > 0 && (
+          {stuck > 0 && (
             <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4">
               <div>
                 <p className="text-sm text-amber-300">
-                  {processing} document{processing > 1 ? "s are" : " is"} still processing. If a file has been stuck for more than 30 seconds, run the queue action below.
+                  {stuck} document{stuck > 1 ? "s have" : " has"} been waiting in the queue for more than 30 seconds.
                 </p>
-                <p className="mt-1 text-xs text-amber-200/75">The table keeps polling every 4 seconds while jobs are in flight.</p>
+                <p className="mt-1 text-xs text-amber-200/75">
+                  Automatic processing appears stalled. The table keeps polling every 4 seconds while jobs are pending.
+                </p>
               </div>
               <Button variant="outline" size="sm" onClick={handleDrainQueue} disabled={draining}>
                 {draining ? "Processing..." : "Process queue"}
               </Button>
+            </div>
+          )}
+
+          {processing > 0 && stuck === 0 && (
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4">
+              <p className="text-sm text-white/70">
+                {processing} document{processing > 1 ? "s are" : " is"} being processed automatically.
+              </p>
+              <p className="mt-1 text-xs text-white/35">No action is required. The table checks for status updates every 4 seconds.</p>
             </div>
           )}
 
@@ -234,7 +247,6 @@ export default function KbDashboardPage() {
             </div>
           )}
 
-          {/* Sub-tab switcher: Uploaded Files vs Web Sources */}
           <div className="flex gap-1 rounded-lg bg-white/[0.03] p-1 border border-white/[0.06] w-fit">
             {(["uploads", "web"] as const).map((st) => {
               const label = st === "uploads"
