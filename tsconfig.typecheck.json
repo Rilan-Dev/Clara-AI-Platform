@@ -5,6 +5,7 @@
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": [
+    "backups",
     "node_modules",
     ".next/**",
     ".next-app/**",

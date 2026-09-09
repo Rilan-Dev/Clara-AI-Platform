@@ -1,16 +1,20 @@
 "use client";
 
+import { getPlatformEnvSettings } from "@/modules/phone/core/db";
+
 /**
  * The landing page is only an iframe host. Voice identity, configuration,
  * microphone lifecycle, WebRTC, and AI runtime live inside the public embed
  * route and are authenticated with the real generated KB API key.
  */
-export default function DemoVoiceSection() {
-  const key = (
-    process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_CLARA_EMBED_API_KEY?.trim() ||
-    ""
-  );
+export default async function DemoVoiceSection() {
+
+  function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
+    return settings.find((s) => s.key === key)?.value?.trim() ?? "";
+  }
+  const settings = await getPlatformEnvSettings();
+  const key = setting(settings, "DEMO_CLARA_API_KEY").toLowerCase() ?? (process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() || process.env.NEXT_PUBLIC_CLARA_EMBED_API_KEY?.trim() || "").toLowerCase();
+
 
   if (!key) {
     return (

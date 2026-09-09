@@ -30,7 +30,7 @@ type EnvSetting = {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function AdminDemoScreen() {
+export default async function AdminDemoScreen() {
   const [config, setConfig] = useState<DemoConfig | null>(null);
   const [allSettings, setAllSettings] = useState<EnvSetting[]>([]);
   const [loading, setLoading] = useState(true);

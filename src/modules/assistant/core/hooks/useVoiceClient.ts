@@ -73,8 +73,8 @@ export function useVoiceClient(options: VoiceClientOptions) {
     documentOverview: options.documentOverview,
     voiceGreeting:    options.voiceGreeting,
     language:         options.language,
-    demoMode:         options.demoMode,
-    demoApiKey:       options.demoApiKey,
+    // demoMode:         options.demoMode,
+    // demoApiKey:       options.demoApiKey,
   };
 
   // Always called — React rules require unconditional hook calls.
@@ -89,10 +89,12 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return ACTIVE_PROVIDER === "gemini" ? "gemini" : "openai";
     }
 
-    const endpoint = options.demoMode ? "/api/embed/session" : "/api/voice/provider";
-    const headers = options.demoMode
-      ? { "Content-Type": "application/json", Authorization: `Bearer ${options.demoApiKey}` }
-      : withAuthHeaders({ "Content-Type": "application/json" });
+    const endpoint = 
+    // options.demoMode ? "/api/embed/session" : 
+    "/api/voice/provider";
+    const headers = 
+    // options.demoMode ? { "Content-Type": "application/json", Authorization: `Bearer ${options.demoApiKey}` } : 
+    withAuthHeaders({ "Content-Type": "application/json" });
 
     const res = await fetch(apiUrl(endpoint), {
       method: "POST",
@@ -113,7 +115,9 @@ export function useVoiceClient(options: VoiceClientOptions) {
     }
 
     return payload.provider === "gemini" ? "gemini" : "openai";
-  }, [options.kbId, options.demoMode, options.demoApiKey]);
+  }, [options.kbId
+    // , options.demoMode, options.demoApiKey
+  ]);
 
   const connect = useCallback(async () => {
     const nextProvider = await resolveProvider();

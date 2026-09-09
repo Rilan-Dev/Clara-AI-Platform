@@ -85,13 +85,13 @@ export function middleware(request: NextRequest): NextResponse {
     pathname === "/embed/widget-preview" || pathname.startsWith("/embed/widget-preview/") ||
     pathname === "/embed/voice" || pathname.startsWith("/embed/voice/");
 
-  // Legacy landing demos used DEMO_MODE as a synthetic public API key. That
-  // bypass is intentionally disabled: every embed API request must carry a
-  // real clr_ key issued from the KB Deploy tab.
-  if (pathname.startsWith("/api/embed") && request.headers.get("authorization")?.trim() === "Bearer DEMO_MODE") {
-    const rejected = NextResponse.json({ error: "DEMO_MODE is no longer supported. Use a generated clr_ API key." }, { status: 401 });
-    return applyEmbedCors(rejected, origin);
-  }
+  // // Legacy landing demos used DEMO_MODE as a synthetic public API key. That
+  // // bypass is intentionally disabled: every embed API request must carry a
+  // // real clr_ key issued from the KB Deploy tab.
+  // if (pathname.startsWith("/api/embed") && request.headers.get("authorization")?.trim() === "Bearer DEMO_MODE") {
+  //   const rejected = NextResponse.json({ error: "DEMO_MODE is no longer supported. Use a generated clr_ API key." }, { status: 401 });
+  //   return applyEmbedCors(rejected, origin);
+  // }
 
   if (request.method === "OPTIONS" && isApiRoute) {
     const preflight = new NextResponse(null, { status: 204 });

@@ -20,38 +20,37 @@ function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, k
   return settings.find((s) => s.key === key)?.value?.trim() ?? "";
 }
 
-function demoProviderConfig(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>): ProviderConfig | null {
-  const provider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() ||
-    process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
+// function demoProviderConfig(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>): ProviderConfig | null {
+//   const provider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() || process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
 
-  if (provider === "openai") {
-    const apiKey = setting(settings, "DEMO_OPENAI_API_KEY") || process.env.DEMO_OPENAI_API_KEY?.trim() || "";
-    if (!apiKey) return null;
-    const embeddingModel = setting(settings, "DEMO_OPENAI_EMBEDDING_MODEL") ||
-      process.env.DEMO_OPENAI_EMBEDDING_MODEL?.trim() || "text-embedding-3-small";
-    return {
-      provider: "openai",
-      apiKey,
-      chatModel: setting(settings, "DEMO_OPENAI_CHAT_MODEL") || process.env.DEMO_OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini",
-      embeddingModel,
-      embeddingDimension: embeddingModel === "text-embedding-3-large" ? 3072 : 1536,
-    };
-  }
+//   if (provider === "openai") {
+//     const apiKey = setting(settings, "DEMO_OPENAI_API_KEY") || process.env.DEMO_OPENAI_API_KEY?.trim() || "";
+//     if (!apiKey) return null;
+//     const embeddingModel = setting(settings, "DEMO_OPENAI_EMBEDDING_MODEL") ||
+//       process.env.DEMO_OPENAI_EMBEDDING_MODEL?.trim() || "text-embedding-3-small";
+//     return {
+//       provider: "openai",
+//       apiKey,
+//       chatModel: setting(settings, "DEMO_OPENAI_CHAT_MODEL") || process.env.DEMO_OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini",
+//       embeddingModel,
+//       embeddingDimension: embeddingModel === "text-embedding-3-large" ? 3072 : 1536,
+//     };
+//   }
 
-  if (provider === "gemini") {
-    const apiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
-    if (!apiKey) return null;
-    return {
-      provider: "gemini",
-      apiKey,
-      chatModel: setting(settings, "DEMO_GEMINI_CHAT_MODEL") || process.env.DEMO_GEMINI_CHAT_MODEL?.trim() || "gemini-3.6-flash",
-      embeddingModel: setting(settings, "DEMO_GEMINI_EMBEDDING_MODEL") || process.env.DEMO_GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
-      embeddingDimension: 3072,
-    };
-  }
+//   if (provider === "gemini") {
+//     const apiKey = setting(settings, "DEMO_GEMINI_API_KEY") || process.env.DEMO_GEMINI_API_KEY?.trim() || "";
+//     if (!apiKey) return null;
+//     return {
+//       provider: "gemini",
+//       apiKey,
+//       chatModel: setting(settings, "DEMO_GEMINI_CHAT_MODEL") || process.env.DEMO_GEMINI_CHAT_MODEL?.trim() || "gemini-3.6-flash",
+//       embeddingModel: setting(settings, "DEMO_GEMINI_EMBEDDING_MODEL") || process.env.DEMO_GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+//       embeddingDimension: 3072,
+//     };
+//   }
 
-  return null;
-}
+//   return null;
+// }
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -67,7 +66,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     let kbId: string;
     let providerOverride: ProviderConfig | undefined;
-    let isDemo = false;
+    // let isDemo = false;
 
     if (isInternal && internalKbId) {
       kbId = internalKbId;
@@ -76,7 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       if (!validation.ok) return validation.response;
       kbId = validation.ctx.kbId;
       corsHeaders = buildCorsHeaders(req.headers.get("origin"), validation.ctx.allowedOrigins, req.nextUrl.origin);
-      isDemo = (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
+      // isDemo = (req.headers.get("authorization") ?? "").trim() === "Bearer DEMO_MODE";
     }
 
     const body = (await req.json()) as { query?: string; limit?: number };
@@ -91,16 +90,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB not found" }, { status: 404, headers: corsHeaders });
     }
 
-    if (isDemo) {
-      const settings = await getPlatformEnvSettings();
-      providerOverride = demoProviderConfig(settings) ?? undefined;
-      if (!providerOverride) {
-        return NextResponse.json(
-          { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
-          { status: 503, headers: corsHeaders },
-        );
-      }
-    }
+    // if (isDemo) {
+    //   const settings = await getPlatformEnvSettings();
+    //   providerOverride = demoProviderConfig(settings) ?? undefined;
+    //   if (!providerOverride) {
+    //     return NextResponse.json(
+    //       { error: "Demo AI provider is not configured. Configure the provider and API key in Platform Admin → Demo." },
+    //       { status: 503, headers: corsHeaders },
+    //     );
+    //   }
+    // }
 
     const resolved = providerOverride ? null : await resolveAIConfig({ kbId, surface: "chat" });
     const providerConfig = providerOverride ?? toProviderConfig(resolved!);

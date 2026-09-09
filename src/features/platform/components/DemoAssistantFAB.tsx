@@ -3,17 +3,22 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, Sparkles, X } from "lucide-react";
+import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 
 /**
  * The landing page owns only the launcher shell. The actual chat UI and chat
  * runtime are the same production /embed/widget runtime used by customers.
  * No platform demo configuration or bypass authorization is used here.
  */
-export default function DemoAssistantFAB() {
+export default async function DemoAssistantFAB() {
   const [open, setOpen] = useState(false);
-  const key = process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() ?? "";
+  function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
+    return settings.find((s) => s.key === key)?.value?.trim() ?? "";
+  }
+  const settings = await getPlatformEnvSettings();
+  const key = setting(settings, "DEMO_CLARA_API_KEY").toLowerCase() ?? process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() ?? "";
 
-  useEffect(() => {
+  useEffect(() => {``
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
