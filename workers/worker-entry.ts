@@ -1,3 +1,4 @@
+import "./all-workers";
 import { processNextJob } from "../src/modules/knowledge-bases/worker/ingest-worker";
 import { startIngestPoller } from "../src/modules/knowledge-bases/worker/ingest-poller";
 
@@ -22,5 +23,3 @@ const shutdown = () => {
 
 process.once("SIGTERM", shutdown);
 process.once("SIGINT", shutdown);
-
-await import("./all-workers");
