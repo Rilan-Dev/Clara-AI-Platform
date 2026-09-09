@@ -1,20 +1,38 @@
 "use client";
 
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
+import { useEffect, useState } from "react";
 
 /**
  * The landing page is only an iframe host. Voice identity, configuration,
  * microphone lifecycle, WebRTC, and AI runtime live inside the public embed
- * route and are authenticated with the real generated KB API key.
+ * route and are authenticated with the generated KB API key.
  */
-export default async function DemoVoiceSection() {
+export default function DemoVoiceSection() {
+  const [key, setKey] = useState<string | null>(null);
 
-  function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
-    return settings.find((s) => s.key === key)?.value?.trim() ?? "";
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/embed/demo-config", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Demo configuration request failed");
+        return response.json() as Promise<{ key?: string }>;
+      })
+      .then((data) => {
+        if (!cancelled) setKey(data.key?.trim() ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setKey("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (key === null) {
+    return <section className="relative z-10 w-full h-[760px]" aria-hidden="true" />;
   }
-  const settings = await getPlatformEnvSettings();
-  const key = setting(settings, "DEMO_CLARA_API_KEY").toLowerCase() ?? (process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() || process.env.NEXT_PUBLIC_CLARA_EMBED_API_KEY?.trim() || "").toLowerCase();
-
 
   if (!key) {
     return (
@@ -22,7 +40,7 @@ export default async function DemoVoiceSection() {
         <div className="max-w-5xl mx-auto rounded-3xl border border-amber-500/20 bg-amber-500/[0.04] px-6 py-10 text-center">
           <p className="text-sm font-semibold text-amber-300">Voice demo configuration is missing</p>
           <p className="mt-2 text-sm text-white/45">
-            Set NEXT_PUBLIC_LANDING_EMBED_API_KEY to the active knowledge-base embed key and restart the dev server.
+            Set DEMO_CLARA_API_KEY or NEXT_PUBLIC_LANDING_EMBED_API_KEY and restart the server.
           </p>
         </div>
       </section>
