@@ -1,63 +1,29 @@
-/**
- * src/lib/stripe.ts
- * ─────────────────────────────────────────────────────────────────────────────
- * Stripe SDK singleton + plan-to-price mappings.
- *
- * Environment variables (all server-side only):
- *   STRIPE_SECRET_KEY          sk_test_…   or sk_live_…
- *   STRIPE_WEBHOOK_SECRET      whsec_…     (from `stripe listen` or Dashboard)
- *   STRIPE_PRICE_STARTER       price_…     (monthly recurring price for Starter)
- *   STRIPE_PRICE_PRO           price_…     (monthly recurring price for Pro)
- *   NEXT_PUBLIC_APP_URL        https://…   (used to build redirect URLs)
- */
-
 import Stripe from "stripe";
 
-// ── Singleton ─────────────────────────────────────────────────────────────────
-
 let _stripe: Stripe | null = null;
+let _stripeKey: string | null = null;
 
 export function getStripe(): Stripe {
-  if (_stripe) return _stripe;
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  if (_stripe && _stripeKey === key) return _stripe;
   _stripe = new Stripe(key, { apiVersion: "2025-02-24.acacia" });
+  _stripeKey = key;
   return _stripe;
 }
 
-// ── Plan → Stripe Price ID mapping ───────────────────────────────────────────
-// Set these in your .env via the Dashboard or `stripe prices create` CLI.
-// Free plan has no Stripe price (no checkout needed).
-
 export function getStripePriceId(planId: string): string | null {
-  const map: Record<string, string | undefined> = {
-    starter: process.env.STRIPE_PRICE_STARTER,
-    pro:     process.env.STRIPE_PRICE_PRO,
-  };
-  return map[planId] ?? null;
+  return ({ starter: process.env.STRIPE_PRICE_STARTER, pro: process.env.STRIPE_PRICE_PRO } as Record<string,string|undefined>)[planId] ?? null;
 }
 
-// ── Plan amounts in USD cents (fallback if env Price IDs missing) ─────────────
-
-export const PLAN_AMOUNTS_CENTS: Record<string, number> = {
-  starter: 4900,   // $49.00
-  pro:     14900,  // $149.00
-};
-
-export const PLAN_NAMES: Record<string, string> = {
-  starter: "Clara AI Starter",
-  pro:     "Clara AI Pro",
-};
-
-// ── Webhook secret ────────────────────────────────────────────────────────────
+export const PLAN_AMOUNTS_CENTS: Record<string, number> = { starter: 4900, pro: 14900 };
+export const PLAN_NAMES: Record<string, string> = { starter: "Clara AI Starter", pro: "Clara AI Pro" };
 
 export function getStripeWebhookSecret(): string {
-  const s = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!s) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
-  return s;
+  const value = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!value) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
+  return value;
 }
-
-// ── App base URL helper ───────────────────────────────────────────────────────
 
 export function appUrl(path: string): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
