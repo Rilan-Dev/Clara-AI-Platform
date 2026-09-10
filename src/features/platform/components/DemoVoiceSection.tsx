@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 /**
  * The landing page is only an iframe host. Voice identity, configuration,
  * microphone lifecycle, WebRTC, and AI runtime live inside the public embed
- * route and are authenticated with the generated KB API key.
+ * route and are authenticated with the generated KB API key. The key itself
+ * is resolved server-side (DB setting with env-var fallback) via
+ * /api/embed/demo-config since this is a client component.
  */
 export default function DemoVoiceSection() {
   const [key, setKey] = useState<string | null>(null);

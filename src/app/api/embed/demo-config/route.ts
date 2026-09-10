@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * The landing page is a client component, so it cannot read the server-only
- * platform settings module directly. Return only the public demo credential
- * needed to construct the embedded voice demo URL.
+ * platform settings module directly. Return only the public embed credential
+ * needed to construct the embedded voice/chat demo URLs.
  */
 export async function GET(): Promise<NextResponse> {
   try {

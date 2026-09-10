@@ -5,4 +5,3 @@ export { default as AdminOrgDetailScreen } from "./org-detail-screen";
 export { default as AdminSubscriptionsScreen } from "./subscriptions-screen";
 export { default as AdminAnalyticsScreen } from "./analytics-screen";
 export { default as AdminSettingsScreen } from "./settings-screen";
-export { default as AdminDemoScreen } from "./demo-screen";

@@ -19,12 +19,11 @@ type EnvSetting = {
   category: string; isSecret: boolean; requiresRestart: boolean; updatedAt: string;
 };
 
-const CATEGORIES = ["ai","phone","auth","billing","email","general","demo"];
+const CATEGORIES = ["ai","phone","auth","billing","email","general"];
 const CATEGORY_LABELS: Record<string, string> = {
   ai: "🤖 AI Providers", phone: "📞 Phone Providers",
   auth: "🔐 Authentication", billing: "💳 Billing",
   email: "📧 Email", general: "⚙️ General",
-  demo: "🎯 Demo / Landing Page",
 };
 
 export function PlatformEnvPanel() {

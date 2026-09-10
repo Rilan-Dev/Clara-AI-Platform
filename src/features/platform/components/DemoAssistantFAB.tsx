@@ -13,7 +13,7 @@ export default function DemoAssistantFAB() {
 
     const loadDemoKey = async () => {
       try {
-        const response = await fetch("/api/platform/demo-config", { cache: "no-store" });
+        const response = await fetch("/api/embed/demo-config", { cache: "no-store" });
         if (!response.ok) return;
         const data = (await response.json()) as { key?: string };
         if (!cancelled) {
