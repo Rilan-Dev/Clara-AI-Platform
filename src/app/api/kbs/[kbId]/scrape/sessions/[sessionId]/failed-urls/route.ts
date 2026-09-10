@@ -16,6 +16,16 @@ import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getSessionById } from "@/modules/knowledge-bases/core/scrape-sessions-db";
 import { listFailedUrlsWithRetries } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
 
+// Add this helper function to check if user is platform admin
+async function denyPlatformAdmin(auth: AuthContext): Promise<void> {
+  if (auth.user.isSuperAdmin) {
+    throw NextResponse.json(
+      { error: "Platform admins cannot access failed URLs" },
+      { status: 403 }
+    );
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ kbId: string; sessionId: string }> }
@@ -25,6 +35,7 @@ export async function GET(
 
     const { kbId, sessionId } = await params;
     const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
     await requireKbPermission(auth, kbId, "document:read");
 
     const session = await getSessionById(sessionId);

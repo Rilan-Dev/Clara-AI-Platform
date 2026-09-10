@@ -12,6 +12,16 @@ import {
   addChunk,
 } from "@/modules/admin/core/vector-store-kb";
 
+// Add this helper function to check if user is platform admin
+async function denyPlatformAdmin(auth: AuthContext): Promise<void> {
+  if (auth.user.isSuperAdmin) {
+    throw NextResponse.json(
+      { error: "Platform admins cannot access document chunks" },
+      { status: 403 }
+    );
+  }
+}
+
 type Params = { params: Promise<{ kbId: string; docId: string }> };
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -22,6 +32,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const { kbId, docId } = await params;
 
     const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
     await requireKbPermission(auth, kbId, "document:read");
 
     const kb = await getKnowledgeBaseById(kbId);
@@ -53,6 +64,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { kbId, docId } = await params;
 
     const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
     await requireKbPermission(auth, kbId, "document:create");
 
     const kb = await getKnowledgeBaseById(kbId);

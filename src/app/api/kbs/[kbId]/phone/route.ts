@@ -11,6 +11,17 @@ import {
   deletePhoneConfig,
   checkPhoneCallsEnabled,
 } from "@/modules/phone/core/db";
+import { requireAuth } from "@/modules/auth/core/rbac";
+
+// Add this helper function to check if user is platform admin
+async function denyPlatformAdmin(auth: AuthContext): Promise<void> {
+  if (auth.user.isSuperAdmin) {
+    throw NextResponse.json(
+      { error: "Platform admins cannot modify KB phone settings" },
+      { status: 403 }
+    );
+  }
+}
 
 type Params = { params: Promise<{ kbId: string }> };
 
@@ -18,12 +29,15 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
   try {
     await ensureMigrated();
     const { kbId } = await params;
+    const auth = await requireAuth(_req);
+    await denyPlatformAdmin(auth); // Add this check
     const [configs, enabled] = await Promise.all([
       getPhoneConfigsByKb(kbId),
       checkPhoneCallsEnabled(kbId),
     ]);
     return NextResponse.json({ configs, phoneCallsEnabled: enabled });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
@@ -32,6 +46,8 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
   try {
     await ensureMigrated();
     const { kbId } = await params;
+    const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
 
     // Subscription gate
     const enabled = await checkPhoneCallsEnabled(kbId);
@@ -55,6 +71,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     });
     return NextResponse.json({ config });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
@@ -63,12 +80,15 @@ export async function DELETE(req: NextRequest, { params }: Params): Promise<Next
   try {
     await ensureMigrated();
     const { kbId } = await params;
+    const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
     const id = new URL(req.url).searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
     void kbId; // used by auth context
     await deletePhoneConfig(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

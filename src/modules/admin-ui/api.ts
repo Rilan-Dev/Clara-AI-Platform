@@ -223,7 +223,7 @@ export async function reprocessAllDocuments(kbId: string): Promise<BulkReprocess
 
 export type AssistantConfig = {
   id: string; kbId: string; assistantName: string; avatarUrl: string | null;
-  systemPrompt: string; welcomeMessage: string; outOfScopeReply: string; rules: string[];
+  systemPrompt: string; voiceGreeting: string; welcomeMessage: string; outOfScopeReply: string; rules: string[];
   defaultLanguage: string; allowedLanguages: string[]; alwaysRespondIn: string | null;
   voiceId: string; speed: number; temperature: number; maxTokens: number;
   citeSources: boolean; strictMode: boolean; primaryColour: string; accentColour: string; launcherColour: string;
@@ -413,34 +413,34 @@ export type UrlRetryStatusOnUrl =
   | "permanently_failed";
 
 export type UrlRetry = {
-  id:            string;
-  scrapeUrlId:   string;
-  sessionId:     string;
-  kbId:          string;
-  url:           string;
+  id: string;
+  scrapeUrlId: string;
+  sessionId: string;
+  kbId: string;
+  url: string;
   attemptNumber: number;
-  status:        UrlRetryStatus;
-  errorCode:     string | null;
-  errorMessage:  string | null;
-  scheduledAt:   string;
-  startedAt:     string | null;
-  completedAt:   string | null;
-  nextRetryAt:   string | null;
-  jobId:         string | null;
-  createdAt:     string;
+  status: UrlRetryStatus;
+  errorCode: string | null;
+  errorMessage: string | null;
+  scheduledAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  nextRetryAt: string | null;
+  jobId: string | null;
+  createdAt: string;
 };
 
 export type FailedUrlWithRetries = {
-  id:           string;
-  sessionId:    string;
-  url:          string;
-  title:        string | null;
-  depth:        number;
+  id: string;
+  sessionId: string;
+  url: string;
+  title: string | null;
+  depth: number;
   errorMessage: string | null;
-  retryCount:   number;
-  retryStatus:  UrlRetryStatusOnUrl | null;
-  nextRetryAt:  string | null;
-  retries:      UrlRetry[];
+  retryCount: number;
+  retryStatus: UrlRetryStatusOnUrl | null;
+  nextRetryAt: string | null;
+  retries: UrlRetry[];
 };
 
 export type RetryFailedUrlResult = {
@@ -453,13 +453,13 @@ export type RetryFailedUrlResult = {
 // ── Document Chunks (Qdrant) ───────────────────────────────────────────────────────────────────────────
 
 export type KbChunk = {
-  pointId:          string;
-  chunkIndex:       number;
-  chunk:            string;
-  uploadedAt:       string;
-  title:            string;
+  pointId: string;
+  chunkIndex: number;
+  chunk: string;
+  uploadedAt: string;
+  title: string;
   originalFilename: string;
-  documentId:       string;
+  documentId: string;
 };
 
 export async function listDocumentChunks(kbId: string, docId: string): Promise<KbChunk[]> {

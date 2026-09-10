@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getPlatformEnvSettings } from "@/modules/phone/core/db";
+import { getEmbedApiKey } from "@/modules/admin/core/embed-api-key-db";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<NextResponse> {
   try {
     await ensureMigrated();
-    const settings = await getPlatformEnvSettings();
-    const configured = settings.find((setting) => setting.key === "DEMO_CLARA_API_KEY")?.value?.trim();
-    const key = configured || process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() || process.env.NEXT_PUBLIC_CLARA_EMBED_API_KEY?.trim() || "";
+    const key = await getEmbedApiKey() || process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() || "";
 
     return NextResponse.json(
       { key },

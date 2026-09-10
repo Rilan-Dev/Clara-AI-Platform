@@ -21,6 +21,7 @@ function formatDate(value: string) {
 export default function ProjectDetailPage() {
   const { id = "", projectId = "" } = useParams<{ id: string; projectId: string }>();
   const { user } = useAuth();
+  const isAdmin = user?.isSuperAdmin ?? false;
   const { data: org } = useOrg(id);
   const { data: project } = useProject(projectId);
   const { kbs, loading, create, remove } = useKbs(projectId);
@@ -64,6 +65,106 @@ export default function ProjectDetailPage() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="p-6 lg:p-8 max-w-5xl space-y-8">
+        <AdminPageHeader
+          icon={FolderKanban}
+          title={editedProject?.name ?? project?.name ?? "Knowledge Bases"}
+          description="View project details and access to knowledge bases for this project."
+          breadcrumbs={[
+            { label: "Organisations", href: "/orgs" },
+            { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
+            { label: "Projects", href: `/orgs/${id}` },
+            { label: project?.name ?? "Project" },
+          ]}
+          chips={[
+            `${kbs.length} KB${kbs.length === 1 ? "" : "s"}`,
+            project?.description ?? "Project workspace",
+          ]}
+        />
+
+        {/* Project details — read-only for platform admins */}
+        {project && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
+                <FolderKanban className="w-5 h-5 text-indigo-300" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-white">Project Details</h2>
+                <p className="text-sm text-white/40 mt-1">
+                  Platform admins can view project details but cannot edit them.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="font-medium text-white">{project.name}</p>
+                    {project.description && (
+                      <p className="text-sm text-white/40 mt-1">{project.description}</p>
+                    )}
+                    <p className="text-xs text-white/30 mt-1">
+                      Created {formatDate(project.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2].map((item) => (
+              <div key={item} className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />
+            ))}
+          </div>
+        ) : kbs.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-14 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+              <BookOpen className="w-6 h-6 text-indigo-300" />
+            </div>
+            <p className="font-medium text-white">No knowledge bases available</p>
+            <p className="text-sm text-white/40 mt-1">
+              Platform admins can view knowledge bases but cannot manage them.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {kbs.map((kb) => (
+              <div key={kb.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <p className="font-medium text-white">{kb.name}</p>
+                    <StatusBadge status={kb.status} />
+                  </div>
+                  {kb.description && (
+                    <p className="text-sm text-white/40 mt-1">{kb.description}</p>
+                  )}
+                  <p className="text-xs text-white/30 mt-1">
+                    Created {formatDate(kb.createdAt)} · <span className="font-mono">{kb.qdrantCollection}</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&projectId=${projectId}`}>
+                    <Button variant="outline" size="sm">Assistant & AI</Button>
+                  </Link>
+                  <Link href={`/kbs/${kb.id}?orgId=${id}&projectId=${projectId}`}>
+                    <Button size="sm">Open KB</Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (

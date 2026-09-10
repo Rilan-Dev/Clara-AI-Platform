@@ -11,6 +11,17 @@ import {
   updateChunk,
   deleteChunk,
 } from "@/modules/admin/core/vector-store-kb";
+import { AuthContext } from "@/modules/auth/core/models";
+
+// Add this helper function to check if user is platform admin
+async function denyPlatformAdmin(auth: AuthContext): Promise<void> {
+  if (auth.user.isSuperAdmin) {
+    throw NextResponse.json(
+      { error: "Platform admins cannot modify document chunks" },
+      { status: 403 }
+    );
+  }
+}
 
 type Params = { params: Promise<{ kbId: string; docId: string; chunkId: string }> };
 
@@ -22,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { kbId, docId, chunkId } = await params;
 
     const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
     await requireKbPermission(auth, kbId, "document:create");
 
     const kb = await getKnowledgeBaseById(kbId);
@@ -59,6 +71,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { kbId, docId, chunkId } = await params;
 
     const auth = await requireAuth(req);
+    await denyPlatformAdmin(auth); // Add this check
     await requireKbPermission(auth, kbId, "document:delete");
 
     const kb = await getKnowledgeBaseById(kbId);
