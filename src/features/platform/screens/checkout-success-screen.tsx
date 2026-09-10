@@ -71,7 +71,7 @@ export default function CheckoutSuccessScreen() {
               You&apos;re on <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">{planName}!</span>
             </h1>
             <p className="text-white/50 mb-2">Payment processed successfully via {GATEWAY_LABELS[gateway] ?? gateway}.</p>
-            <p className="text-white/30 text-sm mb-8">Your 14-day free trial starts now.</p>
+            <p className="text-white/30 text-sm mb-8">Your plan is active now.</p>
           </>
         )}
 
@@ -115,12 +115,8 @@ export default function CheckoutSuccessScreen() {
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-white/40">Trial ends</span>
-              <span className="text-emerald-400 font-medium">
-                {new Date(Date.now() + 14 * 86400 * 1000).toLocaleDateString("en-GB", {
-                  day: "numeric", month: "short", year: "numeric",
-                })}
-              </span>
+              <span className="text-white/40">Status</span>
+              <span className="text-emerald-400 font-medium">Active</span>
             </div>
           </div>
         )}

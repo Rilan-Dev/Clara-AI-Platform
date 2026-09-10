@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { PlanVersionManager } from "@/components/admin/PlanVersionManager";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -423,6 +424,8 @@ export default function AdminSubscriptionsScreen() {
 
       {/* Notification panel (collapsible) */}
       {notifPanel && <NotificationPanel />}
+
+      <PlanVersionManager />
 
       {/* Plan distribution */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

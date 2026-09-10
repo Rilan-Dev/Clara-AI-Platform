@@ -60,6 +60,7 @@ services:
       - redis
     networks:
       - clara-net
+      - proxy-network
 
   # ──────────────── Clara Worker (BullMQ) ────────────────
   clara-worker:
@@ -81,6 +82,7 @@ services:
       - qdrant
     networks:
       - clara-net
+      - proxy-network
 
   # # ──────────────── Clara Omen ────────────────
   # clara-omen:
@@ -117,3 +119,6 @@ services:
 networks:
   clara-net:
     driver: bridge
+
+  proxy-network:
+    external: true

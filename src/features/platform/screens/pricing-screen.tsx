@@ -131,7 +131,7 @@ export default function PricingPage() {
               ["Can I upgrade or downgrade at any time?", "Yes. Plan changes take effect immediately. If upgrading mid-cycle, we prorate the difference."],
               ["What counts as a request?", "Each chat message (text or voice) sent to any knowledge base counts as one request."],
               ["Is the data isolated between organisations?", "Absolutely. Each organisation has its own Qdrant collection namespace, its own documents, and its own API keys."],
-              ["Do you offer a free trial of Pro?", "Yes — all new orgs get a 14-day Pro trial with full voice and analytics before dropping to Free."],
+              ["Do you offer a free trial?", "You can start on the Free plan at no cost, or contact us for a trial extension on a paid plan."],
             ].map(([q, a]) => (
               <div key={q} className="border border-white/[0.08] bg-white/[0.03] rounded-xl p-5">
                 <div className="font-semibold text-white text-sm mb-2">{q}</div>

@@ -70,7 +70,7 @@ function LoginForm() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
             <Brain className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Platform Admin</h1>
+          <h1 className="text-2xl font-bold text-white">Clara AI</h1>
           <p className="text-white/40 text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
         <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">

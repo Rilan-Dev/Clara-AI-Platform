@@ -127,10 +127,11 @@ async function getOrgPlanQuota(orgId: string): Promise<PlanQuota | null> {
     `SELECT
        sp.id           AS plan_id,
        sp.name         AS plan_name,
-       sp.max_req_day,
-       sp.voice_enabled
+       COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+       COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled
      FROM org_subscriptions os
      JOIN subscription_plans sp ON sp.id = os.plan_id
+     LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
      WHERE os.org_id = $1
        AND os.status IN ('active', 'trialing')
      LIMIT 1`,

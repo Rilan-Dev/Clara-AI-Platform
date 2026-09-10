@@ -11,12 +11,14 @@ import type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
+  CreateWorkspaceInput, CreateWorkspaceResult,
 } from "./api";
 
 export type {
   CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
+  CreateWorkspaceInput, CreateWorkspaceResult,
 };
 
 // ── Generic async state helper ────────────────────────────────────────────────
@@ -125,6 +127,25 @@ export function useOrg(orgId?: string | null) {
   return useAsync(() => api.fetchOrg(orgId!), `org:${orgId ?? "none"}`, {
     enabled: Boolean(orgId),
   });
+}
+
+export function useCreateWorkspace() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const create = useCallback(async (input: CreateWorkspaceInput): Promise<CreateWorkspaceResult> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.createWorkspace(input);
+      return result;
+    } catch (e) {
+      setError((e as Error).message);
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  return { create, loading, error };
 }
 
 export function useProject(projectId?: string | null) {

@@ -168,7 +168,7 @@ export default function CheckoutScreen() {
             <span className="font-bold text-white text-lg">Clara AI</span>
           </Link>
           <h1 className="text-2xl font-black text-white mb-1">Complete your subscription</h1>
-          <p className="text-white/40 text-sm">14-day free trial · Cancel anytime · No hidden fees</p>
+          <p className="text-white/40 text-sm">Cancel anytime · No hidden fees</p>
         </div>
 
         {/* Plan summary */}
@@ -189,7 +189,7 @@ export default function CheckoutScreen() {
               <div className="text-xl font-black text-white">
                 {gateway === "razorpay" ? plan.inr : plan.usd}
               </div>
-              <div className="text-xs text-white/30">after 14-day trial</div>
+              <div className="text-xs text-white/30">billed now</div>
             </div>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-white/[0.06]">
@@ -281,7 +281,7 @@ export default function CheckoutScreen() {
                   Visa · Mastercard · Amex · Apple Pay · Google Pay
                 </div>
                 <div className="text-xs text-white/50 pt-1 border-t border-white/[0.06]">
-                  Billed in <span className="text-white font-semibold">USD</span> — {plan.usd} after 14-day trial
+                  Billed in <span className="text-white font-semibold">USD</span> — {plan.usd}
                 </div>
               </>
             ) : (
@@ -295,7 +295,7 @@ export default function CheckoutScreen() {
                   UPI · Net Banking · Cards · Wallets · EMI
                 </div>
                 <div className="text-xs text-white/50 pt-1 border-t border-white/[0.06]">
-                  Billed in <span className="text-white font-semibold">INR</span> — {plan.inr} after 14-day trial
+                  Billed in <span className="text-white font-semibold">INR</span> — {plan.inr}
                 </div>
               </>
             )}

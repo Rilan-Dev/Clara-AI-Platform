@@ -1,5 +1,13 @@
 -- Platform runtime configuration managed by the platform administrator.
 -- Values may initially be blank and fall back to process.env until saved in DB.
+
+ALTER TABLE platform_env_settings
+  DROP CONSTRAINT IF EXISTS platform_env_settings_category_check;
+
+ALTER TABLE platform_env_settings
+  ADD CONSTRAINT platform_env_settings_category_check
+  CHECK (category IN ('general','ai','phone','auth','billing','email','demo','platform','payments'));
+
 INSERT INTO platform_env_settings (key, value, description, category, is_secret, requires_restart)
 VALUES
   ('NEXT_PUBLIC_LANDING_EMBED_API_KEY', '', 'Public landing-page embed API key. DB value overrides environment value.', 'platform', false, false),

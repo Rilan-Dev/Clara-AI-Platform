@@ -1,28 +1,222 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Users, TrendingUp, Activity, Database, FileText, DollarSign, RefreshCw, BarChart3 } from "lucide-react";
+import {
+  Building2,
+  Users,
+  TrendingUp,
+  Activity,
+  Database,
+  FileText,
+  DollarSign,
+  RefreshCw,
+  BarChart3,
+} from "lucide-react";
 import Link from "next/link";
 import http from "@/lib/http";
 
-type Stats = { totalOrgs:number; totalUsers:number; mrr:number; payingOrgs:number; totalQueries:number; totalKbs:number; totalDocuments:number; totalQueriesThisMonth:number };
-type OrgSummary = { id:string; name:string; slug:string; project_count:number; kb_count:number; created_at:string };
-type Revenue = { totalMrr:number; totalArr:number; byPlan:{plan_id:string;plan_name:string;price_usd:number;org_count:number;plan_mrr:number}[]; planDist:{plan_id:string;count:number}[] };
-const PLAN_BAR:Record<string,string>={free:"bg-slate-500",starter:"bg-cyan-500",pro:"bg-indigo-500",enterprise:"bg-amber-500"};
+type Stats = {
+  totalOrgs: number;
+  totalUsers: number;
+  mrr: number;
+  payingOrgs: number;
+  totalQueries: number;
+  totalKbs: number;
+  totalDocuments: number;
+  totalQueriesThisMonth: number;
+};
+type OrgSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  project_count: number;
+  kb_count: number;
+  created_at: string;
+};
+type Revenue = {
+  totalMrr: number;
+  totalArr: number;
+  byPlan: {
+    plan_id: string;
+    plan_name: string;
+    price_usd: number;
+    org_count: number;
+    plan_mrr: number;
+  }[];
+  planDist: { plan_id: string; count: number }[];
+};
+const PLAN_BAR: Record<string, string> = {
+  free: "bg-slate-500",
+  starter: "bg-cyan-500",
+  pro: "bg-indigo-500",
+  enterprise: "bg-amber-500",
+};
 
-type Tab="overview"|"organizations"|"subscriptions";
-export default function AdminDashboard(){
-  const [tab,setTab]=useState<Tab>("overview"); const [stats,setStats]=useState<Stats|null>(null); const [orgs,setOrgs]=useState<OrgSummary[]>([]); const [revenue,setRevenue]=useState<Revenue|null>(null); const [loading,setLoading]=useState(true);
-  const load=useCallback(()=>{setLoading(true);Promise.all([http.get<Stats>("/platform/stats"),http.get<{orgs:OrgSummary[]}>("/platform/orgs?perPage=20"),http.get<Revenue>("/platform/revenue")]).then(([s,o,r])=>{setStats(s.data);setOrgs(o.data.orgs??[]);setRevenue(r.data);}).catch(()=>{}).finally(()=>setLoading(false));},[]);
-  useEffect(()=>{load();},[load]);
-  const arr=(stats?.mrr??0)*12; const arpu=stats&&stats.payingOrgs>0?Math.round(stats.mrr/stats.payingOrgs):0; const total=Math.max(orgs.length,1);
-  const cards=[
-    ["Organisations",stats?.totalOrgs,"text-violet-400",Building2],["Users",stats?.totalUsers,"text-cyan-400",Users],["MRR",stats?`$${stats.mrr.toLocaleString()}`:"—","text-emerald-400",DollarSign],["ARR",stats?`$${arr.toLocaleString()}`:"—","text-emerald-300",TrendingUp],["Knowledge Bases",stats?.totalKbs,"text-indigo-400",Database],["Documents",stats?.totalDocuments,"text-pink-400",FileText],["Queries This Month",stats?.totalQueriesThisMonth?.toLocaleString(),"text-amber-400",Activity],["ARPU",arpu?`$${arpu}`:"—","text-blue-400",BarChart3],
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [orgs, setOrgs] = useState<OrgSummary[]>([]);
+  const [revenue, setRevenue] = useState<Revenue | null>(null);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      http.get<Stats>("/platform/stats"),
+      http.get<{ orgs: OrgSummary[] }>("/platform/orgs?perPage=20"),
+      http.get<Revenue>("/platform/revenue"),
+    ])
+      .then(([s, o, r]) => {
+        setStats(s.data);
+        setOrgs(o.data.orgs ?? []);
+        setRevenue(r.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const arr = (stats?.mrr ?? 0) * 12;
+  const arpu =
+    stats && stats.payingOrgs > 0
+      ? Math.round(stats.mrr / stats.payingOrgs)
+      : 0;
+  const total = Math.max(orgs.length, 1);
+  const cards = [
+    ["Organisations", stats?.totalOrgs, "text-violet-400", Building2],
+    ["Users", stats?.totalUsers, "text-cyan-400", Users],
+    [
+      "MRR",
+      stats ? `$${stats.mrr.toLocaleString()}` : "—",
+      "text-emerald-400",
+      DollarSign,
+    ],
+    [
+      "ARR",
+      stats ? `$${arr.toLocaleString()}` : "—",
+      "text-emerald-300",
+      TrendingUp,
+    ],
+    ["Knowledge Bases", stats?.totalKbs, "text-indigo-400", Database],
+    ["Documents", stats?.totalDocuments, "text-pink-400", FileText],
+    [
+      "Queries This Month",
+      stats?.totalQueriesThisMonth?.toLocaleString(),
+      "text-amber-400",
+      Activity,
+    ],
+    ["ARPU", arpu ? `$${arpu}` : "—", "text-blue-400", BarChart3],
   ] as const;
-  return <div className="p-6 lg:p-8 max-w-7xl">
-    <div className="flex items-center justify-between mb-6"><div><h1 className="text-2xl font-bold text-white">Platform Overview</h1><p className="text-white/40 text-sm mt-0.5">Platform analytics and organisation summaries</p></div><button onClick={load} className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 px-3 py-2 rounded-lg"><RefreshCw className={`w-3.5 h-3.5 ${loading?"animate-spin":""}`}/> Refresh</button></div>
-    <div className="flex gap-1 border border-white/[0.08] bg-white/[0.03] rounded-xl p-1 w-fit mb-8">{(["overview","organizations","subscriptions"] as Tab[]).map(t=><button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab===t?"bg-indigo-600 text-white":"text-white/40 hover:text-white"}`}>{t}</button>)}</div>
-    {tab==="overview"&&<div className="space-y-6"><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{cards.map(([label,value,color,Icon])=><div key={label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5"><div className="flex items-center justify-between mb-3"><span className="text-xs text-white/40">{label}</span><Icon className={`w-4 h-4 ${color}`}/></div><div className="text-2xl font-black text-white">{loading?<div className="h-7 w-14 bg-white/[0.06] rounded animate-pulse"/>:value}</div></div>)}</div><div className="grid lg:grid-cols-2 gap-4"><div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5"><h3 className="font-semibold text-white text-sm mb-4">Plan Distribution</h3><div className="space-y-3">{(revenue?.planDist??[]).map(p=>{const pct=Math.round((p.count/total)*100);return <div key={p.plan_id}><div className="flex justify-between text-xs mb-1"><span className="text-white/60 capitalize">{p.plan_id}</span><span className="text-white/40">{p.count}</span></div><div className="h-2 bg-white/[0.06] rounded-full overflow-hidden"><div className={`h-full ${PLAN_BAR[p.plan_id]??"bg-slate-500"} rounded-full`} style={{width:`${pct}%`}}/></div></div>})}</div></div><div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5"><h3 className="font-semibold text-white text-sm mb-4">Organisation Resource Summary</h3><div className="space-y-3">{orgs.slice(0,6).map(o=><div key={o.id} className="flex items-center justify-between"><div><div className="text-sm text-white">{o.name}</div><div className="text-xs text-white/30">{o.project_count} projects · {o.kb_count} KBs</div></div><span className="text-xs text-white/30">profile only</span></div>)}{orgs.length===0&&!loading&&<div className="text-sm text-white/30">No organisations</div>}</div></div></div></div>}
-    {tab==="organizations"&&<div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden"><div className="px-5 py-4 border-b border-white/[0.06] flex justify-between"><div><h3 className="font-semibold text-white">Organisation Profiles</h3><p className="text-xs text-white/30 mt-1">Only profile information and aggregate counts are shown.</p></div><Link href="/orgs" className="text-xs text-indigo-400">Manage profiles →</Link></div><div className="divide-y divide-white/[0.04]">{orgs.map(o=><div key={o.id} className="px-5 py-4 flex justify-between"><div><div className="text-sm text-white">{o.name}</div><div className="text-xs text-white/30">/{o.slug}</div></div><div className="flex gap-6 text-xs text-white/50"><span>{o.project_count} projects</span><span>{o.kb_count} KBs</span></div></div>)}</div></div>}
-    {tab==="subscriptions"&&<div className="space-y-6"><div className="grid md:grid-cols-3 gap-4">{[["MRR",revenue?`$${revenue.totalMrr.toLocaleString()}`:"—"],["ARR",revenue?`$${revenue.totalArr.toLocaleString()}`:"—"],["Paying Organisations",stats?.payingOrgs??"—"]].map(([l,v])=><div key={l} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6"><div className="text-xs text-white/40">{l}</div><div className="text-3xl font-black text-white mt-2">{v}</div></div>)}</div><div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6"><h3 className="text-sm font-bold text-white mb-5">Revenue by Plan</h3>{(revenue?.byPlan??[]).map(r=><div key={r.plan_id} className="flex justify-between py-3 border-b border-white/[0.05]"><span className="text-sm text-white">{r.plan_name} <span className="text-white/30">({r.org_count} orgs)</span></span><span className="text-sm text-emerald-400">${r.plan_mrr.toLocaleString()}/mo</span></div>)}<div className="mt-5"><Link href="/subscriptions" className="text-sm text-indigo-400">Manage subscriptions →</Link></div></div></div>}
-  </div>;
+  return (
+    <div className="p-6 lg:p-8 max-w-7xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Platform Overview</h1>
+          <p className="text-white/40 text-sm mt-0.5">
+            Platform analytics and organisation summaries
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/orgs" className="text-xs text-white/50 hover:text-white border border-white/10 px-3 py-2 rounded-lg">
+            Organisations
+          </Link>
+          <Link href="/subscriptions" className="text-xs text-white/50 hover:text-white border border-white/10 px-3 py-2 rounded-lg">
+            Subscriptions
+          </Link>
+          <button
+            onClick={load}
+            className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 px-3 py-2 rounded-lg"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
+      </div>
+      <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {cards.map(([label, value, color, Icon]) => (
+              <div
+                key={label}
+                className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-white/40">{label}</span>
+                  <Icon className={`w-4 h-4 ${color}`} />
+                </div>
+                <div className="text-2xl font-black text-white">
+                  {loading ? (
+                    <div className="h-7 w-14 bg-white/[0.06] rounded animate-pulse" />
+                  ) : (
+                    value
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+              <h3 className="font-semibold text-white text-sm mb-4">
+                Plan Distribution
+              </h3>
+              <div className="space-y-3">
+                {(revenue?.planDist ?? []).map((p) => {
+                  const pct = Math.round((p.count / total) * 100);
+                  return (
+                    <div key={p.plan_id}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-white/60 capitalize">
+                          {p.plan_id}
+                        </span>
+                        <span className="text-white/40">{p.count}</span>
+                      </div>
+                      <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${PLAN_BAR[p.plan_id] ?? "bg-slate-500"} rounded-full`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+              <h3 className="font-semibold text-white text-sm mb-4">
+                Organisation Resource Summary
+              </h3>
+              <div className="space-y-3">
+                {orgs.slice(0, 6).map((o) => (
+                  <div key={o.id} className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-white">{o.name}</div>
+                      <div className="text-xs text-white/30">
+                        {o.project_count} projects · {o.kb_count} KBs
+                      </div>
+                    </div>
+                    <span className="text-xs text-white/30">profile only</span>
+                  </div>
+                ))}
+                {orgs.length === 0 && !loading && (
+                  <div className="text-sm text-white/30">No organisations</div>
+                )}
+              </div>
+            </div>
+          </div>
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-white text-sm">Revenue by Plan</h3>
+              <p className="text-xs text-white/30 mt-1">Current recurring revenue and organisation distribution.</p>
+            </div>
+            <Link href="/subscriptions" className="text-xs text-indigo-400">Open billing →</Link>
+          </div>
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
+            {(revenue?.byPlan ?? []).map((r) => (
+              <div key={r.plan_id} className="flex justify-between py-2 border-b border-white/[0.05]">
+                <span className="text-sm text-white">{r.plan_name} <span className="text-white/30">({r.org_count})</span></span>
+                <span className="text-sm text-emerald-400">${r.plan_mrr.toLocaleString()}/mo</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

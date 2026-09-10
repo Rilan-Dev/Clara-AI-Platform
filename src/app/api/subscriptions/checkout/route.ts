@@ -114,7 +114,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       cancel_url: appUrl(`/signup?plan=${planId}&orgId=${orgId}&cancelled=1`),
       metadata:   { orgId, planId, userId: auth.user.id },
       subscription_data: {
-        trial_period_days: 14,
         metadata: { orgId, planId },
       },
       allow_promotion_codes: true,

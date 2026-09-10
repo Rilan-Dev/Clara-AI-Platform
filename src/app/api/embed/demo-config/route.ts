@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import { getEmbedApiKey } from "@/modules/admin/core/embed-api-key-db";
 
 export const dynamic = "force-dynamic";

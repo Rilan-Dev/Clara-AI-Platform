@@ -25,11 +25,20 @@ export async function GET(req: NextRequest) {
           os.cancel_at_period_end, os.paused_at, os.cancelled_at,
           os.trial_extended_days, os.admin_note, os.gateway,
           os.stripe_subscription_id, os.razorpay_subscription_id,
-          sp.name AS plan_name, sp.max_kbs, sp.max_docs_per_kb,
-          sp.max_req_day, sp.max_storage_mb, sp.voice_enabled,
-          sp.api_access, sp.custom_branding, sp.analytics_level, sp.features
+          COALESCE(pv.name, sp.name) AS plan_name,
+          COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
+          COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
+          COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+          COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+          COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
+          COALESCE(pv.api_access, sp.api_access) AS api_access,
+          COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+          COALESCE(pv.analytics_level, sp.analytics_level) AS analytics_level,
+          COALESCE(pv.features, sp.features) AS features,
+          os.plan_version_id, os.price_snapshot, os.plan_snapshot
         FROM org_subscriptions os
         JOIN subscription_plans sp ON sp.id = os.plan_id
+        LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
         WHERE os.org_id = $1 AND os.status IN ('active','trialing','paused')
         LIMIT 1
       `, [orgId]),
@@ -62,7 +71,31 @@ export async function PUT(req: NextRequest) {
     const [orgR, oldSubR, newPlanR] = await Promise.all([
       query<{ name: string; slug: string }>(`SELECT name, slug FROM organisations WHERE id=$1`, [orgId]),
       query<{ plan_id: string; status: string }>(`SELECT plan_id, status FROM org_subscriptions WHERE org_id=$1 LIMIT 1`, [orgId]),
-      query<{ name: string }>(`SELECT name FROM subscription_plans WHERE id=$1`, [planId]),
+      query<Record<string, unknown>>(`
+        SELECT sp.id, COALESCE(pv.id, NULL) AS plan_version_id,
+               COALESCE(pv.version, 1) AS version,
+               COALESCE(pv.name, sp.name) AS name,
+               COALESCE(pv.description, sp.description) AS description,
+               COALESCE(pv.price_usd, sp.price_usd) AS price_usd,
+               COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
+               COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
+               COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+               COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+               COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
+               COALESCE(pv.api_access, sp.api_access) AS api_access,
+               COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+               COALESCE(pv.sso_enabled, sp.sso_enabled) AS sso_enabled,
+               COALESCE(pv.analytics_level, sp.analytics_level) AS analytics_level,
+               COALESCE(pv.priority_support, sp.priority_support) AS priority_support,
+               COALESCE(pv.features, sp.features) AS features
+        FROM subscription_plans sp
+        LEFT JOIN LATERAL (
+          SELECT * FROM subscription_plan_versions
+          WHERE plan_id = sp.id AND status = 'published'
+          ORDER BY version DESC LIMIT 1
+        ) pv ON TRUE
+        WHERE sp.id=$1
+      `, [planId]),
     ]);
 
     const org     = orgR[0];
@@ -70,12 +103,38 @@ export async function PUT(req: NextRequest) {
     const newPlan = newPlanR[0];
     if (!org) return NextResponse.json({ error: "Org not found" }, { status: 404 });
     if (!newPlan) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    const newPlanName = String(newPlan.name);
+
+    const snapshot = {
+      planId,
+      version: newPlan.version,
+      name: newPlan.name,
+      description: newPlan.description,
+      priceUsd: newPlan.price_usd,
+      maxKbs: newPlan.max_kbs,
+      maxDocsPerKb: newPlan.max_docs_per_kb,
+      maxReqDay: newPlan.max_req_day,
+      maxStorageMb: newPlan.max_storage_mb,
+      voiceEnabled: newPlan.voice_enabled,
+      apiAccess: newPlan.api_access,
+      customBranding: newPlan.custom_branding,
+      ssoEnabled: newPlan.sso_enabled,
+      analyticsLevel: newPlan.analytics_level,
+      prioritySupport: newPlan.priority_support,
+      features: newPlan.features,
+    };
 
     await query(`
-      INSERT INTO org_subscriptions (org_id, plan_id, status, admin_note)
-      VALUES ($1, $2, 'active', $3)
-      ON CONFLICT (org_id) DO UPDATE SET plan_id=$2, status='active', cancel_at_period_end=FALSE, paused_at=NULL, cancelled_at=NULL, admin_note=$3, updated_at=now()
-    `, [orgId, planId, note ?? null]);
+      INSERT INTO org_subscriptions
+        (org_id, plan_id, plan_version_id, plan_snapshot, price_snapshot, status, admin_note)
+      VALUES ($1, $2, $3, $4::jsonb, $5, 'active', $6)
+      ON CONFLICT (org_id) DO UPDATE SET
+        plan_id=$2, plan_version_id=$3, plan_snapshot=$4::jsonb, price_snapshot=$5,
+        status='active', cancel_at_period_end=FALSE, paused_at=NULL,
+        cancelled_at=NULL, admin_note=$6, updated_at=now()
+    `, [
+      orgId, planId, newPlan.plan_version_id, JSON.stringify(snapshot), newPlan.price_usd, note ?? null,
+    ]);
 
     await writeSubscriptionAudit({
       orgId, actorLabel: "admin", action: "plan_changed",
@@ -87,7 +146,7 @@ export async function PUT(req: NextRequest) {
     if (recipientEmail) {
       await queueNotification({
         orgId, orgName: org.name, recipientEmail, type: "plan_changed",
-        data: { orgName: org.name, oldPlan: oldSub?.plan_id ?? "free", newPlan: newPlan.name, planName: newPlan.name, note: note ?? "" },
+        data: { orgName: org.name, oldPlan: oldSub?.plan_id ?? "free", newPlan: newPlanName, planName: newPlanName, note: note ?? "" },
       });
     }
 
@@ -207,10 +266,15 @@ export async function PATCH(req: NextRequest) {
 // ── Helper: get org owner email ───────────────────────────────────────────────
 async function getOrgOwnerEmail(orgId: string): Promise<string | null> {
   try {
+    // org_members has no "owner" role — the closest concept is 'org_admin'
+    // (the highest-privilege role in the roles table). Pick the earliest-
+    // joined org_admin as the notification recipient.
     const rows = await query<{ email: string }>(`
       SELECT u.email FROM users u
       JOIN org_members om ON om.user_id=u.id
-      WHERE om.org_id=$1 AND om.role='owner'
+      JOIN roles r ON r.id=om.role_id
+      WHERE om.org_id=$1 AND r.name='org_admin'
+      ORDER BY om.joined_at ASC
       LIMIT 1
     `, [orgId]);
     return rows[0]?.email ?? null;

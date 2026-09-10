@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { ensureMigrated } from "@/lib/db/migrate";
 import { ensureDemoDataSeededOnStartup } from "@/lib/db/demo-seed";
+import { syncEnvFromDb } from "@/modules/phone/core/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await ensureMigrated();
+    await syncEnvFromDb();
     await ensureDemoDataSeededOnStartup();
     return NextResponse.json({ ok: true });
   } catch (error) {

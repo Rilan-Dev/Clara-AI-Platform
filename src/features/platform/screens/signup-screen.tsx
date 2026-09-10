@@ -52,7 +52,7 @@ const PLAN_META: PlanMeta[] = [
     description: "For trying Clara with a small internal knowledge base.",
     ring: "ring-1 ring-white/10",
     color: "border-white/[0.12] bg-white/[0.05]",
-    features: ["1 knowledge base", "25 documents", "Basic chat", "14-day Pro trial"],
+    features: ["1 knowledge base", "25 documents", "Basic chat"],
   },
   {
     id: "starter",
@@ -231,7 +231,7 @@ export default function SignupScreen() {
             <span className="font-bold text-white text-lg">Clara AI</span>
           </Link>
           <h1 className="text-2xl font-black text-white mb-1">Create your account</h1>
-          <p className="text-white/40 text-sm">14-day Pro trial included - no credit card needed</p>
+          <p className="text-white/40 text-sm">Choose a plan and get started right away</p>
         </div>
 
         <div className="flex items-center gap-0 mb-8">
@@ -288,7 +288,7 @@ export default function SignupScreen() {
           {step === "plan" && (
             <div>
               <h2 className="text-lg font-bold text-white mb-1">Choose your plan</h2>
-              <p className="text-white/40 text-sm mb-5">All plans include a 14-day Pro trial.</p>
+              <p className="text-white/40 text-sm mb-5">Your selected plan starts immediately.</p>
               <div className="space-y-3">
                 {PLAN_META.map((plan) => (
                   <button
@@ -486,9 +486,7 @@ export default function SignupScreen() {
                 <div className="text-xs font-medium text-white/40 mb-2">Summary so far</div>
                 <div className="flex justify-between text-xs">
                   <span className="text-white/40">Plan</span>
-                  <span className="text-white font-medium">
-                    {selectedPlan.name} <span className="text-white/30">(14-day trial)</span>
-                  </span>
+                  <span className="text-white font-medium">{selectedPlan.name}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-white/40">Email</span>
@@ -504,13 +502,13 @@ export default function SignupScreen() {
               <p className="text-white/40 text-sm mb-5">
                 {form.planId === "free"
                   ? "Everything look right? Click create to get started."
-                  : "Everything look right? You'll choose your payment method next."}
+                  : "Everything look right? You'll choose your payment method next to activate your plan."}
               </p>
               <div className="space-y-3">
                 {[
                   {
                     label: "Plan",
-                    value: `${selectedPlan.name} - ${selectedPlan.price} (after 14-day trial)`,
+                    value: `${selectedPlan.name} - ${selectedPlan.price}`,
                     icon: Zap,
                   },
                   { label: "Name", value: form.fullName, icon: User },

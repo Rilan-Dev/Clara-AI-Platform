@@ -57,11 +57,18 @@ export async function planGuard(
     const planRow = await query<PlanLimits & { plan_id: string }>(
       `
       SELECT
-        sp.max_kbs, sp.max_docs_per_kb, sp.max_req_day,
-        sp.max_storage_mb, sp.voice_enabled, sp.api_access,
-        sp.custom_branding, sp.sso_enabled, sp.id AS plan_id
+        COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
+        COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
+        COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+        COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+        COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
+        COALESCE(pv.api_access, sp.api_access) AS api_access,
+        COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+        COALESCE(pv.sso_enabled, sp.sso_enabled) AS sso_enabled,
+        sp.id AS plan_id
       FROM subscription_plans sp
       LEFT JOIN org_subscriptions os ON os.org_id = $1
+      LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
       WHERE sp.id = COALESCE(os.plan_id, 'free')
       LIMIT 1
       `,
@@ -213,11 +220,18 @@ export function planLimitResponse(guard: GuardResult & { allowed: false }): Resp
 export async function getOrgPlanLimits(orgId: string): Promise<PlanLimits & { plan_id: string }> {
   const row = await query<PlanLimits & { plan_id: string }>(
     `
-    SELECT sp.id AS plan_id, sp.max_kbs, sp.max_docs_per_kb, sp.max_req_day,
-           sp.max_storage_mb, sp.voice_enabled, sp.api_access,
-           sp.custom_branding, sp.sso_enabled
+        SELECT sp.id AS plan_id,
+          COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
+          COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
+          COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+          COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+          COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
+          COALESCE(pv.api_access, sp.api_access) AS api_access,
+          COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+          COALESCE(pv.sso_enabled, sp.sso_enabled) AS sso_enabled
     FROM subscription_plans sp
     LEFT JOIN org_subscriptions os ON os.org_id = $1
+        LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
     WHERE sp.id = COALESCE(os.plan_id, 'free')
     LIMIT 1
     `,

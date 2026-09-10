@@ -258,6 +258,13 @@ export async function setPlatformEnvSetting(
   process.env[key] = value;
 }
 
+export async function syncEnvFromDb(): Promise<void> {
+  const settings = await getPlatformEnvSettings();
+  for (const { key, value } of settings) {
+    if (value.trim()) process.env[key] = value;
+  }
+}
+
 export async function checkPhoneCallsEnabled(kbId: string): Promise<boolean> {
   const { rows } = await pool.query(
     `

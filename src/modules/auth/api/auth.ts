@@ -97,13 +97,59 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
           [orgRow.id, userRow.id, roleRow.id]
         );
 
-        // 6. Subscription (14-day trial)
+        // 6. Subscription — starts active on the chosen plan immediately.
+        // No automatic free trial; platform admins can grant trial extensions
+        // manually from Subscriptions management if needed.
+        const planVersionRows = await client.query<Record<string, unknown>>(
+          `
+          SELECT sp.id AS plan_id, pv.id AS plan_version_id, COALESCE(pv.version, 1) AS version,
+                 COALESCE(pv.name, sp.name) AS name, COALESCE(pv.description, sp.description) AS description,
+                 COALESCE(pv.price_usd, sp.price_usd) AS price_usd, COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
+                 COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
+                 COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+                 COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+                 COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
+                 COALESCE(pv.api_access, sp.api_access) AS api_access,
+                 COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+                 COALESCE(pv.sso_enabled, sp.sso_enabled) AS sso_enabled,
+                 COALESCE(pv.analytics_level, sp.analytics_level) AS analytics_level,
+                 COALESCE(pv.priority_support, sp.priority_support) AS priority_support,
+                 COALESCE(pv.features, sp.features) AS features
+          FROM subscription_plans sp
+          LEFT JOIN LATERAL (
+            SELECT * FROM subscription_plan_versions
+            WHERE plan_id = sp.id AND status = 'published'
+            ORDER BY version DESC LIMIT 1
+          ) pv ON TRUE
+          WHERE sp.id = $1
+          `,
+          [resolvedPlanId],
+        );
+        const planData = planVersionRows.rows[0]!;
+        const snapshot = {
+          planId: resolvedPlanId,
+          version: planData.version,
+          name: planData.name,
+          description: planData.description,
+          priceUsd: planData.price_usd,
+          maxKbs: planData.max_kbs,
+          maxDocsPerKb: planData.max_docs_per_kb,
+          maxReqDay: planData.max_req_day,
+          maxStorageMb: planData.max_storage_mb,
+          voiceEnabled: planData.voice_enabled,
+          apiAccess: planData.api_access,
+          customBranding: planData.custom_branding,
+          ssoEnabled: planData.sso_enabled,
+          analyticsLevel: planData.analytics_level,
+          prioritySupport: planData.priority_support,
+          features: planData.features,
+        };
         await client.query(
           `INSERT INTO org_subscriptions
-             (org_id, plan_id, status, current_period_start, current_period_end)
-           VALUES ($1,$2,'trialing',now(), now() + INTERVAL '14 days')
+             (org_id, plan_id, plan_version_id, plan_snapshot, price_snapshot, status, current_period_start, current_period_end)
+           VALUES ($1,$2,$3,$4::jsonb,$5,'active',now(), now() + INTERVAL '1 month')
            ON CONFLICT (org_id) DO NOTHING`,
-          [orgRow.id, resolvedPlanId]
+          [orgRow.id, resolvedPlanId, planData.plan_version_id ?? null, JSON.stringify(snapshot), planData.price_usd]
         );
 
         return { userRow, orgRow };

@@ -189,13 +189,14 @@ export async function getOrgPlanForKey(keyId: string): Promise<OrgPlanLimits | n
     plan_name:     string;
   }>(
     `SELECT
-       sp.max_req_day,
-       sp.voice_enabled,
+       COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+       COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
        sp.id   AS plan_id,
-       sp.name AS plan_name
+       COALESCE(pv.name, sp.name) AS plan_name
      FROM api_keys ak
      JOIN org_subscriptions  os ON os.org_id  = ak.org_id
      JOIN subscription_plans sp ON sp.id      = os.plan_id
+     LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
      WHERE ak.id = $1
        AND os.status IN ('active', 'trialing')
      LIMIT 1`,

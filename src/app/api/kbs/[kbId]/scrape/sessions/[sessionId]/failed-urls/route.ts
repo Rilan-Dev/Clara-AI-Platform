@@ -15,6 +15,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getSessionById } from "@/modules/knowledge-bases/core/scrape-sessions-db";
 import { listFailedUrlsWithRetries } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
+import { AuthContext } from "@/modules/auth/core/models";
 
 // Add this helper function to check if user is platform admin
 async function denyPlatformAdmin(auth: AuthContext): Promise<void> {

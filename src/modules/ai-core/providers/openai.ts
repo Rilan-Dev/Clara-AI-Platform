@@ -14,8 +14,18 @@ const DEFAULT_EMBEDDING_MODEL =
  * Sending a custom temperature causes OpenAI to reject the request with an
  * unsupported-value error, so the field must be omitted entirely.
  */
+const REASONING_MODEL_PATTERN = /^gpt-5(?:\.\d+)?(?:-(?:luna|terra|sol))?$/i;
+
 export function supportsTemperature(model: string): boolean {
-  return !/^gpt-5(?:\.\d+)?(?:-(?:luna|terra|sol))?$/i.test(model.trim());
+  return !REASONING_MODEL_PATTERN.test(model.trim());
+}
+
+/**
+ * Reasoning models (o-series, GPT-5.x Luna/Terra/Sol) reject the legacy
+ * `max_tokens` parameter and require `max_completion_tokens` instead.
+ */
+export function usesMaxCompletionTokens(model: string): boolean {
+  return REASONING_MODEL_PATTERN.test(model.trim());
 }
 
 export class OpenAIProvider implements LLMProvider {
@@ -47,10 +57,19 @@ export class OpenAIProvider implements LLMProvider {
     const request: ChatCompletionCreateParamsStreaming = {
       model,
       messages: openaiMessages,
-      max_tokens: options?.maxTokens,
       stop: options?.stop,
       stream: true,
     };
+
+    // Reasoning models (o-series, GPT-5.x Luna/Terra/Sol) require
+    // `max_completion_tokens` — the legacy `max_tokens` param is rejected.
+    if (options?.maxTokens != null) {
+      if (usesMaxCompletionTokens(model)) {
+        request.max_completion_tokens = options.maxTokens;
+      } else {
+        request.max_tokens = options.maxTokens;
+      }
+    }
 
     // GPT-5.6 Luna/Terra/Sol reject custom temperature values. Omit the field
     // completely so the API applies its model default.

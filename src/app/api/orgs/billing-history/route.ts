@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 
 export async function GET(req: NextRequest) {
   const orgId = req.nextUrl.searchParams.get("orgId");
@@ -13,6 +14,8 @@ export async function GET(req: NextRequest) {
 
   try {
     await ensureMigrated();
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
 
     const [invoices, auditLog] = await Promise.all([
       // Billing events (actual payments)
@@ -46,8 +49,9 @@ export async function GET(req: NextRequest) {
       `, [orgId, limit]),
     ]);
 
-    return NextResponse.json({ invoices, auditLog });
+    return NextResponse.json({ invoices, auditLog, orgId, limit });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[GET /api/orgs/billing-history]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

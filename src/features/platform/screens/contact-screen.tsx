@@ -90,8 +90,8 @@ export default function ContactPage() {
               <ul className="space-y-3">
                 {[
                   "Response within 24 hours",
-                  "Free 14-day Pro trial",
-                  "No credit card required",
+                  "Start on the Free plan anytime",
+                  "No credit card required for Free",
                   "Onboarding call included",
                 ].map(g => (
                   <li key={g} className="flex items-center gap-2 text-sm text-white/60">

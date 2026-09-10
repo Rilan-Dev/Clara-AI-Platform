@@ -74,7 +74,7 @@ export default function SignupVerifyScreen() {
         <div className="border border-emerald-500/20 bg-emerald-500/[0.04] rounded-xl px-4 py-3 mb-6 flex items-center gap-3">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <p className="text-sm text-white/60 text-left">
-            Your <span className="text-white font-medium">{planName} plan</span> 14-day trial starts once you verify.
+            Your <span className="text-white font-medium">{planName} plan</span> activates once you verify.
           </p>
         </div>
 
