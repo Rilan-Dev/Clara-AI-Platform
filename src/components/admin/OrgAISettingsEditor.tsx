@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { AIProvider, OrgAISettings } from "@/modules/admin-ui/api";
+import { useEffect, useState } from "react";
+import type { OrgAISettings } from "@/modules/admin-ui/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+
 import {
   Card,
   CardContent,
@@ -25,22 +25,21 @@ type Props = {
 };
 
 type Draft = {
-  defaultProvider: AIProvider | null;
-  allowedProviders: AIProvider[];
-  defaultChatModel: string;
-  defaultEmbeddingModel: string;
-  defaultRealtimeModel: string;
-  defaultTranscriptionModel: string;
-  maxChatTokens: string;
-  maxRealtimeTokens: string;
-  maxTemperature: string;
-  enablePublicEmbed: boolean;
-  enableVoice: boolean;
-  enableRealtime: boolean;
-  allowedChatModels: Record<AIProvider, string>;
-  allowedEmbeddingModels: Record<AIProvider, string>;
-  allowedRealtimeModels: Record<AIProvider, string>;
-  allowedVoices: Record<AIProvider, string>;
+  // Identity
+  assistantName: string;
+  avatarUrl: string;
+  // Behaviour
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string;
+  // Language
+  defaultLanguage: string;
+  allowedLanguages: string;
+  alwaysRespondIn: string;
+  // Voice
+  voiceId: string;
+  voiceSpeed: string;
 };
 
 function toCsv(values?: string[]): string {
@@ -59,13 +58,6 @@ function emptyToNull(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function parseOptionalInteger(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? Math.round(parsed) : Number.NaN;
-}
-
 function parseOptionalFloat(value: string): number | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -75,37 +67,21 @@ function parseOptionalFloat(value: string): number | null {
 
 function toDraft(settings: OrgAISettings | null): Draft {
   return {
-    defaultProvider: settings?.defaultProvider ?? null,
-    allowedProviders: settings?.allowedProviders ?? ["openai", "gemini"],
-    defaultChatModel: settings?.defaultChatModel ?? "",
-    defaultEmbeddingModel: settings?.defaultEmbeddingModel ?? "",
-    defaultRealtimeModel: settings?.defaultRealtimeModel ?? "",
-    defaultTranscriptionModel: settings?.defaultTranscriptionModel ?? "",
-    maxChatTokens:
-      settings?.maxChatTokens != null ? String(settings.maxChatTokens) : "",
-    maxRealtimeTokens:
-      settings?.maxRealtimeTokens != null ? String(settings.maxRealtimeTokens) : "",
-    maxTemperature:
-      settings?.maxTemperature != null ? String(settings.maxTemperature) : "",
-    enablePublicEmbed: settings?.enablePublicEmbed ?? true,
-    enableVoice: settings?.enableVoice ?? true,
-    enableRealtime: settings?.enableRealtime ?? true,
-    allowedChatModels: {
-      openai: toCsv(settings?.allowedChatModels.openai),
-      gemini: toCsv(settings?.allowedChatModels.gemini),
-    },
-    allowedEmbeddingModels: {
-      openai: toCsv(settings?.allowedEmbeddingModels.openai),
-      gemini: toCsv(settings?.allowedEmbeddingModels.gemini),
-    },
-    allowedRealtimeModels: {
-      openai: toCsv(settings?.allowedRealtimeModels.openai),
-      gemini: toCsv(settings?.allowedRealtimeModels.gemini),
-    },
-    allowedVoices: {
-      openai: toCsv(settings?.allowedVoices.openai),
-      gemini: toCsv(settings?.allowedVoices.gemini),
-    },
+    // Identity
+    assistantName: settings?.assistantName ?? "",
+    avatarUrl: settings?.avatarUrl ?? "",
+    // Behaviour
+    systemPrompt: settings?.systemPrompt ?? "",
+    welcomeMessage: settings?.welcomeMessage ?? "",
+    outOfScopeReply: settings?.outOfScopeReply ?? "",
+    rules: Array.isArray(settings?.rules) ? settings.rules.join("\n") : settings?.rules ?? "",
+    // Language
+    defaultLanguage: settings?.defaultLanguage ?? "en",
+    allowedLanguages: toCsv(settings?.allowedLanguages ?? undefined),
+    alwaysRespondIn: settings?.alwaysRespondIn ?? "",
+    // Voice
+    voiceId: settings?.voiceId ?? "",
+    voiceSpeed: settings?.voiceSpeed != null ? String(settings.voiceSpeed) : "1.0",
   };
 }
 
@@ -119,39 +95,6 @@ export function OrgAISettingsEditor({ orgName, settings, onSave }: Props) {
     setDraft(toDraft(settings));
   }, [settings]);
 
-  const helperSummary = useMemo(() => {
-    const providerLabel = draft.defaultProvider ? draft.defaultProvider : "platform default";
-    return `${orgName} defaults to ${providerLabel} with ${draft.allowedProviders.join(" + ")} enabled.`;
-  }, [draft.allowedProviders, draft.defaultProvider, orgName]);
-
-  function toggleAllowedProvider(provider: AIProvider) {
-    setDraft((current) => {
-      const enabled = current.allowedProviders.includes(provider);
-      return {
-        ...current,
-        allowedProviders: enabled
-          ? current.allowedProviders.filter((item) => item !== provider)
-          : [...current.allowedProviders, provider],
-      };
-    });
-    setSaved(false);
-  }
-
-  function setScopedText(
-    key: "allowedChatModels" | "allowedEmbeddingModels" | "allowedRealtimeModels" | "allowedVoices",
-    provider: AIProvider,
-    value: string,
-  ) {
-    setDraft((current) => ({
-      ...current,
-      [key]: {
-        ...current[key],
-        [provider]: value,
-      },
-    }));
-    setSaved(false);
-  }
-
   function setField<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
     setSaved(false);
@@ -162,68 +105,46 @@ export function OrgAISettingsEditor({ orgName, settings, onSave }: Props) {
     setError(null);
 
     try {
-      if (draft.allowedProviders.length === 0) {
-        throw new Error("At least one provider must remain enabled.");
+      const voiceSpeed = parseOptionalFloat(draft.voiceSpeed);
+      if (Number.isNaN(voiceSpeed)) {
+        throw new Error("Voice speed must be a number (e.g., 1.0, 1.5, 0.8).");
+      }
+      if (voiceSpeed != null && (voiceSpeed < 0.25 || voiceSpeed > 4.0)) {
+        throw new Error("Voice speed must be between 0.25 and 4.0.");
       }
 
-      const maxChatTokens = parseOptionalInteger(draft.maxChatTokens);
-      if (Number.isNaN(maxChatTokens)) {
-        throw new Error("Chat token cap must be a whole number or blank.");
-      }
-
-      const maxRealtimeTokens = parseOptionalInteger(draft.maxRealtimeTokens);
-      if (Number.isNaN(maxRealtimeTokens)) {
-        throw new Error("Realtime token cap must be a whole number or blank.");
-      }
-
-      const maxTemperature = parseOptionalFloat(draft.maxTemperature);
-      if (Number.isNaN(maxTemperature)) {
-        throw new Error("Max temperature must be a number between 0 and 1, or blank.");
-      }
-      if (maxTemperature != null && (maxTemperature < 0 || maxTemperature > 1)) {
-        throw new Error("Max temperature must stay between 0 and 1.");
-      }
+      const rulesArray = draft.rules
+        .split("\n")
+        .map((r) => r.trim())
+        .filter(Boolean);
 
       await onSave({
-        defaultProvider: draft.defaultProvider,
-        allowedProviders: draft.allowedProviders,
-        allowedChatModels: {
-          openai: parseCsv(draft.allowedChatModels.openai),
-          gemini: parseCsv(draft.allowedChatModels.gemini),
-        },
-        allowedEmbeddingModels: {
-          openai: parseCsv(draft.allowedEmbeddingModels.openai),
-          gemini: parseCsv(draft.allowedEmbeddingModels.gemini),
-        },
-        allowedRealtimeModels: {
-          openai: parseCsv(draft.allowedRealtimeModels.openai),
-          gemini: parseCsv(draft.allowedRealtimeModels.gemini),
-        },
-        allowedVoices: {
-          openai: parseCsv(draft.allowedVoices.openai),
-          gemini: parseCsv(draft.allowedVoices.gemini),
-        },
-        defaultChatModel: emptyToNull(draft.defaultChatModel),
-        defaultEmbeddingModel: emptyToNull(draft.defaultEmbeddingModel),
-        defaultRealtimeModel: emptyToNull(draft.defaultRealtimeModel),
-        defaultTranscriptionModel: emptyToNull(draft.defaultTranscriptionModel),
-        maxChatTokens,
-        maxRealtimeTokens,
-        maxTemperature,
-        enablePublicEmbed: draft.enablePublicEmbed,
-        enableVoice: draft.enableVoice,
-        enableRealtime: draft.enableRealtime,
+        // Identity
+        assistantName: emptyToNull(draft.assistantName),
+        avatarUrl: emptyToNull(draft.avatarUrl),
+        // Behaviour
+        systemPrompt: emptyToNull(draft.systemPrompt),
+        welcomeMessage: emptyToNull(draft.welcomeMessage),
+        outOfScopeReply: emptyToNull(draft.outOfScopeReply),
+        rules: rulesArray,
+        // Language
+        defaultLanguage: emptyToNull(draft.defaultLanguage) ?? "en",
+        allowedLanguages: parseCsv(draft.allowedLanguages),
+        alwaysRespondIn: emptyToNull(draft.alwaysRespondIn),
+        // Voice
+        voiceId: emptyToNull(draft.voiceId),
+        voiceSpeed,
       });
 
       setSaved(true);
-      toast.success("Saved organisation AI policy", {
-        description: `${orgName} will use the updated AI policy for future requests and sessions.`,
+      toast.success("Saved organisation settings", {
+        description: `${orgName} identity, behaviour, language & voice updated. AI model configuration is centralized at platform level.`,
       });
       window.setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       const message = (err as Error).message;
       setError(message);
-      toast.error("Could not save organisation AI policy", {
+      toast.error("Could not save organisation settings", {
         description: message,
       });
     } finally {
@@ -234,243 +155,154 @@ export function OrgAISettingsEditor({ orgName, settings, onSave }: Props) {
   return (
     <Card className="border-border shadow-soft">
       <CardHeader>
-        <CardTitle className="text-lg">Org AI Policy</CardTitle>
+        <CardTitle className="text-lg">Org Identity, Behaviour, Language & Voice</CardTitle>
         <CardDescription>
-          Control which providers, models, and voice features {orgName} can use. KB-specific overrides can only narrow or override what is allowed here.
+          Configure this organisation&apos;s assistant persona. AI model selection, token limits, provider config, and feature flags are centralized at the platform admin level and apply to all organisations.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          {helperSummary}
-        </div>
-
+        {/* Identity Section */}
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Provider policy</h3>
+            <h3 className="text-sm font-semibold text-foreground">🎭 Identity</h3>
             <p className="text-xs text-muted-foreground">
-              Choose the default runtime provider and which providers are available to this organisation.
+              The assistant&apos;s name and avatar shown to end users.
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Field label="Default Provider" hint="Auto means use the platform default from server env.">
-              <ProviderModeSelector
-                value={draft.defaultProvider}
-                onChange={(value) => setField("defaultProvider", value)}
+            <Field label="Assistant Name">
+              <Input
+                value={draft.assistantName}
+                onChange={(event) => setField("assistantName", event.target.value)}
+                placeholder="Clara Assistant"
               />
             </Field>
-            <Field label="Allowed Providers" hint="Knowledge bases can only choose from enabled providers.">
-              <div className="flex flex-wrap gap-2">
-                {(["openai", "gemini"] as const).map((provider) => {
-                  const active = draft.allowedProviders.includes(provider);
-                  return (
-                    <button
-                      key={provider}
-                      type="button"
-                      onClick={() => toggleAllowedProvider(provider)}
-                      className={toggleButtonClass(active)}
-                    >
-                      {provider}
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Default model routing</h3>
-            <p className="text-xs text-muted-foreground">
-              Leave blank to inherit the platform env default for that surface.
-            </p>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Field label="Default Chat Model">
+            <Field label="Avatar URL">
               <Input
-                value={draft.defaultChatModel}
-                onChange={(event) => setField("defaultChatModel", event.target.value)}
-                placeholder="gpt-4o-mini or gemini-2.5-flash"
-              />
-            </Field>
-            <Field label="Default Embedding Model">
-              <Input
-                value={draft.defaultEmbeddingModel}
-                onChange={(event) => setField("defaultEmbeddingModel", event.target.value)}
-                placeholder="text-embedding-3-small"
-              />
-            </Field>
-            <Field label="Default Realtime Model">
-              <Input
-                value={draft.defaultRealtimeModel}
-                onChange={(event) => setField("defaultRealtimeModel", event.target.value)}
-                placeholder="gpt-realtime-mini"
-              />
-            </Field>
-            <Field label="Default Transcription Model">
-              <Input
-                value={draft.defaultTranscriptionModel}
-                onChange={(event) => setField("defaultTranscriptionModel", event.target.value)}
-                placeholder="gpt-4o-mini-transcribe"
+                value={draft.avatarUrl}
+                onChange={(event) => setField("avatarUrl", event.target.value)}
+                placeholder="https://example.com/avatar.png"
               />
             </Field>
           </div>
         </section>
 
+        {/* Behaviour Section */}
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Allowlists</h3>
+            <h3 className="text-sm font-semibold text-foreground">🧠 Behaviour</h3>
             <p className="text-xs text-muted-foreground">
-              Enter comma-separated lists. Leave a box empty to allow any model or voice for that provider.
+              System prompt and conversational behaviour settings.
             </p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ScopedListField
-              label="Allowed chat models"
-              value={draft.allowedChatModels}
-              onChange={(provider, value) => setScopedText("allowedChatModels", provider, value)}
-            />
-            <ScopedListField
-              label="Allowed embedding models"
-              value={draft.allowedEmbeddingModels}
-              onChange={(provider, value) => setScopedText("allowedEmbeddingModels", provider, value)}
-            />
-            <ScopedListField
-              label="Allowed realtime models"
-              value={draft.allowedRealtimeModels}
-              onChange={(provider, value) => setScopedText("allowedRealtimeModels", provider, value)}
-            />
-            <ScopedListField
-              label="Allowed voices"
-              value={draft.allowedVoices}
-              onChange={(provider, value) => setScopedText("allowedVoices", provider, value)}
-            />
+          <div className="grid gap-4 lg:grid-cols-1">
+            <Field label="System Prompt" hint="Core instructions for the assistant&apos;s behaviour and personality.">
+              <Textarea
+                rows={4}
+                value={draft.systemPrompt}
+                onChange={(event) => setField("systemPrompt", event.target.value)}
+                placeholder="You are a helpful AI assistant for..."
+              />
+            </Field>
+            <Field label="Welcome Message" hint="First message shown when a new chat starts.">
+              <Input
+                value={draft.welcomeMessage}
+                onChange={(event) => setField("welcomeMessage", event.target.value)}
+                placeholder="Hello! How can I help you today?"
+              />
+            </Field>
+            <Field label="Out of Scope Reply" hint="Response when the assistant cannot answer from knowledge base.">
+              <Input
+                value={draft.outOfScopeReply}
+                onChange={(event) => setField("outOfScopeReply", event.target.value)}
+                placeholder="I don't have information about that topic."
+              />
+            </Field>
+            <Field label="Rules" hint="Additional behavioural rules (one per line or comma-separated).">
+              <Textarea
+                rows={3}
+                value={draft.rules}
+                onChange={(event) => setField("rules", event.target.value)}
+                placeholder="Never share personal information. Be concise. Use emojis sparingly."
+              />
+            </Field>
           </div>
         </section>
 
+        {/* Language Section */}
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Limits and feature flags</h3>
+            <h3 className="text-sm font-semibold text-foreground">🌐 Language</h3>
             <p className="text-xs text-muted-foreground">
-              These caps are enforced after KB-level settings resolve.
+              Default language and supported languages for this organisation.
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
-            <Field label="Max Chat Tokens" hint="Blank means no org-level cap.">
+            <Field label="Default Language" hint="ISO language code (e.g., en, es, fr, de, hi, ta).">
               <Input
-                inputMode="numeric"
-                value={draft.maxChatTokens}
-                onChange={(event) => setField("maxChatTokens", event.target.value)}
-                placeholder="1500"
+                value={draft.defaultLanguage}
+                onChange={(event) => setField("defaultLanguage", event.target.value)}
+                placeholder="en"
               />
             </Field>
-            <Field label="Max Realtime Tokens" hint="Blank means no org-level cap.">
+            <Field label="Allowed Languages" hint="Comma-separated ISO codes. Blank means all languages allowed.">
               <Input
-                inputMode="numeric"
-                value={draft.maxRealtimeTokens}
-                onChange={(event) => setField("maxRealtimeTokens", event.target.value)}
-                placeholder="500"
+                value={draft.allowedLanguages}
+                onChange={(event) => setField("allowedLanguages", event.target.value)}
+                placeholder="en, es, fr, de, hi, ta"
               />
             </Field>
-            <Field label="Max Temperature" hint="Blank means no org-level clamp.">
+            <Field label="Always Respond In" hint="Force responses in specific language (ISO code). Blank = user's language.">
+              <Input
+                value={draft.alwaysRespondIn}
+                onChange={(event) => setField("alwaysRespondIn", event.target.value)}
+                placeholder="en"
+              />
+            </Field>
+          </div>
+        </section>
+
+        {/* Voice Section */}
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">🎙️ Voice</h3>
+            <p className="text-xs text-muted-foreground">
+              Voice settings for realtime and TTS. Model selection is centralized at platform level.
+            </p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Field label="Voice ID" hint="Voice ID from the active platform provider (OpenAI: alloy, echo, fable, onyx, nova, shimmer | Gemini: Puck, Charon, Kore, Fenrir, Aoede).">
+              <Input
+                value={draft.voiceId}
+                onChange={(event) => setField("voiceId", event.target.value)}
+                placeholder="alloy"
+              />
+            </Field>
+            <Field label="Voice Speed" hint="Playback speed (0.25 to 4.0). 1.0 = normal.">
               <Input
                 inputMode="decimal"
-                value={draft.maxTemperature}
-                onChange={(event) => setField("maxTemperature", event.target.value)}
-                placeholder="0.7"
+                value={draft.voiceSpeed}
+                onChange={(event) => setField("voiceSpeed", event.target.value)}
+                placeholder="1.0"
               />
             </Field>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            <SwitchField
-              label="Public Embed"
-              description="Allow public API-key based chat and voice embedding."
-              checked={draft.enablePublicEmbed}
-              onChange={(value) => setField("enablePublicEmbed", value)}
-            />
-            <SwitchField
-              label="Voice"
-              description="Allow voice experiences for knowledge bases in this org."
-              checked={draft.enableVoice}
-              onChange={(value) => setField("enableVoice", value)}
-            />
-            <SwitchField
-              label="Realtime"
-              description="Allow realtime session creation for voice surfaces."
-              checked={draft.enableRealtime}
-              onChange={(value) => setField("enableRealtime", value)}
-            />
           </div>
         </section>
 
         <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3 shadow-soft">
           <div className="text-sm">
             {error && <span className="text-destructive">{error}</span>}
-            {saved && <span className="text-success">Saved organisation AI policy.</span>}
+            {saved && <span className="text-success">Saved organisation settings.</span>}
             {!error && !saved && (
               <span className="text-muted-foreground">Changes apply immediately to future requests and sessions.</span>
             )}
           </div>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save AI Policy"}
+            {saving ? "Saving..." : "Save Settings"}
           </Button>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function ProviderModeSelector({
-  value,
-  onChange,
-}: {
-  value: AIProvider | null;
-  onChange: (value: AIProvider | null) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={() => onChange(null)} className={toggleButtonClass(value === null)}>
-        Auto
-      </button>
-      <button type="button" onClick={() => onChange("openai")} className={toggleButtonClass(value === "openai")}>
-        OpenAI
-      </button>
-      <button type="button" onClick={() => onChange("gemini")} className={toggleButtonClass(value === "gemini")}>
-        Gemini
-      </button>
-    </div>
-  );
-}
-
-function ScopedListField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Record<AIProvider, string>;
-  onChange: (provider: AIProvider, value: string) => void;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/10 p-4">
-      <p className="text-sm font-medium text-foreground">{label}</p>
-      <div className="mt-3 grid gap-3">
-        {(["openai", "gemini"] as const).map((provider) => (
-          <Field
-            key={provider}
-            label={provider === "openai" ? "OpenAI" : "Gemini"}
-            hint="Comma-separated. Blank means unrestricted."
-          >
-            <Textarea
-              rows={3}
-              value={value[provider]}
-              onChange={(event) => onChange(provider, event.target.value)}
-              placeholder={provider === "openai" ? "gpt-4o-mini, gpt-4.1-mini" : "gemini-2.5-flash, gemini-2.0-flash"}
-            />
-          </Field>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -492,35 +324,4 @@ function Field({
       {children}
     </div>
   );
-}
-
-function SwitchField({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3">
-      <div className="pr-4">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
-}
-
-function toggleButtonClass(active: boolean): string {
-  return [
-    "rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-    active
-      ? "border-primary bg-primary/10 text-primary"
-      : "border-border text-foreground hover:border-primary/40 hover:bg-muted/40",
-  ].join(" ");
 }

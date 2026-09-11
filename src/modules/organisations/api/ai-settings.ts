@@ -58,6 +58,17 @@ function parseOptionalBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function parseOptionalStringArray(value: unknown): string[] | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items;
+}
+
 function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput {
   const input: PatchOrgAISettingsInput = {};
 
@@ -111,7 +122,73 @@ function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput
   const enableRealtime = parseOptionalBoolean(body.enableRealtime);
   if (enableRealtime !== undefined) input.enableRealtime = enableRealtime;
 
+  // Identity
+  const assistantName = parseOptionalString(body.assistantName);
+  if (assistantName !== undefined) input.assistantName = assistantName;
+
+  const avatarUrl = parseOptionalString(body.avatarUrl);
+  if (avatarUrl !== undefined) input.avatarUrl = avatarUrl;
+
+  // Behaviour
+  const systemPrompt = parseOptionalString(body.systemPrompt);
+  if (systemPrompt !== undefined) input.systemPrompt = systemPrompt;
+
+  const welcomeMessage = parseOptionalString(body.welcomeMessage);
+  if (welcomeMessage !== undefined) input.welcomeMessage = welcomeMessage;
+
+  const outOfScopeReply = parseOptionalString(body.outOfScopeReply);
+  if (outOfScopeReply !== undefined) input.outOfScopeReply = outOfScopeReply;
+
+  const rules = parseOptionalStringArray(body.rules);
+  if (rules !== undefined) input.rules = rules;
+
+  // Language
+  const defaultLanguage = parseOptionalString(body.defaultLanguage);
+  if (defaultLanguage !== undefined) input.defaultLanguage = defaultLanguage;
+
+  const allowedLanguages = parseOptionalStringArray(body.allowedLanguages);
+  if (allowedLanguages !== undefined) input.allowedLanguages = allowedLanguages;
+
+  const alwaysRespondIn = parseOptionalString(body.alwaysRespondIn);
+  if (alwaysRespondIn !== undefined) input.alwaysRespondIn = alwaysRespondIn;
+
+  // Voice
+  const voiceId = parseOptionalString(body.voiceId);
+  if (voiceId !== undefined) input.voiceId = voiceId;
+
+  const voiceSpeed = parseOptionalNumber(body.voiceSpeed);
+  if (voiceSpeed !== undefined) input.voiceSpeed = voiceSpeed;
+
   return input;
+}
+
+// Fields org-level users (org_admin, etc.) are allowed to change. Provider,
+// model, token-limit, and feature-flag fields are centralized at the platform
+// level and must only be editable by super admins.
+const ORG_EDITABLE_KEYS = new Set<keyof PatchOrgAISettingsInput>([
+  "assistantName",
+  "avatarUrl",
+  "systemPrompt",
+  "welcomeMessage",
+  "outOfScopeReply",
+  "rules",
+  "defaultLanguage",
+  "allowedLanguages",
+  "alwaysRespondIn",
+  "voiceId",
+  "voiceSpeed",
+]);
+
+function restrictToOrgEditableFields(
+  input: PatchOrgAISettingsInput,
+): PatchOrgAISettingsInput {
+  const restricted: PatchOrgAISettingsInput = {};
+  for (const key of Object.keys(input) as (keyof PatchOrgAISettingsInput)[]) {
+    if (ORG_EDITABLE_KEYS.has(key)) {
+      (restricted as Record<string, unknown>)[key] = input[key];
+    }
+  }
+  return restricted;
 }
 
 export async function getOrgAISettingsHandler(
@@ -121,7 +198,7 @@ export async function getOrgAISettingsHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    await requireOrgPermission(auth, orgId, "org:read");
+    if (!auth.user.isSuperAdmin) await requireOrgPermission(auth, orgId, "org:read");
 
     const org = await getOrganisationById(orgId);
     if (!org) {
@@ -147,7 +224,7 @@ export async function patchOrgAISettingsHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    await requireOrgPermission(auth, orgId, "org:update");
+    if (!auth.user.isSuperAdmin) await requireOrgPermission(auth, orgId, "org:update");
 
     const org = await getOrganisationById(orgId);
     if (!org) {
@@ -155,7 +232,13 @@ export async function patchOrgAISettingsHandler(
     }
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const input = buildPatchInput(body);
+    let input = buildPatchInput(body);
+    // Org-level users may only edit Identity, Behaviour, Language & Voice.
+    // AI provider/model/token-limit/feature-flag configuration is centralized
+    // and can only be changed by platform (super) admins.
+    if (!auth.user.isSuperAdmin) {
+      input = restrictToOrgEditableFields(input);
+    }
     const settings = await upsertOrgAISettings(orgId, input);
     return NextResponse.json(settings);
   } catch (err) {

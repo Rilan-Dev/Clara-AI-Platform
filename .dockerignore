@@ -58,3 +58,9 @@ test-results
 *.tsbuildinfo
 next-env.d.ts
 tsconfig.tsbuildinfo
+mcp-servers
+backups
+Doc
+docs
+graphify-out
+infra
