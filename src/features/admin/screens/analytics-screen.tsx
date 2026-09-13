@@ -156,26 +156,27 @@ export default function AnalyticsScreen() {
   ];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      {/* ── Header — mobile: title row + controls wrap to their own row ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Platform Analytics</h1>
-          <p className="text-white/40 text-sm mt-0.5">Real-time metrics across all organisations</p>
+          <h1 className="text-lg sm:text-2xl font-bold text-white">Platform Analytics</h1>
+          <p className="hidden sm:block text-white/40 text-sm mt-0.5">Real-time metrics across all organisations</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex gap-1 bg-white/[0.04] border border-white/[0.08] rounded-xl p-1">
             {(["7d","30d","90d","180d"] as DateRange[]).map(r => (
               <button key={r} onClick={() => setRange(r)}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${range === r ? "bg-indigo-600 text-white" : "text-white/40 hover:text-white"}`}>
+                className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all ${range === r ? "bg-indigo-600 text-white" : "text-white/40 hover:text-white"}`}>
                 {r}
               </button>
             ))}
           </div>
           <button onClick={() => load(range)}
+            aria-label="Refresh analytics"
             className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-lg transition-all">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
@@ -236,15 +237,15 @@ export default function AnalyticsScreen() {
         </div>
       )}
 
-      {/* ── Tab bar ── */}
-      <div className="flex gap-1 border-b border-white/[0.06]">
+      {/* ── Tab bar — scrollable chips on mobile (app-style segmented control) ── */}
+      <div className="flex gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-none border-b border-white/[0.06]">
         {([
           { id: "queries", label: "Query Analytics", icon: MessageSquare },
           { id: "revenue", label: "Revenue",         icon: TrendingUp    },
           { id: "usage",   label: "Usage Breakdown", icon: BarChart3     },
         ] as { id: typeof tab; label: string; icon: React.ElementType }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 border-b-2 transition-all -mb-px ${tab === t.id ? "border-indigo-500 text-white" : "border-transparent text-white/40 hover:text-white/70"}`}>
+            className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 border-b-2 transition-all -mb-px whitespace-nowrap ${tab === t.id ? "border-indigo-500 text-white" : "border-transparent text-white/40 hover:text-white/70"}`}>
             <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
@@ -478,15 +479,17 @@ export default function AnalyticsScreen() {
             )}
           </div>
 
-          {/* Per-org usage table */}
+          {/* Per-org usage — desktop table, mobile cards */}
           <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+            <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
               <h3 className="font-semibold text-white text-sm flex items-center gap-2">
                 <Globe className="w-4 h-4 text-violet-400" /> Organisation Usage
               </h3>
-              <span className="text-xs text-white/30">{RANGE_LABELS[range]}</span>
+              <span className="text-xs text-white/30 shrink-0">{RANGE_LABELS[range]}</span>
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white/[0.03]">
                   <tr className="text-xs text-white/40 text-left">
@@ -524,6 +527,50 @@ export default function AnalyticsScreen() {
                       ))}
                 </tbody>
               </table>
+              {!loading && !usageData?.orgUsage.length && (
+                <div className="px-5 py-12 text-center text-white/25 text-sm">No usage data found</div>
+              )}
+            </div>
+
+            {/* Mobile org usage cards */}
+            <div className="md:hidden divide-y divide-white/[0.04]">
+              {loading
+                ? Array(4).fill(0).map((_, i) => (
+                    <div key={i} className="px-4 py-4 space-y-2">
+                      <div className="h-4 w-1/2 bg-white/[0.04] rounded animate-pulse" />
+                      <div className="h-3 w-2/3 bg-white/[0.04] rounded animate-pulse" />
+                    </div>
+                  ))
+                : (usageData?.orgUsage ?? []).map(org => (
+                    <div key={org.org_id} className="px-4 py-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{org.org_name}</p>
+                          <p className="text-[11px] text-white/25 font-mono truncate">{org.org_slug}</p>
+                        </div>
+                        <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium capitalize"
+                          style={{ backgroundColor: `${PLAN_COLOR[org.plan_id] ?? "#6366f1"}20`, color: PLAN_COLOR[org.plan_id] ?? "#6366f1" }}>
+                          {org.plan_name}
+                        </span>
+                      </div>
+                      {/* Compact 2-row metric grid instead of 8 columns */}
+                      <div className="mt-2.5 grid grid-cols-4 gap-2">
+                        {[
+                          ["KBs", org.kb_count],
+                          ["Docs", org.doc_count],
+                          ["Queries", org.query_count.toLocaleString()],
+                          ["Users", org.user_count],
+                          ["Storage", fmtBytes(org.storage_bytes)],
+                          ["Latency", org.avg_latency ? `${org.avg_latency}ms` : "—"],
+                        ].map(([label, value]) => (
+                          <div key={label as string} className="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center">
+                            <div className="text-[13px] font-semibold text-white truncate">{value}</div>
+                            <div className="text-[10px] text-white/30">{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
               {!loading && !usageData?.orgUsage.length && (
                 <div className="px-5 py-12 text-center text-white/25 text-sm">No usage data found</div>
               )}

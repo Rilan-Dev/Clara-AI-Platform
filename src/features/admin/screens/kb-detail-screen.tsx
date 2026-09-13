@@ -105,7 +105,7 @@ export default function KbDashboardPage() {
 
   if (isAdmin) {
     return (
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         <AdminPageHeader
           icon={BookOpen}
           title={kbLoading ? "Loading knowledge base..." : kb?.name ?? "Knowledge Base"}
@@ -122,7 +122,7 @@ export default function KbDashboardPage() {
             kb?.qdrantCollection ?? "vector collection",
           ]}
           actions={
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:flex-wrap w-full sm:w-auto">
               {kb && <StatusBadge status={kb.status} />}
               {kb && <VoicePreviewButton kbId={kb.id} kbName={kb.name} />}
               <Link href={kbConfigHref}>
@@ -152,7 +152,7 @@ export default function KbDashboardPage() {
         )}
 
         {kb && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
               <div className="text-xs uppercase tracking-[0.2em] text-white/35">Knowledge Base</div>
               <p className="mt-3 text-sm leading-6 text-white/75">
@@ -173,14 +173,14 @@ export default function KbDashboardPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
           {[
             { label: "Documents", value: total },
             { label: "Ready", value: ready },
             { label: "Processing", value: processing },
             { label: "Total Chunks", value: totalChunks.toLocaleString() },
           ].map((item) => (
-            <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+            <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5">
               <div className="text-xs text-white/40 mb-2">{item.label}</div>
               <div className="text-2xl font-black text-white">{item.value}</div>
             </div>
@@ -280,13 +280,13 @@ export default function KbDashboardPage() {
             </div>
 
             {docsLoading && docs.length === 0 ? (
-              <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+              <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
                 {[1, 2, 3].map((item) => (
                   <div key={item} className="h-12 rounded-lg bg-white/[0.04] animate-pulse" />
                 ))}
               </div>
             ) : docSubTab === "uploads" ? (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
                 <UploadZone kbId={kbId} docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
                 {processing > 0 && (
                   <p className="mt-4 flex items-center gap-2 text-xs text-white/35">
@@ -338,7 +338,7 @@ export default function KbDashboardPage() {
 
   // ── Org user view ────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       <AdminPageHeader
         icon={BookOpen}
         title={kbLoading ? "Loading knowledge base..." : kb?.name ?? "Knowledge Base"}
@@ -354,7 +354,7 @@ export default function KbDashboardPage() {
           kb?.qdrantCollection ?? "vector collection",
         ]}
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:flex-wrap w-full sm:w-auto">
             {kb && <StatusBadge status={kb.status} />}
             {kb && <VoicePreviewButton kbId={kb.id} kbName={kb.name} />}
             <Link href={kbConfigHref}>
@@ -384,7 +384,7 @@ export default function KbDashboardPage() {
       )}
 
       {kb && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-white/35">Knowledge Base</div>
             <p className="mt-3 text-sm leading-6 text-white/75">
@@ -405,14 +405,14 @@ export default function KbDashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
         {[
           { label: "Documents", value: total },
           { label: "Ready", value: ready },
           { label: "Processing", value: processing },
           { label: "Total Chunks", value: totalChunks.toLocaleString() },
         ].map((item) => (
-          <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+          <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5">
             <div className="text-xs text-white/40 mb-2">{item.label}</div>
             <div className="text-2xl font-black text-white">{item.value}</div>
           </div>
@@ -512,13 +512,13 @@ export default function KbDashboardPage() {
           </div>
 
           {docsLoading && docs.length === 0 ? (
-            <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+            <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="h-12 rounded-lg bg-white/[0.04] animate-pulse" />
               ))}
             </div>
           ) : docSubTab === "uploads" ? (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
               <UploadZone kbId={kbId} docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
               {processing > 0 && (
                 <p className="mt-4 flex items-center gap-2 text-xs text-white/35">

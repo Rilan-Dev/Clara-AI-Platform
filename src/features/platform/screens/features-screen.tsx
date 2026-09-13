@@ -121,7 +121,7 @@ export default function FeaturesPage() {
   return (
     <div className="overflow-x-hidden">
       {/* Hero */}
-      <section className="relative pt-24 pb-16 px-6 text-center">
+      <section className="relative pt-24 pb-12 px-4 sm:pb-16 sm:px-6 text-center">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-10 left-1/3 w-80 h-80 bg-indigo-600/15 rounded-full blur-[100px]" />
           <div className="absolute top-20 right-1/3 w-64 h-64 bg-violet-600/10 rounded-full blur-[80px]" />
@@ -131,7 +131,7 @@ export default function FeaturesPage() {
             <Brain className="w-3.5 h-3.5" />
             <span>Built for production — not demos</span>
           </div>
-          <h1 className="text-5xl md:text-6xl font-black text-white mb-5 leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white mb-5 leading-tight">
             Everything you need<br />
             <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
               to deploy AI knowledge
@@ -155,7 +155,7 @@ export default function FeaturesPage() {
       </section>
 
       {/* Feature grid */}
-      <section className="py-20 px-6">
+      <section className="py-12 sm:py-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-black text-white mb-3">Core capabilities</h2>
@@ -187,15 +187,19 @@ export default function FeaturesPage() {
       </section>
 
       {/* Plan comparison table */}
-      <section id="comparison" className="py-20 px-6 bg-white/[0.02]">
+      <section id="comparison" className="py-12 sm:py-20 px-4 sm:px-6 bg-white/[0.02]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-black text-white mb-3">Feature comparison</h2>
             <p className="text-white/50">See exactly what each plan includes</p>
           </div>
+          {/* Comparison matrix — horizontally scrollable on phones */}
           <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <div className="min-w-[720px]">
+            <p className="md:hidden px-4 py-2.5 text-[11px] text-white/35 border-b border-white/[0.06]">
+              Swipe to compare plans →
+            </p>
+            <div className="overflow-x-auto overscroll-contain-x">
+              <div className="min-w-[680px] sm:min-w-[720px]">
                 <div className="grid grid-cols-5 border-b border-white/[0.08]">
                   <div className="px-5 py-4 text-sm font-medium text-white/40">Feature</div>
                   {["Free", "Starter", "Pro", "Enterprise"].map((p, i) => (

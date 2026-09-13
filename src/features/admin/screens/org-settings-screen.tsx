@@ -32,7 +32,7 @@ export default function OrgSettingsScreen() {
   const displaySlug = editedOrg?.slug ?? org?.slug  ?? "";
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <AdminPageHeader
         icon={Settings2}
         title="Organisation settings"
@@ -48,7 +48,7 @@ export default function OrgSettingsScreen() {
       />
 
       {/* Workspace facts */}
-      <div className="mt-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+      <div className="mt-4 sm:mt-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
         <h2 className="font-semibold text-white flex items-center gap-2 mb-4">
           <Info className="w-4 h-4 text-cyan-400" /> Workspace facts
         </h2>
@@ -75,7 +75,7 @@ export default function OrgSettingsScreen() {
       </div>
 
       {/* Guide links — where people expect related settings to live */}
-      <div className="mt-6 grid sm:grid-cols-3 gap-3">
+      <div className="mt-4 sm:mt-6 grid sm:grid-cols-3 gap-3">
         {[
           { href: `/orgs/${id}/members`,  title: "Team & roles",    desc: "Invite teammates and set access levels" },
           { href: `/orgs/${id}/billing`,  title: "Billing & plan",  desc: "Plan, renewal and invoices" },

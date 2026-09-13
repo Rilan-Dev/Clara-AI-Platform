@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, CreditCard,
-  Settings, LogOut, Menu, X, ChevronRight, ChevronDown, BarChart3,
+  Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
+  MoreHorizontal, X,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
@@ -68,11 +69,25 @@ function matchesPath(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
+// Mobile tab-bar label — shorter than the sidebar label so five tabs fit
+// on a 360px screen without truncation.
+const TAB_SHORT_LABELS: Record<string, string> = {
+  "/dashboard":     "Home",
+  "/subscriptions": "Billing",
+  "/analytics":     "Stats",
+  "/system-status": "Status",
+};
+
+function tabLabel(item: { href: string; label: string; exact?: boolean }): string {
+  if (item.exact) return "Home";
+  return TAB_SHORT_LABELS[item.href] ?? item.label;
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, primaryOrgId } = useAuth();
   const pathname   = usePathname();
   const router     = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false); // mobile "More" bottom sheet
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
@@ -81,6 +96,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (onSettingsRoute) setSettingsOpen(true);
   }, [onSettingsRoute]);
+
+  // Close the mobile sheet on navigation
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll while the mobile "More" sheet is open
+  useEffect(() => {
+    if (!moreOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [moreOpen]);
 
   // ── Redirect unauthenticated users to login ─────────────────────────────────
   useEffect(() => {
@@ -139,14 +167,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // render their Settings as a plain link to /settings/account.
   const singleSettingsLink = settingsNav.length === 1 ? settingsNav[0] : null;
 
+  // Mobile bottom tab bar: the four primary destinations + "More".
+  // Falls back to settings when an org user has no org yet.
+  const tabs = nav.length === 4 ? nav : nav.slice(0, 3);
+
+  const isActiveTab = (item: { href: string; exact?: boolean }) =>
+    item.exact
+      ? pathname === item.href
+      : pathname === item.href || pathname.startsWith(item.href + "/");
+
+  const moreActive = moreOpen || onSettingsRoute;
+
   return (
     <div className="dark min-h-[100dvh] bg-[#0a0a0f] flex">
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
+      {/* ── Sidebar (md+ only — phones use the bottom tab bar) ──────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-60 bg-[#0d0d1a] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0`}
+        className="hidden md:flex fixed inset-y-0 left-0 z-50 w-60 bg-[#0d0d1a] border-r border-white/[0.06] flex-col"
       >
         {/* Brand */}
         <div className="h-16 px-5 flex items-center gap-3 border-b border-white/[0.06]">
@@ -181,7 +218,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {!isAdmin && !primaryOrgId && (
             <Link
               href="/settings/account"
-              onClick={() => setSidebarOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.05] transition-all"
             >
               <Bot className="w-4 h-4 shrink-0" />
@@ -190,14 +226,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
 
           {nav.map((item) => {
-            const active = (item as { exact?: boolean }).exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = isActiveTab(item);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   active
                     ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
@@ -219,7 +252,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {singleSettingsLink ? (
             <Link
               href={singleSettingsLink.href}
-              onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 onSettingsRoute
                   ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
@@ -265,7 +297,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <li key={sub.href}>
                       <Link
                         href={sub.href}
-                        onClick={() => setSidebarOpen(false)}
                         aria-current={subActive ? "page" : undefined}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${
                           subActive
@@ -296,7 +327,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-3 border-t border-white/[0.06] space-y-0.5">
           <Link
             href="/"
-            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-2 px-3 py-2 text-xs text-white/30 hover:text-white/60 transition-colors rounded-lg hover:bg-white/[0.03]"
           >
             ← View public site
@@ -310,26 +340,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="md:hidden fixed top-4 left-4 z-[60] p-2 rounded-lg bg-[#0d0d1a] border border-white/[0.06] text-white shadow-lg"
-      >
-        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/50"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* Main */}
       <div className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden flex flex-col">
         {/* ── Topbar — page context + profile menu ──────────────────────────── */}
-        <header className="sticky top-0 z-30 h-16 border-b border-white/[0.06] bg-[#0d0d14]/90 backdrop-blur flex items-center justify-between gap-4 pl-14 pr-4 md:pl-6 md:pr-6">
+        <header className="sticky top-0 z-30 h-14 md:h-16 border-b border-white/[0.06] bg-[#0d0d14]/90 backdrop-blur flex items-center justify-between gap-3 px-4 md:pl-6 md:pr-6">
           {/* Context label */}
           <div className="min-w-0 flex items-center gap-2.5">
             <span className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
@@ -355,8 +369,137 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </header>
 
-        <main className="flex-1">{children}</main>
+        {/* Bottom safe area for the tab bar */}
+        <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-0">
+          {children}
+        </main>
       </div>
+
+      {/* ── Mobile bottom tab bar — native app navigation ───────────────────── */}
+      <nav
+        aria-label="Primary"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 no-select border-t border-white/[0.08] bg-[#0d0d14]/95 backdrop-blur-xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
+          {tabs.map((item) => {
+            const active = isActiveTab(item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] transition-colors ${
+                  active ? "text-indigo-300" : "text-white/40 active:text-white/70"
+                }`}
+              >
+                <item.icon className={`w-[22px] h-[22px] ${active ? "drop-shadow-[0_0_10px_rgba(129,140,248,0.5)]" : ""}`} strokeWidth={active ? 2.2 : 1.8} />
+                <span className={`text-[10px] font-medium leading-none ${active ? "text-indigo-300" : ""}`}>
+                  {tabLabel(item)}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* More — settings, public site, sign out */}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-label="More options"
+            aria-expanded={moreOpen}
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] transition-colors ${
+              moreActive ? "text-indigo-300" : "text-white/40 active:text-white/70"
+            }`}
+          >
+            <MoreHorizontal className="w-[22px] h-[22px]" strokeWidth={moreActive ? 2.2 : 1.8} />
+            <span className={`text-[10px] font-medium leading-none ${moreActive ? "text-indigo-300" : ""}`}>
+              More
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Mobile "More" bottom sheet ───────────────────────────────────────── */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="More options">
+          {/* Scrim */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setMoreOpen(false)}
+          />
+          {/* Sheet */}
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-white/[0.12] bg-[#13131f] shadow-2xl animate-in slide-in-from-bottom duration-300 overscroll-contain-y">
+            {/* Grabber */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1.5 rounded-full bg-white/15" />
+            </div>
+            {/* Identity */}
+            <div className="px-5 pt-2 pb-4 border-b border-white/[0.06] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                {(user.fullName.split(/\s+/).map((w) => w.charAt(0).toUpperCase()).slice(0, 2).join("")) || "U"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>
+                <p className="text-xs text-white/35 truncate">{user.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close"
+                className="w-9 h-9 rounded-xl border border-white/10 flex items-center justify-center text-white/50 active:bg-white/10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Links */}
+            <div className="px-3 py-3 max-h-[60dvh] overflow-y-auto overscroll-contain-y space-y-0.5">
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+                Settings
+              </p>
+              {(singleSettingsLink ? [singleSettingsLink] : settingsNav).map((s) => {
+                const active = pathname === s.href;
+                return (
+                  <Link
+                    key={s.href}
+                    href={s.href}
+                    className={`flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm active:bg-white/[0.07] transition-colors ${
+                      active ? "text-indigo-300 bg-indigo-500/10" : "text-white/70"
+                    }`}
+                  >
+                    <s.icon className={`w-5 h-5 shrink-0 ${active ? "text-indigo-400" : "text-white/40"}`} />
+                    <span className="flex-1">{s.label}</span>
+                    {active && <ChevronRight className="w-4 h-4 text-indigo-400" />}
+                  </Link>
+                );
+              })}
+
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+                General
+              </p>
+              <Link
+                href="/"
+                className="flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm text-white/70 active:bg-white/[0.07] transition-colors"
+              >
+                <Brain className="w-5 h-5 text-white/40 shrink-0" />
+                <span className="flex-1">View public site</span>
+                <ChevronRight className="w-4 h-4 text-white/20" />
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm text-rose-300 active:bg-rose-500/10 transition-colors"
+              >
+                <LogOut className="w-5 h-5 shrink-0 text-rose-400/70" />
+                <span className="flex-1 text-left">Sign out</span>
+              </button>
+            </div>
+
+            {/* Safe-area spacer */}
+            <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

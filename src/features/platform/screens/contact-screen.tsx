@@ -31,11 +31,11 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-14">
-          <h1 className="text-5xl font-black text-white mb-4">
+          <h1 className="text-3xl sm:text-5xl font-black text-white mb-4">
             Get in <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">touch</span>
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">

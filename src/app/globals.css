@@ -553,3 +553,54 @@
     box-shadow: none !important;
   }
 }
+
+/* ── Mobile app shell utilities ─────────────────────────────────────────────
+   Native-app feel on phones: safe-area-aware bottom tab bar, momentum
+   scrolling, no blue tap flash, no text-selection on chrome UI.
+   ───────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-safe {
+    bottom: calc(env(safe-area-inset-bottom, 0px));
+  }
+  .h-safe-top {
+    height: calc(env(safe-area-inset-top, 0px));
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+/* Momentum scrolling inside bottom sheets / drawers on iOS */
+.overscroll-contain-y {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tab-bar / sheet chrome shouldn't be user-selectable like content */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Hide scrollbars on horizontal chip rails (mobile app look) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Snap carousel for plan cards / list rails on mobile */
+.snap-rail-mandatory {
+  scroll-snap-type: x mandatory;
+}
+.snap-start-card {
+  scroll-snap-align: start;
+}

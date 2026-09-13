@@ -241,7 +241,7 @@ export default function OrgBillingScreen() {
   const s          = sub?.subscription;
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <AdminPageHeader
         icon={CreditCard}
         title="Billing & Plan"
@@ -261,7 +261,7 @@ export default function OrgBillingScreen() {
 
       {/* Renewal alert banner */}
       {needsRenew && eff && (
-        <div className={`mb-6 rounded-2xl border px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+        <div className={`mb-4 sm:mb-6 rounded-2xl border px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
           eff.effectiveStatus === "expired"
             ? "border-rose-500/30 bg-rose-500/[0.08]"
             : "border-amber-500/30 bg-amber-500/[0.08]"
@@ -291,7 +291,7 @@ export default function OrgBillingScreen() {
 
       {/* Current plan + usage meters */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Current plan</p>
@@ -323,7 +323,7 @@ export default function OrgBillingScreen() {
           )}
         </div>
 
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-semibold text-white text-sm">Usage this period</h3>
             <button onClick={load} className="text-white/30 hover:text-white/60 transition-colors">
@@ -343,18 +343,20 @@ export default function OrgBillingScreen() {
         </div>
       </div>
 
-      {/* Plans grid */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+      {/* Plans — mobile: horizontal swipe rail (app-style plan picker);
+          desktop: the original grid. */}
+      <div className="mt-6 sm:mt-8">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="min-w-0">
             <h3 className="font-semibold text-white">Plans</h3>
-            <p className="text-sm text-white/40 mt-0.5">
+            <p className="hidden sm:block text-sm text-white/40 mt-0.5">
               {isAdmin ? "Switch this organisation's plan (billed internally)." : "Upgrade, renew or change your plan at any time."}
             </p>
+            <p className="sm:hidden text-xs text-white/35 mt-0.5">Swipe to compare →</p>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="md:grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 -mx-4 px-4 md:mx-0 md:px-0 flex overflow-x-auto scrollbar-none snap-rail-mandatory pb-2 md:pb-0">
           {plans.map((plan) => {
             const isCurrent = plan.id === currentPlan;
             const isUpgrade = (PLAN_RANK[plan.id] ?? 0) > (PLAN_RANK[currentPlan] ?? 0);
@@ -362,7 +364,7 @@ export default function OrgBillingScreen() {
             const highlight = isRenew || (isUpgrade && ["starter", "pro"].includes(plan.id));
 
             return (
-              <div key={plan.id} className={`relative rounded-2xl border p-5 flex flex-col ${
+              <div key={plan.id} className={`relative rounded-2xl border p-4 sm:p-5 flex flex-col shrink-0 w-[82vw] md:w-auto snap-start-card ${
                 isCurrent
                   ? "border-indigo-500/50 bg-indigo-600/[0.08]"
                   : highlight
@@ -452,7 +454,7 @@ export default function OrgBillingScreen() {
       </div>
 
       {/* Billing history */}
-      <div className="mt-8 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+      <div className="mt-6 sm:mt-8 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <FileClock className="w-4 h-4 text-cyan-400" />
           <h3 className="font-semibold text-white text-sm">Billing history</h3>

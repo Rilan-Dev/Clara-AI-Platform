@@ -25,7 +25,7 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
@@ -44,7 +44,7 @@ export function Modal({
             ✕
           </Button>
         </div>
-        <div className="max-h-[80vh] overflow-auto p-4">{children}</div>
+        <div className="overflow-auto overscroll-contain-y p-4">{children}</div>
       </div>
     </div>
   );

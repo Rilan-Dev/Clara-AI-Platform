@@ -83,10 +83,10 @@ export function EditProfileModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md rounded-2xl border border-white/[0.12] bg-[#13131f] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
+      <div className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl border border-white/[0.12] bg-[#13131f] shadow-2xl max-h-[92dvh] flex flex-col overflow-hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.08] shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
               <User className="w-4 h-4 text-indigo-400" />

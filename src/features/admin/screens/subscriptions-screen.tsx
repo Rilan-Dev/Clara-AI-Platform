@@ -150,17 +150,18 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
   const isPaused    = status === "paused";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-[#0f0f14] border border-white/[0.10] rounded-2xl shadow-2xl overflow-hidden">
+      {/* Mobile: bottom sheet; desktop: centered dialog */}
+      <div className="relative w-full max-w-lg bg-[#0f0f14] border border-white/[0.10] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between">
-          <div>
+        <div className="px-4 sm:px-6 py-4 border-b border-white/[0.08] flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-base font-bold text-white">Manage Subscription</h2>
-            <p className="text-xs text-white/40 mt-0.5">{orgName}</p>
+            <p className="text-xs text-white/40 mt-0.5 truncate">{orgName}</p>
           </div>
-          <button onClick={onClose} className="text-white/30 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} aria-label="Close" className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl text-white/30 hover:text-white active:bg-white/10 transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         {/* Tabs */}
@@ -174,7 +175,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
           ))}
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain-y">
 
           {/* TAB: Change Plan */}
           {tab === "plan" && (
@@ -457,18 +458,19 @@ export default function AdminSubscriptionsScreen() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
 
       {/* Header with Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Subscription Management</h1>
-          <p className="text-white/40 text-sm mt-0.5">Manage billing across all organisations</p>
+          <h1 className="text-lg sm:text-2xl font-bold text-white">Subscription Management</h1>
+          <p className="hidden sm:block text-white/40 text-sm mt-0.5">Manage billing across all organisations</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={loadData}
+            aria-label="Refresh data"
             className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-lg transition-all">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
@@ -476,20 +478,19 @@ export default function AdminSubscriptionsScreen() {
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as typeof activeTab)}>
         <TabsList className="grid w-full grid-cols-3 bg-white/[0.03] rounded-xl p-1">
-          <TabsTrigger value="organizations" className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-2">
-            <Building2 className="w-4 h-4" />
-            <span className="font-medium">Organizations</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${loading ? "bg-white/10" : "bg-emerald-500/20 text-emerald-400"}`}>{orgs.length}</span>
+          <TabsTrigger value="organizations" className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 px-1">
+            <Building2 className="w-4 h-4 shrink-0" />
+            <span className="font-medium truncate">Orgs</span>
+            <span className={`hidden sm:inline-block text-xs px-2 py-0.5 rounded-full ${loading ? "bg-white/10" : "bg-emerald-500/20 text-emerald-400"}`}>{orgs.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="plans" className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-2">
-            <CreditCard className="w-4 h-4" />
-            <span className="font-medium">Plans</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${loading ? "bg-white/10" : "bg-indigo-500/20 text-indigo-400"}`}>{plans.length}</span>
+          <TabsTrigger value="plans" className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 px-1">
+            <CreditCard className="w-4 h-4 shrink-0" />
+            <span className="font-medium truncate">Plans</span>
+            <span className={`hidden sm:inline-block text-xs px-2 py-0.5 rounded-full ${loading ? "bg-white/10" : "bg-indigo-500/20 text-indigo-400"}`}>{plans.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-2">
-            <Bell className="w-4 h-4" />
-            <span className="font-medium">Notifications</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/40">Queue</span>
+          <TabsTrigger value="notifications" className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center gap-1.5 px-1">
+            <Bell className="w-4 h-4 shrink-0" />
+            <span className="font-medium truncate">Notifs</span>
           </TabsTrigger>
         </TabsList>
 
@@ -534,17 +535,19 @@ export default function AdminSubscriptionsScreen() {
             ))}
           </div>
 
-          {/* Org table */}
+          {/* Org table — desktop table, mobile cards. The 7-column table is
+              unusable at 390px; phones get tappable org cards instead. */}
           <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-4">
+            <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
               <h2 className="font-semibold text-white text-sm shrink-0">All Organisations</h2>
               <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name or slug…"
-                className="flex-1 max-w-xs bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/50" />
+                placeholder="Search…"
+                className="flex-1 min-w-[140px] max-w-xs bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/50" />
               <span className="text-xs text-white/30 shrink-0">{filtered.length} orgs</span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white/[0.03]">
                   <tr className="text-xs text-white/40 text-left">
@@ -604,6 +607,56 @@ export default function AdminSubscriptionsScreen() {
                 <div className="py-12 text-center text-white/25 text-sm">No organisations found</div>
               )}
             </div>
+
+            {/* Mobile org cards */}
+            <div className="md:hidden divide-y divide-white/[0.04]">
+              {loading
+                ? Array(4).fill(0).map((_, i) => (
+                    <div key={i} className="px-4 py-4 space-y-2.5">
+                      <div className="h-4 w-1/2 bg-white/[0.04] rounded animate-pulse" />
+                      <div className="h-3 w-1/3 bg-white/[0.04] rounded animate-pulse" />
+                    </div>
+                  ))
+                : filtered.map(org => {
+                    const status = org.sub_status ?? "free";
+                    return (
+                      <div key={org.org_id} className="px-4 py-4 active:bg-white/[0.03] transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{org.name}</p>
+                            <p className="text-[11px] text-white/30 font-mono truncate">{org.slug}</p>
+                          </div>
+                          <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[status] ?? "text-white/40 bg-white/[0.04] border-white/[0.08]"}`}>
+                            {status}
+                          </span>
+                        </div>
+                        <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${PLAN_BADGE[org.plan_id ?? "free"] ?? PLAN_BADGE.free}`}>
+                            {org.plan_id ?? "free"}
+                          </span>
+                          <span className="text-[11px] text-white/40">{org.kb_count} KBs</span>
+                          <span className="text-[11px] text-white/40">{org.query_count.toLocaleString()} queries</span>
+                          <span className="text-[11px] text-white/25">{fmtDate(org.created_at)}</span>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            onClick={() => setModal({ type:"action", orgId:org.org_id, orgName:org.name, planId:org.plan_id??"free", status })}
+                            className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-indigo-600/20 active:bg-indigo-600/40 border border-indigo-600/30 text-indigo-300 py-2.5 rounded-xl transition-all">
+                            <CreditCard className="w-3.5 h-3.5" /> Manage
+                          </button>
+                          <button
+                            onClick={() => setModal({ type:"history", orgId:org.org_id, orgName:org.name })}
+                            className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-white/[0.04] active:bg-white/[0.1] border border-white/[0.08] text-white/60 py-2.5 rounded-xl transition-all">
+                            <Receipt className="w-3.5 h-3.5" /> History
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              {!loading && !filtered.length && (
+                <div className="py-12 text-center text-white/25 text-sm">No organisations found</div>
+              )}
+            </div>
           </div>
 
           {/* Modals */}
@@ -626,13 +679,13 @@ export default function AdminSubscriptionsScreen() {
 
         {/* PLANS TAB - Landing page style cards with full editing */}
         <TabsContent value="plans" className="space-y-6 pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">Plan Editions</h2>
-              <p className="text-white/40 text-sm mt-0.5">Editions are versioned. Publishing changes future subscriptions; existing customers keep their assigned version.</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Plan Editions</h2>
+              <p className="hidden sm:block text-white/40 text-sm mt-0.5">Editions are versioned. Publishing changes future subscriptions; existing customers keep their assigned version.</p>
             </div>
-            <Button onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Create New Plan
+            <Button onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })} className="shrink-0 gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Create New Plan</span><span className="sm:hidden">New Plan</span>
             </Button>
           </div>
 
@@ -720,16 +773,16 @@ export default function AdminSubscriptionsScreen() {
             </div>
           )}
 
-          {/* Edit Plan Modal */}
+          {/* Edit Plan Modal — mobile: bottom sheet; desktop: centered dialog */}
           {editPlan && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setEditPlan(null)} />
-              <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0f0f14] border border-white/[0.10] rounded-2xl shadow-2xl">
-                <div className="sticky top-0 px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0f0f14]/95 backdrop-blur-sm rounded-t-2xl">
-                  <h2 className="text-base font-bold text-white">{editPlan.id === "new" ? "Create New Plan" : `Edit: ${editPlan.name}`}</h2>
-                  <button onClick={() => setEditPlan(null)} className="text-white/30 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+              <div className="relative w-full max-w-2xl max-h-[92dvh] overflow-y-auto overscroll-contain-y bg-[#0f0f14] border border-white/[0.10] rounded-t-3xl sm:rounded-2xl shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                <div className="sticky top-0 px-4 sm:px-6 py-4 border-b border-white/[0.08] flex items-center justify-between gap-3 bg-[#0f0f14]/95 backdrop-blur-sm rounded-t-3xl sm:rounded-t-2xl">
+                  <h2 className="text-base font-bold text-white truncate">{editPlan.id === "new" ? "Create New Plan" : `Edit: ${editPlan.name}`}</h2>
+                  <button onClick={() => setEditPlan(null)} aria-label="Close" className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl text-white/30 hover:text-white active:bg-white/10 transition-colors"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[
                       { field: "name" as const, label: "Plan Name", type: "text" as const, placeholder: "e.g., Pro" },

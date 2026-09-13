@@ -41,16 +41,16 @@ export function MessageInput({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-[color:var(--color-border)] bg-[color:var(--color-card)]/70 p-4"
+      className="border-t border-[color:var(--color-border)] bg-[color:var(--color-card)]/70 p-2.5 sm:p-4 pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] sm:pb-4"
     >
-      <div className="flex flex-col rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/80 p-3 shadow-sm">
+      <div className="flex flex-col rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]/80 p-2.5 sm:p-3 shadow-sm">
         <div className="flex w-full">
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
-            rows={3}
+            rows={2}
             placeholder={placeholder ?? "Ask a question about this knowledge base…"}
             disabled={disabled}
             className="min-h-[10%] w-full resize-none bg-transparent"
@@ -59,7 +59,7 @@ export function MessageInput({
             <Button
               type="submit"
               disabled={disabled}
-              className="w-12 h-12 rounded-full"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0"
             >
               {/* {disabled ? "Sending..." : "Send Message"} */}
               {disabled ? (
@@ -75,14 +75,14 @@ export function MessageInput({
         </div>
       </div>
       {suggestionItems.length > 0 && (
-        <div className="h-32 mt-3 overflow-scroll">
+        <div className="mt-3">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-[color:var(--color-muted-foreground)]">
             <span>Suggested starters</span>
             <span className="normal-case tracking-normal text-[color:var(--color-muted-foreground)]/70">
               Tap to send
             </span>
           </div>
-          <div className="grid w-full gap-2 mt-3 sm:grid-cols-2">
+          <div className="flex w-full gap-2 mt-3 overflow-x-auto scrollbar-none pb-1 lg:grid lg:grid-cols-2">
             {suggestionItems.map((prompt) => (
               <Button
                 key={prompt}
@@ -91,7 +91,7 @@ export function MessageInput({
                 disabled={disabled}
                 variant="secondary"
                 size="sm"
-                className="justify-start w-full h-auto min-w-0 py-2 text-sm leading-snug text-left break-words whitespace-normal hyphens-auto"
+                className="justify-start h-auto py-2 px-3.5 text-sm leading-snug text-left break-words whitespace-normal hyphens-auto shrink-0 lg:w-full"
               >
                 {prompt}
               </Button>

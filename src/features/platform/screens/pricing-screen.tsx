@@ -50,18 +50,18 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-black text-white mb-4">
+          <h1 className="text-3xl sm:text-5xl font-black text-white mb-3 sm:mb-4">
             Simple, transparent <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">pricing</span>
           </h1>
-          <p className="text-white/50 text-lg mb-8">Start free, scale as you grow. No hidden fees.</p>
+          <p className="text-white/50 text-base sm:text-lg mb-8">Start free, scale as you grow. No hidden fees.</p>
           <div className="inline-flex items-center border border-white/10 bg-white/[0.04] rounded-xl p-1 gap-1">
             {(["monthly", "annual"] as const).map(c => (
               <button key={c} onClick={() => setBilling(c)}
                 className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${billing === c ? "bg-indigo-600 text-white" : "text-white/50 hover:text-white"}`}>
-                {c === "monthly" ? "Monthly" : "Annual (save 20%)"}
+                {c === "monthly" ? "Monthly" : <><span className="hidden sm:inline">Annual (save 20%)</span><span className="sm:hidden">Annual −20%</span></>}
               </button>
             ))}
           </div>

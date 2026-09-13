@@ -221,7 +221,7 @@ export default function SignupScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] px-4 py-20 flex items-start justify-center">
+    <div className="min-h-[100dvh] bg-[#0a0a0f] px-4 py-10 sm:py-20 flex items-start justify-center">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
@@ -362,7 +362,7 @@ export default function SignupScreen() {
                     onChange={set("fullName")}
                     placeholder="Jane Smith"
                     autoComplete="name"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -373,7 +373,7 @@ export default function SignupScreen() {
                     onChange={set("email")}
                     placeholder="jane@company.com"
                     autoComplete="email"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -385,7 +385,7 @@ export default function SignupScreen() {
                       onChange={set("password")}
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
-                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
                     />
                     <button
                       type="button"
@@ -430,7 +430,7 @@ export default function SignupScreen() {
                       onChange={set("confirmPassword")}
                       placeholder="Repeat password"
                       autoComplete="new-password"
-                      className={`w-full bg-white/[0.05] border rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none transition-colors ${
+                      className={`w-full bg-white/[0.05] border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none transition-colors ${
                         form.confirmPassword && form.confirmPassword !== form.password
                           ? "border-rose-500/60"
                           : "border-white/10 focus:border-indigo-500"

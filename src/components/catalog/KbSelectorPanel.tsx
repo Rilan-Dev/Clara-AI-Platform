@@ -60,7 +60,7 @@ function groupKbs(kbs: KbEntry[]): GroupedKbs[] {
   return Array.from(orgMap.values());
 }
 
-export function KbSelectorPanel() {
+export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "chips" }) {
   const { activeKbId, setActiveKbId, clearMessages } = useAssistant();
 
   const [kbs, setKbs]         = useState<KbEntry[]>([]);
@@ -100,6 +100,58 @@ export function KbSelectorPanel() {
 
   const grouped = groupKbs(filtered);
   const activeKb = kbs.find((k) => k.id === activeKbId);
+
+  // ── Mobile chip rail ────────────────────────────────────────────────────
+  // App-style KB switcher: a single horizontal scrollable rail above the
+  // chat. One line, thumb-reachable, no vertical stacking noise.
+  if (variant === "chips") {
+    return (
+      <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto scrollbar-none">
+        {loading ? (
+          <div className="h-9 w-32 rounded-full bg-muted/40 animate-pulse shrink-0" />
+        ) : (
+          kbs.map((kb) => {
+            const isActive = activeKbId === kb.id;
+            const hasReadyDocs = kb.readyCount > 0;
+            return (
+              <button
+                key={kb.id}
+                onClick={() => {
+                  if (!isActive) {
+                    clearMessages();
+                    setActiveKbId(kb.id);
+                  }
+                }}
+                disabled={!hasReadyDocs}
+                aria-current={isActive ? "true" : undefined}
+                className={`flex items-center gap-2 rounded-full border px-3.5 h-9 text-xs font-medium whitespace-nowrap shrink-0 transition-all ${
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : hasReadyDocs
+                    ? "border-border bg-card/60 text-foreground active:bg-muted"
+                    : "opacity-40 border-border text-muted-foreground"
+                }`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: isActive ? "currentColor" : kb.assistant.primaryColour, opacity: isActive ? 0.7 : 1 }}
+                />
+                {kb.name}
+                <span className={isActive ? "opacity-70" : "text-muted-foreground"}>
+                  {hasReadyDocs ? kb.readyCount : 0}
+                </span>
+              </button>
+            );
+          })
+        )}
+        {activeKb && (
+          <span className="text-[10px] text-muted-foreground/70 shrink-0 hidden sm:inline">
+            {activeKb.assistant.name}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <aside className="flex flex-col gap-4">

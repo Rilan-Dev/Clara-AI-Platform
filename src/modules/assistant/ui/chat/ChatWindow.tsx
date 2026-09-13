@@ -70,12 +70,12 @@ export function ChatWindow({ onOpenVoice }: { onOpenVoice?: () => void }) {
 
   return (
     <Card className="flex h-full flex-col border border-[color:var(--color-border)] bg-[color:var(--color-card)]/70">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 border-b border-[color:var(--color-border)]">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b border-[color:var(--color-border)] py-3 sm:py-6">
         <div className="min-w-0">
-          <CardTitle className="text-lg font-semibold text-foreground">
-            Conversation Workspace
+          <CardTitle className="text-sm sm:text-lg font-semibold text-foreground truncate">
+            Chat
           </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground/80">
+          <CardDescription className="hidden sm:block text-xs text-muted-foreground/80">
             {activeKbId
               ? "Streaming responses with inline citations · history is saved"
               : "Streaming responses with inline citations"}
@@ -86,7 +86,7 @@ export function ChatWindow({ onOpenVoice }: { onOpenVoice?: () => void }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" aria-label="Conversation history">
-                  <Clock className="mr-1.5 h-3.5 w-3.5" /> History
+                  <Clock className="sm:mr-1.5 h-4 w-4" /> <span className="hidden sm:inline">History</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
@@ -146,7 +146,7 @@ export function ChatWindow({ onOpenVoice }: { onOpenVoice?: () => void }) {
               disabled={isStreaming}
               aria-label="Start a new conversation"
             >
-              <MessageSquarePlus className="mr-1.5 h-3.5 w-3.5" /> New chat
+              <MessageSquarePlus className="sm:mr-1.5 h-4 w-4" /> <span className="hidden sm:inline">New chat</span>
             </Button>
           )}
 
@@ -156,11 +156,12 @@ export function ChatWindow({ onOpenVoice }: { onOpenVoice?: () => void }) {
             onClick={onOpenVoice}
             disabled={!canOpenVoice}
           >
-            Voice mode
+            <span className="sm:hidden">Voice</span>
+            <span className="hidden sm:inline">Voice mode</span>
           </Button>
 
           {isStreaming && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />

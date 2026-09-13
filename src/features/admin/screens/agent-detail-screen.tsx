@@ -69,7 +69,7 @@ export default function AgentDetailPage() {
 
   if (isAdmin) {
     return (
-      <div className="p-6 lg:p-8 space-y-8">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
         <AdminPageHeader
           icon={Bot}
           title={editedAgent?.name ?? agent?.name ?? "Knowledge Bases"}
@@ -152,8 +152,8 @@ export default function AgentDetailPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`}>
-                    <Button size="sm">Open KB</Button>
+                  <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`} className="flex-1 md:flex-none">
+                    <Button size="sm" className="w-full md:w-auto">Open KB</Button>
                   </Link>
                 </div>
               </div>
@@ -165,7 +165,7 @@ export default function AgentDetailPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <AdminPageHeader
         icon={Bot}
         title={editedAgent?.name ?? agent?.name ?? "Knowledge Bases"}
@@ -185,14 +185,14 @@ export default function AgentDetailPage() {
           agent?.description ?? "Agent workspace",
         ]}
         actions={
-          <div className="flex items-center gap-2">
-            <Link href={`/orgs/${id}/agents/${agentId}/config`}>
-              <Button variant="outline" className="gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <Link href={`/orgs/${id}/agents/${agentId}/config`} className="sm:contents">
+              <Button variant="outline" className="gap-2 w-full sm:w-auto">
                 <Bot className="w-4 h-4" /> Assistant &amp; AI
               </Button>
             </Link>
             <Button onClick={() => setShowForm((current) => !current)} className="gap-2">
-              <Plus className="w-4 h-4" /> New Knowledge Base
+              <Plus className="w-4 h-4" /> New KB
             </Button>
           </div>
         }
@@ -208,15 +208,15 @@ export default function AgentDetailPage() {
       )}
 
       {showForm && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-          <form onSubmit={handleCreate} className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+          <form onSubmit={handleCreate} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
             <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">KB name</label>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="HR Handbook"
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 md:py-2.5 text-base md:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
@@ -225,11 +225,11 @@ export default function AgentDetailPage() {
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Optional context"
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 md:py-2.5 text-base md:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={creating || !name.trim()}>
+              <Button type="submit" disabled={creating || !name.trim()} className="flex-1 md:flex-none">
                 {creating ? "Creating..." : "Create"}
               </Button>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
@@ -258,30 +258,31 @@ export default function AgentDetailPage() {
       ) : (
         <div className="space-y-3">
           {kbs.map((kb) => (
-            <div key={kb.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+            <div key={kb.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 sm:px-5 py-4 flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <p className="font-medium text-white">{kb.name}</p>
                   <StatusBadge status={kb.status} />
                 </div>
                 {kb.description && <p className="text-sm text-white/40 mt-1">{kb.description}</p>}
                 <p className="text-xs text-white/30 mt-1">
-                  Created {formatDate(kb.createdAt)} · <span className="font-mono">{kb.qdrantCollection}</span>
+                  Created {formatDate(kb.createdAt)}<span className="hidden md:inline"> · <span className="font-mono">{kb.qdrantCollection}</span></span>
                 </p>
               </div>
                 <div className="flex items-center gap-2">
-                  <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`}>
-                    <Button size="sm">Open KB</Button>
+                  <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`} className="flex-1 md:flex-none">
+                    <Button size="sm" className="w-full md:w-auto">Open KB</Button>
                   </Link>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10"
+                  className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10 px-2.5 md:px-3"
+                  aria-label={`Delete knowledge base ${kb.name}`}
                   onClick={() => handleDelete(kb.id)}
                   disabled={deletingId === kb.id}
                 >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  {deletingId === kb.id ? "Deleting..." : "Delete"}
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden md:inline ml-1.5">{deletingId === kb.id ? "Deleting..." : "Delete"}</span>
                 </Button>
               </div>
             </div>

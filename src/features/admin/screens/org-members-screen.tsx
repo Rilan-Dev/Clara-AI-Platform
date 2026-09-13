@@ -138,7 +138,7 @@ export default function OrgMembersScreen() {
   const roleOf = (m: Member) => ROLES.find((r) => r.id === m.roleName);
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <AdminPageHeader
         icon={Users}
         title="Team"
@@ -147,7 +147,7 @@ export default function OrgMembersScreen() {
       />
 
       {message && (
-        <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+        <div className={`mb-4 sm:mb-6 rounded-xl border px-4 py-3 text-sm ${
           message.ok ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-300"
         }`}>
           {message.text}
@@ -156,12 +156,14 @@ export default function OrgMembersScreen() {
 
       {/* Invite form — the primary action, front and center */}
       {canInvite && (
-        <div className="mb-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+        <div className="mb-4 sm:mb-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <UserPlus className="w-4 h-4 text-indigo-400" />
             <h2 className="font-semibold text-white">Invite a teammate</h2>
           </div>
-          <form onSubmit={handleInvite} className="grid gap-3 lg:grid-cols-[1fr_220px_auto] lg:items-end">
+          {/* Mobile: stacked single column with 16px inputs; desktop keeps
+              the horizontal email+role+button row. */}
+          <form onSubmit={handleInvite} className="grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
             <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">Work email</label>
               <input
@@ -170,7 +172,7 @@ export default function OrgMembersScreen() {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 required
                 placeholder="teammate@company.com"
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
@@ -178,26 +180,26 @@ export default function OrgMembersScreen() {
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white focus:outline-none focus:border-indigo-500"
               >
                 {ROLES.map((r) => (
                   <option key={r.id} value={r.id} className="bg-[#13131f]">{r.label}</option>
                 ))}
               </select>
             </div>
-            <Button type="submit" disabled={inviting || !inviteEmail.trim()} className="gap-2">
+            <Button type="submit" disabled={inviting || !inviteEmail.trim()} className="gap-2 w-full sm:w-auto">
               {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               {inviting ? "Sending…" : "Send invite"}
             </Button>
           </form>
-          <p className="text-xs text-white/30 mt-3">
+          <p className="hidden sm:block text-xs text-white/30 mt-3">
             {ROLES.find((r) => r.id === inviteRole)?.desc}. New teammates get an email to set their own password.
           </p>
         </div>
       )}
 
       {/* Members list */}
-      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-white flex items-center gap-2">
             <Shield className="w-4 h-4 text-cyan-400" /> Members
@@ -218,7 +220,7 @@ export default function OrgMembersScreen() {
               const isSelf = m.userId === currentUserId;
               return (
                 <div key={m.userId}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 sm:px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     {m.avatarUrl ? (
                       <img src={m.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
@@ -233,7 +235,8 @@ export default function OrgMembersScreen() {
                         {isSelf && <span className="text-[10px] text-white/30">(you)</span>}
                       </p>
                       <p className="text-xs text-white/35 truncate">{m.email}</p>
-                      <p className="text-[11px] text-white/25">Joined {formatDate(m.joinedAt)}</p>
+                      {/* Joined date — desktop noise, hidden on phones */}
+                      <p className="hidden lg:block text-[11px] text-white/25">Joined {formatDate(m.joinedAt)}</p>
                     </div>
                   </div>
 
@@ -248,7 +251,7 @@ export default function OrgMembersScreen() {
                         disabled={busyId === m.userId}
                         onChange={(e) => handleRoleChange(m.userId, e.target.value)}
                         aria-label={`Change role for ${m.fullName ?? m.email}`}
-                        className="bg-white/[0.05] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white/70 focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                        className="bg-white/[0.05] border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white/70 focus:outline-none focus:border-indigo-500 disabled:opacity-40"
                       >
                         {ROLES.map((r) => (
                           <option key={r.id} value={r.id} className="bg-[#13131f]">{r.label}</option>
@@ -258,10 +261,11 @@ export default function OrgMembersScreen() {
 
                     {canInvite && !isSelf && (
                       <Button variant="outline" size="sm"
-                        className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10"
+                        className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10 h-9 w-9 p-0"
+                        aria-label={`Remove ${m.fullName ?? m.email} from organisation`}
                         disabled={busyId === m.userId}
                         onClick={() => handleRemove(m.userId, m.email)}>
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
@@ -272,8 +276,9 @@ export default function OrgMembersScreen() {
         )}
       </div>
 
-      {/* Role legend — plain-English reference */}
-      <div className="mt-6 grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* Role legend — plain-English reference (desktop; phones use the
+          select labels — the legend is reference noise on a 390px screen) */}
+      <div className="mt-6 hidden sm:grid grid-cols-2 xl:grid-cols-4 gap-3">
         {ROLES.map((r) => (
           <div key={r.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5">
             <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border mb-2 ${r.badge}`}>

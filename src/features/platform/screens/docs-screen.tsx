@@ -58,14 +58,14 @@ const POPULAR = [
 
 export default function DocsScreen() {
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.04] rounded-full px-4 py-1.5 text-sm text-indigo-300 mb-6">
             <BookOpen className="w-3.5 h-3.5" />
             <span>Clara AI Documentation</span>
           </div>
-          <h1 className="text-5xl md:text-6xl font-black text-white mb-4">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white mb-4">
             Everything you need to{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">build with Clara</span>
           </h1>

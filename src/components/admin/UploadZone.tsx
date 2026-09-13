@@ -81,7 +81,7 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-200 select-none",
+          "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 sm:p-10 text-center cursor-pointer transition-all duration-200 select-none active:border-primary active:bg-primary/5",
           dragging
             ? "border-primary bg-primary/5 scale-[1.01]"
             : "border-border hover:border-primary/50 hover:bg-muted/30"
@@ -103,7 +103,13 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
         </div>
         <div>
           <p className="font-medium text-foreground">
-            {uploading ? "Uploading…" : "Drop files here or click to browse"}
+            {uploading ? "Uploading…" : (
+              <>
+                {/* Touch-first copy on phones — drag-and-drop is a desktop gesture */}
+                <span className="sm:hidden">Tap to upload files</span>
+                <span className="hidden sm:inline">Drop files here or click to browse</span>
+              </>
+            )}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             PDF, DOCX, XLSX, TXT, MD, CSV — up to {MAX_MB} MB each
@@ -142,39 +148,43 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
         <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
           {uploadDocs.map((doc) => (
             <div key={doc.id} className="bg-card">
-              {/* Row */}
-              <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
-                {/* File icon */}
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-muted/60">
-                  <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
+              {/* Row — mobile: two stacked lines (info, then meta+actions);
+                  desktop: single row as before. */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
+                {/* File icon + info */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-muted/60">
+                    <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-foreground truncate">{doc.title}</div>
+                    <div className="text-xs text-muted-foreground truncate">{doc.originalFilename}</div>
+                  </div>
                 </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-foreground truncate">{doc.title}</div>
-                  <div className="text-xs text-muted-foreground truncate">{doc.originalFilename}</div>
-                </div>
-                {/* Meta */}
-                <div className="flex items-center gap-4 shrink-0 text-xs text-muted-foreground">
-                  <span>{formatSize(doc.fileSize)}</span>
-                  <span>{doc.chunkCount != null ? `${doc.chunkCount.toLocaleString()} chunks` : "—"}</span>
-                  <span className="hidden sm:block">{formatDate(doc.createdAt)}</span>
-                  <StatusBadge status={doc.status} />
-                </div>
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {doc.status === "failed" && (
-                    <Button variant="ghost" size="sm" onClick={() => handleReprocess(doc.id)}
-                      className="h-7 px-2 text-xs text-warning hover:text-warning hover:bg-warning/10">
-                      Retry
+                {/* Meta + actions on one wrapped line */}
+                <div className="flex items-center justify-between gap-3 sm:gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span>{formatSize(doc.fileSize)}</span>
+                    <span className="hidden sm:inline">{doc.chunkCount != null ? `${doc.chunkCount.toLocaleString()} chunks` : "—"}</span>
+                    <span className="hidden sm:block">{formatDate(doc.createdAt)}</span>
+                    <StatusBadge status={doc.status} />
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {doc.status === "failed" && (
+                      <Button variant="ghost" size="sm" onClick={() => handleReprocess(doc.id)}
+                        className="h-8 px-3 text-xs text-warning hover:text-warning hover:bg-warning/10">
+                        Retry
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => onDelete(doc.id)}
+                      aria-label={`Delete ${doc.title}`}
+                      className="h-8 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                      Delete
                     </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => onDelete(doc.id)}
-                    className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
-                    Delete
-                  </Button>
+                  </div>
                 </div>
               </div>
               {/* Failure reason — the single most requested piece of information

@@ -38,7 +38,7 @@ export default function AgentConfigPage() {
 
   if (isAdmin) {
     return (
-      <div className="p-6 lg:p-8 space-y-8">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
         <AdminPageHeader
           icon={Bot}
           title="Assistant & AI Configuration"
@@ -64,7 +64,7 @@ export default function AgentConfigPage() {
                 <div className="h-[32rem] rounded-2xl bg-white/[0.04] animate-pulse" />
               </div>
             ) : config ? (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
                     <Bot className="w-5 h-5 text-indigo-300" />
@@ -127,7 +127,7 @@ export default function AgentConfigPage() {
                 <div className="h-48 rounded-2xl bg-white/[0.04] animate-pulse" />
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
                     <Sparkles className="w-5 h-5 text-indigo-300" />
@@ -173,7 +173,7 @@ export default function AgentConfigPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <AdminPageHeader
         icon={Bot}
         title="Assistant & AI Configuration"

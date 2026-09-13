@@ -239,8 +239,8 @@ export function SystemStatusScreen() {
   };
 
   return (
-    <div className="p-6 lg:p-10">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-10">
+      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-4">

@@ -79,7 +79,7 @@ function SubscriptionBanner({ effective, orgId }: { effective: DashboardData["ef
   // Healthy paid subscription → quiet reassurance, no loud banner.
   if (effective.effectiveStatus === "active" && effective.planId !== "free") {
     return (
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
             <Zap className="w-4 h-4 text-emerald-400" />
@@ -101,7 +101,7 @@ function SubscriptionBanner({ effective, orgId }: { effective: DashboardData["ef
   // EXPIRED — strongest business injection: renew to restore access.
   if (effective.effectiveStatus === "expired") {
     return (
-      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/[0.08] px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/[0.08] px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
             <AlertTriangle className="w-5 h-5 text-rose-400" />
@@ -126,7 +126,7 @@ function SubscriptionBanner({ effective, orgId }: { effective: DashboardData["ef
   // EXPIRING SOON — renew before interruption.
   if (effective.effectiveStatus === "expiring") {
     return (
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5 text-amber-400" />
@@ -150,7 +150,7 @@ function SubscriptionBanner({ effective, orgId }: { effective: DashboardData["ef
   // TRIALING — convert with an upgrade CTA.
   if (effective.effectiveStatus === "trialing") {
     return (
-      <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.08] px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.08] px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center shrink-0">
             <Zap className="w-5 h-5 text-indigo-300" />
@@ -171,7 +171,7 @@ function SubscriptionBanner({ effective, orgId }: { effective: DashboardData["ef
 
   // FREE (or paused/cancelled) with an upgrade path.
   return (
-    <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shrink-0">
           <ArrowUpRight className="w-5 h-5 text-violet-300" />
@@ -240,7 +240,7 @@ export default function OrgOverviewScreen() {
   ];
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <AdminPageHeader
         icon={LayoutDashboard}
         title={data?.org?.name ?? "Dashboard"}
@@ -255,19 +255,20 @@ export default function OrgOverviewScreen() {
       {/* Smart subscription banner — the single most important business signal */}
       {data?.effective && <SubscriptionBanner effective={data.effective} orgId={id} />}
 
-      {/* KPI cards */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* KPI cards — mobile: compact 2-col grid, trend subtext stays (it's
+          the one number owners care about) but paddings tighten. */}
+      <div className="mt-4 sm:mt-6 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-4">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[11px] text-white/40 leading-tight">{kpi.label}</div>
+          <div key={kpi.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+              <div className="text-[10px] sm:text-[11px] text-white/40 leading-tight">{kpi.label}</div>
               <kpi.icon className={`w-4 h-4 ${kpi.color} shrink-0`} />
             </div>
-            <div className="text-xl font-black text-white">
-              {loading ? <div className="h-6 w-12 bg-white/[0.06] rounded animate-pulse" /> : kpi.value}
+            <div className="text-lg sm:text-xl font-black text-white">
+              {loading ? <div className="h-5 sm:h-6 w-12 bg-white/[0.06] rounded animate-pulse" /> : kpi.value}
             </div>
             {kpi.sub && (
-              <div className={`text-[11px] mt-1 ${totals && totals.trendPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${totals && totals.trendPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                 {kpi.sub}
               </div>
             )}
@@ -276,21 +277,22 @@ export default function OrgOverviewScreen() {
       </div>
 
       {/* Usage chart + top KBs */}
-      <div className="mt-6 grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-white text-sm">Assistant usage — last 30 days</h3>
-              <p className="text-xs text-white/30 mt-0.5">
+      <div className="mt-4 sm:mt-6 grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-white text-sm">Assistant usage</h3>
+              <p className="hidden sm:block text-xs text-white/30 mt-0.5">
                 {totals?.chatSessions30d ?? 0} conversations · {totals?.queries30d?.toLocaleString() ?? 0} queries
                 {totals?.avgLatencyMs ? ` · ~${totals.avgLatencyMs}ms avg response` : ""}
               </p>
             </div>
-            <button onClick={load} className="text-white/30 hover:text-white/60 transition-colors">
+            <button onClick={load} aria-label="Refresh usage" className="text-white/30 hover:text-white/60 active:text-white transition-colors shrink-0">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
           </div>
-          <div className="h-56">
+          {/* Shorter chart on phones so the page stays scannable */}
+          <div className="h-36 sm:h-56">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
@@ -328,7 +330,7 @@ export default function OrgOverviewScreen() {
         </div>
 
         {/* Top knowledge bases */}
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
           <h3 className="font-semibold text-white text-sm mb-4">Busiest knowledge bases</h3>
           {(data?.topKnowledgeBases ?? []).length > 0 ? (
             <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
@@ -361,8 +363,8 @@ export default function OrgOverviewScreen() {
       </div>
 
       {/* Recent activity + quick actions */}
-      <div className="mt-6 grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+      <div className="mt-4 sm:mt-6 grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
           <h3 className="font-semibold text-white text-sm mb-4">Recent activity</h3>
           {(data?.recentActivity ?? []).length > 0 ? (
             <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
@@ -395,7 +397,7 @@ export default function OrgOverviewScreen() {
         </div>
 
         {/* Quick actions — "what should I do next?" */}
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
           <h3 className="font-semibold text-white text-sm mb-4">Quick actions</h3>
           <div className="space-y-2.5">
             {quickActions.map((action) => (

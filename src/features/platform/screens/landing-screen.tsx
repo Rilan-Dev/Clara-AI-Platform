@@ -118,7 +118,7 @@ export default function LandingPage() {
       </div> */}
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <section className="relative pt-28 pb-32 px-6 min-h-screen flex items-center">
+      <section className="relative pt-24 pb-20 sm:pt-28 sm:pb-32 px-4 sm:px-6 min-h-[100dvh] flex items-center">
         <div className="relative z-10 max-w-6xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -135,7 +135,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.8 }}
-            className="text-5xl sm:text-6xl md:text-8xl font-black text-white leading-[1.02] mb-8 tracking-tight"
+            className="text-4xl sm:text-6xl md:text-8xl font-black text-white leading-[1.05] sm:leading-[1.02] mb-6 sm:mb-8 tracking-tight"
           >
             Your knowledge.
             <br />
@@ -148,7 +148,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="text-lg md:text-xl text-white/45 max-w-2xl mx-auto mb-12 leading-relaxed"
+            className="text-base sm:text-lg md:text-xl text-white/45 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed"
           >
             Deploy a custom AI assistant trained on your documents in minutes.
             RAG-powered, voice-enabled, embeddable anywhere.
@@ -175,7 +175,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2, duration: 0.8 }}
-            className="mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-indigo-500/10"
+            className="mt-12 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-indigo-500/10"
           >
             <div className="bg-[#08081a]/90 rounded-2xl overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.06]">
@@ -225,7 +225,7 @@ export default function LandingPage() {
       </Suspense>
 
       {/* ── Stats ───────────────────────────────────────────────────────── */}
-      <Section className="py-20 px-6 border-y border-white/[0.04] relative z-10">
+      <Section className="py-12 sm:py-20 px-4 sm:px-6 border-y border-white/[0.04] relative z-10">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
           {STATS.map(s => (
             <AnimatedStat key={s.label} value={s.value} label={s.label} />
@@ -234,10 +234,10 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Features ─────────────────────────────────────────────────────── */}
-      <Section className="py-28 px-6 relative z-10">
+      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-4">
               Everything for{" "}
               <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
                 production AI
@@ -270,9 +270,9 @@ export default function LandingPage() {
       </Section>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
-      <Section className="py-28 px-6 relative z-10">
+      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-black text-white mb-4">
+          <h2 className="text-2xl sm:text-4xl font-black text-white mb-4">
             Up and running in{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
               4 steps
@@ -306,9 +306,9 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Pricing ─────────────────────────────────────────────────────── */}
-      <Section className="py-28 px-6 relative z-10">
+      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-4xl font-black text-white mb-4">
+          <h2 className="text-2xl sm:text-4xl font-black text-white mb-4">
             Simple{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">pricing</span>
           </h2>
@@ -372,9 +372,9 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
-      <Section className="py-28 px-6 relative z-10">
+      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-4xl font-black text-white text-center mb-12">
+          <h2 className="text-2xl sm:text-4xl font-black text-white text-center mb-8 sm:mb-12">
             Trusted by{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
               forward-thinking teams
@@ -410,12 +410,12 @@ export default function LandingPage() {
       </Section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <Section className="py-28 px-6 relative z-10">
+      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-3xl mx-auto text-center glass-premium rounded-3xl p-14 relative overflow-hidden">
           {/* Background glow */}
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-transparent to-violet-600/10 pointer-events-none" />
           <div className="relative">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Ready to build your AI?</h2>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-4">Ready to build your AI?</h2>
             <p className="text-white/45 mb-8 text-lg">Join 500+ organisations. Start free, upgrade when you&apos;re ready.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup?plan=free" className="group inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25">

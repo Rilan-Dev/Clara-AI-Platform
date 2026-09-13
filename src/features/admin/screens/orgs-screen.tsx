@@ -45,14 +45,14 @@ export default function OrgsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       <AdminPageHeader
         icon={Building2}
         title="Organisations"
         description="Manage organisation profiles and view platform-level resource counts. Tenant projects, knowledge bases, members, and AI configuration are intentionally not accessible here."
         chips={[`${filtered.length} organisations`, "Profiles only", "Platform summaries"]}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => { setShowForm(v => !v); setShowWizard(false); }} className="gap-2"><Plus className="w-4 h-4" /> Quick Profile</Button>
             <Button onClick={() => { setShowWizard(v => !v); setShowForm(false); }} className="gap-2"><Sparkles className="w-4 h-4" /> New Workspace</Button>
           </div>
@@ -70,12 +70,12 @@ export default function OrgsPage() {
 
       {!loading && !error && <div className="grid gap-4">{filtered.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-14 text-center"><Building2 className="w-8 h-8 text-indigo-300 mx-auto mb-3" /><p className="font-medium text-white">No organisations found</p></div> : filtered.map(org => {
         const editing = editingId === org.id;
-        return <div key={org.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        return <div key={org.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-center gap-4 min-w-0"><div className="h-11 w-11 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center text-sm font-bold text-indigo-300">{org.name.charAt(0).toUpperCase()}</div><div className="min-w-0"><p className="font-semibold text-white truncate">{org.name}</p><p className="text-xs text-white/35 truncate">Created {formatDate(org.createdAt)} · <span className="font-mono">/{org.slug}</span></p></div></div>
-            <div className="flex items-center gap-2"><Link href={`/orgs/${org.id}`}><Button variant="outline" size="sm">Open Workspace</Button></Link><Button variant="outline" size="sm" onClick={() => { setEditingId(org.id); setEditName(org.name); setEditLogo(org.logoUrl ?? ""); }}><Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Profile</Button><Button variant="outline" size="sm" className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10" onClick={() => handleDelete(org.id)} disabled={deletingId === org.id}><Trash2 className="w-3.5 h-3.5 mr-1.5" />{deletingId === org.id ? "Deleting..." : "Delete"}</Button></div>
+            <div className="flex items-center gap-2"><Link href={`/orgs/${org.id}`} className="flex-1 md:flex-none"><Button variant="outline" size="sm" className="w-full md:w-auto">Open</Button></Link><Button variant="outline" size="sm" aria-label={`Edit ${org.name}`} onClick={() => { setEditingId(org.id); setEditName(org.name); setEditLogo(org.logoUrl ?? ""); }}><Pencil className="w-3.5 h-3.5" /></Button><Button variant="outline" size="sm" aria-label={`Delete ${org.name}`} className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10 px-2.5" onClick={() => handleDelete(org.id)} disabled={deletingId === org.id}><Trash2 className="w-3.5 h-3.5" /></Button></div>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 max-w-md"><div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-4"><p className="text-xs text-white/35">Agents</p><p className="text-xl font-bold text-white mt-1">{org.agentCount ?? 0}</p></div><div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-4"><p className="text-xs text-white/35">Knowledge Bases</p><p className="text-xl font-bold text-white mt-1">{org.knowledgeBaseCount ?? 0}</p></div></div>
+          <div className="mt-4 sm:mt-5 grid grid-cols-2 gap-2.5 sm:gap-3 max-w-md"><div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3 sm:p-4"><p className="text-xs text-white/35">Agents</p><p className="text-lg sm:text-xl font-bold text-white mt-1">{org.agentCount ?? 0}</p></div><div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3 sm:p-4"><p className="text-xs text-white/35">Knowledge Bases</p><p className="text-lg sm:text-xl font-bold text-white mt-1">{org.knowledgeBaseCount ?? 0}</p></div></div>
           {editing && <div className="mt-5 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.04] p-4"><div className="flex justify-between items-center mb-4"><p className="text-sm font-semibold text-white">Organisation profile</p><button onClick={() => setEditingId(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button></div><div className="grid md:grid-cols-2 gap-3"><div><label className="text-xs text-white/40">Name</label><input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1 w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white" /></div><div><label className="text-xs text-white/40">Logo URL</label><input value={editLogo} onChange={e => setEditLogo(e.target.value)} className="mt-1 w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white" /></div></div><div className="flex gap-2 mt-3"><Button onClick={() => handleSave(org.id)} disabled={savingId === org.id || !editName.trim()}><Save className="w-3.5 h-3.5 mr-1.5" />{savingId === org.id ? "Saving..." : "Save"}</Button><Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button></div></div>}
         </div>;
       })}</div>}

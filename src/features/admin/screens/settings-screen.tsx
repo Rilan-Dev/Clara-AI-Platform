@@ -145,7 +145,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   // so sections stay reachable without opening it. Desktop nav lives in
   // the sidebar dropdown.
   const SectionPills = (
-    <nav aria-label="Settings sections" className="md:hidden -mx-6 mb-8 px-6">
+    <nav aria-label="Settings sections" className="md:hidden -mx-4 sm:-mx-6 mb-6 sm:mb-8 px-4 sm:px-6">
       <ul className="flex gap-2 overflow-x-auto pb-1">
         {sections.map((s) => {
           const isActive = s.id === section;
@@ -176,7 +176,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   // defaults now — orgs tune their own agents and knowledge bases.
   if (!isSuperAdmin) {
     return (
-      <div className="p-6 lg:p-10">
+      <div className="p-4 sm:p-6 lg:p-10">
         <div>
           {SectionPills}
 
@@ -205,7 +205,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
 
   // ── Platform admin ─────────────────────────────────────────────────────────
   return (
-    <div className="p-6 lg:p-10">
+    <div className="p-4 sm:p-6 lg:p-10">
       <div>
         {SectionPills}
 
@@ -298,21 +298,21 @@ function PageHeader({
   audience?: string;
 }) {
   return (
-    <header className="mb-8">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
+    <header className="mb-6 sm:mb-8">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
           <Icon className="h-5 w-5 text-indigo-300" />
         </div>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight text-white">{title}</h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-white">{title}</h1>
             {audience && (
               <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-indigo-300">
                 {audience}
               </span>
             )}
           </div>
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/45">{description}</p>
+          <p className="mt-1 sm:mt-1.5 max-w-2xl text-sm leading-relaxed text-white/45 line-clamp-1 sm:line-clamp-none">{description}</p>
         </div>
       </div>
     </header>
@@ -321,7 +321,7 @@ function PageHeader({
 
 function SettingsSkeleton() {
   return (
-    <div className="p-6 lg:p-10">
+    <div className="p-4 sm:p-6 lg:p-10">
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 animate-pulse rounded-2xl bg-white/[0.04]" />
@@ -354,7 +354,7 @@ function ProfileCard({
 }) {
   if (!user) return null;
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
       <div className="flex flex-wrap items-center gap-5">
         {user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

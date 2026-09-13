@@ -98,40 +98,46 @@ export default function AdminDashboard() {
     ["ARPU", arpu ? `$${arpu}` : "—", "text-blue-400", BarChart3],
   ] as const;
   return (
-    <div className="p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Platform Overview</h1>
-          <p className="text-white/40 text-sm mt-0.5">
+    <div className="p-4 sm:p-6 lg:p-8">
+      {/* Mobile: tight single row — title + icon refresh; desktop keeps
+          the two text buttons. Long subtitle hidden on phones. */}
+      <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-2xl font-bold text-white">Platform Overview</h1>
+          <p className="hidden sm:block text-white/40 text-sm mt-0.5">
             Platform-wide counts and billing — organisation content is managed by each organisation itself.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/subscriptions" className="text-xs text-white/50 hover:text-white border border-white/10 px-3 py-2 rounded-lg">
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/subscriptions" className="hidden sm:inline-flex text-xs text-white/50 hover:text-white border border-white/10 px-3 py-2 rounded-lg">
             Subscriptions
           </Link>
           <button
             onClick={load}
+            aria-label="Refresh stats"
             className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 px-3 py-2 rounded-lg"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
-      <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="space-y-4 sm:space-y-6">
+          {/* Mobile: compact 2-col stat grid — tighter padding, label + value
+              only; desktop keeps the roomy 5-col layout. */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-4">
             {cards.map(([label, value, color, Icon]) => (
               <div
                 key={label}
-                className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5"
+                className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-white/40">{label}</span>
-                  <Icon className={`w-4 h-4 ${color}`} />
+                <div className="flex items-center justify-between mb-1.5 sm:mb-3">
+                  <span className="text-[11px] sm:text-xs text-white/40 leading-tight">{label}</span>
+                  <Icon className={`w-4 h-4 ${color} shrink-0`} />
                 </div>
-                <div className="text-2xl font-black text-white">
+                <div className="text-xl sm:text-2xl font-black text-white">
                   {loading ? (
-                    <div className="h-7 w-14 bg-white/[0.06] rounded animate-pulse" />
+                    <div className="h-6 sm:h-7 w-12 sm:w-14 bg-white/[0.06] rounded animate-pulse" />
                   ) : (
                     value
                   )}
@@ -139,8 +145,10 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+          {/* Explainer + org-managed content panel — desktop-only context;
+             on phones it's noise between the stats and the money rows. */}
           <div className="grid lg:grid-cols-2 gap-4">
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
               <h3 className="font-semibold text-white text-sm mb-4">
                 Plan Distribution
               </h3>
@@ -166,7 +174,9 @@ export default function AdminDashboard() {
                 })}
               </div>
             </div>
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+            {/* Desktop-only explainer — phones skip the prose and get
+                straight to the numbers. */}
+            <div className="hidden lg:block border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
               <h3 className="font-semibold text-white text-sm mb-2">
                 Organisation-managed content
               </h3>
