@@ -50,7 +50,9 @@ export default function KbDashboardPage() {
   const total = docs.length;
   const ready = docs.filter((doc) => doc.status === "ready").length;
   const processing = docs.filter((doc) => doc.status === "pending" || doc.status === "processing").length;
-  const failed = docs.filter((doc) => doc.status === "failed").length;
+  const failedDocs = docs.filter((doc) => doc.status === "failed");
+  const failed = failedDocs.length;
+  const failedReason = failedDocs.find((doc) => doc.errorMessage)?.errorMessage ?? null;
   const stuck = docs.filter((doc) => isPendingDocumentStuck(doc)).length;
   const totalChunks = docs.reduce((sum, doc) => sum + (doc.chunkCount ?? 0), 0);
   const uploadCount = docs.filter((doc) => doc.sourceType !== "url").length;
@@ -246,7 +248,17 @@ export default function KbDashboardPage() {
 
             {failed > 0 && (
               <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-4 text-sm text-rose-300">
-                {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause.
+                <p>
+                  {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause:
+                </p>
+                {failedReason && (
+                  <p className="mt-1.5 break-words rounded-lg border border-rose-500/20 bg-rose-500/[0.08] px-3 py-2 font-mono text-[11px] leading-4 text-rose-200/85">
+                    {failedReason}
+                  </p>
+                )}
+                <p className="mt-1.5 text-xs text-rose-200/60">
+                  Expand “Why did this fail?” on a row below for the full error. Each document row offers Retry once the cause is resolved.
+                </p>
               </div>
             )}
 
@@ -468,7 +480,17 @@ export default function KbDashboardPage() {
 
           {failed > 0 && (
             <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-4 text-sm text-rose-300">
-              {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause.
+              <p>
+                {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause:
+              </p>
+              {failedReason && (
+                <p className="mt-1.5 break-words rounded-lg border border-rose-500/20 bg-rose-500/[0.08] px-3 py-2 font-mono text-[11px] leading-4 text-rose-200/85">
+                  {failedReason}
+                </p>
+              )}
+              <p className="mt-1.5 text-xs text-rose-200/60">
+                Expand “Why did this fail?” on a row below for the full error. Each document row offers Retry once the cause is resolved.
+              </p>
             </div>
           )}
 

@@ -51,24 +51,72 @@ export type KbChunkMeta = {
 
 // ── embed with retry ──────────────────────────────────────────────────────────
 
-async function embedWithRetry(
-  text: string,
+/** Errors worth retrying: rate limits, timeouts, and dropped connections. */
+function isRetryableEmbedError(err: unknown): boolean {
+  const e = err as Record<string, unknown>;
+  if (typeof e?.status === "number" && e.status === 429) return true;
+  const msg = String(e?.message ?? "").toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("timed out") ||
+    msg.includes("timeout") ||
+    msg.includes("econnreset") ||
+    msg.includes("econnrefused") ||
+    msg.includes("enotfound") ||
+    msg.includes("eai_again") ||
+    msg.includes("socket hang up") ||
+    msg.includes("fetch failed") ||
+    msg.includes("connection error") ||
+    msg.includes("service unavailable") ||
+    msg.includes("bad gateway") ||
+    msg.includes("overloaded")
+  );
+}
+
+/**
+ * Human-readable description of the embedding provider for error messages —
+ * operators need to know WHICH provider/endpoint failed to act on it.
+ */
+function describeProvider(provider: { getProviderName(): string; getModelName(t: "embedding"): string }): string {
+  const name = provider.getProviderName();
+  const model = provider.getModelName("embedding");
+  const host =
+    name === "openai"
+      ? process.env.OPENAI_BASE_URL?.replace(/\/v\d+\/?$/, "") || "api.openai.com"
+      : "generativelanguage.googleapis.com";
+  return `${name}/${model} @ ${host}`;
+}
+
+async function embedBatchWithRetry(
+  texts: string[],
   providerConfig: ProviderConfig,
   attempt = 0,
-): Promise<number[]> {
+): Promise<number[][]> {
+  const provider = ProviderFactory.getProvider(providerConfig);
+  const providerDesc = describeProvider(provider);
   try {
-    return await ProviderFactory.getProvider(providerConfig).embedText(text);
+    return await provider.embedBatch(texts);
   } catch (err: unknown) {
     const e = err as Record<string, unknown>;
     const status = typeof e?.status === "number" ? e.status
       : String(e?.message ?? "").includes("429") ? 429 : 0;
-    if (status === 429 && attempt < EMBED_MAX_RETRIES) {
+    const retryable = status === 429 || isRetryableEmbedError(err);
+    if (retryable && attempt < EMBED_MAX_RETRIES) {
       const wait = Math.min(1_000 * 2 ** attempt, 30_000);
-      console.warn(`[vs-kb] rate-limited, retrying in ${wait}ms (attempt ${attempt + 1})`);
+      console.warn(
+        `[vs-kb] embedding batch failed (${providerDesc}), retrying in ${wait}ms (attempt ${attempt + 1}/${EMBED_MAX_RETRIES}): ${(e?.message as string) ?? err}`
+      );
       await sleep(wait);
-      return embedWithRetry(text, providerConfig, attempt + 1);
+      return embedBatchWithRetry(texts, providerConfig, attempt + 1);
     }
-    throw err;
+    // Attach provider context so document error_messages in the UI and logs
+    // say exactly what failed and where, instead of a bare "Request timed out."
+    const detail = (e?.message as string) ?? String(err);
+    const hint =
+      /timed out|timeout|econnrefused|enotfound|eai_again|fetch failed|connection error|not supported/i.test(detail)
+        ? " — the embedding provider is unreachable from this server. Check outbound network access (or region restrictions) and switch provider in settings if needed."
+        : "";
+    throw new Error(`Embedding failed (${providerDesc}): ${detail}${hint}`);
   }
 }
 
@@ -82,15 +130,27 @@ async function embedBatches(
     const batch = texts.slice(i, i + EMBED_BATCH_SIZE);
     const batchNum = Math.floor(i / EMBED_BATCH_SIZE) + 1;
     console.log(`[vs-kb] embedding batch ${batchNum}/${totalBatches} (${batch.length} chunks)`);
-    const embeddings = await Promise.all(
-      batch.map((text) => embedWithRetry(text, providerConfig)),
-    );
+    // One API call per batch (provider batch endpoint) instead of N parallel
+    // single-text calls — fewer requests, fewer rate limits, faster ingest.
+    const embeddings = await embedBatchWithRetry(batch, providerConfig);
+    if (embeddings.length !== batch.length) {
+      throw new Error(
+        `Embedding provider returned ${embeddings.length} vectors for ${batch.length} inputs`
+      );
+    }
     results.push(...embeddings);
     if (i + EMBED_BATCH_SIZE < texts.length && EMBED_BATCH_DELAY_MS > 0) {
       await sleep(EMBED_BATCH_DELAY_MS);
     }
   }
   return results;
+}
+
+/** Single-text embed (chunk viewer edits) — reuses the batch retry wrapper. */
+async function embedWithRetry(text: string, providerConfig: ProviderConfig): Promise<number[]> {
+  const [embedding] = await embedBatchWithRetry([text], providerConfig);
+  if (!embedding) throw new Error("Embedding provider returned no vector for the input text");
+  return embedding;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────

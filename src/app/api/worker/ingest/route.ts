@@ -13,7 +13,7 @@
  * If WORKER_SECRET is not set (local dev), the endpoint is open.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { processNextJob, drainQueue } from "@/modules/knowledge-bases/worker/ingest-worker";
+import { processNextJob, runIngestMaintenance } from "@/modules/knowledge-bases/worker/ingest-worker";
 
 export const maxDuration = 300; // allow long-running jobs
 
@@ -34,7 +34,8 @@ async function handle(req: NextRequest): Promise<NextResponse> {
       req.nextUrl.searchParams.get("drain") === "true";
 
     if (isDrain) {
-      const stats = await drainQueue(50);
+      // Maintenance also recovers stale/crashed jobs before draining.
+      const stats = await runIngestMaintenance(50);
       return NextResponse.json({ mode: "drain", ...stats });
     }
 

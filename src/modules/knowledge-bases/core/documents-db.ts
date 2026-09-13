@@ -351,6 +351,72 @@ export async function getDocumentJobStatus(documentId: string): Promise<IngestJo
   return { ...toJob(row), filePayload: rawPayload };
 }
 
+// ── Stale job / interrupted document recovery ─────────────────────────────────
+
+/**
+ * Reset ingest jobs that were claimed ('running') but never finished — e.g. the
+ * container crashed or restarted mid-processing. Without this, a job stays
+ * 'running' forever, its document stays 'processing', and the reprocess
+ * endpoint rejects every retry with "Document is already processing".
+ *
+ * A job should never legitimately run longer than the route's maxDuration
+ * (300s); we reset anything running longer than the stale window (default
+ * 10 min) so it gets re-claimed by the poller.
+ */
+export async function resetStaleIngestJobs(staleMs = 10 * 60 * 1000): Promise<number> {
+  const row = await queryOne<{ count: string | number }>(
+    `WITH stale AS (
+       UPDATE ingest_jobs
+       SET status       = 'pending',
+           error_message = COALESCE(error_message, '') ||
+                            CASE WHEN error_message IS NULL OR error_message = ''
+                                 THEN '' ELSE ' | ' END ||
+                            'Recovered from interrupted run',
+           scheduled_at  = now()
+       WHERE status = 'running'
+         AND started_at < now() - ($1 || ' milliseconds')::interval
+       RETURNING 1
+     )
+     SELECT COUNT(*) AS count FROM stale`,
+    [String(staleMs)]
+  );
+  const count = Number(row?.count ?? 0);
+  if (count > 0) {
+    console.log(`[ingest-recovery] reset ${count} stale running job(s) back to pending`);
+  }
+  return count;
+}
+
+/**
+ * Mark documents stuck in 'processing' that have no pending/running job left
+ * (e.g. every job finished while the status update was lost, or a recovered
+ * job was cancelled) as failed so the UI shows a Retry button instead of an
+ * eternal spinner.
+ */
+export async function failOrphanedProcessingDocuments(): Promise<number> {
+  const row = await queryOne<{ count: string | number }>(
+    `WITH orphaned AS (
+       UPDATE documents d
+       SET status        = 'failed',
+           error_message = 'Processing was interrupted before completing. Retry to rebuild vectors.',
+           updated_at    = now()
+       WHERE d.status = 'processing'
+         AND NOT EXISTS (
+           SELECT 1 FROM ingest_jobs ij
+           WHERE ij.document_id = d.id
+             AND ij.status IN ('pending', 'running')
+         )
+       RETURNING 1
+     )
+     SELECT COUNT(*) AS count FROM orphaned`,
+  );
+  const count = Number(row?.count ?? 0);
+  if (count > 0) {
+    console.log(`[ingest-recovery] marked ${count} orphaned processing document(s) as failed`);
+  }
+  return count;
+}
+
 export async function getSessionIngestProgress(sessionId: string): Promise<SessionIngestProgress> {
   const row = await queryOne<Record<string, unknown>>(
     `SELECT

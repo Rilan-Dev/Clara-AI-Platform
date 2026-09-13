@@ -23,20 +23,20 @@ import {
   getDocumentJobStatus,
 } from "@/modules/knowledge-bases/core/documents-db";
 import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
+import {
+  kickIngestQueue,
+  INGEST_STALE_JOB_MS,
+} from "@/modules/knowledge-bases/worker/ingest-worker";
 
-async function triggerWorker(req: NextRequest): Promise<void> {
-  try {
-    const origin = req.nextUrl.origin;
-    const workerSecret = process.env.WORKER_SECRET;
-    const headers: Record<string, string> = {};
-    if (workerSecret) headers["x-worker-secret"] = workerSecret;
-    fetch(`${origin}/api/worker/ingest?drain=true`, {
-      method: "GET",
-      headers,
-    }).catch((e) => console.warn("[upload] worker trigger failed:", e.message));
-  } catch (e) {
-    console.warn("[upload] failed to trigger worker:", (e as Error).message);
-  }
+/**
+ * Job started_at staleness check shared by the reprocess endpoints.
+ * A 'running' job older than the stale window is treated as crashed —
+ * the reprocess endpoint resets it instead of returning a dead-end 400.
+ */
+function isJobStale(startedAt: string | null): boolean {
+  if (!startedAt) return false;
+  const started = Date.parse(startedAt);
+  return Number.isFinite(started) && Date.now() - started >= INGEST_STALE_JOB_MS;
 }
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -144,7 +144,7 @@ export async function uploadDocumentsHandler(
       }
     }
 
-    if (results.length > 0) triggerWorker(req);
+    if (results.length > 0) kickIngestQueue();
 
     const status = results.length > 0 ? 202 : 400;
     return NextResponse.json(
@@ -231,22 +231,50 @@ export async function reprocessDocumentHandler(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     const latestJob = await getDocumentJobStatus(docId);
-    if (!latestJob || latestJob.status === "running") {
+
+    if (!latestJob) {
       return NextResponse.json(
-        { error: "Document is already processing or no job found" }, { status: 400 }
+        {
+          error:
+            "No ingest job exists for this document (its queue record was removed). " +
+            "Please delete and re-upload the file.",
+        },
+        { status: 400 }
       );
     }
+
+    // A genuinely active job → tell the user to wait, don't dead-end them.
+    if (latestJob.status === "running" && !isJobStale(latestJob.startedAt)) {
+      return NextResponse.json(
+        {
+          error:
+            "This document is currently being processed. Wait for it to finish " +
+            "(large files can take a few minutes) before retrying.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // A fresh pending job already exists — the background poller will pick it
+    // up; kick the queue so it happens immediately.
+    if (latestJob.status === "pending") {
+      kickIngestQueue();
+      return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: latestJob.id });
+    }
+
     if (!latestJob.filePayload) {
       return NextResponse.json(
         { error: "File payload has been cleared — please re-upload the document" }, { status: 400 }
       );
     }
+
     await updateDocumentStatus(docId, "pending");
     const newJob = await createIngestJob(docId, kbId, latestJob.filePayload!);
-    triggerWorker(req);
+    kickIngestQueue();
     return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: newJob.id });
   } catch (err) {
     if (err instanceof NextResponse) return err;
+    console.error("[documents] reprocess:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
@@ -333,7 +361,7 @@ export async function reprocessAllDocumentsHandler(
     }
 
     if (queued > 0) {
-      await triggerWorker(req);
+      kickIngestQueue();
     }
 
     return NextResponse.json({

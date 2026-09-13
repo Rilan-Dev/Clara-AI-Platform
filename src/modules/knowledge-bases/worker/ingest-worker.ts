@@ -23,11 +23,19 @@ import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
   claimPendingJobById,
   claimNextPendingJob,
+  failOrphanedProcessingDocuments,
+  resetStaleIngestJobs,
   type IngestJobWithPayload,
   markJobDone,
   markJobFailed,
   updateDocumentStatus,
 } from "@/modules/knowledge-bases/core/documents-db";
+
+/** How long a 'running' job may stay unclaimed before recovery resets it. */
+export const INGEST_STALE_JOB_MS = (() => {
+  const v = Number(process.env.INGEST_STALE_JOB_MS ?? "600000");
+  return Number.isFinite(v) && v > 0 ? v : 600_000;
+})();
 
 export type ProcessResult =
   | { status: "processed"; documentId: string; chunkCount: number }
@@ -106,6 +114,45 @@ export async function processJobById(jobId: string): Promise<ProcessResult> {
   if (!job) return { status: "idle" };
 
   return processClaimedJob(job);
+}
+
+/**
+ * One queue maintenance pass: recover interrupted jobs, then drain pending
+ * work. Runs from the background poller and (fire-and-forget) after uploads.
+ */
+export async function runIngestMaintenance(maxJobs = 20): Promise<{
+  processed: number;
+  errors: number;
+  recoveredJobs: number;
+  recoveredDocuments: number;
+}> {
+  const recoveredJobs = await resetStaleIngestJobs(INGEST_STALE_JOB_MS).catch((err) => {
+    console.error("[ingest-worker] stale job recovery failed:", (err as Error).message);
+    return 0;
+  });
+  const recoveredDocuments = await failOrphanedProcessingDocuments().catch((err) => {
+    console.error("[ingest-worker] orphaned document recovery failed:", (err as Error).message);
+    return 0;
+  });
+  const { processed, errors } = await drainQueue(maxJobs);
+  return { processed, errors, recoveredJobs, recoveredDocuments };
+}
+
+/**
+ * Fire-and-forget queue kick used after uploads and reprocess requests.
+ *
+ * This intentionally does NOT make an HTTP request back to this server: the
+ * historical `${req.nextUrl.origin}/api/worker/ingest` self-fetch fails inside
+ * Docker deployments where the public origin is not resolvable/reachable from
+ * the container ("[upload] worker trigger failed: fetch failed"), which left
+ * jobs unprocessed forever. Calling drainQueue() in-process is equivalent —
+ * the claim is atomic (FOR UPDATE SKIP LOCKED) so the poller and concurrent
+ * HTTP drains can never double-process the same job.
+ */
+export function kickIngestQueue(maxJobs = 20): void {
+  runIngestMaintenance(maxJobs).catch((err) => {
+    console.error("[ingest-worker] queue kick failed:", (err as Error).message);
+  });
 }
 
 /**

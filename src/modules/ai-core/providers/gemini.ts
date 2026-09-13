@@ -92,6 +92,7 @@ export class GeminiProvider implements LLMProvider {
       contents: text,
       config: {
         taskType: "RETRIEVAL_DOCUMENT",
+        ...this.embeddingOutputDimensionality(),
       },
     });
     return result.embeddings?.[0]?.values ?? [];
@@ -110,6 +111,7 @@ export class GeminiProvider implements LLMProvider {
           contents: text,
           config: {
             taskType: "RETRIEVAL_DOCUMENT",
+            ...this.embeddingOutputDimensionality(),
           },
         })
       )
@@ -136,5 +138,21 @@ export class GeminiProvider implements LLMProvider {
     const model = this.getEmbeddingModelName();
     if (model.includes("gemini-embedding-001")) return 3072;
     return 768;
+  }
+
+  /**
+   * gemini-embedding-001 is Matryoshka: it can emit any dimensionality up to
+   * 3072 via outputDimensionality. Passing the configured dimension keeps
+   * vectors compatible with existing Qdrant collections (e.g. 1536 created
+   * under OpenAI) when an operator switches providers — without this, a
+   * provider switch would upsert 3072-dim vectors into a 1536-dim collection
+   * and every embed would fail.
+   */
+  private embeddingOutputDimensionality(): { outputDimensionality?: number } {
+    const dim = this.getEmbeddingDimension();
+    const model = this.getEmbeddingModelName();
+    if (!model.includes("gemini-embedding-001")) return {}; // older models are fixed-size
+    if (!Number.isFinite(dim) || dim <= 0 || dim > 3072) return {};
+    return { outputDimensionality: dim };
   }
 }

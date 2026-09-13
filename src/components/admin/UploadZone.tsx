@@ -29,6 +29,16 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadErrors, setUploadErrors] = useState<UploadError[]>([]);
+  const [reprocessError, setReprocessError] = useState<string | null>(null);
+
+  const handleReprocess = useCallback(async (docId: string) => {
+    setReprocessError(null);
+    try {
+      await onReprocess(docId);
+    } catch (e) {
+      setReprocessError((e as Error).message || "Retry failed");
+    }
+  }, [onReprocess]);
 
   const processFiles = useCallback(async (files: FileList | null) => {
     if (!files?.length) return;
@@ -117,6 +127,16 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
         </div>
       )}
 
+      {/* Retry errors — previously swallowed silently, leaving users with no
+          feedback when the reprocess endpoint rejected the request. */}
+      {reprocessError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <p className="text-sm text-destructive">
+            <span className="font-medium">Retry failed:</span> {reprocessError}
+          </p>
+        </div>
+      )}
+
       {/* Documents table — uploaded files only */}
       {uploadDocs.length > 0 && (
         <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
@@ -146,7 +166,7 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
                 {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
                   {doc.status === "failed" && (
-                    <Button variant="ghost" size="sm" onClick={() => onReprocess(doc.id)}
+                    <Button variant="ghost" size="sm" onClick={() => handleReprocess(doc.id)}
                       className="h-7 px-2 text-xs text-warning hover:text-warning hover:bg-warning/10">
                       Retry
                     </Button>
@@ -157,6 +177,27 @@ export function UploadZone({ kbId, docs, onUpload, onDelete, onReprocess }: Prop
                   </Button>
                 </div>
               </div>
+              {/* Failure reason — the single most requested piece of information
+                  when an ingest fails. Collapsed by default, one click to view. */}
+              {doc.status === "failed" && doc.errorMessage && (
+                <div className="px-4 pb-3">
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs text-destructive/90 hover:text-destructive">
+                      <svg
+                        className="h-3 w-3 transition-transform group-open:rotate-90"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                      Why did this fail?
+                    </summary>
+                    <p className="mt-1.5 break-words rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2 font-mono text-[11px] leading-4 text-destructive/90">
+                      {doc.errorMessage}
+                    </p>
+                  </details>
+                </div>
+              )}
+
               {/* Chunk viewer — lazy, expandable */}
               {doc.status === "ready" && (
                 <ChunkViewer kbId={kbId} docId={doc.id} chunkCount={doc.chunkCount} />

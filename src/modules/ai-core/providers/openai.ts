@@ -40,7 +40,20 @@ export class OpenAIProvider implements LLMProvider {
         "OPENAI_API_KEY is not set. Add it to your environment or provide it in the config."
       );
     }
-    this.client = new OpenAI({ apiKey });
+    // Explicit timeout so unreachable networks fail in OPENAI_TIMEOUT_MS (60s
+    // default) with a clear error instead of hanging for the SDK's 10-minute
+    // default. SDK-level retries stay at 1 — vector-store-kb adds its own
+    // backoff for embeddings, and chat streams handle retries upstream.
+    const timeoutMs = (() => {
+      const v = Number(process.env.OPENAI_TIMEOUT_MS ?? "60000");
+      return Number.isFinite(v) && v > 0 ? v : 60_000;
+    })();
+    this.client = new OpenAI({
+      apiKey,
+      timeout: timeoutMs,
+      maxRetries: 1,
+      // baseURL defaults to OPENAI_BASE_URL env (SDK behaviour) when unset.
+    });
   }
 
   async *chatStream(

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  RefreshCw, Database, Zap, Boxes, Rabbit, Mail, ListChecks, Server,
+  RefreshCw, Database, Zap, Boxes, Rabbit, Mail, ListChecks, Server, Sparkles,
   Activity, ChevronDown, ChevronUp, CircleCheck, CircleX, MinusCircle,
   Clock, Timer, AlertTriangle,
 } from "lucide-react";
@@ -53,6 +53,8 @@ type StatusPayload = {
     queues: BaseCheck & {
       queues?: Array<{ name: string; waiting: number; active: number; delayed: number; failed: number }>;
     };
+    aiOpenai: BaseCheck & { model?: string; endpoint?: string; active?: boolean };
+    aiGemini: BaseCheck & { model?: string; endpoint?: string; active?: boolean };
     app: BaseCheck & {
       uptimeSeconds: number;
       memory?: { rssMb: number; heapUsedMb: number; heapTotalMb: number };
@@ -380,6 +382,40 @@ export function SystemStatusScreen() {
                     <DetailRow label="Queued last 24h" value={String(data.services.email.queue.last24h)} />
                   </div>
                 )}
+              </ServiceCard>
+
+              <ServiceCard
+                icon={<Sparkles className="w-5 h-5" />}
+                name="AI: OpenAI"
+                subtitle={`${data.services.aiOpenai.active ? "Active provider" : "Standby"} · embeddings & chat`}
+                check={data.services.aiOpenai}
+              >
+                <div>
+                  <DetailRow label="Embedding model" value={data.services.aiOpenai.model ?? "—"} />
+                  <DetailRow label="Endpoint" value={data.services.aiOpenai.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
+                  {data.services.aiOpenai.status === "down" && (
+                    <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-red-200/80">
+                      {data.services.aiOpenai.error ?? "unreachable"}
+                    </p>
+                  )}
+                </div>
+              </ServiceCard>
+
+              <ServiceCard
+                icon={<Sparkles className="w-5 h-5" />}
+                name="AI: Gemini"
+                subtitle={`${data.services.aiGemini.active ? "Active provider" : "Standby"} · embeddings & chat`}
+                check={data.services.aiGemini}
+              >
+                <div>
+                  <DetailRow label="Embedding model" value={data.services.aiGemini.model ?? "—"} />
+                  <DetailRow label="Endpoint" value={data.services.aiGemini.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
+                  {data.services.aiGemini.status === "down" && (
+                    <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-red-200/80">
+                      {data.services.aiGemini.error ?? "unreachable"}
+                    </p>
+                  )}
+                </div>
               </ServiceCard>
 
               <ServiceCard
