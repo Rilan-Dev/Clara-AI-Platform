@@ -102,7 +102,7 @@ export default function KbDashboardPage() {
 
   if (isAdmin) {
     return (
-      <div className="p-6 lg:p-8 max-w-6xl space-y-6">
+      <div className="p-6 lg:p-8 space-y-6">
         <AdminPageHeader
           icon={BookOpen}
           title={kbLoading ? "Loading knowledge base..." : kb?.name ?? "Knowledge Base"}
@@ -325,7 +325,7 @@ export default function KbDashboardPage() {
 
   // ── Org user view ────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 lg:p-8 max-w-6xl space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
       <AdminPageHeader
         icon={BookOpen}
         title={kbLoading ? "Loading knowledge base..." : kb?.name ?? "Knowledge Base"}

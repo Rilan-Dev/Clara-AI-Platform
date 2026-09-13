@@ -219,7 +219,7 @@ export default function AgentEditorScreen() {
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+      <div className="p-6 lg:p-8 space-y-6">
         <div className="h-16 rounded-2xl bg-white/[0.03] animate-pulse" />
         <div className="h-11 rounded-xl bg-white/[0.03] animate-pulse" />
         <div className="h-72 rounded-2xl bg-white/[0.03] animate-pulse" />
@@ -229,7 +229,7 @@ export default function AgentEditorScreen() {
 
   if (error || !agent) {
     return (
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+      <div className="p-6 lg:p-8">
         <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-8 text-center">
           <p className="text-sm text-red-300">{error ?? "Agent not found"}</p>
           <Link href="/agents" className="inline-flex items-center gap-2 mt-4 text-sm text-indigo-300 hover:text-indigo-200">
@@ -244,7 +244,7 @@ export default function AgentEditorScreen() {
   const allowedLanguages: string[] = Array.isArray(cur.allowedLanguages) ? cur.allowedLanguages : ["en"];
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6 pb-24">
+    <div className="p-6 lg:p-8 space-y-6 pb-24">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-[#12152a] via-[#0f1224] to-[#0b0d18] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -788,7 +788,7 @@ export default function AgentEditorScreen() {
           dirty ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-amber-300/90">Unsaved changes</span>
           <Button
             onClick={() => persist()}

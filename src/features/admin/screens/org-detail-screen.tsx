@@ -226,7 +226,7 @@ export default function OrgDetailPage() {
 
   if (!isAdmin) {
     return (
-      <div className="p-6 lg:p-8 max-w-6xl space-y-8">
+      <div className="p-6 lg:p-8 space-y-8">
         <AdminPageHeader
           icon={Building2}
           title={displayName}
@@ -274,7 +274,7 @@ export default function OrgDetailPage() {
   // Admins see: stats, subscription management, AI settings, projects, org info
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl space-y-8">
+    <div className="p-6 lg:p-8 space-y-8">
       <AdminPageHeader
         icon={Building2}
         title={displayName}

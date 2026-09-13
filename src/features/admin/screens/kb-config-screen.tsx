@@ -38,7 +38,7 @@ export default function KbConfigPage() {
 
   if (isAdmin) {
     return (
-      <div className="p-6 lg:p-8 max-w-7xl space-y-8">
+      <div className="p-6 lg:p-8 space-y-8">
         <AdminPageHeader
           icon={Bot}
           title="Assistant & AI Configuration"
@@ -222,7 +222,7 @@ export default function KbConfigPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl space-y-8">
+    <div className="p-6 lg:p-8 space-y-8">
       <AdminPageHeader
         icon={Bot}
         title="Assistant & AI Configuration"

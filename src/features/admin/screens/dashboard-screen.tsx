@@ -101,7 +101,7 @@ export default function AdminDashboard() {
     ["ARPU", arpu ? `$${arpu}` : "—", "text-blue-400", BarChart3],
   ] as const;
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Platform Overview</h1>

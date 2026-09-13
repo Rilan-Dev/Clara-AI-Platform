@@ -340,7 +340,7 @@ export default function AgentsScreen() {
   const createOrgs = primaryOrgId ? [{ id: primaryOrgId, name: "" }] : [];
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 lg:p-8 space-y-8">
       <AdminPageHeader
         icon={Bot}
         title="Agents"
@@ -373,7 +373,7 @@ export default function AgentsScreen() {
 
       {/* Content */}
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 animate-pulse">
               <div className="flex items-center gap-3">
@@ -416,7 +416,7 @@ export default function AgentsScreen() {
           )}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((agent) => (
             <AgentCard key={agent.id} agent={agent} onDelete={handleDelete} />
           ))}

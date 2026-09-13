@@ -457,7 +457,7 @@ export default function AdminSubscriptionsScreen() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
 
       {/* Header with Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

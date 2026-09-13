@@ -154,7 +154,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   if (!isSuperAdmin) {
     return (
       <div className="p-6 lg:p-10">
-        <div className="mx-auto max-w-5xl">
+        <div>
           {SectionPills}
 
           <PageHeader
@@ -183,7 +183,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   // ── Platform admin ─────────────────────────────────────────────────────────
   return (
     <div className="p-6 lg:p-10">
-      <div className="mx-auto max-w-5xl">
+      <div>
         {SectionPills}
 
         <PageHeader
@@ -297,7 +297,7 @@ function PageHeader({
 function SettingsSkeleton() {
   return (
     <div className="p-6 lg:p-10">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="space-y-6">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 animate-pulse rounded-2xl bg-white/[0.04]" />
           <div className="space-y-2">

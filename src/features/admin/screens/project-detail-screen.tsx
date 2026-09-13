@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
 
   if (isAdmin) {
     return (
-      <div className="p-6 lg:p-8 max-w-5xl space-y-8">
+      <div className="p-6 lg:p-8 space-y-8">
         <AdminPageHeader
           icon={FolderKanban}
           title={editedProject?.name ?? project?.name ?? "Knowledge Bases"}
@@ -172,7 +172,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl space-y-8">
+    <div className="p-6 lg:p-8 space-y-8">
       <AdminPageHeader
         icon={FolderKanban}
         title={editedProject?.name ?? project?.name ?? "Knowledge Bases"}

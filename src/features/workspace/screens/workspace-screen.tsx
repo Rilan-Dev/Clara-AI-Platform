@@ -29,7 +29,7 @@ export default function WorkspacePage(): JSX.Element {
         <div className="absolute bottom-[-160px] left-[18%] h-96 w-96 rounded-full bg-secondary/15 blur-[180px]" />
       </div>
 
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+      <div className="flex w-full flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
         <ChatWindow onOpenVoice={() => setVoiceOpen(true)} />
         {/* KbSelectorPanel replaces the old CatalogSidebar. It:
             1. Fetches all active KBs from /api/kbs/all
