@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 
 function safeDateParam(val: string | null, fallback: Date): Date {
   if (!val) return fallback;
@@ -21,6 +22,10 @@ function safeDateParam(val: string | null, fallback: Date): Date {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
+
+    // Platform-wide revenue analytics — super admin only.
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
 
     const sp       = req.nextUrl.searchParams;
     const toDate   = safeDateParam(sp.get("to"),   new Date());
@@ -117,6 +122,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       meta: { from: fromDate.toISOString(), to: toDate.toISOString() },
     });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[GET /api/analytics/revenue]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

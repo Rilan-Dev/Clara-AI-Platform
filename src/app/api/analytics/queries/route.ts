@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 
 function safeDateParam(val: string | null, fallback: Date): Date {
   if (!val) return fallback;
@@ -21,23 +22,30 @@ function safeDateParam(val: string | null, fallback: Date): Date {
   return isNaN(d.getTime()) ? fallback : d;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type TruncUnit = "day" | "week" | "month";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
+    // Platform-wide cross-tenant analytics — super admin only.
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
+
     const sp          = req.nextUrl.searchParams;
     const toDate      = safeDateParam(sp.get("to"),   new Date());
     const fromDate    = safeDateParam(sp.get("from"),  new Date(Date.now() - 30 * 86400 * 1000));
     const granularity = (["day","week","month"].includes(sp.get("granularity") ?? ""))
       ? (sp.get("granularity") as TruncUnit) : "day";
-    const orgId       = sp.get("orgId") ?? null;
+    const orgIdParam  = sp.get("orgId") ?? null;
+    // Reject anything that is not a strict UUID — the value is only ever used
+    // as a bound parameter, never interpolated into the SQL text.
+    const orgId       = orgIdParam && UUID_RE.test(orgIdParam) ? orgIdParam : null;
     const limit       = Math.min(50, parseInt(sp.get("limit") ?? "10") || 10);
 
-    const orgFilter   = orgId
-      ? `AND p.org_id = '${orgId.replace(/'/g, "''")}'`
-      : "";
+    const orgFilter = orgId ? `AND p.org_id = $4::uuid` : "";
 
     // ── Time-series: query counts per granularity bucket ──────────────────
     const timeSeries = await query<{
@@ -56,7 +64,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ${orgFilter}
       GROUP BY 1
       ORDER BY 1 ASC
-    `, [granularity, fromDate.toISOString(), toDate.toISOString()]);
+    `, orgId
+      ? [granularity, fromDate.toISOString(), toDate.toISOString(), orgId]
+      : [granularity, fromDate.toISOString(), toDate.toISOString()]);
 
     // ── Top queries by frequency ──────────────────────────────────────────
     const topQueries = await query<{
@@ -75,11 +85,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $1 AND $2
         AND length(qe.query_text) > 3
-        ${orgFilter}
+        ${orgId ? "AND p.org_id = $4::uuid" : ""}
       GROUP BY qe.query_text
       ORDER BY count DESC
       LIMIT $3
-    `, [fromDate.toISOString(), toDate.toISOString(), limit]);
+    `, orgId
+      ? [fromDate.toISOString(), toDate.toISOString(), limit, orgId]
+      : [fromDate.toISOString(), toDate.toISOString(), limit]);
 
     // ── Summary totals ────────────────────────────────────────────────────
     const totals = await query<{
@@ -89,16 +101,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       active_kbs:     number;
     }>(`
       SELECT
-        COUNT(*)::int                    AS total_queries,
+        COUNT(*)::int                      AS total_queries,
         COUNT(DISTINCT qe.query_text)::int AS unique_queries,
-        ROUND(AVG(qe.latency_ms))::int   AS avg_latency,
-        COUNT(DISTINCT qe.kb_id)::int    AS active_kbs
+        ROUND(AVG(qe.latency_ms))::int     AS avg_latency,
+        COUNT(DISTINCT qe.kb_id)::int      AS active_kbs
       FROM query_events qe
       JOIN knowledge_bases kb ON kb.id = qe.kb_id
       JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $1 AND $2
-        ${orgFilter}
-    `, [fromDate.toISOString(), toDate.toISOString()]);
+        ${orgId ? "AND p.org_id = $3::uuid" : ""}
+    `, orgId
+      ? [fromDate.toISOString(), toDate.toISOString(), orgId]
+      : [fromDate.toISOString(), toDate.toISOString()]);
 
     // ── Hourly distribution (what hour of day is busiest) ─────────────────
     const hourlyDist = await query<{ hour: number; count: number }>(`
@@ -109,10 +123,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       JOIN knowledge_bases kb ON kb.id = qe.kb_id
       JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $1 AND $2
-        ${orgFilter}
+        ${orgId ? "AND p.org_id = $3::uuid" : ""}
       GROUP BY 1
       ORDER BY 1 ASC
-    `, [fromDate.toISOString(), toDate.toISOString()]);
+    `, orgId
+      ? [fromDate.toISOString(), toDate.toISOString(), orgId]
+      : [fromDate.toISOString(), toDate.toISOString()]);
 
     return NextResponse.json({
       timeSeries,
@@ -122,6 +138,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       meta: { from: fromDate.toISOString(), to: toDate.toISOString(), granularity, orgId },
     });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[GET /api/analytics/queries]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

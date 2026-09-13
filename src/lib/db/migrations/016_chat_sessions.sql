@@ -1,6 +1,8 @@
--- Chat persistence: workspace conversations survive page refreshes.
--- Sessions are user-owned and scoped to a knowledge base (KB chat mode).
--- The legacy document mode intentionally does not persist conversations.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 016_chat_sessions.sql
+-- Clara AI Platform — chat persistence: workspace conversations survive page
+-- refreshes. Sessions are user-owned and scoped to a knowledge base.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

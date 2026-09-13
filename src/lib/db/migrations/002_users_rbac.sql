@@ -1,6 +1,11 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 002_users_rbac.sql
--- Clara RAG — Production-grade users, roles, RBAC, sessions, audit logs
+-- Clara AI Platform — users, RBAC (roles / permissions), memberships,
+-- sessions, audit logs.
+--
+-- Reference data (roles, permissions, role_permissions) is part of the schema
+-- contract: the application requires it to authorise any request, so it is
+-- seeded here idempotently. Tenant/business data lives in seed scripts only.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── 1. users ─────────────────────────────────────────────────────────────────
@@ -23,9 +28,14 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS users_email_idx  ON users (email);
 CREATE INDEX IF NOT EXISTS users_status_idx ON users (status);
 
+DO $$ BEGIN
+  CREATE TRIGGER users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- ── 2. roles ─────────────────────────────────────────────────────────────────
--- Hierarchy (highest first):
---   org_admin > project_manager > kb_editor > kb_viewer
+-- Hierarchy (highest first): org_admin > project_manager > kb_editor > kb_viewer
 
 CREATE TABLE IF NOT EXISTS roles (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -34,16 +44,14 @@ CREATE TABLE IF NOT EXISTS roles (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Seed roles (idempotent)
 INSERT INTO roles (name, description) VALUES
   ('org_admin',        'Full control over an organisation and all its resources'),
-  ('project_manager',  'Can create/manage knowledge bases within assigned projects'),
+  ('project_manager',  'Can create/manage knowledge bases within assigned agents'),
   ('kb_editor',        'Can upload documents and edit KB configuration'),
   ('kb_viewer',        'Read-only access to KBs and documents')
 ON CONFLICT (name) DO NOTHING;
 
--- ── 3. permissions ────────────────────────────────────────────────────────────
--- resource:action pairs
+-- ── 3. permissions ───────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS permissions (
   id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,36 +61,30 @@ CREATE TABLE IF NOT EXISTS permissions (
 );
 
 INSERT INTO permissions (resource, action) VALUES
-  -- organisations
-  ('org', 'read'),
-  ('org', 'update'),
-  ('org', 'delete'),
-  ('org', 'manage_members'),
-  -- projects
-  ('project', 'create'),
-  ('project', 'read'),
-  ('project', 'update'),
-  ('project', 'delete'),
-  ('project', 'manage_members'),
-  -- knowledge bases
-  ('kb', 'create'),
-  ('kb', 'read'),
-  ('kb', 'update'),
-  ('kb', 'delete'),
-  -- documents
+  ('org',      'read'),
+  ('org',      'update'),
+  ('org',      'delete'),
+  ('org',      'manage_members'),
+  ('project',  'create'),
+  ('project',  'read'),
+  ('project',  'update'),
+  ('project',  'delete'),
+  ('project',  'manage_members'),
+  ('kb',       'create'),
+  ('kb',       'read'),
+  ('kb',       'update'),
+  ('kb',       'delete'),
   ('document', 'create'),
   ('document', 'read'),
   ('document', 'delete'),
-  -- assistant config
-  ('config', 'read'),
-  ('config', 'update'),
-  -- users (within org)
-  ('user', 'invite'),
-  ('user', 'remove'),
-  ('user', 'read')
+  ('config',   'read'),
+  ('config',   'update'),
+  ('user',     'invite'),
+  ('user',     'remove'),
+  ('user',     'read')
 ON CONFLICT (resource, action) DO NOTHING;
 
--- ── 4. role_permissions ───────────────────────────────────────────────────────
+-- ── 4. role_permissions ──────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS role_permissions (
   role_id       UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
@@ -90,7 +92,6 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   PRIMARY KEY (role_id, permission_id)
 );
 
--- Assign permissions to roles (idempotent via ON CONFLICT DO NOTHING)
 DO $$
 DECLARE
   r_org_admin       UUID;
@@ -108,7 +109,7 @@ BEGIN
     SELECT r_org_admin, id FROM permissions
     ON CONFLICT DO NOTHING;
 
-  -- project_manager: project + kb + document + config, no org management
+  -- project_manager: agent + kb + document + config, no org management
   INSERT INTO role_permissions (role_id, permission_id)
     SELECT r_proj_manager, id FROM permissions
     WHERE (resource, action) IN (
@@ -122,7 +123,7 @@ BEGIN
     )
     ON CONFLICT DO NOTHING;
 
-  -- kb_editor: read org/project, full kb/doc/config access, no deletion of KBs
+  -- kb_editor: read org/agent, full kb/doc/config access, no KB deletion
   INSERT INTO role_permissions (role_id, permission_id)
     SELECT r_kb_editor, id FROM permissions
     WHERE (resource, action) IN (
@@ -164,22 +165,22 @@ CREATE TABLE IF NOT EXISTS org_members (
 CREATE INDEX IF NOT EXISTS org_members_org_id_idx  ON org_members (org_id);
 CREATE INDEX IF NOT EXISTS org_members_user_id_idx ON org_members (user_id);
 
--- ── 6. project_members ───────────────────────────────────────────────────────
--- Optional fine-grained access at project level.
--- If a user has org_members row they inherit access to all projects in that org.
+-- ── 6. agent_members ─────────────────────────────────────────────────────────
+-- Optional fine-grained access at agent level.
+-- Users with an org_members row inherit access to all agents in that org.
 
-CREATE TABLE IF NOT EXISTS project_members (
+CREATE TABLE IF NOT EXISTS agent_members (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id  UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  agent_id    UUID        NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role_id     UUID        NOT NULL REFERENCES roles(id),
   granted_by  UUID        REFERENCES users(id) ON DELETE SET NULL,
   granted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (project_id, user_id)
+  UNIQUE (agent_id, user_id)
 );
 
-CREATE INDEX IF NOT EXISTS project_members_project_id_idx ON project_members (project_id);
-CREATE INDEX IF NOT EXISTS project_members_user_id_idx    ON project_members (user_id);
+CREATE INDEX IF NOT EXISTS agent_members_agent_id_idx ON agent_members (agent_id);
+CREATE INDEX IF NOT EXISTS agent_members_user_id_idx   ON agent_members (user_id);
 
 -- ── 7. sessions ──────────────────────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ CREATE INDEX IF NOT EXISTS sessions_user_id_idx    ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions (expires_at);
 CREATE INDEX IF NOT EXISTS sessions_token_hash_idx ON sessions (token_hash);
 
--- ── 8. audit_logs ─────────────────────────────────────────────────────────────
+-- ── 8. audit_logs ────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -212,15 +213,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx   ON audit_logs (user_id);
-CREATE INDEX IF NOT EXISTS audit_logs_org_id_idx    ON audit_logs (org_id);
-CREATE INDEX IF NOT EXISTS audit_logs_action_idx    ON audit_logs (action);
+CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx    ON audit_logs (user_id);
+CREATE INDEX IF NOT EXISTS audit_logs_org_id_idx     ON audit_logs (org_id);
+CREATE INDEX IF NOT EXISTS audit_logs_action_idx     ON audit_logs (action);
 CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs (created_at DESC);
-
--- ── 9. updated_at triggers for new tables ────────────────────────────────────
-
-DO $$ BEGIN
-  CREATE TRIGGER users_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;

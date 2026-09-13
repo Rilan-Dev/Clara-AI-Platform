@@ -1,5 +1,7 @@
--- 010_kb_ai_overrides.sql
--- KB-specific AI routing overrides.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 014_kb_ai_overrides.sql
+-- Clara AI Platform — KB-specific AI routing overrides (legacy per-KB layer).
+-- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS kb_ai_overrides (
   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,8 +20,7 @@ CREATE TABLE IF NOT EXISTS kb_ai_overrides (
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS kb_ai_overrides_kb_id_idx
-  ON kb_ai_overrides (kb_id);
+CREATE INDEX IF NOT EXISTS kb_ai_overrides_kb_id_idx ON kb_ai_overrides (kb_id);
 
 DO $$ BEGIN
   CREATE TRIGGER kb_ai_overrides_updated_at

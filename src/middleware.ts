@@ -56,6 +56,7 @@ const ADMIN_PAGE_PREFIXES = ["/dashboard", "/orgs", "/subscriptions", "/analytic
 const PROTECTED_API_PREFIXES = [
   "/api/kbs", "/api/orgs", "/api/ingest", "/api/documents", "/api/rag",
   "/api/realtime", "/api/subscriptions/checkout", "/api/platform", "/api/agents",
+  "/api/analytics",
 ];
 const PUBLIC_PREFIXES = [
   "/api/auth", "/api/embed", "/api/subscriptions/plans", "/api/health", "/api/gemini", "/_next", "/favicon",
