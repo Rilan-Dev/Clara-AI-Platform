@@ -6,7 +6,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY topology.mjs index.mjs ./
+COPY topology.mjs index.mjs replay-dlq.mjs ./
 
 USER node
 
