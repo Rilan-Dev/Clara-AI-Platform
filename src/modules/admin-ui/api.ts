@@ -752,3 +752,113 @@ export async function retryFailedUrl(
     { method: "POST", body: "{}" },
   );
 }
+
+// ── Agents ─────────────────────────────────────────────────────────────────────
+
+export type AgentStatus = "draft" | "published" | "archived";
+
+export type Agent = {
+  id: string;
+  orgId: string;
+  name: string;
+  description: string | null;
+  status: AgentStatus;
+  assistantName: string;
+  avatarUrl: string | null;
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string[];
+  defaultLanguage: string;
+  allowedLanguages: string[];
+  alwaysRespondIn: string | null;
+  voiceProvider: "openai" | "gemini" | null;
+  voiceId: string | null;
+  speed: number;
+  chatModel: string | null;
+  temperature: number;
+  maxTokens: number;
+  citeSources: boolean;
+  strictMode: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  orgName?: string | null;
+  projectCount?: number;
+};
+
+export type AgentWithProjects = Agent & {
+  projects: AgentProjectAssignment[];
+  orgProjects: { id: string; name: string }[];
+};
+
+export type AgentProjectAssignment = {
+  projectId: string;
+  projectName: string;
+  agentId: string;
+  agentName: string;
+  orgId: string;
+  isActive: boolean;
+  assignedBy: string | null;
+  assignedAt: string;
+};
+
+export type CreateAgentInput = {
+  orgId?: string;
+  name: string;
+  description?: string;
+  assistantName?: string;
+  systemPrompt?: string;
+  welcomeMessage?: string;
+};
+
+export type UpdateAgentInput = Partial<
+  Omit<Agent, "id" | "orgId" | "createdBy" | "createdAt" | "updatedAt" | "orgName" | "projectCount">
+>;
+
+export async function fetchAgents(orgId?: string | null): Promise<Agent[]> {
+  const qs = orgId ? `?orgId=${encodeURIComponent(orgId)}` : "";
+  return apiFetch<Agent[]>(`/api/agents${qs}`);
+}
+
+export async function fetchAgent(agentId: string): Promise<AgentWithProjects> {
+  return apiFetch<AgentWithProjects>(`/api/agents/${agentId}`);
+}
+
+export async function createAgent(input: CreateAgentInput): Promise<Agent> {
+  return apiFetch<Agent>("/api/agents", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateAgent(
+  agentId: string,
+  input: UpdateAgentInput,
+): Promise<Agent> {
+  return apiFetch<Agent>(`/api/agents/${agentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteAgent(agentId: string): Promise<{ deleted: boolean }> {
+  return apiFetch<{ deleted: boolean }>(`/api/agents/${agentId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchProjectAgent(projectId: string): Promise<Agent | null> {
+  const res = await apiFetch<{ agent: Agent | null }>(`/api/projects/${projectId}/agent`);
+  return res.agent;
+}
+
+export async function assignProjectAgent(
+  projectId: string,
+  agentId: string | null,
+): Promise<{ projectId: string; previousAgentId: string | null; agentId: string | null }> {
+  return apiFetch(`/api/projects/${projectId}/agent`, {
+    method: "PUT",
+    body: JSON.stringify({ agentId }),
+  });
+}

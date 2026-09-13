@@ -8,6 +8,7 @@ import { useAuth, useOrg, useKbs, useProject } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { EditProjectPanel } from "@/components/admin/EditProjectPanel";
+import { ProjectAgentCard } from "@/components/admin/ProjectAgentCard";
 import { Button } from "@/components/ui/button";
 
 function formatDate(value: string) {
@@ -119,6 +120,9 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* Project agent — connect/switch the project's AI personality */}
+        <ProjectAgentCard projectId={projectId} orgId={id} />
+
         {loading ? (
           <div className="space-y-3">
             {[1, 2].map((item) => (
@@ -202,6 +206,9 @@ export default function ProjectDetailPage() {
           onSaved={(updated) => setEditedProject(updated)}
         />
       )}
+
+      {/* Project agent — connect/switch the project's AI personality */}
+      <ProjectAgentCard projectId={projectId} orgId={id} />
 
       {showForm && (
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">

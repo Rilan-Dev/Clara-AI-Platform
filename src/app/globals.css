@@ -56,6 +56,14 @@
     --card-foreground: 0 0% 15%;
     --card-border: 43 15% 88%;
 
+    /* Popover surfaces (dropdown menus, select lists, floating panels).
+       Previously undefined → bg-popover resolved to an invalid hsl() value and
+       dropdowns rendered fully transparent. Solid values now guarantee the
+       open menu is always readable. */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --popover-hover: 43 15% 92%;
+
     --gradient-primary: linear-gradient(
       135deg,
       hsl(var(--primary)) 0%,
@@ -136,60 +144,74 @@
     --color-secondary: hsl(var(--secondary));
     --color-secondary-foreground: hsl(var(--secondary-foreground));
 
-    --primary: 0 45% 55%;
-    --primary-foreground: 43 96% 94%;
-    --primary-light: 0 45% 65%;
-    --primary-glow: 0 45% 25%;
+    /* ── Unified product palette (indigo on near-black) ────────────────────────
+       Previously the dark tokens kept the warm red/gold brand colours while the
+       admin/workspace screens hardcoded indigo (#0A0A0F / #6366F1). shadcn
+       components consume these tokens, so buttons/inputs/dialogs rendered with
+       red accents on indigo surfaces — the "dual theme conflict". The tokens
+       below now match the product UI. The public marketing pages hardcode their
+       own warm brand colours and are unaffected by this change. */
+    --primary: 239 84% 67%;          /* indigo-500 #6366F1 */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 239 84% 76%;    /* indigo-400 #818CF8 */
+    --primary-glow: 239 84% 30%;
 
-    --secondary: 43 74% 60%;
-    --secondary-foreground: 0 0% 10%;
-    --secondary-light: 43 74% 70%;
-    --secondary-glow: 43 74% 20%;
+    --secondary: 240 6% 16%;         /* neutral elevated surface */
+    --secondary-foreground: 0 0% 95%;
+    --secondary-light: 240 6% 22%;
+    --secondary-glow: 239 84% 18%;
 
-    --background: 0 0% 8%;
-    --foreground: 43 20% 95%;
-    --surface: 0 0% 12%;
-    --surface-elevated: 0 0% 15%;
+    --background: 240 14% 5%;        /* #08080D ≈ admin #0A0A0F */
+    --foreground: 0 0% 96%;
+    --surface: 240 12% 8%;           /* ≈ admin sidebar #0D0D1A */
+    --surface-elevated: 240 11% 11%;
 
-    --muted: 0 0% 20%;
-    --muted-foreground: 43 15% 70%;
-    --muted-light: 0 0% 18%;
+    --muted: 240 6% 14%;
+    --muted-foreground: 0 0% 52%;
+    --muted-light: 240 6% 18%;
 
-    --accent: 0 0% 18%;
-    --accent-foreground: 43 20% 90%;
-    --accent-hover: 0 0% 22%;
+    --accent: 240 6% 16%;
+    --accent-foreground: 0 0% 95%;
+    --accent-hover: 240 6% 20%;
 
-    --success: 140 50% 55%;
-    --success-foreground: 0 0% 10%;
-    --warning: 38 92% 60%;
+    --success: 140 60% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
     --warning-foreground: 0 0% 10%;
-    --destructive: 0 70% 60%;
-    --destructive-foreground: 0 0% 10%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 22%;
-    --border-light: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 0 45% 55%;
+    --border: 240 6% 16%;            /* ≈ white/[0.08] on #0A0A0F */
+    --border-light: 240 6% 13%;
+    --input: 240 6% 14%;
+    --ring: 239 84% 67%;
 
-    --card: 0 0% 15%;
-    --card-foreground: 43 20% 95%;
-    --card-border: 0 0% 22%;
+    --card: 240 12% 7%;
+    --card-foreground: 0 0% 96%;
+    --card-border: 240 6% 16%;
+
+    /* Popover surfaces (dropdown menus, select lists, floating panels) —
+       solid dark surface elevated above the page background so open menus
+       never render transparent. */
+    --popover: 240 10% 11%;
+    --popover-foreground: 0 0% 96%;
+    --popover-hover: 240 6% 18%;
 
     --shadow-sm: 0 2px 4px hsla(0, 0%, 0%, 0.3);
     --shadow-md: 0 4px 12px hsla(0, 0%, 0%, 0.4);
     --shadow-lg: 0 8px 24px hsla(0, 0%, 0%, 0.5);
     --shadow-xl: 0 16px 48px hsla(0, 0%, 0%, 0.6);
-    --shadow-glow: 0 0 32px hsla(var(--primary), 0.4);
-    --shadow-gold: 0 4px 20px hsla(var(--secondary), 0.4);
+    --shadow-glow: 0 0 32px hsla(var(--primary), 0.35);
+    --shadow-gold: 0 4px 20px hsla(var(--secondary), 0.3);
 
-    --sidebar-background: 0 0% 10%;
-    --sidebar-foreground: 43 20% 90%;
-    --sidebar-primary: 0 45% 55%;
-    --sidebar-primary-foreground: 43 96% 94%;
-    --sidebar-accent: 0 0% 18%;
-    --sidebar-accent-foreground: 43 20% 90%;
-    --sidebar-border: 0 0% 22%;
-    --sidebar-ring: 0 45% 55%;
+    --sidebar-background: 240 13% 6%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 15%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 240 6% 14%;
+    --sidebar-ring: 239 84% 67%;
   }
 
   *,

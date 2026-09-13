@@ -7,6 +7,7 @@ export type ResolutionSource =
   | "org"
   | "project"
   | "kb_override"
+  | "agent"
   | "assistant_config"
   | null;
 export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;

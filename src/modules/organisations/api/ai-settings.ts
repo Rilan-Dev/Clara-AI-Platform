@@ -162,35 +162,6 @@ function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput
   return input;
 }
 
-// Fields org-level users (org_admin, etc.) are allowed to change. Provider,
-// model, token-limit, and feature-flag fields are centralized at the platform
-// level and must only be editable by super admins.
-const ORG_EDITABLE_KEYS = new Set<keyof PatchOrgAISettingsInput>([
-  "assistantName",
-  "avatarUrl",
-  "systemPrompt",
-  "welcomeMessage",
-  "outOfScopeReply",
-  "rules",
-  "defaultLanguage",
-  "allowedLanguages",
-  "alwaysRespondIn",
-  "voiceId",
-  "voiceSpeed",
-]);
-
-function restrictToOrgEditableFields(
-  input: PatchOrgAISettingsInput,
-): PatchOrgAISettingsInput {
-  const restricted: PatchOrgAISettingsInput = {};
-  for (const key of Object.keys(input) as (keyof PatchOrgAISettingsInput)[]) {
-    if (ORG_EDITABLE_KEYS.has(key)) {
-      (restricted as Record<string, unknown>)[key] = input[key];
-    }
-  }
-  return restricted;
-}
-
 export async function getOrgAISettingsHandler(
   req: NextRequest,
   orgId: string,
@@ -198,7 +169,13 @@ export async function getOrgAISettingsHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    if (!auth.user.isSuperAdmin) await requireOrgPermission(auth, orgId, "org:read");
+    if (auth.user.isSuperAdmin) {
+      return NextResponse.json(
+        { error: "AI configuration is managed by each organisation. Platform admins only see aggregate counts." },
+        { status: 403 },
+      );
+    }
+    await requireOrgPermission(auth, orgId, "org:read");
 
     const org = await getOrganisationById(orgId);
     if (!org) {
@@ -224,7 +201,13 @@ export async function patchOrgAISettingsHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    if (!auth.user.isSuperAdmin) await requireOrgPermission(auth, orgId, "org:update");
+    if (auth.user.isSuperAdmin) {
+      return NextResponse.json(
+        { error: "AI configuration is managed by each organisation. Platform admins only see aggregate counts." },
+        { status: 403 },
+      );
+    }
+    await requireOrgPermission(auth, orgId, "org:update");
 
     const org = await getOrganisationById(orgId);
     if (!org) {
@@ -232,13 +215,10 @@ export async function patchOrgAISettingsHandler(
     }
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    let input = buildPatchInput(body);
-    // Org-level users may only edit Identity, Behaviour, Language & Voice.
-    // AI provider/model/token-limit/feature-flag configuration is centralized
-    // and can only be changed by platform (super) admins.
-    if (!auth.user.isSuperAdmin) {
-      input = restrictToOrgEditableFields(input);
-    }
+    // Organisations own their full AI configuration — provider, model,
+    // identity, behaviour, language and voice alike. Platform admins are
+    // locked out entirely, so no field is centrally restricted any more.
+    const input = buildPatchInput(body);
     const settings = await upsertOrgAISettings(orgId, input);
     return NextResponse.json(settings);
   } catch (err) {

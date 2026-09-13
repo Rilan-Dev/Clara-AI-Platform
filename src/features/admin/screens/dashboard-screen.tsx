@@ -10,6 +10,8 @@ import {
   DollarSign,
   RefreshCw,
   BarChart3,
+  FolderKanban,
+  Bot,
 } from "lucide-react";
 import Link from "next/link";
 import http from "@/lib/http";
@@ -23,14 +25,8 @@ type Stats = {
   totalKbs: number;
   totalDocuments: number;
   totalQueriesThisMonth: number;
-};
-type OrgSummary = {
-  id: string;
-  name: string;
-  slug: string;
-  project_count: number;
-  kb_count: number;
-  created_at: string;
+  totalProjects: number;
+  totalAgents: number;
 };
 type Revenue = {
   totalMrr: number;
@@ -53,19 +49,16 @@ const PLAN_BAR: Record<string, string> = {
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [orgs, setOrgs] = useState<OrgSummary[]>([]);
   const [revenue, setRevenue] = useState<Revenue | null>(null);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
       http.get<Stats>("/platform/stats"),
-      http.get<{ orgs: OrgSummary[] }>("/platform/orgs?perPage=20"),
       http.get<Revenue>("/platform/revenue"),
     ])
-      .then(([s, o, r]) => {
+      .then(([s, r]) => {
         setStats(s.data);
-        setOrgs(o.data.orgs ?? []);
         setRevenue(r.data);
       })
       .catch(() => {})
@@ -79,10 +72,14 @@ export default function AdminDashboard() {
     stats && stats.payingOrgs > 0
       ? Math.round(stats.mrr / stats.payingOrgs)
       : 0;
-  const total = Math.max(orgs.length, 1);
+  const total = Math.max(stats?.totalOrgs ?? 0, 1);
   const cards = [
     ["Organisations", stats?.totalOrgs, "text-violet-400", Building2],
-    ["Users", stats?.totalUsers, "text-cyan-400", Users],
+    ["Projects", stats?.totalProjects, "text-cyan-400", FolderKanban],
+    ["Agents", stats?.totalAgents, "text-fuchsia-400", Bot],
+    ["Knowledge Bases", stats?.totalKbs, "text-indigo-400", Database],
+    ["Users", stats?.totalUsers, "text-cyan-300", Users],
+    ["Documents", stats?.totalDocuments, "text-pink-400", FileText],
     [
       "MRR",
       stats ? `$${stats.mrr.toLocaleString()}` : "—",
@@ -95,8 +92,6 @@ export default function AdminDashboard() {
       "text-emerald-300",
       TrendingUp,
     ],
-    ["Knowledge Bases", stats?.totalKbs, "text-indigo-400", Database],
-    ["Documents", stats?.totalDocuments, "text-pink-400", FileText],
     [
       "Queries This Month",
       stats?.totalQueriesThisMonth?.toLocaleString(),
@@ -111,13 +106,10 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-white">Platform Overview</h1>
           <p className="text-white/40 text-sm mt-0.5">
-            Platform analytics and organisation summaries
+            Platform-wide counts and billing — organisation content is managed by each organisation itself.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/orgs" className="text-xs text-white/50 hover:text-white border border-white/10 px-3 py-2 rounded-lg">
-            Organisations
-          </Link>
           <Link href="/subscriptions" className="text-xs text-white/50 hover:text-white border border-white/10 px-3 py-2 rounded-lg">
             Subscriptions
           </Link>
@@ -130,7 +122,7 @@ export default function AdminDashboard() {
         </div>
       </div>
       <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {cards.map(([label, value, color, Icon]) => (
               <div
                 key={label}
@@ -178,24 +170,30 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-              <h3 className="font-semibold text-white text-sm mb-4">
-                Organisation Resource Summary
+              <h3 className="font-semibold text-white text-sm mb-2">
+                Organisation-managed content
               </h3>
-              <div className="space-y-3">
-                {orgs.slice(0, 6).map((o) => (
-                  <div key={o.id} className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-white">{o.name}</div>
-                      <div className="text-xs text-white/30">
-                        {o.project_count} projects · {o.kb_count} KBs
-                      </div>
+              <p className="text-sm leading-relaxed text-white/40">
+                Projects, agents, knowledge bases and AI configuration are created and managed
+                inside each organisation by its own team. This platform view shows only totals —
+                open the Subscriptions workspace for billing actions.
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                {[
+                  ["Projects", stats?.totalProjects],
+                  ["Agents", stats?.totalAgents],
+                  ["KBs", stats?.totalKbs],
+                ].map(([label, value]) => (
+                  <div
+                    key={label as string}
+                    className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-center"
+                  >
+                    <div className="text-xl font-bold text-white">
+                      {loading ? "—" : (value as number) ?? 0}
                     </div>
-                    <span className="text-xs text-white/30">profile only</span>
+                    <div className="text-[11px] text-white/35 mt-0.5">{label as string}</div>
                   </div>
                 ))}
-                {orgs.length === 0 && !loading && (
-                  <div className="text-sm text-white/30">No organisations</div>
-                )}
               </div>
             </div>
           </div>

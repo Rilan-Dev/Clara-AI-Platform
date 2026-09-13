@@ -48,7 +48,7 @@ export type Role = {
 
 // ── Permission ────────────────────────────────────────────────────────────────
 
-export type Resource = "org" | "project" | "kb" | "document" | "config" | "user";
+export type Resource = "org" | "project" | "kb" | "document" | "config" | "user" | "agent";
 export type Action   = "create" | "read" | "update" | "delete" | "manage_members" | "invite" | "remove";
 
 export type Permission = {

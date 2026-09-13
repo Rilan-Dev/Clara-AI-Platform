@@ -4,23 +4,47 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, Building2, CreditCard,
-  Settings, LogOut, Menu, X, ChevronRight, BarChart3, UserPen,
+  Settings, LogOut, Menu, X, ChevronRight, ChevronDown, BarChart3, UserPen,
+  UserRound, Bot, KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
+// Platform admins see counts + billing only — organisation content
+// (orgs, projects, agents, KBs, AI configuration) is org-managed.
 const ADMIN_NAV = [
   { href: "/dashboard",     icon: LayoutDashboard, label: "Dashboard"     },
-  { href: "/orgs",          icon: Building2,       label: "Organisations" },
   { href: "/subscriptions", icon: CreditCard,      label: "Subscriptions" },
   { href: "/analytics",     icon: BarChart3,       label: "Analytics"     },
-  { href: "/settings",      icon: Settings,        label: "Settings"      },
+];
+
+// Settings sub-sections rendered as a dropdown group in the sidebar.
+// Mirrors SETTINGS_SECTIONS in the settings screen — keep labels in sync.
+const SETTINGS_NAV = [
+  { href: "/settings/account",  icon: UserRound, label: "Account"          },
+  { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
+  { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
+];
+
+// Org users configure their own organisation's AI — this section is
+// intentionally NOT in the super-admin list above.
+const ORG_SETTINGS_NAV = [
+  { href: "/settings/account", icon: UserRound, label: "Account"          },
+  { href: "/settings/ai",      icon: Bot,       label: "AI Configuration" },
 ];
 
 // Routes only accessible to super-admins — org users are redirected away from these
 const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics"];
+
+// Organisation-content routes — platform admins are redirected away from
+// these because orgs manage their own projects, agents and knowledge bases.
+const SUPERADMIN_BLOCKED_PATHS = ["/orgs", "/agents", "/kbs"];
+
+function matchesPath(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, primaryOrgId } = useAuth();
@@ -28,6 +52,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router     = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+
+  // Settings dropdown state — auto-expands while on any settings page; the
+  // manual toggle persists while browsing elsewhere.
+  const onSettingsRoute = pathname.startsWith("/settings");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    if (onSettingsRoute) setSettingsOpen(true);
+  }, [onSettingsRoute]);
 
   // ── Redirect unauthenticated users to login ─────────────────────────────────
   useEffect(() => {
@@ -38,17 +70,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // ── Redirect org users away from super-admin-only pages ────────────────────
   useEffect(() => {
-    if (loading || !user || user.isSuperAdmin) return;
+    if (loading || !user) return;
 
-    const isAdminOnlyPage = SUPERADMIN_ONLY_PATHS.some(
-      (p) => pathname === p || pathname.startsWith(p + "/"),
-    );
-    // "/orgs" list is admin-only; "/orgs/:id" is accessible to org users for their own org
-    const isOrgsListPage = pathname === "/orgs";
+    if (!user.isSuperAdmin) {
+      const isAdminOnlyPage = SUPERADMIN_ONLY_PATHS.some(
+        (p) => matchesPath(pathname, p) || pathname === p,
+      );
+      // "/orgs" list is admin-only; "/orgs/:id" is accessible to org users for their own org
+      const isOrgsListPage = pathname === "/orgs";
 
-    if (isAdminOnlyPage || isOrgsListPage) {
-      const dest = primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings";
-      router.replace(dest);
+      if (isAdminOnlyPage || isOrgsListPage) {
+        const dest = primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings";
+        router.replace(dest);
+      }
+      return;
+    }
+
+    // Platform admins are locked out of organisation-content pages —
+    // they only see counts on the dashboard.
+    if (SUPERADMIN_BLOCKED_PATHS.some((p) => matchesPath(pathname, p))) {
+      router.replace("/dashboard");
     }
   }, [loading, user, primaryOrgId, pathname, router]);
 
@@ -68,16 +109,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isAdmin = user.isSuperAdmin;
 
-  // Nav items — admins see full platform nav; org users see only their org + settings
+  // Nav items — platform admins see counts + billing only; org users see
+  // their organisation, their agents, and their settings.
   const orgNav = [
     {
-      href:  primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings",
+      href:  primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings/account",
       icon:  Building2,
       label: "My Organisation",
     },
-    { href: "/settings", icon: Settings, label: "Settings" },
+    { href: "/agents", icon: Bot, label: "Agents" },
   ];
   const nav = isAdmin ? ADMIN_NAV : orgNav;
+  const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
 
   return (
     <div className="dark min-h-[100dvh] bg-[#0a0a0f] flex">
@@ -108,7 +151,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
           {nav.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -131,6 +174,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
             );
           })}
+
+          {/* Settings — expandable dropdown group for both roles.
+              Platform admins: Account / Embed Key / Payments.
+              Org users: Account / AI Configuration (their organisation's AI). */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              aria-expanded={settingsOpen}
+              aria-controls="sidebar-settings-group"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                onSettingsRoute
+                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                  : "text-white/50 hover:text-white hover:bg-white/[0.05]"
+              }`}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left">Settings</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 text-white/40 transition-transform duration-200 ${
+                  settingsOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {settingsOpen && (
+              <ul
+                id="sidebar-settings-group"
+                className="mt-0.5 ml-3 space-y-0.5 border-l border-white/[0.08] pl-3 animate-in fade-in slide-in-from-top-1 duration-200"
+              >
+                {settingsNav.map((sub) => {
+                  const subActive = pathname === sub.href;
+                  return (
+                    <li key={sub.href}>
+                      <Link
+                        href={sub.href}
+                        onClick={() => setSidebarOpen(false)}
+                        aria-current={subActive ? "page" : undefined}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${
+                          subActive
+                            ? "bg-indigo-500/15 text-indigo-300 font-medium"
+                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        <sub.icon
+                          className={`w-3.5 h-3.5 shrink-0 ${
+                            subActive ? "text-indigo-400" : "text-white/30"
+                          }`}
+                        />
+                        {sub.label}
+                        {subActive && (
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </nav>
 
         {/* Footer */}

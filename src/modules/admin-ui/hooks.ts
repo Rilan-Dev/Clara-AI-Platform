@@ -12,6 +12,7 @@ import type {
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
   CreateWorkspaceInput, CreateWorkspaceResult,
+  Agent, AgentStatus, AgentWithProjects, AgentProjectAssignment, CreateAgentInput, UpdateAgentInput,
 } from "./api";
 
 export type {
@@ -19,6 +20,7 @@ export type {
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
   CreateWorkspaceInput, CreateWorkspaceResult,
+  Agent, AgentStatus, AgentWithProjects, AgentProjectAssignment, CreateAgentInput, UpdateAgentInput,
 };
 
 // ── Generic async state helper ────────────────────────────────────────────────
@@ -154,15 +156,16 @@ export function useProject(projectId?: string | null) {
   });
 }
 
-export function useOrgAISettings(orgId: string) {
+export function useOrgAISettings(orgId?: string | null) {
   const { data: settings, loading, error, refetch } = useAsync(
-    () => api.fetchOrgAISettings(orgId),
-    `org-ai-settings:${orgId}`,
+    () => api.fetchOrgAISettings(orgId!),
+    `org-ai-settings:${orgId ?? "none"}`,
+    { enabled: Boolean(orgId) },
   );
 
   const save = useCallback(
     async (data: Partial<Omit<OrgAISettings, "id" | "orgId" | "createdAt" | "updatedAt">>) => {
-      const updated = await api.patchOrgAISettings(orgId, data);
+      const updated = await api.patchOrgAISettings(orgId!, data);
       refetch();
       return updated;
     },
@@ -277,6 +280,66 @@ export function useSnapshots(kbId: string) {
 
 export function useAnalytics(kbId: string) {
   return useAsync(() => api.fetchAnalytics(kbId), `kb-analytics:${kbId}`);
+}
+
+// ── Agents ────────────────────────────────────────────────────────────────────
+
+export function useAgents(orgId?: string | null) {
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchAgents(orgId ?? undefined),
+    `agents:${orgId ?? "all"}`,
+    { enabled: orgId !== undefined },
+  );
+  const agents = data ?? [];
+  const create = useCallback(
+    async (input: CreateAgentInput) => {
+      const agent = await api.createAgent(input);
+      refetch();
+      return agent;
+    },
+    [refetch],
+  );
+  const remove = useCallback(
+    async (agentId: string) => {
+      await api.deleteAgent(agentId);
+      refetch();
+    },
+    [refetch],
+  );
+  return { agents, loading, error, create, remove, refetch };
+}
+
+export function useAgent(agentId?: string | null) {
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchAgent(agentId!),
+    `agent:${agentId ?? "none"}`,
+    { enabled: Boolean(agentId) },
+  );
+  const save = useCallback(
+    async (input: UpdateAgentInput) => {
+      const updated = await api.updateAgent(agentId!, input);
+      refetch();
+      return updated;
+    },
+    [agentId, refetch],
+  );
+  return { agent: data, loading, error, save, refetch };
+}
+
+export function useProjectAgent(projectId?: string | null) {
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchProjectAgent(projectId!),
+    `project-agent:${projectId ?? "none"}`,
+    { enabled: Boolean(projectId) },
+  );
+  const assign = useCallback(
+    async (agentId: string | null) => {
+      await api.assignProjectAgent(projectId!, agentId);
+      refetch();
+    },
+    [projectId, refetch],
+  );
+  return { agent: data, loading, error, assign, refetch };
 }
 
 // ── Scrape Wizard ─────────────────────────────────────────────────────────────

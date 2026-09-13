@@ -66,6 +66,25 @@ type AssistantContextValue = {
   hasConversation: boolean;
   currentDocumentOverviews: Record<string, DocumentOverviewModel>;
   language: LanguagePreferences;
+  // ── Chat persistence (DB-backed) ──────────────────────────────────────────
+  /** Conversation history for the active KB (most recently updated first). */
+  sessions: ChatSessionSummary[];
+  /** Currently restored session id, or null when a fresh (un-persisted) conversation is active. */
+  activeSessionId: string | null;
+  /** Restore a previous session's messages into the chat window. */
+  loadSession: (sessionId: string) => Promise<void>;
+  /** Start a fresh conversation (messages cleared; next message opens a new session). */
+  newConversation: () => void;
+  /** Delete a stored session. If it is the active one, starts a fresh conversation. */
+  deleteSession: (sessionId: string) => Promise<void>;
+};
+
+export type ChatSessionSummary = {
+  id: string;
+  kbId: string | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type AssistantEndpoints = {
@@ -171,6 +190,131 @@ export function AssistantProvider({
     ...DEFAULT_SUGGESTED,
   ]);
 
+  // ── Chat persistence state ───────────────────────────────────────────────
+  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [activeSessionId, setActiveSessionIdState] = useState<string | null>(null);
+  // Refs mirror the state so callbacks (sendPrompt, persist helpers) stay
+  // dependency-stable — the same P6 pattern used for messagesRef.
+  const activeSessionIdRef = useRef<string | null>(null);
+  const sessionsRequestSeqRef = useRef(0);
+
+  // messagesRef is declared here (before the persistence callbacks that read
+  // it) and kept in sync with `messages` by the effect below.
+  const messagesRef = useRef<AssistantMessageModel[]>([]);
+
+  const setActiveSessionId = useCallback((sessionId: string | null) => {
+    activeSessionIdRef.current = sessionId;
+    setActiveSessionIdState(sessionId);
+  }, []);
+
+  // ── loadSession: restore a stored conversation into the chat window ───────
+  const loadSession = useCallback(
+    async (
+      sessionId: string,
+      opts?: { keepSessionList?: boolean; expectedKbId?: string; seq?: number },
+    ) => {
+      const seq = opts?.seq ?? ++sessionsRequestSeqRef.current;
+      try {
+        const res = await fetch(apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}`), {
+          headers: withAuthHeaders({}),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          session?: ChatSessionSummary;
+          messages?: { id: string; role: string; content: string; sources?: Source[] }[];
+        };
+        if (seq !== sessionsRequestSeqRef.current) return; // stale
+        if (opts?.expectedKbId && activeKbIdRef.current !== opts.expectedKbId) return;
+        if (!Array.isArray(data.messages) || data.messages.length === 0) return;
+
+        const restored = data.messages.map(
+          (m) =>
+            new AssistantMessageModel({
+              id: m.id,
+              role: m.role as "user" | "assistant",
+              content: m.content,
+              sources: Array.isArray(m.sources) ? m.sources : [],
+              isStreaming: false,
+            }),
+        );
+
+        // Apply only when the live chat is still empty — never clobber an
+        // in-flight or manually-started conversation.
+        if (messagesRef.current.length > 0) return;
+
+        setActiveSessionId(sessionId);
+        setMessages(restored);
+        if (!opts?.keepSessionList) {
+          setSessions((prev) =>
+            prev.some((s) => s.id === sessionId)
+              ? prev
+              : [...(data.session ? [data.session] : []), ...prev],
+          );
+        }
+      } catch {
+        // Best-effort: ignore restore failures.
+      }
+    },
+    [setActiveSessionId],
+  );
+
+  // ── newConversation: start fresh (next message opens a new session) ───────
+  const newConversation = useCallback(() => {
+    sessionsRequestSeqRef.current++; // invalidate any in-flight restore
+    setActiveSessionId(null);
+    setMessages([]);
+  }, [setActiveSessionId]);
+
+  // ── deleteSession: remove a stored conversation ───────────────────────────
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        await fetch(apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}`), {
+          method: "DELETE",
+          headers: withAuthHeaders({}),
+        });
+      } catch {
+        // fall through — remove from local list regardless
+      }
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (activeSessionIdRef.current === sessionId) {
+        newConversation();
+      }
+    },
+    [newConversation],
+  );
+
+  // ── Chat persistence: fetch sessions + restore the latest conversation ────
+  //
+  // Called when a KB becomes active. Loads the user's session list for that
+  // KB and, when the most recent session has messages, restores them so a
+  // page refresh (or KB re-selection) continues exactly where the user left
+  // off. Stale responses are discarded via a sequence guard.
+  const loadSessionsForKb = useCallback(
+    async (kbId: string) => {
+      const seq = ++sessionsRequestSeqRef.current;
+      try {
+        const res = await fetch(apiUrl(`/api/chat/sessions?kbId=${encodeURIComponent(kbId)}`), {
+          headers: withAuthHeaders({}),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { sessions?: ChatSessionSummary[] };
+        if (seq !== sessionsRequestSeqRef.current) return; // stale — KB switched meanwhile
+        const list = Array.isArray(data.sessions) ? data.sessions : [];
+        setSessions(list);
+
+        // Only auto-restore when the chat is still empty (nothing sent meanwhile).
+        if (list.length > 0 && messagesRef.current.length === 0 && activeKbIdRef.current === kbId) {
+          const latest = list[0];
+          await loadSession(latest.id, { keepSessionList: true, expectedKbId: kbId, seq });
+        }
+      } catch {
+        // Persistence is best-effort — chat works even when history is unavailable.
+      }
+    },
+    [loadSession],
+  );
+
   const setActiveKbId = useCallback((kbId: string | null) => {
     activeKbIdRef.current = kbId;
     setActiveKbIdState(kbId);
@@ -178,14 +322,21 @@ export function AssistantProvider({
     // FloatingAssistant will call setKbSuggestedPrompts with KB-specific ones.
     setMessages([]);
     setSuggestedPrompts([]);
-  }, []);
+    // Reset conversation persistence for the new context.
+    setActiveSessionId(null);
+    setSessions([]);
+    sessionsRequestSeqRef.current++; // invalidate any in-flight restore
+    if (kbId) {
+      void loadSessionsForKb(kbId);
+    }
+  }, [loadSessionsForKb, setActiveSessionId]);
 
   const activeDocumentRef = useRef<KnowledgeDocumentModel | null>(null);
   const overviewRequestIdsRef = useRef<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
-  // ── P6 FIX: messagesRef ────────────────────────────────────────────────────
+  // ── P6 FIX: messagesRef sync ──────────────────────────────────────────────
   //
   // Old behaviour: `messages` was listed in sendPrompt's useCallback dependency
   // array. Every streamed token calls setMessages(), which updates `messages`
@@ -196,7 +347,6 @@ export function AssistantProvider({
   // Fix: keep messages state for rendering, but read the current value inside
   // sendPrompt via a ref. Removing `messages` from useCallback deps makes
   // sendPrompt stable across the entire stream.
-  const messagesRef = useRef<AssistantMessageModel[]>([]);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -465,6 +615,83 @@ export function AssistantProvider({
   //      for rendering), but because sendPrompt is now stable it is no longer the
   //      source of cascade re-renders. The only renders now are legitimate ones
   //      driven by actual token updates.
+  // ── persistTurn: write a completed turn (user + assistant) to the DB ──────
+  //
+  // KB chat mode only. Creates the session lazily on the first turn so we
+  // never store empty conversations. Persistence is best-effort: failures are
+  // logged and never surface in the chat UI.
+  const persistTurn = useCallback(
+    async (args: {
+      kbId: string;
+      userMessage: AssistantMessageModel;
+      assistantId: string;
+      content: string;
+      sources: Source[];
+    }) => {
+      try {
+        let sessionId = activeSessionIdRef.current;
+
+        // 1. Lazily create the session on the first persisted turn.
+        if (!sessionId) {
+          const res = await fetch(apiUrl("/api/chat/sessions"), {
+            method: "POST",
+            headers: withAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+              kbId: args.kbId,
+              title: args.userMessage.content.slice(0, 60),
+            }),
+          });
+          if (!res.ok) return;
+          const data = (await res.json()) as { session?: ChatSessionSummary };
+          if (!data.session) return;
+          sessionId = data.session.id;
+
+          // Adopt as the active session only if the user hasn't moved on
+          // (new conversation / KB switch) while the turn was streaming.
+          if (activeKbIdRef.current === args.kbId && activeSessionIdRef.current === null) {
+            setActiveSessionId(sessionId);
+            setSessions((prev) => [data.session!, ...prev]);
+          }
+        }
+
+        // 2. Append the completed turn — both messages together.
+        await fetch(apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`), {
+          method: "POST",
+          headers: withAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            messages: [
+              { id: args.userMessage.id, role: "user", content: args.userMessage.content },
+              {
+                id: args.assistantId,
+                role: "assistant",
+                content: args.content,
+                sources: args.sources.map((s) => ({
+                  id: s.id,
+                  title: s.title,
+                  snippet: s.snippet,
+                  url: s.url,
+                })),
+              },
+            ],
+          }),
+        });
+
+        // 3. Keep the session list fresh (ordering + auto-title server-side).
+        setSessions((prev) => {
+          const now = new Date().toISOString();
+          const next = prev.map((s) =>
+            s.id === sessionId ? { ...s, updatedAt: now, title: s.title === "New conversation" ? args.userMessage.content.slice(0, 60) : s.title } : s,
+          );
+          next.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+          return next;
+        });
+      } catch {
+        console.warn("[AssistantProvider] chat persistence skipped (non-fatal)");
+      }
+    },
+    [setActiveSessionId],
+  );
+
   const sendPrompt = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -494,6 +721,13 @@ export function AssistantProvider({
 
       setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
       setIsStreaming(true);
+
+      // ── Chat persistence trackers ─────────────────────────────────────────
+      // Captured during streaming so the completed turn can be written to the
+      // DB in the finally block without depending on re-render timing.
+      let streamedContent = "";
+      let streamedSources: Source[] = [];
+      let skipPersistence = false;
 
       // P5 FIX: cap history window via ref (avoids the dependency problem).
       // P6 FIX: read from messagesRef.current — no `messages` in deps needed.
@@ -553,6 +787,7 @@ export function AssistantProvider({
                     url: source.url,
                   })
                 );
+                streamedSources = sources;
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantId
@@ -564,6 +799,7 @@ export function AssistantProvider({
               }
 
               case "error":
+                streamedContent = `I encountered an error: ${event.payload}. Please try again or rephrase your question.`;
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantId
@@ -586,14 +822,17 @@ export function AssistantProvider({
 
               case "done":
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId
-                      ? AssistantMessageModel.from(m).updateContent(
-                          m.content,
-                          false
-                        )
-                      : m
-                  )
+                  prev.map((m) => {
+                    if (m.id === assistantId) {
+                      // Capture the authoritative final content for persistence.
+                      streamedContent = m.content;
+                      return AssistantMessageModel.from(m).updateContent(
+                        m.content,
+                        false
+                      );
+                    }
+                    return m;
+                  })
                 );
                 break;
 
@@ -606,6 +845,12 @@ export function AssistantProvider({
       } catch (error) {
         if (!mountedRef.current) return;
         console.error("[AssistantProvider] stream error:", error);
+
+        // Aborted turns (user sent a new message / switched away) must not be
+        // persisted as "Request was cancelled" history entries.
+        if (error instanceof Error && error.name === "AbortError") {
+          skipPersistence = true;
+        }
 
         const errorMessage =
           error instanceof AssistantError
@@ -632,7 +877,23 @@ export function AssistantProvider({
               : m
           )
         );
+        streamedContent = errorMessage;
       } finally {
+        // ── Chat persistence: write the completed turn (KB mode only) ────────
+        // Non-fatal by design — see persistTurn.
+        if (
+          currentKbId &&
+          !skipPersistence &&
+          streamedContent.trim().length > 0
+        ) {
+          void persistTurn({
+            kbId: currentKbId,
+            userMessage,
+            assistantId,
+            content: streamedContent,
+            sources: streamedSources,
+          });
+        }
         if (mountedRef.current) {
           setIsStreaming(false);
           abortControllerRef.current = null;
@@ -643,7 +904,7 @@ export function AssistantProvider({
     // deps — all read via refs. sendPrompt is now stable for the lifetime of
     // a streaming session. Only props that genuinely change the function's
     // behaviour remain as deps.
-    [isStreaming, languageConfig, endpointConfig]
+    [isStreaming, languageConfig, endpointConfig, persistTurn]
   );
 
   const setKbSuggestedPrompts = useCallback((prompts: string[]) => {
@@ -651,8 +912,12 @@ export function AssistantProvider({
   }, []);
 
   const clearMessages = useCallback(() => {
+    // Clearing the visible chat also detaches from the stored session, so the
+    // next message opens a fresh conversation instead of appending to history.
+    sessionsRequestSeqRef.current++;
+    setActiveSessionId(null);
     setMessages([]);
-  }, []);
+  }, [setActiveSessionId]);
 
   const value = useMemo<AssistantContextValue>(
     () => ({
@@ -674,6 +939,11 @@ export function AssistantProvider({
       hasConversation: messages.length > 0,
       currentDocumentOverviews: documentOverviews,
       language: languageConfig,
+      sessions,
+      activeSessionId,
+      loadSession,
+      newConversation,
+      deleteSession,
     }),
     [
       documents,
@@ -693,6 +963,11 @@ export function AssistantProvider({
       languageConfig,
       documentOverviews,
       setActiveDocumentWithReset,
+      sessions,
+      activeSessionId,
+      loadSession,
+      newConversation,
+      deleteSession,
     ]
   );
 

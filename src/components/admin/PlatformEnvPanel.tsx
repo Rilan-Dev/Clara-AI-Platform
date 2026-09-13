@@ -89,13 +89,13 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   AI_PROVIDER: {
     label: "AI Provider",
     placeholder: "Select provider",
-    hint: "Switch between OpenAI and Gemini. Requires valid API key for selected provider.",
+    hint: "Choose which AI company powers Clara. Make sure the matching access key below is filled in.",
     type: "select",
     options: ["openai", "gemini"],
     group: "Provider",
   },
   OPENAI_API_KEY: {
-    label: "API Key", placeholder: "sk-...", hint: "Server-side secret key from platform.openai.com",
+    label: "API Key", placeholder: "sk-...", hint: "Your secret password for OpenAI. Copy it from platform.openai.com → API keys.",
     type: "password", isSecret: true, group: "OpenAI",
     helperLink: { label: "OpenAI Dashboard →", href: "https://platform.openai.com/api-keys" },
   },
@@ -125,7 +125,7 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     type: "select", options: OPENAI_REALTIME_VOICES, group: "OpenAI",
   },
   GEMINI_API_KEY: {
-    label: "API Key", placeholder: "AIza...", hint: "Server-side secret key from aistudio.google.com",
+    label: "API Key", placeholder: "AIza...", hint: "Your secret password for Google Gemini. Copy it from aistudio.google.com → Get API key.",
     type: "password", isSecret: true, group: "Gemini",
     helperLink: { label: "Google AI Studio →", href: "https://aistudio.google.com/apikey" },
   },
@@ -155,17 +155,17 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     type: "select", options: GEMINI_VOICES, group: "Gemini",
   },
   AI_MAX_CHAT_TOKENS: {
-    label: "Max Chat Tokens", placeholder: "4000", hint: "Maximum tokens per chat completion request",
+    label: "Max Chat Tokens", placeholder: "4000", hint: "The longest reply your assistant can write. Bigger numbers allow more detailed answers but cost more.",
     type: "number", validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
     group: "Limits",
   },
   AI_MAX_REALTIME_TOKENS: {
-    label: "Max Realtime Tokens", placeholder: "1000", hint: "Maximum tokens per realtime/voice request",
+    label: "Max Realtime Tokens", placeholder: "1000", hint: "Same idea, but for spoken (voice) conversations.",
     type: "number", validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
     group: "Limits",
   },
   AI_MAX_TEMPERATURE: {
-    label: "Max Temperature", placeholder: "1.0", hint: "Maximum sampling temperature (0-2)",
+    label: "Max Temperature", placeholder: "1.0", hint: "How creative the replies may get (0 = always the same, 2 = very creative). Keep between 0 and 2.",
     type: "number", validation: (v) => { const n = parseFloat(v); return (n >= 0 && n <= 2) ? null : "Must be between 0 and 2" },
     group: "Limits",
   },
@@ -238,11 +238,23 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
 };
 
 const CATEGORIES = ["ai", "payments", "phone", "platform"] as const;
-const CATEGORY_LABELS: Record<typeof CATEGORIES[number], { icon: React.ReactNode; title: string; description: string }> = {
-  ai: { icon: <Bot className="w-5 h-5" />, title: "AI Configuration (Centralized)", description: "Provider, models, API keys, token limits. Applies globally to all organisations, projects, KBs and assistants. Orgs can only override Identity, Behaviour, Language & Voice." },
-  payments: { icon: <CreditCard className="w-5 h-5" />, title: "Payment Gateway Configuration", description: "Stripe (USD) and Razorpay (INR) credentials. Plan pricing is managed on the Subscriptions page — not here." },
-  phone: { icon: <Smartphone className="w-5 h-5" />, title: "Phone Configuration", description: "Twilio or Vonage credentials for voice calling. Select active provider above." },
-  platform: { icon: <Globe className="w-5 h-5" />, title: "Platform Configuration", description: "Public app URL and landing embed key." },
+const CATEGORY_LABELS: Record<typeof CATEGORIES[number], { icon: React.ReactNode; short: string; title: string; description: string }> = {
+  ai: {
+    icon: <Bot className="w-4 h-4" />, short: "AI", title: "AI setup",
+    description: "Pick your AI company (OpenAI or Google Gemini), choose how smart your assistant should be, and paste your access keys. These choices apply to every organisation and assistant on the platform — organisations can only change their assistant's name, personality, language, and voice.",
+  },
+  payments: {
+    icon: <CreditCard className="w-4 h-4" />, short: "Payments", title: "Payments",
+    description: "Connect Stripe (for USD) or Razorpay (for INR) so customers can pay online. The plan prices themselves are set on the Subscriptions page — here you only connect the accounts.",
+  },
+  phone: {
+    icon: <Smartphone className="w-4 h-4" />, short: "Phone calls", title: "Phone calls",
+    description: "Connect Twilio or Vonage if you want your assistant to make real voice phone calls. Pick the provider you have an account with, then fill in its details.",
+  },
+  platform: {
+    icon: <Globe className="w-4 h-4" />, short: "Website & app", title: "Website & app",
+    description: "Your public website address and the key used by the chat widget on your landing page.",
+  },
 };
 
 // Category → which keys belong
@@ -476,13 +488,13 @@ export function PlatformEnvPanel() {
 
     if (isEditing) {
       return (
-        <div className="space-y-3 p-4 bg-card border border-border rounded-lg">
-          <div className="flex items-center gap-2">
-            <code className="text-xs font-mono font-semibold text-primary">{key}</code>
+        <div key={key} className="space-y-3 p-4 bg-card border border-border rounded-lg">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Label className="text-sm font-semibold text-foreground">{m?.label || key}</Label>
             {isSecret && <Badge variant="secondary" className="text-[10px]">secret</Badge>}
             {m?.deprecated && <Badge variant="destructive" className="text-[10px]">legacy</Badge>}
           </div>
-          <Label className="text-sm font-medium">{m?.label || key}</Label>
+          <p className="text-[11px] font-mono text-muted-foreground/70 select-all">{key}</p>
           {InputComponent}
           {m?.hint && <p className="text-xs text-muted-foreground">{m.hint}</p>}
           {m?.deprecationHint && (
@@ -509,7 +521,7 @@ export function PlatformEnvPanel() {
           <div className="rounded-lg bg-warning/5 border border-warning/20 px-3 py-2 text-xs text-warning flex items-start gap-2">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
-              <p className="font-semibold">This updates the live runtime configuration immediately.</p>
+              <p className="font-semibold">This change takes effect immediately for everyone using the platform.</p>
               <p className="mt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -540,14 +552,14 @@ export function PlatformEnvPanel() {
 
     // View mode
     return (
-      <div className={`flex items-center justify-between gap-4 p-3 ${isLegacy ? "opacity-60" : ""}`}>
+      <div key={key} className={`flex items-center justify-between gap-4 p-3 ${isLegacy ? "opacity-60" : ""}`}>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <code className="text-xs font-mono font-semibold">{key}</code>
+            <p className="text-sm font-medium text-foreground">{m?.label || key}</p>
             {isSecret && <Badge variant="secondary" className="text-[10px]">secret</Badge>}
             {m?.deprecated && <Badge variant="destructive" className="text-[10px]">legacy</Badge>}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{m?.label || key}</p>
+          <p className="text-[11px] font-mono text-muted-foreground/70 mt-0.5 select-all">{key}</p>
           {m?.hint && <p className="text-[11px] text-muted-foreground/70 mt-0.5">{m.hint}</p>}
           {m?.deprecationHint && (
             <p className="text-[11px] text-amber-400/80 mt-0.5 flex items-center gap-1">
@@ -564,7 +576,7 @@ export function PlatformEnvPanel() {
             {isSecret ? (
               <span className={`text-xs font-medium ${isSet ? "text-success" : "text-destructive"} flex items-center gap-1`}>
                 {isSet ? <Check className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                {isSet ? "Configured" : "Not configured"}
+                {isSet ? "Set up" : "Not set up yet"}
               </span>
             ) : (
               <span className="text-xs font-mono bg-muted/40 px-2 py-0.5 rounded">
@@ -618,11 +630,11 @@ export function PlatformEnvPanel() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">⚙️ Platform Runtime Settings</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          <strong>AI Configuration</strong> applies globally to all organizations, projects, KBs and assistants.
-          Organizations can only override Identity, Behaviour, Language & Voice settings.
-          Payment & Phone changes take effect without restarting the application. Secret values are masked.
+        <h2 className="text-base font-semibold text-foreground">All platform settings</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+          Everything below is controlled in one place and applies to the whole platform. Changes take effect
+          straight away — no restart needed. Items marked <span className="font-medium">secret</span> are hidden
+          after saving, which keeps them safe.
         </p>
       </div>
       {success && (
@@ -637,12 +649,12 @@ export function PlatformEnvPanel() {
       )}
 
       <Tabs value={filterCategory} onValueChange={(val) => setFilterCategory(val as typeof CATEGORIES[number] | "all")} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1">
           {CATEGORIES.map(cat => (
-            <TabsTrigger key={cat} value={cat} className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger key={cat} value={cat} className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg">{CATEGORY_LABELS[cat].icon}</span>
-                <span className="font-medium">{CATEGORY_LABELS[cat].title}</span>
+                {CATEGORY_LABELS[cat].icon}
+                <span className="font-medium text-xs sm:text-sm">{CATEGORY_LABELS[cat].short}</span>
               </div>
             </TabsTrigger>
           ))}
@@ -651,7 +663,7 @@ export function PlatformEnvPanel() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
           <Input
             type="text"
-            placeholder="Search configurations..."
+            placeholder="Search settings…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-64"
@@ -661,11 +673,11 @@ export function PlatformEnvPanel() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Label htmlFor="show-empty" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
-                    Show Empty Fields
+                    Show items not set up yet
                   </Label>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Toggle to show/hide fields that are not configured.
+                  Turn on to also see settings you haven&apos;t filled in yet.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -720,8 +732,8 @@ export function PlatformEnvPanel() {
               if (renderedNormalGroups.length === 0 && !renderedLegacyGroups) {
                 return (
                   <div className="text-center text-muted-foreground py-8">
-                    <p>No matching configurations found for this category.</p>
-                    <p className="text-sm mt-1">Try adjusting your search or filters.</p>
+                    <p>Nothing matches your search.</p>
+                    <p className="text-sm mt-1">Try a different word, or turn on “Show items not set up yet”.</p>
                   </div>
                 );
               }
