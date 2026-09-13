@@ -16,6 +16,10 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./instrumentation.node");
+    // CRITICAL: actually invoke the startup logic. A previous version imported
+    // the module without calling anything, so startup migrations, the
+    // subscription sweep, and the ingest poller silently never ran.
+    const node = await import("./instrumentation.node");
+    await node.registerNode();
   }
 }
