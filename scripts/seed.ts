@@ -41,11 +41,13 @@ async function main() {
     if (mode === "prod") {
       await seedProductionData();
       console.log("\nLogin credentials:");
-      console.log(`  Platform admin: ${process.env.CLARA_ADMIN_EMAIL ?? "admin@clara.ai"} / ${process.env.CLARA_ADMIN_PASSWORD ?? "Admin1234!"}\n`);
+      console.log(`  Platform admin: ${process.env.CLARA_ADMIN_EMAIL ?? "admin@clara.ai"} / ${process.env.CLARA_ADMIN_PASSWORD ?? "Admin1234!"}`);
+      console.log(`  Demo org user:  ${process.env.CLARA_DEMO_USER_EMAIL ?? "demo@clara.ai"} / ${process.env.CLARA_DEMO_USER_PASSWORD ?? "Demo1234!"} (Enterprise)\n`);
     } else {
       await seedDevelopmentData();
       console.log("\nLogin credentials:");
       console.log("  Platform admin:   admin@clara.ai             / Admin1234!");
+      console.log("  Demo org user:    demo@clara.ai              / Demo1234!   (Enterprise)");
       console.log("  Omen admin:       admin@omeninsurance.com    / Omen1234!");
       console.log("  TechVision admin: admin@techvision.io        / Tech1234!\n");
     }
