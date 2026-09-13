@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node index.mjs",
-    "topology": "node index.mjs --topology-only"
+    "topology": "node index.mjs --topology-only",
+    "dlq:replay": "node replay-dlq.mjs"
   },
   "dependencies": {
     "amqplib": "2.0.1"
