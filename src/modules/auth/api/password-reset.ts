@@ -22,7 +22,8 @@ import { requireAuth } from "../core/rbac";
 import { hashToken } from "../core/tokens";
 import { hashPassword, verifyPassword } from "../core/password";
 import { getUserByEmail, deleteAllUserSessions } from "../core/db";
-import { sendPlatformEmail, wrapEmail, appUrl } from "@/lib/email";
+import { sendPlatformEmail, appUrl } from "@/lib/email";
+import { renderEmailTemplate } from "@/lib/email-templates";
 
 const RESET_TTL_MS   = 60 * 60 * 1000;        // 1 hour
 const INVITE_TTL_MS  = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -92,16 +93,13 @@ export async function forgotPasswordHandler(req: NextRequest): Promise<NextRespo
     const raw = await insertResetToken(user.id, "password_reset", RESET_TTL_MS, getIp(req));
 
     const link = appUrl(`/login/reset?token=${raw}`);
-    const html = wrapEmail(
-      `<h2 style="margin:0 0 12px;">Reset your password</h2>
-       <p>Hi <strong>${user.fullName}</strong>,</p>
-       <p>We received a request to reset your Clara AI password. This link is valid for
-          <strong>1 hour</strong> and can only be used once.</p>`,
-      { ctaUrl: link, ctaLabel: "Choose a new password" }
-    );
+    const rendered = await renderEmailTemplate("password_reset", {
+      userName: user.fullName,
+      resetUrl: link,
+    });
 
     // Fire-and-forget — the response must not depend on email delivery.
-    sendPlatformEmail({ to: user.email, subject: "Reset your Clara AI password", html }).catch((e) =>
+    sendPlatformEmail({ to: user.email, subject: rendered.subject, html: rendered.html }).catch((e) =>
       console.error("[forgot-password] email failed:", (e as Error).message)
     );
 
@@ -154,15 +152,11 @@ export async function resetPasswordHandler(req: NextRequest): Promise<NextRespon
     await execute(`UPDATE password_reset_tokens SET used_at = now() WHERE id = $1`, [entry.id]);
     await deleteAllUserSessions(entry.user_id);
 
-    const html = wrapEmail(
-      `<h2 style="margin:0 0 12px;">Your password was changed</h2>
-       <p>Hi <strong>${entry.full_name}</strong>,</p>
-       <p>Your Clara AI password was just updated. All active sessions were signed out
-          for your security.</p>
-       <p>If this wasn't you, reset your password immediately and contact support.</p>`,
-      { ctaUrl: appUrl("/login"), ctaLabel: "Sign in" }
-    );
-    sendPlatformEmail({ to: entry.email, subject: "Your Clara AI password was changed", html }).catch(() => {});
+    const rendered = await renderEmailTemplate("password_changed", {
+      userName: entry.full_name,
+      loginUrl: appUrl("/login"),
+    });
+    sendPlatformEmail({ to: entry.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
 
     return NextResponse.json({ ok: true, message: "Password updated — you can now sign in with your new password." });
   } catch (err) {
@@ -207,13 +201,11 @@ export async function changePasswordHandler(req: NextRequest): Promise<NextRespo
       auth.session.id,
     ]);
 
-    const html = wrapEmail(
-      `<h2 style="margin:0 0 12px;">Your password was changed</h2>
-       <p>Hi <strong>${auth.user.fullName}</strong>,</p>
-       <p>You changed your Clara AI password from your account settings.
-          Other devices were signed out for your security.</p>`
-    );
-    sendPlatformEmail({ to: auth.user.email, subject: "Your Clara AI password was changed", html }).catch(() => {});
+    const rendered = await renderEmailTemplate("password_changed", {
+      userName: auth.user.fullName,
+      loginUrl: appUrl("/login"),
+    });
+    sendPlatformEmail({ to: auth.user.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
 
     return NextResponse.json({ ok: true, message: "Password changed successfully." });
   } catch (err) {

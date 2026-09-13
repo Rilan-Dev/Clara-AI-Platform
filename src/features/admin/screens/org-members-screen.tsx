@@ -17,7 +17,6 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { OrgWorkspaceNav } from "@/components/admin/OrgWorkspaceNav";
 import { Button } from "@/components/ui/button";
 
 type Member = {
@@ -146,8 +145,6 @@ export default function OrgMembersScreen() {
         description="Invite teammates, control what each person can do, and keep your organisation secure."
         breadcrumbs={isAdmin ? [{ label: "Organisations", href: "/orgs" }, { label: "Members" }] : undefined}
       />
-
-      <OrgWorkspaceNav orgId={id} />
 
       {message && (
         <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${

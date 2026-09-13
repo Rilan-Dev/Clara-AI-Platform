@@ -8,10 +8,13 @@ import {
   ChevronRight,
   CreditCard,
   KeyRound,
+  Mail,
   UserRound,
 } from "lucide-react";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
 import { EmbedApiKeyPanel } from "@/components/admin/EmbedApiKeyPanel";
+import { EmailDeliveryPanel } from "@/components/admin/EmailDeliveryPanel";
+import { EmailTemplatesPanel } from "@/components/admin/EmailTemplatesPanel";
 import { PaymentGatewayPanel } from "@/components/admin/PaymentGatewayPanel";
 import { PlatformAssistantDefaultsEditor } from "@/components/admin/PlatformAssistantDefaultsEditor";
 import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks";
@@ -31,7 +34,7 @@ import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks"
 //     Voice are NOT org-level settings any more — orgs tune their own
 //     agents and knowledge bases.
 
-export type SettingsSection = "account" | "ai" | "embed" | "payments";
+export type SettingsSection = "account" | "ai" | "embed" | "payments" | "email" | "templates";
 
 type SectionDef = {
   id: SettingsSection;
@@ -84,6 +87,26 @@ export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
     title: "Payment setup",
     description:
       "Connect Stripe or Razorpay so customers can subscribe to your service and pay online.",
+    audience: "Platform admin",
+  },
+  {
+    id: "email",
+    href: "/settings/email",
+    icon: Mail,
+    label: "Email Delivery",
+    title: "Email delivery",
+    description:
+      "Choose how Clara sends email — Resend or your own SMTP server — and test it with one click.",
+    audience: "Platform admin",
+  },
+  {
+    id: "templates",
+    href: "/settings/templates",
+    icon: Mail,
+    label: "Email Templates",
+    title: "Email templates",
+    description:
+      "Design the emails Clara sends — invitations, password resets and subscription notices are fully editable.",
     audience: "Platform admin",
   },
 ];
@@ -214,6 +237,10 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
             <PaymentGatewayPanel />
           </div>
         )}
+
+        {section === "email" && <EmailDeliveryPanel />}
+
+        {section === "templates" && <EmailTemplatesPanel />}
       </div>
 
       {user && showProfile && (

@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Brain, LayoutDashboard, Building2, CreditCard,
+  Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, Menu, X, ChevronRight, ChevronDown, BarChart3,
-  UserRound, Bot, KeyRound,
+  UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
@@ -18,6 +18,7 @@ const ADMIN_NAV = [
   { href: "/dashboard",     icon: LayoutDashboard, label: "Dashboard"     },
   { href: "/subscriptions", icon: CreditCard,      label: "Subscriptions" },
   { href: "/analytics",     icon: BarChart3,       label: "Analytics"     },
+  { href: "/system-status", icon: Activity,        label: "System Status" },
 ];
 
 // Settings sub-sections rendered as a dropdown group in the sidebar.
@@ -30,6 +31,8 @@ const SETTINGS_NAV = [
   { href: "/settings/ai",       icon: Bot,       label: "AI Configuration" },
   { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
   { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
+  { href: "/settings/email",    icon: Mail,      label: "Email Delivery"   },
+  { href: "/settings/templates", icon: FileText,  label: "Email Templates"  },
 ];
 
 // Org users have no AI Configuration section any more — assistant persona
@@ -40,8 +43,22 @@ const ORG_SETTINGS_NAV = [
   { href: "/settings/account", icon: UserRound, label: "Account" },
 ];
 
+// Organisation workspace sections — org users navigate to each of these
+// directly from the sidebar (they used to be horizontal tabs; moving them
+// into the rail keeps every screen focused on one job: monitor → build →
+// team → money). "Settings" stays personal (account) in its own group.
+function orgWorkspaceNav(orgId: string) {
+  const base = `/orgs/${orgId}`;
+  return [
+    { href: base,              icon: LayoutDashboard, label: "Dashboard", exact: true  },
+    { href: `${base}/agents`,  icon: Bot,             label: "Agents",    exact: false },
+    { href: `${base}/members`, icon: Users,           label: "Members",   exact: false },
+    { href: `${base}/billing`, icon: CreditCard,      label: "Billing",   exact: false },
+  ];
+}
+
 // Routes only accessible to super-admins — org users are redirected away from these
-const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics"];
+const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics", "/system-status"];
 
 // Organisation-content routes — platform admins are redirected away from
 // these because orgs manage their own agents and knowledge bases.
@@ -113,15 +130,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isAdmin = user.isSuperAdmin;
 
-  // Nav items — platform admins see counts + billing only; org users see
-  // their organisation (agents live on the org page) and their settings.
-  const orgNav = [
-    {
-      href:  primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings/account",
-      icon:  Building2,
-      label: "My Organisation",
-    },
-  ];
+  // Org users get their full workspace in the sidebar: Dashboard / Agents /
+  // Members / Billing as separate screens (formerly tabs on one page).
+  const orgNav = primaryOrgId ? orgWorkspaceNav(primaryOrgId) : [];
   const nav = isAdmin ? ADMIN_NAV : orgNav;
   const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
   // Org users only have Account left — a one-item dropdown would be noise, so
@@ -158,9 +169,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
+          {/* Org workspace group header — separates the org's own screens
+              from the personal Settings group below. */}
+          {!isAdmin && primaryOrgId && (
+            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+              My Organisation
+            </p>
+          )}
+
+          {/* Org user with no org yet — keep a friendly fallback link. */}
+          {!isAdmin && !primaryOrgId && (
+            <Link
+              href="/settings/account"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.05] transition-all"
+            >
+              <Bot className="w-4 h-4 shrink-0" />
+              My Organisation
+            </Link>
+          )}
+
           {nav.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = (item as { exact?: boolean }).exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}

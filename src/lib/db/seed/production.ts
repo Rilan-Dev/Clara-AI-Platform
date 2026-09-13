@@ -78,6 +78,9 @@ function productionSettingValues(): Record<string, string> {
     AI_MAX_TEMPERATURE: "1.0",
     PHONE_PROVIDER: "twilio",
     NEXT_PUBLIC_APP_URL: "https://clara.ai.amazetechclans.com",
+    // Email delivery defaults (secrets pulled from env below).
+    EMAIL_PROVIDER: "resend",
+    EMAIL_FROM_NAME: "Clara AI",
   };
   // Real secrets/keys come from env only — never hardcoded as defaults.
   for (const key of [
@@ -88,6 +91,9 @@ function productionSettingValues(): Record<string, string> {
     "OPENAI_API_KEY", "GEMINI_API_KEY",
     "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
     "VONAGE_API_KEY", "VONAGE_API_SECRET", "VONAGE_PHONE_NUMBER",
+    // Email delivery (Resend / SMTP)
+    "RESEND_API_KEY",
+    "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM_ADDRESS",
   ]) {
     const v = env[key]?.trim();
     if (v) values[key] = v;
@@ -96,6 +102,7 @@ function productionSettingValues(): Record<string, string> {
   for (const key of [
     "AI_PROVIDER", "PHONE_PROVIDER", "NEXT_PUBLIC_APP_URL",
     "OPENAI_CHAT_MODEL", "GEMINI_CHAT_MODEL",
+    "EMAIL_PROVIDER", "EMAIL_FROM_NAME", "EMAIL_FROM_ADDRESS",
   ]) {
     const v = env[key]?.trim();
     if (v) values[key] = v;

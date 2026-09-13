@@ -340,37 +340,35 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
         "SELECT name, slug FROM organisations WHERE id = $1", [orgId]
       );
       const orgName = org?.name ?? "your organisation";
-      const { sendPlatformEmail, wrapEmail, appUrl } = await import("@/lib/email");
+      const { sendPlatformEmail, appUrl } = await import("@/lib/email");
+      const { renderEmailTemplate } = await import("@/lib/email-templates");
 
       if (isNewUser) {
         const { createInvitationToken } = await import("./password-reset");
         inviteToken = await createInvitationToken(target.id, orgId, orgName);
         const link = appUrl(`/login/reset?token=${inviteToken}`);
-        const html = wrapEmail(
-          `<h2 style="margin:0 0 12px;">You're invited to ${orgName}</h2>
-           <p>Hi <strong>${target.fullName}</strong>,</p>
-           <p>You've been invited to collaborate on Clara AI as <strong>${role.replace("_", " ")}</strong>
-              for <strong>${orgName}</strong>.</p>
-           <p>Set your password below and start building assistants together.</p>`,
-          { ctaUrl: link, ctaLabel: "Set your password & join" }
-        );
+        const rendered = await renderEmailTemplate("org_invitation_new_user", {
+          userName: target.fullName,
+          orgName,
+          role: role.replace("_", " "),
+          inviteUrl: link,
+        });
         await sendPlatformEmail({
           to: target.email,
-          subject: `You're invited to ${orgName} on Clara AI`,
-          html,
+          subject: rendered.subject,
+          html: rendered.html,
         });
       } else {
-        const html = wrapEmail(
-          `<h2 style="margin:0 0 12px;">You've been added to ${orgName}</h2>
-           <p>Hi <strong>${target.fullName}</strong>,</p>
-           <p>You now have <strong>${role.replace("_", " ")}</strong> access to <strong>${orgName}</strong> on Clara AI.
-              Sign in with your existing account to get started.</p>`,
-          { ctaUrl: appUrl("/login"), ctaLabel: "Sign in" }
-        );
+        const rendered = await renderEmailTemplate("org_invitation_existing_user", {
+          userName: target.fullName,
+          orgName,
+          role: role.replace("_", " "),
+          loginUrl: appUrl("/login"),
+        });
         await sendPlatformEmail({
           to: target.email,
-          subject: `You've been added to ${orgName} on Clara AI`,
-          html,
+          subject: rendered.subject,
+          html: rendered.html,
         });
       }
     } catch (mailErr) {

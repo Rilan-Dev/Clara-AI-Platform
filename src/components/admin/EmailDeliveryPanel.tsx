@@ -1,0 +1,432 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import {
+  Mail, Send, Eye, EyeOff, Save, CheckCircle2, AlertCircle,
+  Zap, Server, TestTube2, Loader2,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/lib/runtime";
+import { withAuthHeaders } from "@/lib/client-auth";
+
+/**
+ * EmailDeliveryPanel — Settings → Email Delivery
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Lets the platform admin switch the transactional email provider between
+ * Resend (API) and SMTP (any server, e.g. Gmail with an app password). Only
+ * ONE provider is active at a time — activating a card saves EMAIL_PROVIDER
+ * and takes effect on the very next email (no restart).
+ *
+ * Also hosts the "send a test email" tool so configuration can be verified
+ * end-to-end from this page.
+ */
+
+type EnvSetting = {
+  key: string; value: string; isSet: boolean; description: string;
+  category: string; isSecret: boolean; requiresRestart: boolean; updatedAt: string;
+};
+
+type FieldDef = {
+  key: string; label: string; placeholder: string; isSecret: boolean;
+  helpText?: string; wide?: boolean;
+};
+
+const MASK = "●●●●●●●●";
+
+/* ── field definitions ──────────────────────────────────────────────────────── */
+
+const COMMON_FIELDS: FieldDef[] = [
+  { key: "EMAIL_FROM_NAME", label: "Sender name", placeholder: "Clara AI", isSecret: false, helpText: "Friendly name shown in recipients' inboxes." },
+  { key: "EMAIL_FROM_ADDRESS", label: "Sender address (Resend)", placeholder: "noreply@yourdomain.com", isSecret: false, helpText: "Resend requires an address on a domain you verified in their dashboard." },
+];
+
+const RESEND_FIELDS: FieldDef[] = [
+  { key: "RESEND_API_KEY", label: "API key", placeholder: "re_…", isSecret: true, helpText: "Resend Dashboard → API Keys. Server-side only.", wide: true },
+];
+
+const SMTP_FIELDS: FieldDef[] = [
+  { key: "SMTP_HOST", label: "SMTP host", placeholder: "smtp.gmail.com", isSecret: false },
+  { key: "SMTP_PORT", label: "Port", placeholder: "465", isSecret: false, helpText: "465 = SSL, 587 = STARTTLS." },
+  { key: "SMTP_SECURE", label: "Use SSL", placeholder: "true", isSecret: false, helpText: "true for port 465, false for 587/STARTTLS." },
+  { key: "SMTP_USER", label: "Username", placeholder: "you@gmail.com", isSecret: false, helpText: "Gmail: your full email address." },
+  { key: "SMTP_PASSWORD", label: "Password / app password", placeholder: "16-character app password", isSecret: true, helpText: "Gmail: create one in Google Account → Security → 2-Step Verification → App passwords.", wide: true },
+  { key: "SMTP_FROM_ADDRESS", label: "Sender address (SMTP)", placeholder: "you@gmail.com", isSecret: false, helpText: "Gmail requires this to match the authenticated account." },
+];
+
+/* ── helpers ────────────────────────────────────────────────────────────────── */
+
+async function saveSetting(key: string, value: string): Promise<void> {
+  const tokenRes = await fetch(
+    apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`),
+    { headers: withAuthHeaders() },
+  );
+  const tokenData = await tokenRes.json() as { confirmation_token?: string; timestamp?: number; error?: string };
+  if (!tokenRes.ok || !tokenData.confirmation_token)
+    throw new Error(tokenData.error ?? "Could not create confirmation token");
+
+  const res = await fetch(apiUrl("/api/platform/env"), {
+    method: "POST",
+    headers: withAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      key, value,
+      confirmation_token: tokenData.confirmation_token,
+      timestamp: tokenData.timestamp,
+    }),
+  });
+  const data = await res.json() as { ok?: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error ?? "Failed to save");
+}
+
+/* ── component ──────────────────────────────────────────────────────────────── */
+
+export function EmailDeliveryPanel() {
+  const [settings, setSettings] = useState<EnvSetting[]>([]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [visibility, setVisibility] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activating, setActivating] = useState<string | null>(null);
+
+  // Test-email state
+  const [testTo, setTestTo] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<
+    { ok: boolean; provider: string; subject?: string; from?: string; error?: string } | null
+  >(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(apiUrl("/api/platform/env"), { headers: withAuthHeaders() });
+      const data = await res.json() as { settings: EnvSetting[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to load");
+      const emailSettings = (data.settings ?? []).filter((s) => s.category === "email");
+      setSettings(emailSettings);
+      const init: Record<string, string> = {};
+      for (const s of emailSettings) {
+        init[s.key] = s.isSecret ? "" : (s.value === MASK ? "" : s.value);
+      }
+      setValues(init);
+      if (!testTo) setTestTo(""); // keep user-entered recipient across reloads
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [testTo]);
+
+  useEffect(() => { void load(); /* eslint-disable-line */ }, []);
+
+  const getSetting = (key: string) => settings.find((s) => s.key === key);
+  const activeProvider = (getSetting("EMAIL_PROVIDER")?.value ?? "resend").toLowerCase();
+
+  const handleSave = async (key: string) => {
+    const val = values[key] ?? "";
+    setSaving(key);
+    setError(null);
+    setSaved(null);
+    try {
+      await saveSetting(key, val);
+      setSaved(key);
+      setTimeout(() => setSaved(null), 3000);
+      await load();
+    } catch (e) {
+      setError(`Failed to save ${key}: ${(e as Error).message}`);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleActivate = async (provider: "resend" | "smtp") => {
+    setActivating(provider);
+    setError(null);
+    try {
+      await saveSetting("EMAIL_PROVIDER", provider);
+      await load();
+    } catch (e) {
+      setError(`Could not switch provider: ${(e as Error).message}`);
+    } finally {
+      setActivating(null);
+    }
+  };
+
+  const sendTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    setError(null);
+    try {
+      const res = await fetch(apiUrl("/api/platform/email/test"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ to: testTo }),
+      });
+      const data = await res.json() as {
+        ok?: boolean; provider?: string; subject?: string; from?: string; error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Test send failed");
+      setTestResult({
+        ok: Boolean(data.ok),
+        provider: data.provider ?? "?",
+        subject: data.subject,
+        from: data.from,
+        error: data.error ?? undefined,
+      });
+    } catch (e) {
+      setTestResult({ ok: false, provider: "?", error: (e as Error).message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-10 rounded-xl bg-white/[0.04] animate-pulse" />
+        <div className="h-40 rounded-xl bg-white/[0.04] animate-pulse" />
+        <div className="h-64 rounded-xl bg-white/[0.04] animate-pulse" />
+      </div>
+    );
+  }
+
+  const renderField = (field: FieldDef) => {
+    const setting = getSetting(field.key);
+    const isConfigured = setting?.isSet ?? false;
+    const value = values[field.key] ?? "";
+    const showPassword = visibility[field.key] ?? false;
+
+    return (
+      <div key={field.key} className={`space-y-2 ${field.wide ? "sm:col-span-2" : ""}`}>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-white/80">{field.label}</label>
+          {field.isSecret && <Badge variant="outline" className="text-[10px] py-0">secret</Badge>}
+          {isConfigured && (
+            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+              <CheckCircle2 className="w-3 h-3" /> configured
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type={field.isSecret && !showPassword ? "password" : "text"}
+              value={value}
+              onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+              placeholder={field.placeholder}
+              className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 pr-10 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+            />
+            {field.isSecret && (
+              <button
+                type="button"
+                onClick={() => setVisibility((v) => ({ ...v, [field.key]: !v[field.key] }))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                aria-label={showPassword ? "Hide" : "Show"}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleSave(field.key)}
+            disabled={saving === field.key || (field.isSecret && !value)}
+            className="shrink-0"
+          >
+            {saving === field.key ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : saved === field.key ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saved === field.key ? "Saved" : "Save"}
+          </Button>
+        </div>
+        {field.helpText && <p className="text-xs text-white/35">{field.helpText}</p>}
+      </div>
+    );
+  };
+
+  const providerCard = (
+    provider: "resend" | "smtp",
+    title: string,
+    subtitle: string,
+    icon: React.ReactNode,
+    fields: FieldDef[],
+    configured: boolean,
+  ) => {
+    const isActive = activeProvider === provider;
+    return (
+      <div
+        className={`rounded-2xl border p-5 sm:p-6 transition-colors ${
+          isActive
+            ? "border-indigo-500/40 bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04]"
+            : "border-white/[0.08] bg-white/[0.02]"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+              isActive ? "border-indigo-500/30 bg-indigo-500/15 text-indigo-300" : "border-white/10 bg-white/[0.04] text-white/40"
+            }`}>
+              {icon}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-white">{title}</h3>
+                {isActive && (
+                  <span className="rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
+                    Active
+                  </span>
+                )}
+                {!isActive && configured && (
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-white/40">
+                    Standby
+                  </span>
+                )}
+                {!configured && (
+                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300/80">
+                    Not configured
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-white/40">{subtitle}</p>
+            </div>
+          </div>
+          {!isActive && (
+            <Button
+              size="sm"
+              onClick={() => void handleActivate(provider)}
+              disabled={activating === provider}
+              className="shrink-0"
+            >
+              {activating === provider ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              Activate
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">{fields.map(renderField)}</div>
+      </div>
+    );
+  };
+
+  const resendConfigured = getSetting("RESEND_API_KEY")?.isSet ?? false;
+  const smtpConfigured = Boolean(getSetting("SMTP_HOST")?.isSet) && Boolean(getSetting("SMTP_USER")?.isSet);
+
+  return (
+    <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+        </div>
+      )}
+
+      {/* How it works */}
+      <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04] p-5 sm:p-6">
+        <h2 className="text-sm font-semibold text-white">How email delivery works</h2>
+        <p className="mt-2 text-xs leading-relaxed text-white/45">
+          Clara sends transactional email (invitations, password resets, subscription
+          notices) through exactly <strong className="text-white/70">one provider</strong> —
+          activate a card below to switch. Credentials are stored encrypted in the
+          platform settings and take effect on the next send, with no restart needed.
+          Use the test tool at the bottom to verify delivery before relying on it.
+        </p>
+      </div>
+
+      {/* Common sender fields */}
+      <section>
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+          <Mail className="w-3.5 h-3.5" /> Sender identity
+        </h3>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
+          <div className="grid gap-4 sm:grid-cols-2">{COMMON_FIELDS.map(renderField)}</div>
+        </div>
+      </section>
+
+      {/* Provider cards */}
+      <section className="space-y-4">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+          <Server className="w-3.5 h-3.5" /> Providers — one active at a time
+        </h3>
+        {providerCard(
+          "resend",
+          "Resend",
+          "Modern email API — fastest to set up. Requires a verified domain.",
+          <Send className="w-5 h-5" />,
+          RESEND_FIELDS,
+          resendConfigured,
+        )}
+        {providerCard(
+          "smtp",
+          "SMTP",
+          "Any SMTP server — Gmail, Outlook, self-hosted. Uses your own mailbox.",
+          <Server className="w-5 h-5" />,
+          SMTP_FIELDS,
+          smtpConfigured,
+        )}
+      </section>
+
+      {/* Test send */}
+      <section>
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+          <TestTube2 className="w-3.5 h-3.5" /> Verify with a test email
+        </h3>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
+          <p className="text-xs text-white/40">
+            Sends a real message through the <strong className="text-white/70">{activeProvider === "smtp" ? "SMTP" : "Resend"}</strong> provider
+            {" "}to the address you enter — the same path every system email takes.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="you@example.com"
+              className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+            />
+            <Button onClick={() => void sendTest()} disabled={testing || !testTo.trim()} className="shrink-0">
+              {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Send test email
+            </Button>
+          </div>
+
+          {testResult && (
+            <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+              testResult.ok
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                : "border-red-500/25 bg-red-500/10 text-red-300"
+            }`}>
+              <div className="flex items-start gap-2">
+                {testResult.ok ? (
+                  <CheckCircle2 className="mt-0.5 w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="mt-0.5 w-4 h-4 shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {testResult.ok
+                      ? `Delivered via ${testResult.provider} — check the inbox.`
+                      : `Send failed (${testResult.provider})`}
+                  </p>
+                  {testResult.subject && (
+                    <p className="mt-0.5 truncate text-xs opacity-80">Subject: {testResult.subject}</p>
+                  )}
+                  {testResult.from && (
+                    <p className="text-xs opacity-80">From: {testResult.from}</p>
+                  )}
+                  {testResult.error && (
+                    <p className="mt-1 break-words text-xs opacity-90">{testResult.error}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}

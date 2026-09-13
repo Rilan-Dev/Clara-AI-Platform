@@ -16,7 +16,6 @@ import Link from "next/link";
 import { Building2, Settings2, Info } from "lucide-react";
 import { useAuth, useOrg } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { OrgWorkspaceNav } from "@/components/admin/OrgWorkspaceNav";
 import { EditOrgPanel } from "@/components/admin/EditOrgPanel";
 
 export default function OrgSettingsScreen() {
@@ -40,8 +39,6 @@ export default function OrgSettingsScreen() {
         description="Your organisation's public profile — name, web address and logo."
         breadcrumbs={isAdmin ? [{ label: "Organisations", href: "/orgs" }, { label: "Settings" }] : undefined}
       />
-
-      <OrgWorkspaceNav orgId={id} />
 
       {/* Org profile — the "Organisation Details" editor, now in its proper home */}
       <EditOrgPanel

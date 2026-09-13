@@ -4,6 +4,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { getPlatformEnvSettings, setPlatformEnvSetting } from "@/modules/phone/core/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { invalidateOpenAICatalogCache } from "@/modules/assistant/api/openai-catalog-cache";
+import { resetEmailTransportCache } from "@/lib/email";
 
 const CONFIRM_SECRET = process.env.PLATFORM_CONFIRM_SECRET ?? process.env.NEXTAUTH_SECRET ?? "clara-platform-confirm-secret";
 const TOKEN_TTL_MS = 5 * 60 * 1000;
@@ -21,6 +22,10 @@ const MANAGED_KEYS = new Set([
   "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
   "VONAGE_API_KEY", "VONAGE_API_SECRET", "VONAGE_PHONE_NUMBER",
   "PHONE_PROVIDER",
+  // Email Delivery (Resend / SMTP switcher — Settings → Email Delivery)
+  "EMAIL_PROVIDER", "EMAIL_FROM_NAME", "EMAIL_FROM_ADDRESS",
+  "RESEND_API_KEY",
+  "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM_ADDRESS",
 ]);
 function buildToken(key:string,value:string,ts:number):string{return crypto.createHmac("sha256",CONFIRM_SECRET).update(`${key}:${value}:${ts}`).digest("hex");}
 
@@ -60,6 +65,11 @@ export async function POST(req:NextRequest):Promise<NextResponse>{
     // what the Voice tab should show, so reset its Redis cache (best-effort).
     if(body.key.startsWith("OPENAI_")){
       try{ await invalidateOpenAICatalogCache(); }catch{/* cache reset is best-effort */}
+    }
+    // Email provider switches must not reuse the old SMTP transporter —
+    // drop the pooled transport so the next send picks up new credentials.
+    if(body.key.startsWith("SMTP_")||body.key.startsWith("EMAIL_")||body.key==="RESEND_API_KEY"){
+      resetEmailTransportCache();
     }
     return NextResponse.json({ok:true,key:body.key,updatedAt:new Date().toISOString()});
   }catch(err){if(err instanceof NextResponse)return err;return NextResponse.json({error:(err as Error).message},{status:500});}
