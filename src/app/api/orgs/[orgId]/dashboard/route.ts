@@ -100,7 +100,7 @@ export async function GET(
           ORDER BY qe.created_at DESC LIMIT 5)
         UNION ALL
         (SELECT 'document' AS kind,
-                d.name AS title,
+                d.title AS title,
                 (SELECT kb.name FROM knowledge_bases kb WHERE kb.id = d.kb_id) AS detail,
                 d.created_at::text AS created_at
            FROM documents d

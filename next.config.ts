@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // Standard Vercel output uses .next
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   output: "standalone",
-  serverExternalPackages: ["pg"],
+  serverExternalPackages: ["pg", "resend"],
   reactStrictMode: true,
   // Serve routes at both /path and /path/ instead of redirecting between them.
   // The sandbox preview proxy issues its own 301 adding a trailing slash, which
