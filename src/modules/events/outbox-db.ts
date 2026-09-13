@@ -1,4 +1,5 @@
-import { pool, type PoolClient } from "@/lib/db";
+import { pool } from "@/lib/db";
+import type { PoolClient } from "pg";
 
 export type OutboxInsert = {
   id: string;
