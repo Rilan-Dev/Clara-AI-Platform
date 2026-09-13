@@ -39,6 +39,32 @@ services:
     networks:
       - clara-net
 
+  # ──────────────── Local RabbitMQ ────────────────
+  # RabbitMQ is kept inside the Clara Docker network so the bridge can connect
+  # directly using the service name "rabbitmq". Management UI is available on
+  # localhost:15672 for local administration. No external CloudAMQP is needed.
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: clara-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-clara}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-clara-rabbitmq-local}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./infra/rabbitmq/data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - clara-net
+
   # ──────────────── Clara Backend ────────────────
   clara-backend:
     build:
@@ -85,9 +111,9 @@ services:
       - proxy-network
 
   # ──────────────── Clara RabbitMQ Bridge ────────────────
-  # Relays the PostgreSQL transactional outbox to CloudAMQP and delivers
-  # webhook events. RabbitMQ itself is external; no local RabbitMQ container
-  # is required. Keep this bridge private and do not publish its ports.
+  # Relays the PostgreSQL transactional outbox to local RabbitMQ and delivers
+  # webhook events. RabbitMQ runs inside this Compose project; no CloudAMQP is
+  # required for local/self-hosted deployment. Keep this bridge private.
   clara-rabbitmq-bridge:
     build:
       context: ./services/rabbitmq-bridge
@@ -99,11 +125,16 @@ services:
     environment:
       NODE_ENV: production
       CLARA_INTERNAL_API_URL: http://clara-backend:3000
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-clara}:${RABBITMQ_DEFAULT_PASS:-clara-rabbitmq-local}@rabbitmq:5672/%2F
       RABBITMQ_OUTBOX_POLL_MS: ${RABBITMQ_OUTBOX_POLL_MS:-1000}
       RABBITMQ_WEBHOOK_PREFETCH: ${RABBITMQ_WEBHOOK_PREFETCH:-10}
     depends_on:
-      - clara-backend
-      - postgres
+      rabbitmq:
+        condition: service_healthy
+      clara-backend:
+        condition: service_started
+      postgres:
+        condition: service_started
     read_only: true
     tmpfs:
       - /tmp
