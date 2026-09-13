@@ -24,19 +24,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const result = await pool.query<{
       kb_id: string; kb_name: string; kb_description: string | null; kb_status: string;
-      qdrant_collection: string; project_id: string; project_name: string; org_id: string; org_name: string;
+      qdrant_collection: string; agent_id: string; agent_name: string; org_id: string; org_name: string;
       assistant_name: string; avatar_url: string | null; welcome_message: string; system_prompt: string;
       primary_colour: string; accent_colour: string; doc_count: string; ready_count: string;
     }>(
       `SELECT kb.id AS kb_id, kb.name AS kb_name, kb.description AS kb_description, kb.status AS kb_status,
-              kb.qdrant_collection, p.id AS project_id, p.name AS project_name, o.id AS org_id, o.name AS org_name,
+              kb.qdrant_collection, p.id AS agent_id, p.name AS agent_name, o.id AS org_id, o.name AS org_name,
               COALESCE(ac.assistant_name, 'Clara') AS assistant_name, ac.avatar_url,
               COALESCE(ac.welcome_message, 'Hello! How can I help you with this knowledge base today?') AS welcome_message,
               COALESCE(ac.system_prompt, 'You are Clara, a helpful voice assistant. Answer ONLY using the context provided.') AS system_prompt,
               COALESCE(ac.primary_colour, '#6366f1') AS primary_colour, COALESCE(ac.accent_colour, '#a5b4fc') AS accent_colour,
               COUNT(d.id) AS doc_count, COUNT(d.id) FILTER (WHERE d.status = 'ready') AS ready_count
        FROM knowledge_bases kb
-       JOIN projects p ON p.id = kb.project_id
+       JOIN agents p ON p.id = kb.agent_id
        JOIN organisations o ON o.id = p.org_id
        LEFT JOIN assistant_configs ac ON ac.kb_id = kb.id
        LEFT JOIN documents d ON d.kb_id = kb.id
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ kbs: result.rows.map((r) => ({
       id: r.kb_id, name: r.kb_name, description: r.kb_description, status: r.kb_status,
       qdrantCollection: r.qdrant_collection,
-      project: { id: r.project_id, name: r.project_name }, org: { id: r.org_id, name: r.org_name },
+      agent: { id: r.agent_id, name: r.agent_name }, org: { id: r.org_id, name: r.org_name },
       assistant: { name: r.assistant_name, avatarUrl: r.avatar_url, welcomeMessage: r.welcome_message, systemPrompt: r.system_prompt, primaryColour: r.primary_colour, accentColour: r.accent_colour },
       docCount: parseInt(r.doc_count ?? "0", 10), readyCount: parseInt(r.ready_count ?? "0", 10),
     })) });

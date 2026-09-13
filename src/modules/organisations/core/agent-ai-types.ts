@@ -1,10 +1,10 @@
 import type { AIProvider } from "@/modules/ai-core/config-types";
 
-export type ProjectLanguage = { id: string; orgId: string; code: string; name: string; nativeName: string | null; enabled: boolean };
-export type ProjectVoice = { id: string; orgId: string; provider: AIProvider; voiceId: string; name: string; enabled: boolean; metadata: Record<string, unknown> };
-export type ProjectAISettings = { id: string; projectId: string; orgId: string; provider: AIProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languages: ProjectLanguage[]; voices: ProjectVoice[] };
-export type PatchProjectAISettingsInput = Partial<{ provider: AIProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languageIds: string[]; voiceIds: string[] }>;
-export type ProjectRuntimeSelectionInput = {
+export type AgentLanguage = { id: string; orgId: string; code: string; name: string; nativeName: string | null; enabled: boolean };
+export type AgentVoice = { id: string; orgId: string; provider: AIProvider; voiceId: string; name: string; enabled: boolean; metadata: Record<string, unknown> };
+export type AgentAISettings = { id: string; agentId: string; orgId: string; provider: AIProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languages: AgentLanguage[]; voices: AgentVoice[] };
+export type PatchAgentAISettingsInput = Partial<{ provider: AIProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languageIds: string[]; voiceIds: string[] }>;
+export type AgentRuntimeSelectionInput = {
   provider: AIProvider;
   assistantLanguage: string | null | undefined;
   assistantAllowedLanguages?: string[] | null;
@@ -14,17 +14,17 @@ export type ProjectRuntimeSelectionInput = {
   defaultLanguageCode?: string | null;
   defaultVoice?: { provider: AIProvider; voiceId: string } | null;
 };
-export type ProjectRuntimeSelection = { allowedLanguages: string[]; defaultLanguage: string | null; voiceId: string | null };
+export type AgentRuntimeSelection = { allowedLanguages: string[]; defaultLanguage: string | null; voiceId: string | null };
 
 /**
  * Resolves the runtime preferences for an assistant.
  *
  * The KB assistant configuration is the explicit user-facing source of truth
  * for its language list and selected voice. Project assignments remain the
- * fallback for older projects that do not have those assistant preferences.
+ * fallback for agents that do not have those assistant preferences.
  * Voice/provider validation is still performed by the shared AI resolver.
  */
-export function resolveProjectRuntimeSelection(input: ProjectRuntimeSelectionInput): ProjectRuntimeSelection {
+export function resolveAgentRuntimeSelection(input: AgentRuntimeSelectionInput): AgentRuntimeSelection {
   const assignedLanguages = input.assignedLanguages
     .filter((language) => language.enabled)
     .map((language) => language.code.trim().toLowerCase())

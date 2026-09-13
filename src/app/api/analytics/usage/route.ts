@@ -64,8 +64,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       FROM organisations o
       LEFT JOIN org_subscriptions os  ON os.org_id = o.id
       LEFT JOIN subscription_plans sp ON sp.id = os.plan_id
-      LEFT JOIN projects p            ON p.org_id = o.id
-      LEFT JOIN knowledge_bases kb    ON kb.project_id = p.id AND kb.status = 'active'
+      LEFT JOIN agents p             ON p.org_id = o.id
+      LEFT JOIN knowledge_bases kb   ON kb.agent_id = p.id AND kb.status = 'active'
       LEFT JOIN documents d           ON d.kb_id = kb.id AND d.status = 'ready'
       LEFT JOIN query_events qe       ON qe.kb_id = kb.id
                                       AND qe.created_at BETWEEN $1 AND $2
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ROUND(AVG(qe.latency_ms))::int              AS avg_latency,
         COUNT(DISTINCT d.id)::int                   AS doc_count
       FROM knowledge_bases kb
-      JOIN projects p      ON p.id = kb.project_id
+      JOIN agents p       ON p.id = kb.agent_id
       JOIN organisations o ON o.id = p.org_id
       LEFT JOIN query_events qe ON qe.kb_id = kb.id
                                 AND qe.created_at BETWEEN $1 AND $2
@@ -120,8 +120,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         COUNT(DISTINCT u.id)::int          AS total_users,
         COALESCE(SUM(d.file_size), 0)::bigint AS total_storage
       FROM organisations o
-      LEFT JOIN projects p       ON p.org_id = o.id
-      LEFT JOIN knowledge_bases kb ON kb.project_id = p.id AND kb.status = 'active'
+      LEFT JOIN agents p        ON p.org_id = o.id
+      LEFT JOIN knowledge_bases kb ON kb.agent_id = p.id AND kb.status = 'active'
       LEFT JOIN documents d       ON d.kb_id = kb.id AND d.status = 'ready'
       LEFT JOIN query_events qe   ON qe.kb_id = kb.id
                                   AND qe.created_at BETWEEN $1 AND $2

@@ -49,7 +49,7 @@ export type Org = {
   logoUrl: string | null;
   createdAt: string;
   updatedAt?: string;
-  projectCount?: number;
+  agentCount?: number;
   knowledgeBaseCount?: number;
 };
 export type AIProvider = "openai" | "gemini";
@@ -139,8 +139,8 @@ export type CreateWorkspaceInput = {
   adminFullName: string;
   adminPassword?: string;
   planId?: string;
-  projectName?: string;
-  projectDescription?: string;
+  agentName?: string;
+  agentDescription?: string;
   kbName?: string;
   kbDescription?: string;
   apiKeyName?: string;
@@ -154,7 +154,7 @@ export type CreateWorkspaceResult = {
     fullName: string;
     temporaryPassword: string | null;
   };
-  project: { id: string; name: string };
+  agent: { id: string; name: string };
   kb: { id: string; name: string; qdrantCollection: string };
   apiKey: { id: string; rawKey: string; keyPrefix: string; name: string };
   planId: string;
@@ -241,45 +241,75 @@ export async function removeOrgMember(
 ): Promise<void> {
   await apiFetch(`/api/orgs/${id}/members/${userId}`, { method: "DELETE" });
 }
-export type Project = {
+// ── Agents (the former "projects" — one entity) ─────────────────────────
+// The agent owns its knowledge bases and carries its assistant persona
+// (Identity / Behaviour / Language / Voice / generation defaults).
+
+export type AgentStatus = "draft" | "published" | "archived";
+
+export type Agent = {
   id: string;
   orgId: string;
   name: string;
   description: string | null;
+  status: AgentStatus;
+  assistantName: string;
+  avatarUrl: string | null;
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string[];
+  defaultLanguage: string;
+  allowedLanguages: string[];
+  alwaysRespondIn: string | null;
+  voiceProvider: "openai" | "gemini" | null;
+  voiceId: string | null;
+  speed: number;
+  chatModel: string | null;
+  temperature: number;
+  maxTokens: number;
+  citeSources: boolean;
+  strictMode: boolean;
   createdAt: string;
+  updatedAt: string;
 };
-export async function fetchProjects(id: string): Promise<Project[]> {
-  return apiFetch<Project[]>(`/api/orgs/${id}/projects`);
+
+export async function fetchAgents(orgId: string): Promise<Agent[]> {
+  return apiFetch<Agent[]>(`/api/orgs/${orgId}/agents`);
 }
-export async function fetchProject(id: string): Promise<Project> {
-  return apiFetch<Project>(`/api/projects/${id}`);
+
+export async function fetchAgent(id: string): Promise<Agent> {
+  return apiFetch<Agent>(`/api/agents/${id}`);
 }
-export async function createProject(
+
+export async function createAgent(
   orgId: string,
   name: string,
   description?: string,
-): Promise<Project> {
-  return apiFetch<Project>(`/api/orgs/${orgId}/projects`, {
+): Promise<Agent> {
+  return apiFetch<Agent>(`/api/orgs/${orgId}/agents`, {
     method: "POST",
     body: JSON.stringify({ name, description }),
   });
 }
-export async function updateProject(
+
+export async function updateAgent(
   id: string,
   name: string,
   description?: string,
-): Promise<Project> {
-  return apiFetch<Project>(`/api/projects/${id}`, {
+): Promise<Agent> {
+  return apiFetch<Agent>(`/api/agents/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ name, description }),
   });
 }
-export async function deleteProject(id: string): Promise<void> {
-  await apiFetch(`/api/projects/${id}`, { method: "DELETE" });
+
+export async function deleteAgent(id: string): Promise<void> {
+  await apiFetch(`/api/agents/${id}`, { method: "DELETE" });
 }
 export type KnowledgeBase = {
   id: string;
-  projectId: string;
+  agentId: string;
   name: string;
   description: string | null;
   qdrantCollection: string;
@@ -287,18 +317,18 @@ export type KnowledgeBase = {
   createdAt: string;
   updatedAt: string;
 };
-export async function fetchKbs(id: string): Promise<KnowledgeBase[]> {
-  return apiFetch<KnowledgeBase[]>(`/api/projects/${id}/kbs`);
+export async function fetchKbs(agentId: string): Promise<KnowledgeBase[]> {
+  return apiFetch<KnowledgeBase[]>(`/api/agents/${agentId}/kbs`);
 }
 export async function fetchKb(id: string): Promise<KnowledgeBase> {
   return apiFetch<KnowledgeBase>(`/api/kbs/${id}`);
 }
 export async function createKb(
-  projectId: string,
+  agentId: string,
   name: string,
   description?: string,
 ): Promise<KnowledgeBase> {
-  return apiFetch<KnowledgeBase>(`/api/projects/${projectId}/kbs`, {
+  return apiFetch<KnowledgeBase>(`/api/agents/${agentId}/kbs`, {
     method: "POST",
     body: JSON.stringify({ name, description }),
   });
@@ -784,114 +814,4 @@ export async function retryFailedUrl(
     `/api/kbs/${kbId}/scrape/urls/${urlId}`,
     { method: "POST", body: "{}" },
   );
-}
-
-// ── Agents ─────────────────────────────────────────────────────────────────────
-
-export type AgentStatus = "draft" | "published" | "archived";
-
-export type Agent = {
-  id: string;
-  orgId: string;
-  name: string;
-  description: string | null;
-  status: AgentStatus;
-  assistantName: string;
-  avatarUrl: string | null;
-  systemPrompt: string;
-  welcomeMessage: string;
-  outOfScopeReply: string;
-  rules: string[];
-  defaultLanguage: string;
-  allowedLanguages: string[];
-  alwaysRespondIn: string | null;
-  voiceProvider: "openai" | "gemini" | null;
-  voiceId: string | null;
-  speed: number;
-  chatModel: string | null;
-  temperature: number;
-  maxTokens: number;
-  citeSources: boolean;
-  strictMode: boolean;
-  createdBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  orgName?: string | null;
-  projectCount?: number;
-};
-
-export type AgentWithProjects = Agent & {
-  projects: AgentProjectAssignment[];
-  orgProjects: { id: string; name: string }[];
-};
-
-export type AgentProjectAssignment = {
-  projectId: string;
-  projectName: string;
-  agentId: string;
-  agentName: string;
-  orgId: string;
-  isActive: boolean;
-  assignedBy: string | null;
-  assignedAt: string;
-};
-
-export type CreateAgentInput = {
-  orgId?: string;
-  name: string;
-  description?: string;
-  assistantName?: string;
-  systemPrompt?: string;
-  welcomeMessage?: string;
-};
-
-export type UpdateAgentInput = Partial<
-  Omit<Agent, "id" | "orgId" | "createdBy" | "createdAt" | "updatedAt" | "orgName" | "projectCount">
->;
-
-export async function fetchAgents(orgId?: string | null): Promise<Agent[]> {
-  const qs = orgId ? `?orgId=${encodeURIComponent(orgId)}` : "";
-  return apiFetch<Agent[]>(`/api/agents${qs}`);
-}
-
-export async function fetchAgent(agentId: string): Promise<AgentWithProjects> {
-  return apiFetch<AgentWithProjects>(`/api/agents/${agentId}`);
-}
-
-export async function createAgent(input: CreateAgentInput): Promise<Agent> {
-  return apiFetch<Agent>("/api/agents", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export async function updateAgent(
-  agentId: string,
-  input: UpdateAgentInput,
-): Promise<Agent> {
-  return apiFetch<Agent>(`/api/agents/${agentId}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
-  });
-}
-
-export async function deleteAgent(agentId: string): Promise<{ deleted: boolean }> {
-  return apiFetch<{ deleted: boolean }>(`/api/agents/${agentId}`, {
-    method: "DELETE",
-  });
-}
-
-export async function fetchProjectAgent(projectId: string): Promise<Agent | null> {
-  const res = await apiFetch<{ agent: Agent | null }>(`/api/projects/${projectId}/agent`);
-  return res.agent;
-}
-
-export async function assignProjectAgent(
-  projectId: string,
-  agentId: string | null,
-): Promise<{ projectId: string; previousAgentId: string | null; agentId: string | null }> {
-  return apiFetch(`/api/projects/${projectId}/agent`, {
-    method: "PUT",
-    body: JSON.stringify({ agentId }),
-  });
 }

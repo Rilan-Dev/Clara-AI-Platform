@@ -7,7 +7,7 @@
 
 export type KnowledgeBase = {
   id: string;
-  projectId: string;
+  agentId: string;
   name: string;
   description: string | null;
   qdrantCollection: string;

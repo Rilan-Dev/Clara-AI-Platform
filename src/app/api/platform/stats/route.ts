@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     await ensureMigrated();
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
-    const [orgsR, usersR, subsR, queriesR, kbsR, docsR, monthlyQueriesR, projectsR, agentsR] = await Promise.all([
+    const [orgsR, usersR, subsR, queriesR, kbsR, docsR, monthlyQueriesR, agentsR] = await Promise.all([
       query(`SELECT COUNT(*)::int AS count FROM organisations`),
       query(`SELECT COUNT(*)::int AS count FROM users`),
       query(`SELECT COALESCE(SUM(sp.price_usd), 0)::int AS mrr, COUNT(os.id)::int AS paying_count FROM org_subscriptions os JOIN subscription_plans sp ON sp.id = os.plan_id WHERE os.status = 'active' AND sp.price_usd > 0`),
@@ -17,14 +17,13 @@ export async function GET(req: NextRequest) {
       query(`SELECT COUNT(*)::int AS count FROM knowledge_bases WHERE status != 'archived'`),
       query(`SELECT COUNT(*)::int AS count FROM documents`),
       query(`SELECT COUNT(*)::int AS count FROM query_events WHERE created_at >= date_trunc('month', now())`),
-      query(`SELECT COUNT(*)::int AS count FROM projects`),
       query(`SELECT COUNT(*)::int AS count FROM agents WHERE status != 'archived'`),
     ]);
     return NextResponse.json({
       totalOrgs: orgsR[0].count, totalUsers: usersR[0].count, mrr: subsR[0].mrr, payingOrgs: subsR[0].paying_count,
       totalQueries: queriesR[0].count, totalKbs: kbsR[0].count, totalDocuments: docsR[0].count,
       totalQueriesThisMonth: monthlyQueriesR[0].count,
-      totalProjects: projectsR[0].count, totalAgents: agentsR[0].count,
+      totalAgents: agentsR[0].count,
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;

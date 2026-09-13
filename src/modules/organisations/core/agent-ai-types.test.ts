@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveProjectRuntimeSelection } from "./project-ai-types";
+import { resolveAgentRuntimeSelection } from "./agent-ai-types";
 
 describe("project AI runtime isolation", () => {
   it("only allows languages assigned to the project", () => {
-    const result = resolveProjectRuntimeSelection({
+    const result = resolveAgentRuntimeSelection({
       provider: "openai",
       assistantLanguage: "fr",
       assistantVoice: null,
@@ -18,7 +18,7 @@ describe("project AI runtime isolation", () => {
   });
 
   it("uses the assistant's configured language list when it is explicitly configured", () => {
-    const result = resolveProjectRuntimeSelection({
+    const result = resolveAgentRuntimeSelection({
       provider: "openai",
       assistantLanguage: "ar",
       assistantAllowedLanguages: ["en", "ar", "ta", "ur"],
@@ -31,7 +31,7 @@ describe("project AI runtime isolation", () => {
   });
 
   it("uses the assistant's configured voice when the project has no voice assignment", () => {
-    const result = resolveProjectRuntimeSelection({
+    const result = resolveAgentRuntimeSelection({
       provider: "openai",
       assistantLanguage: "en",
       assistantVoice: "sage",
@@ -42,7 +42,7 @@ describe("project AI runtime isolation", () => {
   });
 
   it("does not allow an assistant voice from another project", () => {
-    const result = resolveProjectRuntimeSelection({
+    const result = resolveAgentRuntimeSelection({
       provider: "openai",
       assistantLanguage: "en",
       assistantVoice: "voice-from-project-b",
@@ -53,7 +53,7 @@ describe("project AI runtime isolation", () => {
   });
 
   it("does not use a voice from another provider", () => {
-    const result = resolveProjectRuntimeSelection({
+    const result = resolveAgentRuntimeSelection({
       provider: "openai",
       assistantLanguage: "en",
       assistantVoice: "puck",
@@ -67,7 +67,7 @@ describe("project AI runtime isolation", () => {
   });
 
   it("ignores disabled language and voice assignments", () => {
-    const result = resolveProjectRuntimeSelection({
+    const result = resolveAgentRuntimeSelection({
       provider: "openai",
       assistantLanguage: "de",
       assistantVoice: "nova",

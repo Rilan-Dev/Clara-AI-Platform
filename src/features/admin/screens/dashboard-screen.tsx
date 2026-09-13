@@ -10,7 +10,6 @@ import {
   DollarSign,
   RefreshCw,
   BarChart3,
-  FolderKanban,
   Bot,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,7 +24,6 @@ type Stats = {
   totalKbs: number;
   totalDocuments: number;
   totalQueriesThisMonth: number;
-  totalProjects: number;
   totalAgents: number;
 };
 type Revenue = {
@@ -75,7 +73,6 @@ export default function AdminDashboard() {
   const total = Math.max(stats?.totalOrgs ?? 0, 1);
   const cards = [
     ["Organisations", stats?.totalOrgs, "text-violet-400", Building2],
-    ["Projects", stats?.totalProjects, "text-cyan-400", FolderKanban],
     ["Agents", stats?.totalAgents, "text-fuchsia-400", Bot],
     ["Knowledge Bases", stats?.totalKbs, "text-indigo-400", Database],
     ["Users", stats?.totalUsers, "text-cyan-300", Users],
@@ -174,13 +171,12 @@ export default function AdminDashboard() {
                 Organisation-managed content
               </h3>
               <p className="text-sm leading-relaxed text-white/40">
-                Projects, agents, knowledge bases and AI configuration are created and managed
+                Agents, knowledge bases and AI configuration are created and managed
                 inside each organisation by its own team. This platform view shows only totals —
                 open the Subscriptions workspace for billing actions.
               </p>
-              <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 {[
-                  ["Projects", stats?.totalProjects],
                   ["Agents", stats?.totalAgents],
                   ["KBs", stats?.totalKbs],
                 ].map(([label, value]) => (

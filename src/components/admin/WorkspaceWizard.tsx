@@ -4,10 +4,10 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Guided workspace creation wizard for platform admins.
  * Creates an organisation, admin user, subscription (pinned plan version),
- * project, knowledge base, and API key in one transactional call — optionally
+ * agent, knowledge base, and API key in one transactional call — optionally
  * pointing the public landing-page demo at the new workspace.
  *
- *  Phase 1 — Form      Org / admin / plan / project / KB / API key inputs
+ *  Phase 1 — Form      Org / admin / plan / agent / KB / API key inputs
  *  Phase 2 — Creating  Submitting state
  *  Phase 3 — Done       Summary with copyable credentials
  */
@@ -81,7 +81,7 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
   const [adminEmail, setAdminEmail] = useState("");
   const [adminFullName, setAdminFullName] = useState("");
   const [planId, setPlanId] = useState("enterprise");
-  const [projectName, setProjectName] = useState("Default Project");
+  const [agentName, setProjectName] = useState("Default Agent");
   const [kbName, setKbName] = useState("Default Knowledge Base");
   const [apiKeyName, setApiKeyName] = useState("Default");
   const [markAsDemo, setMarkAsDemo] = useState(false);
@@ -99,7 +99,7 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
         adminEmail: adminEmail.trim(),
         adminFullName: adminFullName.trim(),
         planId,
-        projectName: projectName.trim() || undefined,
+        agentName: agentName.trim() || undefined,
         kbName: kbName.trim() || undefined,
         apiKeyName: apiKeyName.trim() || undefined,
         markAsDemo,
@@ -121,7 +121,7 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
     setAdminEmail("");
     setAdminFullName("");
     setPlanId("enterprise");
-    setProjectName("Default Project");
+    setProjectName("Default Agent");
     setKbName("Default Knowledge Base");
     setApiKeyName("Default");
     setMarkAsDemo(false);
@@ -148,7 +148,7 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
           {result.admin.temporaryPassword && (
             <CopyField label="Temporary admin password" value={result.admin.temporaryPassword} />
           )}
-          <CopyField label="Project" value={result.project.name} mono={false} />
+          <CopyField label="Agent" value={result.agent.name} mono={false} />
           <CopyField label="Knowledge base" value={result.kb.name} mono={false} />
           <CopyField label="API key" value={result.apiKey.rawKey} />
           <CopyField label="Plan" value={result.planId} mono={false} />
@@ -182,7 +182,7 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
         <div>
           <h2 className="font-semibold text-white">New Workspace</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            Provisions an organisation, admin user, subscription, project, knowledge base, and API key in one step.
+            Provisions an organisation, admin user, subscription, agent, knowledge base, and API key in one step.
           </p>
         </div>
       </div>
@@ -251,15 +251,15 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
           onClick={() => setShowAdvanced((v) => !v)}
           className="text-xs text-indigo-300 hover:text-indigo-200"
         >
-          {showAdvanced ? "Hide" : "Show"} advanced options (project, KB, API key names)
+          {showAdvanced ? "Hide" : "Show"} advanced options (agent, KB, API key names)
         </button>
 
         {showAdvanced && (
           <div className="grid gap-4 md:grid-cols-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <div>
-              <label className="text-xs font-medium text-white/50 mb-1.5 block">Project name</label>
+              <label className="text-xs font-medium text-white/50 mb-1.5 block">Agent name</label>
               <input
-                value={projectName}
+                value={agentName}
                 onChange={(e) => setProjectName(e.target.value)}
                 className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
               />

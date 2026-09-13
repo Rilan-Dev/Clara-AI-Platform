@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { AlertTriangle, BookOpen, Layers3, RefreshCw } from "lucide-react";
-import { useAnalytics, useAuth, useDocuments, useKb, useOrg, useProject } from "@/modules/admin-ui/hooks";
+import { useAnalytics, useAuth, useDocuments, useKb, useOrg, useAgent } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ScrapeWizard } from "@/components/admin/ScrapeWizard";
@@ -34,9 +34,9 @@ export default function KbDashboardPage() {
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
   const { data: kb, loading: kbLoading, refetch: refetchKb } = useKb(kbId);
-  const projectId = kb?.projectId ?? searchParams.get("projectId");
-  const { data: project } = useProject(projectId);
-  const orgId = project?.orgId ?? searchParams.get("orgId");
+  const agentId = kb?.agentId ?? searchParams.get("agentId");
+  const { data: agent } = useAgent(agentId);
+  const orgId = agent?.orgId ?? searchParams.get("orgId");
   const { data: org } = useOrg(orgId);
   const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
@@ -95,9 +95,9 @@ export default function KbDashboardPage() {
     }
   }, [kb, kbId, refetchKb]);
 
-  const projectHref = orgId && projectId ? `/orgs/${orgId}/projects/${projectId}` : "/orgs";
-  const kbConfigHref = orgId && projectId
-    ? `/kbs/${kbId}/config?orgId=${orgId}&projectId=${projectId}`
+  const projectHref = orgId && agentId ? `/orgs/${orgId}/agents/${agentId}` : "/orgs";
+  const kbConfigHref = orgId && agentId
+    ? `/kbs/${kbId}/config?orgId=${orgId}&agentId=${agentId}`
     : `/kbs/${kbId}/config`;
 
   if (isAdmin) {
@@ -110,7 +110,7 @@ export default function KbDashboardPage() {
           breadcrumbs={[
             { label: "Organisations", href: "/orgs" },
             ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
-            ...(orgId && projectId ? [{ label: project?.name ?? "Project", href: projectHref }] : []),
+            ...(orgId && agentId ? [{ label: agent?.name ?? "Agent", href: projectHref }] : []),
             { label: kb?.name ?? "Knowledge Base" },
           ]}
           chips={[
@@ -165,7 +165,7 @@ export default function KbDashboardPage() {
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
               <div className="text-xs uppercase tracking-[0.2em] text-white/35">Created</div>
               <p className="mt-3 text-sm text-white/75">{formatDate(kb.createdAt)}</p>
-              {project?.name ? <p className="mt-2 text-xs text-white/40">Project: {project.name}</p> : null}
+              {agent?.name ? <p className="mt-2 text-xs text-white/40">Agent: {agent.name}</p> : null}
             </div>
           </div>
         )}
@@ -332,7 +332,7 @@ export default function KbDashboardPage() {
         description="Manage documents, run analytics, preview voice behavior, and configure your assistant for this knowledge base."
         breadcrumbs={[
           ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
-          ...(orgId && projectId ? [{ label: project?.name ?? "Project", href: projectHref }] : []),
+          ...(orgId && agentId ? [{ label: agent?.name ?? "Agent", href: projectHref }] : []),
           { label: kb?.name ?? "Knowledge Base" },
         ]}
         chips={[
@@ -387,7 +387,7 @@ export default function KbDashboardPage() {
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-white/35">Created</div>
             <p className="mt-3 text-sm text-white/75">{formatDate(kb.createdAt)}</p>
-            {project?.name ? <p className="mt-2 text-xs text-white/40">Project: {project.name}</p> : null}
+            {agent?.name ? <p className="mt-2 text-xs text-white/40">Agent: {agent.name}</p> : null}
           </div>
         </div>
       )}

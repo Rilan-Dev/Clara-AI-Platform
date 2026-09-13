@@ -141,7 +141,7 @@ export async function planGuard(
           `SELECT COUNT(*)::int AS count
            FROM query_events qe
            JOIN knowledge_bases kb ON kb.id = qe.kb_id
-           JOIN projects p ON p.id = kb.project_id
+           JOIN agents p ON p.id = kb.agent_id
            WHERE p.org_id = $1
              AND qe.created_at >= now() - INTERVAL '24 hours'`,
           [orgId],

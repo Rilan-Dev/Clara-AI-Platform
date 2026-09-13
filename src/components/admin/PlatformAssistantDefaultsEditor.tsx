@@ -87,9 +87,9 @@ function toDraft(defaults: PlatformAssistantDefaults | null): Draft {
 /**
  * Platform-level assistant defaults editor (super admin).
  *
- * The values here are the STARTING POINT for newly onboarding projects and
+ * The values here are the STARTING POINT for newly onboarding agents and
  * agents — they are copied onto each new record at creation time. Existing
- * projects and agents keep the values their organisations already own, so
+ * agents keep the values their organisations already own, so
  * changing anything here never rewrites them.
  */
 export function PlatformAssistantDefaultsEditor({ defaults, onSave }: Props) {
@@ -157,7 +157,7 @@ export function PlatformAssistantDefaultsEditor({ defaults, onSave }: Props) {
       setSaved(true);
       toast.success("Saved platform defaults", {
         description:
-          "Newly onboarding projects and agents will start with these values. Existing ones keep their own settings.",
+          "Newly onboarding agents will start with these values. Existing ones keep their own settings.",
       });
       window.setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -176,9 +176,9 @@ export function PlatformAssistantDefaultsEditor({ defaults, onSave }: Props) {
       <CardHeader>
         <CardTitle className="text-lg">Default Identity, Behaviour, Language &amp; Voice</CardTitle>
         <CardDescription>
-          Platform-wide starting values for every new project and agent. They are copied onto each
+          Platform-wide starting values for every new agent. They are copied onto each
           record the moment it is created — organisations can then customise their own copy, and
-          existing projects and agents are never touched when you change anything here.
+          existing agents are never touched when you change anything here.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

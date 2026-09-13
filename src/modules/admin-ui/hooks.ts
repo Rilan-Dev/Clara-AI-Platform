@@ -8,20 +8,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
 import type {
-  CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
+  CurrentUser, Org, Agent, AgentStatus, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
   CreateWorkspaceInput, CreateWorkspaceResult,
-  Agent, AgentStatus, AgentWithProjects, AgentProjectAssignment, CreateAgentInput, UpdateAgentInput,
   PlatformAssistantDefaults,
 } from "./api";
 
 export type {
-  CurrentUser, Org, Project, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
+  CurrentUser, Org, Agent, AgentStatus, KnowledgeBase, KbDocument, AssistantConfig, OrgMember,
   ConfigSnapshot, KbAnalytics, ScrapeSession, ScrapeUrl, ScrapeProgress, ScrapeSessionStatus,
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
   CreateWorkspaceInput, CreateWorkspaceResult,
-  Agent, AgentStatus, AgentWithProjects, AgentProjectAssignment, CreateAgentInput, UpdateAgentInput,
   PlatformAssistantDefaults,
 };
 
@@ -152,9 +150,9 @@ export function useCreateWorkspace() {
   return { create, loading, error };
 }
 
-export function useProject(projectId?: string | null) {
-  return useAsync(() => api.fetchProject(projectId!), `project:${projectId ?? "none"}`, {
-    enabled: Boolean(projectId),
+export function useAgent(agentId?: string | null) {
+  return useAsync(() => api.fetchAgent(agentId!), `agent:${agentId ?? "none"}`, {
+    enabled: Boolean(agentId),
   });
 }
 
@@ -199,28 +197,28 @@ export function usePlatformAssistantDefaults() {
   return { defaults: data, loading, error, save, refetch };
 }
 
-// ── Projects ──────────────────────────────────────────────────────────────────
+// ── Agents (the former "projects" — one entity) ──────────────────────────────
 
-export function useProjects(orgId: string) {
+export function useAgents(orgId: string) {
   const { data, loading, error, refetch } = useAsync(
-    () => api.fetchProjects(orgId),
-    `projects:${orgId}`,
+    () => api.fetchAgents(orgId),
+    `agents:${orgId}`,
   );
-  const projects = data ?? [];
-  const create = useCallback(async (name: string, description?: string) => { const p = await api.createProject(orgId, name, description); refetch(); return p; }, [orgId, refetch]);
-  const remove = useCallback(async (projectId: string) => { await api.deleteProject(projectId); refetch(); }, [refetch]);
-  return { projects, loading, error, create, remove, refetch };
+  const agents = data ?? [];
+  const create = useCallback(async (name: string, description?: string) => { const a = await api.createAgent(orgId, name, description); refetch(); return a; }, [orgId, refetch]);
+  const remove = useCallback(async (agentId: string) => { await api.deleteAgent(agentId); refetch(); }, [refetch]);
+  return { agents, loading, error, create, remove, refetch };
 }
 
 // ── Knowledge Bases ───────────────────────────────────────────────────────────
 
-export function useKbs(projectId: string) {
+export function useKbs(agentId: string) {
   const { data, loading, error, refetch } = useAsync(
-    () => api.fetchKbs(projectId),
-    `kbs:${projectId}`,
+    () => api.fetchKbs(agentId),
+    `kbs:${agentId}`,
   );
   const kbs = data ?? [];
-  const create = useCallback(async (name: string, description?: string) => { const kb = await api.createKb(projectId, name, description); refetch(); return kb; }, [projectId, refetch]);
+  const create = useCallback(async (name: string, description?: string) => { const kb = await api.createKb(agentId, name, description); refetch(); return kb; }, [agentId, refetch]);
   const remove = useCallback(async (kbId: string) => { await api.deleteKb(kbId); refetch(); }, [refetch]);
   return { kbs, loading, error, create, remove, refetch };
 }
@@ -304,66 +302,6 @@ export function useSnapshots(kbId: string) {
 
 export function useAnalytics(kbId: string) {
   return useAsync(() => api.fetchAnalytics(kbId), `kb-analytics:${kbId}`);
-}
-
-// ── Agents ────────────────────────────────────────────────────────────────────
-
-export function useAgents(orgId?: string | null) {
-  const { data, loading, error, refetch } = useAsync(
-    () => api.fetchAgents(orgId ?? undefined),
-    `agents:${orgId ?? "all"}`,
-    { enabled: orgId !== undefined },
-  );
-  const agents = data ?? [];
-  const create = useCallback(
-    async (input: CreateAgentInput) => {
-      const agent = await api.createAgent(input);
-      refetch();
-      return agent;
-    },
-    [refetch],
-  );
-  const remove = useCallback(
-    async (agentId: string) => {
-      await api.deleteAgent(agentId);
-      refetch();
-    },
-    [refetch],
-  );
-  return { agents, loading, error, create, remove, refetch };
-}
-
-export function useAgent(agentId?: string | null) {
-  const { data, loading, error, refetch } = useAsync(
-    () => api.fetchAgent(agentId!),
-    `agent:${agentId ?? "none"}`,
-    { enabled: Boolean(agentId) },
-  );
-  const save = useCallback(
-    async (input: UpdateAgentInput) => {
-      const updated = await api.updateAgent(agentId!, input);
-      refetch();
-      return updated;
-    },
-    [agentId, refetch],
-  );
-  return { agent: data, loading, error, save, refetch };
-}
-
-export function useProjectAgent(projectId?: string | null) {
-  const { data, loading, error, refetch } = useAsync(
-    () => api.fetchProjectAgent(projectId!),
-    `project-agent:${projectId ?? "none"}`,
-    { enabled: Boolean(projectId) },
-  );
-  const assign = useCallback(
-    async (agentId: string | null) => {
-      await api.assignProjectAgent(projectId!, agentId);
-      refetch();
-    },
-    [projectId, refetch],
-  );
-  return { agent: data, loading, error, assign, refetch };
 }
 
 // ── Scrape Wizard ─────────────────────────────────────────────────────────────

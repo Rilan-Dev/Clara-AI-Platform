@@ -1,11 +1,11 @@
 "use client";
 /**
- * /admin/orgs/[orgId] — Projects list for an organisation
+ * /admin/orgs/[orgId] — Agents list for an organisation
  */
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useOrg, useOrgAISettings, useProjects } from "@/modules/admin-ui/hooks";
+import { useOrg, useOrgAISettings, useAgents } from "@/modules/admin-ui/hooks";
 import { OrgAISettingsEditor } from "@/components/admin/OrgAISettingsEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ export default function OrgPage() {
     error: settingsError,
     save: saveAISettings,
   } = useOrgAISettings(orgId);
-  const { projects, loading, create, remove } = useProjects(orgId);
+  const { agents, loading, create, remove } = useAgents(orgId);
   const [name, setName]           = useState("");
   const [description, setDescription] = useState("");
   const [showForm, setShowForm]   = useState(false);
@@ -43,7 +43,7 @@ export default function OrgPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this project and all its knowledge bases?")) return;
+    if (!confirm("Delete this agent and all its knowledge bases?")) return;
     await remove(id).catch(() => {});
   }
 
@@ -63,9 +63,9 @@ export default function OrgPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Projects</h1>
+          <h1 className="text-2xl font-bold text-foreground">Agents</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage project structure and the organisation-level AI policy in one place.
+            Manage agent structure and the organisation-level AI policy in one place.
           </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
@@ -95,7 +95,7 @@ export default function OrgPage() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Project Directory</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Projects group related knowledge bases together.
+            Agents group related knowledge bases together.
           </p>
         </div>
       </div>
@@ -133,40 +133,40 @@ export default function OrgPage() {
         </div>
       )}
 
-      {/* Projects */}
+      {/* Agents */}
       {!loading && (
         <div className="space-y-3">
-          {projects.length === 0 && !showForm && (
+          {agents.length === 0 && !showForm && (
             <EmptyState
               icon={<FolderIcon />}
-              title="No projects yet"
-              description="Create a project to organise your knowledge bases."
+              title="No agents yet"
+              description="Create an agent to organise your knowledge bases."
               onAction={() => setShowForm(true)}
               actionLabel="Create Project"
             />
           )}
-          {projects.map((proj) => (
-            <div key={proj.id}
+          {agents.map((agent) => (
+            <div key={agent.id}
               className="flex items-center gap-4 rounded-xl border border-card-border bg-card px-5 py-4 shadow-soft hover:shadow-medium transition-shadow">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary/10">
                 <FolderIcon className="text-secondary" />
               </div>
               <div className="flex-1 min-w-0">
-                <Link href={`/admin/orgs/${orgId}/projects/${proj.id}`}
+                <Link href={`/admin/orgs/${orgId}/agents/${agent.id}`}
                   className="font-semibold text-foreground hover:text-primary transition-colors">
-                  {proj.name}
+                  {agent.name}
                 </Link>
-                {proj.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{proj.description}</p>
+                {agent.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{agent.description}</p>
                 )}
-                <p className="text-xs text-muted-foreground mt-0.5">Created {formatDate(proj.createdAt)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Created {formatDate(agent.createdAt)}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Link href={`/admin/orgs/${orgId}/projects/${proj.id}`}>
+                <Link href={`/admin/orgs/${orgId}/agents/${agent.id}`}>
                   <Button variant="outline" size="sm" className="h-8">Open →</Button>
                 </Link>
                 <Button variant="ghost" size="sm" className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => handleDelete(proj.id)}>
+                  onClick={() => handleDelete(agent.id)}>
                   Delete
                 </Button>
               </div>

@@ -3,7 +3,7 @@ import {
   getAgentHandler,
   updateAgentHandler,
   deleteAgentHandler,
-} from "@/modules/agents/api/agents";
+} from "@/modules/organisations/api/agents";
 
 type Params = { params: Promise<{ agentId: string }> };
 

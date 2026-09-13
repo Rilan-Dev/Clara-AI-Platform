@@ -1,10 +1,10 @@
 import { query, queryOne } from "@/lib/db";
 import type { AIProvider } from "@/modules/ai-core/config-types";
-import type { ProjectLanguage, ProjectVoice } from "./project-ai-types";
+import type { AgentLanguage, AgentVoice } from "./agent-ai-types";
 
 type Row = Record<string, unknown>;
 
-export async function listOrganisationLanguages(orgId: string): Promise<ProjectLanguage[]> {
+export async function listOrganisationLanguages(orgId: string): Promise<AgentLanguage[]> {
   const rows = await query<Row>(
     "SELECT * FROM organisation_languages WHERE org_id = $1 ORDER BY name",
     [orgId],
@@ -16,7 +16,7 @@ export async function listOrganisationLanguages(orgId: string): Promise<ProjectL
   }));
 }
 
-export async function listOrganisationVoices(orgId: string): Promise<ProjectVoice[]> {
+export async function listOrganisationVoices(orgId: string): Promise<AgentVoice[]> {
   const rows = await query<Row>(
     "SELECT * FROM organisation_voices WHERE org_id = $1 ORDER BY provider, name",
     [orgId],
@@ -32,7 +32,7 @@ export async function listOrganisationVoices(orgId: string): Promise<ProjectVoic
 export async function upsertOrganisationLanguage(
   orgId: string,
   input: { code: string; name: string; nativeName?: string | null; enabled?: boolean },
-): Promise<ProjectLanguage> {
+): Promise<AgentLanguage> {
   const code = input.code.trim();
   const name = input.name.trim();
   if (!/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{2,8})*$/.test(code)) throw new Error("Invalid BCP-47 language code");
@@ -54,7 +54,7 @@ export async function upsertOrganisationLanguage(
 export async function upsertOrganisationVoice(
   orgId: string,
   input: { provider: AIProvider; voiceId: string; name: string; enabled?: boolean; metadata?: Record<string, unknown> },
-): Promise<ProjectVoice> {
+): Promise<AgentVoice> {
   const voiceId = input.voiceId.trim();
   const name = input.name.trim();
   if (!voiceId || !name) throw new Error("Voice ID and name are required");

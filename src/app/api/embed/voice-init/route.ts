@@ -78,7 +78,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       kbId: ctx.kbId,
-      projectId: resolved?.projectId ?? null,
+      projectId: resolved?.agentId ?? null,
       provider,
       model,
       voice,

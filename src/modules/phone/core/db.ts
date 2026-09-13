@@ -270,7 +270,7 @@ export async function checkPhoneCallsEnabled(kbId: string): Promise<boolean> {
     `
     SELECT sp.phone_calls_enabled
     FROM knowledge_bases kb
-    JOIN projects p ON p.id = kb.project_id
+    JOIN agents p ON p.id = kb.agent_id
     JOIN org_subscriptions os ON os.org_id = p.org_id AND os.status = 'active'
     JOIN subscription_plans sp ON sp.id = os.plan_id
     WHERE kb.id = $1

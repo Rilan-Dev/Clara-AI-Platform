@@ -82,7 +82,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     console.info("[embed/session] runtime configuration", {
       orgId: resolved.orgId ?? ctx.orgId,
-      projectId: resolved.projectId,
+      projectId: resolved.agentId,
       kbId: ctx.kbId,
       provider,
       realtimeModel,
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           provider: "gemini",
           kbId: ctx.kbId,
           orgId: resolved.orgId ?? ctx.orgId,
-          projectId: resolved.projectId,
+          projectId: resolved.agentId,
           wsUrl: `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`,
           model,
           voice: voiceId,
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           audioPolicy,
           config: {
             orgId: resolved.orgId ?? ctx.orgId,
-            projectId: resolved.projectId,
+            projectId: resolved.agentId,
             provider,
             realtimeModel,
             voiceId,
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           details: result.errorText,
           model: realtimeModel,
           orgId: resolved.orgId ?? ctx.orgId,
-          projectId: resolved.projectId,
+          projectId: resolved.agentId,
           kbId: ctx.kbId,
         },
         {
@@ -222,12 +222,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         audio_policy: audioPolicy,
         kbId: ctx.kbId,
         orgId: resolved.orgId ?? ctx.orgId,
-        projectId: resolved.projectId,
+        projectId: resolved.agentId,
         provider,
         welcomeMessage: config.welcomeMessage ?? "",
         config: {
           orgId: resolved.orgId ?? ctx.orgId,
-          projectId: resolved.projectId,
+          projectId: resolved.agentId,
           provider,
           realtimeModel,
           voiceId,

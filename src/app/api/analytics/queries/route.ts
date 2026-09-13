@@ -51,7 +51,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ROUND(AVG(qe.latency_ms))::int             AS avg_latency
       FROM query_events qe
       JOIN knowledge_bases kb ON kb.id = qe.kb_id
-      JOIN projects p         ON p.id  = kb.project_id
+      JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $2 AND $3
         ${orgFilter}
       GROUP BY 1
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         COUNT(DISTINCT p.org_id)::int   AS orgs
       FROM query_events qe
       JOIN knowledge_bases kb ON kb.id = qe.kb_id
-      JOIN projects p         ON p.id  = kb.project_id
+      JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $1 AND $2
         AND length(qe.query_text) > 3
         ${orgFilter}
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         COUNT(DISTINCT qe.kb_id)::int    AS active_kbs
       FROM query_events qe
       JOIN knowledge_bases kb ON kb.id = qe.kb_id
-      JOIN projects p         ON p.id  = kb.project_id
+      JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $1 AND $2
         ${orgFilter}
     `, [fromDate.toISOString(), toDate.toISOString()]);
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         COUNT(*)::int                          AS count
       FROM query_events qe
       JOIN knowledge_bases kb ON kb.id = qe.kb_id
-      JOIN projects p         ON p.id  = kb.project_id
+      JOIN agents p          ON p.id  = kb.agent_id
       WHERE qe.created_at BETWEEN $1 AND $2
         ${orgFilter}
       GROUP BY 1

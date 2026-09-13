@@ -4,14 +4,14 @@ import {
   listKbsHandler,
 } from "@/modules/knowledge-bases/api/kbs";
 
-type Params = { params: Promise<{ projectId: string }> };
+type Params = { params: Promise<{ agentId: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
-  const { projectId } = await params;
-  return listKbsHandler(req, projectId);
+  const { agentId } = await params;
+  return listKbsHandler(req, agentId);
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const { projectId } = await params;
-  return createKbHandler(req, projectId);
+  const { agentId } = await params;
+  return createKbHandler(req, agentId);
 }

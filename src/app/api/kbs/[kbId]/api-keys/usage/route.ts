@@ -195,7 +195,7 @@ export async function GET(_req: NextRequest, { params }: Props): Promise<NextRes
     const orgResult = await pool.query<{ org_id: string }>(
       `SELECT p.org_id
        FROM knowledge_bases kb
-       JOIN projects p ON p.id = kb.project_id
+       JOIN agents p ON p.id = kb.agent_id
        WHERE kb.id = $1`,
       [kbId]
     );

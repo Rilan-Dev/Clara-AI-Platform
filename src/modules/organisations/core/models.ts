@@ -1,4 +1,4 @@
-/** Shared TypeScript types for organisations and projects. */
+/** Shared TypeScript types for organisations and agents (the former "projects"). */
 
 export type Organisation = {
   id: string;
@@ -8,23 +8,65 @@ export type Organisation = {
   createdAt: string;
   updatedAt: string;
   /** Platform-admin summary counts only; never tenant resource details. */
-  projectCount?: number;
+  agentCount?: number;
   knowledgeBaseCount?: number;
 };
 
 export type CreateOrgInput = { name: string; slug?: string; logoUrl?: string };
 export type UpdateOrgInput = Partial<Pick<CreateOrgInput, "name" | "logoUrl">>;
 
-export type Project = {
+// ── Agents (projects renamed to agents — one entity) ──────────────────────
+// The agent owns its knowledge bases and carries the assistant persona
+// (Identity / Behaviour / Language / Voice / generation) that the runtime
+// overlays onto each KB's assistant config.
+
+export type AgentStatus = "draft" | "published" | "archived";
+
+export type Agent = {
   id: string;
   orgId: string;
+
+  // Labelling & lifecycle
   name: string;
   description: string | null;
+  status: AgentStatus;
+
+  // Identity (customer-facing)
+  assistantName: string;
+  avatarUrl: string | null;
+
+  // Behaviour
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string[];
+
+  // Language
+  defaultLanguage: string;
+  allowedLanguages: string[];
+  alwaysRespondIn: string | null;
+
+  // Voice
+  voiceProvider: "openai" | "gemini" | null;
+  voiceId: string | null;
+  speed: number;
+
+  // Model / generation
+  chatModel: string | null;
+  temperature: number;
+  maxTokens: number;
+  citeSources: boolean;
+  strictMode: boolean;
+
+  // Audit
   createdAt: string;
   updatedAt: string;
 };
-export type CreateProjectInput = { name: string; description?: string };
-export type UpdateProjectInput = Partial<CreateProjectInput>;
+
+export type CreateAgentInput = { name: string; description?: string; createdBy?: string };
+export type UpdateAgentInput = Partial<
+  Omit<Agent, "id" | "orgId" | "createdAt" | "updatedAt">
+>;
 
 export type AIProvider = "openai" | "gemini";
 export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;

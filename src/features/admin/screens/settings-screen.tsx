@@ -25,11 +25,11 @@ import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks"
 //   - Platform admins: Account / AI Configuration / Embed Key / Payments.
 //     AI Configuration holds the PLATFORM DEFAULT assistant persona
 //     (Identity, Behaviour, Language, Voice) — starting values for newly
-//     onboarding projects and agents. Existing org-owned values are never
+//     onboarding agents. Existing org-owned values are never
 //     rewritten.
 //   - Organisation users: Account only. Identity / Behaviour / Language /
 //     Voice are NOT org-level settings any more — orgs tune their own
-//     projects, agents and knowledge bases.
+//     agents and knowledge bases.
 
 export type SettingsSection = "account" | "ai" | "embed" | "payments";
 
@@ -63,7 +63,7 @@ export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
     label: "AI Configuration",
     title: "Default assistant setup",
     description:
-      "Set the identity, behaviour, languages and voice that every new project and agent starts with. Existing ones are never changed.",
+      "Set the identity, behaviour, languages and voice that every new agent starts with. Existing ones are never changed.",
     audience: "Platform admin",
   },
   {
@@ -89,7 +89,7 @@ export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
 ];
 
 /** Organisation users — personal account only. Assistant persona settings
- *  are platform-level defaults now; orgs tune their own projects and agents. */
+ *  are platform-level defaults now; orgs tune their own agents. */
 export const ORG_SETTINGS_SECTIONS: SectionDef[] = [ACCOUNT_SECTION];
 
 // ── Screen ───────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
 
   // Steer users away from sections that do not belong to their role:
   //  - organisation users have no AI Configuration (it is the platform-level
-  //    defaults page now; orgs tune their own projects and agents)
+  //    defaults page now; orgs tune their own agents)
   //  - organisation users have no Embed Key / Payments (platform-level tools)
   useEffect(() => {
     if (loading || !user) return;
@@ -150,7 +150,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   // ── Organisation users ──────────────────────────────────────────────────────
   // Org users only have their personal account here. Assistant persona
   // settings (Identity / Behaviour / Language / Voice) are platform-level
-  // defaults now — orgs tune their own projects, agents and knowledge bases.
+  // defaults now — orgs tune their own agents and knowledge bases.
   if (!isSuperAdmin) {
     return (
       <div className="p-6 lg:p-10">
@@ -239,9 +239,9 @@ function PlatformAIDefaultsSection() {
       <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">How platform defaults work</h2>
         <p className="mt-2 text-xs leading-relaxed text-white/45">
-          Every newly onboarding project and agent starts with these identity, behaviour,
+          Every newly onboarding agent starts with these identity, behaviour,
           language and voice values. The values are copied at creation time, so changing them
-          later only affects future onboarding — existing projects and agents keep exactly what
+          later only affects future onboarding — existing agents keep exactly what
           their organisations already configured.
         </p>
       </div>

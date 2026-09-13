@@ -45,9 +45,9 @@ export async function GET(req: NextRequest) {
 
       query(`
         SELECT
-          (SELECT COUNT(*)::int FROM projects p JOIN knowledge_bases kb ON kb.project_id=p.id WHERE p.org_id=$1) AS kb_count,
-          (SELECT COUNT(*)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id=qe.kb_id JOIN projects p ON p.id=kb.project_id WHERE p.org_id=$1 AND qe.created_at>=CURRENT_DATE) AS requests_today,
-          (SELECT COALESCE(SUM(d.file_size),0)::bigint FROM documents d JOIN knowledge_bases kb ON kb.id=d.kb_id JOIN projects p ON p.id=kb.project_id WHERE p.org_id=$1) AS storage_bytes
+          (SELECT COUNT(*)::int FROM agents p JOIN knowledge_bases kb ON kb.agent_id=p.id WHERE p.org_id=$1) AS kb_count,
+          (SELECT COUNT(*)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id=qe.kb_id JOIN agents p ON p.id=kb.agent_id WHERE p.org_id=$1 AND qe.created_at>=CURRENT_DATE) AS requests_today,
+          (SELECT COALESCE(SUM(d.file_size),0)::bigint FROM documents d JOIN knowledge_bases kb ON kb.id=d.kb_id JOIN agents p ON p.id=kb.agent_id WHERE p.org_id=$1) AS storage_bytes
       `, [orgId]),
     ]);
 

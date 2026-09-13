@@ -2,7 +2,7 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { Bot, Sparkles } from "lucide-react";
-import { useAuth, useConfig, useKb, useOrg, useProject, useSnapshots } from "@/modules/admin-ui/hooks";
+import { useAuth, useConfig, useKb, useOrg, useAgent, useSnapshots } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ConfigEditor } from "@/components/admin/ConfigEditor";
 import { SnapshotHistory } from "@/components/admin/SnapshotHistory";
@@ -14,9 +14,9 @@ export default function KbConfigPage() {
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
   const { data: kb, loading: kbLoading } = useKb(kbId);
-  const projectId = kb?.projectId ?? searchParams.get("projectId");
-  const { data: project } = useProject(projectId);
-  const orgId = project?.orgId ?? searchParams.get("orgId");
+  const agentId = kb?.agentId ?? searchParams.get("agentId");
+  const { data: agent } = useAgent(agentId);
+  const orgId = agent?.orgId ?? searchParams.get("orgId");
   const { data: org } = useOrg(orgId);
   const { config, loading: configLoading, save, refetch: refetchConfig } = useConfig(kbId);
   const { snapshots, loading: snapsLoading, saveSnapshot, restore, refetch: refetchSnaps } = useSnapshots(kbId);
@@ -29,8 +29,8 @@ export default function KbConfigPage() {
   }
 
   const loading = kbLoading || configLoading;
-  const kbHref = orgId && projectId
-    ? `/kbs/${kbId}?orgId=${orgId}&projectId=${projectId}`
+  const kbHref = orgId && agentId
+    ? `/kbs/${kbId}?orgId=${orgId}&agentId=${agentId}`
     : `/kbs/${kbId}`;
 
   if (isAdmin) {
@@ -43,7 +43,7 @@ export default function KbConfigPage() {
           breadcrumbs={[
             { label: "Organisations", href: "/orgs" },
             ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
-            ...(orgId && projectId ? [{ label: project?.name ?? "Project", href: `/orgs/${orgId}/projects/${projectId}` }] : []),
+            ...(orgId && agentId ? [{ label: agent?.name ?? "Agent", href: `/orgs/${orgId}/agents/${agentId}` }] : []),
             { label: kb?.name ?? "Knowledge Base", href: kbHref },
             { label: "Assistant & AI" },
           ]}
@@ -179,7 +179,7 @@ export default function KbConfigPage() {
         breadcrumbs={[
           { label: "Organisations", href: "/orgs" },
           ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
-          ...(orgId && projectId ? [{ label: project?.name ?? "Project", href: `/orgs/${orgId}/projects/${projectId}` }] : []),
+          ...(orgId && agentId ? [{ label: agent?.name ?? "Agent", href: `/orgs/${orgId}/agents/${agentId}` }] : []),
           { label: kb?.name ?? "Knowledge Base", href: kbHref },
           { label: "Assistant & AI" },
         ]}

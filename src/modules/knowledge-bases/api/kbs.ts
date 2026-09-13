@@ -2,26 +2,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { getProjectById } from "@/modules/organisations/core/db";
+import { getAgentById } from "@/modules/organisations/core/db";
 import { createKnowledgeBase, listKnowledgeBases, getKnowledgeBaseById, updateKnowledgeBase, deleteKnowledgeBase } from "../core/db";
 import { ensureCollectionExists, getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { requireAuth, requireProjectPermission, requireKbPermission } from "@/modules/auth/core/rbac";
+import { requireAuth, requireAgentPermission, requireKbPermission } from "@/modules/auth/core/rbac";
 
-export async function createKbHandler(req: NextRequest, projectId: string): Promise<NextResponse> {
+export async function createKbHandler(req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    await requireProjectPermission(auth, projectId, "kb:create");
-    const project = await getProjectById(projectId);
-    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    await requireAgentPermission(auth, agentId, "kb:create");
+    const agent = await getAgentById(agentId);
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     const body = await req.json();
     if (!body?.name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
-    const kb = await createKnowledgeBase(projectId, { name: body.name.trim(), description: body.description?.trim() || undefined });
+    const kb = await createKnowledgeBase(agentId, { name: body.name.trim(), description: body.description?.trim() || undefined });
     try {
-      const resolved = await resolveAIConfig({ kbId: kb.id, orgId: project.orgId, surface: "rag-embedding" });
+      const resolved = await resolveAIConfig({ kbId: kb.id, orgId: agent.orgId, surface: "rag-embedding" });
       const provider = ProviderFactory.getProvider(toProviderConfig(resolved));
       await ensureCollectionExists(kb.qdrantCollection, { vectorSize: provider.getEmbeddingDimension() });
     } catch (qdrantErr) {
@@ -36,14 +36,14 @@ export async function createKbHandler(req: NextRequest, projectId: string): Prom
   }
 }
 
-export async function listKbsHandler(req: NextRequest, projectId: string): Promise<NextResponse> {
+export async function listKbsHandler(req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    await requireProjectPermission(auth, projectId, "kb:read");
-    const project = await getProjectById(projectId);
-    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    return NextResponse.json(await listKnowledgeBases(projectId));
+    await requireAgentPermission(auth, agentId, "kb:read");
+    const agent = await getAgentById(agentId);
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    return NextResponse.json(await listKnowledgeBases(agentId));
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

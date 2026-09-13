@@ -79,7 +79,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     console.info("[embed/voice-connect] runtime configuration", {
       orgId: resolved.orgId ?? ctx.orgId,
-      projectId: resolved.projectId,
+      projectId: resolved.agentId,
       kbId: ctx.kbId,
       provider,
       realtimeModel: model,
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           model,
           voice,
           orgId: resolved.orgId ?? ctx.orgId,
-          projectId: resolved.projectId,
+          projectId: resolved.agentId,
           kbId: ctx.kbId,
         },
         { status: sdpResult.status >= 400 && sdpResult.status < 600 ? sdpResult.status : 502, headers: corsHeaders },
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         transcriptionModel,
         kbId: ctx.kbId,
         orgId: resolved.orgId ?? ctx.orgId,
-        projectId: resolved.projectId,
+        projectId: resolved.agentId,
       },
       { headers: corsHeaders },
     );

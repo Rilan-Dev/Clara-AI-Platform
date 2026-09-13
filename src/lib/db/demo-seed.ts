@@ -31,7 +31,7 @@ async function resetDemoData(client: PoolClient, logger: Logger) {
   await client.query(`DELETE FROM documents WHERE kb_id = ANY($1::uuid[])`, [kbIds]);
   await client.query(`DELETE FROM assistant_configs WHERE kb_id = ANY($1::uuid[])`, [kbIds]);
   await client.query(`DELETE FROM knowledge_bases WHERE id = ANY($1::uuid[])`, [kbIds]);
-  await client.query(`DELETE FROM projects WHERE id = ANY($1::uuid[])`, [[IDS.omenProjectId, IDS.techvisionProjectId]]);
+  await client.query(`DELETE FROM agents WHERE id = ANY($1::uuid[])`, [[IDS.omenProjectId, IDS.techvisionProjectId]]);
   await client.query(`DELETE FROM org_subscriptions WHERE org_id = ANY($1::uuid[])`, [[IDS.omenOrgId, IDS.techvisionOrgId]]);
   await client.query(`DELETE FROM org_members WHERE org_id = ANY($1::uuid[])`, [[IDS.omenOrgId, IDS.techvisionOrgId]]);
   await client.query(`DELETE FROM organisations WHERE id = ANY($1::uuid[])`, [[IDS.omenOrgId, IDS.techvisionOrgId]]);
@@ -154,7 +154,7 @@ export async function seedDemoData(options?: { reset?: boolean; logger?: Logger 
 
     await client.query(
       `
-        INSERT INTO projects (id, org_id, name, description)
+        INSERT INTO agents (id, org_id, name, description)
         VALUES ($1, $2, 'Omen Insurance Operations', 'Internal AI knowledge portal')
         ON CONFLICT (id) DO NOTHING
       `,
@@ -163,7 +163,7 @@ export async function seedDemoData(options?: { reset?: boolean; logger?: Logger 
 
     await client.query(
       `
-        INSERT INTO projects (id, org_id, name, description)
+        INSERT INTO agents (id, org_id, name, description)
         VALUES ($1, $2, 'TechVision Product Team', 'Product and engineering knowledge base')
         ON CONFLICT (id) DO NOTHING
       `,
@@ -178,7 +178,7 @@ export async function seedDemoData(options?: { reset?: boolean; logger?: Logger 
     for (const kb of omenKbs) {
       await client.query(
         `
-          INSERT INTO knowledge_bases (id, project_id, name, qdrant_collection, status)
+          INSERT INTO knowledge_bases (id, agent_id, name, qdrant_collection, status)
           VALUES ($1, $2, $3, $4, 'active')
           ON CONFLICT (id) DO NOTHING
         `,
@@ -193,7 +193,7 @@ export async function seedDemoData(options?: { reset?: boolean; logger?: Logger 
     for (const kb of tvKbs) {
       await client.query(
         `
-          INSERT INTO knowledge_bases (id, project_id, name, qdrant_collection, status)
+          INSERT INTO knowledge_bases (id, agent_id, name, qdrant_collection, status)
           VALUES ($1, $2, $3, $4, 'active')
           ON CONFLICT (id) DO NOTHING
         `,

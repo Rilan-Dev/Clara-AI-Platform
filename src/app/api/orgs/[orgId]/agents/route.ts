@@ -1,17 +1,17 @@
 import { NextRequest } from "next/server";
 import {
-  createProjectHandler,
-  listProjectsHandler,
-} from "@/modules/organisations/api/projects";
+  createAgentHandler,
+  listAgentsHandler,
+} from "@/modules/organisations/api/agents";
 
 type Params = { params: Promise<{ orgId: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { orgId } = await params;
-  return listProjectsHandler(req, orgId);
+  return listAgentsHandler(req, orgId);
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { orgId } = await params;
-  return createProjectHandler(req, orgId);
+  return createAgentHandler(req, orgId);
 }

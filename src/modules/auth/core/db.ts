@@ -269,25 +269,25 @@ export async function removeOrgMember(orgId: string, userId: string): Promise<bo
 }
 
 /**
- * Finds which org a project/KB belongs to by traversal:
- * knowledge_bases → projects → organisations
+ * Finds which org an agent/KB belongs to by traversal:
+ * knowledge_bases → agents → organisations
  */
 export async function getOrgIdForKb(kbId: string): Promise<string | null> {
   const row = await queryOne<{ org_id: string }>(
     `SELECT o.id AS org_id
      FROM knowledge_bases kb
-     JOIN projects p ON p.id = kb.project_id
-     JOIN organisations o ON o.id = p.org_id
+     JOIN agents a ON a.id = kb.agent_id
+     JOIN organisations o ON o.id = a.org_id
      WHERE kb.id = $1`,
     [kbId]
   );
   return row?.org_id ?? null;
 }
 
-export async function getOrgIdForProject(projectId: string): Promise<string | null> {
+export async function getOrgIdForAgent(agentId: string): Promise<string | null> {
   const row = await queryOne<{ org_id: string }>(
-    "SELECT org_id FROM projects WHERE id = $1",
-    [projectId]
+    "SELECT org_id FROM agents WHERE id = $1",
+    [agentId]
   );
   return row?.org_id ?? null;
 }

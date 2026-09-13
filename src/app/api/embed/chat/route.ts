@@ -101,7 +101,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     console.info("[embed/chat] runtime configuration", {
       orgId: resolved.orgId ?? ctx.orgId,
-      projectId: resolved.projectId,
+      projectId: resolved.agentId,
       kbId: ctx.kbId,
       provider: providerConfig.provider,
       chatModel: providerConfig.chatModel,

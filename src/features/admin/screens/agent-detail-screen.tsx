@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { BookOpen, FolderKanban, Plus, Trash2 } from "lucide-react";
-import { useAuth, useOrg, useKbs, useProject } from "@/modules/admin-ui/hooks";
+import { BookOpen, Bot, Plus, Trash2 } from "lucide-react";
+import { useAuth, useOrg, useKbs, useAgent } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { EditProjectPanel } from "@/components/admin/EditProjectPanel";
-import { ProjectAgentCard } from "@/components/admin/ProjectAgentCard";
+import { EditAgentPanel } from "@/components/admin/EditAgentPanel";
 import { Button } from "@/components/ui/button";
 
 function formatDate(value: string) {
@@ -19,19 +18,19 @@ function formatDate(value: string) {
   });
 }
 
-export default function ProjectDetailPage() {
-  const { id = "", projectId = "" } = useParams<{ id: string; projectId: string }>();
+export default function AgentDetailPage() {
+  const { id = "", agentId = "" } = useParams<{ id: string; agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
   const { data: org } = useOrg(id);
-  const { data: project } = useProject(projectId);
-  const { kbs, loading, create, remove } = useKbs(projectId);
+  const { data: agent } = useAgent(agentId);
+  const { kbs, loading, create, remove } = useKbs(agentId);
 
   // Local state so edits reflect immediately
-  const [editedProject, setEditedProject] = useState<{ name: string; description?: string | null } | null>(null);
+  const [editedAgent, setEditedAgent] = useState<{ name: string; description?: string | null } | null>(null);
 
-  // RBAC: super_admin and org_admin can edit; project_manager can also edit
-  const canEditProject = Boolean(user?.isSuperAdmin) || true; // org role checked server-side
+  // RBAC: super_admin and org_admin can edit; org role checked server-side
+  const canEditAgent = Boolean(user?.isSuperAdmin) || true;
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -72,32 +71,32 @@ export default function ProjectDetailPage() {
     return (
       <div className="p-6 lg:p-8 space-y-8">
         <AdminPageHeader
-          icon={FolderKanban}
-          title={editedProject?.name ?? project?.name ?? "Knowledge Bases"}
-          description="View project details and access to knowledge bases for this project."
+          icon={Bot}
+          title={editedAgent?.name ?? agent?.name ?? "Knowledge Bases"}
+          description="View agent details and access to knowledge bases for this agent."
           breadcrumbs={[
             { label: "Organisations", href: "/orgs" },
             { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
-            { label: "Projects", href: `/orgs/${id}` },
-            { label: project?.name ?? "Project" },
+            { label: "Agents", href: `/orgs/${id}` },
+            { label: agent?.name ?? "Agent" },
           ]}
           chips={[
             `${kbs.length} KB${kbs.length === 1 ? "" : "s"}`,
-            project?.description ?? "Project workspace",
+            agent?.description ?? "Agent workspace",
           ]}
         />
 
-        {/* Project details — read-only for platform admins */}
-        {project && (
+        {/* Agent details — read-only for platform admins */}
+        {agent && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
-                <FolderKanban className="w-5 h-5 text-indigo-300" />
+                <Bot className="w-5 h-5 text-indigo-300" />
               </div>
               <div>
-                <h2 className="font-semibold text-white">Project Details</h2>
+                <h2 className="font-semibold text-white">Agent Details</h2>
                 <p className="text-sm text-white/40 mt-1">
-                  Platform admins can view project details but cannot edit them.
+                  Platform admins can view agent details but cannot edit them.
                 </p>
               </div>
             </div>
@@ -106,12 +105,12 @@ export default function ProjectDetailPage() {
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="font-medium text-white">{project.name}</p>
-                    {project.description && (
-                      <p className="text-sm text-white/40 mt-1">{project.description}</p>
+                    <p className="font-medium text-white">{agent.name}</p>
+                    {agent.description && (
+                      <p className="text-sm text-white/40 mt-1">{agent.description}</p>
                     )}
                     <p className="text-xs text-white/30 mt-1">
-                      Created {formatDate(project.createdAt)}
+                      Created {formatDate(agent.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -119,9 +118,6 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         )}
-
-        {/* Project agent — connect/switch the project's AI personality */}
-        <ProjectAgentCard projectId={projectId} orgId={id} />
 
         {loading ? (
           <div className="space-y-3">
@@ -156,10 +152,10 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&projectId=${projectId}`}>
-                    <Button variant="outline" size="sm">Assistant & AI</Button>
+                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&agentId=${agentId}`}>
+                    <Button variant="outline" size="sm">Assistant &amp; AI</Button>
                   </Link>
-                  <Link href={`/kbs/${kb.id}?orgId=${id}&projectId=${projectId}`}>
+                  <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`}>
                     <Button size="sm">Open KB</Button>
                   </Link>
                 </div>
@@ -174,9 +170,9 @@ export default function ProjectDetailPage() {
   return (
     <div className="p-6 lg:p-8 space-y-8">
       <AdminPageHeader
-        icon={FolderKanban}
-        title={editedProject?.name ?? project?.name ?? "Knowledge Bases"}
-        description="Create knowledge bases, open assistant configuration, and continue into the runtime and deployment workflow for this project."
+        icon={Bot}
+        title={editedAgent?.name ?? agent?.name ?? "Knowledge Bases"}
+        description="Create knowledge bases, open assistant configuration, and continue into the runtime and deployment workflow for this agent."
         breadcrumbs={[
           // Org users go directly to their org page; admins go to the full orgs list
           user?.isSuperAdmin
@@ -184,12 +180,12 @@ export default function ProjectDetailPage() {
             : { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
           user?.isSuperAdmin
             ? { label: org?.name ?? "Organisation", href: `/orgs/${id}` }
-            : { label: "Projects", href: `/orgs/${id}` },
-          { label: project?.name ?? "Project" },
+            : { label: "Agents", href: `/orgs/${id}` },
+          { label: agent?.name ?? "Agent" },
         ].filter(Boolean) as { label: string; href?: string }[]}
         chips={[
           `${kbs.length} KB${kbs.length === 1 ? "" : "s"}`,
-          project?.description ?? "Project workspace",
+          agent?.description ?? "Agent workspace",
         ]}
         actions={
           <Button onClick={() => setShowForm((current) => !current)} className="gap-2">
@@ -198,17 +194,14 @@ export default function ProjectDetailPage() {
         }
       />
 
-      {/* Project details — editable */}
-      {project && (
-        <EditProjectPanel
-          project={{ id: projectId, name: editedProject?.name ?? project.name, description: editedProject?.description ?? project.description }}
-          canEdit={canEditProject}
-          onSaved={(updated) => setEditedProject(updated)}
+      {/* Agent details — editable */}
+      {agent && (
+        <EditAgentPanel
+          agent={{ id: agentId, name: editedAgent?.name ?? agent.name, description: editedAgent?.description ?? agent.description }}
+          canEdit={canEditAgent}
+          onSaved={(updated) => setEditedAgent(updated)}
         />
       )}
-
-      {/* Project agent — connect/switch the project's AI personality */}
-      <ProjectAgentCard projectId={projectId} orgId={id} />
 
       {showForm && (
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
@@ -273,10 +266,10 @@ export default function ProjectDetailPage() {
                 </p>
               </div>
                 <div className="flex items-center gap-2">
-                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&projectId=${projectId}`}>
-                    <Button variant="outline" size="sm">Assistant & AI</Button>
+                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&agentId=${agentId}`}>
+                    <Button variant="outline" size="sm">Assistant &amp; AI</Button>
                   </Link>
-                  <Link href={`/kbs/${kb.id}?orgId=${id}&projectId=${projectId}`}>
+                  <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`}>
                     <Button size="sm">Open KB</Button>
                   </Link>
                 <Button

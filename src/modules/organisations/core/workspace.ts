@@ -3,7 +3,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * "Workspace wizard" — atomically provisions a complete tenant workspace:
  *   organisation → admin user → subscription (pinned plan version) →
- *   project → knowledge base → API key → optional public-demo assignment.
+ *   agent → knowledge base → API key → optional public-demo assignment.
  *
  * Used by the Platform Admin "New Workspace" wizard so admins no longer need
  * to click through 6 separate screens (and previously had no safe way to
@@ -27,8 +27,8 @@ export type CreateWorkspaceInput = {
   adminPassword?: string;
   /** Defaults to "enterprise" — the wizard is intended for hand-provisioned, white-glove workspaces. */
   planId?: string;
-  projectName?: string;
-  projectDescription?: string;
+  agentName?: string;
+  agentDescription?: string;
   kbName?: string;
   kbDescription?: string;
   apiKeyName?: string;
@@ -41,7 +41,7 @@ export type CreateWorkspaceInput = {
 export type CreateWorkspaceResult = {
   org: { id: string; name: string; slug: string };
   admin: { id: string; email: string; fullName: string; temporaryPassword: string | null };
-  project: { id: string; name: string };
+  agent: { id: string; name: string };
   kb: { id: string; name: string; qdrantCollection: string };
   apiKey: { id: string; rawKey: string; keyPrefix: string; name: string };
   planId: string;
@@ -210,16 +210,16 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
       [org.id, planId, planData.plan_version_id ?? null, JSON.stringify(snapshot), planData.price_usd, "Created via workspace wizard"],
     );
 
-    // ── 4. Project ────────────────────────────────────────────────────────────
-    const projectName = input.projectName?.trim() || "Default Project";
-    const projectRows = await client.query<Record<string, unknown>>(
-      `INSERT INTO projects (org_id, name, description) VALUES ($1, $2, $3) RETURNING *`,
-      [org.id, projectName, input.projectDescription?.trim() || null],
+    // ── 4. Agent (the former "project") ─────────────────────────────────────
+    const agentName = input.agentName?.trim() || "Default Agent";
+    const agentRows = await client.query<Record<string, unknown>>(
+      `INSERT INTO agents (org_id, name, description) VALUES ($1, $2, $3) RETURNING *`,
+      [org.id, agentName, input.agentDescription?.trim() || null],
     );
-    const project = projectRows.rows[0]!;
+    const agent = agentRows.rows[0]!;
     await client.query(
-      `INSERT INTO project_ai_settings (project_id, org_id) VALUES ($1, $2) ON CONFLICT (project_id) DO NOTHING`,
-      [project.id, org.id],
+      `INSERT INTO agent_ai_settings (agent_id, org_id) VALUES ($1, $2) ON CONFLICT (agent_id) DO NOTHING`,
+      [agent.id, org.id],
     );
 
     // ── 5. Knowledge base ─────────────────────────────────────────────────────
@@ -227,9 +227,9 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
     const kbName = input.kbName?.trim() || "Default Knowledge Base";
     const qdrantCollection = makeCollectionName(kbId, kbName);
     const kbRows = await client.query<Record<string, unknown>>(
-      `INSERT INTO knowledge_bases (id, project_id, name, description, qdrant_collection)
+      `INSERT INTO knowledge_bases (id, agent_id, name, description, qdrant_collection)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [kbId, project.id, kbName, input.kbDescription?.trim() || null, qdrantCollection],
+      [kbId, agent.id, kbName, input.kbDescription?.trim() || null, qdrantCollection],
     );
     const kb = kbRows.rows[0]!;
 
@@ -273,7 +273,7 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
     );
     const apiKeyRow = apiKeyRows.rows[0]!;
 
-    return { org, userRow, project, kb, apiKeyRow, rawKey };
+    return { org, userRow, agent, kb, apiKeyRow, rawKey };
   });
 
   // ── Optional: point the public landing-page demo at this new workspace ─────
@@ -295,7 +295,7 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
       fullName: result.userRow.full_name as string,
       temporaryPassword: input.adminPassword?.trim() ? null : generatedPassword,
     },
-    project: { id: result.project.id as string, name: result.project.name as string },
+    agent: { id: result.agent.id as string, name: result.agent.name as string },
     kb: {
       id: result.kb.id as string,
       name: result.kb.name as string,

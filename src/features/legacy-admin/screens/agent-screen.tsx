@@ -1,6 +1,6 @@
 "use client";
 /**
- * /admin/orgs/[orgId]/projects/[projectId] — Knowledge base list for a project
+ * /admin/orgs/[orgId]/agents/[agentId] — Knowledge base list for an agent
  */
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function ProjectPage() {
-  const { orgId = "", projectId = "" } = useParams<{ orgId: string; projectId: string }>();
+export default function AgentPage() {
+  const { orgId = "", agentId = "" } = useParams<{ orgId: string; agentId: string }>();
   const { data: org } = useOrg(orgId);
-  const { kbs, loading, create, remove } = useKbs(projectId);
+  const { kbs, loading, create, remove } = useKbs(agentId);
   const [name, setName]           = useState("");
   const [description, setDescription] = useState("");
   const [showForm, setShowForm]   = useState(false);

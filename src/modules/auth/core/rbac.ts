@@ -11,7 +11,7 @@ import {
   getOrgMembership,
   getPermissionsForRole,
   getOrgIdForKb,
-  getOrgIdForProject,
+  getOrgIdForAgent,
 } from "./db";
 import { hashToken, extractToken } from "./tokens";
 import type { AuthContext, PermissionKey } from "./models";
@@ -42,7 +42,7 @@ export async function getAuthContext(request: Request): Promise<AuthContext | nu
 
 /**
  * Tenant isolation boundary. Platform admins manage the SaaS platform itself,
- * not tenant projects, KBs, documents, members, or tenant AI configuration.
+ * not tenant agents, KBs, documents, members, or tenant AI configuration.
  */
 export function requireTenantScope(auth: AuthContext): void {
   if (auth.user.isSuperAdmin) {
@@ -90,14 +90,14 @@ export async function requireKbPermission(
   await requireOrgPermission(auth, orgId, permission);
 }
 
-export async function requireProjectPermission(
+export async function requireAgentPermission(
   auth: AuthContext,
-  projectId: string,
+  agentId: string,
   permission: PermissionKey,
 ): Promise<void> {
   requireTenantScope(auth);
-  const orgId = await getOrgIdForProject(projectId);
-  if (!orgId) throw NextResponse.json({ error: "Project not found" }, { status: 404 });
+  const orgId = await getOrgIdForAgent(agentId);
+  if (!orgId) throw NextResponse.json({ error: "Agent not found" }, { status: 404 });
   await requireOrgPermission(auth, orgId, permission);
 }
 

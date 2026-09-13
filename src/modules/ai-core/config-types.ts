@@ -5,7 +5,7 @@ export type AISurface = "chat" | "rag-embedding" | "realtime" | "embed";
 export type ResolutionSource =
   | "env"
   | "org"
-  | "project"
+  | "agent_settings"
   | "kb_override"
   | "agent"
   | "assistant_config"
@@ -36,9 +36,9 @@ export interface PlatformAIDefaults {
  * Platform-level assistant persona defaults (Identity, Behaviour, Language,
  * Voice) — managed by the platform admin in Settings -> AI Configuration.
  *
- * These are the STARTING VALUES for newly onboarding projects / knowledge
- * bases / agents: seeded at creation time, so later edits never affect
- * existing rows (those are owned by the organisations).
+ * These are the STARTING VALUES for newly onboarding agents / knowledge
+ * bases: seeded at creation time, so later edits never affect existing rows
+ * (those are owned by the organisations).
  */
 export interface PlatformAssistantDefaults {
   id: string;
@@ -178,7 +178,7 @@ export interface ResolveAIConfigInput {
 
 export interface ResolvedAIConfig {
   orgId: string | null;
-  projectId: string | null;
+  agentId: string | null;
   kbId: string | null;
   provider: AIProvider;
   chatModel: string | null;

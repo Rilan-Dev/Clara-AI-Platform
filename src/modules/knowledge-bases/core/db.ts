@@ -24,7 +24,7 @@ function makeCollectionName(kbId: string, name: string): string {
 
 function toKb(row: Record<string,unknown>): KnowledgeBase {
   return {
-    id: String(row.id), projectId: String(row.project_id),
+    id: String(row.id), agentId: String(row.agent_id),
     name: String(row.name), description: row.description!=null?String(row.description):null,
     qdrantCollection: String(row.qdrant_collection),
     status: (row.status as "active"|"archived")??"active",
@@ -175,22 +175,22 @@ async function seedAssistantConfigFromDefaults(
   );
 }
 
-export async function createKnowledgeBase(projectId: string, input: CreateKbInput): Promise<KnowledgeBase> {
+export async function createKnowledgeBase(agentId: string, input: CreateKbInput): Promise<KnowledgeBase> {
   return withTransaction(async (client) => {
     const kbId = randomUUID();
     const kbResult = await client.query<Record<string,unknown>>(
-      `INSERT INTO knowledge_bases (id, project_id, name, description, qdrant_collection)
+      `INSERT INTO knowledge_bases (id, agent_id, name, description, qdrant_collection)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [kbId, projectId, input.name, input.description??null, makeCollectionName(kbId,input.name)]
+      [kbId, agentId, input.name, input.description??null, makeCollectionName(kbId,input.name)]
     );
     await seedAssistantConfigFromDefaults(client, kbId);
     return toKb(kbResult.rows[0]!);
   });
 }
 
-export async function listKnowledgeBases(projectId: string): Promise<KnowledgeBase[]> {
+export async function listKnowledgeBases(agentId: string): Promise<KnowledgeBase[]> {
   const rows = await query<Record<string,unknown>>(
-    "SELECT * FROM knowledge_bases WHERE project_id=$1 ORDER BY name ASC", [projectId]);
+    "SELECT * FROM knowledge_bases WHERE agent_id=$1 ORDER BY name ASC", [agentId]);
   return rows.map(toKb);
 }
 

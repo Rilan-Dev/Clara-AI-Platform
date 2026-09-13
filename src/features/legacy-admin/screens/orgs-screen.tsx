@@ -34,7 +34,7 @@ export default function OrgsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this organisation and all its projects and knowledge bases? This cannot be undone.")) return;
+    if (!confirm("Delete this organisation and all its agents and knowledge bases? This cannot be undone.")) return;
     setDeleteId(id);
     try { await remove(id); } catch { /* ignore */ }
     setDeleteId(null);
@@ -51,7 +51,7 @@ export default function OrgsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Organisations</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your organisations, their projects, and knowledge bases.
+            Manage your organisations, their agents, and knowledge bases.
           </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)} variant="default">

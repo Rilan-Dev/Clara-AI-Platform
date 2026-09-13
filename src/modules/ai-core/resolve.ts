@@ -1,10 +1,9 @@
-import { getProjectById } from "@/modules/organisations/core/db";
+import { getAgentById } from "@/modules/organisations/core/db";
+import type { Agent } from "@/modules/organisations/core/models";
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
-import { getProjectAISettings } from "@/modules/organisations/core/project-ai-settings-db";
+import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
-import { getActiveAgentForProject } from "@/modules/agents/core/db";
-import type { Agent } from "@/modules/agents/core/models";
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import type {
@@ -15,8 +14,8 @@ import type {
   ResolveAIConfigInput,
   ResolvedAIConfig,
 } from "./config-types";
-import type { ProjectAISettings } from "@/modules/organisations/core/project-ai-types";
-import { resolveProjectRuntimeSelection } from "@/modules/organisations/core/project-ai-types";
+import type { AgentAISettings } from "@/modules/organisations/core/agent-ai-types";
+import { resolveAgentRuntimeSelection } from "@/modules/organisations/core/agent-ai-types";
 
 export class AIConfigResolutionError extends Error {
   constructor(message: string) {
@@ -90,7 +89,7 @@ function clampNumber(value: number | null, max: number | null): number | null {
 
 // OpenAI Realtime `audio.output.voice` accepts voice IDs, not model names.
 // Keep this validation at the shared AI configuration boundary so every
-// Realtime/embed caller is protected from stale or invalid project settings.
+// Realtime/embed caller is protected from stale or invalid agent settings.
 const OPENAI_REALTIME_VOICES = new Set([
   "alloy",
   "ash",
@@ -136,65 +135,67 @@ function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags
 }
 
 /**
- * Overlay the project's active agent onto the KB assistant config.
- * Agent-sourced identity / behaviour / language / voice / generation settings
- * become the effective assistant config; null agent fields fall back to the
- * KB config, which in turn falls back to org/platform defaults.
+ * Apply the AGENT's persona columns as defaults under the KB assistant config.
+ *
+ * The agent (the former "project") is the container that owns this KB and
+ * carries its own Identity / Behaviour / Language / Voice / generation
+ * defaults. The KB-level "Assistant & AI" configuration is the primary,
+ * user-editable surface, so it takes precedence; the agent persona fills any
+ * gap the KB config leaves empty. Null / empty agent fields never apply.
  */
-function applyAgentOverlay(
+function applyAgentPersonaDefaults(
   base: AssistantConfig | null,
   agent: Agent | null,
 ): AssistantConfig | null {
   if (!agent || !base) return base;
   return {
     ...base,
-    assistantName: agent.assistantName || base.assistantName,
-    avatarUrl: agent.avatarUrl ?? base.avatarUrl,
-    systemPrompt: agent.systemPrompt?.trim() ? agent.systemPrompt : base.systemPrompt,
-    welcomeMessage: agent.welcomeMessage?.trim() ? agent.welcomeMessage : base.welcomeMessage,
-    outOfScopeReply: agent.outOfScopeReply?.trim() ? agent.outOfScopeReply : base.outOfScopeReply,
-    rules: agent.rules?.length ? agent.rules : base.rules,
-    defaultLanguage: agent.defaultLanguage || base.defaultLanguage,
-    allowedLanguages: agent.allowedLanguages?.length ? agent.allowedLanguages : base.allowedLanguages,
-    alwaysRespondIn: agent.alwaysRespondIn ?? base.alwaysRespondIn,
-    voiceId: agent.voiceId ?? base.voiceId,
-    speed: agent.speed ?? base.speed,
-    temperature: agent.temperature ?? base.temperature,
-    maxTokens: agent.maxTokens ?? base.maxTokens,
-    citeSources: agent.citeSources ?? base.citeSources,
-    strictMode: agent.strictMode ?? base.strictMode,
+    assistantName: base.assistantName || agent.assistantName,
+    avatarUrl: base.avatarUrl ?? agent.avatarUrl,
+    systemPrompt: base.systemPrompt?.trim() ? base.systemPrompt : agent.systemPrompt,
+    welcomeMessage: base.welcomeMessage?.trim() ? base.welcomeMessage : agent.welcomeMessage,
+    outOfScopeReply: base.outOfScopeReply?.trim() ? base.outOfScopeReply : agent.outOfScopeReply,
+    rules: base.rules?.length ? base.rules : agent.rules,
+    defaultLanguage: base.defaultLanguage || agent.defaultLanguage,
+    allowedLanguages: base.allowedLanguages?.length ? base.allowedLanguages : agent.allowedLanguages,
+    alwaysRespondIn: base.alwaysRespondIn ?? agent.alwaysRespondIn,
+    voiceId: base.voiceId ?? agent.voiceId,
+    speed: base.speed ?? agent.speed,
+    temperature: base.temperature ?? agent.temperature,
+    maxTokens: base.maxTokens ?? agent.maxTokens,
+    citeSources: base.citeSources ?? agent.citeSources,
+    strictMode: base.strictMode ?? agent.strictMode,
   };
 }
 
 /**
- * Resolve tenant AI settings with project -> org -> platform precedence for
- * provider/model infrastructure and KB assistant config for user-facing
- * language and voice preferences. When the KB's project has an active agent,
- * the agent's settings take precedence over the KB assistant config.
+ * Resolve tenant AI settings with agent_ai_settings (the agent's infra
+ * configuration) -> org -> platform precedence for provider/model
+ * infrastructure, and the KB assistant config (with agent persona defaults)
+ * for user-facing language and voice preferences.
  */
 export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<ResolvedAIConfig> {
   const defaults = getPlatformAIDefaults();
   const kb = input.kbId ? await getKnowledgeBaseById(input.kbId) : null;
-  const project = kb ? await getProjectById(kb.projectId) : null;
-  const orgId = input.orgId ?? project?.orgId ?? null;
+  const agent = kb ? await getAgentById(kb.agentId) : null;
+  const orgId = input.orgId ?? agent?.orgId ?? null;
 
-  const [orgSettings, projectSettings, kbOverrides, assistantConfigBase, activeAgent] = await Promise.all([
+  const [orgSettings, agentSettings, kbOverrides, assistantConfigBase] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
-    project?.id ? getProjectAISettings(project.id) : Promise.resolve(null),
+    agent?.id ? getAgentAISettings(agent.id) : Promise.resolve(null),
     input.kbId ? getKbAIOverrides(input.kbId) : Promise.resolve(null),
     input.kbId ? getAssistantConfig(input.kbId) : Promise.resolve(null),
-    project?.id ? getActiveAgentForProject(project.id) : Promise.resolve(null),
   ]);
 
-  const assistantConfig = applyAgentOverlay(assistantConfigBase, activeAgent);
+  const assistantConfig = applyAgentPersonaDefaults(assistantConfigBase, agent);
 
-  if (projectSettings && project && projectSettings.orgId !== project.orgId) {
-    throw new AIConfigResolutionError("Project AI configuration belongs to another organisation.");
+  if (agentSettings && agent && agentSettings.orgId !== agent.orgId) {
+    throw new AIConfigResolutionError("Agent AI configuration belongs to another organisation.");
   }
 
-  let provider: AIProvider = projectSettings?.provider ?? orgSettings?.defaultProvider ?? defaults.provider;
-  let providerSource: ResolvedAIConfig["sources"]["provider"] = projectSettings?.provider
-    ? "project"
+  let provider: AIProvider = agentSettings?.provider ?? orgSettings?.defaultProvider ?? defaults.provider;
+  let providerSource: ResolvedAIConfig["sources"]["provider"] = agentSettings?.provider
+    ? "agent_settings"
     : orgSettings?.defaultProvider
       ? "org"
       : "env";
@@ -209,7 +210,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     : (["openai", "gemini"] as AIProvider[]);
 
   if (!allowedProviders.includes(provider)) {
-    throw new AIConfigResolutionError(`Project provider ${provider} is not enabled for this organisation.`);
+    throw new AIConfigResolutionError(`Agent provider ${provider} is not enabled for this organisation.`);
   }
 
   const defaultChat = defaults.models[provider].chat;
@@ -219,14 +220,14 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const defaultVoice = defaults.models[provider].defaultVoice;
 
   const chatCandidate =
-    kbOverrides?.chatModel ?? activeAgent?.chatModel ?? projectSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
+    kbOverrides?.chatModel ?? agent?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
   const embeddingCandidate =
-    kbOverrides?.embeddingModel ?? projectSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
+    kbOverrides?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
   const realtimeCandidate =
-    kbOverrides?.realtimeModel ?? projectSettings?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
+    kbOverrides?.realtimeModel ?? agentSettings?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
   const transcriptionCandidate =
     kbOverrides?.transcriptionModel ??
-    projectSettings?.transcriptionModel ??
+    agentSettings?.transcriptionModel ??
     orgSettings?.defaultTranscriptionModel ??
     defaultTranscription;
 
@@ -253,12 +254,12 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const organisationFallbackVoices = getAllowedValues(orgSettings?.allowedVoices, provider) ?? [];
   const fallbackVoiceId = organisationFallbackVoices[0] ?? defaultVoice;
 
-  const runtimeProjectSettings: ProjectAISettings = projectSettings
+  const runtimeAgentSettings: AgentAISettings = agentSettings
     ? {
-        ...projectSettings,
+        ...agentSettings,
         voices:
-          projectSettings.voices.length > 0 || !fallbackVoiceId
-            ? projectSettings.voices
+          agentSettings.voices.length > 0 || !fallbackVoiceId
+            ? agentSettings.voices
             : [
                 {
                   id: "platform-default-voice",
@@ -273,7 +274,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       }
     : {
         id: "platform-default",
-        projectId: project?.id ?? "",
+        agentId: agent?.id ?? "",
         orgId: orgId ?? "",
         provider,
         chatModel: null,
@@ -307,36 +308,36 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
           : [],
       };
 
-  const projectSelection = resolveProjectRuntimeSelection({
+  const agentSelection = resolveAgentRuntimeSelection({
     provider,
     assistantLanguage: assistantConfig?.alwaysRespondIn ?? assistantConfig?.defaultLanguage,
     assistantAllowedLanguages: assistantConfig?.allowedLanguages,
     assistantVoice: assistantConfig?.voiceId,
-    assignedLanguages: runtimeProjectSettings.languages,
-    assignedVoices: runtimeProjectSettings.voices,
+    assignedLanguages: runtimeAgentSettings.languages,
+    assignedVoices: runtimeAgentSettings.voices,
     defaultLanguageCode:
-      runtimeProjectSettings.languages.find(
-        (item) => item.id === runtimeProjectSettings.defaultLanguageId,
+      runtimeAgentSettings.languages.find(
+        (item) => item.id === runtimeAgentSettings.defaultLanguageId,
       )?.code ?? null,
     defaultVoice: (() => {
-      const item = runtimeProjectSettings.voices.find(
-        (voice) => voice.id === runtimeProjectSettings.defaultVoiceId,
+      const item = runtimeAgentSettings.voices.find(
+        (voice) => voice.id === runtimeAgentSettings.defaultVoiceId,
       );
       return item ? { provider: item.provider, voiceId: item.voiceId } : null;
     })(),
   });
 
-  if (projectSelection.allowedLanguages.length === 0) {
+  if (agentSelection.allowedLanguages.length === 0) {
     throw new AIConfigResolutionError("No languages are configured for this assistant.");
   }
 
   const voiceId =
     input.surface === "realtime" || input.surface === "embed"
-      ? normalizeRealtimeVoice(provider, projectSelection.voiceId, organisationFallbackVoices, defaultVoice)
+      ? normalizeRealtimeVoice(provider, agentSelection.voiceId, organisationFallbackVoices, defaultVoice)
       : null;
 
   if ((input.surface === "realtime" || input.surface === "embed") && !voiceId) {
-    throw new AIConfigResolutionError(`No ${provider} voice is configured for this project or platform.`);
+    throw new AIConfigResolutionError(`No ${provider} voice is configured for this agent or platform.`);
   }
 
   const flags = {
@@ -369,7 +370,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   return {
     orgId,
-    projectId: project?.id ?? null,
+    agentId: agent?.id ?? null,
     kbId: input.kbId ?? null,
     provider,
     chatModel,
@@ -377,8 +378,8 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     realtimeModel,
     transcriptionModel: transcriptionCandidate ?? null,
     voiceId,
-    allowedLanguages: projectSelection.allowedLanguages,
-    defaultLanguage: projectSelection.defaultLanguage,
+    allowedLanguages: agentSelection.allowedLanguages,
+    defaultLanguage: agentSelection.defaultLanguage,
     temperature,
     maxTokens,
     assistantConfig,
@@ -388,64 +389,64 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       chatModel:
         kbOverrides?.chatModel != null
           ? "kb_override"
-          : activeAgent?.chatModel != null
+          : agent?.chatModel != null
             ? "agent"
-            : projectSettings?.chatModel != null
-              ? "project"
+            : agentSettings?.chatModel != null
+              ? "agent_settings"
               : orgSettings?.defaultChatModel != null
                 ? "org"
                 : "env",
       embeddingModel:
         kbOverrides?.embeddingModel != null
           ? "kb_override"
-          : projectSettings?.embeddingModel != null
-            ? "project"
+          : agentSettings?.embeddingModel != null
+            ? "agent_settings"
             : orgSettings?.defaultEmbeddingModel != null
               ? "org"
               : "env",
       realtimeModel:
         kbOverrides?.realtimeModel != null
           ? "kb_override"
-          : projectSettings?.realtimeModel != null
-            ? "project"
+          : agentSettings?.realtimeModel != null
+            ? "agent_settings"
             : orgSettings?.defaultRealtimeModel != null
               ? "org"
               : "env",
       transcriptionModel:
         kbOverrides?.transcriptionModel != null
           ? "kb_override"
-          : projectSettings?.transcriptionModel != null
-            ? "project"
+          : agentSettings?.transcriptionModel != null
+            ? "agent_settings"
             : orgSettings?.defaultTranscriptionModel != null
               ? "org"
               : "env",
       voiceId:
-        activeAgent?.voiceId
-          ? "agent"
-          : assistantConfig?.voiceId
-            ? "assistant_config"
-            : projectSettings?.voices?.length
-              ? "project"
+        assistantConfig?.voiceId
+          ? "assistant_config"
+          : agent?.voiceId
+            ? "agent"
+            : agentSettings?.voices?.length
+              ? "agent_settings"
               : organisationFallbackVoices.length > 0
                 ? "org"
                 : defaultVoice
                   ? "env"
                   : null,
       temperature:
-        activeAgent?.temperature != null
-          ? "agent"
-          : assistantConfig?.temperature != null
-            ? "assistant_config"
+        assistantConfig?.temperature != null
+          ? "assistant_config"
+          : agent?.temperature != null
+            ? "agent"
             : orgSettings?.maxTemperature != null
               ? "org"
               : defaults.limits.maxTemperature != null
                 ? "env"
                 : null,
       maxTokens:
-        activeAgent?.maxTokens != null
-          ? "agent"
-          : assistantConfig?.maxTokens != null
-            ? "assistant_config"
+        assistantConfig?.maxTokens != null
+          ? "assistant_config"
+          : agent?.maxTokens != null
+            ? "agent"
             : orgSettings?.maxRealtimeTokens != null || orgSettings?.maxChatTokens != null
               ? "org"
               : defaults.limits.realtimeMaxTokens != null || defaults.limits.chatMaxTokens != null

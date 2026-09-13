@@ -13,7 +13,7 @@ import { EditProfileModal } from "@/components/admin/EditProfileModal";
 // ── Route configurations ───────────────────────────────────────────────────────
 
 // Platform admins see counts + billing only — organisation content
-// (orgs, projects, agents, KBs, AI configuration) is org-managed.
+// (orgs, agents, KBs, AI configuration) is org-managed.
 const ADMIN_NAV = [
   { href: "/dashboard",     icon: LayoutDashboard, label: "Dashboard"     },
   { href: "/subscriptions", icon: CreditCard,      label: "Subscriptions" },
@@ -24,7 +24,7 @@ const ADMIN_NAV = [
 // Mirrors SETTINGS_SECTIONS in the settings screen — keep labels in sync.
 // Platform admins: AI Configuration holds the platform DEFAULT assistant
 // persona (Identity / Behaviour / Language / Voice) for newly onboarding
-// projects and agents.
+// agents and knowledge bases.
 const SETTINGS_NAV = [
   { href: "/settings/account",  icon: UserRound, label: "Account"          },
   { href: "/settings/ai",       icon: Bot,       label: "AI Configuration" },
@@ -33,8 +33,8 @@ const SETTINGS_NAV = [
 ];
 
 // Org users have no AI Configuration section any more — assistant persona
-// settings are platform-level defaults; orgs tune their own projects, agents
-// and knowledge bases. Their settings = personal account only (rendered as a
+// settings are platform-level defaults; orgs tune their own agents and
+// knowledge bases. Their settings = personal account only (rendered as a
 // plain link, not a one-item dropdown).
 const ORG_SETTINGS_NAV = [
   { href: "/settings/account", icon: UserRound, label: "Account" },
@@ -44,8 +44,8 @@ const ORG_SETTINGS_NAV = [
 const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics"];
 
 // Organisation-content routes — platform admins are redirected away from
-// these because orgs manage their own projects, agents and knowledge bases.
-const SUPERADMIN_BLOCKED_PATHS = ["/orgs", "/agents", "/kbs"];
+// these because orgs manage their own agents and knowledge bases.
+const SUPERADMIN_BLOCKED_PATHS = ["/orgs", "/kbs"];
 
 function matchesPath(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
@@ -115,14 +115,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isAdmin = user.isSuperAdmin;
 
   // Nav items — platform admins see counts + billing only; org users see
-  // their organisation, their agents, and their settings.
+  // their organisation (agents live on the org page) and their settings.
   const orgNav = [
     {
       href:  primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings/account",
       icon:  Building2,
       label: "My Organisation",
     },
-    { href: "/agents", icon: Bot, label: "Agents" },
   ];
   const nav = isAdmin ? ADMIN_NAV : orgNav;
   const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
