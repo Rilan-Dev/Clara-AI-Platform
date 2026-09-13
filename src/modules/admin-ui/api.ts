@@ -427,7 +427,7 @@ export async function reprocessAllDocuments(
 }
 export type AssistantConfig = {
   id: string;
-  kbId: string;
+  agentId: string;
   assistantName: string;
   avatarUrl: string | null;
   systemPrompt: string;
@@ -450,16 +450,16 @@ export type AssistantConfig = {
   createdAt: string;
   updatedAt: string;
 };
-export async function fetchConfig(id: string): Promise<AssistantConfig> {
-  return apiFetch<AssistantConfig>(`/api/kbs/${id}/config`);
+export async function fetchConfig(agentId: string): Promise<AssistantConfig> {
+  return apiFetch<AssistantConfig>(`/api/agents/${agentId}/config`);
 }
 export async function patchConfig(
-  id: string,
+  agentId: string,
   data: Partial<
-    Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">
+    Omit<AssistantConfig, "id" | "agentId" | "createdAt" | "updatedAt">
   >,
 ): Promise<AssistantConfig> {
-  return apiFetch<AssistantConfig>(`/api/kbs/${id}/config`, {
+  return apiFetch<AssistantConfig>(`/api/agents/${agentId}/config`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
@@ -480,29 +480,29 @@ export async function patchKBAIOverrides(
 }
 export type ConfigSnapshot = {
   id: string;
-  kbId: string;
+  agentId: string;
   label: string | null;
   snapshot: AssistantConfig;
   createdBy: string | null;
   createdAt: string;
 };
-export async function fetchSnapshots(id: string): Promise<ConfigSnapshot[]> {
-  return apiFetch<ConfigSnapshot[]>(`/api/kbs/${id}/config/snapshots`);
+export async function fetchSnapshots(agentId: string): Promise<ConfigSnapshot[]> {
+  return apiFetch<ConfigSnapshot[]>(`/api/agents/${agentId}/config/snapshots`);
 }
 export async function createSnapshot(
-  id: string,
+  agentId: string,
   label?: string,
 ): Promise<ConfigSnapshot> {
-  return apiFetch<ConfigSnapshot>(`/api/kbs/${id}/config/snapshots`, {
+  return apiFetch<ConfigSnapshot>(`/api/agents/${agentId}/config/snapshots`, {
     method: "POST",
     body: JSON.stringify({ label }),
   });
 }
 export async function restoreSnapshot(
-  id: string,
+  agentId: string,
   snapshotId: string,
 ): Promise<{ restored: boolean; config: AssistantConfig }> {
-  return apiFetch(`/api/kbs/${id}/config/snapshots/${snapshotId}/restore`, {
+  return apiFetch(`/api/agents/${agentId}/config/snapshots/${snapshotId}/restore`, {
     method: "POST",
     body: "{}",
   });

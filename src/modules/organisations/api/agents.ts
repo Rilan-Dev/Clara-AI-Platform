@@ -67,22 +67,14 @@ export async function updateAgentHandler(req: NextRequest, agentId: string): Pro
     await requireAgentPermission(auth, agentId, "project:update");
     const body = await req.json();
 
-    // Identity / lifecycle fields every caller may use
+    // Labelling / lifecycle fields. The assistant persona is edited through
+    // the agent config API (/api/agents/[agentId]/config) — agents carry no
+    // persona columns.
     const input: UpdateAgentInput = {
       name: body.name?.trim() || undefined,
       description: body.description?.trim() || undefined,
+      status: body.status,
     };
-
-    // Persona fields (Identity / Behaviour / Language / Voice / generation) —
-    // accepted so the agent's own assistant configuration stays API-editable.
-    for (const key of [
-      "status", "assistantName", "avatarUrl", "systemPrompt", "welcomeMessage",
-      "outOfScopeReply", "rules", "defaultLanguage", "allowedLanguages",
-      "alwaysRespondIn", "voiceProvider", "voiceId", "speed", "chatModel",
-      "temperature", "maxTokens", "citeSources", "strictMode",
-    ] as const) {
-      if (body[key] !== undefined) (input as Record<string, unknown>)[key] = body[key];
-    }
 
     const agent = await updateAgent(agentId, input);
     if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });

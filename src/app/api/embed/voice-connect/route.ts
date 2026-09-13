@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, requireVoiceAccess, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
-import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, getProviderApiKey, resolveAIConfig } from "@/modules/ai-core/resolve";
 import { buildOpenAIRealtimeSession, exchangeOpenAIRealtimeSdp } from "@/modules/assistant/api/openai-realtime";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
-      getAssistantConfig(ctx.kbId),
+      getAssistantConfigByKb(ctx.kbId),
     ]);
     if (!kb || !config) {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });

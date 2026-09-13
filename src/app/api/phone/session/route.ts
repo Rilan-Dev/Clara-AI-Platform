@@ -12,7 +12,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated }            from "@/lib/db/migrate";
-import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
 import { resolveAIConfig }           from "@/modules/ai-core/resolve";
 import { getPhoneConfigsByKb }       from "@/modules/phone/core/db";
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const [kb, assistantConfig, configs] = await Promise.all([
       getKnowledgeBaseById(kbId),
-      getAssistantConfig(kbId),
+      getAssistantConfigByKb(kbId),
       getPhoneConfigsByKb(kbId),
     ]);
 

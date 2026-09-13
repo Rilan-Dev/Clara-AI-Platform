@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useCallback } from "react";
-import { useKb, useDocuments, useAnalytics } from "@/modules/admin-ui/hooks";
+import { useKb, useDocuments, useAnalytics, useAgent } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
 import { UploadZone } from "@/components/admin/UploadZone";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -21,6 +21,8 @@ import { isPendingDocumentStuck } from "@/modules/knowledge-bases/core/ingest-qu
 export default function KbDashboardPage() {
   const { kbId = "" } = useParams<{ kbId: string }>();
   const { data: kb, loading: kbLoading, refetch: refetchKb } = useKb(kbId);
+  const { data: configAgent } = useAgent(kb?.agentId);
+  const configHref = kb && configAgent ? `/orgs/${configAgent.orgId}/agents/${kb.agentId}/config` : "#";
   const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
 
@@ -101,7 +103,7 @@ export default function KbDashboardPage() {
 
         <div className="flex items-center gap-2 shrink-0">
           {kb && <VoicePreviewButton kbId={kb.id} kbName={kb.name} />}
-          <Link href={`/admin/kbs/${kbId}/config`}>
+          <Link href={configHref}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}

@@ -256,14 +256,14 @@ export function useDocuments(kbId: string, pollIntervalMs = 4000) {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export function useConfig(kbId: string) {
+export function useConfig(agentId: string) {
   const { data: config, loading, error, refetch } = useAsync(
-    () => api.fetchConfig(kbId),
-    `kb-config:${kbId}`,
+    () => api.fetchConfig(agentId),
+    `agent-config:${agentId}`,
   );
-  const save = useCallback(async (data: Partial<Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">>) => {
-    const updated = await api.patchConfig(kbId, data); refetch(); return updated;
-  }, [kbId, refetch]);
+  const save = useCallback(async (data: Partial<Omit<AssistantConfig, "id" | "agentId" | "createdAt" | "updatedAt">>) => {
+    const updated = await api.patchConfig(agentId, data); refetch(); return updated;
+  }, [agentId, refetch]);
   return { config, loading, error, save, refetch };
 }
 
@@ -287,14 +287,14 @@ export function useKBAIOverrides(kbId: string) {
 
 // ── Config Snapshots ──────────────────────────────────────────────────────────
 
-export function useSnapshots(kbId: string) {
+export function useSnapshots(agentId: string) {
   const { data, loading, error, refetch } = useAsync(
-    () => api.fetchSnapshots(kbId),
-    `kb-snapshots:${kbId}`,
+    () => api.fetchSnapshots(agentId),
+    `agent-snapshots:${agentId}`,
   );
   const snapshots = data ?? [];
-  const saveSnapshot = useCallback(async (label?: string) => { const s = await api.createSnapshot(kbId, label); refetch(); return s; }, [kbId, refetch]);
-  const restore = useCallback(async (snapshotId: string) => { const r = await api.restoreSnapshot(kbId, snapshotId); refetch(); return r; }, [kbId, refetch]);
+  const saveSnapshot = useCallback(async (label?: string) => { const s = await api.createSnapshot(agentId, label); refetch(); return s; }, [agentId, refetch]);
+  const restore = useCallback(async (snapshotId: string) => { const r = await api.restoreSnapshot(agentId, snapshotId); refetch(); return r; }, [agentId, refetch]);
   return { snapshots, loading, error, saveSnapshot, restore, refetch };
 }
 

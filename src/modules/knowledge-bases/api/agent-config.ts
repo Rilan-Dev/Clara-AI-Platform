@@ -1,17 +1,21 @@
 /**
- * src/modules/knowledge-bases/api/config.ts
- * Route handlers for assistant config.
- * GET /api/kbs/[kbId]/config  · PUT (full replace) · PATCH (partial update)
+ * src/modules/knowledge-bases/api/agent-config.ts
+ * Route handlers for the AGENT-owned assistant config.
+ * GET /api/agents/[agentId]/config  · PUT (full replace) · PATCH (partial update)
+ *
+ * Knowledge bases never carry assistant configuration — the agent owns it.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { getKnowledgeBaseById, getAssistantConfig, putAssistantConfig, patchAssistantConfig } from "../core/db";
+import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
+import { getAgentById } from "@/modules/organisations/core/db";
+import { getAssistantConfigByAgent, putAssistantConfig, patchAssistantConfig } from "../core/db";
 import type { PutAssistantConfigInput, PatchAssistantConfigInput } from "../core/models";
 
-async function guardKb(kbId: string): Promise<NextResponse|null> {
-  const kb = await getKnowledgeBaseById(kbId);
-  if (!kb) return NextResponse.json({error:"Knowledge base not found"},{status:404});
+async function guardAgent(agentId: string): Promise<NextResponse|null> {
+  const agent = await getAgentById(agentId);
+  if (!agent) return NextResponse.json({error:"Agent not found"},{status:404});
   return null;
 }
 
@@ -35,21 +39,28 @@ function s(v: unknown): string|null { return v!=null&&String(v).trim()?String(v)
 function sn(v: unknown, fb: string): string { return v!=null&&String(v).trim()?String(v).trim():fb; }
 
 // ── GET ───────────────────────────────────────────────────────────────────────
-export async function getConfigHandler(_req: NextRequest, kbId: string): Promise<NextResponse> {
+export async function getAgentConfigHandler(_req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
     await ensureMigrated();
-    const guard = await guardKb(kbId); if (guard) return guard;
-    const config = await getAssistantConfig(kbId);
+    const auth = await requireAuth(_req);
+    await requireAgentPermission(auth, agentId, "project:read");
+    const guard = await guardAgent(agentId); if (guard) return guard;
+    const config = await getAssistantConfigByAgent(agentId);
     if (!config) return NextResponse.json({error:"AssistantConfig not found"},{status:404});
     return NextResponse.json(config);
-  } catch (err) { return NextResponse.json({error:(err as Error).message},{status:500}); }
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({error:(err as Error).message},{status:500});
+  }
 }
 
 // ── PUT ───────────────────────────────────────────────────────────────────────
-export async function putConfigHandler(req: NextRequest, kbId: string): Promise<NextResponse> {
+export async function putAgentConfigHandler(req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
     await ensureMigrated();
-    const guard = await guardKb(kbId); if (guard) return guard;
+    const auth = await requireAuth(req);
+    await requireAgentPermission(auth, agentId, "project:update");
+    const guard = await guardAgent(agentId); if (guard) return guard;
     const body = (await req.json()) as Record<string,unknown>;
     const ve = validatePut(body); if (ve) return NextResponse.json({error:ve},{status:400});
     const primary = sn(body.primaryColour,"#6366f1");
@@ -120,20 +131,23 @@ export async function putConfigHandler(req: NextRequest, kbId: string): Promise<
       voiceBtnRadius:Number(body.voiceBtnRadius)||10, voiceBtnActiveColor:sn(body.voiceBtnActiveColor,"#ef4444"),
       voicePanelBg:s(body.voicePanelBg), voiceWaveColor:sn(body.voiceWaveColor,"#6366f1"),
     };
-    const config = await putAssistantConfig(kbId, input);
+    const config = await putAssistantConfig(agentId, input);
     return NextResponse.json(config);
   } catch (err) {
-    console.error("[config] PUT:", err);
+    if (err instanceof NextResponse) return err;
+    console.error("[agent-config] PUT:", err);
     return NextResponse.json({error:(err as Error).message},{status:500});
   }
 }
 
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
-export async function patchConfigHandler(req: NextRequest, kbId: string): Promise<NextResponse> {
+export async function patchAgentConfigHandler(req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
     await ensureMigrated();
-    const guard = await guardKb(kbId); if (guard) return guard;
+    const auth = await requireAuth(req);
+    await requireAgentPermission(auth, agentId, "project:update");
+    const guard = await guardAgent(agentId); if (guard) return guard;
     const body = (await req.json()) as Record<string,unknown>;
     const input: PatchAssistantConfigInput = {};
 
@@ -231,11 +245,12 @@ export async function patchConfigHandler(req: NextRequest, kbId: string): Promis
     if (body.voicePanelBg!==undefined)         input.voicePanelBg         = s(body.voicePanelBg);
     if (body.voiceWaveColor!==undefined)       input.voiceWaveColor       = s(body.voiceWaveColor);
 
-    const config = await patchAssistantConfig(kbId, input);
+    const config = await patchAssistantConfig(agentId, input);
     if (!config) return NextResponse.json({error:"AssistantConfig not found"},{status:404});
     return NextResponse.json(config);
   } catch (err) {
-    console.error("[config] PATCH:", err);
+    if (err instanceof NextResponse) return err;
+    console.error("[agent-config] PATCH:", err);
     return NextResponse.json({error:(err as Error).message},{status:500});
   }
 }

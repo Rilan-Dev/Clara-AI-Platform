@@ -16,9 +16,9 @@ export type CreateOrgInput = { name: string; slug?: string; logoUrl?: string };
 export type UpdateOrgInput = Partial<Pick<CreateOrgInput, "name" | "logoUrl">>;
 
 // ── Agents (projects renamed to agents — one entity) ──────────────────────
-// The agent owns its knowledge bases and carries the assistant persona
-// (Identity / Behaviour / Language / Voice / generation) that the runtime
-// overlays onto each KB's assistant config.
+// The agent owns its knowledge bases AND its assistant configuration
+// (assistant_configs, 1:1 — Identity / Behaviour / Language / Voice /
+// generation / widget design). Knowledge bases hold content only.
 
 export type AgentStatus = "draft" | "published" | "archived";
 
@@ -30,33 +30,6 @@ export type Agent = {
   name: string;
   description: string | null;
   status: AgentStatus;
-
-  // Identity (customer-facing)
-  assistantName: string;
-  avatarUrl: string | null;
-
-  // Behaviour
-  systemPrompt: string;
-  welcomeMessage: string;
-  outOfScopeReply: string;
-  rules: string[];
-
-  // Language
-  defaultLanguage: string;
-  allowedLanguages: string[];
-  alwaysRespondIn: string | null;
-
-  // Voice
-  voiceProvider: "openai" | "gemini" | null;
-  voiceId: string | null;
-  speed: number;
-
-  // Model / generation
-  chatModel: string | null;
-  temperature: number;
-  maxTokens: number;
-  citeSources: boolean;
-  strictMode: boolean;
 
   // Audit
   createdAt: string;

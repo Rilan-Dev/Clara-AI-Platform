@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
-import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
-      getAssistantConfig(ctx.kbId),
+      getAssistantConfigByKb(ctx.kbId),
     ]);
     if (!kb || !config) {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });

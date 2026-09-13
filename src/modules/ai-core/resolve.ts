@@ -1,10 +1,8 @@
 import { getAgentById } from "@/modules/organisations/core/db";
-import type { Agent } from "@/modules/organisations/core/models";
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
-import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByAgent, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
-import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import type {
   AIProvider,
@@ -135,44 +133,13 @@ function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags
 }
 
 /**
- * Apply the AGENT's persona columns as defaults under the KB assistant config.
- *
- * The agent (the former "project") is the container that owns this KB and
- * carries its own Identity / Behaviour / Language / Voice / generation
- * defaults. The KB-level "Assistant & AI" configuration is the primary,
- * user-editable surface, so it takes precedence; the agent persona fills any
- * gap the KB config leaves empty. Null / empty agent fields never apply.
- */
-function applyAgentPersonaDefaults(
-  base: AssistantConfig | null,
-  agent: Agent | null,
-): AssistantConfig | null {
-  if (!agent || !base) return base;
-  return {
-    ...base,
-    assistantName: base.assistantName || agent.assistantName,
-    avatarUrl: base.avatarUrl ?? agent.avatarUrl,
-    systemPrompt: base.systemPrompt?.trim() ? base.systemPrompt : agent.systemPrompt,
-    welcomeMessage: base.welcomeMessage?.trim() ? base.welcomeMessage : agent.welcomeMessage,
-    outOfScopeReply: base.outOfScopeReply?.trim() ? base.outOfScopeReply : agent.outOfScopeReply,
-    rules: base.rules?.length ? base.rules : agent.rules,
-    defaultLanguage: base.defaultLanguage || agent.defaultLanguage,
-    allowedLanguages: base.allowedLanguages?.length ? base.allowedLanguages : agent.allowedLanguages,
-    alwaysRespondIn: base.alwaysRespondIn ?? agent.alwaysRespondIn,
-    voiceId: base.voiceId ?? agent.voiceId,
-    speed: base.speed ?? agent.speed,
-    temperature: base.temperature ?? agent.temperature,
-    maxTokens: base.maxTokens ?? agent.maxTokens,
-    citeSources: base.citeSources ?? agent.citeSources,
-    strictMode: base.strictMode ?? agent.strictMode,
-  };
-}
-
-/**
  * Resolve tenant AI settings with agent_ai_settings (the agent's infra
  * configuration) -> org -> platform precedence for provider/model
- * infrastructure, and the KB assistant config (with agent persona defaults)
- * for user-facing language and voice preferences.
+ * infrastructure, and the AGENT's assistant config (1:1, agent-owned) for
+ * user-facing persona, language and voice preferences.
+ *
+ * Knowledge bases never carry assistant configuration — a kbId input is
+ * resolved through its owning agent.
  */
 export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<ResolvedAIConfig> {
   const defaults = getPlatformAIDefaults();
@@ -180,14 +147,12 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const agent = kb ? await getAgentById(kb.agentId) : null;
   const orgId = input.orgId ?? agent?.orgId ?? null;
 
-  const [orgSettings, agentSettings, kbOverrides, assistantConfigBase] = await Promise.all([
+  const [orgSettings, agentSettings, kbOverrides, assistantConfig] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
     agent?.id ? getAgentAISettings(agent.id) : Promise.resolve(null),
     input.kbId ? getKbAIOverrides(input.kbId) : Promise.resolve(null),
-    input.kbId ? getAssistantConfig(input.kbId) : Promise.resolve(null),
+    agent?.id ? getAssistantConfigByAgent(agent.id) : Promise.resolve(null),
   ]);
-
-  const assistantConfig = applyAgentPersonaDefaults(assistantConfigBase, agent);
 
   if (agentSettings && agent && agentSettings.orgId !== agent.orgId) {
     throw new AIConfigResolutionError("Agent AI configuration belongs to another organisation.");
@@ -220,7 +185,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const defaultVoice = defaults.models[provider].defaultVoice;
 
   const chatCandidate =
-    kbOverrides?.chatModel ?? agent?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
+    kbOverrides?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
   const embeddingCandidate =
     kbOverrides?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
   const realtimeCandidate =
@@ -389,13 +354,11 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       chatModel:
         kbOverrides?.chatModel != null
           ? "kb_override"
-          : agent?.chatModel != null
-            ? "agent"
-            : agentSettings?.chatModel != null
-              ? "agent_settings"
-              : orgSettings?.defaultChatModel != null
-                ? "org"
-                : "env",
+          : agentSettings?.chatModel != null
+            ? "agent_settings"
+            : orgSettings?.defaultChatModel != null
+              ? "org"
+              : "env",
       embeddingModel:
         kbOverrides?.embeddingModel != null
           ? "kb_override"
@@ -423,35 +386,29 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       voiceId:
         assistantConfig?.voiceId
           ? "assistant_config"
-          : agent?.voiceId
-            ? "agent"
-            : agentSettings?.voices?.length
-              ? "agent_settings"
-              : organisationFallbackVoices.length > 0
-                ? "org"
-                : defaultVoice
-                  ? "env"
-                  : null,
+          : agentSettings?.voices?.length
+            ? "agent_settings"
+            : organisationFallbackVoices.length > 0
+              ? "org"
+              : defaultVoice
+                ? "env"
+                : null,
       temperature:
         assistantConfig?.temperature != null
           ? "assistant_config"
-          : agent?.temperature != null
-            ? "agent"
-            : orgSettings?.maxTemperature != null
-              ? "org"
-              : defaults.limits.maxTemperature != null
-                ? "env"
-                : null,
+          : orgSettings?.maxTemperature != null
+            ? "org"
+            : defaults.limits.maxTemperature != null
+              ? "env"
+              : null,
       maxTokens:
         assistantConfig?.maxTokens != null
           ? "assistant_config"
-          : agent?.maxTokens != null
-            ? "agent"
-            : orgSettings?.maxRealtimeTokens != null || orgSettings?.maxChatTokens != null
-              ? "org"
-              : defaults.limits.realtimeMaxTokens != null || defaults.limits.chatMaxTokens != null
-                ? "env"
-                : null,
+          : orgSettings?.maxRealtimeTokens != null || orgSettings?.maxChatTokens != null
+            ? "org"
+            : defaults.limits.realtimeMaxTokens != null || defaults.limits.chatMaxTokens != null
+              ? "env"
+              : null,
     },
   };
 }

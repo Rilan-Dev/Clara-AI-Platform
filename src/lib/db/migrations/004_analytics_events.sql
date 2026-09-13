@@ -24,16 +24,16 @@ CREATE INDEX IF NOT EXISTS query_events_global_created_at_idx
   ON query_events (created_at DESC);
 
 -- ── 2. config_snapshots ──────────────────────────────────────────────────────
--- Immutable point-in-time copies of assistant_configs (max 5 retained per KB).
+-- Immutable point-in-time copies of assistant_configs (max 5 retained per agent).
 
 CREATE TABLE IF NOT EXISTS config_snapshots (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  kb_id       UUID        NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+  agent_id    UUID        NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   label       TEXT,                             -- optional human-readable label
   snapshot    JSONB       NOT NULL,             -- full config as JSON
   created_by  UUID        REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS config_snapshots_kb_id_idx      ON config_snapshots (kb_id);
-CREATE INDEX IF NOT EXISTS config_snapshots_created_at_idx ON config_snapshots (kb_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS config_snapshots_agent_id_idx     ON config_snapshots (agent_id);
+CREATE INDEX IF NOT EXISTS config_snapshots_created_at_idx   ON config_snapshots (agent_id, created_at DESC);

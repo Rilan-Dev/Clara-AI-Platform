@@ -24,7 +24,7 @@
  */
 import WebSocket from "ws";
 import {
-  getAssistantConfig,
+  getAssistantConfigByKb,
   getKnowledgeBaseById,
 } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
@@ -94,7 +94,7 @@ export class CallHandler {
     // ── 2. Load KB config + build system prompt ───────────────────────────────
     const [kb, assistantConfig] = await Promise.all([
       getKnowledgeBaseById(this.kbId),
-      getAssistantConfig(this.kbId),
+      getAssistantConfigByKb(this.kbId),
     ]);
     if (!kb || !assistantConfig) {
       this.endCall("KB not found");

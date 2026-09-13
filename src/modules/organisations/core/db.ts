@@ -3,8 +3,8 @@
  * All PostgreSQL queries for organisations and agents.
  *
  * Agents are the former "projects" — one entity that owns its knowledge
- * bases and carries the assistant persona (Identity / Behaviour / Language /
- * Voice / generation settings) used by the runtime AI config resolution.
+ * bases AND its assistant configuration (assistant_configs, 1:1) used by
+ * the runtime AI config resolution. Knowledge bases hold content only.
  */
 
 import { query, queryOne, withTransaction } from "@/lib/db";
@@ -40,9 +40,6 @@ function toOrg(row: Record<string, unknown>): Organisation {
 
 function str(v: unknown, fb: string): string { return v != null ? String(v) : fb; }
 function strN(v: unknown): string | null { return v != null ? String(v) : null; }
-function num(v: unknown, fb: number): number { return v != null ? Number(v) : fb; }
-function bool(v: unknown, fb: boolean): boolean { return v != null ? Boolean(v) : fb; }
-function strArr(v: unknown, fb: string[]): string[] { return Array.isArray(v) ? (v as string[]) : fb; }
 
 function toAgent(row: Record<string, unknown>): Agent {
   return {
@@ -51,31 +48,13 @@ function toAgent(row: Record<string, unknown>): Agent {
     name: str(row.name, ""),
     description: strN(row.description),
     status: (row.status as AgentStatus) ?? "draft",
-    assistantName: str(row.assistant_name, "Clara"),
-    avatarUrl: strN(row.avatar_url),
-    systemPrompt: str(row.system_prompt, ""),
-    welcomeMessage: str(row.welcome_message, ""),
-    outOfScopeReply: str(row.out_of_scope_reply, ""),
-    rules: strArr(row.rules, []),
-    defaultLanguage: str(row.default_language, "en"),
-    allowedLanguages: strArr(row.allowed_languages, ["en"]),
-    alwaysRespondIn: strN(row.always_respond_in),
-    voiceProvider: (row.voice_provider as "openai" | "gemini" | null) ?? null,
-    voiceId: strN(row.voice_id),
-    speed: num(row.speed, 1.0),
-    chatModel: strN(row.chat_model),
-    temperature: num(row.temperature, 0.7),
-    maxTokens: num(row.max_tokens, 500),
-    citeSources: bool(row.cite_sources, true),
-    strictMode: bool(row.strict_mode, true),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
 }
 
-// ── Validation (carried over from the former agents module) ───────────────────
+// ── Validation ───────────────────────────────────────────────────────────────
 
-const VOICE_PROVIDERS = new Set(["openai", "gemini"]);
 const AGENT_STATUSES = new Set<AgentStatus>(["draft", "published", "archived"]);
 
 export class AgentValidationError extends Error {
@@ -84,18 +63,7 @@ export class AgentValidationError extends Error {
 
 function validateAgentUpdate(input: UpdateAgentInput): void {
   if (input.name !== undefined && !input.name.trim()) throw new AgentValidationError("name cannot be empty");
-  if (input.assistantName !== undefined && !input.assistantName.trim()) throw new AgentValidationError("assistantName cannot be empty");
   if (input.status !== undefined && !AGENT_STATUSES.has(input.status)) throw new AgentValidationError("status must be draft, published or archived");
-  if (input.voiceProvider !== undefined && input.voiceProvider !== null && !VOICE_PROVIDERS.has(input.voiceProvider)) throw new AgentValidationError("voiceProvider must be openai or gemini");
-  if (input.speed !== undefined && (input.speed < 0.25 || input.speed > 4.0)) throw new AgentValidationError("speed must be between 0.25 and 4.0");
-  if (input.temperature !== undefined && (input.temperature < 0 || input.temperature > 1)) throw new AgentValidationError("temperature must be between 0 and 1");
-  if (input.maxTokens !== undefined && (input.maxTokens < 50 || input.maxTokens > 4000)) throw new AgentValidationError("maxTokens must be between 50 and 4000");
-  if (input.rules !== undefined && !Array.isArray(input.rules)) throw new AgentValidationError("rules must be a list of strings");
-  if (input.rules !== undefined) input.rules = input.rules.map((r) => String(r)).filter((r) => r.trim() !== "");
-  if (input.allowedLanguages !== undefined) {
-    if (!Array.isArray(input.allowedLanguages) || input.allowedLanguages.length === 0) throw new AgentValidationError("allowedLanguages must have at least one language");
-    input.allowedLanguages = input.allowedLanguages.map((l) => String(l).trim().toLowerCase()).filter(Boolean);
-  }
 }
 
 // ── Organisations ─────────────────────────────────────────────────────────────
@@ -171,17 +139,27 @@ export async function createAgent(orgId: string, input: CreateAgentInput): Promi
 
   return withTransaction(async (client) => {
     const result = await client.query(
-      `INSERT INTO agents (
-         org_id, name, description, assistant_name, avatar_url,
-         system_prompt, welcome_message, out_of_scope_reply, rules,
-         default_language, allowed_languages, always_respond_in,
-         voice_id, speed
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::text[], $12, $13, $14)
+      `INSERT INTO agents (org_id, name, description)
+       VALUES ($1, $2, $3)
        RETURNING *`,
+      [orgId, name, input.description?.trim() || null],
+    );
+    const agent = toAgent(result.rows[0] as Record<string, unknown>);
+
+    // Seed the agent-owned assistant config from the platform defaults
+    // (Identity / Behaviour / Language / Voice). Values are COPIED at creation
+    // time — later platform default edits never touch this agent.
+    // assistant_configs has NOT NULL constraints — empty platform defaults
+    // fall back to the SQL column defaults.
+    await client.query(
+      `INSERT INTO assistant_configs (
+         agent_id, assistant_name, avatar_url, system_prompt, welcome_message,
+         out_of_scope_reply, rules, default_language, allowed_languages,
+         always_respond_in, voice_id, speed
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::text[],$10,$11,$12)`,
       [
-        orgId, name,
-        input.description?.trim() || null,
+        agent.id,
         defaults.assistantName,
         defaults.avatarUrl,
         defaults.systemPrompt,
@@ -191,11 +169,11 @@ export async function createAgent(orgId: string, input: CreateAgentInput): Promi
         defaults.defaultLanguage,
         defaults.allowedLanguages,
         defaults.alwaysRespondIn,
-        defaults.voiceId,
+        defaults.voiceId ?? "alloy",
         defaults.voiceSpeed ?? 1.0,
       ],
     );
-    const agent = toAgent(result.rows[0] as Record<string, unknown>);
+
     await client.query(`INSERT INTO agent_ai_settings (agent_id, org_id) VALUES ($1, $2) ON CONFLICT (agent_id) DO NOTHING`, [agent.id, orgId]);
     return agent;
   });
@@ -220,21 +198,6 @@ export async function updateAgent(id: string, input: UpdateAgentInput): Promise<
     ["name", "name"],
     ["description", "description"],
     ["status", "status"],
-    ["assistantName", "assistant_name"],
-    ["avatarUrl", "avatar_url"],
-    ["systemPrompt", "system_prompt"],
-    ["welcomeMessage", "welcome_message"],
-    ["outOfScopeReply", "out_of_scope_reply"],
-    ["defaultLanguage", "default_language"],
-    ["alwaysRespondIn", "always_respond_in"],
-    ["voiceProvider", "voice_provider"],
-    ["voiceId", "voice_id"],
-    ["speed", "speed"],
-    ["chatModel", "chat_model"],
-    ["temperature", "temperature"],
-    ["maxTokens", "max_tokens"],
-    ["citeSources", "cite_sources"],
-    ["strictMode", "strict_mode"],
   ];
 
   for (const [key, column] of fieldMap) {
@@ -243,8 +206,6 @@ export async function updateAgent(id: string, input: UpdateAgentInput): Promise<
     params.push(value);
     sets.push(`${column} = $${params.length}`);
   }
-  if (input.rules !== undefined) { params.push(JSON.stringify(input.rules)); sets.push(`rules = $${params.length}::jsonb`); }
-  if (input.allowedLanguages !== undefined) { params.push(input.allowedLanguages); sets.push(`allowed_languages = $${params.length}::text[]`); }
 
   if (sets.length === 0) return getAgentById(id);
 

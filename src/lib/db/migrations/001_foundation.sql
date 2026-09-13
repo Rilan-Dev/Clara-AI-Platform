@@ -2,9 +2,13 @@
 -- 001_foundation.sql
 -- Clara AI Platform — core entities.
 --
--- organisations ──< agents (a project/agent is ONE entity: a tenant workspace
---                   that carries its own assistant persona configuration)
--- agents        ──< knowledge_bases ──< assistant_configs (1:1)
+-- organisations ──< agents ──< knowledge_bases
+--                   │
+--                   └── assistant_configs (1:1, agent-owned)
+--
+-- The agent owns the "Assistant & AI" configuration (persona, behaviour,
+-- languages, voice, generation limits, widget design). Knowledge bases hold
+-- content only — they never carry assistant configuration.
 --
 -- Idempotent: safe to re-run (IF NOT EXISTS / duplicate_object guards).
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -39,8 +43,8 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── 2. agents (formerly "projects") ─────────────────────────────────────────
--- An agent is a tenant workspace: organisational label + full assistant
--- persona (Identity / Behaviour / Language / Voice / generation limits).
+-- An agent is a tenant workspace: organisational label + lifecycle. The
+-- full assistant persona lives in assistant_configs (1:1, agent-owned).
 
 CREATE TABLE IF NOT EXISTS agents (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,39 +57,6 @@ CREATE TABLE IF NOT EXISTS agents (
   -- Lifecycle
   status      TEXT        NOT NULL DEFAULT 'draft'
                             CHECK (status IN ('draft', 'published', 'archived')),
-
-  -- Identity
-  assistant_name TEXT      NOT NULL DEFAULT 'Clara',
-  avatar_url      TEXT,
-
-  -- Behaviour
-  system_prompt     TEXT   NOT NULL DEFAULT
-    'You are Clara, a helpful voice assistant. Answer ONLY using the context provided.',
-  welcome_message   TEXT   NOT NULL DEFAULT
-    'Hello! How can I help you today?',
-  out_of_scope_reply TEXT  NOT NULL DEFAULT
-    'I can only answer questions about the topics I have been set up for.',
-  rules             JSONB  NOT NULL DEFAULT '[]'::jsonb,
-
-  -- Language
-  default_language  TEXT   NOT NULL DEFAULT 'en',
-  allowed_languages TEXT[] NOT NULL DEFAULT ARRAY['en'],
-  always_respond_in TEXT,
-
-  -- Voice
-  voice_provider    TEXT   CHECK (voice_provider IS NULL OR voice_provider IN ('openai', 'gemini')),
-  voice_id          TEXT,
-  speed             NUMERIC(4,2) NOT NULL DEFAULT 1.0
-                       CHECK (speed BETWEEN 0.25 AND 4.0),
-
-  -- Model / generation
-  chat_model    TEXT,
-  temperature   NUMERIC(3,2) NOT NULL DEFAULT 0.7
-                   CHECK (temperature BETWEEN 0.0 AND 1.0),
-  max_tokens    INT         NOT NULL DEFAULT 500
-                   CHECK (max_tokens BETWEEN 50 AND 4000),
-  cite_sources  BOOLEAN     NOT NULL DEFAULT TRUE,
-  strict_mode   BOOLEAN     NOT NULL DEFAULT TRUE,
 
   -- Composite key target: child tables reference agents(id, org_id) so every
   -- row stays tenant-scoped even when the id alone is known.
@@ -123,12 +94,13 @@ DO $$ BEGIN
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- ── 4. assistant_configs (per-KB, 1:1) ───────────────────────────────────────
+-- ── 4. assistant_configs (per-agent, 1:1) ─────────────────────────────────────
 -- Runtime AI behaviour + full widget design for the embed experience.
+-- Owned by the AGENT — knowledge bases hold content only.
 
 CREATE TABLE IF NOT EXISTS assistant_configs (
   id                 UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  kb_id              UUID         NOT NULL UNIQUE REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+  agent_id           UUID         NOT NULL UNIQUE REFERENCES agents(id) ON DELETE CASCADE,
 
   -- Identity
   assistant_name     TEXT         NOT NULL DEFAULT 'Clara',

@@ -4,9 +4,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { query, queryOne, withTransaction } from "@/lib/db";
-import { getPlatformAssistantDefaults } from "@/modules/ai-core/assistant-defaults-db";
 import type {
   KnowledgeBase, AssistantConfig, CreateKbInput, UpdateKbInput,
   PutAssistantConfigInput, PatchAssistantConfigInput,
@@ -41,7 +39,7 @@ function toConfig(row: Record<string,unknown>): AssistantConfig {
   const rules: string[] = Array.isArray(row.rules)?(row.rules as string[]):[];
   const langs: string[] = Array.isArray(row.allowed_languages)?(row.allowed_languages as string[]):["en"];
   return {
-    id: String(row.id), kbId: String(row.kb_id),
+    id: String(row.id), agentId: String(row.agent_id),
     assistantName: str(row.assistant_name,"Clara"),
     avatarUrl: strN(row.avatar_url),
     systemPrompt: str(row.system_prompt,""),
@@ -134,46 +132,8 @@ function toConfig(row: Record<string,unknown>): AssistantConfig {
 
 
 // ── Knowledge Base CRUD ───────────────────────────────────────────────────────
-
-/**
- * Create the KB's assistant_config seeded from the platform assistant
- * defaults (Identity / Behaviour / Language / Voice). Values are COPIED at
- * creation time — later default edits never rewrite existing KBs, and each
- * organisation keeps full control of the copy it now owns.
- *
- * Runs on the caller's transaction client so the KB row (inserted in the
- * same, still-open transaction) satisfies the FK.
- */
-async function seedAssistantConfigFromDefaults(
-  client: PoolClient,
-  kbId: string,
-): Promise<void> {
-  const d = await getPlatformAssistantDefaults();
-  await client.query(
-    `INSERT INTO assistant_configs (
-       kb_id, assistant_name, avatar_url, system_prompt, welcome_message,
-       out_of_scope_reply, rules, default_language, allowed_languages,
-       always_respond_in, voice_id, speed
-     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`,
-    [
-      kbId,
-      d.assistantName,
-      d.avatarUrl,
-      d.systemPrompt,
-      d.welcomeMessage,
-      d.outOfScopeReply,
-      JSON.stringify(d.rules),
-      d.defaultLanguage,
-      d.allowedLanguages,
-      d.alwaysRespondIn,
-      // assistant_configs has NOT NULL constraints — empty platform defaults
-      // fall back to the previous SQL column defaults.
-      d.voiceId ?? "alloy",
-      d.voiceSpeed ?? 1.0,
-    ],
-  );
-}
+// KBs hold content only — the assistant config is created with the agent
+// (see src/modules/organisations/core/db.ts createAgent).
 
 export async function createKnowledgeBase(agentId: string, input: CreateKbInput): Promise<KnowledgeBase> {
   return withTransaction(async (client) => {
@@ -183,7 +143,6 @@ export async function createKnowledgeBase(agentId: string, input: CreateKbInput)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [kbId, agentId, input.name, input.description??null, makeCollectionName(kbId,input.name)]
     );
-    await seedAssistantConfigFromDefaults(client, kbId);
     return toKb(kbResult.rows[0]!);
   });
 }
@@ -217,17 +176,27 @@ export async function deleteKnowledgeBase(id: string): Promise<string|null> {
   return row?row.qdrant_collection:null;
 }
 
-// ── Assistant Config CRUD ─────────────────────────────────────────────────────
+// ── Assistant Config CRUD (agent-owned) ─────────────────────────────────────
 
-export async function getAssistantConfig(kbId: string): Promise<AssistantConfig|null> {
+/** Primary lookup — the agent's 1:1 assistant config. */
+export async function getAssistantConfigByAgent(agentId: string): Promise<AssistantConfig|null> {
   const row = await queryOne<Record<string,unknown>>(
-    "SELECT * FROM assistant_configs WHERE kb_id=$1",[kbId]);
+    "SELECT * FROM assistant_configs WHERE agent_id=$1",[agentId]);
+  return row?toConfig(row):null;
+}
+
+/** KB-context lookup (embed/runtime paths): resolve the KB's agent, then its config. */
+export async function getAssistantConfigByKb(kbId: string): Promise<AssistantConfig|null> {
+  const row = await queryOne<Record<string,unknown>>(
+    `SELECT ac.* FROM assistant_configs ac
+         JOIN knowledge_bases kb ON kb.agent_id = ac.agent_id
+        WHERE kb.id = $1`,[kbId]);
   return row?toConfig(row):null;
 }
 
 /** Full replace — PUT. Auto-snapshots current before writing. */
-export async function putAssistantConfig(kbId: string, input: PutAssistantConfigInput): Promise<AssistantConfig> {
-  const current = await getAssistantConfig(kbId);
+export async function putAssistantConfig(agentId: string, input: PutAssistantConfigInput): Promise<AssistantConfig> {
+  const current = await getAssistantConfigByAgent(agentId);
   if (current) snapshotConfig(current).catch(()=>{});
   const row = await queryOne<Record<string,unknown>>(
     `UPDATE assistant_configs SET
@@ -240,7 +209,7 @@ export async function putAssistantConfig(kbId: string, input: PutAssistantConfig
        widget_border_radius=$22, widget_font_family=$23, widget_chat_height=$24,
        widget_show_branding=$25, widget_launcher_label=$26, widget_mode=$27,
        custom_css=$28, custom_launcher_svg=$29, custom_header_html=$30, custom_powered_by=$31
-     WHERE kb_id=$32 RETURNING *`,
+     WHERE agent_id=$32 RETURNING *`,
     [
       input.assistantName, input.avatarUrl??null, input.systemPrompt, input.welcomeMessage,
       input.outOfScopeReply, JSON.stringify(input.rules), input.defaultLanguage,
@@ -252,17 +221,17 @@ export async function putAssistantConfig(kbId: string, input: PutAssistantConfig
       input.widgetFontFamily??"system-ui,sans-serif", input.widgetChatHeight??580,
       input.widgetShowBranding??true, input.widgetLauncherLabel??null, input.widgetMode??"floating",
       input.customCss??null, input.customLauncherSvg??null, input.customHeaderHtml??null, input.customPoweredBy??null,
-      kbId,
+      agentId,
     ]
   );
-  if (!row) throw new Error(`AssistantConfig not found for kbId ${kbId}`);
+  if (!row) throw new Error(`AssistantConfig not found for agentId ${agentId}`);
   return toConfig(row);
 }
 
 
 /** Partial update — PATCH. Only supplied fields are changed. */
-export async function patchAssistantConfig(kbId: string, input: PatchAssistantConfigInput): Promise<AssistantConfig|null> {
-  const current = await getAssistantConfig(kbId);
+export async function patchAssistantConfig(agentId: string, input: PatchAssistantConfigInput): Promise<AssistantConfig|null> {
+  const current = await getAssistantConfigByAgent(agentId);
   if (current) snapshotConfig(current).catch(()=>{});
 
   // Complete field map: camelCase → snake_case
@@ -328,9 +297,9 @@ export async function patchAssistantConfig(kbId: string, input: PatchAssistantCo
     else                          { sets.push(`${col}=$${i++}`);        params.push(val); }
   }
 
-  if (sets.length===0) return getAssistantConfig(kbId);
-  params.push(kbId);
+  if (sets.length===0) return getAssistantConfigByAgent(agentId);
+  params.push(agentId);
   const row = await queryOne<Record<string,unknown>>(
-    `UPDATE assistant_configs SET ${sets.join(",")} WHERE kb_id=$${i} RETURNING *`, params);
+    `UPDATE assistant_configs SET ${sets.join(",")} WHERE agent_id=$${i} RETURNING *`, params);
   return row?toConfig(row):null;
 }

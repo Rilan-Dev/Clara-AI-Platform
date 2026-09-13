@@ -23,7 +23,7 @@ export type UpdateKbInput  = Partial<Pick<CreateKbInput, "name" | "description">
 
 export type AssistantConfig = {
   id: string;
-  kbId: string;
+  agentId: string;
 
   // Identity
   assistantName: string;
@@ -162,7 +162,7 @@ export type AssistantConfig = {
 };
 
 /** Full replace (PUT) */
-export type PutAssistantConfigInput = Omit<AssistantConfig, "id" | "kbId" | "createdAt" | "updatedAt">;
+export type PutAssistantConfigInput = Omit<AssistantConfig, "id" | "agentId" | "createdAt" | "updatedAt">;
 
 /** Partial update (PATCH) */
 export type PatchAssistantConfigInput = Partial<PutAssistantConfigInput>;

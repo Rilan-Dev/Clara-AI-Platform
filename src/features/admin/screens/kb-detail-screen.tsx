@@ -96,9 +96,10 @@ export default function KbDashboardPage() {
   }, [kb, kbId, refetchKb]);
 
   const projectHref = orgId && agentId ? `/orgs/${orgId}/agents/${agentId}` : "/orgs";
+  // Assistant & AI configuration lives on the agent — link there from the KB.
   const kbConfigHref = orgId && agentId
-    ? `/kbs/${kbId}/config?orgId=${orgId}&agentId=${agentId}`
-    : `/kbs/${kbId}/config`;
+    ? `/orgs/${orgId}/agents/${agentId}/config`
+    : "/settings";
 
   if (isAdmin) {
     return (

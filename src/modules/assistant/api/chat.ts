@@ -15,7 +15,7 @@ import {
   buildLanguageGuidance,
   resolveLanguagePreferences,
 } from "@/modules/assistant/core/config";
-import { getKnowledgeBaseById, getAssistantConfig } from "@/modules/knowledge-bases/core/db";
+import { getKnowledgeBaseById, getAssistantConfigByKb } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
@@ -158,7 +158,7 @@ async function postChatKb(
 
   const [kb, config, resolved] = await Promise.all([
     getKnowledgeBaseById(kbId),
-    getAssistantConfig(kbId),
+    getAssistantConfigByKb(kbId),
     resolveAIConfig({ kbId, surface: "chat" }),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");

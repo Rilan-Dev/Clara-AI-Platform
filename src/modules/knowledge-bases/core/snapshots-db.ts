@@ -2,7 +2,8 @@
  * src/modules/knowledge-bases/core/snapshots-db.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * CRUD for config_snapshots table.
- * Strategy: save current config before each edit, prune to 5 per KB.
+ * Strategy: save current config before each edit, prune to 5 per AGENT.
+ * Snapshots belong to the agent — the assistant-config owner.
  */
 
 import { randomUUID } from "node:crypto";
@@ -13,7 +14,7 @@ const MAX_SNAPSHOTS = 5;
 
 export type ConfigSnapshot = {
   id:        string;
-  kbId:      string;
+  agentId:   string;
   label:     string | null;
   snapshot:  AssistantConfig;
   createdBy: string | null;
@@ -23,7 +24,7 @@ export type ConfigSnapshot = {
 function toSnapshot(row: Record<string, unknown>): ConfigSnapshot {
   return {
     id:        String(row.id),
-    kbId:      String(row.kb_id),
+    agentId:   String(row.agent_id),
     label:     row.label != null ? String(row.label) : null,
     snapshot:  row.snapshot as AssistantConfig,
     createdBy: row.created_by != null ? String(row.created_by) : null,
@@ -39,46 +40,46 @@ export async function snapshotConfig(
 ): Promise<ConfigSnapshot> {
   const id = randomUUID();
   const row = await queryOne<Record<string, unknown>>(
-    `INSERT INTO config_snapshots (id, kb_id, label, snapshot, created_by)
+    `INSERT INTO config_snapshots (id, agent_id, label, snapshot, created_by)
      VALUES ($1, $2, $3, $4::jsonb, $5)
      RETURNING *`,
-    [id, config.kbId, label ?? null, JSON.stringify(config), createdBy ?? null]
+    [id, config.agentId, label ?? null, JSON.stringify(config), createdBy ?? null]
   );
   if (!row) throw new Error("Failed to create config snapshot");
 
-  // Prune: keep only the newest MAX_SNAPSHOTS per KB
+  // Prune: keep only the newest MAX_SNAPSHOTS per agent
   await execute(
     `DELETE FROM config_snapshots
-     WHERE kb_id = $1
+     WHERE agent_id = $1
        AND id NOT IN (
          SELECT id FROM config_snapshots
-         WHERE kb_id = $1
+         WHERE agent_id = $1
          ORDER BY created_at DESC
          LIMIT $2
        )`,
-    [config.kbId, MAX_SNAPSHOTS]
+    [config.agentId, MAX_SNAPSHOTS]
   );
 
   return toSnapshot(row);
 }
 
-/** List the last MAX_SNAPSHOTS snapshots for a KB, newest first. */
-export async function listSnapshots(kbId: string): Promise<ConfigSnapshot[]> {
+/** List the last MAX_SNAPSHOTS snapshots for an agent, newest first. */
+export async function listSnapshots(agentId: string): Promise<ConfigSnapshot[]> {
   const rows = await query<Record<string, unknown>>(
     `SELECT * FROM config_snapshots
-     WHERE kb_id = $1
+     WHERE agent_id = $1
      ORDER BY created_at DESC
      LIMIT $2`,
-    [kbId, MAX_SNAPSHOTS]
+    [agentId, MAX_SNAPSHOTS]
   );
   return rows.map(toSnapshot);
 }
 
-/** Get a specific snapshot by id (validates it belongs to kbId). */
-export async function getSnapshot(id: string, kbId: string): Promise<ConfigSnapshot | null> {
+/** Get a specific snapshot by id (validates it belongs to agentId). */
+export async function getSnapshot(id: string, agentId: string): Promise<ConfigSnapshot | null> {
   const row = await queryOne<Record<string, unknown>>(
-    "SELECT * FROM config_snapshots WHERE id = $1 AND kb_id = $2",
-    [id, kbId]
+    "SELECT * FROM config_snapshots WHERE id = $1 AND agent_id = $2",
+    [id, agentId]
   );
   return row ? toSnapshot(row) : null;
 }

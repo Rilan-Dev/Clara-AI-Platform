@@ -222,7 +222,8 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
       [agent.id, org.id],
     );
 
-    // ── 5. Knowledge base ─────────────────────────────────────────────────────
+    // ── 5. Knowledge base ───────────────────────────────────────────────────
+    // KBs hold content only — the assistant config lives on the agent.
     const kbId = randomUUID();
     const kbName = input.kbName?.trim() || "Default Knowledge Base";
     const qdrantCollection = makeCollectionName(kbId, kbName);
@@ -233,20 +234,20 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
     );
     const kb = kbRows.rows[0]!;
 
-    // Seed the KB's assistant config from the platform assistant defaults —
+    // Seed the AGENT's assistant config from the platform assistant defaults —
     // newly onboarding workspaces start with the platform default persona
     // (Identity / Behaviour / Language / Voice). The values are copied here,
     // so later platform default edits never rewrite this workspace.
     const defaults = await getPlatformAssistantDefaults();
     await client.query(
       `INSERT INTO assistant_configs (
-         kb_id, assistant_name, avatar_url, system_prompt, welcome_message,
+         agent_id, assistant_name, avatar_url, system_prompt, welcome_message,
          out_of_scope_reply, rules, default_language, allowed_languages,
          always_respond_in, voice_id, speed
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::text[],$10,$11,$12)`,
       [
-        kbId,
+        agent.id,
         defaults.assistantName,
         defaults.avatarUrl,
         defaults.systemPrompt,

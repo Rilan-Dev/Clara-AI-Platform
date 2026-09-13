@@ -152,9 +152,6 @@ export default function AgentDetailPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&agentId=${agentId}`}>
-                    <Button variant="outline" size="sm">Assistant &amp; AI</Button>
-                  </Link>
                   <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`}>
                     <Button size="sm">Open KB</Button>
                   </Link>
@@ -172,7 +169,7 @@ export default function AgentDetailPage() {
       <AdminPageHeader
         icon={Bot}
         title={editedAgent?.name ?? agent?.name ?? "Knowledge Bases"}
-        description="Create knowledge bases, open assistant configuration, and continue into the runtime and deployment workflow for this agent."
+        description="Create knowledge bases and tune the assistant — every KB under this agent shares one assistant configuration."
         breadcrumbs={[
           // Org users go directly to their org page; admins go to the full orgs list
           user?.isSuperAdmin
@@ -188,9 +185,16 @@ export default function AgentDetailPage() {
           agent?.description ?? "Agent workspace",
         ]}
         actions={
-          <Button onClick={() => setShowForm((current) => !current)} className="gap-2">
-            <Plus className="w-4 h-4" /> New Knowledge Base
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href={`/orgs/${id}/agents/${agentId}/config`}>
+              <Button variant="outline" className="gap-2">
+                <Bot className="w-4 h-4" /> Assistant &amp; AI
+              </Button>
+            </Link>
+            <Button onClick={() => setShowForm((current) => !current)} className="gap-2">
+              <Plus className="w-4 h-4" /> New Knowledge Base
+            </Button>
+          </div>
         }
       />
 
@@ -266,9 +270,6 @@ export default function AgentDetailPage() {
                 </p>
               </div>
                 <div className="flex items-center gap-2">
-                  <Link href={`/kbs/${kb.id}/config?orgId=${id}&agentId=${agentId}`}>
-                    <Button variant="outline" size="sm">Assistant &amp; AI</Button>
-                  </Link>
                   <Link href={`/kbs/${kb.id}?orgId=${id}&agentId=${agentId}`}>
                     <Button size="sm">Open KB</Button>
                   </Link>

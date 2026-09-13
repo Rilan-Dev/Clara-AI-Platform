@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useOrg, useKbs } from "@/modules/admin-ui/hooks";
+import { useOrg, useKbs, useAgent } from "@/modules/admin-ui/hooks";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 export default function AgentPage() {
   const { orgId = "", agentId = "" } = useParams<{ orgId: string; agentId: string }>();
   const { data: org } = useOrg(orgId);
+  const { data: agent } = useAgent(agentId);
   const { kbs, loading, create, remove } = useKbs(agentId);
   const [name, setName]           = useState("");
   const [description, setDescription] = useState("");
@@ -140,7 +141,7 @@ export default function AgentPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                  <Link href={`/admin/kbs/${kb.id}/config`}>
+                  <Link href={`/orgs/${orgId}/agents/${agentId}/config`}>
                     <Button variant="outline" size="sm" className="h-8">Assistant & AI</Button>
                   </Link>
                   <Link href={`/admin/kbs/${kb.id}`}>

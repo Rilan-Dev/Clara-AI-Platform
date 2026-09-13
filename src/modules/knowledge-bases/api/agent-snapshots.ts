@@ -1,16 +1,17 @@
 /**
- * src/modules/knowledge-bases/api/snapshots.ts
- * Config snapshot API handlers.
+ * src/modules/knowledge-bases/api/agent-snapshots.ts
+ * Config snapshot API handlers (agent-owned config).
  *
- * GET  /api/kbs/[kbId]/config/snapshots                         → list last 5
- * POST /api/kbs/[kbId]/config/snapshots                         → manual save
- * POST /api/kbs/[kbId]/config/snapshots/[snapshotId]/restore    → restore
+ * GET  /api/agents/[agentId]/config/snapshots                         → list last 5
+ * POST /api/agents/[agentId]/config/snapshots                         → manual save
+ * POST /api/agents/[agentId]/config/snapshots/[snapshotId]/restore    → restore
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
-import { getKnowledgeBaseById, getAssistantConfig, putAssistantConfig } from "../core/db";
+import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
+import { getAgentById } from "@/modules/organisations/core/db";
+import { getAssistantConfigByAgent, putAssistantConfig } from "../core/db";
 import {
   listSnapshots,
   getSnapshot,
@@ -18,22 +19,22 @@ import {
 } from "../core/snapshots-db";
 import type { AssistantConfig, PutAssistantConfigInput } from "../core/models";
 
-// ── GET /api/kbs/[kbId]/config/snapshots ─────────────────────────────────────
+// ── GET /api/agents/[agentId]/config/snapshots ───────────────────────────────
 
 export async function listSnapshotsHandler(
   req: NextRequest,
-  kbId: string
+  agentId: string
 ): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
     const auth = await requireAuth(req);
-    await requireKbPermission(auth, kbId, "kb:read");
+    await requireAgentPermission(auth, agentId, "project:read");
 
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    const agent = await getAgentById(agentId);
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
 
-    const snapshots = await listSnapshots(kbId);
+    const snapshots = await listSnapshots(agentId);
     return NextResponse.json(snapshots);
   } catch (err) {
     if (err instanceof NextResponse) return err;
@@ -41,22 +42,22 @@ export async function listSnapshotsHandler(
   }
 }
 
-// ── POST /api/kbs/[kbId]/config/snapshots (manual save) ──────────────────────
+// ── POST /api/agents/[agentId]/config/snapshots (manual save) ────────────────
 
 export async function createSnapshotHandler(
   req: NextRequest,
-  kbId: string
+  agentId: string
 ): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
     const auth = await requireAuth(req);
-    await requireKbPermission(auth, kbId, "kb:update");
+    await requireAgentPermission(auth, agentId, "project:update");
 
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    const agent = await getAgentById(agentId);
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
 
-    const config = await getAssistantConfig(kbId);
+    const config = await getAssistantConfigByAgent(agentId);
     if (!config) {
       return NextResponse.json({ error: "AssistantConfig not found" }, { status: 404 });
     }
@@ -70,29 +71,29 @@ export async function createSnapshotHandler(
   }
 }
 
-// ── POST /api/kbs/[kbId]/config/snapshots/[snapshotId]/restore ───────────────
+// ── POST /api/agents/[agentId]/config/snapshots/[snapshotId]/restore ─────────
 
 export async function restoreSnapshotHandler(
   req: NextRequest,
-  kbId: string,
+  agentId: string,
   snapshotId: string
 ): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
     const auth = await requireAuth(req);
-    await requireKbPermission(auth, kbId, "kb:update");
+    await requireAgentPermission(auth, agentId, "project:update");
 
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    const agent = await getAgentById(agentId);
+    if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
 
-    const snap = await getSnapshot(snapshotId, kbId);
+    const snap = await getSnapshot(snapshotId, agentId);
     if (!snap) {
       return NextResponse.json({ error: "Snapshot not found" }, { status: 404 });
     }
 
     // Snapshot the current config BEFORE restoring (so you can undo the restore)
-    const current = await getAssistantConfig(kbId);
+    const current = await getAssistantConfigByAgent(agentId);
     if (current) {
       await snapshotConfig(current, auth.user.id, "Pre-restore backup");
     }
@@ -134,11 +135,11 @@ export async function restoreSnapshotHandler(
       ...s
     } as PutAssistantConfigInput;
 
-    const restoredConfig = await putAssistantConfig(kbId, input);
+    const restoredConfig = await putAssistantConfig(agentId, input);
     return NextResponse.json({ restored: true, config: restoredConfig });
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    console.error("[snapshots] restore:", err);
+    console.error("[agent-snapshots] restore:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

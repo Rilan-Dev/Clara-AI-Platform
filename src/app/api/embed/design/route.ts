@@ -29,7 +29,7 @@ import {
   buildCorsHeaders,
   handlePreflight,
 } from "@/modules/embed/core/validate-embed";
-import { getAssistantConfig } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb } from "@/modules/knowledge-bases/core/db";
 import { pool } from "@/lib/db";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
@@ -228,7 +228,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const origin = req.headers.get("origin");
   const corsHeaders = buildCorsHeaders(origin, ctx.allowedOrigins, req.nextUrl.origin);
 
-    const config = await getAssistantConfig(ctx.kbId);
+    const config = await getAssistantConfigByKb(ctx.kbId);
     if (!config) {
       return NextResponse.json({ error: "Config not found" }, { status: 404, headers: corsHeaders });
     }
@@ -314,12 +314,13 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 
     // Always stamp design_updated_at
     sets.push(`design_updated_at = now()`);
+    // The assistant config is owned by the KB's agent — target it via the KB.
     params.push(ctx.kbId);
 
     const result = await pool.query<Record<string, unknown>>(
       `UPDATE assistant_configs
          SET ${sets.join(", ")}
-        WHERE kb_id = $${idx}
+        WHERE agent_id = (SELECT agent_id FROM knowledge_bases WHERE id = $${idx})
         RETURNING primary_colour, accent_colour, launcher_colour,
                   widget_theme, widget_position, widget_button_size,
                  widget_border_radius, widget_font_family, widget_chat_height,

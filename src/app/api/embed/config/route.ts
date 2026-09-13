@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
-import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { resolveAIConfig, AIConfigResolutionError } from "@/modules/ai-core/resolve";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
-      getAssistantConfig(ctx.kbId),
+      getAssistantConfigByKb(ctx.kbId),
     ]);
 
     if (!kb || !config) {

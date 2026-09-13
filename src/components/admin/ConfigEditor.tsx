@@ -27,11 +27,11 @@ const LANGUAGES = SUPPORTED_LANGUAGES;
 
 type Props = {
   config: AssistantConfig;
-  kbName: string;
+  contextName: string;
   onSave: (data: Partial<AssistantConfig>) => Promise<AssistantConfig>;
 };
 
-export function ConfigEditor({ config: initial, kbName, onSave }: Props) {
+export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
   const [cfg, setCfg] = useState<AssistantConfig>(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -189,7 +189,7 @@ export function ConfigEditor({ config: initial, kbName, onSave }: Props) {
         </div>
       )}
 
-      {activeTab === "preview" && <div className="space-y-4"><p className="text-sm text-muted-foreground">This is the system prompt that will be sent to the AI on every session.</p><SystemPromptPreview config={cfg} kbName={kbName} /></div>}
+      {activeTab === "preview" && <div className="space-y-4"><p className="text-sm text-muted-foreground">This is the system prompt that will be sent to the AI on every session.</p><SystemPromptPreview config={cfg} contextName={contextName} /></div>}
 
       <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3 shadow-soft"><div className="text-sm">{error && <span className="text-destructive">{error}</span>}{saved && <span className="text-success">✓ Saved successfully</span>}{!error && !saved && <span className="text-muted-foreground">Unsaved changes</span>}</div><Button onClick={save} disabled={saving} variant="default" size="default">{saving ? "Saving…" : "Save Configuration"}</Button></div>
     </div>

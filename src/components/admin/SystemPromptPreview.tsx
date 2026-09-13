@@ -12,12 +12,12 @@ const LANG_NAMES: Record<string, string> = {
   tr: "Turkish", ru: "Russian", hi: "Hindi",
 };
 
-type Props = { config: AssistantConfig; kbName: string };
+type Props = { config: AssistantConfig; contextName: string };
 
-export function SystemPromptPreview({ config, kbName }: Props) {
+export function SystemPromptPreview({ config, contextName }: Props) {
   const preview = useMemo(() => {
     const lines: string[] = [];
-    lines.push(`You are ${config.assistantName}, a helpful assistant for the "${kbName}" knowledge base.`);
+    lines.push(`You are ${config.assistantName}, a helpful assistant for "${contextName}".`);
     lines.push("");
 
     if (config.systemPrompt) {
@@ -56,7 +56,7 @@ export function SystemPromptPreview({ config, kbName }: Props) {
     lines.push(`Temperature: ${config.temperature} · Max tokens: ${config.maxTokens} · Cite sources: ${config.citeSources ? "yes" : "no"}`);
 
     return lines.join("\n");
-  }, [config, kbName]);
+  }, [config, contextName]);
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 overflow-hidden">

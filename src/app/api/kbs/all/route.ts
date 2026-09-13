@@ -38,7 +38,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        FROM knowledge_bases kb
        JOIN agents p ON p.id = kb.agent_id
        JOIN organisations o ON o.id = p.org_id
-       LEFT JOIN assistant_configs ac ON ac.kb_id = kb.id
+       LEFT JOIN assistant_configs ac ON ac.agent_id = p.id
        LEFT JOIN documents d ON d.kb_id = kb.id
        WHERE ${whereClause}
        GROUP BY kb.id, p.id, o.id, ac.assistant_name, ac.avatar_url, ac.welcome_message, ac.system_prompt,

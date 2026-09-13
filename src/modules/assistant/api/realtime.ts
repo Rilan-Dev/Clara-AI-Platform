@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveLanguagePreferences } from "@/modules/assistant/core/config";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { getAssistantConfig, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
@@ -42,7 +42,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       await ensureMigrated();
       const kb = await getKnowledgeBaseById(kbId);
       if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
-      const config = await getAssistantConfig(kbId);
+      const config = await getAssistantConfigByKb(kbId);
       if (!config) return NextResponse.json({ error: "AssistantConfig not found for this knowledge base" }, { status: 500 });
 
       const resolved = await resolveAIConfig({ kbId, surface: "realtime" });

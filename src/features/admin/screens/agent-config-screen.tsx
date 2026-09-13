@@ -1,25 +1,31 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Bot, Sparkles } from "lucide-react";
-import { useAuth, useConfig, useKb, useOrg, useAgent, useSnapshots } from "@/modules/admin-ui/hooks";
+import { useAuth, useConfig, useOrg, useAgent, useSnapshots, useKbs } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ConfigEditor } from "@/components/admin/ConfigEditor";
 import { SnapshotHistory } from "@/components/admin/SnapshotHistory";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 
-export default function KbConfigPage() {
-  const { kbId = "" } = useParams<{ kbId: string }>();
-  const searchParams = useSearchParams();
+/**
+ * /orgs/[id]/agents/[agentId]/config — the AGENT-owned "Assistant & AI"
+ * configuration (Identity / Behaviour / Language / Voice / Preview) plus
+ * widget design and config snapshots. Knowledge bases hold content only —
+ * the assistant configuration lives here, on the agent.
+ */
+export default function AgentConfigPage() {
+  const { id = "", agentId = "" } = useParams<{ id: string; agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
-  const { data: kb, loading: kbLoading } = useKb(kbId);
-  const agentId = kb?.agentId ?? searchParams.get("agentId");
+  const { data: org } = useOrg(id);
   const { data: agent } = useAgent(agentId);
-  const orgId = agent?.orgId ?? searchParams.get("orgId");
-  const { data: org } = useOrg(orgId);
-  const { config, loading: configLoading, save, refetch: refetchConfig } = useConfig(kbId);
-  const { snapshots, loading: snapsLoading, saveSnapshot, restore, refetch: refetchSnaps } = useSnapshots(kbId);
+  const { config, loading: configLoading, save, refetch: refetchConfig } = useConfig(agentId);
+  const { snapshots, loading: snapsLoading, saveSnapshot, restore, refetch: refetchSnaps } = useSnapshots(agentId);
+  // Voice preview runs a realtime session scoped to a KB (the runtime resolves
+  // the KB's agent config) — use the agent's first KB.
+  const { kbs } = useKbs(agentId);
+  const previewKb = kbs[0];
 
   async function handleRestore(snapshotId: string) {
     const result = await restore(snapshotId);
@@ -28,10 +34,7 @@ export default function KbConfigPage() {
     return result;
   }
 
-  const loading = kbLoading || configLoading;
-  const kbHref = orgId && agentId
-    ? `/kbs/${kbId}?orgId=${orgId}&agentId=${agentId}`
-    : `/kbs/${kbId}`;
+  const loading = configLoading || !agent;
 
   if (isAdmin) {
     return (
@@ -39,19 +42,18 @@ export default function KbConfigPage() {
         <AdminPageHeader
           icon={Bot}
           title="Assistant & AI Configuration"
-          description="View assistant behavior and runtime overrides for this knowledge base."
+          description="View assistant behavior and runtime configuration for this agent."
           breadcrumbs={[
             { label: "Organisations", href: "/orgs" },
-            ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
-            ...(orgId && agentId ? [{ label: agent?.name ?? "Agent", href: `/orgs/${orgId}/agents/${agentId}` }] : []),
-            { label: kb?.name ?? "Knowledge Base", href: kbHref },
+            { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
+            { label: agent?.name ?? "Agent", href: `/orgs/${id}/agents/${agentId}` },
             { label: "Assistant & AI" },
           ]}
           chips={[
-            kb?.name ?? "KB settings",
+            agent?.name ?? "Agent settings",
             config?.voiceId ?? "voice preview ready",
           ]}
-          actions={kb ? <VoicePreviewButton kbId={kb.id} kbName={kb.name} /> : undefined}
+          actions={previewKb ? <VoicePreviewButton kbId={previewKb.id} kbName={previewKb.name} /> : undefined}
         />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -61,7 +63,7 @@ export default function KbConfigPage() {
                 <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
                 <div className="h-[32rem] rounded-2xl bg-white/[0.04] animate-pulse" />
               </div>
-            ) : config && kb ? (
+            ) : config ? (
               <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
@@ -102,9 +104,9 @@ export default function KbConfigPage() {
               </div>
             ) : (
               <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-8 text-center text-rose-300">
-                <p className="font-medium">Assistant config not found for this knowledge base.</p>
+                <p className="font-medium">Assistant config not found for this agent.</p>
                 <p className="mt-2 text-sm text-rose-100/75">
-                  This usually means the KB predates the assistant-config migration.
+                  This agent was created without an assistant config row. Re-run migrations, then refresh this page and try again.
                 </p>
               </div>
             )}
@@ -175,19 +177,17 @@ export default function KbConfigPage() {
       <AdminPageHeader
         icon={Bot}
         title="Assistant & AI Configuration"
-        description="Tune assistant behavior for this knowledge base — personality, welcome message, languages and voice. AI models and providers are set by the platform admin."
+        description="Tune the assistant for this agent — personality, welcome message, languages and voice. Every knowledge base under this agent uses this configuration. AI models and providers are set by the platform admin."
         breadcrumbs={[
-          { label: "Organisations", href: "/orgs" },
-          ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
-          ...(orgId && agentId ? [{ label: agent?.name ?? "Agent", href: `/orgs/${orgId}/agents/${agentId}` }] : []),
-          { label: kb?.name ?? "Knowledge Base", href: kbHref },
+          { label: org?.name ?? "Organisation", href: `/orgs/${id}` },
+          { label: agent?.name ?? "Agent", href: `/orgs/${id}/agents/${agentId}` },
           { label: "Assistant & AI" },
         ]}
         chips={[
-          kb?.name ?? "KB settings",
+          agent?.name ?? "Agent settings",
           config?.voiceId ?? "voice preview ready",
         ]}
-        actions={kb ? <VoicePreviewButton kbId={kb.id} kbName={kb.name} /> : undefined}
+        actions={previewKb ? <VoicePreviewButton kbId={previewKb.id} kbName={previewKb.name} /> : undefined}
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -197,13 +197,13 @@ export default function KbConfigPage() {
               <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
               <div className="h-[32rem] rounded-2xl bg-white/[0.04] animate-pulse" />
             </div>
-          ) : config && kb ? (
-            <ConfigEditor config={config} kbName={kb.name} onSave={save} />
+          ) : config ? (
+            <ConfigEditor config={config} contextName={agent?.name ?? "this agent"} onSave={save} />
           ) : (
             <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-8 text-center text-rose-300">
-              <p className="font-medium">Assistant config not found for this knowledge base.</p>
+              <p className="font-medium">Assistant config not found for this agent.</p>
               <p className="mt-2 text-sm text-rose-100/75">
-                This usually means the KB predates the assistant-config migration. Re-run migrations, then refresh this page and try again.
+                This agent was created without an assistant config row. Re-run migrations, then refresh this page and try again.
               </p>
             </div>
           )}
