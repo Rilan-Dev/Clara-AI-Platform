@@ -15,7 +15,17 @@ export async function GET(req: NextRequest) {
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    await requireSuperAdmin(auth);
+
+    // Org members see THEIR OWN org's billing history; super-admins see all.
+    if (!auth.user.isSuperAdmin) {
+      const membership = await query(
+        "SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2",
+        [orgId, auth.user.id]
+      );
+      if (!membership[0]) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     const [invoices, auditLog] = await Promise.all([
       // Billing events (actual payments)

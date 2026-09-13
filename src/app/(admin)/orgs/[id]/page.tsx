@@ -1,1 +1,1 @@
-export { default } from "@/features/admin/screens/org-detail-screen";
+export { default } from "@/features/admin/screens/org-overview-screen";

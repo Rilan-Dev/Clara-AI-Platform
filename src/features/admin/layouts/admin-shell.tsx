@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, Building2, CreditCard,
-  Settings, LogOut, Menu, X, ChevronRight, ChevronDown, BarChart3, UserPen,
+  Settings, LogOut, Menu, X, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
-import { EditProfileModal } from "@/components/admin/EditProfileModal";
+import { ProfileMenu } from "@/components/admin/ProfileMenu";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -56,7 +56,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname   = usePathname();
   const router     = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
@@ -263,19 +262,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Footer */}
         <div className="p-3 border-t border-white/[0.06] space-y-0.5">
-          {/* User info pill — click to edit profile */}
-          <button
-            onClick={() => setShowProfile(true)}
-            className="w-full text-left px-3 py-2 mb-1 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.07] hover:border-indigo-500/30 transition-all group"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-white/70 truncate">{user.fullName}</p>
-                <p className="text-[11px] text-white/30 truncate">{user.email}</p>
-              </div>
-              <UserPen className="w-3.5 h-3.5 text-white/20 group-hover:text-indigo-400 shrink-0 transition-colors" />
-            </div>
-          </button>
           <Link
             href="/"
             onClick={() => setSidebarOpen(false)}
@@ -309,18 +295,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main */}
-      <main className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden">
-        {children}
-      </main>
+      <div className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden flex flex-col">
+        {/* ── Topbar — page context + profile menu ──────────────────────────── */}
+        <header className="sticky top-0 z-30 h-16 border-b border-white/[0.06] bg-[#0d0d14]/90 backdrop-blur flex items-center justify-between gap-4 pl-14 pr-4 md:pl-6 md:pr-6">
+          {/* Context label */}
+          <div className="min-w-0 flex items-center gap-2.5">
+            <span className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+              <Brain className="w-4 h-4 text-white" />
+            </span>
+            <div className="min-w-0 hidden sm:block">
+              <p className="text-sm font-semibold text-white/90 truncate leading-tight">
+                {isAdmin ? "Platform Console" : user.fullName}
+              </p>
+              <p className="text-[11px] text-white/30 truncate leading-tight">
+                {isAdmin ? "Clara AI administration" : "Clara AI workspace"}
+              </p>
+            </div>
+          </div>
 
-      {/* Edit Profile modal */}
-      {showProfile && (
-        <EditProfileModal
-          user={user}
-          onClose={() => setShowProfile(false)}
-          onSaved={() => { setShowProfile(false); window.location.reload(); }}
-        />
-      )}
+          {/* Profile avatar → menu */}
+          {user && (
+            <ProfileMenu
+              user={user}
+              onSignOut={handleSignOut}
+              billingHref={!isAdmin && primaryOrgId ? `/orgs/${primaryOrgId}/billing` : null}
+            />
+          )}
+        </header>
+
+        <main className="flex-1">{children}</main>
+      </div>
     </div>
   );
 }

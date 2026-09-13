@@ -1,7 +1,11 @@
 export { default as AdminLoginScreen } from "./login-screen";
 export { default as AdminDashboardScreen } from "./dashboard-screen";
 export { default as AdminOrgsScreen } from "./orgs-screen";
-export { default as AdminOrgDetailScreen } from "./org-detail-screen";
+export { default as AdminOrgOverviewScreen } from "./org-overview-screen";
+export { default as AdminOrgAgentsScreen } from "./org-agents-screen";
+export { default as AdminOrgMembersScreen } from "./org-members-screen";
+export { default as AdminOrgBillingScreen } from "./org-billing-screen";
+export { default as AdminOrgSettingsScreen } from "./org-settings-screen";
 export { default as AdminSubscriptionsScreen } from "./subscriptions-screen";
 export { default as AdminAnalyticsScreen } from "./analytics-screen";
 export { default as AdminSettingsScreen } from "./settings-screen";

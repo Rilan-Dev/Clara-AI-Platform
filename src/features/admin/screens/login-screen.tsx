@@ -2,6 +2,7 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Brain, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 import axios, { isAxiosError } from "axios";
 import { setStoredToken } from "@/lib/client-auth";
 import { AUTH_LOGIN_ENDPOINT, getSafeRedirect } from "./login-redirect";
@@ -88,6 +89,11 @@ function LoginForm() {
                 <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+              </div>
+              <div className="flex justify-end mt-1.5">
+                <Link href="/login/forgot" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  Forgot password?
+                </Link>
               </div>
             </div>
             {error && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}

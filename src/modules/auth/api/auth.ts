@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { ensureMigrated } from "@/lib/db/migrate";
 import {
   createUser, getUserByEmail, getUserById,
@@ -299,19 +300,85 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
     const auth = await requireAuth(req);
     await requireOrgPermission(auth, orgId, "user:invite");
     const body = await req.json();
-    const { userId, role } = body ?? {};
-    if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    const { userId, email, role } = body ?? {};
 
     const validRoles: RoleName[] = ["org_admin", "project_manager", "kb_editor", "kb_viewer"];
     if (!role || !validRoles.includes(role))
       return NextResponse.json({ error: `role must be one of: ${validRoles.join(", ")}` }, { status: 400 });
 
-    const target = await getUserById(userId);
+    // Resolve the target: by id OR by email. Email invitations create the
+    // account on the spot (random password) and email a set-password link —
+    // the standard "invite anyone with an email" business flow.
+    let target = userId ? await getUserById(userId) : null;
+    let isNewUser = false;
+    let inviteToken: string | null = null;
+
+    if (!target) {
+      const normalizedEmail = (email ?? "").toString().toLowerCase().trim();
+      if (!normalizedEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
+        return NextResponse.json({ error: "userId or a valid email is required" }, { status: 400 });
+      }
+      target = await getUserByEmail(normalizedEmail);
+      if (!target) {
+        const tempPassword = randomBytes(12).toString("base64url");
+        const fullName = normalizedEmail.split("@")[0]!.replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        const { hashPassword } = await import("../core/password");
+        target = await createUser(normalizedEmail, await hashPassword(tempPassword), fullName);
+        isNewUser = true;
+      }
+    }
+
     if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const member = await addOrgMember(orgId, userId, role as RoleName, auth.user.id);
-    await writeAuditLog({ userId: auth.user.id, orgId, action: "org.invite_member", resourceType: "user", resourceId: userId, newData: { role }, ipAddress: getIp(req) });
-    return NextResponse.json(member, { status: 201 });
+    const member = await addOrgMember(orgId, target.id, role as RoleName, auth.user.id);
+
+    // ── Invitation email ─────────────────────────────────────────────────────
+    // New users get a set-password link (14-day token); existing users simply
+    // get told they now have access.
+    try {
+      const org = await queryOne<{ name: string; slug: string }>(
+        "SELECT name, slug FROM organisations WHERE id = $1", [orgId]
+      );
+      const orgName = org?.name ?? "your organisation";
+      const { sendPlatformEmail, wrapEmail, appUrl } = await import("@/lib/email");
+
+      if (isNewUser) {
+        const { createInvitationToken } = await import("./password-reset");
+        inviteToken = await createInvitationToken(target.id, orgId, orgName);
+        const link = appUrl(`/login/reset?token=${inviteToken}`);
+        const html = wrapEmail(
+          `<h2 style="margin:0 0 12px;">You're invited to ${orgName}</h2>
+           <p>Hi <strong>${target.fullName}</strong>,</p>
+           <p>You've been invited to collaborate on Clara AI as <strong>${role.replace("_", " ")}</strong>
+              for <strong>${orgName}</strong>.</p>
+           <p>Set your password below and start building assistants together.</p>`,
+          { ctaUrl: link, ctaLabel: "Set your password & join" }
+        );
+        await sendPlatformEmail({
+          to: target.email,
+          subject: `You're invited to ${orgName} on Clara AI`,
+          html,
+        });
+      } else {
+        const html = wrapEmail(
+          `<h2 style="margin:0 0 12px;">You've been added to ${orgName}</h2>
+           <p>Hi <strong>${target.fullName}</strong>,</p>
+           <p>You now have <strong>${role.replace("_", " ")}</strong> access to <strong>${orgName}</strong> on Clara AI.
+              Sign in with your existing account to get started.</p>`,
+          { ctaUrl: appUrl("/login"), ctaLabel: "Sign in" }
+        );
+        await sendPlatformEmail({
+          to: target.email,
+          subject: `You've been added to ${orgName} on Clara AI`,
+          html,
+        });
+      }
+    } catch (mailErr) {
+      console.error("[invite-member] invitation email failed:", (mailErr as Error).message);
+    }
+
+    await writeAuditLog({ userId: auth.user.id, orgId, action: "org.invite_member", resourceType: "user", resourceId: target.id, newData: { role, email: target.email }, ipAddress: getIp(req) });
+    return NextResponse.json({ ...member, invited: true, isNewUser, emailSent: true }, { status: 201 });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -341,6 +408,44 @@ export async function removeOrgMemberHandler(req: NextRequest, orgId: string, us
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     await writeAuditLog({ userId: auth.user.id, orgId, action: "org.remove_member", resourceType: "user", resourceId: userId, ipAddress: getIp(req) });
     return NextResponse.json({ deleted: true });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+// ── PATCH /api/orgs/:orgId/members/:userId — change a member's role ──────────
+
+export async function updateOrgMemberRoleHandler(
+  req: NextRequest, orgId: string, userId: string
+): Promise<NextResponse> {
+  try {
+    const auth = await requireAuth(req);
+    await requireOrgPermission(auth, orgId, "user:invite"); // same privilege tier as inviting
+    const { role } = await req.json() as { role?: RoleName };
+
+    const validRoles: RoleName[] = ["org_admin", "project_manager", "kb_editor", "kb_viewer"];
+    if (!role || !validRoles.includes(role)) {
+      return NextResponse.json({ error: `role must be one of: ${validRoles.join(", ")}` }, { status: 400 });
+    }
+
+    const { query } = await import("@/lib/db");
+    const { getRoleByName } = await import("../core/db");
+    const roleRow = await getRoleByName(role);
+    if (!roleRow) return NextResponse.json({ error: `Role "${role}" not found` }, { status: 400 });
+
+    const rows = await query(
+      `UPDATE org_members SET role_id = $1 WHERE org_id = $2 AND user_id = $3
+       RETURNING id`,
+      [roleRow.id, orgId, userId]
+    );
+    if (!rows[0]) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+
+    await writeAuditLog({
+      userId: auth.user.id, orgId, action: "org.update_member_role",
+      resourceType: "user", resourceId: userId, newData: { role }, ipAddress: getIp(req),
+    });
+    return NextResponse.json({ ok: true, role });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

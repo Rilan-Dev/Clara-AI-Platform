@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { writeSubscriptionAudit, queueNotification } from "@/lib/subscription-notifications";
+import { computeEffectiveSubscription } from "@/lib/subscription-expiry";
 
 const FREE_PLAN_FALLBACK = {
   plan_id: "free", plan_name: "Free", status: "active",
+  current_period_start: null, current_period_end: null,
+  cancel_at_period_end: false, paused_at: null, cancelled_at: null,
+  trial_extended_days: 0, admin_note: null, gateway: null,
+  stripe_subscription_id: null, razorpay_subscription_id: null,
+  plan_version_id: null, price_snapshot: 0, plan_snapshot: null,
   max_kbs: 1, max_docs_per_kb: 10, max_req_day: 100, max_storage_mb: 100,
   voice_enabled: false, api_access: false, custom_branding: false,
   analytics_level: "basic", features: ["1 Knowledge Base","10 documents","100 requests/day"],
+  price_usd: 0,
 };
 
 /** GET /api/orgs/subscription?orgId=xxx */
@@ -18,6 +25,10 @@ export async function GET(req: NextRequest) {
   try {
     await ensureMigrated();
 
+    // Fetch the subscription row regardless of status — expired / cancelled
+    // / past_due subscriptions still need to be visible so their owners can
+    // renew. The "effective" fields tell the UI what to display and which
+    // CTA (renew / upgrade / none) to surface.
     const [subR, usageR] = await Promise.all([
       query(`
         SELECT os.id, os.org_id, os.plan_id, os.status,
@@ -26,6 +37,7 @@ export async function GET(req: NextRequest) {
           os.trial_extended_days, os.admin_note, os.gateway,
           os.stripe_subscription_id, os.razorpay_subscription_id,
           COALESCE(pv.name, sp.name) AS plan_name,
+          COALESCE(pv.price_usd, sp.price_usd) AS price_usd,
           COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
           COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
           COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
@@ -39,7 +51,8 @@ export async function GET(req: NextRequest) {
         FROM org_subscriptions os
         JOIN subscription_plans sp ON sp.id = os.plan_id
         LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
-        WHERE os.org_id = $1 AND os.status IN ('active','trialing','paused')
+        WHERE os.org_id = $1
+        ORDER BY os.updated_at DESC
         LIMIT 1
       `, [orgId]),
 
@@ -51,8 +64,14 @@ export async function GET(req: NextRequest) {
       `, [orgId]),
     ]);
 
+    const sub = subR[0];
+    const effective = sub
+      ? computeEffectiveSubscription(sub as { plan_id: string; plan_name: string; status: string; current_period_end: string | null })
+      : null;
+
     return NextResponse.json({
-      subscription: subR[0] ?? FREE_PLAN_FALLBACK,
+      subscription: sub ?? FREE_PLAN_FALLBACK,
+      effective,
       usage: usageR[0] ?? { kb_count: 0, requests_today: 0, storage_bytes: 0 },
     });
   } catch (err) {

@@ -70,6 +70,12 @@ export type OrgMember = {
   roleName: RoleName;
   invitedBy: string | null;
   joinedAt: string;
+  // Enriched user details (present when listed via listOrgMembers):
+  email?: string;
+  fullName?: string;
+  avatarUrl?: string | null;
+  emailVerified?: boolean;
+  userStatus?: string;
 };
 
 export type ProjectMember = {

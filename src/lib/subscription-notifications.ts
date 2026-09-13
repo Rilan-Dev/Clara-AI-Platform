@@ -13,6 +13,7 @@
  */
 
 import { query } from "@/lib/db";
+import { sendPlatformEmail } from "@/lib/email";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,12 @@ export type NotificationType =
   | "trial_converted"
   | "trial_ending_soon"
   | "payment_failed"
-  | "subscription_reactivated";
+  | "subscription_reactivated"
+  | "renewal_reminder"
+  | "subscription_expired"
+  | "password_reset"
+  | "password_changed"
+  | "org_invitation";
 
 interface NotificationPayload {
   orgId:       string;
@@ -141,6 +147,32 @@ function buildTemplate(type: NotificationType, data: Record<string, string | num
         bodyText: `Subscription reactivated for ${orgName} (${planName}).`,
       };
 
+    case "renewal_reminder":
+      return {
+        subject: `Action needed: your ${APP} ${planName} plan ends soon — ${orgName}`,
+        bodyHtml: wrap(`
+          <h2 style="color:#fff;margin-bottom:8px;">Renewal reminder</h2>
+          <p>Hi <strong>${orgName}</strong>,</p>
+          <p>Your <strong>${planName}</strong> subscription is scheduled to end on
+             <strong>${trialEnd}</strong> (${trialDays} day(s) left).</p>
+          <p>To keep your assistants, knowledge bases and analytics running without
+             interruption, renew before the end date.</p>`),
+        bodyText: `Renewal reminder for ${orgName}: ${planName} ends ${trialEnd} (${trialDays} days left). Renew to avoid interruption.`,
+      };
+
+    case "subscription_expired":
+      return {
+        subject: `Your ${APP} subscription has expired — renew to restore access — ${orgName}`,
+        bodyHtml: wrap(`
+          <h2 style="color:#f87171;margin-bottom:8px;">Subscription expired</h2>
+          <p>Hi <strong>${orgName}</strong>,</p>
+          <p>Your <strong>${planName}</strong> subscription ended on <strong>${trialEnd}</strong>.</p>
+          <p>Premium features (voice, analytics, API access and higher usage limits) are
+             now restricted. Your data is safe and will be retained.</p>
+          <p style="margin-top:16px;">Renew your subscription to instantly restore full access.</p>`),
+        bodyText: `Subscription expired for ${orgName} (${planName}) on ${trialEnd}. Renew to restore access. Your data is safe.`,
+      };
+
     default:
       return {
         subject:  `${APP} subscription update — ${orgName}`,
@@ -167,49 +199,37 @@ export async function queueNotification(payload: NotificationPayload): Promise<s
 
   const notifId = rows[0]?.id ?? "";
 
-  // Fire-and-forget: attempt delivery immediately (replace with real provider)
+  // Fire-and-forget: attempt delivery immediately via the unified email lib.
   sendEmail({ to: payload.recipientEmail, subject, bodyHtml, bodyText, notifId }).catch(console.error);
 
   return notifId;
 }
 
-// ── Email sender stub ─────────────────────────────────────────────────────────
-// Replace this with your actual email provider integration.
-// e.g. Resend: await resend.emails.send({ from, to, subject, html: bodyHtml })
+// ── Email sender — delegates to the unified platform email lib ────────────────
+// Tracks delivery status on the subscription_notifications row so the queue
+// can be retried / audited later.
 
 async function sendEmail(opts: {
   to: string; subject: string; bodyHtml: string; bodyText: string; notifId: string;
 }): Promise<void> {
-  const hasEmailProvider = !!(
-    process.env.RESEND_API_KEY ||
-    process.env.SENDGRID_API_KEY ||
-    process.env.SMTP_HOST
-  );
+  const result = await sendPlatformEmail({
+    to: opts.to, subject: opts.subject, html: opts.bodyHtml, text: opts.bodyText,
+  });
 
-  if (!hasEmailProvider) {
-    // Development mode — log to console, mark as sent so queue doesn't pile up
-    console.log(`[notifications] 📧 Would send to ${opts.to}`);
-    console.log(`  Subject: ${opts.subject}`);
-    await query(`UPDATE subscription_notifications SET status='sent', sent_at=now() WHERE id=$1`, [opts.notifId]);
+  if (result.sent) {
+    await query(`UPDATE subscription_notifications SET status='sent', sent_at=now(), attempts=attempts+1 WHERE id=$1`, [opts.notifId]);
     return;
   }
 
-  try {
-    // ── Resend (example, uncomment + install 'resend') ─────────────────────
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: `Clara AI <noreply@${process.env.EMAIL_FROM_DOMAIN ?? "clara.ai"}>`,
-      to: opts.to, subject: opts.subject,
-      html: opts.bodyHtml, text: opts.bodyText,
-    });
-
+  // No provider configured (dev) → mark as sent so the queue doesn't pile up.
+  // Provider failure → mark failed with the error for retry/audit.
+  if (result.provider === "console") {
     await query(`UPDATE subscription_notifications SET status='sent', sent_at=now() WHERE id=$1`, [opts.notifId]);
-    console.log(`[notifications] ✅ Sent to ${opts.to}`);
-  } catch (err) {
-    const msg = (err as Error).message;
-    await query(`UPDATE subscription_notifications SET status='failed', error_message=$1, attempts=attempts+1 WHERE id=$2`, [msg, opts.notifId]);
-    console.error(`[notifications] ❌ Failed for ${opts.to}:`, msg);
+  } else {
+    await query(
+      `UPDATE subscription_notifications SET status='failed', error_message=$1, attempts=attempts+1 WHERE id=$2`,
+      [result.error ?? "unknown error", opts.notifId]
+    );
   }
 }
 

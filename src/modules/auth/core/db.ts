@@ -250,14 +250,31 @@ export async function getOrgMembership(
 
 export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
   const rows = await query<Record<string, unknown>>(
-    `SELECT om.*, r.name AS role_name
+    `SELECT om.*, r.name AS role_name,
+            u.email, u.full_name, u.avatar_url, u.email_verified, u.status AS user_status
      FROM org_members om
      JOIN roles r ON r.id = om.role_id
+     JOIN users u ON u.id = om.user_id
      WHERE om.org_id = $1
-     ORDER BY om.joined_at ASC`,
+     ORDER BY
+       CASE r.name
+         WHEN 'org_admin' THEN 0
+         WHEN 'project_manager' THEN 1
+         WHEN 'kb_editor' THEN 2
+         WHEN 'kb_viewer' THEN 3
+         ELSE 4
+       END,
+       om.joined_at ASC`,
     [orgId]
   );
-  return rows.map(toOrgMember);
+  return rows.map((row) => ({
+    ...toOrgMember(row),
+    email:         String(row.email ?? ""),
+    fullName:      String(row.full_name ?? ""),
+    avatarUrl:     row.avatar_url != null ? String(row.avatar_url) : null,
+    emailVerified: Boolean(row.email_verified),
+    userStatus:    String(row.user_status ?? "active"),
+  }));
 }
 
 export async function removeOrgMember(orgId: string, userId: string): Promise<boolean> {
