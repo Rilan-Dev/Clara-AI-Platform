@@ -16,7 +16,6 @@ export async function assertTopology(channel) {
       ...QUORUM,
       "x-dead-letter-exchange": EXCHANGE_DLX,
       "x-dead-letter-routing-key": "webhook.dlq",
-      "x-delivery-limit": 8,
     },
   });
 
