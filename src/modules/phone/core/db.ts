@@ -67,14 +67,14 @@ export async function upsertPhoneConfig(
        max_call_duration_sec, record_calls, transcribe_calls, webhook_url_override)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     ON CONFLICT (kb_id, phone_number) DO UPDATE SET
-      provider              = EXCLUDED.provider,
-      enabled               = EXCLUDED.enabled,
-      greeting_message      = EXCLUDED.greeting_message,
-      max_call_duration_sec = EXCLUDED.max_call_duration_sec,
-      record_calls          = EXCLUDED.record_calls,
-      transcribe_calls      = EXCLUDED.transcribe_calls,
-      webhook_url_override  = EXCLUDED.webhook_url_override,
-      updated_at            = now()
+      provider             = EXCLUDED.provider,
+      enabled              = EXCLUDED.enabled,
+      greeting_message     = EXCLUDED.greeting_message,
+      max_call_duration_sec= EXCLUDED.max_call_duration_sec,
+      record_calls         = EXCLUDED.record_calls,
+      transcribe_calls     = EXCLUDED.transcribe_calls,
+      webhook_url_override = EXCLUDED.webhook_url_override,
+      updated_at           = now()
     RETURNING *
   `,
     [
