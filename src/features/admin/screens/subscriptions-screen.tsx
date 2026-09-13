@@ -14,14 +14,12 @@ import {
   X, Clock, Play, Pause, Ban,
   RotateCcw, Gift, Zap, Receipt, Shield, Bell, ChevronRight,
   CheckCircle2, XCircle, AlertCircle, Mail,
-  Send, Edit3, Plus, FileText, Cpu, MessageSquare, Building2,
-  Star, ArrowRight, Zap as ZapIcon,
+  Send, Edit3, Plus, Building2,
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -368,7 +366,6 @@ export default function AdminSubscriptionsScreen() {
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState("");
   const [modal,   setModal]   = useState<ModalState>(null);
-  const [notifPanel, setNotifPanel] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -378,7 +375,9 @@ export default function AdminSubscriptionsScreen() {
         fetch(apiUrl("/api/platform/orgs?perPage=200"), { headers: withAuthHeaders({}) }).then(r => r.json()),
       ]);
       setPlans(plansData.plans ?? []);
-      setOrgs(orgsData.orgs ?? []);
+      // /api/platform/orgs returns rows keyed by "id" but OrgSub expects "org_id" —
+      // normalize so table row keys + Manage/History modals receive a real org UUID
+      setOrgs((orgsData.orgs ?? []).map((o: Partial<OrgSub> & { id?: string }) => ({ ...o, org_id: o.org_id ?? o.id ?? "" })));
     } finally {
       setLoading(false);
     }
