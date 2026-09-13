@@ -209,8 +209,6 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
 
         {section === "ai" && <PlatformAIDefaultsSection />}
 
-        {section === "ai" && <PlatformAIDefaultsSection />}
-
         {section === "payments" && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-7">
             <PaymentGatewayPanel />

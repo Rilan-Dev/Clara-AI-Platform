@@ -18,7 +18,7 @@ const authClient = axios.create({
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get("redirect"));
-  const [email, setEmail] = useState("admin@clara.ai");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
