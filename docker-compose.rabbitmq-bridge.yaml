@@ -1,8 +1,8 @@
 services:
   clara-rabbitmq-bridge:
     build:
-      context: .
-      dockerfile: services/rabbitmq-bridge/Dockerfile
+      context: ./services/rabbitmq-bridge
+      dockerfile: Dockerfile
     env_file:
       - .env
     environment:
