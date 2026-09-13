@@ -5,6 +5,7 @@ export type OutboxInsert = {
   eventType: string;
   aggregateType: string;
   aggregateId: string;
+  dedupeKey?: string;
   routingKey: string;
   payload: unknown;
 };
@@ -15,13 +16,15 @@ export async function insertOutboxEvent(
 ): Promise<void> {
   await client.query(
     `INSERT INTO event_outbox
-       (id, event_type, aggregate_type, aggregate_id, routing_key, payload)
-     VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
+       (id, event_type, aggregate_type, aggregate_id, dedupe_key, routing_key, payload)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)
+     ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
     [
       event.id,
       event.eventType,
       event.aggregateType,
       event.aggregateId,
+      event.dedupeKey ?? null,
       event.routingKey,
       JSON.stringify(event.payload),
     ],
