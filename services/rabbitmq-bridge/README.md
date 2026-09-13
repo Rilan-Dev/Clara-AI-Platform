@@ -20,7 +20,7 @@ RABBITMQ_OUTBOX_POLL_MS=1000
 RABBITMQ_WEBHOOK_PREFETCH=10
 ```
 
-Do not put credentials in this repository. CloudAMQP recommends using the cluster hostname, environment variables, TLS, monitoring alarms, and quorum queues for production deployments. citeturn6search0turn6search2
+Do not put credentials in this repository. Use the CloudAMQP cluster hostname, environment variables, TLS, monitoring alarms, and quorum queues for production deployments.
 
 ## RabbitMQ topology
 
@@ -34,11 +34,9 @@ clara.events (topic)
                                               +-- permanent/max retry --> clara.dlx -> clara.webhooks.dlq
 ```
 
-RabbitMQ exchanges route events to queues using routing keys, and quorum queues are the recommended replicated queue type for data-safe production workloads. citeturn5search2turn8search0
-
 ## DLQ operations
 
-A dead-lettered message is retained in `clara.webhooks.dlq`. Inspect `x-death`, `x-first-death-*`, and `x-last-death-*` headers when diagnosing failures. RabbitMQ supports dead-lettering for rejected messages, TTL expiration, queue limits, and quorum delivery limits. citeturn0search0
+A dead-lettered message is retained in `clara.webhooks.dlq`. Inspect `x-death`, `x-first-death-*`, and `x-last-death-*` headers when diagnosing failures.
 
 Replay should be performed only after correcting the target URL/application failure. Re-publishing the same event is at-least-once behaviour, so the receiving webhook should use `X-Clara-Event-Id` as an idempotency key.
 
@@ -54,4 +52,4 @@ Monitor:
 - webhook 429/5xx rate
 - bridge reconnects
 
-CloudAMQP provides queue, connection, consumer, and channel monitoring/alarms through its console. citeturn6search0
+CloudAMQP provides queue, connection, consumer, and channel monitoring/alarms through its console.
