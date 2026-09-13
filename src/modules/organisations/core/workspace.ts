@@ -14,6 +14,7 @@ import { randomUUID, randomBytes, createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { withTransaction } from "@/lib/db";
 import { hashPassword } from "@/modules/auth/core/password";
+import { getPlatformAssistantDefaults } from "@/modules/ai-core/assistant-defaults-db";
 
 // ── Input / output types ───────────────────────────────────────────────────────
 
@@ -231,7 +232,34 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
       [kbId, project.id, kbName, input.kbDescription?.trim() || null, qdrantCollection],
     );
     const kb = kbRows.rows[0]!;
-    await client.query(`INSERT INTO assistant_configs (kb_id) VALUES ($1)`, [kbId]);
+
+    // Seed the KB's assistant config from the platform assistant defaults —
+    // newly onboarding workspaces start with the platform default persona
+    // (Identity / Behaviour / Language / Voice). The values are copied here,
+    // so later platform default edits never rewrite this workspace.
+    const defaults = await getPlatformAssistantDefaults();
+    await client.query(
+      `INSERT INTO assistant_configs (
+         kb_id, assistant_name, avatar_url, system_prompt, welcome_message,
+         out_of_scope_reply, rules, default_language, allowed_languages,
+         always_respond_in, voice_id, speed
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`,
+      [
+        kbId,
+        defaults.assistantName,
+        defaults.avatarUrl,
+        defaults.systemPrompt,
+        defaults.welcomeMessage,
+        defaults.outOfScopeReply,
+        JSON.stringify(defaults.rules),
+        defaults.defaultLanguage,
+        defaults.allowedLanguages,
+        defaults.alwaysRespondIn,
+        defaults.voiceId ?? "alloy",
+        defaults.voiceSpeed ?? 1.0,
+      ],
+    );
 
     // ── 6. API key ────────────────────────────────────────────────────────────
     const rawKey = generateRawApiKey();

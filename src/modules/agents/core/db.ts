@@ -11,6 +11,7 @@
  */
 
 import { query, queryOne, withTransaction } from "@/lib/db";
+import { getPlatformAssistantDefaults } from "@/modules/ai-core/assistant-defaults-db";
 import type {
   Agent, AgentSummary, AgentStatus, CreateAgentInput, UpdateAgentInput,
   ProjectAgentAssignment, AssignAgentResult,
@@ -93,17 +94,37 @@ export async function createAgent(input: CreateAgentInput): Promise<Agent> {
   );
   if (duplicate) throw new AgentValidationError("An agent with this name already exists in your organisation");
 
+  // New agents start from the platform assistant defaults (Identity /
+  // Behaviour / Language / Voice). The values are COPIED at creation time —
+  // later platform default edits never touch this agent. Any field the
+  // creator supplied explicitly wins over the default.
+  const defaults = await getPlatformAssistantDefaults();
+
   const row = await queryOne<Record<string, unknown>>(
-    `INSERT INTO agents (org_id, name, description, assistant_name, system_prompt, welcome_message, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO agents (
+       org_id, name, description, assistant_name, avatar_url,
+       system_prompt, welcome_message, out_of_scope_reply, rules,
+       default_language, allowed_languages, always_respond_in,
+       voice_id, speed, created_by
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::text[], $12, $13, $14, $15)
      RETURNING *`,
     [
       input.orgId, name,
       input.description?.trim() || null,
-      input.assistantName?.trim() || name,
-      // Match the column defaults explicitly — passing NULL would bypass them.
-      input.systemPrompt?.trim() || "You are Clara, a helpful voice assistant. Answer ONLY using the context provided.",
-      input.welcomeMessage?.trim() || "Hello! How can I help you today?",
+      input.assistantName?.trim() || defaults.assistantName,
+      input.avatarUrl?.trim() || defaults.avatarUrl,
+      input.systemPrompt?.trim() || defaults.systemPrompt,
+      input.welcomeMessage?.trim() || defaults.welcomeMessage,
+      input.outOfScopeReply?.trim() || defaults.outOfScopeReply,
+      JSON.stringify(input.rules?.length ? input.rules : defaults.rules),
+      input.defaultLanguage?.trim().toLowerCase() || defaults.defaultLanguage,
+      input.allowedLanguages?.length
+        ? input.allowedLanguages.map((l) => l.trim().toLowerCase()).filter(Boolean)
+        : defaults.allowedLanguages,
+      input.alwaysRespondIn?.trim() || defaults.alwaysRespondIn,
+      input.voiceId?.trim() || defaults.voiceId,
+      input.voiceSpeed ?? defaults.voiceSpeed ?? 1.0,
       input.createdBy ?? null,
     ],
   );

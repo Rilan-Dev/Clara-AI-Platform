@@ -58,17 +58,6 @@ function parseOptionalBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
-function parseOptionalStringArray(value: unknown): string[] | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  if (!Array.isArray(value)) return undefined;
-  const items = value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return items;
-}
-
 function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput {
   const input: PatchOrgAISettingsInput = {};
 
@@ -122,42 +111,13 @@ function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput
   const enableRealtime = parseOptionalBoolean(body.enableRealtime);
   if (enableRealtime !== undefined) input.enableRealtime = enableRealtime;
 
-  // Identity
-  const assistantName = parseOptionalString(body.assistantName);
-  if (assistantName !== undefined) input.assistantName = assistantName;
-
-  const avatarUrl = parseOptionalString(body.avatarUrl);
-  if (avatarUrl !== undefined) input.avatarUrl = avatarUrl;
-
-  // Behaviour
-  const systemPrompt = parseOptionalString(body.systemPrompt);
-  if (systemPrompt !== undefined) input.systemPrompt = systemPrompt;
-
-  const welcomeMessage = parseOptionalString(body.welcomeMessage);
-  if (welcomeMessage !== undefined) input.welcomeMessage = welcomeMessage;
-
-  const outOfScopeReply = parseOptionalString(body.outOfScopeReply);
-  if (outOfScopeReply !== undefined) input.outOfScopeReply = outOfScopeReply;
-
-  const rules = parseOptionalStringArray(body.rules);
-  if (rules !== undefined) input.rules = rules;
-
-  // Language
-  const defaultLanguage = parseOptionalString(body.defaultLanguage);
-  if (defaultLanguage !== undefined) input.defaultLanguage = defaultLanguage;
-
-  const allowedLanguages = parseOptionalStringArray(body.allowedLanguages);
-  if (allowedLanguages !== undefined) input.allowedLanguages = allowedLanguages;
-
-  const alwaysRespondIn = parseOptionalString(body.alwaysRespondIn);
-  if (alwaysRespondIn !== undefined) input.alwaysRespondIn = alwaysRespondIn;
-
-  // Voice
-  const voiceId = parseOptionalString(body.voiceId);
-  if (voiceId !== undefined) input.voiceId = voiceId;
-
-  const voiceSpeed = parseOptionalNumber(body.voiceSpeed);
-  if (voiceSpeed !== undefined) input.voiceSpeed = voiceSpeed;
+  // NOTE: Identity / Behaviour / Language / Voice fields (assistantName,
+  // avatarUrl, systemPrompt, welcomeMessage, outOfScopeReply, rules,
+  // defaultLanguage, allowedLanguages, alwaysRespondIn, voiceId, voiceSpeed)
+  // are intentionally NOT accepted any more. They are platform-level
+  // defaults now (Settings → AI Configuration) and are seeded onto newly
+  // created projects / KBs / agents. Organisations keep the values already
+  // stored on their own projects, agents and knowledge bases.
 
   return input;
 }
@@ -215,9 +175,9 @@ export async function patchOrgAISettingsHandler(
     }
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    // Organisations own their full AI configuration — provider, model,
-    // identity, behaviour, language and voice alike. Platform admins are
-    // locked out entirely, so no field is centrally restricted any more.
+    // Organisations own their AI model / provider / limit configuration.
+    // Identity, Behaviour, Language and Voice are platform-level defaults
+    // now — the org PATCH intentionally ignores those fields.
     const input = buildPatchInput(body);
     const settings = await upsertOrgAISettings(orgId, input);
     return NextResponse.json(settings);

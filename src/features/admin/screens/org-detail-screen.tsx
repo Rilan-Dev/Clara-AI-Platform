@@ -9,9 +9,8 @@ import {
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
-import { useAuth, useOrg, useOrgAISettings, useProjects } from "@/modules/admin-ui/hooks";
+import { useAuth, useOrg, useProjects } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { OrgAISettingsEditor } from "@/components/admin/OrgAISettingsEditor";
 import { EditOrgPanel } from "@/components/admin/EditOrgPanel";
 import { Button } from "@/components/ui/button";
 
@@ -155,7 +154,6 @@ export default function OrgDetailPage() {
   const isAdmin     = user?.isSuperAdmin ?? false;
 
   const { data: org } = useOrg(id);
-  const { settings, loading: settingsLoading, error: settingsError, save: saveAISettings } = useOrgAISettings(id);
   const { projects, loading: projectsLoading, create, remove } = useProjects(id);
 
   // Local state so edits reflect immediately without refetch
@@ -232,7 +230,7 @@ export default function OrgDetailPage() {
         <AdminPageHeader
           icon={Building2}
           title={displayName}
-          description="Manage your projects and knowledge bases, and configure your organisation's AI assistant behaviour."
+          description="Manage your projects and knowledge bases. Your assistants are configured per project and agent."
           chips={[`/${displaySlug}`]}
         />
 
@@ -261,16 +259,6 @@ export default function OrgDetailPage() {
           showBreadcrumbOrgs={false}
         />
 
-        {/* ── Org AI Settings ── */}
-        {settingsLoading ? (
-          <div className="space-y-3">
-            <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
-            <div className="h-[28rem] rounded-2xl bg-white/[0.04] animate-pulse" />
-          </div>
-        ) : (
-          <OrgAISettingsEditor orgName={displayName} settings={settings} onSave={saveAISettings} />
-        )}
-        {settingsError && <p className="text-sm text-rose-400">{settingsError}</p>}
 
         {/* ── Org Details — editable for org_admin ── */}
         <EditOrgPanel
@@ -290,7 +278,7 @@ export default function OrgDetailPage() {
       <AdminPageHeader
         icon={Building2}
         title={displayName}
-        description="Manage subscription state, org-wide AI policy, and the projects that contain this organisation's knowledge bases."
+        description="Manage subscription state and the projects that contain this organisation's knowledge bases."
         breadcrumbs={[
           { label: "Organisations", href: "/orgs" },
           { label: displayName },
@@ -363,16 +351,6 @@ export default function OrgDetailPage() {
         onSaved={(updated) => setEditedOrg(updated)}
       />
 
-      {/* Org AI Settings */}
-      {settingsLoading ? (
-        <div className="space-y-3">
-          <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
-          <div className="h-[28rem] rounded-2xl bg-white/[0.04] animate-pulse" />
-        </div>
-      ) : (
-        <OrgAISettingsEditor orgName={displayName} settings={settings} onSave={saveAISettings} />
-      )}
-      {settingsError && <p className="text-sm text-rose-400">{settingsError}</p>}
 
     </div>
   );

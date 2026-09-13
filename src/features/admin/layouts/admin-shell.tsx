@@ -22,17 +22,22 @@ const ADMIN_NAV = [
 
 // Settings sub-sections rendered as a dropdown group in the sidebar.
 // Mirrors SETTINGS_SECTIONS in the settings screen — keep labels in sync.
+// Platform admins: AI Configuration holds the platform DEFAULT assistant
+// persona (Identity / Behaviour / Language / Voice) for newly onboarding
+// projects and agents.
 const SETTINGS_NAV = [
   { href: "/settings/account",  icon: UserRound, label: "Account"          },
+  { href: "/settings/ai",       icon: Bot,       label: "AI Configuration" },
   { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
   { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
 ];
 
-// Org users configure their own organisation's AI — this section is
-// intentionally NOT in the super-admin list above.
+// Org users have no AI Configuration section any more — assistant persona
+// settings are platform-level defaults; orgs tune their own projects, agents
+// and knowledge bases. Their settings = personal account only (rendered as a
+// plain link, not a one-item dropdown).
 const ORG_SETTINGS_NAV = [
-  { href: "/settings/account", icon: UserRound, label: "Account"          },
-  { href: "/settings/ai",      icon: Bot,       label: "AI Configuration" },
+  { href: "/settings/account", icon: UserRound, label: "Account" },
 ];
 
 // Routes only accessible to super-admins — org users are redirected away from these
@@ -121,6 +126,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
   const nav = isAdmin ? ADMIN_NAV : orgNav;
   const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
+  // Org users only have Account left — a one-item dropdown would be noise, so
+  // render their Settings as a plain link to /settings/account.
+  const singleSettingsLink = settingsNav.length === 1 ? settingsNav[0] : null;
 
   return (
     <div className="dark min-h-[100dvh] bg-[#0a0a0f] flex">
@@ -175,9 +183,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
 
-          {/* Settings — expandable dropdown group for both roles.
-              Platform admins: Account / Embed Key / Payments.
-              Org users: Account / AI Configuration (their organisation's AI). */}
+          {/* Settings — expandable dropdown group (admins: Account / AI
+              Configuration / Embed Key / Payments). Org users see a plain
+              Settings link straight to their account page. */}
+          {singleSettingsLink ? (
+            <Link
+              href={singleSettingsLink.href}
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                onSettingsRoute
+                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                  : "text-white/50 hover:text-white hover:bg-white/[0.05]"
+              }`}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left">Settings</span>
+              {onSettingsRoute && (
+                <ChevronRight className="w-3 h-3 text-indigo-400" />
+              )}
+            </Link>
+          ) : (
           <div className="pt-1">
             <button
               type="button"
@@ -234,6 +259,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </ul>
             )}
           </div>
+          )}
         </nav>
 
         {/* Footer */}

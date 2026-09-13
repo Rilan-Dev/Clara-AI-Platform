@@ -4,7 +4,9 @@
  */
 
 import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { query, queryOne, withTransaction } from "@/lib/db";
+import { getPlatformAssistantDefaults } from "@/modules/ai-core/assistant-defaults-db";
 import type {
   KnowledgeBase, AssistantConfig, CreateKbInput, UpdateKbInput,
   PutAssistantConfigInput, PatchAssistantConfigInput,
@@ -133,6 +135,46 @@ function toConfig(row: Record<string,unknown>): AssistantConfig {
 
 // ── Knowledge Base CRUD ───────────────────────────────────────────────────────
 
+/**
+ * Create the KB's assistant_config seeded from the platform assistant
+ * defaults (Identity / Behaviour / Language / Voice). Values are COPIED at
+ * creation time — later default edits never rewrite existing KBs, and each
+ * organisation keeps full control of the copy it now owns.
+ *
+ * Runs on the caller's transaction client so the KB row (inserted in the
+ * same, still-open transaction) satisfies the FK.
+ */
+async function seedAssistantConfigFromDefaults(
+  client: PoolClient,
+  kbId: string,
+): Promise<void> {
+  const d = await getPlatformAssistantDefaults();
+  await client.query(
+    `INSERT INTO assistant_configs (
+       kb_id, assistant_name, avatar_url, system_prompt, welcome_message,
+       out_of_scope_reply, rules, default_language, allowed_languages,
+       always_respond_in, voice_id, speed
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`,
+    [
+      kbId,
+      d.assistantName,
+      d.avatarUrl,
+      d.systemPrompt,
+      d.welcomeMessage,
+      d.outOfScopeReply,
+      JSON.stringify(d.rules),
+      d.defaultLanguage,
+      d.allowedLanguages,
+      d.alwaysRespondIn,
+      // assistant_configs has NOT NULL constraints — empty platform defaults
+      // fall back to the previous SQL column defaults.
+      d.voiceId ?? "alloy",
+      d.voiceSpeed ?? 1.0,
+    ],
+  );
+}
+
 export async function createKnowledgeBase(projectId: string, input: CreateKbInput): Promise<KnowledgeBase> {
   return withTransaction(async (client) => {
     const kbId = randomUUID();
@@ -141,7 +183,7 @@ export async function createKnowledgeBase(projectId: string, input: CreateKbInpu
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [kbId, projectId, input.name, input.description??null, makeCollectionName(kbId,input.name)]
     );
-    await client.query(`INSERT INTO assistant_configs (kb_id) VALUES ($1)`, [kbId]);
+    await seedAssistantConfigFromDefaults(client, kbId);
     return toKb(kbResult.rows[0]!);
   });
 }

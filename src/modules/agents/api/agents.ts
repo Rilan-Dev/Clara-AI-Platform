@@ -98,8 +98,18 @@ export async function createAgentHandler(req: NextRequest): Promise<NextResponse
       name,
       description: body?.description?.trim() || undefined,
       assistantName: body?.assistantName?.trim() || undefined,
+      avatarUrl: body?.avatarUrl?.trim() || undefined,
       systemPrompt: body?.systemPrompt?.trim() || undefined,
       welcomeMessage: body?.welcomeMessage?.trim() || undefined,
+      outOfScopeReply: body?.outOfScopeReply?.trim() || undefined,
+      rules: Array.isArray(body?.rules) ? body.rules : undefined,
+      defaultLanguage: body?.defaultLanguage?.trim() || undefined,
+      allowedLanguages: Array.isArray(body?.allowedLanguages)
+        ? body.allowedLanguages
+        : undefined,
+      alwaysRespondIn: body?.alwaysRespondIn?.trim() || undefined,
+      voiceId: body?.voiceId?.trim() || undefined,
+      voiceSpeed: typeof body?.voiceSpeed === "number" ? body.voiceSpeed : undefined,
       createdBy: auth.user.id,
     });
     return NextResponse.json(agent, { status: 201 });

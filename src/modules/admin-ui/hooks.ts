@@ -13,6 +13,7 @@ import type {
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
   CreateWorkspaceInput, CreateWorkspaceResult,
   Agent, AgentStatus, AgentWithProjects, AgentProjectAssignment, CreateAgentInput, UpdateAgentInput,
+  PlatformAssistantDefaults,
 } from "./api";
 
 export type {
@@ -21,6 +22,7 @@ export type {
   DiscoverProgress, OrgAISettings, KBAIOverrides, ScrapeStreamSnapshot,
   CreateWorkspaceInput, CreateWorkspaceResult,
   Agent, AgentStatus, AgentWithProjects, AgentProjectAssignment, CreateAgentInput, UpdateAgentInput,
+  PlatformAssistantDefaults,
 };
 
 // ── Generic async state helper ────────────────────────────────────────────────
@@ -173,6 +175,28 @@ export function useOrgAISettings(orgId?: string | null) {
   );
 
   return { settings, loading, error, save, refetch };
+}
+
+// ── Platform assistant defaults ───────────────────────────────────────────────
+// Super-admin only (Settings -> AI Configuration). Seeded onto newly created
+// projects / KBs / agents; existing rows keep their own values.
+
+export function usePlatformAssistantDefaults() {
+  const { data, loading, error, refetch } = useAsync(
+    () => api.fetchPlatformAssistantDefaults(),
+    "platform-assistant-defaults",
+  );
+
+  const save = useCallback(
+    async (data: Partial<Omit<PlatformAssistantDefaults, "id" | "updatedAt">>) => {
+      const updated = await api.patchPlatformAssistantDefaults(data);
+      refetch();
+      return updated;
+    },
+    [refetch],
+  );
+
+  return { defaults: data, loading, error, save, refetch };
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────────

@@ -66,8 +66,16 @@ export type CreateAgentInput = {
   name: string;
   description?: string;
   assistantName?: string;
+  avatarUrl?: string;
   systemPrompt?: string;
   welcomeMessage?: string;
+  outOfScopeReply?: string;
+  rules?: string[];
+  defaultLanguage?: string;
+  allowedLanguages?: string[];
+  alwaysRespondIn?: string;
+  voiceId?: string;
+  voiceSpeed?: number;
   createdBy?: string;
 };
 

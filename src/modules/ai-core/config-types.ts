@@ -32,6 +32,48 @@ export interface PlatformAIDefaults {
   };
 }
 
+/**
+ * Platform-level assistant persona defaults (Identity, Behaviour, Language,
+ * Voice) — managed by the platform admin in Settings -> AI Configuration.
+ *
+ * These are the STARTING VALUES for newly onboarding projects / knowledge
+ * bases / agents: seeded at creation time, so later edits never affect
+ * existing rows (those are owned by the organisations).
+ */
+export interface PlatformAssistantDefaults {
+  id: string;
+  // Identity
+  assistantName: string;
+  avatarUrl: string | null;
+  // Behaviour
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string[];
+  // Language
+  defaultLanguage: string;
+  allowedLanguages: string[];
+  alwaysRespondIn: string | null;
+  // Voice
+  voiceId: string | null;
+  voiceSpeed: number | null;
+  updatedAt: string;
+}
+
+export interface PatchPlatformAssistantDefaultsInput {
+  assistantName?: string;
+  avatarUrl?: string | null;
+  systemPrompt?: string;
+  welcomeMessage?: string;
+  outOfScopeReply?: string;
+  rules?: string[];
+  defaultLanguage?: string;
+  allowedLanguages?: string[];
+  alwaysRespondIn?: string | null;
+  voiceId?: string | null;
+  voiceSpeed?: number | null;
+}
+
 export interface OrgAISettings {
   id: string;
   orgId: string;

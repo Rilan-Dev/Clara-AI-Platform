@@ -182,6 +182,39 @@ export async function patchOrgAISettings(
     body: JSON.stringify(data),
   });
 }
+
+// ── Platform assistant defaults (Identity / Behaviour / Language / Voice) ────
+// Super-admin only. Seeded onto newly created projects / KBs / agents;
+// existing organisation-owned values are never rewritten.
+
+export type PlatformAssistantDefaults = {
+  id: string;
+  assistantName: string;
+  avatarUrl: string | null;
+  systemPrompt: string;
+  welcomeMessage: string;
+  outOfScopeReply: string;
+  rules: string[];
+  defaultLanguage: string;
+  allowedLanguages: string[];
+  alwaysRespondIn: string | null;
+  voiceId: string | null;
+  voiceSpeed: number | null;
+  updatedAt: string;
+};
+
+export async function fetchPlatformAssistantDefaults(): Promise<PlatformAssistantDefaults> {
+  return apiFetch<PlatformAssistantDefaults>("/api/platform/assistant-defaults");
+}
+
+export async function patchPlatformAssistantDefaults(
+  data: Partial<Omit<PlatformAssistantDefaults, "id" | "updatedAt">>,
+): Promise<PlatformAssistantDefaults> {
+  return apiFetch<PlatformAssistantDefaults>("/api/platform/assistant-defaults", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
 export type OrgMember = {
   id: string;
   userId: string;
