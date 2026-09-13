@@ -180,8 +180,8 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
   );
 
   await client.query(
-    `INSERT INTO agents (id, org_id, name, description, status, assistant_name)
-     VALUES ($1, $2, 'Clara Demo Assistant', 'Public landing-page demo assistant', 'published', 'Clara')
+    `INSERT INTO agents (id, org_id, name, description, status)
+     VALUES ($1, $2, 'Clara Demo Assistant', 'Public landing-page demo assistant', 'published')
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name, description = EXCLUDED.description, status = 'published'`,
     [IDS.demoAgentId, IDS.demoOrgId],
@@ -210,7 +210,7 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
 
   await client.query(
     `INSERT INTO assistant_configs
-       (kb_id, assistant_name, system_prompt, welcome_message, out_of_scope_reply,
+       (agent_id, assistant_name, system_prompt, welcome_message, out_of_scope_reply,
         voice_id, primary_colour, accent_colour, temperature, max_tokens,
         cite_sources, strict_mode)
      VALUES ($1, 'Clara',
@@ -218,11 +218,11 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
        'Hello! I am Clara. How can I help you today?',
        'I can only answer questions about the topics covered by this knowledge base.',
        'alloy', '#6366f1', '#a5b4fc', 0.7, 500, TRUE, TRUE)
-     ON CONFLICT (kb_id) DO UPDATE SET
+     ON CONFLICT (agent_id) DO UPDATE SET
        assistant_name = EXCLUDED.assistant_name,
        system_prompt = EXCLUDED.system_prompt,
        welcome_message = EXCLUDED.welcome_message`,
-    [IDS.demoKbId],
+    [IDS.demoAgentId],
   );
 
   // Embed API key — the raw key comes from env; only the hash is stored.

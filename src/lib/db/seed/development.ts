@@ -129,53 +129,54 @@ async function seedDemoAgentsAndKbs(client: PoolClient, logger: Logger) {
     );
   }
 
+  logger.log("[seed:dev] demo agents + KBs ready");
+}
+
+async function seedDemoAssistantConfigs(client: PoolClient, logger: Logger) {
+  // Assistant configs are AGENT-owned — one per demo agent.
   const omenPrompt =
     "You are Aria, an AI assistant for Omen United Insurance. " +
     "Answer questions about insurance policies using only information from the knowledge base. " +
     "Always cite your sources with [S1], [S2] notation. " +
     "Be accurate, professional, and helpful. " +
     "If you cannot find an answer in the knowledge base, say so clearly.";
-  for (const kbId of [IDS.omenKb1, IDS.omenKb2, IDS.omenKb3]) {
-    await client.query(
-      `INSERT INTO assistant_configs
-         (kb_id, assistant_name, system_prompt, welcome_message, out_of_scope_reply,
-          voice_id, primary_colour, accent_colour, temperature, max_tokens, cite_sources, strict_mode)
-       VALUES ($1, 'Aria', $2,
-         'Hello! I''m Aria, your Omen Insurance assistant. How can I help you today?',
-         'I can only answer questions about Omen United Insurance policies and products.',
-         'alloy', '#0a1628', '#c8821a', 0.7, 500, TRUE, TRUE)
-       ON CONFLICT (kb_id) DO UPDATE SET
-         assistant_name = EXCLUDED.assistant_name,
-         system_prompt = EXCLUDED.system_prompt,
-         primary_colour = EXCLUDED.primary_colour,
-         accent_colour = EXCLUDED.accent_colour`,
-      [kbId, omenPrompt],
-    );
-  }
+  await client.query(
+    `INSERT INTO assistant_configs
+       (agent_id, assistant_name, system_prompt, welcome_message, out_of_scope_reply,
+        voice_id, primary_colour, accent_colour, temperature, max_tokens, cite_sources, strict_mode)
+     VALUES ($1, 'Aria', $2,
+       'Hello! I''m Aria, your Omen Insurance assistant. How can I help you today?',
+       'I can only answer questions about Omen United Insurance policies and products.',
+       'alloy', '#0a1628', '#c8821a', 0.7, 500, TRUE, TRUE)
+     ON CONFLICT (agent_id) DO UPDATE SET
+       assistant_name = EXCLUDED.assistant_name,
+       system_prompt = EXCLUDED.system_prompt,
+       primary_colour = EXCLUDED.primary_colour,
+       accent_colour = EXCLUDED.accent_colour`,
+    [IDS.omenAgentId, omenPrompt],
+  );
 
   const tvPrompt =
     "You are Sage, a technical AI assistant for TechVision Solutions. " +
     "Help engineers and product managers find information in our documentation. " +
     "Use code examples where helpful. Be concise and technically precise.";
-  for (const kbId of [IDS.tvKb1, IDS.tvKb2]) {
-    await client.query(
-      `INSERT INTO assistant_configs
-         (kb_id, assistant_name, system_prompt, welcome_message, out_of_scope_reply,
-          voice_id, primary_colour, accent_colour, temperature, max_tokens, cite_sources, strict_mode)
-       VALUES ($1, 'Sage', $2,
-         'Hi! I''m Sage, your TechVision AI assistant. What can I help you find?',
-         'I can only answer questions about TechVision product and engineering documentation.',
-         'echo', '#0f172a', '#0ea5e9', 0.5, 600, TRUE, TRUE)
-       ON CONFLICT (kb_id) DO UPDATE SET
-         assistant_name = EXCLUDED.assistant_name,
-         system_prompt = EXCLUDED.system_prompt,
-         primary_colour = EXCLUDED.primary_colour,
-         accent_colour = EXCLUDED.accent_colour`,
-      [kbId, tvPrompt],
-    );
-  }
+  await client.query(
+    `INSERT INTO assistant_configs
+       (agent_id, assistant_name, system_prompt, welcome_message, out_of_scope_reply,
+        voice_id, primary_colour, accent_colour, temperature, max_tokens, cite_sources, strict_mode)
+     VALUES ($1, 'Sage', $2,
+       'Hi! I''m Sage, your TechVision AI assistant. What can I help you find?',
+       'I can only answer questions about TechVision product and engineering documentation.',
+       'echo', '#0f172a', '#0ea5e9', 0.5, 600, TRUE, TRUE)
+     ON CONFLICT (agent_id) DO UPDATE SET
+       assistant_name = EXCLUDED.assistant_name,
+       system_prompt = EXCLUDED.system_prompt,
+       primary_colour = EXCLUDED.primary_colour,
+       accent_colour = EXCLUDED.accent_colour`,
+    [IDS.techvisionAgentId, tvPrompt],
+  );
 
-  logger.log("[seed:dev] demo agents + KBs + assistant personas ready");
+  logger.log("[seed:dev] demo assistant configs (agent-owned) ready");
 }
 
 async function seedDemoQueryEvents(client: PoolClient, logger: Logger) {
@@ -253,6 +254,7 @@ export async function seedDevelopmentData(options?: { logger?: Logger }) {
     await client.query("BEGIN");
     await seedDemoOrgs(client, logger);
     await seedDemoAgentsAndKbs(client, logger);
+    await seedDemoAssistantConfigs(client, logger);
     await seedDemoQueryEvents(client, logger);
     await client.query("COMMIT");
     logger.log("[seed:dev] development seed complete.");

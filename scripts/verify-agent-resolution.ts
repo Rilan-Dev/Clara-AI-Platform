@@ -1,10 +1,10 @@
 /**
- * Runtime verification for the unified agents model (projects renamed to agents).
+ * Runtime verification for the agent-owned assistant config model.
  *
- * Checks that resolveAIConfig works end-to-end against the renamed tables:
- *  - KB -> agent (renamed projects) -> org resolution
- *  - KB assistant config takes precedence; agent persona columns act as defaults
- *  - agent persona fills gaps when the KB config is empty
+ * Checks that resolveAIConfig works end-to-end:
+ *  - KB -> agent resolution (the KB's agent supplies the assistant config)
+ *  - the AGENT's assistant_config is the effective config for every KB it owns
+ *  - editing the agent config changes what the KB runtime resolves
  *
  * Run: npx tsx scripts/verify-agent-resolution.ts
  */
@@ -27,61 +27,63 @@ async function main() {
   const { resolveAIConfig } = (await import("@/modules/ai-core/resolve")) as { resolveAIConfig: ResolveFn };
   const { pool } = (await import("@/lib/db")) as PoolMod;
 
-  // A KB whose agent carries the migrated persona (Omen Insurance Operations)
-  const { rows: kbRows } = await pool.query<{ id: string; agent_id: string; kb_name: string; agent_name: string }>(
-    `SELECT kb.id, kb.agent_id, kb.name AS kb_name, a.name AS agent_name
-       FROM knowledge_bases kb JOIN agents a ON a.id = kb.agent_id
-      WHERE a.assistant_name = 'Clara' AND a.voice_id IS NOT NULL
+  // Pick an agent that owns at least one KB and has an assistant config.
+  const { rows } = await pool.query<{ agent_id: string; agent_name: string; kb_count: string; assistant_name: string }>(
+    `SELECT a.id AS agent_id, a.name AS agent_name,
+            COUNT(kb.id)::text AS kb_count, ac.assistant_name
+       FROM agents a
+       JOIN assistant_configs ac ON ac.agent_id = a.id
+       JOIN knowledge_bases kb ON kb.agent_id = a.id
+      GROUP BY a.id, a.name, ac.assistant_name
+      ORDER BY COUNT(kb.id) DESC
       LIMIT 1`,
   );
-  if (kbRows.length === 0) {
-    console.log("No agent-with-persona KB found — nothing to verify.");
+  if (rows.length === 0) {
+    console.log("No agent with KBs + assistant config found — run the seed first.");
     return;
   }
-  const kb = kbRows[0];
-  console.log(`Testing with KB "${kb.kb_name}" (agent: ${kb.agent_name})`);
+  const agent = rows[0];
+  console.log(`Testing with agent "${agent.agent_name}" (${agent.kb_count} KBs, assistant: ${agent.assistant_name})`);
 
-  const before = await resolveAIConfig({ kbId: String(kb.id), surface: "chat" });
-  console.log("resolved:", {
-    assistantName: before.assistantConfig?.assistantName,
-    voice: before.assistantConfig?.voiceId,
-    temperature: before.assistantConfig?.temperature,
-    languages: before.allowedLanguages,
-    chatSource: before.sources.chatModel,
-    providerSource: before.sources.provider,
-  });
-
-  // Simulate the agent persona filling a gap: clear the KB's welcome message
-  // (committed — resolveAIConfig uses its own pool connections), then confirm
-  // the agent's welcome message applies as the default, then restore.
-  const { rows: agentRows } = await pool.query<{ welcome_message: string }>(
-    "SELECT welcome_message FROM agents WHERE id = $1",
-    [kb.agent_id],
+  // Every KB the agent owns should resolve the SAME agent-level config.
+  const { rows: kbRows } = await pool.query<{ id: string; name: string }>(
+    "SELECT id, name FROM knowledge_bases WHERE agent_id = $1 ORDER BY name LIMIT 3",
+    [agent.agent_id],
   );
-  const agentWelcome = String(agentRows[0]?.welcome_message ?? "");
 
+  let allMatch = true;
+  for (const kb of kbRows) {
+    const resolved = await resolveAIConfig({ kbId: String(kb.id), surface: "chat" });
+    const match = resolved.assistantConfig?.agentId === String(agent.agent_id)
+      && resolved.assistantConfig?.assistantName === agent.assistant_name;
+    console.log(`  KB "${kb.name}" → assistant=${resolved.assistantConfig?.assistantName} (agent config: ${match ? "SHARED ✓" : "MISMATCH ✗"})`);
+    if (!match) allMatch = false;
+  }
+
+  // Editing the agent config must change what the KB runtime resolves.
   const { rows: origRows } = await pool.query<{ welcome_message: string }>(
-    "SELECT welcome_message FROM assistant_configs WHERE kb_id = $1",
-    [kb.id],
+    "SELECT welcome_message FROM assistant_configs WHERE agent_id = $1",
+    [agent.agent_id],
   );
   const originalWelcome = String(origRows[0]?.welcome_message ?? "");
 
-  await pool.query("UPDATE assistant_configs SET welcome_message = '' WHERE kb_id = $1", [kb.id]);
+  await pool.query("UPDATE assistant_configs SET welcome_message = 'Verify: agent config edit' WHERE agent_id = $1", [agent.agent_id]);
   try {
-    const after = await resolveAIConfig({ kbId: String(kb.id), surface: "chat" });
-    const fallbackApplied = after.assistantConfig?.welcomeMessage === agentWelcome;
-    console.log(`agent persona fallback (welcome): ${fallbackApplied ? "APPLIED ✓" : "NOT APPLIED ✗"}`);
-    if (!fallbackApplied) {
-      console.log(`  expected agent welcome: ${JSON.stringify(agentWelcome)}`);
-      console.log(`  resolved welcome:       ${JSON.stringify(after.assistantConfig?.welcomeMessage)}`);
-    }
+    const after = await resolveAIConfig({ kbId: String(kbRows[0].id), surface: "chat" });
+    const editApplied = after.assistantConfig?.welcomeMessage === "Verify: agent config edit";
+    console.log(`agent config edit propagates to KB runtime: ${editApplied ? "APPLIED ✓" : "NOT APPLIED ✗"}`);
+    if (!editApplied) allMatch = false;
   } finally {
-    await pool.query("UPDATE assistant_configs SET welcome_message = $1 WHERE kb_id = $2", [originalWelcome, kb.id]);
-    console.log("demo KB config restored.");
+    await pool.query("UPDATE assistant_configs SET welcome_message = $1 WHERE agent_id = $2", [originalWelcome, agent.agent_id]);
+    console.log("agent config restored.");
   }
 
   await pool.end();
-  console.log("\nRUNTIME RESOLUTION VERIFIED against the unified agents schema.");
+  if (!allMatch) {
+    console.error("\nVERIFICATION FAILED.");
+    process.exit(1);
+  }
+  console.log("\nRUNTIME RESOLUTION VERIFIED — assistant config is agent-owned and shared by its KBs.");
 }
 
 main().catch((err) => {

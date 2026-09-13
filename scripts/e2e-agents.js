@@ -25,9 +25,9 @@ if (fs.existsSync(envPath)) {
 }
 
 const BASE = process.env.E2E_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-const ORG_USER = { email: "omen@clara.ai", password: "OmenAdmin1234!" };
+const ORG_USER = { email: process.env.CLARA_DEMO_USER_EMAIL || "demo@clara.ai", password: process.env.CLARA_DEMO_USER_PASSWORD || "Demo1234!" };
 const ADMIN_USER = { email: "admin@clara.ai", password: "Admin1234!" };
-const OMEN_ORG_ID = "10000000-0000-0000-0000-000000000001";
+const DEMO_ORG_ID = "10000000-0000-0000-0000-000000000001";
 
 let passed = 0;
 let failed = 0;
@@ -69,7 +69,7 @@ async function main() {
 
   // ── Auth gating ──────────────────────────────────────────────────────────────
   console.log("[auth]");
-  const noAuth = await api("GET", `/api/orgs/${OMEN_ORG_ID}/agents`);
+  const noAuth = await api("GET", `/api/orgs/${DEMO_ORG_ID}/agents`);
   check("401 unauthenticated agent list", noAuth.status === 401, `got ${noAuth.status}`);
 
   const orgToken = await login(ORG_USER);
@@ -79,32 +79,27 @@ async function main() {
 
   // ── Admin isolation ──────────────────────────────────────────────────────────
   console.log("\n[platform-admin isolation]");
-  const adminList = await api("GET", `/api/orgs/${OMEN_ORG_ID}/agents`, adminToken);
+  const adminList = await api("GET", `/api/orgs/${DEMO_ORG_ID}/agents`, adminToken);
   check("admin blocked from tenant agent list (403)", adminList.status === 403, `got ${adminList.status}`);
 
   // ── Org-user agent CRUD ──────────────────────────────────────────────────────
   console.log("\n[org-user agent CRUD]");
-  const list = await api("GET", `/api/orgs/${OMEN_ORG_ID}/agents`, orgToken);
+  const list = await api("GET", `/api/orgs/${DEMO_ORG_ID}/agents`, orgToken);
   check("list agents 200", list.status === 200, `got ${list.status}`);
   check("list returns array", Array.isArray(list.json));
   const listArr = Array.isArray(list.json) ? list.json : [];
-  const demoAgent = listArr.find((a) => a.name === "Omen Insurance Operations");
-  check("demo agent present (renamed project)", Boolean(demoAgent), JSON.stringify(listArr.map((a) => a.name)));
-  if (demoAgent) {
-    check("demo agent carries migrated persona (coral voice)", demoAgent.voiceId === "coral", `voice=${demoAgent.voiceId}`);
-    check("demo agent carries persona languages", Array.isArray(demoAgent.allowedLanguages) && demoAgent.allowedLanguages.includes("si"), JSON.stringify(demoAgent.allowedLanguages));
-  }
+  const demoAgent = listArr.find((a) => a.name === "Clara Demo Assistant");
+  check("demo agent present", Boolean(demoAgent), JSON.stringify(listArr.map((a) => a.name)));
 
   const stamp = Date.now();
-  const created = await api("POST", `/api/orgs/${OMEN_ORG_ID}/agents`, orgToken, {
+  const created = await api("POST", `/api/orgs/${DEMO_ORG_ID}/agents`, orgToken, {
     name: `E2E Agent ${stamp}`,
     description: "temporary e2e agent",
   });
   check("create agent 201", created.status === 201, `got ${created.status} ${JSON.stringify(created.json)}`);
   const agentId = created.json?.id;
-  check("created agent has persona defaults (assistantName)", created.json?.assistantName === "Clara", `assistantName=${created.json?.assistantName}`);
 
-  const dup = await api("POST", `/api/orgs/${OMEN_ORG_ID}/agents`, orgToken, { name: `E2E Agent ${stamp}` });
+  const dup = await api("POST", `/api/orgs/${DEMO_ORG_ID}/agents`, orgToken, { name: `E2E Agent ${stamp}` });
   check("duplicate name rejected 400", dup.status === 400, `got ${dup.status}`);
 
   const got = await api("GET", `/api/agents/${agentId}`, orgToken);
@@ -113,8 +108,26 @@ async function main() {
   const patched = await api("PATCH", `/api/agents/${agentId}`, orgToken, { name: `E2E Agent ${stamp} v2`, description: "updated" });
   check("update agent 200", patched.status === 200 && patched.json?.name?.includes("v2"), `got ${patched.status}`);
 
-  const personaPatch = await api("PATCH", `/api/agents/${agentId}`, orgToken, { assistantName: "Aurora", status: "published" });
-  check("persona fields patchable", personaPatch.status === 200 && personaPatch.json?.assistantName === "Aurora" && personaPatch.json?.status === "published", `got ${personaPatch.status}`);
+  // ── Agent-owned assistant config ("Assistant & AI") ──────────────────────────
+  console.log("\n[agent assistant config]");
+  const config = await api("GET", `/api/agents/${agentId}/config`, orgToken);
+  check("new agent has seeded assistant config", config.status === 200 && config.json?.assistantName === "Clara", `got ${config.status} assistantName=${config.json?.assistantName}`);
+  check("config is agent-keyed", config.status === 200 && config.json?.agentId === agentId, `agentId=${config.json?.agentId}`);
+
+  const personaPatch = await api("PATCH", `/api/agents/${agentId}/config`, orgToken, { assistantName: "Aurora", welcomeMessage: "E2E welcome" });
+  check("agent config patchable", personaPatch.status === 200 && personaPatch.json?.assistantName === "Aurora", `got ${personaPatch.status}`);
+
+  const statusPatch = await api("PATCH", `/api/agents/${agentId}`, orgToken, { status: "published" });
+  check("agent status patchable", statusPatch.status === 200 && statusPatch.json?.status === "published", `got ${statusPatch.status}`);
+
+  const snapCreated = await api("POST", `/api/agents/${agentId}/config/snapshots`, orgToken, { label: "e2e snapshot" });
+  check("config snapshot created 201", snapCreated.status === 201, `got ${snapCreated.status}`);
+  const snapList = await api("GET", `/api/agents/${agentId}/config/snapshots`, orgToken);
+  check("snapshots list 200 + agent-keyed", snapList.status === 200 && Array.isArray(snapList.json) && snapList.json.length > 0 && snapList.json[0].agentId === agentId, `got ${snapList.status}`);
+
+  // KB config API must be GONE — KBs never carry the assistant config
+  const kbConfigBlocked = await api("GET", `/api/kbs/some-kb/config`, orgToken);
+  check("KB config API removed (404 route)", kbConfigBlocked.status === 404, `got ${kbConfigBlocked.status}`);
 
   // ── KBs under the agent ──────────────────────────────────────────────────────
   console.log("\n[agent knowledge bases]");
@@ -132,9 +145,9 @@ async function main() {
 
   // ── Cross-org isolation ──────────────────────────────────────────────────────
   console.log("\n[cross-org isolation]");
-  // RiluRaafu's agent (from another org) — org user must not see it
-  const riluAgent = await api("GET", `/api/agents/46bb8e8e-331c-4131-a246-c7aae9694ec2`, orgToken);
-  check("other org's agent hidden (404)", riluAgent.status === 404 || riluAgent.status === 403, `got ${riluAgent.status}`);
+  // A non-existent agent id — org user must get 404, not data
+  const missingAgent = await api("GET", `/api/agents/00000000-0000-0000-0000-00000000dead`, orgToken);
+  check("unknown agent 404", missingAgent.status === 404, `got ${missingAgent.status}`);
 
   // ── Cleanup ──────────────────────────────────────────────────────────────────
   console.log("\n[cleanup]");
