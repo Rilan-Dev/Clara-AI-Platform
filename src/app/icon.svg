@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="clara-g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <!-- Gradient tile (brand: indigo-500 -> violet-600, matches app logo) -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#clara-g)"/>
+  <!-- Soft inner highlight -->
+  <rect x="2" y="2" width="60" height="30" rx="14" fill="#FFFFFF" opacity="0.08"/>
+  <!-- Clara "C" monogram -->
+  <path d="M44 22.5 C40 18.5 35 16.5 29.5 16.5 C20 16.5 12.5 23.5 12.5 32 C12.5 40.5 20 47.5 29.5 47.5 C35 47.5 40 45.5 44 41.5 L38.5 36.5 C36 39 33 40.5 29.5 40.5 C23.8 40.5 19.5 36.8 19.5 32 C19.5 27.2 23.8 23.5 29.5 23.5 C33 23.5 36 25 38.5 27.5 Z" fill="#FFFFFF"/>
+  <!-- AI sparkle accent -->
+  <path d="M50 8 C50.8 11.2 53.4 13.2 56.5 14 C53.4 14.8 50.8 16.8 50 20 C49.2 16.8 46.6 14.8 43.5 14 C46.6 13.2 49.2 11.2 50 8 Z" fill="#FDE68A"/>
+</svg>

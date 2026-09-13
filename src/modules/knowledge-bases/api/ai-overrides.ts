@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
+import { requireAuth, requireKbPermission, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
   getKbAIOverrides,
@@ -82,6 +82,9 @@ export async function patchKBAIOverridesHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
+    // Per-KB AI runtime overrides are platform-owned configuration.
+    // Only the platform admin may decide which AI models/providers a KB uses.
+    await requireSuperAdmin(auth);
     await requireKbPermission(auth, kbId, "kb:update");
 
     const kb = await getKnowledgeBaseById(kbId);

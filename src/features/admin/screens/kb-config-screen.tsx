@@ -2,11 +2,9 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { Bot, Sparkles } from "lucide-react";
-import { reprocessAllDocuments } from "@/modules/admin-ui/api";
-import { useAuth, useConfig, useKb, useKBAIOverrides, useOrg, useProject, useSnapshots } from "@/modules/admin-ui/hooks";
+import { useAuth, useConfig, useKb, useOrg, useProject, useSnapshots } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ConfigEditor } from "@/components/admin/ConfigEditor";
-import { KBAIOverridesEditor } from "@/components/admin/KBAIOverridesEditor";
 import { SnapshotHistory } from "@/components/admin/SnapshotHistory";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 
@@ -21,7 +19,6 @@ export default function KbConfigPage() {
   const orgId = project?.orgId ?? searchParams.get("orgId");
   const { data: org } = useOrg(orgId);
   const { config, loading: configLoading, save, refetch: refetchConfig } = useConfig(kbId);
-  const { overrides, loading: overridesLoading, error: overridesError, save: saveOverrides } = useKBAIOverrides(kbId);
   const { snapshots, loading: snapsLoading, saveSnapshot, restore, refetch: refetchSnaps } = useSnapshots(kbId);
 
   async function handleRestore(snapshotId: string) {
@@ -52,7 +49,6 @@ export default function KbConfigPage() {
           ]}
           chips={[
             kb?.name ?? "KB settings",
-            overrides?.provider ?? "inherited provider",
             config?.voiceId ?? "voice preview ready",
           ]}
           actions={kb ? <VoicePreviewButton kbId={kb.id} kbName={kb.name} /> : undefined}
@@ -112,53 +108,6 @@ export default function KbConfigPage() {
                 </p>
               </div>
             )}
-
-            {overridesLoading ? (
-              <div className="space-y-3">
-                <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
-                <div className="h-[24rem] rounded-2xl bg-white/[0.04] animate-pulse" />
-              </div>
-            ) : kb ? (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
-                    <Sparkles className="w-5 h-5 text-indigo-300" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-white">AI Runtime Overrides</h2>
-                    <p className="text-sm text-white/40 mt-1">
-                      Platform admins can view AI runtime settings but cannot edit them.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
-                    <div className="flex flex-col gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/35">Provider</p>
-                        <p className="mt-2 text-sm text-white/75">
-                          {overrides?.provider || "Inherited from organisation"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/35">Chat Model</p>
-                        <p className="mt-2 text-sm text-white/75">
-                          {overrides?.chatModel || "Inherited from organisation"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/35">Embedding Model</p>
-                        <p className="mt-2 text-sm text-white/75">
-                          {overrides?.embeddingModel || "Inherited from organisation"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            {overridesError && <p className="text-sm text-rose-400">{overridesError}</p>}
           </div>
 
           <div className="xl:sticky xl:top-8 h-fit">
@@ -226,7 +175,7 @@ export default function KbConfigPage() {
       <AdminPageHeader
         icon={Bot}
         title="Assistant & AI Configuration"
-        description="Tune assistant behavior, preview the system prompt, and update KB-specific runtime overrides with document reprocessing when embedding routes change."
+        description="Tune assistant behavior for this knowledge base — personality, welcome message, languages and voice. AI models and providers are set by the platform admin."
         breadcrumbs={[
           { label: "Organisations", href: "/orgs" },
           ...(orgId ? [{ label: org?.name ?? "Organisation", href: `/orgs/${orgId}` }] : []),
@@ -236,7 +185,6 @@ export default function KbConfigPage() {
         ]}
         chips={[
           kb?.name ?? "KB settings",
-          overrides?.provider ?? "inherited provider",
           config?.voiceId ?? "voice preview ready",
         ]}
         actions={kb ? <VoicePreviewButton kbId={kb.id} kbName={kb.name} /> : undefined}
@@ -259,24 +207,6 @@ export default function KbConfigPage() {
               </p>
             </div>
           )}
-
-          {overridesLoading ? (
-            <div className="space-y-3">
-              <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
-              <div className="h-[24rem] rounded-2xl bg-white/[0.04] animate-pulse" />
-            </div>
-          ) : kb ? (
-            <KBAIOverridesEditor
-              kbName={kb.name}
-              overrides={overrides}
-              onSave={saveOverrides}
-              onSaveAndReprocess={async (payload) => {
-                await saveOverrides(payload);
-                return reprocessAllDocuments(kbId);
-              }}
-            />
-          ) : null}
-          {overridesError && <p className="text-sm text-rose-400">{overridesError}</p>}
         </div>
 
         <div className="xl:sticky xl:top-8 h-fit">
@@ -284,7 +214,7 @@ export default function KbConfigPage() {
             <div className="flex items-start gap-3">
               <Sparkles className="w-4 h-4 text-cyan-300 mt-0.5" />
               <p>
-                Save + Reprocess immediately re-queues documents when embedding routing changes, so retrieval stays aligned with the active provider and vector dimension.
+                AI models and providers are managed centrally by the platform admin. Your assistant uses the platform default configuration for chat, embeddings and voice.
               </p>
             </div>
           </div>

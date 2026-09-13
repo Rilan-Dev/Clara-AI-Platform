@@ -256,7 +256,7 @@ export default function ProjectDetailPage() {
             <BookOpen className="w-6 h-6 text-indigo-300" />
           </div>
           <p className="font-medium text-white">No knowledge bases yet</p>
-          <p className="text-sm text-white/40 mt-1">Create a KB to upload documents, tune assistant config, and manage AI runtime overrides.</p>
+          <p className="text-sm text-white/40 mt-1">Create a KB to upload documents and tune your assistant. AI models and providers are set by the platform admin.</p>
         </div>
       ) : (
         <div className="space-y-3">
