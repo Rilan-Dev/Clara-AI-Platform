@@ -1,5 +1,5 @@
 import amqp from "amqplib";
-import { assertTopology, EXCHANGE_EVENTS, ROUTING_KEY, WEBHOOK_QUEUE } from "./topology.mjs";
+import { assertTopology, EXCHANGE_EVENTS, WEBHOOK_QUEUE } from "./topology.mjs";
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL;
 const CLARA_INTERNAL_API_URL = process.env.CLARA_INTERNAL_API_URL?.replace(/\/$/, "");
@@ -54,6 +54,7 @@ async function setupRabbit(model) {
   const topologyChannel = await model.createChannel();
   topologyChannel.on("error", (err) => console.error("[rabbitmq] topology channel:", err.message));
   await assertTopology(topologyChannel);
+  await topologyChannel.close();
 
   const publisher = await model.createConfirmChannel();
   publisher.on("error", (err) => console.error("[rabbitmq] publisher channel:", err.message));
@@ -125,7 +126,6 @@ async function relayOutbox() {
 }
 
 function retryQueueFor(attempt) {
-  if (attempt <= 0) return null;
   if (attempt === 1) return "clara.webhooks.retry.30s";
   if (attempt === 2) return "clara.webhooks.retry.2m";
   if (attempt === 3) return "clara.webhooks.retry.10m";
@@ -152,9 +152,7 @@ function isSafeWebhookUrl(value) {
 async function deliverWebhook(event, attempt) {
   const targetUrl = event?.payload?.targetUrl;
   if (!isSafeWebhookUrl(targetUrl)) {
-    const error = new Error("Webhook target URL is invalid or blocked");
-    error.permanent = true;
-    throw error;
+    throw Object.assign(new Error("Webhook target URL is invalid or blocked"), { permanent: true });
   }
 
   const controller = new AbortController();
@@ -194,7 +192,9 @@ async function handleWebhookMessage(channel, msg) {
 
   const attempt = Number(msg.properties.headers?.["x-clara-retry"] ?? 0) + 1;
   try {
-    if (event.type !== "webhook.phone.call.completed") throw Object.assign(new Error("Unsupported webhook event type"), { permanent: true });
+    if (event.type !== "webhook.phone.call.completed") {
+      throw Object.assign(new Error("Unsupported webhook event type"), { permanent: true });
+    }
     await deliverWebhook(event, attempt);
     channel.ack(msg);
     console.log(`[webhook] delivered event=${event.id} attempt=${attempt}`);
@@ -202,17 +202,29 @@ async function handleWebhookMessage(channel, msg) {
     const retryable = err?.retryable === true || (!err?.permanent && err?.name === "AbortError");
     const retryQueue = retryable ? retryQueueFor(attempt) : null;
 
-    if (retryQueue) {
-      channel.sendToQueue(retryQueue, msg.content, {
-        persistent: true,
-        contentType: "application/json",
-        messageId: event.id,
-        type: event.type,
-        headers: { ...msg.properties.headers, "x-clara-retry": attempt },
-      });
-      channel.ack(msg);
-      console.warn(`[webhook] retry scheduled event=${event.id} attempt=${attempt}`);
-      return;
+    if (retryQueue && publisherChannel) {
+      try {
+        await publishConfirmed(
+          publisherChannel,
+          "",
+          retryQueue,
+          msg.content,
+          {
+            persistent: true,
+            contentType: "application/json",
+            messageId: event.id,
+            type: event.type,
+            headers: { ...msg.properties.headers, "x-clara-retry": attempt },
+          },
+        );
+        channel.ack(msg);
+        console.warn(`[webhook] retry scheduled event=${event.id} attempt=${attempt}`);
+        return;
+      } catch (publishError) {
+        console.error(`[webhook] retry publication failed event=${event.id}:`, publishError.message);
+        channel.nack(msg, false, true);
+        return;
+      }
     }
 
     console.error(`[webhook] dead-lettering event=${event.id}:`, err?.message ?? String(err));
@@ -249,9 +261,7 @@ async function main() {
   connection.on("connect", () => console.log("[rabbitmq] connected"));
   connection.on("disconnect", (err) => console.warn("[rabbitmq] disconnected:", err?.message ?? "unknown"));
 
-  await setupRabbit(connection);
   console.log("[rabbitmq] Clara bridge started");
-
   while (!stopping) {
     await relayOutbox();
     await sleep(Number.isFinite(POLL_MS) && POLL_MS > 0 ? POLL_MS : 1000);
@@ -266,7 +276,6 @@ async function shutdown(signal) {
   console.log(`[rabbitmq] ${signal} — shutting down`);
   try { await publisherChannel?.close(); } catch {}
   try { await consumerChannel?.close(); } catch {}
-  process.exit(0);
 }
 
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
