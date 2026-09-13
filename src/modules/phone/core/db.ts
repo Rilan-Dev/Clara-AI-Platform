@@ -2,7 +2,9 @@
  * src/modules/phone/core/db.ts
  * Database operations for phone call configs and logs.
  */
+import { randomUUID } from "node:crypto";
 import { pool } from "@/lib/db";
+import { insertOutboxEvent } from "@/modules/events/outbox-db";
 import type { PhoneCallConfig, PhoneCallLog, PhoneProvider } from "./types";
 
 function rowToConfig(r: Record<string, unknown>): PhoneCallConfig {
@@ -22,9 +24,7 @@ function rowToConfig(r: Record<string, unknown>): PhoneCallConfig {
   };
 }
 
-export async function getPhoneConfigsByKb(
-  kbId: string,
-): Promise<PhoneCallConfig[]> {
+export async function getPhoneConfigsByKb(kbId: string): Promise<PhoneCallConfig[]> {
   const { rows } = await pool.query(
     `SELECT * FROM phone_call_configs WHERE kb_id = $1 ORDER BY created_at ASC`,
     [kbId],
@@ -32,9 +32,7 @@ export async function getPhoneConfigsByKb(
   return rows.map(rowToConfig);
 }
 
-export async function getPhoneConfigByNumber(
-  phoneNumber: string,
-): Promise<PhoneCallConfig | null> {
+export async function getPhoneConfigByNumber(phoneNumber: string): Promise<PhoneCallConfig | null> {
   const { rows } = await pool.query(
     `SELECT * FROM phone_call_configs WHERE phone_number = $1 AND enabled = TRUE LIMIT 1`,
     [phoneNumber],
@@ -42,9 +40,7 @@ export async function getPhoneConfigByNumber(
   return rows[0] ? rowToConfig(rows[0]) : null;
 }
 
-export async function getPhoneConfigById(
-  id: string,
-): Promise<PhoneCallConfig | null> {
+export async function getPhoneConfigById(id: string): Promise<PhoneCallConfig | null> {
   const { rows } = await pool.query(
     `SELECT * FROM phone_call_configs WHERE id = $1 LIMIT 1`,
     [id],
@@ -54,9 +50,7 @@ export async function getPhoneConfigById(
 
 export async function upsertPhoneConfig(
   kbId: string,
-  input: Partial<
-    Omit<PhoneCallConfig, "id" | "kbId" | "createdAt" | "updatedAt">
-  >,
+  input: Partial<Omit<PhoneCallConfig, "id" | "kbId" | "createdAt" | "updatedAt">>,
 ): Promise<PhoneCallConfig> {
   const { rows } = await pool.query(
     `
@@ -65,14 +59,14 @@ export async function upsertPhoneConfig(
        max_call_duration_sec, record_calls, transcribe_calls, webhook_url_override)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     ON CONFLICT (kb_id, phone_number) DO UPDATE SET
-      provider             = EXCLUDED.provider,
-      enabled              = EXCLUDED.enabled,
-      greeting_message     = EXCLUDED.greeting_message,
-      max_call_duration_sec= EXCLUDED.max_call_duration_sec,
-      record_calls         = EXCLUDED.record_calls,
-      transcribe_calls     = EXCLUDED.transcribe_calls,
-      webhook_url_override = EXCLUDED.webhook_url_override,
-      updated_at           = now()
+      provider              = EXCLUDED.provider,
+      enabled               = EXCLUDED.enabled,
+      greeting_message      = EXCLUDED.greeting_message,
+      max_call_duration_sec = EXCLUDED.max_call_duration_sec,
+      record_calls          = EXCLUDED.record_calls,
+      transcribe_calls      = EXCLUDED.transcribe_calls,
+      webhook_url_override  = EXCLUDED.webhook_url_override,
+      updated_at            = now()
     RETURNING *
   `,
     [
@@ -107,16 +101,29 @@ export async function insertCallLog(data: {
     INSERT INTO phone_call_logs (config_id, kb_id, provider, call_sid, from_number, to_number)
     VALUES ($1,$2,$3,$4,$5,$6) RETURNING id
   `,
-    [
-      data.configId,
-      data.kbId,
-      data.provider,
-      data.callSid,
-      data.fromNumber,
-      data.toNumber,
-    ],
+    [data.configId, data.kbId, data.provider, data.callSid, data.fromNumber, data.toNumber],
   );
   return rows[0].id as string;
+}
+
+const TERMINAL_CALL_STATUSES = new Set([
+  "completed",
+  "failed",
+  "busy",
+  "no-answer",
+  "canceled",
+  "cancelled",
+  "timeout",
+]);
+
+function isSafeWebhookUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 export async function updateCallLog(
@@ -135,82 +142,113 @@ export async function updateCallLog(
   const sets: string[] = [];
   const vals: unknown[] = [];
   let i = 1;
-  if (updates.status !== undefined) {
-    sets.push(`status = $${i++}`);
-    vals.push(updates.status);
-  }
-  if (updates.answeredAt !== undefined) {
-    sets.push(`answered_at = $${i++}`);
-    vals.push(updates.answeredAt);
-  }
-  if (updates.endedAt !== undefined) {
-    sets.push(`ended_at = $${i++}`);
-    vals.push(updates.endedAt);
-  }
-  if (updates.durationSec !== undefined) {
-    sets.push(`duration_sec = $${i++}`);
-    vals.push(updates.durationSec);
-  }
-  if (updates.turnCount !== undefined) {
-    sets.push(`turn_count = $${i++}`);
-    vals.push(updates.turnCount);
-  }
-  if (updates.transcript !== undefined) {
-    sets.push(`transcript = $${i++}`);
-    vals.push(JSON.stringify(updates.transcript));
-  }
-  if (updates.recordingUrl !== undefined) {
-    sets.push(`recording_url = $${i++}`);
-    vals.push(updates.recordingUrl);
-  }
-  if (updates.errorMessage !== undefined) {
-    sets.push(`error_message = $${i++}`);
-    vals.push(updates.errorMessage);
-  }
+  if (updates.status !== undefined) { sets.push(`status = $${i++}`); vals.push(updates.status); }
+  if (updates.answeredAt !== undefined) { sets.push(`answered_at = $${i++}`); vals.push(updates.answeredAt); }
+  if (updates.endedAt !== undefined) { sets.push(`ended_at = $${i++}`); vals.push(updates.endedAt); }
+  if (updates.durationSec !== undefined) { sets.push(`duration_sec = $${i++}`); vals.push(updates.durationSec); }
+  if (updates.turnCount !== undefined) { sets.push(`turn_count = $${i++}`); vals.push(updates.turnCount); }
+  if (updates.transcript !== undefined) { sets.push(`transcript = $${i++}`); vals.push(JSON.stringify(updates.transcript)); }
+  if (updates.recordingUrl !== undefined) { sets.push(`recording_url = $${i++}`); vals.push(updates.recordingUrl); }
+  if (updates.errorMessage !== undefined) { sets.push(`error_message = $${i++}`); vals.push(updates.errorMessage); }
   if (!sets.length) return;
   vals.push(callSid);
-  await pool.query(
-    `UPDATE phone_call_logs SET ${sets.join(",")} WHERE call_sid = $${i}`,
-    vals,
-  );
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE phone_call_logs SET ${sets.join(",")} WHERE call_sid = $${i}`,
+      vals,
+    );
+
+    const current = await client.query<{
+      id: string;
+      config_id: string | null;
+      kb_id: string | null;
+      status: string | null;
+      answered_at: Date | null;
+      ended_at: Date | null;
+      duration_sec: number | null;
+      turn_count: number | null;
+      transcript: unknown;
+      recording_url: string | null;
+      error_message: string | null;
+      webhook_url_override: string | null;
+    }>(
+      `SELECT l.id, l.config_id, l.kb_id, l.status, l.answered_at, l.ended_at,
+              l.duration_sec, l.turn_count, l.transcript, l.recording_url,
+              l.error_message, c.webhook_url_override
+       FROM phone_call_logs l
+       LEFT JOIN phone_call_configs c ON c.id = l.config_id
+       WHERE l.call_sid = $1
+       LIMIT 1
+       FOR UPDATE`,
+      [callSid],
+    );
+
+    const row = current.rows[0];
+    const terminal = Boolean(row && (row.ended_at || (row.status && TERMINAL_CALL_STATUSES.has(row.status))));
+    if (row && terminal && isSafeWebhookUrl(row.webhook_url_override)) {
+      await insertOutboxEvent(client, {
+        id: randomUUID(),
+        eventType: "webhook.phone.call.completed",
+        aggregateType: "phone_call",
+        aggregateId: row.id,
+        dedupeKey: `phone.call.completed:${row.id}`,
+        routingKey: "webhook.phone.call.completed",
+        payload: {
+          targetUrl: row.webhook_url_override,
+          callSid,
+          kbId: row.kb_id,
+          status: row.status,
+          answeredAt: row.answered_at?.toISOString() ?? null,
+          endedAt: row.ended_at?.toISOString() ?? null,
+          durationSec: row.duration_sec ?? null,
+          turnCount: row.turn_count ?? null,
+          transcript: row.transcript ?? null,
+          recordingUrl: row.recording_url ?? null,
+          errorMessage: row.error_message ?? null,
+        },
+      });
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
-export async function getCallLogs(
-  kbId: string,
-  limit = 50,
-): Promise<PhoneCallLog[]> {
+export async function getCallLogs(kbId: string, limit = 50): Promise<PhoneCallLog[]> {
   const { rows } = await pool.query(
-    `
-    SELECT * FROM phone_call_logs WHERE kb_id = $1 ORDER BY created_at DESC LIMIT $2
-  `,
+    `SELECT * FROM phone_call_logs WHERE kb_id = $1 ORDER BY created_at DESC LIMIT $2`,
     [kbId, limit],
   );
   return rows.map(
-    (r) =>
-      ({
-        id: r.id,
-        configId: r.config_id ?? null,
-        kbId: r.kb_id ?? null,
-        provider: r.provider,
-        callSid: r.call_sid,
-        fromNumber: r.from_number ?? null,
-        toNumber: r.to_number ?? null,
-        direction: r.direction,
-        status: r.status,
-        startedAt: r.started_at,
-        answeredAt: r.answered_at ?? null,
-        endedAt: r.ended_at ?? null,
-        durationSec: r.duration_sec ?? null,
-        turnCount: r.turn_count,
-        transcript: r.transcript ?? [],
-        recordingUrl: r.recording_url ?? null,
-        errorMessage: r.error_message ?? null,
-        createdAt: r.created_at,
-      }) as PhoneCallLog,
+    (r) => ({
+      id: r.id,
+      configId: r.config_id ?? null,
+      kbId: r.kb_id ?? null,
+      provider: r.provider,
+      callSid: r.call_sid,
+      fromNumber: r.from_number ?? null,
+      toNumber: r.to_number ?? null,
+      direction: r.direction,
+      status: r.status,
+      startedAt: r.started_at,
+      answeredAt: r.answered_at ?? null,
+      endedAt: r.ended_at ?? null,
+      durationSec: r.duration_sec ?? null,
+      turnCount: r.turn_count,
+      transcript: r.transcript ?? [],
+      recordingUrl: r.recording_url ?? null,
+      errorMessage: r.error_message ?? null,
+      createdAt: r.created_at,
+    }) as PhoneCallLog,
   );
 }
-
-// ── Platform env settings ─────────────────────────────────────────────────────
 
 export async function getPlatformEnvSettings(): Promise<
   Array<{
@@ -238,44 +276,31 @@ export async function getPlatformEnvSettings(): Promise<
   }));
 }
 
-export async function setPlatformEnvSetting(
-  key: string,
-  value: string,
-  updatedBy?: string | null,
-): Promise<void> {
-  // updatedBy must be a valid UUID or NULL — never pass a plain string like "platform-admin"
-  const safeUpdatedBy =
-    updatedBy && /^[0-9a-f-]{36}$/i.test(updatedBy) ? updatedBy : null;
+export async function setPlatformEnvSetting(key: string, value: string, updatedBy?: string | null): Promise<void> {
+  const safeUpdatedBy = updatedBy && /^[0-9a-f-]{36}$/i.test(updatedBy) ? updatedBy : null;
   await pool.query(
-    `
-    INSERT INTO platform_env_settings (key, value, updated_at, updated_by)
-    VALUES ($1, $2, now(), $3)
-    ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now(), updated_by = $3
-  `,
+    `INSERT INTO platform_env_settings (key, value, updated_at, updated_by)
+     VALUES ($1, $2, now(), $3)
+     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now(), updated_by = $3`,
     [key, value, safeUpdatedBy],
   );
-  // Also update process.env so it takes effect immediately without restart
   process.env[key] = value;
 }
 
 export async function syncEnvFromDb(): Promise<void> {
   const settings = await getPlatformEnvSettings();
-  for (const { key, value } of settings) {
-    if (value.trim()) process.env[key] = value;
-  }
+  for (const { key, value } of settings) if (value.trim()) process.env[key] = value;
 }
 
 export async function checkPhoneCallsEnabled(kbId: string): Promise<boolean> {
   const { rows } = await pool.query(
-    `
-    SELECT sp.phone_calls_enabled
-    FROM knowledge_bases kb
-    JOIN agents p ON p.id = kb.agent_id
-    JOIN org_subscriptions os ON os.org_id = p.org_id AND os.status = 'active'
-    JOIN subscription_plans sp ON sp.id = os.plan_id
-    WHERE kb.id = $1
-    LIMIT 1
-  `,
+    `SELECT sp.phone_calls_enabled
+     FROM knowledge_bases kb
+     JOIN agents p ON p.id = kb.agent_id
+     JOIN org_subscriptions os ON os.org_id = p.org_id AND os.status = 'active'
+     JOIN subscription_plans sp ON sp.id = os.plan_id
+     WHERE kb.id = $1
+     LIMIT 1`,
     [kbId],
   );
   return rows[0]?.phone_calls_enabled === true;
