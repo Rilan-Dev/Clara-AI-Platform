@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getPlatformEnvSettings, setPlatformEnvSetting } from "@/modules/phone/core/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { invalidateOpenAICatalogCache } from "@/modules/assistant/api/openai-catalog-cache";
 
 const CONFIRM_SECRET = process.env.PLATFORM_CONFIRM_SECRET ?? process.env.NEXTAUTH_SECRET ?? "clara-platform-confirm-secret";
 const TOKEN_TTL_MS = 5 * 60 * 1000;
@@ -55,6 +56,11 @@ export async function POST(req:NextRequest):Promise<NextResponse>{
     try{valid=crypto.timingSafeEqual(Buffer.from(expected,"hex"),Buffer.from(provided,"hex"));}catch{valid=false;}
     if(!valid)return NextResponse.json({error:"Invalid confirmation token."},{status:403});
     await setPlatformEnvSetting(body.key,body.value,auth.user.id);
+    // Voice / AI catalog provenance: rotating an OpenAI key or model changes
+    // what the Voice tab should show, so reset its Redis cache (best-effort).
+    if(body.key.startsWith("OPENAI_")){
+      try{ await invalidateOpenAICatalogCache(); }catch{/* cache reset is best-effort */}
+    }
     return NextResponse.json({ok:true,key:body.key,updatedAt:new Date().toISOString()});
   }catch(err){if(err instanceof NextResponse)return err;return NextResponse.json({error:(err as Error).message},{status:500});}
 }

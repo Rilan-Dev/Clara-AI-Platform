@@ -5,6 +5,7 @@ import {
   getPlatformAssistantDefaults,
   updatePlatformAssistantDefaults,
 } from "@/modules/ai-core/assistant-defaults-db";
+import { invalidateOpenAICatalogCache } from "@/modules/assistant/api/openai-catalog-cache";
 
 /**
  * Platform assistant defaults (Identity / Behaviour / Language / Voice).
@@ -103,6 +104,11 @@ export async function PATCH(req: NextRequest) {
       },
       auth.user.id,
     );
+    // Default voice / language changes should be reflected in the Voice tab
+    // on the next visit, so reset its Redis catalog cache (best-effort).
+    if (body.voiceId !== undefined || body.voiceSpeed !== undefined) {
+      try { await invalidateOpenAICatalogCache(); } catch { /* best-effort */ }
+    }
     return NextResponse.json(defaults);
   } catch (err) {
     if (err instanceof NextResponse) return err;

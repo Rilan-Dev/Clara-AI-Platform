@@ -2,7 +2,7 @@
 /**
  * ConfigEditor — full assistant configuration editor with live preview
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RefreshCw } from "lucide-react";
 import { SystemPromptPreview } from "./SystemPromptPreview";
-import { SUPPORTED_LANGUAGES } from "@/modules/assistant/core/config";
+import { LanguageSelect, LanguageMultiSelect } from "./LanguagePicker";
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 
 type OpenAIVoice = { id: string; label: string; description: string; realtime: boolean };
@@ -21,9 +23,8 @@ type OpenAICatalog = {
   voices: OpenAIVoice[];
   fetchedAt: string;
   voiceCatalogSource: string;
+  cache?: { status: "hit" | "miss" | "refresh" | "fallback"; cachedAt: string | null; ttlSeconds: number | null };
 };
-
-const LANGUAGES = SUPPORTED_LANGUAGES;
 
 type Props = {
   config: AssistantConfig;
@@ -41,11 +42,18 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
   const [voiceCatalog, setVoiceCatalog] = useState<OpenAICatalog | null>(null);
   const [voiceCatalogLoading, setVoiceCatalogLoading] = useState(false);
   const [voiceCatalogError, setVoiceCatalogError] = useState<string | null>(null);
+  const [voiceCatalogRefreshing, setVoiceCatalogRefreshing] = useState(false);
+  const [lockLanguageOpen, setLockLanguageOpen] = useState(false);
+  // Guards the fetch-once-per-mount behaviour of the Voice tab: the catalog
+  // is served from the Redis cache server-side, so re-entering the tab must
+  // not refetch; a failed load retries on the next entry.
+  const voiceCatalogRequested = useRef(false);
 
   useEffect(() => { setCfg(initial); }, [initial]);
 
   useEffect(() => {
-    if (activeTab !== "voice") return;
+    if (activeTab !== "voice" || voiceCatalogRequested.current) return;
+    voiceCatalogRequested.current = true;
     let cancelled = false;
     setVoiceCatalogLoading(true);
     setVoiceCatalogError(null);
@@ -59,6 +67,7 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
         if (!cancelled) setVoiceCatalog(catalog);
       })
       .catch((err) => {
+        voiceCatalogRequested.current = false; // allow retry on next entry
         if (!cancelled) setVoiceCatalogError(err instanceof Error ? err.message : "Unable to load OpenAI voice capabilities");
       })
       .finally(() => {
@@ -66,6 +75,24 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
       });
     return () => { cancelled = true; };
   }, [activeTab]);
+
+  const refreshVoiceCatalog = useCallback(async () => {
+    setVoiceCatalogRefreshing(true);
+    setVoiceCatalogError(null);
+    try {
+      const res = await fetch("/api/ai/openai/catalog?refresh=1", { cache: "no-store" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      setVoiceCatalog(body as OpenAICatalog);
+      toast.success("Voice catalog refreshed", { description: "Loaded live from OpenAI and re-cached." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Refresh failed";
+      setVoiceCatalogError(message);
+      toast.error("Could not refresh voice catalog", { description: message });
+    } finally {
+      setVoiceCatalogRefreshing(false);
+    }
+  }, []);
 
   const set = <K extends keyof AssistantConfig>(key: K, value: AssistantConfig[K]) => {
     setCfg((c) => ({ ...c, [key]: value }));
@@ -161,16 +188,78 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
       )}
 
       {activeTab === "language" && (
-        <div className="space-y-5">
-          <Field label="Default Language" hint="The assistant's primary response language."><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{LANGUAGES.map((l) => <button key={l.code} onClick={() => set("defaultLanguage", l.code)} className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${cfg.defaultLanguage === l.code ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40 text-foreground hover:bg-muted/40"}`}>{l.label}</button>)}</div></Field>
-          <Field label="Allowed Languages" hint="Languages users can converse in. Select all that apply."><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{LANGUAGES.map((l) => { const selected = cfg.allowedLanguages.includes(l.code); return <button key={l.code} onClick={() => { const next = selected ? cfg.allowedLanguages.filter((x) => x !== l.code) : [...cfg.allowedLanguages, l.code]; if (next.length > 0) set("allowedLanguages", next); }} className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${selected ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40 text-foreground hover:bg-muted/40"}`}>{l.label}</button>; })}</div></Field>
-          <Field label="Always Respond In" hint="Force a fixed output language (overrides user language). Leave blank to mirror user."><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><button onClick={() => set("alwaysRespondIn", null)} className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${!cfg.alwaysRespondIn ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40 text-foreground hover:bg-muted/40"}`}>Auto</button>{LANGUAGES.map((l) => <button key={l.code} onClick={() => set("alwaysRespondIn", l.code)} className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${cfg.alwaysRespondIn === l.code ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40 text-foreground hover:bg-muted/40"}`}>{l.label}</button>)}</div></Field>
+        <div className="space-y-6">
+          <Field label="Primary language" hint="The language your assistant speaks by default.">
+            <LanguageSelect
+              value={cfg.defaultLanguage}
+              onChange={(code) => {
+                if (!code) return;
+                set("defaultLanguage", code);
+                // Keep the conversation set consistent: the server always
+                // guarantees the primary language is enabled, so reflect it
+                // immediately instead of surprising the user after save.
+                if (!cfg.allowedLanguages.includes(code)) {
+                  set("allowedLanguages", [...cfg.allowedLanguages, code]);
+                }
+              }}
+            />
+          </Field>
+
+          <Field label="Additional languages" hint="Customers can also chat in these. Search, or add the popular set in one click.">
+            <LanguageMultiSelect
+              value={cfg.allowedLanguages}
+              onChange={(codes) => set("allowedLanguages", codes)}
+              onBlockedMinimum={() =>
+                toast.info("At least one language is required", {
+                  description: "The assistant always needs a language to chat in.",
+                })
+              }
+            />
+          </Field>
+
+          <Collapsible open={lockLanguageOpen} onOpenChange={setLockLanguageOpen}>
+            <div className="rounded-xl border border-border bg-muted/20">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
+                <span>
+                  <span className="block text-sm font-medium text-foreground">Lock output language</span>
+                  <span className="block text-xs text-muted-foreground">Advanced — force replies in one language instead of mirroring the customer.</span>
+                </span>
+                <span className={`text-xs font-medium ${cfg.alwaysRespondIn ? "text-primary" : "text-muted-foreground"}`}>
+                  {cfg.alwaysRespondIn ? "Locked" : "Auto"}
+                </span>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <Field label="Always respond in" hint="Leave on Auto to reply in the language the customer is using.">
+                  <LanguageSelect
+                    value={cfg.alwaysRespondIn}
+                    onChange={(code) => set("alwaysRespondIn", code)}
+                    autoLabel="Auto — mirror the customer"
+                    autoDescription="Reply in whatever language the customer writes in."
+                  />
+                </Field>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
         </div>
       )}
 
       {activeTab === "voice" && (
         <div className="space-y-5">
-          <Field label="OpenAI Realtime Voice" hint="Voice choices are validated against the OpenAI Realtime API contract. The model list is discovered live from your OpenAI project.">
+          <Field label="OpenAI Realtime Voice" hint="Voices follow the OpenAI Realtime API contract; the model list is discovered from your OpenAI project.">
+            <div className="flex items-center justify-between gap-3">
+              <CacheBadge catalog={voiceCatalog} />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-muted-foreground"
+                onClick={refreshVoiceCatalog}
+                disabled={voiceCatalogRefreshing}
+                title="Fetch live from OpenAI and re-cache"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${voiceCatalogRefreshing ? "animate-spin" : ""}`} />
+                {voiceCatalogRefreshing ? "Refreshing…" : "Refresh"}
+              </Button>
+            </div>
             {voiceCatalogLoading && <div className="rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">Loading OpenAI voice capabilities…</div>}
             {voiceCatalogError && <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{voiceCatalogError}</div>}
             {voiceCatalog && <>
@@ -182,7 +271,6 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
                 {voiceCatalog.realtimeModels.length > 0 ? <div className="flex flex-wrap gap-2">{voiceCatalog.realtimeModels.map((m) => <span key={m.id} className="rounded-md bg-background border border-border px-2 py-1 font-mono text-xs text-foreground">{m.id}</span>)}</div> : <p className="text-xs text-muted-foreground">No Realtime models were returned by the OpenAI Models API for this project.</p>}
                 <p className="text-xs text-muted-foreground">Discovered {new Date(voiceCatalog.fetchedAt).toLocaleString()}.</p>
               </div>
-              <p className="text-xs text-muted-foreground">OpenAI does not currently expose a public voice-list endpoint. Clara therefore discovers models live through <code>/v1/models</code> and validates the Realtime voice IDs against the documented Realtime API contract. This avoids pretending that a non-existent <code>/v1/voices</code> API exists.</p>
             </>}
           </Field>
           <Field label="Speed" hint={`${cfg.speed}× — client playback speed`}><Slider min={0.25} max={4} step={0.05} value={[cfg.speed]} onValueChange={([v]) => set("speed", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>0.25× (slow)</span><span>4× (fast)</span></div></Field>
@@ -199,3 +287,30 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return <div className="space-y-2"><div><Label className="text-sm font-medium">{label}</Label>{hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}</div>{children}</div>; }
 
 function SwitchField({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) { return <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3"><div><p className="text-sm font-medium text-foreground">{label}</p><p className="text-xs text-muted-foreground">{desc}</p></div><Switch checked={checked} onCheckedChange={onChange} /></div>; }
+
+/** Voice catalog provenance chip — shows where the data came from and when. */
+function CacheBadge({ catalog }: { catalog: OpenAICatalog | null }) {
+  if (!catalog?.cache) return null;
+  const { status, cachedAt } = catalog.cache;
+  const label =
+    status === "hit" ? (cachedAt ? `Cached · updated ${relativeTime(cachedAt)}` : "Cached")
+    : status === "fallback" ? "Live · cache unavailable"
+    : status === "refresh" ? "Refreshed just now"
+    : "Loaded live · now cached";
+  const tone = status === "hit" ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground";
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${tone}`} data-cache={status}>
+      {status === "hit" ? "⚡" : status === "fallback" ? "●" : "✓"} {label}
+    </span>
+  );
+}
+
+function relativeTime(iso: string): string {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
