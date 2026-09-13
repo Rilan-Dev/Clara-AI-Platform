@@ -75,6 +75,7 @@
     "mammoth": "^1.11.0",
     "monaco-editor": "^0.55.1",
     "next": "15.5.12",
+    "nodemailer": "^10.0.9",
     "openai": "^6.5.0",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.10.38",
@@ -105,6 +106,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20.19.22",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.21",

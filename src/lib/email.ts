@@ -3,12 +3,20 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Unified transactional email sender for the whole platform.
  *
- * Provider order:
- *   1. Resend (RESEND_API_KEY)          — production primary
- *   2. Console log                      — development fallback (no provider)
+ * Two providers, ONE active at a time (platform admin switches in
+ * Settings → Email Delivery; the choice is stored in platform_env_settings
+ * as EMAIL_PROVIDER and overlays process.env, so a save takes effect on the
+ * very next send — no restart needed):
+ *
+ *   1. Resend  (EMAIL_PROVIDER=resend, RESEND_API_KEY)     — production primary
+ *   2. SMTP    (EMAIL_PROVIDER=smtp, SMTP_HOST/PORT/USER…) — any SMTP server
+ *      (Gmail example: smtp.gmail.com:465 SSL + 16-char app password)
+ *   3. Console log                                        — development fallback
  *
  * Every email is branded with the same Clara wrapper so password resets,
- * subscription lifecycle mails and invitations look consistent.
+ * subscription lifecycle mails and invitations look consistent. Subject and
+ * body come from the DB-editable templates in src/lib/email-templates.ts
+ * whenever a caller uses renderEmailTemplate().
  *
  * Usage:
  *   import { sendPlatformEmail } from "@/lib/email";
@@ -26,23 +34,132 @@ export type PlatformEmail = {
 
 export type EmailSendResult = {
   sent:   boolean;
-  provider: "resend" | "console";
+  provider: "resend" | "smtp" | "console";
   error?: string;
+  messageId?: string;
 };
 
+export type EmailProviderName = "resend" | "smtp" | "console";
+
 // ── Configuration ─────────────────────────────────────────────────────────────
+//
+// process.env is the single source of truth at runtime: it is seeded from the
+// DB at startup (loadRuntimeSettings) and kept live by setPlatformEnvSetting,
+// which writes through on every admin save.
+
+export type EmailConfig = {
+  provider: "resend" | "smtp" | "console";
+  fromName: string;
+  fromAddress: string;          // provider-specific sender
+  resendApiKey: string;
+  smtp: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    password: string;
+    fromAddress: string;        // SMTP_FROM_ADDRESS || EMAIL_FROM_ADDRESS
+  };
+};
+
+export function getEmailConfig(): EmailConfig {
+  const providerEnv = (process.env.EMAIL_PROVIDER ?? "").trim().toLowerCase();
+  const fromName = (process.env.EMAIL_FROM_NAME ?? "Clara AI").trim();
+  const globalFrom = (process.env.EMAIL_FROM_ADDRESS ?? "").trim();
+  const resendApiKey = (process.env.RESEND_API_KEY ?? "").trim();
+  const smtpHost = (process.env.SMTP_HOST ?? "").trim();
+  const smtpUser = (process.env.SMTP_USER ?? "").trim();
+  const smtpPassword = (process.env.SMTP_PASSWORD ?? "").trim();
+
+  // Resolve the active provider — a provider is only "on" when it has its
+  // credentials, otherwise we silently fall back to console mode.
+  let provider: "resend" | "smtp" | "console";
+  if (providerEnv === "smtp" && smtpHost) {
+    provider = "smtp";
+  } else if (providerEnv === "smtp" && !smtpHost && resendApiKey) {
+    provider = "resend"; // switched to SMTP but not configured yet → resend
+  } else if (providerEnv === "resend" && resendApiKey) {
+    provider = "resend";
+  } else if (resendApiKey) {
+    provider = "resend"; // legacy default: key present but no explicit choice
+  } else if (smtpHost) {
+    provider = "smtp";
+  } else {
+    provider = "console";
+  }
+
+  // Sender per provider:
+  //  - Resend  → must be on a verified domain (EMAIL_FROM_ADDRESS)
+  //  - SMTP    → SMTP_FROM_ADDRESS (Gmail requires the authenticated address)
+  const domainFallback = process.env.EMAIL_FROM_DOMAIN?.trim() || "clara.ai";
+  const resendFrom = globalFrom || `noreply@${domainFallback}`;
+  const smtpFrom = (process.env.SMTP_FROM_ADDRESS ?? "").trim() || globalFrom || smtpUser;
+
+  const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
+  const secureEnv = (process.env.SMTP_SECURE ?? "").trim().toLowerCase();
+  // Default: port 465 → implicit SSL; 587/25 → STARTTLS.
+  const secure = secureEnv !== "" ? secureEnv === "true" : port === 465;
+
+  return {
+    provider,
+    fromName,
+    fromAddress: provider === "smtp" ? smtpFrom : resendFrom,
+    resendApiKey,
+    smtp: { host: smtpHost, port, secure, user: smtpUser, password: smtpPassword, fromAddress: smtpFrom },
+  };
+}
 
 export function emailFrom(): string {
-  const domain = process.env.EMAIL_FROM_DOMAIN ?? "clara.ai";
-  return `Clara AI <noreply@${domain}>`;
+  const cfg = getEmailConfig();
+  return `${cfg.fromName} <${cfg.fromAddress}>`;
 }
 
 export function hasEmailProvider(): boolean {
-  return Boolean(
-    process.env.RESEND_API_KEY ||
-    process.env.SENDGRID_API_KEY ||
-    process.env.SMTP_HOST
-  );
+  return getEmailConfig().provider !== "console";
+}
+
+// ── SMTP transporter cache ────────────────────────────────────────────────────
+// nodemailer transporters are pooled (5 keep-alive connections). Credentials are
+// captured per transporter; whenever an SMTP setting changes we drop the cache
+// (see resetEmailTransportCache) so the next send picks up new credentials.
+
+type SmtpTransport = {
+  sendMail: (opts: {
+    from: string; to: string; subject: string; html: string; text: string;
+  }) => Promise<{ messageId: string; response?: string }>;
+};
+
+let _smtpTransport: SmtpTransport | null = null;
+let _smtpSignature = "";
+
+function smtpSignature(cfg: EmailConfig): string {
+  return [cfg.smtp.host, cfg.smtp.port, cfg.smtp.secure, cfg.smtp.user, cfg.smtp.password, cfg.smtp.fromAddress].join("|");
+}
+
+export function resetEmailTransportCache(): void {
+  _smtpTransport = null;
+  _smtpSignature = "";
+}
+
+async function getSmtpTransport(cfg: EmailConfig): Promise<SmtpTransport> {
+  const sig = smtpSignature(cfg);
+  if (_smtpTransport && _smtpSignature === sig) return _smtpTransport;
+  const nodemailer = await import("nodemailer");
+  const transport = nodemailer.createTransport({
+    host: cfg.smtp.host,
+    port: cfg.smtp.port,
+    secure: cfg.smtp.secure,
+    auth: cfg.smtp.user ? { user: cfg.smtp.user, pass: cfg.smtp.password } : undefined,
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+  _smtpTransport = transport as unknown as SmtpTransport;
+  _smtpSignature = sig;
+  return _smtpTransport;
 }
 
 // ── Branded wrapper ───────────────────────────────────────────────────────────
@@ -92,10 +209,12 @@ export function htmlToText(html: string): string {
 // ── Sender ────────────────────────────────────────────────────────────────────
 
 export async function sendPlatformEmail(email: PlatformEmail): Promise<EmailSendResult> {
+  const cfg = getEmailConfig();
   const text = email.text ?? htmlToText(email.html);
+  const from = emailFrom();
 
   // Development fallback — no provider configured.
-  if (!process.env.RESEND_API_KEY) {
+  if (cfg.provider === "console") {
     console.log(`[email] 📧 DEV MODE — no provider, would send:
   to:      ${email.to}
   subject: ${email.subject}
@@ -103,26 +222,38 @@ export async function sendPlatformEmail(email: PlatformEmail): Promise<EmailSend
     return { sent: false, provider: "console" };
   }
 
+  if (cfg.provider === "smtp") {
+    try {
+      const transport = await getSmtpTransport(cfg);
+      const info = await transport.sendMail({
+        from, to: email.to, subject: email.subject, html: email.html, text,
+      });
+      console.log(`[email] ✅ [smtp] Sent "${email.subject}" to ${email.to} (${info.messageId})`);
+      return { sent: true, provider: "smtp", messageId: info.messageId };
+    } catch (err) {
+      const message = (err as Error).message;
+      console.error(`[email] ❌ [smtp] Failed to send to ${email.to}:`, message);
+      return { sent: false, provider: "smtp", error: message };
+    }
+  }
+
+  // Resend
   try {
     const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(cfg.resendApiKey);
     const result = await resend.emails.send({
-      from:  emailFrom(),
-      to:    email.to,
-      subject: email.subject,
-      html:  email.html,
-      text,
+      from, to: email.to, subject: email.subject, html: email.html, text,
     });
 
     if (result.error) {
-      console.error(`[email] ❌ Resend error for ${email.to}:`, result.error.message);
+      console.error(`[email] ❌ [resend] Error for ${email.to}:`, result.error.message);
       return { sent: false, provider: "resend", error: result.error.message };
     }
-    console.log(`[email] ✅ Sent "${email.subject}" to ${email.to}`);
-    return { sent: true, provider: "resend" };
+    console.log(`[email] ✅ [resend] Sent "${email.subject}" to ${email.to}`);
+    return { sent: true, provider: "resend", messageId: result.data?.id };
   } catch (err) {
     const message = (err as Error).message;
-    console.error(`[email] ❌ Failed to send to ${email.to}:`, message);
+    console.error(`[email] ❌ [resend] Failed to send to ${email.to}:`, message);
     return { sent: false, provider: "resend", error: message };
   }
 }

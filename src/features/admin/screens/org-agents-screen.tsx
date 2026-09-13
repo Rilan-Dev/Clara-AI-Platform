@@ -12,7 +12,6 @@ import { useParams } from "next/navigation";
 import { Bot } from "lucide-react";
 import { useAuth, useAgents } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { OrgWorkspaceNav } from "@/components/admin/OrgWorkspaceNav";
 import { AgentsSection } from "@/components/admin/AgentsSection";
 
 export default function OrgAgentsScreen() {
@@ -30,8 +29,6 @@ export default function OrgAgentsScreen() {
         description="Each agent groups knowledge bases and carries its own assistant configuration — language, voice and behaviour."
         breadcrumbs={isAdmin ? [{ label: "Organisations", href: "/orgs" }, { label: "Agents" }] : undefined}
       />
-
-      <OrgWorkspaceNav orgId={id} />
 
       <AgentsSection
         orgId={id}

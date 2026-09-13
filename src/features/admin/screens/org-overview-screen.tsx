@@ -27,7 +27,6 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { OrgWorkspaceNav } from "@/components/admin/OrgWorkspaceNav";
 import { Button } from "@/components/ui/button";
 
 type DashboardData = {
@@ -244,16 +243,14 @@ export default function OrgOverviewScreen() {
     <div className="p-6 lg:p-8">
       <AdminPageHeader
         icon={LayoutDashboard}
-        title={data?.org?.name ?? "Overview"}
+        title={data?.org?.name ?? "Dashboard"}
         description={
           isAdmin
-            ? "Business health of this organisation — usage, activity and subscription lifecycle."
-            : "Your assistant at a glance — usage, activity and what to do next."
+            ? "Organisation dashboard — usage, activity and subscription lifecycle."
+            : "Your organisation dashboard — usage, activity and what to do next."
         }
         breadcrumbs={isAdmin ? [{ label: "Organisations", href: "/orgs" }, { label: data?.org?.name ?? "…" }] : undefined}
       />
-
-      <OrgWorkspaceNav orgId={id} />
 
       {/* Smart subscription banner — the single most important business signal */}
       {data?.effective && <SubscriptionBanner effective={data.effective} orgId={id} />}

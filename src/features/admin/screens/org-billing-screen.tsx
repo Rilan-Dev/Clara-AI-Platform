@@ -24,7 +24,6 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { OrgWorkspaceNav } from "@/components/admin/OrgWorkspaceNav";
 import { Button } from "@/components/ui/button";
 
 type SubData = {
@@ -251,8 +250,6 @@ export default function OrgBillingScreen() {
           : "Your plan, what it includes, and how much of it you're using."}
         breadcrumbs={isAdmin ? [{ label: "Organisations", href: "/orgs" }, { label: "Billing" }] : undefined}
       />
-
-      <OrgWorkspaceNav orgId={id} />
 
       {(message || error) && (
         <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
