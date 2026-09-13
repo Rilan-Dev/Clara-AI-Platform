@@ -6,6 +6,7 @@ if (!url) throw new Error("RABBITMQ_URL is required");
 
 const requested = Number.parseInt(process.argv.find((arg) => arg.startsWith("--limit="))?.split("=")[1] ?? "10", 10);
 const limit = Number.isFinite(requested) ? Math.min(Math.max(requested, 1), 100) : 10;
+let replayed = 0;
 
 const connection = await amqp.connect(url, { heartbeat: 30, clientProperties: { connection_name: "clara-rabbitmq-dlq-replay" } });
 try {
@@ -17,7 +18,6 @@ try {
   const publisher = await connection.createConfirmChannel();
   await consumer.prefetch(1);
 
-  let replayed = 0;
   let done;
   const finished = new Promise((resolve) => { done = resolve; });
 
