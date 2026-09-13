@@ -1,4 +1,4 @@
-import { pool } from "@/lib/db";
+import { pool, type PoolClient } from "@/lib/db";
 
 export type OutboxInsert = {
   id: string;
@@ -10,7 +10,7 @@ export type OutboxInsert = {
 };
 
 export async function insertOutboxEvent(
-  client: { query: (text: string, values?: unknown[]) => Promise<unknown> },
+  client: PoolClient,
   event: OutboxInsert,
 ): Promise<void> {
   await client.query(
@@ -95,7 +95,7 @@ export async function markOutboxFailed(id: string, error: string): Promise<void>
      SET status = CASE WHEN attempts >= 20 THEN 'failed' ELSE 'pending' END,
          available_at = CASE
            WHEN attempts >= 20 THEN available_at
-           ELSE now() + LEAST(make_interval(secs => GREATEST(1, 2 ^ LEAST(attempts, 8))), interval '10 minutes')
+           ELSE now() + LEAST(make_interval(secs => GREATEST(1, POWER(2::double precision, LEAST(attempts, 8)))), interval '10 minutes')
          END,
          locked_at = NULL,
          last_error = LEFT($2, 4000)
