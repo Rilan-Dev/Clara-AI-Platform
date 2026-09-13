@@ -84,6 +84,34 @@ services:
       - clara-net
       - proxy-network
 
+  # ──────────────── Clara RabbitMQ Bridge ────────────────
+  # Relays the PostgreSQL transactional outbox to CloudAMQP and delivers
+  # webhook events. RabbitMQ itself is external; no local RabbitMQ container
+  # is required. Keep this bridge private and do not publish its ports.
+  clara-rabbitmq-bridge:
+    build:
+      context: ./services/rabbitmq-bridge
+      dockerfile: Dockerfile
+    container_name: clara-rabbitmq-bridge
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      CLARA_INTERNAL_API_URL: http://clara-backend:3000
+      RABBITMQ_OUTBOX_POLL_MS: ${RABBITMQ_OUTBOX_POLL_MS:-1000}
+      RABBITMQ_WEBHOOK_PREFETCH: ${RABBITMQ_WEBHOOK_PREFETCH:-10}
+    depends_on:
+      - clara-backend
+      - postgres
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - clara-net
+
   # # ──────────────── Clara Omen ────────────────
   # clara-omen:
   #   build:
