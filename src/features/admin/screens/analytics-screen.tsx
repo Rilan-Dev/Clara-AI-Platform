@@ -238,7 +238,7 @@ export default function AnalyticsScreen() {
       )}
 
       {/* ── Tab bar — scrollable chips on mobile (app-style segmented control) ── */}
-      <div className="flex gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-none border-b border-white/[0.06]">
+      <div className="flex gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-none rail-fade-r sm:[mask-image:none] sm:[-webkit-mask-image:none] border-b border-white/[0.06]">
         {([
           { id: "queries", label: "Query Analytics", icon: MessageSquare },
           { id: "revenue", label: "Revenue",         icon: TrendingUp    },

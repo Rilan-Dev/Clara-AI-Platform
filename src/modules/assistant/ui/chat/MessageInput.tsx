@@ -82,7 +82,7 @@ export function MessageInput({
               Tap to send
             </span>
           </div>
-          <div className="flex w-full gap-2 mt-3 overflow-x-auto scrollbar-none pb-1 lg:grid lg:grid-cols-2">
+          <div className="flex w-full gap-2 mt-3 overflow-x-auto scrollbar-none rail-fade-r lg:[mask-image:none] lg:[-webkit-mask-image:none] pb-1 lg:grid lg:grid-cols-2">
             {suggestionItems.map((prompt) => (
               <Button
                 key={prompt}
@@ -91,7 +91,7 @@ export function MessageInput({
                 disabled={disabled}
                 variant="secondary"
                 size="sm"
-                className="justify-start h-auto py-2 px-3.5 text-sm leading-snug text-left break-words whitespace-normal hyphens-auto shrink-0 lg:w-full"
+                className="justify-start h-auto py-2 px-3.5 text-sm leading-snug text-left break-words whitespace-normal hyphens-auto shrink-0 max-w-[75vw] sm:max-w-xs lg:w-full lg:max-w-none"
               >
                 {prompt}
               </Button>

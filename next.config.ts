@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["pg", "resend"],
   reactStrictMode: true,
+  // CI / Docker / normal machines run the full tsc type-check. The 4GB
+  // dev sandbox OOMs during that pass, so local sandbox builds set
+  // CLARA_SKIP_TYPECHECK=1 to opt out (type errors still surface in the
+  // editor and in CI).
+  ...(process.env.CLARA_SKIP_TYPECHECK === "1"
+    ? { typescript: { ignoreBuildErrors: true } }
+    : {}),
   // Serve routes at both /path and /path/ instead of redirecting between them.
   // The sandbox preview proxy issues its own 301 adding a trailing slash, which
   // fought Next.js's default 308 slash-removal redirect and caused an infinite
@@ -18,6 +25,9 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
   experimental: {
     externalDir: true,
+    // Dev-server memory guard: keep webpack buffers off the heap so cold
+    // compiles in the 4GB sandbox don't OOM-kill next-server.
+    webpackMemoryOptimizations: true,
   },
   outputFileTracingRoot: __dirname,
   headers: async () => [

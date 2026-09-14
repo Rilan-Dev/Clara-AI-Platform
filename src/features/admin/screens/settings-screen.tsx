@@ -146,7 +146,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   // the sidebar dropdown.
   const SectionPills = (
     <nav aria-label="Settings sections" className="md:hidden -mx-4 sm:-mx-6 mb-6 sm:mb-8 px-4 sm:px-6">
-      <ul className="flex gap-2 overflow-x-auto pb-1">
+      <ul className="flex gap-2 overflow-x-auto pb-1 scrollbar-none rail-fade-r">
         {sections.map((s) => {
           const isActive = s.id === section;
           return (

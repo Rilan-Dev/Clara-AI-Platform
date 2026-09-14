@@ -356,7 +356,7 @@ export default function OrgBillingScreen() {
           </div>
         </div>
 
-        <div className="md:grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 -mx-4 px-4 md:mx-0 md:px-0 flex overflow-x-auto scrollbar-none snap-rail-mandatory pb-2 md:pb-0">
+        <div className="md:grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 -mx-4 px-4 md:mx-0 md:px-0 flex overflow-x-auto scrollbar-none snap-rail-mandatory rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none] pb-2 md:pb-0">
           {plans.map((plan) => {
             const isCurrent = plan.id === currentPlan;
             const isUpgrade = (PLAN_RANK[plan.id] ?? 0) > (PLAN_RANK[currentPlan] ?? 0);
