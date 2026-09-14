@@ -18,8 +18,11 @@ import {
 import { getKnowledgeBaseById, getAssistantConfigByKb } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
-import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { logQueryEvent, finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { query as dbQuery } from "@/lib/db";
+import { getAuthContext } from "@/modules/auth/core/rbac";
+import { planGuard } from "@/lib/plan-guard";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import {
   CHART_RESPONSE_INSTRUCTIONS,
@@ -146,6 +149,7 @@ function validateMessages(input: unknown): ClientMessage[] {
 // a legacy document.
 
 async function postChatKb(
+  request: NextRequest,
   kbId: string,
   messages: ClientMessage[],
   body: Record<string, unknown>
@@ -165,6 +169,29 @@ async function postChatKb(
   if (!config) throw new Error("Knowledge base configuration not found.");
   if (kb.status !== "active") throw new Error("Knowledge base is archived.");
 
+  // ── Plan limit: daily request quota (org-wide, rolling 24h) ─────────────
+  // Enforced BEFORE any retrieval/LLM work so over-limit orgs cost nothing.
+  // (Named dbQuery — `query` below shadows it with the chat question text.)
+  const orgRows = await dbQuery<{ org_id: string }>(
+    `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
+    [kbId]
+  );
+  const orgId = orgRows[0]?.org_id ?? null;
+  if (orgId) {
+    const reqGuard = await planGuard(orgId, "requests");
+    if (!reqGuard.allowed) {
+      const blocked = reqGuard as { reason: string };
+      return NextResponse.json(
+        { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
+        { status: 402 }
+      );
+    }
+  }
+
+  // Audit context — workspace chat is authenticated; the question is still
+  // logged for anonymous surfaces (user_id NULL).
+  const authCtx = await getAuthContext(request).catch(() => null);
+
   const query = latest.content;
   const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
   const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
@@ -173,15 +200,35 @@ async function postChatKb(
 
   console.log(`[chat/kb] kbId=${kbId} query="${query.slice(0, 100)}"`);
 
+  // Analytics + audit trail. Inserted at REQUEST time with status='pending':
+  //   • the prompt is audited even when retrieval or the LLM later fails
+  //   • the daily quota counts immediately (no abort-the-stream bypass)
+  // Finalised with the AI answer once the stream completes.
+  const eventId = await logQueryEvent({
+    kbId, queryText: query, sessionId,
+    orgId, userId: authCtx?.user.id ?? null, surface: "workspace",
+    status: "pending",
+  });
+
   // RAG search across the full KB collection
   const providerConfig = toProviderConfig(resolved);
-  const results = await searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 6, {
-    providerConfig,
-  });
+  let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
+  try {
+    results = await searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 6, {
+      providerConfig,
+    });
+  } catch (searchErr) {
+    // Retrieval failed — mark the audit row as an error, then surface it.
+    void finalizeQueryEvent(eventId, {
+      answerText: "", status: "error",
+      latencyMs: Date.now() - t0,
+    });
+    throw searchErr;
+  }
   const latencyMs = Date.now() - t0;
-
-  // Analytics (fire-and-forget)
-  void logQueryEvent({ kbId, queryText: query, sourceCount: results.length, latencyMs, sessionId });
+  void finalizeQueryEvent(eventId, {
+    answerText: "", status: "pending", latencyMs, sourceCount: results.length,
+  });
 
   const context = results
     .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
@@ -221,17 +268,30 @@ async function postChatKb(
       write({ type: "sources", payload: sources });
 
       (async () => {
+        let answerBuffer = "";
+        let streamError: string | null = null;
+        const streamT0 = Date.now();
         try {
           const completionStream = provider.chatStream(chatMessages, {
             temperature: resolved.temperature ?? config.temperature,
             maxTokens: resolved.maxTokens ?? config.maxTokens,
           });
           for await (const delta of completionStream) {
-            if (delta) write({ type: "token", payload: delta });
+            if (delta) {
+              answerBuffer += delta;
+              write({ type: "token", payload: delta });
+            }
           }
         } catch (err) {
-          write({ type: "error", payload: (err as Error).message });
+          streamError = (err as Error).message;
+          write({ type: "error", payload: streamError });
         } finally {
+          // Persist the AI-generated answer for the platform audit trail.
+          void finalizeQueryEvent(eventId, {
+            answerText: answerBuffer,
+            status: streamError ? "error" : "ok",
+            latencyMs: Date.now() - streamT0,
+          });
           write({ type: "done" });
           controller.close();
         }
@@ -252,7 +312,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     // for the system prompt. This is the workspace "KB mode".
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : undefined;
     if (kbId) {
-      return await postChatKb(kbId, messages, body);
+      return await postChatKb(request, kbId, messages, body);
     }
 
     // ── Mode B: Legacy document-scoped chat (unchanged) ───────────────────────

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { writeSubscriptionAudit, queueNotification } from "@/lib/subscription-notifications";
 import { computeEffectiveSubscription } from "@/lib/subscription-expiry";
 
@@ -24,6 +25,20 @@ export async function GET(req: NextRequest) {
 
   try {
     await ensureMigrated();
+
+    // ── Auth: org members see their own subscription; super-admins see any. ──
+    // Without this check any authenticated user could read (and, before the
+    // PUT/PATCH guards existed, CHANGE) any org's plan — a hard bypass.
+    const auth = await requireAuth(req);
+    if (!auth.user.isSuperAdmin) {
+      const membership = await query<{ id: string }>(
+        "SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2",
+        [orgId, auth.user.id]
+      );
+      if (!membership[0]) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     // Fetch the subscription row regardless of status — expired / cancelled
     // / past_due subscriptions still need to be visible so their owners can
@@ -59,7 +74,7 @@ export async function GET(req: NextRequest) {
       query(`
         SELECT
           (SELECT COUNT(*)::int FROM agents p JOIN knowledge_bases kb ON kb.agent_id=p.id WHERE p.org_id=$1) AS kb_count,
-          (SELECT COUNT(*)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id=qe.kb_id JOIN agents p ON p.id=kb.agent_id WHERE p.org_id=$1 AND qe.created_at>=CURRENT_DATE) AS requests_today,
+          (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id=$1 AND (qe.created_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date) AS requests_today,
           (SELECT COALESCE(SUM(d.file_size),0)::bigint FROM documents d JOIN knowledge_bases kb ON kb.id=d.kb_id JOIN agents p ON p.id=kb.agent_id WHERE p.org_id=$1) AS storage_bytes
       `, [orgId]),
     ]);
@@ -75,15 +90,21 @@ export async function GET(req: NextRequest) {
       usage: usageR[0] ?? { kb_count: 0, requests_today: 0, storage_bytes: 0 },
     });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[GET /api/orgs/subscription]", err);
     return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 });
   }
 }
 
-/** PUT /api/orgs/subscription — change plan */
+/** PUT /api/orgs/subscription — change plan (platform admin only; org users pay via checkout) */
 export async function PUT(req: NextRequest) {
   try {
     await ensureMigrated();
+    // ── Auth: changing a plan grants quotas — super-admin only. Org users
+    // upgrade through Razorpay/Stripe checkout instead. ──
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
+
     const { orgId, planId, note } = await req.json() as { orgId: string; planId: string; note?: string };
     if (!orgId || !planId) return NextResponse.json({ error: "orgId and planId required" }, { status: 400 });
 
@@ -171,15 +192,20 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[PUT /api/orgs/subscription]", err);
     return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 });
   }
 }
 
-/** PATCH /api/orgs/subscription — cancel | pause | resume | extend_trial | convert_trial | reactivate */
+/** PATCH /api/orgs/subscription — cancel | pause | resume | extend_trial | convert_trial | reactivate (platform admin only) */
 export async function PATCH(req: NextRequest) {
   try {
     await ensureMigrated();
+    // ── Auth: lifecycle changes are admin actions. ──
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
+
     const body = await req.json() as {
       orgId: string;
       action: "cancel" | "pause" | "resume" | "extend_trial" | "convert_trial" | "reactivate";
@@ -277,6 +303,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[PATCH /api/orgs/subscription]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

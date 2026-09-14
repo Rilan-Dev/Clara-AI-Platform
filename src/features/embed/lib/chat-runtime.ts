@@ -24,15 +24,17 @@ export async function readEmbedError(response: Response): Promise<string> {
   try {
     if (contentType.includes("application/json")) {
       const body = (await response.json()) as Record<string, unknown>;
-      if (typeof body.error === "string" && body.error.trim()) return body.error.trim();
+      // Prefer the human-readable message (plan-limit errors carry a friendly
+      // `message` alongside a machine `error` code).
       if (typeof body.message === "string" && body.message.trim()) return body.message.trim();
+      if (typeof body.error === "string" && body.error.trim()) return body.error.trim();
     } else {
       const text = (await response.text()).trim();
       if (text) {
         try {
           const body = JSON.parse(text) as Record<string, unknown>;
-          if (typeof body.error === "string" && body.error.trim()) return body.error.trim();
           if (typeof body.message === "string" && body.message.trim()) return body.message.trim();
+          if (typeof body.error === "string" && body.error.trim()) return body.error.trim();
         } catch {
           return text.slice(0, 500);
         }

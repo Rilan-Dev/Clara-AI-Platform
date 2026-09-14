@@ -5,7 +5,8 @@ import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledg
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
-import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { logQueryEvent, finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { planGuard } from "@/lib/plan-guard";
 import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
@@ -95,6 +96,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // ── Plan limit: daily request quota (org-wide, rolling 24h) ────────────
+    // Enforced before retrieval/LLM work so over-limit orgs cost nothing.
+    if (ctx.orgId) {
+      const reqGuard = await planGuard(ctx.orgId, "requests");
+      if (!reqGuard.allowed) {
+        const blocked = reqGuard as { reason: string };
+        return NextResponse.json(
+          { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
+          { status: 402, headers: corsHeaders },
+        );
+      }
+    }
+
     const allowedLanguages = resolved.allowedLanguages;
     const maxTokens = resolved.maxTokens ?? config.maxTokens;
     const temperature = resolved.temperature ?? config.temperature;
@@ -113,14 +127,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     const t0 = Date.now();
+
+    // Audit trail — inserted at REQUEST time (status='pending') so the prompt
+    // is audited and the daily quota counts even when retrieval later fails.
+    const eventId = await logQueryEvent({
+      kbId: ctx.kbId,
+      queryText: query,
+      sessionId: body.sessionId,
+      orgId: ctx.orgId,
+      surface: "embed",
+      status: "pending",
+    });
+
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
       const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig });
       const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
+      void finalizeQueryEvent(eventId, { answerText: "", status: "pending", latencyMs: Date.now() - t0, sourceCount: searchResults.length });
     } catch (searchErr) {
       if ((searchErr as Error).message !== "search_timeout") {
         console.error("[embed/chat] RAG search failed", searchErr);
+        void finalizeQueryEvent(eventId, { answerText: "", status: "error", latencyMs: Date.now() - t0 });
         return NextResponse.json(
           { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
           { status: 502, headers: corsHeaders },
@@ -165,6 +193,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { maxTokens, temperature },
     );
 
+    // Voice flows that surface sources to the customer are already covered by
+    // the request-time insert above — the stream finalises the answer.
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -185,31 +216,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         }
 
         void (async () => {
+          let answerBuffer = "";
+          let streamError: string | null = null;
           try {
             for await (const chunk of completion) {
-              if (chunk) write({ type: "token", payload: chunk });
+              if (chunk) {
+                answerBuffer += chunk;
+                write({ type: "token", payload: chunk });
+              }
             }
           } catch (error) {
             console.error("[embed/chat] provider stream failed", error);
-            write({
-              type: "error",
-              payload: error instanceof Error ? error.message : "AI provider stream failed",
-            });
+            streamError = error instanceof Error ? error.message : "AI provider stream failed";
+            write({ type: "error", payload: streamError });
           } finally {
             write({ type: "done" });
             controller.close();
+            // Persist the AI-generated answer for the platform audit trail.
+            void finalizeQueryEvent(eventId, {
+              answerText: answerBuffer,
+              status: streamError ? "error" : "ok",
+            });
           }
         })();
       },
     });
-
-    void logQueryEvent({
-      kbId: ctx.kbId,
-      queryText: query,
-      latencyMs: Date.now() - t0,
-      sourceCount: sources.length,
-      sessionId: body.sessionId,
-    }).catch((error) => console.error("[embed/chat] failed to log query event", error));
 
     return new NextResponse(stream, {
       status: 200,

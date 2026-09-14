@@ -14,7 +14,7 @@ import {
   Activity, TrendingUp, MessageSquare, Clock,
   BarChart3, Database, RefreshCw, Zap,
   Server, Cpu, Globe, Users,
-  CheckCircle2, AlertCircle, ArrowUpRight,
+  CheckCircle2, AlertCircle, ArrowUpRight, FileSearch, Search,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
@@ -59,10 +59,33 @@ type HealthData = {
   responseMs: number;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+type AuditRow = {
+  id: string; org_id: string | null; org_name: string | null;
+  kb_id: string; kb_name: string | null; user_email: string | null;
+  question: string; answer: string | null; surface: string; status: string;
+  latency_ms: number | null; created_at: string;
+};
+
+type AuditData = {
+  rows: AuditRow[];
+  total: number;
+  hasMore: boolean;
+  orgs: { id: string; name: string }[];
+};
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────
 
 const RANGE_DAYS: Record<DateRange, number> = { "7d": 7, "30d": 30, "90d": 90, "180d": 180 };
 const RANGE_LABELS: Record<DateRange, string> = { "7d": "7 days", "30d": "30 days", "90d": "90 days", "180d": "6 months" };
+
+const AUDIT_PAGE_SIZE = 50;
+
+const SURFACE_BADGES: Record<string, { label: string; cls: string }> = {
+  workspace: { label: "Workspace", cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25" },
+  embed:    { label: "Widget",     cls: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25" },
+  voice:    { label: "Voice",      cls: "bg-violet-500/15 text-violet-300 border-violet-500/25" },
+  search:   { label: "API",        cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" },
+};
 
 function rangeParams(range: DateRange) {
   const to   = new Date();
@@ -111,12 +134,52 @@ const tooltipStyle = {
 export default function AnalyticsScreen() {
   const [range,   setRange]   = useState<DateRange>("30d");
   const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState<"queries" | "revenue" | "usage">("queries");
+  const [tab,     setTab]     = useState<"queries" | "revenue" | "usage" | "audit">("queries");
 
   const [queryData,   setQueryData]   = useState<QueryAnalytics | null>(null);
   const [revenueData, setRevenueData] = useState<RevenueAnalytics | null>(null);
   const [usageData,   setUsageData]   = useState<UsageAnalytics | null>(null);
   const [health,      setHealth]      = useState<HealthData | null>(null);
+
+  // Query-audit state (platform admin compliance view)
+  const [auditData,     setAuditData]     = useState<AuditData | null>(null);
+  const [auditLoading,  setAuditLoading]  = useState(false);
+  const [auditOrg,      setAuditOrg]      = useState("");
+  const [auditSearch,   setAuditSearch]   = useState("");
+  const [auditDebounced, setAuditDebounced] = useState("");
+  const [expandedRow,   setExpandedRow]   = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAuditDebounced(auditSearch), 350);
+    return () => clearTimeout(t);
+  }, [auditSearch]);
+
+  const loadAudit = useCallback(async (opts: { offset?: number; append?: boolean } = {}) => {
+    setAuditLoading(true);
+    try {
+      const offset = opts.offset ?? 0;
+      const to   = new Date();
+      const from = new Date(Date.now() - RANGE_DAYS[range] * 86400 * 1000);
+      const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), limit: String(AUDIT_PAGE_SIZE), offset: String(offset) });
+      if (auditOrg)    params.set("orgId", auditOrg);
+      if (auditDebounced) params.set("q", auditDebounced);
+      const res  = await fetch(apiUrl(`/api/analytics/audit?${params.toString()}`), { headers: withAuthHeaders({}) });
+      const data = await res.json().catch(() => null);
+      if (data && !data.error) {
+        setAuditData(prev => opts.append && prev ? { ...data, rows: [...prev.rows, ...data.rows] } : data);
+      } else if (!opts.append) {
+        setAuditData(null);
+      }
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [range, auditOrg, auditDebounced]);
+
+  // Load / reload the audit feed when the audit tab is active or filters change.
+  useEffect(() => {
+    if (tab === "audit") loadAudit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, range, auditOrg, auditDebounced]);
 
   const load = useCallback(async (r: DateRange) => {
     setLoading(true);
@@ -243,6 +306,7 @@ export default function AnalyticsScreen() {
           { id: "queries", label: "Query Analytics", icon: MessageSquare },
           { id: "revenue", label: "Revenue",         icon: TrendingUp    },
           { id: "usage",   label: "Usage Breakdown", icon: BarChart3     },
+          { id: "audit",   label: "Query Audit",     icon: FileSearch    },
         ] as { id: typeof tab; label: string; icon: React.ElementType }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 border-b-2 transition-all -mb-px whitespace-nowrap ${tab === t.id ? "border-indigo-500 text-white" : "border-transparent text-white/40 hover:text-white/70"}`}>
@@ -575,6 +639,135 @@ export default function AnalyticsScreen() {
                 <div className="px-5 py-12 text-center text-white/25 text-sm">No usage data found</div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════ TAB: QUERY AUDIT (prompts + AI answers) ════════ */}
+      {tab === "audit" && (
+        <div className="space-y-4">
+
+          {/* Filter bar — org filter + free-text search */}
+          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                value={auditSearch}
+                onChange={(e) => setAuditSearch(e.target.value)}
+                placeholder="Search questions, answers, knowledge bases…"
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-indigo-500/40 transition-colors"
+              />
+            </div>
+            <select
+              value={auditOrg}
+              onChange={(e) => setAuditOrg(e.target.value)}
+              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500/40 transition-colors max-w-full sm:w-56"
+            >
+              <option value="">All organisations</option>
+              {(auditData?.orgs ?? []).map(o => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => loadAudit()}
+              aria-label="Refresh audit feed"
+              className="flex items-center justify-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2.5 rounded-xl transition-all shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${auditLoading ? "animate-spin" : ""}`} /> Refresh
+            </button>
+          </div>
+
+          {/* Audit list */}
+          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
+            <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+                <FileSearch className="w-4 h-4 text-rose-400" /> Prompts &amp; AI Answers
+              </h3>
+              <span className="text-xs text-white/30 shrink-0">
+                {auditData ? `${auditData.total.toLocaleString()} total · ${RANGE_LABELS[range]}` : ""}
+              </span>
+            </div>
+
+            {auditLoading && !auditData ? (
+              <div className="p-5 space-y-3">
+                {Array(6).fill(0).map((_, i) => <div key={i} className="h-16 bg-white/[0.04] rounded-xl animate-pulse" />)}
+              </div>
+            ) : !auditData?.rows.length ? (
+              <div className="px-5 py-16 text-center">
+                <FileSearch className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                <p className="text-sm text-white/30">No logged conversations in this period</p>
+                <p className="text-xs text-white/20 mt-1">
+                  Every workspace, widget and voice question is recorded here with its answer.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/[0.04]">
+                {auditData.rows.map(row => {
+                  const surface = SURFACE_BADGES[row.surface] ?? { label: row.surface, cls: "bg-white/10 text-white/50 border-white/15" };
+                  const open = expandedRow === row.id;
+                  return (
+                    <div key={row.id} className="px-4 sm:px-5 py-4 hover:bg-white/[0.02] transition-colors">
+                      <button
+                        onClick={() => setExpandedRow(open ? null : row.id)}
+                        className="w-full text-left"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            {/* Question */}
+                            <p className="text-sm text-white/85 leading-snug">
+                              <span className="text-white/30 mr-1.5 font-medium">Q:</span>
+                              {row.question}
+                            </p>
+                            {/* Answer preview */}
+                            <p className={`text-[13px] text-white/45 mt-1 leading-relaxed ${open ? "" : "line-clamp-1"}`}>
+                              <span className="text-white/30 mr-1.5 font-medium">A:</span>
+                              {row.answer
+                                ? (open ? row.answer : row.answer.replace(/\s+/g, " ").slice(0, 200) + (row.answer.length > 200 ? "…" : ""))
+                                : <span className="italic">{row.status === "error" ? "Stream failed — no answer captured" : "Answer pending…"}</span>}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                row.status === "ok" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : row.status === "error" ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                : "bg-amber-500/10 text-amber-300 border-amber-500/20"}`}>
+                                {row.status}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-white/25">
+                              {new Date(row.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                      {open && (
+                        <div className="mt-3 pt-3 border-t border-white/[0.06] flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/35">
+                          <span>Org: <span className="text-white/60">{row.org_name ?? "—"}</span></span>
+                          <span>KB: <span className="text-white/60">{row.kb_name ?? "—"}</span></span>
+                          <span>User: <span className="text-white/60">{row.user_email ?? "anonymous visitor"}</span></span>
+                          {row.latency_ms != null && <span>Latency: <span className="text-white/60">{row.latency_ms}ms</span></span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Load more */}
+            {auditData?.hasMore && (
+              <div className="px-5 py-4 border-t border-white/[0.06] flex justify-center">
+                <button
+                  onClick={() => loadAudit({ offset: auditData.rows.length, append: true })}
+                  disabled={auditLoading}
+                  className="text-xs text-white/50 hover:text-white border border-white/10 hover:border-white/25 px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+                >
+                  {auditLoading ? "Loading…" : `Load more (${(auditData.total - auditData.rows.length).toLocaleString()} remaining)`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

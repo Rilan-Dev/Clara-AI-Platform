@@ -6,9 +6,16 @@
  *   • KPI totals          — agents, KBs, documents, storage, members
  *   • Usage               — queries today / 30 days, chat sessions
  *   • queriesPerDay       — last 30 days for the usage chart
- *   • topKnowledgeBases   — by query volume, with document counts
+ *   • topQuestions        — most-asked questions (30d) for this org
+ *   • hourlyDist          — busiest hours of the day (30d)
+ *   • recentQuestions     — user questions WITH the AI answers (audit feed)
  *   • recentActivity      — latest queries, uploads and conversations
  *   • subscription        — plan + effective lifecycle status (renew/upgrade)
+ *   • usageLimits         — live usage vs plan limits (monitoring + warnings)
+ *
+ * "Today" boundaries use the Asia/Kolkata calendar day — the platform's
+ * business timezone (the Postgres server runs UTC, which made "queries
+ * today" show 0 for IST users chatting after midnight).
  *
  * Auth: any org member, or a super-admin (membership check, not tenant
  * RBAC — super-admins are allowed here for support/oversight).
@@ -19,6 +26,7 @@ import { query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { computeEffectiveSubscription } from "@/lib/subscription-expiry";
+import { getOrgUsageSnapshot } from "@/lib/plan-guard";
 
 export async function GET(
   req: NextRequest,
@@ -38,7 +46,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [orgR, totalsR, perDayR, topKbsR, activityR, subR] = await Promise.all([
+    const [orgR, totalsR, perDayR, topQsR, hourlyR, recentQsR, topKbsR, activityR, subR] = await Promise.all([
       query<{ id: string; name: string; slug: string; logo_url: string | null }>(
         "SELECT id, name, slug, logo_url FROM organisations WHERE id = $1",
         [orgId]
@@ -56,24 +64,69 @@ export async function GET(
           (SELECT COUNT(*)::int FROM documents d JOIN knowledge_bases kb ON kb.id = d.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1) AS doc_count,
           (SELECT COUNT(*)::int FROM org_members WHERE org_id = $1) AS member_count,
           (SELECT COALESCE(SUM(d.file_size), 0)::text FROM documents d JOIN knowledge_bases kb ON kb.id = d.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1) AS storage_bytes,
-          (SELECT COUNT(*)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id = qe.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1 AND qe.created_at >= CURRENT_DATE) AS queries_today,
-          (SELECT COUNT(*)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id = qe.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS queries_30d,
-          (SELECT COUNT(*)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id = qe.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1 AND qe.created_at >= now() - INTERVAL '60 days' AND qe.created_at < now() - INTERVAL '30 days') AS queries_prev_30d,
+          (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND (qe.created_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date) AS queries_today,
+          (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS queries_30d,
+          (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '60 days' AND qe.created_at < now() - INTERVAL '30 days') AS queries_prev_30d,
           (SELECT COUNT(DISTINCT cs.id)::int FROM chat_sessions cs JOIN knowledge_bases kb ON kb.id = cs.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1 AND cs.created_at >= now() - INTERVAL '30 days') AS chat_sessions_30d,
-          (SELECT AVG(qe.latency_ms)::int FROM query_events qe JOIN knowledge_bases kb ON kb.id = qe.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS avg_latency_ms
+          (SELECT AVG(qe.latency_ms)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS avg_latency_ms
       `, [orgId]),
 
+      // IST-day buckets — matches the user's calendar, not the UTC server.
       query<{ day: string; queries: number }>(`
         SELECT to_char(d.day, 'YYYY-MM-DD') AS day, COUNT(qe.id)::int AS queries
-          FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS d(day)
+          FROM generate_series(
+                 (now() AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '29 days',
+                 (now() AT TIME ZONE 'Asia/Kolkata')::date,
+                 INTERVAL '1 day') AS d(day)
           LEFT JOIN query_events qe
-            ON qe.kb_id IN (
-              SELECT kb.id FROM knowledge_bases kb JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1
-            )
-           AND qe.created_at >= d.day
-           AND qe.created_at < d.day + INTERVAL '1 day'
+            ON qe.org_id = $1
+           AND (qe.created_at AT TIME ZONE 'Asia/Kolkata')::date = d.day::date
          GROUP BY d.day
          ORDER BY d.day
+      `, [orgId]),
+
+      // Top questions (30d) — org scoped
+      query<{ query_text: string; count: number }>(`
+        SELECT lower(trim(qe.query_text)) AS query_text, COUNT(*)::int AS count
+          FROM query_events qe
+         WHERE qe.org_id = $1
+           AND qe.created_at >= now() - INTERVAL '30 days'
+           AND length(trim(qe.query_text)) > 3
+         GROUP BY 1
+         ORDER BY count DESC
+         LIMIT 8
+      `, [orgId]),
+
+      // Hourly distribution (30d) — when is the assistant busiest
+      query<{ hour: number; count: number }>(`
+        SELECT EXTRACT(HOUR FROM qe.created_at AT TIME ZONE 'Asia/Kolkata')::int AS hour,
+               COUNT(*)::int AS count
+          FROM query_events qe
+         WHERE qe.org_id = $1
+           AND qe.created_at >= now() - INTERVAL '30 days'
+         GROUP BY 1
+         ORDER BY 1
+      `, [orgId]),
+
+      // Recent user questions WITH AI answers — the org's Q&A audit feed
+      query<{
+        id: string; question: string; answer: string | null; status: string;
+        surface: string; kb_name: string | null; latency_ms: number | null;
+        user_email: string | null; created_at: string;
+      }>(`
+        SELECT qe.id,
+               qe.query_text  AS question,
+               qe.answer_text AS answer,
+               qe.status,
+               qe.surface,
+               (SELECT kb.name FROM knowledge_bases kb WHERE kb.id = qe.kb_id) AS kb_name,
+               qe.latency_ms,
+               (SELECT u.email FROM users u WHERE u.id = qe.user_id) AS user_email,
+               qe.created_at::text AS created_at
+          FROM query_events qe
+         WHERE qe.org_id = $1
+         ORDER BY qe.created_at DESC
+         LIMIT 15
       `, [orgId]),
 
       query<{ kb_id: string; kb_name: string; agent_id: string; agent_name: string; queries_30d: number; doc_count: number; updated_at: string }>(`
@@ -96,7 +149,7 @@ export async function GET(
                 (SELECT kb.name FROM knowledge_bases kb WHERE kb.id = qe.kb_id) AS detail,
                 qe.created_at::text AS created_at
            FROM query_events qe
-          WHERE qe.kb_id IN (SELECT kb.id FROM knowledge_bases kb JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1)
+          WHERE qe.org_id = $1
           ORDER BY qe.created_at DESC LIMIT 5)
         UNION ALL
         (SELECT 'document' AS kind,
@@ -151,6 +204,9 @@ export async function GET(
       ? Math.round(((queries30d - queriesPrev) / queriesPrev) * 100)
       : queries30d > 0 ? 100 : 0;
 
+    // Usage-vs-limits monitoring block (drives the meters + warnings).
+    const usageSnapshot = await getOrgUsageSnapshot(orgId).catch(() => null);
+
     return NextResponse.json({
       org: { id: org.id, name: org.name, slug: org.slug, logoUrl: org.logo_url },
       totals: {
@@ -167,10 +223,14 @@ export async function GET(
         avgLatencyMs: totals?.avg_latency_ms ?? null,
       },
       queriesPerDay: perDayR,
+      topQuestions:  topQsR,
+      hourlyDist:    hourlyR,
+      recentQuestions: recentQsR,
       topKnowledgeBases: topKbsR,
       recentActivity: activityR,
       subscription: sub ?? null,
       effective,
+      usageLimits: usageSnapshot,
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;

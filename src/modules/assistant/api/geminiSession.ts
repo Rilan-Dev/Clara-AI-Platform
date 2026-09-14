@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveLanguagePreferences } from "@/modules/assistant/core/config";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { query as dbQuery } from "@/lib/db";
+import { planGuard } from "@/lib/plan-guard";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
@@ -50,6 +52,23 @@ export async function postGeminiSession(request: NextRequest) {
       const kb = await getKnowledgeBaseById(kbId);
       if (!kb) {
         return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+      }
+
+      // ── Plan limit: voice must be enabled on the org's plan ──────────────
+      const orgRows = await dbQuery<{ org_id: string }>(
+        `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
+        [kbId]
+      );
+      const orgId = orgRows[0]?.org_id ?? null;
+      if (orgId) {
+        const voiceGuard = await planGuard(orgId, "voice");
+        if (!voiceGuard.allowed) {
+          const blocked = voiceGuard as { reason: string };
+          return NextResponse.json(
+            { error: "plan_limit_exceeded", code: "voice_not_enabled", message: blocked.reason },
+            { status: 402 }
+          );
+        }
       }
 
       const resolved = await resolveAIConfig({ kbId, surface: "realtime" });

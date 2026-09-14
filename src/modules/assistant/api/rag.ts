@@ -10,6 +10,8 @@ import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { planGuard } from "@/lib/plan-guard";
+import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
@@ -46,6 +48,23 @@ export async function postRagSearch(
       }
       if (kb.status !== "active") {
         return NextResponse.json({ error: "Knowledge base is archived" }, { status: 400 });
+      }
+
+      // ── Plan limit: daily request quota (org-wide, rolling 24h) ────────────
+      const orgRows = await dbQuery<{ org_id: string }>(
+        `SELECT a.org_id FROM agents a JOIN knowledge_bases kbx ON kbx.agent_id = a.id WHERE kbx.id = $1`,
+        [kb.id]
+      );
+      const orgId = orgRows[0]?.org_id ?? null;
+      if (orgId) {
+        const reqGuard = await planGuard(orgId, "requests");
+        if (!reqGuard.allowed) {
+          const blocked = reqGuard as { reason: string };
+          return NextResponse.json(
+            { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
+            { status: 402 }
+          );
+        }
       }
 
       // Public Demo passes an explicit provider so KB/org settings cannot
@@ -121,6 +140,9 @@ export async function postRagSearch(
         queryText: query,
         sourceCount: vectorResults.length + graphHits.length,
         latencyMs: Date.now() - t0,
+        orgId,
+        surface: "search",
+        status: "ok",
       });
 
       const contextParts = [

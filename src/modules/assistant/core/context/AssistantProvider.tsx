@@ -751,6 +751,8 @@ export function AssistantProvider({
           endpoint: endpointConfig.chat,
           // KB mode: pass kbId so the server uses KB-scoped RAG
           kbId: currentKbId ?? undefined,
+          // Audit join key — lets the query log reference the conversation.
+          sessionId: activeSessionIdRef.current ?? undefined,
         };
 
         await streamChatCompletion(

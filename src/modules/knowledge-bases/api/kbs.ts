@@ -8,6 +8,7 @@ import { ensureCollectionExists, getQdrantClient } from "@/modules/admin/core/ve
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { requireAuth, requireAgentPermission, requireKbPermission } from "@/modules/auth/core/rbac";
+import { planGuard, planLimitResponse } from "@/lib/plan-guard";
 
 export async function createKbHandler(req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
@@ -18,6 +19,10 @@ export async function createKbHandler(req: NextRequest, agentId: string): Promis
     if (!agent) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     const body = await req.json();
     if (!body?.name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 });
+
+    // Plan limit: max knowledge bases per org (KBs are counted org-wide).
+    const kbGuard = await planGuard(agent.orgId, "kbs");
+    if (!kbGuard.allowed) return planLimitResponse(kbGuard) as NextResponse;
 
     const kb = await createKnowledgeBase(agentId, { name: body.name.trim(), description: body.description?.trim() || undefined });
     try {

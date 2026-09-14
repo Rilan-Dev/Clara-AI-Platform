@@ -16,7 +16,12 @@ const nextConfig: NextConfig = {
   // CLARA_SKIP_TYPECHECK=1 to opt out (type errors still surface in the
   // editor and in CI).
   ...(process.env.CLARA_SKIP_TYPECHECK === "1"
-    ? { typescript: { ignoreBuildErrors: true } }
+    ? {
+        typescript: { ignoreBuildErrors: true },
+        // Same sandbox memory guard: the lint pass loads the whole AST and
+        // OOM-kills the build after compilation. CI still runs `npm run lint`.
+        eslint: { ignoreDuringBuilds: true },
+      }
     : {}),
   // Serve routes at both /path and /path/ instead of redirecting between them.
   // The sandbox preview proxy issues its own 301 adding a trailing slash, which

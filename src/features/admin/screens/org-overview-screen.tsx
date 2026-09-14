@@ -16,8 +16,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  Activity, AlertTriangle, ArrowUpRight, Building2, Database, FileText,
-  HardDrive, LayoutDashboard, MessageSquare, Plus, RefreshCw, TrendingUp,
+  Activity, AlertTriangle, ArrowUpRight, Building2, ChevronDown, Database, FileText,
+  HardDrive, HelpCircle, LayoutDashboard, MessageSquare, Plus, RefreshCw, TrendingUp,
   UserPlus, Users, Zap, ArrowRight, Clock,
 } from "lucide-react";
 import {
@@ -38,6 +38,13 @@ type DashboardData = {
     avgLatencyMs: number | null;
   };
   queriesPerDay: { day: string; queries: number }[];
+  topQuestions: { query_text: string; count: number }[];
+  hourlyDist: { hour: number; count: number }[];
+  recentQuestions: {
+    id: string; question: string; answer: string | null; status: string;
+    surface: string; kb_name: string | null; latency_ms: number | null;
+    user_email: string | null; created_at: string;
+  }[];
   topKnowledgeBases: {
     kb_id: string; kb_name: string; agent_id: string; agent_name: string;
     queries_30d: number; doc_count: number;
@@ -48,6 +55,19 @@ type DashboardData = {
     planId: string; planName: string; status: string; effectiveStatus: string;
     currentPeriodEnd: string | null; daysRemaining: number | null;
     needsRenewal: boolean; needsAttention: boolean;
+  } | null;
+  usageLimits: {
+    plan_id: string; plan_name: string; status: string; downgraded: boolean;
+    usage: {
+      kb_count: number; doc_count: number; max_docs_in_kb: number;
+      storage_bytes: number;
+      requests_today: number; requests_24h: number; api_keys_active: number;
+    };
+    limits: {
+      max_kbs: number; max_docs_per_kb: number; max_req_day: number;
+      max_storage_mb: number; voice_enabled: boolean; api_access: boolean;
+      custom_branding: boolean; sso_enabled: boolean;
+    };
   } | null;
 };
 
@@ -64,6 +84,91 @@ function timeAgo(value: string): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// ── Usage & plan limits meter ─────────────────────────────────────────────────
+
+function LimitMeter({ label, used, limit, unit, hint }: {
+  label: string; used: number; limit: number; unit?: string; hint?: string;
+}) {
+  const unlimited = limit === -1;
+  const pct = unlimited ? 0 : limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const over = !unlimited && used > limit;
+  const near = !unlimited && !over && pct >= 80;
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1.5 gap-2">
+        <span className="text-xs text-white/50">{label}</span>
+        <span className={`text-xs font-medium whitespace-nowrap ${over ? "text-rose-400" : near ? "text-amber-300" : "text-white/70"}`}>
+          {used.toLocaleString()}{unit ? ` ${unit}` : ""} / {unlimited ? "Unlimited" : limit.toLocaleString()}{unit ? ` ${unit}` : ""}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            over ? "bg-rose-500" : near ? "bg-amber-400" : "bg-gradient-to-r from-indigo-500 to-violet-500"
+          }`}
+          style={{ width: over ? "100%" : `${pct}%` }}
+        />
+      </div>
+      {(over || near || hint) && (
+        <p className={`text-[11px] mt-1 ${over ? "text-rose-400" : near ? "text-amber-300" : "text-white/30"}`}>
+          {over ? "Over the plan limit — new uploads are blocked until you upgrade" : near ? "Approaching your plan limit — consider upgrading" : hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── User question feed (Q&A audit) ───────────────────────────────────────────
+
+const SURFACE_LABELS: Record<string, { label: string; cls: string }> = {
+  workspace: { label: "Workspace", cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25" },
+  embed:    { label: "Widget",     cls: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25" },
+  voice:    { label: "Voice",      cls: "bg-violet-500/15 text-violet-300 border-violet-500/25" },
+  search:   { label: "API",        cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" },
+};
+
+function QuestionFeedItem({ q }: { q: DashboardData["recentQuestions"][number] }) {
+  const [open, setOpen] = useState(false);
+  const surface = SURFACE_LABELS[q.surface] ?? { label: q.surface, cls: "bg-white/10 text-white/50 border-white/15" };
+  const hasAnswer = Boolean(q.answer);
+
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
+      <button onClick={() => hasAnswer && setOpen(!open)} className="w-full text-left flex items-start gap-2.5 group">
+        <MessageSquare className="w-3.5 h-3.5 text-indigo-300/70 mt-0.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-white/85 line-clamp-2 group-hover:text-white transition-colors">{q.question}</p>
+          {hasAnswer ? (
+            <p className={`text-xs text-white/40 mt-1 leading-relaxed ${open ? "" : "line-clamp-1"}`}>
+              {open ? q.answer : q.answer!.replace(/\s+/g, " ").slice(0, 160)}{!open && q.answer!.length > 160 ? "…" : ""}
+            </p>
+          ) : (
+            <p className="text-xs text-white/25 mt-1 italic">
+              {q.status === "error" ? "Stream failed — no answer captured" : "Answer pending…"}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
+          <span className="text-[10px] text-white/25">{timeAgo(q.created_at)}</span>
+        </div>
+        {hasAnswer && (
+          <ChevronDown className={`w-3.5 h-3.5 text-white/25 group-hover:text-white/50 transition-all shrink-0 mt-0.5 ${open ? "rotate-180" : ""}`} />
+        )}
+      </button>
+      {open && (
+        <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/35">
+          {q.kb_name && <span>KB: <span className="text-white/60">{q.kb_name}</span></span>}
+          {q.user_email && <span>By: <span className="text-white/60">{q.user_email}</span></span>}
+          {q.latency_ms != null && <span>Latency: <span className="text-white/60">{q.latency_ms}ms</span></span>}
+          <span>Status: <span className={q.status === "ok" ? "text-emerald-400" : q.status === "error" ? "text-rose-400" : "text-amber-300"}>{q.status}</span></span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Smart subscription banner ────────────────────────────────────────────────
@@ -359,6 +464,111 @@ export default function OrgOverviewScreen() {
               </Link>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* User questions (Q&A audit feed) + plan usage / top questions */}
+      <div className="mt-4 sm:mt-6 grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-white text-sm">User questions</h3>
+              <p className="hidden sm:block text-xs text-white/30 mt-0.5">
+                Every question asked — workspace, widget and voice — with the AI answer
+              </p>
+            </div>
+            <button onClick={load} aria-label="Refresh questions" className="text-white/30 hover:text-white/60 active:text-white transition-colors shrink-0">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+          {(data?.recentQuestions ?? []).length > 0 ? (
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {data!.recentQuestions.map((q) => (
+                <QuestionFeedItem key={q.id} q={q} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <HelpCircle className="w-8 h-8 text-white/15 mx-auto mb-3" />
+              <p className="text-sm text-white/40">No questions yet</p>
+              <p className="text-xs text-white/25 mt-1">
+                When you or your visitors ask the assistant, the question and its answer appear here.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {/* Plan usage & limits — monitoring */}
+          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h3 className="font-semibold text-white text-sm">Plan usage</h3>
+              {data?.usageLimits && (
+                <Link href={`/orgs/${id}/billing`} className="text-[11px] text-indigo-400 hover:text-indigo-300 shrink-0">
+                  Manage plan →
+                </Link>
+              )}
+            </div>
+            {data?.usageLimits ? (
+              <div className="space-y-3.5">
+                <LimitMeter
+                  label="Requests today"
+                  used={data.usageLimits.usage.requests_today}
+                  limit={data.usageLimits.limits.max_req_day}
+                />
+                <LimitMeter
+                  label="Knowledge bases"
+                  used={data.usageLimits.usage.kb_count}
+                  limit={data.usageLimits.limits.max_kbs}
+                />
+                <LimitMeter
+                  label="Storage"
+                  used={Math.round(data.usageLimits.usage.storage_bytes / 1024 / 1024 * 10) / 10}
+                  limit={data.usageLimits.limits.max_storage_mb}
+                  unit="MB"
+                />
+                <LimitMeter
+                  label="Docs per KB (max)"
+                  used={data.usageLimits.usage.max_docs_in_kb}
+                  limit={data.usageLimits.limits.max_docs_per_kb}
+                />
+                {data.usageLimits.downgraded && (
+                  <p className="text-[11px] text-amber-300 flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                    Subscription not active — free-plan limits are being enforced
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-white/40">Usage data unavailable</p>
+                <button onClick={load} className="text-xs text-indigo-400 hover:text-indigo-300 mt-2">Retry</button>
+              </div>
+            )}
+          </div>
+
+          {/* Top questions */}
+          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-5">
+            <h3 className="font-semibold text-white text-sm mb-4">Top questions · 30 days</h3>
+            {(data?.topQuestions ?? []).length > 0 ? (
+              <ol className="space-y-2">
+                {data!.topQuestions.map((tq, i) => (
+                  <li key={`${tq.query_text.slice(0, 40)}-${i}`} className="flex items-start gap-2.5 rounded-xl px-3 py-2 hover:bg-white/[0.03] transition-colors">
+                    <span className="text-[11px] font-bold text-indigo-300/70 bg-indigo-500/10 border border-indigo-500/20 rounded-md w-5 h-5 flex items-center justify-center shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <p className="text-[13px] text-white/75 leading-snug line-clamp-2 min-w-0 flex-1">{tq.query_text}</p>
+                    <span className="text-[11px] text-white/30 shrink-0 mt-0.5">{tq.count}×</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="text-center py-8">
+                <MessageSquare className="w-7 h-7 text-white/15 mx-auto mb-2.5" />
+                <p className="text-sm text-white/40">No questions in the last 30 days</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

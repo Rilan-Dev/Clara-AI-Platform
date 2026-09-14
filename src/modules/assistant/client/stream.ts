@@ -14,6 +14,8 @@ export type StreamChatOptions = {
   customerLanguages?: string[];
   /** KB mode: when set, the server uses kbId-scoped RAG instead of documentId */
   kbId?: string;
+  /** Conversation id — links the logged query event to its chat session */
+  sessionId?: string;
 };
 
 const DEFAULT_CHAT_ENDPOINT = apiUrl("/api/chat");
@@ -29,6 +31,7 @@ export async function streamChatCompletion(
         // KB mode: server uses kbId-scoped RAG
         kbId: options.kbId,
         messages,
+        sessionId: options?.sessionId,
         assistantLanguage: options?.assistantLanguage,
         customerLanguages: options?.customerLanguages,
       }
@@ -36,6 +39,7 @@ export async function streamChatCompletion(
         // Legacy document mode
         documentId: documentOrKbId,
         messages,
+        sessionId: options?.sessionId,
         overview: options?.overview,
         suggestedPrompts: options?.suggestions?.slice(0, 5),
         assistantLanguage: options?.assistantLanguage,
@@ -54,7 +58,17 @@ export async function streamChatCompletion(
 
   if (!response.ok || !response.body) {
     const errorText = await response.text();
-    throw new Error(errorText || `Chat request failed with status ${response.status}`);
+    // Prefer the structured message from a plan-limit / validation error body
+    // ({ error, code, message }) over the raw JSON string.
+    let message = errorText || `Chat request failed with status ${response.status}`;
+    try {
+      const parsed = JSON.parse(errorText) as { message?: string; error?: string };
+      if (parsed?.message)      message = parsed.message;
+      else if (parsed?.error)   message = String(parsed.error);
+    } catch {
+      // raw text body — keep as is
+    }
+    throw new Error(message);
   }
 
   const reader = response.body.getReader();

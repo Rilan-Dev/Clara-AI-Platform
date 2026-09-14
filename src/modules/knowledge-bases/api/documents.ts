@@ -11,8 +11,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { query } from "@/lib/db";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { planGuard, planLimitResponse } from "@/lib/plan-guard";
 import {
   createDocument,
   createIngestJob,
@@ -71,6 +73,13 @@ export async function uploadDocumentsHandler(
       return NextResponse.json({ error: "Knowledge base is archived" }, { status: 400 });
     }
 
+    // Resolve the owning org for plan-limit enforcement (kb → agent → org).
+    const orgRows = await query<{ org_id: string }>(
+      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
+      [kbId]
+    );
+    const orgId = orgRows[0]?.org_id ?? null;
+
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -88,6 +97,22 @@ export async function uploadDocumentsHandler(
         { error: "No files found. Use field name 'files' (or 'file' for single upload)" },
         { status: 400 }
       );
+    }
+
+    // ── Plan limit: documents per knowledge base ───────────────────────────
+    if (orgId) {
+      const docsGuard = await planGuard(orgId, "docs_per_kb", { kbId });
+      if (!docsGuard.allowed) return planLimitResponse(docsGuard) as NextResponse;
+    }
+
+    // ── Plan limit: total storage across the org (this batch included) ────
+    const incomingBytes = fileEntries.reduce(
+      (sum, entry) => sum + (entry instanceof File ? entry.size : 0),
+      0
+    );
+    if (orgId) {
+      const storageGuard = await planGuard(orgId, "storage", { incomingBytes });
+      if (!storageGuard.allowed) return planLimitResponse(storageGuard) as NextResponse;
     }
 
     const results: { document: Awaited<ReturnType<typeof createDocument>>; jobId: string }[] = [];

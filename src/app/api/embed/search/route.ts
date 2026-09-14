@@ -12,6 +12,9 @@ import {
 } from "@/modules/embed/core/validate-embed";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
+import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { planGuard } from "@/lib/plan-guard";
+import { query as dbQuery } from "@/lib/db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
@@ -90,6 +93,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB not found" }, { status: 404, headers: corsHeaders });
     }
 
+    // ── Plan limit: daily request quota (org-wide, rolling 24h) ────────────
+    // Voice turns and phone calls hit this endpoint — they count too.
+    const t0 = Date.now();
+    const orgRows = await dbQuery<{ org_id: string }>(
+      `SELECT a.org_id FROM agents a JOIN knowledge_bases kbx ON kbx.agent_id = a.id WHERE kbx.id = $1`,
+      [kbId]
+    );
+    const orgId = orgRows[0]?.org_id ?? null;
+    if (orgId) {
+      const reqGuard = await planGuard(orgId, "requests");
+      if (!reqGuard.allowed) {
+        const blocked = reqGuard as { reason: string };
+        return NextResponse.json(
+          { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
+          { status: 402, headers: corsHeaders }
+        );
+      }
+    }
+
     // if (isDemo) {
     //   const settings = await getPlatformEnvSettings();
     //   providerOverride = demoProviderConfig(settings) ?? undefined;
@@ -104,6 +126,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const resolved = providerOverride ? null : await resolveAIConfig({ kbId, surface: "chat" });
     const providerConfig = providerOverride ?? toProviderConfig(resolved!);
     const results = await searchKbEmbedded(kb.qdrantCollection, query, limit, { providerConfig });
+
+    // Voice / phone queries are part of the audit trail (no LLM answer is
+    // generated here — the voice provider composes the spoken response).
+    void logQueryEvent({
+      kbId,
+      queryText: query,
+      sourceCount: results.length,
+      latencyMs: Date.now() - t0,
+      orgId,
+      surface: "voice",
+      status: "ok",
+    });
 
     const context = results.map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`).join("\n\n");
     const sources = results.map((r, i) => ({
