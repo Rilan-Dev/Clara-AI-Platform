@@ -187,7 +187,7 @@ export default function KbDashboardPage() {
           ))}
         </div>
 
-        <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit">
+        <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
           {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
             <button
               key={item}
@@ -195,7 +195,7 @@ export default function KbDashboardPage() {
                 setTab(item);
                 if (item === "analytics") refetchAnalytics();
               }}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
                 }`}
             >
               {item === "documents"
@@ -419,7 +419,7 @@ export default function KbDashboardPage() {
         ))}
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit">
+      <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
         {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
           <button
             key={item}
@@ -427,7 +427,7 @@ export default function KbDashboardPage() {
               setTab(item);
               if (item === "analytics") refetchAnalytics();
             }}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
+            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
               }`}
           >
             {item === "documents"

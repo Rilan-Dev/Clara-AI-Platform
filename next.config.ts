@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
   experimental: {
     externalDir: true,
+    // Dev-server memory guard: keep webpack buffers off the heap so cold
+    // compiles in the 4GB sandbox don't OOM-kill next-server.
+    webpackMemoryOptimizations: true,
   },
   outputFileTracingRoot: __dirname,
   headers: async () => [

@@ -260,7 +260,7 @@ export function FloatingAssistant() {
   return (
     <>
       <motion.div
-        className="fixed z-40 bottom-6 right-6"
+        className="fixed z-40 right-4 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] md:right-6 md:bottom-6"
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 280, damping: 26 }}
@@ -294,7 +294,7 @@ export function FloatingAssistant() {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed bottom-24 right-6 z-40 w-[min(92vw,420px)]"
+            className="fixed right-4 z-40 w-[min(92vw,420px)] bottom-[calc(148px+env(safe-area-inset-bottom,0px))] md:bottom-24 md:right-6"
             initial={{ opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 20 }}

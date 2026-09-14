@@ -240,7 +240,9 @@ export default function OrgMembersScreen() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* Actions — aligned with the text block on phones (avatar
+                      40px + gap 12px), badge left / controls right. */}
+                  <div className="flex items-center gap-2 flex-wrap pl-[52px] sm:pl-0 sm:justify-end">
                     <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${role?.badge ?? "bg-white/10 text-white/60 border-white/15"}`}>
                       {role?.label ?? m.roleName}
                     </span>
@@ -251,7 +253,7 @@ export default function OrgMembersScreen() {
                         disabled={busyId === m.userId}
                         onChange={(e) => handleRoleChange(m.userId, e.target.value)}
                         aria-label={`Change role for ${m.fullName ?? m.email}`}
-                        className="bg-white/[0.05] border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white/70 focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                        className="bg-white/[0.05] border border-white/10 rounded-lg px-2.5 py-2 text-base sm:text-xs text-white/70 focus:outline-none focus:border-indigo-500 disabled:opacity-40"
                       >
                         {ROLES.map((r) => (
                           <option key={r.id} value={r.id} className="bg-[#13131f]">{r.label}</option>

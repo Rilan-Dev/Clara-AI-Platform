@@ -20,7 +20,10 @@ type KbEntry = {
   name: string;
   description: string | null;
   qdrantCollection: string;
-  project: { id: string; name: string };
+  // NOTE: /api/kbs/all does not always include a project (KBs can live
+  // directly under an org). Treat as optional — dereferencing it crashes
+  // the whole workspace page.
+  project?: { id: string; name: string } | null;
   org:     { id: string; name: string };
   assistant: {
     name: string;
@@ -50,9 +53,12 @@ function groupKbs(kbs: KbEntry[]): GroupedKbs[] {
       orgMap.set(kb.org.id, { orgId: kb.org.id, orgName: kb.org.name, projects: [] });
     }
     const org = orgMap.get(kb.org.id)!;
-    let proj = org.projects.find((p) => p.projectId === kb.project.id);
+    // KBs without a project land in a single "General" bucket per org.
+    const projId   = kb.project?.id   ?? "_general";
+    const projName = kb.project?.name ?? "General";
+    let proj = org.projects.find((p) => p.projectId === projId);
     if (!proj) {
-      proj = { projectId: kb.project.id, projectName: kb.project.name, kbs: [] };
+      proj = { projectId: projId, projectName: projName, kbs: [] };
       org.projects.push(proj);
     }
     proj.kbs.push(kb);
@@ -93,8 +99,8 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
   const filtered = search.trim()
     ? kbs.filter((k) =>
         k.name.toLowerCase().includes(search.toLowerCase()) ||
-        k.org.name.toLowerCase().includes(search.toLowerCase()) ||
-        k.project.name.toLowerCase().includes(search.toLowerCase())
+        k.org?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        (k.project?.name ?? "").toLowerCase().includes(search.toLowerCase())
       )
     : kbs;
 
@@ -106,7 +112,7 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
   // chat. One line, thumb-reachable, no vertical stacking noise.
   if (variant === "chips") {
     return (
-      <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto scrollbar-none rail-fade-r lg:[mask-image:none] lg:[-webkit-mask-image:none]">
         {loading ? (
           <div className="h-9 w-32 rounded-full bg-muted/40 animate-pulse shrink-0" />
         ) : (
@@ -187,8 +193,12 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
           </p>
           <div className="flex items-center gap-3 mt-3 text-xs opacity-70">
             <span>📄 {activeKb.readyCount} docs ready</span>
-            <span>·</span>
-            <span>{activeKb.project.name}</span>
+            {activeKb.project && (
+              <>
+                <span>·</span>
+                <span className="truncate">{activeKb.project.name}</span>
+              </>
+            )}
           </div>
         </div>
       )}

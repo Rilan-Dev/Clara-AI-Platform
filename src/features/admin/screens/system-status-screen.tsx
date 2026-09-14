@@ -104,8 +104,8 @@ function LatencyTag({ ms }: { ms?: number }) {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className="text-[11px] text-white/35">{label}</span>
-      <span className="text-right font-mono text-[11px] text-white/65">{value}</span>
+      <span className="shrink-0 text-[11px] text-white/35">{label}</span>
+      <span className="min-w-0 truncate text-right font-mono text-[11px] text-white/65">{value}</span>
     </div>
   );
 }
@@ -122,7 +122,7 @@ function ServiceCard({
   const [open, setOpen] = useState(false);
   return (
     <div
-      className={`rounded-2xl border p-5 transition-colors ${
+      className={`min-w-0 rounded-2xl border p-5 transition-colors ${
         check.status === "down"
           ? "border-red-500/25 bg-red-500/[0.04]"
           : check.status === "up"

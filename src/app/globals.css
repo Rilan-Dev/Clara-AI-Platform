@@ -604,3 +604,10 @@ html {
 .snap-start-card {
   scroll-snap-align: start;
 }
+
+/* Right-edge fade on horizontal chip rails: signals that more content is
+   swipeable off-screen (native-app pattern). Combine with .scrollbar-none. */
+.rail-fade-r {
+  -webkit-mask-image: linear-gradient(to right, black 86%, transparent 100%);
+  mask-image: linear-gradient(to right, black 86%, transparent 100%);
+}
