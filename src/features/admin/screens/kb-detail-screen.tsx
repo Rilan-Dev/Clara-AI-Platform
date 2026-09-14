@@ -182,7 +182,7 @@ export default function KbDashboardPage() {
           ].map((item) => (
             <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5">
               <div className="text-xs text-white/40 mb-2">{item.label}</div>
-              <div className="text-2xl font-black text-white">{item.value}</div>
+              <div className="text-xl sm:text-2xl font-black text-white">{item.value}</div>
             </div>
           ))}
         </div>
@@ -414,7 +414,7 @@ export default function KbDashboardPage() {
         ].map((item) => (
           <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5">
             <div className="text-xs text-white/40 mb-2">{item.label}</div>
-            <div className="text-2xl font-black text-white">{item.value}</div>
+            <div className="text-xl sm:text-2xl font-black text-white">{item.value}</div>
           </div>
         ))}
       </div>

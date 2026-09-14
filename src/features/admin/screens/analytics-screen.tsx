@@ -358,7 +358,7 @@ export default function AnalyticsScreen() {
             ].map(c => (
               <div key={c.label} className="border border-white/[0.08] bg-white/[0.03] rounded-xl p-4">
                 <div className="text-xs text-white/40 mb-2">{c.label}</div>
-                <div className={`text-2xl font-black ${c.color}`}>
+                <div className={`text-xl sm:text-2xl font-black ${c.color}`}>
                   {loading ? <div className="h-7 w-20 bg-white/[0.06] rounded animate-pulse" /> : c.value}
                 </div>
               </div>
@@ -554,7 +554,7 @@ export default function AnalyticsScreen() {
                         </span>
                       </div>
                       {/* Compact 2-row metric grid instead of 8 columns */}
-                      <div className="mt-2.5 grid grid-cols-4 gap-2">
+                      <div className="mt-2.5 grid grid-cols-3 sm:grid-cols-4 gap-2">
                         {[
                           ["KBs", org.kb_count],
                           ["Docs", org.doc_count],

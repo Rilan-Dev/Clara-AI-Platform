@@ -358,9 +358,9 @@ function ProfileCard({
       <div className="flex flex-wrap items-center gap-5">
         {user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatarUrl} alt="" className="h-16 w-16 rounded-full object-cover ring-2 ring-white/10" />
+          <img src={user.avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover ring-2 ring-white/10" />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-semibold text-white">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-semibold text-white">
             {user.fullName.slice(0, 2).toUpperCase()}
           </div>
         )}
@@ -421,7 +421,7 @@ function AccountPanel({
           <Link
             key={s.id}
             href={s.href}
-            className="group rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 transition-colors hover:border-indigo-500/30 hover:bg-white/[0.03]"
+            className="group rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5 transition-colors hover:border-indigo-500/30 hover:bg-white/[0.03]"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10">
               <s.icon className="h-4 w-4 text-indigo-300" />

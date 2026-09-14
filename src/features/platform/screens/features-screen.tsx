@@ -121,7 +121,7 @@ export default function FeaturesPage() {
   return (
     <div className="overflow-x-hidden">
       {/* Hero */}
-      <section className="relative pt-24 pb-12 px-4 sm:pb-16 sm:px-6 text-center">
+      <section className="relative pt-16 pb-10 px-4 sm:pt-24 sm:pb-16 sm:px-6 text-center">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-10 left-1/3 w-80 h-80 bg-indigo-600/15 rounded-full blur-[100px]" />
           <div className="absolute top-20 right-1/3 w-64 h-64 bg-violet-600/10 rounded-full blur-[80px]" />
@@ -141,7 +141,7 @@ export default function FeaturesPage() {
             Clara handles the infrastructure — embeddings, vector search, streaming, voice, analytics.
             You focus on uploading your knowledge.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <Link href="/pricing"
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition-all hover:scale-105">
               View pricing <ChevronRight className="w-4 h-4" />
@@ -157,17 +157,17 @@ export default function FeaturesPage() {
       {/* Feature grid */}
       <section className="py-12 sm:py-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8 sm:mb-14">
             <h2 className="text-3xl font-black text-white mb-3">Core capabilities</h2>
             <p className="text-white/50">Everything ships out of the box. Nothing to build from scratch.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map(f => (
               <div key={f.title}
-                className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 hover:bg-white/[0.06] transition-all group">
+                className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6 hover:bg-white/[0.06] transition-all group">
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center group-hover:scale-110 transition-transform shrink-0`}>
-                    <f.icon className="w-6 h-6 text-white" />
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center group-hover:scale-110 transition-transform shrink-0`}>
+                    <f.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-white/30 border border-white/10 px-2 py-0.5 rounded-full">{f.badge}</span>
                 </div>
@@ -189,7 +189,7 @@ export default function FeaturesPage() {
       {/* Plan comparison table */}
       <section id="comparison" className="py-12 sm:py-20 px-4 sm:px-6 bg-white/[0.02]">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-3xl font-black text-white mb-3">Feature comparison</h2>
             <p className="text-white/50">See exactly what each plan includes</p>
           </div>

@@ -60,7 +60,7 @@ export default function DocsScreen() {
   return (
     <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
+        <div className="text-center mb-8 sm:mb-16">
           <div className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.04] rounded-full px-4 py-1.5 text-sm text-indigo-300 mb-6">
             <BookOpen className="w-3.5 h-3.5" />
             <span>Clara AI Documentation</span>
@@ -74,11 +74,11 @@ export default function DocsScreen() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-16">
           {SECTIONS.map(sec => (
-            <div key={sec.title} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 flex flex-col hover:bg-white/[0.06] transition-all group">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${sec.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                <sec.icon className="w-6 h-6 text-white" />
+            <div key={sec.title} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6 flex flex-col hover:bg-white/[0.06] transition-all group">
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${sec.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                <sec.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">{sec.title}</h2>
               <p className="text-white/50 text-sm mb-5 leading-relaxed flex-1">{sec.description}</p>
@@ -99,7 +99,7 @@ export default function DocsScreen() {
           ))}
         </div>
 
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-8">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-8">
           <h2 className="text-xl font-bold text-white mb-6">Popular pages</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {POPULAR.map(p => (

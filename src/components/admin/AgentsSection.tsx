@@ -104,9 +104,9 @@ export function AgentsSection({
           {[1, 2].map((i) => <div key={i} className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />)}
         </div>
       ) : agents.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-            <Zap className="w-6 h-6 text-indigo-300" />
+        <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 sm:px-6 sm:py-12 text-center">
+          <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
           </div>
           <p className="font-medium text-white">No agents yet</p>
           <p className="text-sm text-white/40 mt-1">Create an agent to start uploading documents and building your knowledge base.</p>

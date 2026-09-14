@@ -34,7 +34,7 @@ export default function ContactPage() {
     <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-8 sm:mb-14">
           <h1 className="text-3xl sm:text-5xl font-black text-white mb-4">
             Get in <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">touch</span>
           </h1>
@@ -47,7 +47,7 @@ export default function ContactPage() {
           {/* Left — info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Contact options */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
               <h3 className="font-semibold text-white mb-4">Contact us</h3>
               <div className="space-y-4">
                 <a href="mailto:sales@clara.ai" className="flex items-center gap-3 group">
@@ -72,7 +72,7 @@ export default function ContactPage() {
             </div>
 
             {/* Use cases */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
               <h3 className="font-semibold text-white mb-4">Popular use cases</h3>
               <div className="space-y-3">
                 {USE_CASES.map(u => (
@@ -85,7 +85,7 @@ export default function ContactPage() {
             </div>
 
             {/* Guarantees */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
               <h3 className="font-semibold text-white mb-4">What to expect</h3>
               <ul className="space-y-3">
                 {[
@@ -104,11 +104,11 @@ export default function ContactPage() {
 
           {/* Right — form */}
           <div className="lg:col-span-3">
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-8">
+            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-8">
               {submitted ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-8 h-8 text-emerald-400" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">Message received!</h3>
                   <p className="text-white/50 text-sm mb-6">We&apos;ll get back to you within 24 hours.</p>
@@ -122,7 +122,7 @@ export default function ContactPage() {
                   <h3 className="text-lg font-bold text-white mb-1">Request a demo</h3>
                   <p className="text-white/40 text-sm mb-6">Tell us about your use case and we&apos;ll set up a live walkthrough.</p>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-white/50 mb-1.5">Your name *</label>
                       <input required type="text" value={formData.name} onChange={e => handleChange("name", e.target.value)}

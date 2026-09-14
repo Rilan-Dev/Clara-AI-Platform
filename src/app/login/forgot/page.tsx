@@ -37,8 +37,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
-            <Brain className="w-7 h-7 text-white" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
+            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Reset your password</h1>
           <p className="text-white/40 text-sm mt-1">
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5 sm:p-6">
           {sent ? (
             <div className="text-center space-y-4">
               <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
                   required
                   autoFocus
                   placeholder="you@company.com"
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
               {error && (

@@ -156,7 +156,7 @@ export default function CheckoutScreen() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0a0a0f] px-4 py-20 flex items-start justify-center">
+    <div className="min-h-screen bg-[#0a0a0f] px-4 py-10 sm:py-20 flex items-start justify-center">
       <div className="w-full max-w-md">
 
         {/* Logo */}

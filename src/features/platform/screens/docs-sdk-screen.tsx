@@ -33,7 +33,7 @@ const EVENTS = ["document.ingested", "document.failed", "kb.created", "kb.delete
 
 export default function DocsSdkScreen() {
   return (
-    <div className="min-h-screen px-4 py-20 sm:px-6">
+    <div className="min-h-screen px-4 py-10 sm:py-20 sm:px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
           <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
@@ -50,7 +50,7 @@ export default function DocsSdkScreen() {
         </p>
 
         {/* JS SDK */}
-        <section id="js" className="mb-16 scroll-mt-24">
+        <section id="js" className="mb-8 sm:mb-16 scroll-mt-24">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
               <Package className="w-5 h-5 text-white" />
@@ -65,7 +65,7 @@ export default function DocsSdkScreen() {
         </section>
 
         {/* iFrame embed */}
-        <section id="iframe" className="mb-16 scroll-mt-24">
+        <section id="iframe" className="mb-8 sm:mb-16 scroll-mt-24">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
               <Globe className="w-5 h-5 text-white" />
@@ -91,7 +91,7 @@ export default function DocsSdkScreen() {
         </section>
 
         {/* Webhooks */}
-        <section id="webhooks" className="mb-16 scroll-mt-24">
+        <section id="webhooks" className="mb-8 sm:mb-16 scroll-mt-24">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center">
               <Webhook className="w-5 h-5 text-white" />

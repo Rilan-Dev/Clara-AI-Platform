@@ -122,7 +122,7 @@ function ServiceCard({
   const [open, setOpen] = useState(false);
   return (
     <div
-      className={`min-w-0 rounded-2xl border p-5 transition-colors ${
+      className={`min-w-0 rounded-2xl border p-4 sm:p-5 transition-colors ${
         check.status === "down"
           ? "border-red-500/25 bg-red-500/[0.04]"
           : check.status === "up"
@@ -244,8 +244,8 @@ export function SystemStatusScreen() {
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
-              <Activity className="h-5 w-5 text-indigo-300" />
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
+              <Activity className="h-[18px] w-[18px] sm:h-5 sm:w-5 text-indigo-300" />
             </div>
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-white">System status</h1>
@@ -296,7 +296,7 @@ export function SystemStatusScreen() {
           <>
             {/* ── Summary banner ────────────────────────────────────────── */}
             <div
-              className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 ${
+              className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 sm:p-5 ${
                 data.summary.down > 0
                   ? "border-red-500/25 bg-red-500/[0.06]"
                   : "border-emerald-500/20 bg-emerald-500/[0.05]"

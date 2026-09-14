@@ -611,3 +611,35 @@ html {
   -webkit-mask-image: linear-gradient(to right, black 86%, transparent 100%);
   mask-image: linear-gradient(to right, black 86%, transparent 100%);
 }
+
+/* ── Mobile density pass (phones only, < 640px) ──────────────────────────────
+   The dashboard was tuned to feel like a native app — compact type, tight
+   cards. Every other screen was still shipping desktop-scale headings,
+   chunky paddings and oversized cards on phones ("doesn't look like a
+   mobile view"). Instead of hand-editing hundreds of class strings, the
+   whole large end of the Tailwind scale steps down one notch on phones:
+
+     text-2xl 24px → 20px    p-14 56px → 28px
+     text-3xl 30px → 24px    p-10 40px → 24px
+     text-4xl 36px → 26px    p-8  32px → 20px
+     text-5xl 48px → 32px    p-6  24px → 16px
+     text-6xl 60px → 36px    p-5  20px → 14px
+
+   These rules are deliberately UNLAYERED: unlayered CSS beats Tailwind's
+   `@layer utilities` in the cascade, so no `!important` is needed. sm:
+   variants (≥640px) and explicit arbitrary values (text-[30px], p-[18px])
+   are untouched, so tablets/desktop keep the original scale and any screen
+   that wants to opt out can use an arbitrary value. */
+@media (max-width: 639.98px) {
+  .text-2xl { font-size: 1.25rem;    line-height: 1.75rem; }
+  .text-3xl { font-size: 1.5rem;    line-height: 1.9rem; }
+  .text-4xl { font-size: 1.625rem;  line-height: 2rem; }
+  .text-5xl { font-size: 2rem;      line-height: 2.25rem; }
+  .text-6xl { font-size: 2.25rem;   line-height: 2.5rem; }
+
+  .p-14 { padding: 1.75rem; }
+  .p-10 { padding: 1.5rem; }
+  .p-8  { padding: 1.25rem; }
+  .p-6  { padding: 1rem; }
+  .p-5  { padding: 0.875rem; }
+}

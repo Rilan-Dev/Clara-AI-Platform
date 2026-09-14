@@ -110,7 +110,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function DocsApiScreen() {
   return (
-    <div className="min-h-screen px-4 py-20 sm:px-6">
+    <div className="min-h-screen px-4 py-10 sm:py-20 sm:px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
           <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
@@ -126,7 +126,7 @@ export default function DocsApiScreen() {
           REST API for Clara AI. All endpoints require an API key unless marked otherwise.
         </p>
 
-        <div id="auth" className="border border-indigo-500/30 bg-indigo-600/10 rounded-xl p-5 mb-14 scroll-mt-24">
+        <div id="auth" className="border border-indigo-500/30 bg-indigo-600/10 rounded-xl p-5 mb-8 sm:mb-14 scroll-mt-24">
           <div className="text-sm font-bold text-indigo-300 mb-2">Authentication</div>
           <p className="text-sm text-white/60 mb-3">
             Pass your API key in the <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded">x-api-key</code> header on every request.
@@ -138,7 +138,7 @@ export default function DocsApiScreen() {
         </div>
 
         {SECTIONS.map(sec => (
-          <div key={sec.id} id={sec.id} className="mb-14 scroll-mt-24">
+          <div key={sec.id} id={sec.id} className="mb-8 sm:mb-14 scroll-mt-24">
             <h2 className="text-xl font-bold text-white mb-6 pb-3 border-b border-white/[0.08]">{sec.title}</h2>
             <div className="space-y-5">
               {sec.endpoints.map(ep => (

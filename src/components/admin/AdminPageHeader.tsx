@@ -24,7 +24,7 @@ export function AdminPageHeader({
   chips?: string[];
 }) {
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-[#12152a] via-[#0f1224] to-[#0b0d18] p-4 sm:p-6 lg:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-[#12152a] via-[#0f1224] to-[#0b0d18] p-4 sm:p-6 lg:p-8 shadow-[0_10px_36px_rgba(0,0,0,0.3)] sm:shadow-[0_24px_80px_rgba(0,0,0,0.35)] mb-4 sm:mb-6 lg:mb-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.24),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(34,211,238,0.12),transparent_24%)]" />
       <div className="relative">
         {breadcrumbs.length > 0 && (

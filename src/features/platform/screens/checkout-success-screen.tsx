@@ -39,7 +39,7 @@ export default function CheckoutSuccessScreen() {
   const isPortal  = source === "portal";
 
   return (
-    <div className="min-h-screen px-4 py-20 flex items-center justify-center">
+    <div className="min-h-screen px-4 py-10 sm:py-20 flex items-center justify-center">
       <div className="w-full max-w-lg text-center">
 
         {/* Logo */}
@@ -52,8 +52,8 @@ export default function CheckoutSuccessScreen() {
 
         {/* Success icon */}
         <div className="relative inline-flex mb-6">
-          <div className="w-20 h-20 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+            <CheckCircle2 className="w-7 h-7 sm:w-10 sm:h-10 text-emerald-400" />
           </div>
           <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-indigo-600 border-2 border-[#0a0a0f] flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />

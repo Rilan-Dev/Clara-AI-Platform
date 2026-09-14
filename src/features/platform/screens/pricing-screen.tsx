@@ -72,7 +72,7 @@ export default function PricingPage() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map(plan => (
-              <div key={plan.id} className={`relative rounded-2xl p-6 border flex flex-col ${PLAN_COLOURS[plan.id] ?? "border-white/[0.08]"}`}>
+              <div key={plan.id} className={`relative rounded-2xl p-4 sm:p-6 border flex flex-col ${PLAN_COLOURS[plan.id] ?? "border-white/[0.08]"}`}>
                 {plan.id === "pro" && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full">
                     Most Popular
@@ -124,7 +124,7 @@ export default function PricingPage() {
         )}
 
         {/* FAQ */}
-        <div className="mt-20 max-w-2xl mx-auto">
+        <div className="mt-10 sm:mt-20 max-w-2xl mx-auto">
           <h3 className="text-2xl font-bold text-white text-center mb-8">Frequently asked questions</h3>
           <div className="space-y-4">
             {[

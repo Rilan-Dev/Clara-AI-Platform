@@ -708,7 +708,7 @@ export default function AdminSubscriptionsScreen() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
                   whileHover={{ y: -4 }}
-                  className={`rounded-2xl p-5 text-left flex flex-col transition-all ${plan.id === "pro"
+                  className={`rounded-2xl p-4 sm:p-5 text-left flex flex-col transition-all ${plan.id === "pro"
                       ? "glass-premium border-indigo-500/40 shadow-lg shadow-indigo-500/10 relative"
                       : "glass-card"
                     }`}
@@ -720,7 +720,7 @@ export default function AdminSubscriptionsScreen() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="text-sm font-bold text-indigo-400 mb-1">{plan.name}</div>
-                      <div className="text-2xl font-black text-white mb-1">
+                      <div className="text-xl sm:text-2xl font-black text-white mb-1">
                         {plan.price_usd === -1 ? "Custom" : plan.price_usd === 0 ? "Free" : `$${plan.price_usd}/mo`}
                       </div>
                       <p className="text-xs text-white/45 line-clamp-2">{plan.description}</p>
@@ -765,7 +765,7 @@ export default function AdminSubscriptionsScreen() {
 
           {!plans.length && !loading && (
             <div className="text-center py-12 text-white/25">
-              <CreditCard className="w-12 h-12 mx-auto opacity-30 mb-3" />
+              <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 mx-auto opacity-30 mb-3" />
               <p>No plans configured yet</p>
               <Button className="mt-4" onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })}>
                 <Plus className="w-3.5 h-3.5 mr-1.5" /> Create First Plan
@@ -930,7 +930,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
       <div className="relative w-full max-w-xl h-full bg-[#0d0d12] border-l border-white/[0.08] flex flex-col shadow-2xl">
 
         {/* Drawer header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-base font-bold text-white">Billing History</h2>
             <p className="text-xs text-white/40 mt-0.5">{orgName}</p>
@@ -961,7 +961,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
             ) : (
               <div className="divide-y divide-white/[0.04]">
                 {data.invoices.map(ev => (
-                  <div key={ev.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
+                  <div key={ev.id} className="px-4 sm:px-6 py-3 sm:py-4 hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -994,7 +994,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
             ) : (
               <div className="divide-y divide-white/[0.04]">
                 {data.auditLog.map(entry => (
-                  <div key={entry.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
+                  <div key={entry.id} className="px-4 sm:px-6 py-3 sm:py-4 hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-start gap-3">
                       <div className="w-7 h-7 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0 mt-0.5">
                         {AUDIT_ACTION_ICON[entry.action] ?? <Clock className="w-3.5 h-3.5 text-white/40" />}

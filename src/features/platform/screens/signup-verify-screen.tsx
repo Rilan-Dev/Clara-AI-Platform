@@ -27,7 +27,7 @@ export default function SignupVerifyScreen() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-20 flex items-center justify-center">
+    <div className="min-h-screen px-4 py-10 sm:py-20 flex items-center justify-center">
       <div className="w-full max-w-md text-center">
 
         {/* Logo */}
@@ -40,8 +40,8 @@ export default function SignupVerifyScreen() {
 
         {/* Icon */}
         <div className="relative inline-flex mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-            <Mail className="w-10 h-10 text-indigo-400" />
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+            <Mail className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-400" />
           </div>
           <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#0a0a0f] flex items-center justify-center">
             <CheckCircle2 className="w-3.5 h-3.5 text-white" />

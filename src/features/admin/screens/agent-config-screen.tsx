@@ -57,7 +57,7 @@ export default function AgentConfigPage() {
         />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
-          <div className="space-y-8 min-w-0">
+          <div className="space-y-4 sm:space-y-8 min-w-0">
             {loading ? (
               <div className="space-y-3">
                 <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
@@ -103,7 +103,7 @@ export default function AgentConfigPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-8 text-center text-rose-300">
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-6 sm:px-6 sm:py-8 text-center text-rose-300">
                 <p className="font-medium">Assistant config not found for this agent.</p>
                 <p className="mt-2 text-sm text-rose-100/75">
                   This agent was created without an assistant config row. Re-run migrations, then refresh this page and try again.
@@ -142,9 +142,9 @@ export default function AgentConfigPage() {
 
                 <div className="mt-6">
                   {snapshots.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-center">
-                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-                        <Sparkles className="w-6 h-6 text-indigo-300" />
+                    <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 sm:px-6 sm:py-12 text-center">
+                      <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                        <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
                       </div>
                       <p className="font-medium text-white">No snapshots yet</p>
                       <p className="text-sm text-white/40 mt-1">
@@ -191,7 +191,7 @@ export default function AgentConfigPage() {
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="space-y-8 min-w-0">
+        <div className="space-y-4 sm:space-y-8 min-w-0">
           {loading ? (
             <div className="space-y-3">
               <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
@@ -200,7 +200,7 @@ export default function AgentConfigPage() {
           ) : config ? (
             <ConfigEditor config={config} contextName={agent?.name ?? "this agent"} onSave={save} />
           ) : (
-            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-8 text-center text-rose-300">
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-6 sm:px-6 sm:py-8 text-center text-rose-300">
               <p className="font-medium">Assistant config not found for this agent.</p>
               <p className="mt-2 text-sm text-rose-100/75">
                 This agent was created without an assistant config row. Re-run migrations, then refresh this page and try again.

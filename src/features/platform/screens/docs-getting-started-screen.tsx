@@ -67,7 +67,7 @@ const STEPS = [
 
 export default function DocsGettingStartedScreen() {
   return (
-    <div className="min-h-screen px-4 py-20 sm:px-6">
+    <div className="min-h-screen px-4 py-10 sm:py-20 sm:px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
           <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
@@ -79,15 +79,15 @@ export default function DocsGettingStartedScreen() {
           Getting{" "}
           <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Started</span>
         </h1>
-        <p className="text-white/50 text-lg mb-14 leading-relaxed">
+        <p className="text-white/50 text-[15px] sm:text-lg mb-8 sm:mb-14 leading-relaxed">
           Deploy a custom AI assistant trained on your documents in under 10 minutes. No ML expertise needed.
         </p>
 
-        <div className="space-y-12">
+        <div className="space-y-6 sm:space-y-12">
           {STEPS.map((s, idx) => (
-            <div key={s.id} id={s.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 sm:p-8 scroll-mt-24">
+            <div key={s.id} id={s.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-8 scroll-mt-24">
               <div className="flex items-center gap-4 mb-6">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
                   <s.icon className="w-6 h-6 text-white" />
                 </div>
                 <div>

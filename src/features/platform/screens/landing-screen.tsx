@@ -118,16 +118,16 @@ export default function LandingPage() {
       </div> */}
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <section className="relative pt-24 pb-20 sm:pt-28 sm:pb-32 px-4 sm:px-6 min-h-[100dvh] flex items-center">
+      <section className="relative pt-16 pb-12 sm:pt-28 sm:pb-32 px-4 sm:px-6 min-h-[100dvh] flex items-center">
         <div className="relative z-10 max-w-6xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 glass-premium rounded-full px-5 py-2 text-sm text-indigo-300 mb-8"
+            className="inline-flex items-center gap-2 glass-premium rounded-full px-4 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm text-indigo-300 mb-6 sm:mb-8"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)] animate-pulse" />
-            <span>Now with real-time voice AI — try the demo below</span>
+            <span>Now with real-time voice AI<span className="hidden sm:inline"> — try the demo below</span></span>
             <ArrowRight className="w-3.5 h-3.5" />
           </motion.div>
 
@@ -135,7 +135,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.8 }}
-            className="text-4xl sm:text-6xl md:text-8xl font-black text-white leading-[1.05] sm:leading-[1.02] mb-6 sm:mb-8 tracking-tight"
+            className="text-[30px] leading-[1.08] sm:text-6xl sm:leading-[1.02] md:text-8xl font-black text-white mb-5 sm:mb-8 tracking-tight"
           >
             Your knowledge.
             <br />
@@ -148,7 +148,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="text-base sm:text-lg md:text-xl text-white/45 max-w-2xl mx-auto mb-8 sm:mb-12 leading-relaxed"
+            className="text-[15px] sm:text-lg md:text-xl text-white/45 max-w-2xl mx-auto mb-7 sm:mb-12 leading-relaxed"
           >
             Deploy a custom AI assistant trained on your documents in minutes.
             RAG-powered, voice-enabled, embeddable anywhere.
@@ -158,13 +158,13 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
+            className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center"
           >
-            <Link href="/signup?plan=free" className="group inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25 active:scale-[0.98]">
+            <Link href="/signup?plan=free" className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25 active:scale-[0.98]">
               Start free — no card needed
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <Link href="/features" className="inline-flex items-center gap-2 glass-premium hover:bg-white/[0.08] text-white/80 font-semibold px-8 py-4 rounded-2xl text-lg transition-all hover:scale-105">
+            <Link href="/features" className="inline-flex items-center justify-center gap-2 glass-premium hover:bg-white/[0.08] text-white/80 font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105">
               <Play className="w-4 h-4" />
               See how it works
             </Link>
@@ -175,7 +175,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2, duration: 0.8 }}
-            className="mt-12 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-indigo-500/10"
+            className="mt-8 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-indigo-500/10"
           >
             <div className="bg-[#08081a]/90 rounded-2xl overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.06]">
@@ -190,15 +190,15 @@ export default function LandingPage() {
                   Connected
                 </div>
               </div>
-              <div className="p-6 space-y-4 text-left">
+              <div className="p-4 sm:p-6 space-y-4 text-left">
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-xs text-white/50 shrink-0">U</div>
-                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3 text-sm text-white/75 max-w-sm">
+                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-bl-md px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-white/75 max-w-[85%]">
                     Does my policy cover water damage from burst pipes?
                   </div>
                 </div>
                 <div className="flex gap-3 justify-end">
-                  <div className="bg-indigo-600/15 border border-indigo-500/20 rounded-2xl rounded-br-md px-4 py-3 text-sm text-indigo-200/90 max-w-sm">
+                  <div className="bg-indigo-600/15 border border-indigo-500/20 rounded-2xl rounded-br-md px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-indigo-200/90 max-w-[85%]">
                     Yes! Per <span className="text-indigo-300 font-medium">[S1] Section 4.2 — Water Damage</span>, burst pipe damage is covered up to £50,000 under your Platinum plan, subject to the £500 excess.
                     <div className="mt-2 text-xs text-indigo-300/50 flex items-center gap-1.5">
                       <FileText className="w-3 h-3" />
@@ -218,15 +218,15 @@ export default function LandingPage() {
       </section>
 
       {/* ── Live Voice Demo Section ─────────────────────────────────────── */}
-      <Suspense fallback={<div className="h-[500px]" />}>
+      <Suspense fallback={<div className="h-[560px] sm:h-[760px]" />}>
         <div className="z-0">
           <DemoVoiceSection />
         </div>
       </Suspense>
 
       {/* ── Stats ───────────────────────────────────────────────────────── */}
-      <Section className="py-12 sm:py-20 px-4 sm:px-6 border-y border-white/[0.04] relative z-10">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+      <Section className="py-10 sm:py-20 px-4 sm:px-6 border-y border-white/[0.04] relative z-10">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           {STATS.map(s => (
             <AnimatedStat key={s.label} value={s.value} label={s.label} />
           ))}
@@ -234,10 +234,10 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Features ─────────────────────────────────────────────────────── */}
-      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
+      <Section className="py-10 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-4">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-3 sm:mb-4">
               Everything for{" "}
               <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
                 production AI
@@ -247,7 +247,7 @@ export default function LandingPage() {
               No ML expertise required. We handle embeddings, vector search, streaming, and voice.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {FEATURES.map((f, i) => (
               <motion.div
                 key={f.title}
@@ -256,10 +256,10 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 whileHover={{ y: -6 }}
-                className="glass-card rounded-2xl p-6 group cursor-default"
+                className="glass-card rounded-2xl p-4 sm:p-6 group cursor-default"
               >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg ${f.glow} transition-all duration-300`}>
-                  <f.icon className="w-6 h-6 text-white" />
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 group-hover:shadow-lg ${f.glow} transition-all duration-300`}>
+                  <f.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-white mb-2 group-hover:text-indigo-200 transition-colors">{f.title}</h3>
                 <p className="text-white/45 text-sm leading-relaxed">{f.desc}</p>
@@ -270,15 +270,15 @@ export default function LandingPage() {
       </Section>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
-      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
+      <Section className="py-10 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-4xl font-black text-white mb-4">
+          <h2 className="text-2xl sm:text-4xl font-black text-white mb-3 sm:mb-4">
             Up and running in{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
               4 steps
             </span>
           </h2>
-          <p className="text-white/45 mb-16">From zero to live AI assistant faster than you think.</p>
+          <p className="text-white/45 mb-10 sm:mb-16">From zero to live AI assistant faster than you think.</p>
 
           <div className="grid md:grid-cols-4 gap-6 relative">
             {/* Connection line */}
@@ -293,8 +293,8 @@ export default function LandingPage() {
                 transition={{ delay: i * 0.15 }}
                 className="flex flex-col items-center text-center relative"
               >
-                <div className="w-12 h-12 rounded-xl border border-indigo-500/30 bg-indigo-600/10 flex items-center justify-center mb-3 relative z-10 backdrop-blur-sm">
-                  <s.icon className="w-5 h-5 text-indigo-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl border border-indigo-500/30 bg-indigo-600/10 flex items-center justify-center mb-3 relative z-10 backdrop-blur-sm">
+                  <s.icon className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-indigo-400" />
                 </div>
                 <div className="text-xs font-bold text-indigo-400 mb-1">Step {i + 1}</div>
                 <div className="font-bold text-white mb-1">{s.label}</div>
@@ -306,13 +306,13 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Pricing ─────────────────────────────────────────────────────── */}
-      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
+      <Section className="py-10 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-2xl sm:text-4xl font-black text-white mb-4">
             Simple{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">pricing</span>
           </h2>
-          <p className="text-white/45 mb-12">Start free, scale as you grow.</p>
+          <p className="text-white/45 mb-8 sm:mb-12">Start free, scale as you grow.</p>
 
           {plans.length === 0 ? (
             <div className="text-white/25 text-sm flex items-center justify-center gap-2">
@@ -320,7 +320,7 @@ export default function LandingPage() {
               Loading plans…
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {plans.map((plan, i) => (
                 <motion.div
                   key={plan.id}
@@ -372,7 +372,7 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
-      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
+      <Section className="py-10 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl sm:text-4xl font-black text-white text-center mb-8 sm:mb-12">
             Trusted by{" "}
@@ -380,7 +380,7 @@ export default function LandingPage() {
               forward-thinking teams
             </span>
           </h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
             {TESTIMONIALS.map((t, i) => (
               <motion.div
                 key={t.name}
@@ -388,7 +388,7 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="glass-card rounded-2xl p-6"
+                className="glass-card rounded-2xl p-4 sm:p-6"
               >
                 <div className="flex mb-3">
                   {[...Array(5)].map((_, j) => (
@@ -410,19 +410,19 @@ export default function LandingPage() {
       </Section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <Section className="py-16 sm:py-28 px-4 sm:px-6 relative z-10">
-        <div className="max-w-3xl mx-auto text-center glass-premium rounded-3xl p-14 relative overflow-hidden">
+      <Section className="py-10 sm:py-28 px-4 sm:px-6 relative z-10">
+        <div className="max-w-3xl mx-auto text-center glass-premium rounded-3xl p-6 sm:p-14 relative overflow-hidden">
           {/* Background glow */}
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-transparent to-violet-600/10 pointer-events-none" />
           <div className="relative">
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-4">Ready to build your AI?</h2>
-            <p className="text-white/45 mb-8 text-lg">Join 500+ organisations. Start free, upgrade when you&apos;re ready.</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup?plan=free" className="group inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-3 sm:mb-4">Ready to build your AI?</h2>
+            <p className="text-white/45 mb-6 sm:mb-8 text-[15px] sm:text-lg">Join 500+ organisations. Start free, upgrade when you&apos;re ready.</p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              <Link href="/signup?plan=free" className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25">
                 Get started for free
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link href="/contact" className="inline-flex items-center gap-2 glass-premium hover:bg-white/[0.08] text-white/70 font-semibold px-8 py-4 rounded-2xl text-lg transition-all">
+              <Link href="/contact" className="inline-flex items-center justify-center gap-2 glass-premium hover:bg-white/[0.08] text-white/70 font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all">
                 <ExternalLink className="w-4 h-4" />
                 Contact sales
               </Link>

@@ -56,7 +56,7 @@ export function EditOrgPanel({
   }
 
   return (
-    <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+    <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-white flex items-center gap-2">
           <Building2 className="w-4 h-4 text-violet-400" /> Organisation Details

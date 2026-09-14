@@ -42,7 +42,7 @@ const SECTIONS = [
 
 export default function PrivacyScreen() {
   return (
-    <div className="min-h-screen px-6 py-20">
+    <div className="min-h-screen px-4 sm:px-6 py-10 sm:py-20">
       <div className="max-w-3xl mx-auto">
         <div className="mb-10">
           <div className="text-xs text-white/30 mb-4">Last updated: 1 June 2025</div>

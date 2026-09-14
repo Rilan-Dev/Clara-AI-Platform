@@ -33,13 +33,13 @@ export default function DemoVoiceSection() {
   }, []);
 
   if (key === null) {
-    return <section className="relative z-10 w-full h-[760px]" aria-hidden="true" />;
+    return <section className="relative z-10 w-full h-[560px] sm:h-[760px]" aria-hidden="true" />;
   }
 
   if (!key) {
     return (
-      <section className="relative z-10 py-24 px-6">
-        <div className="max-w-5xl mx-auto rounded-3xl border border-amber-500/20 bg-amber-500/[0.04] px-6 py-10 text-center">
+      <section className="relative z-10 py-12 sm:py-24 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto rounded-3xl border border-amber-500/20 bg-amber-500/[0.04] px-4 py-8 sm:px-6 sm:py-10 text-center">
           <p className="text-sm font-semibold text-amber-300">Voice demo configuration is missing</p>
           <p className="mt-2 text-sm text-white/45">
             Set DEMO_CLARA_API_KEY or NEXT_PUBLIC_LANDING_EMBED_API_KEY and restart the server.
@@ -54,8 +54,7 @@ export default function DemoVoiceSection() {
       <iframe
         title="Clara AI voice assistant"
         src={`/embed/voice?key=${encodeURIComponent(key)}`}
-        className="block w-full border-0"
-        style={{ height: 760 }}
+        className="block w-full border-0 h-[560px] sm:h-[760px]"
         allow="microphone; autoplay"
         referrerPolicy="strict-origin-when-cross-origin"
       />

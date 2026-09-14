@@ -88,7 +88,7 @@ export default function AgentDetailPage() {
 
         {/* Agent details — read-only for platform admins */}
         {agent && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
                 <Bot className="w-5 h-5 text-indigo-300" />
@@ -126,9 +126,9 @@ export default function AgentDetailPage() {
             ))}
           </div>
         ) : kbs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-14 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-              <BookOpen className="w-6 h-6 text-indigo-300" />
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-10 sm:px-6 sm:py-14 text-center">
+            <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
             </div>
             <p className="font-medium text-white">No knowledge bases available</p>
             <p className="text-sm text-white/40 mt-1">
@@ -248,9 +248,9 @@ export default function AgentDetailPage() {
           ))}
         </div>
       ) : kbs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-14 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-            <BookOpen className="w-6 h-6 text-indigo-300" />
+        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-10 sm:px-6 sm:py-14 text-center">
+          <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
           </div>
           <p className="font-medium text-white">No knowledge bases yet</p>
           <p className="text-sm text-white/40 mt-1">Create a KB to upload documents and tune your assistant. AI models and providers are set by the platform admin.</p>

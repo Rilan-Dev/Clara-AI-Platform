@@ -68,24 +68,24 @@ function LoginForm() {
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
-            <Brain className="w-7 h-7 text-white" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
+            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome to Clara AI</h1>
           <p className="text-white/40 text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
+                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
               <div className="relative">
                 <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
+                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
                 <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>

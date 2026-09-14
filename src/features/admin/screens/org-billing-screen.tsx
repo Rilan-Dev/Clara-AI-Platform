@@ -296,7 +296,7 @@ export default function OrgBillingScreen() {
             <div>
               <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Current plan</p>
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-black text-white">{s?.plan_name ?? "Free"}</h2>
+                <h2 className="text-xl sm:text-2xl font-black text-white">{s?.plan_name ?? "Free"}</h2>
                 <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${statusInfo.cls}`}>
                   {statusInfo.label}
                 </span>
@@ -307,8 +307,8 @@ export default function OrgBillingScreen() {
                 {s?.gateway && s.gateway !== "manual" && ` · via ${s.gateway}`}
               </p>
             </div>
-            <div className="h-11 w-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center shrink-0">
-              <BadgeCheck className="w-5 h-5 text-indigo-300" />
+            <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center shrink-0">
+              <BadgeCheck className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-indigo-300" />
             </div>
           </div>
 
@@ -386,7 +386,7 @@ export default function OrgBillingScreen() {
                   <h4 className="font-bold text-white">{plan.name}</h4>
                   <p className="text-sm text-white/40 mt-0.5">{plan.description}</p>
                 </div>
-                <div className="text-2xl font-black text-white mb-1">
+                <div className="text-xl sm:text-2xl font-black text-white mb-1">
                   {plan.price_usd === -1 ? "Custom" : plan.price_usd === 0 ? "Free" : `$${plan.price_usd}`}
                   {plan.price_usd > 0 && <span className="text-sm font-normal text-white/40">/mo</span>}
                 </div>

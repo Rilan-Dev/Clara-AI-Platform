@@ -17,7 +17,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06]"
         style={{ background: "rgba(10,10,15,0.85)", backdropFilter: "blur(20px)" }}
       >
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
               <Brain className="w-4 h-4 text-white" />
@@ -83,7 +83,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         </div>
       </nav>
       <main className="pt-16">{children}</main>
-      <footer className="border-t border-white/[0.06] py-10 px-6">
+      <footer className="border-t border-white/[0.06] py-8 sm:py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
