@@ -15,6 +15,7 @@ import { query } from "@/lib/db";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { planGuard, planLimitResponse } from "@/lib/plan-guard";
+import { writeAuditLog } from "@/modules/auth/core/db";
 import {
   createDocument,
   createIngestJob,
@@ -171,6 +172,21 @@ export async function uploadDocumentsHandler(
 
     if (results.length > 0) kickIngestQueue();
 
+    // WS-1.4: mutation audit — every accepted upload is on record.
+    if (results.length > 0) {
+      void writeAuditLog({
+        userId: auth.user.id,
+        orgId,
+        action: "document.upload",
+        resourceType: "knowledge_base",
+        resourceId: kbId,
+        newData: {
+          accepted: results.map((r) => ({ id: r.document.id, title: r.document.title, size: r.document.fileSize })),
+          rejected: errors,
+        },
+      }).catch(() => undefined);
+    }
+
     const status = results.length > 0 ? 202 : 400;
     return NextResponse.json(
       { queued: results.map((r) => ({ ...r.document, jobId: r.jobId })), errors },
@@ -235,6 +251,15 @@ export async function deleteDocumentHandler(
     const kb = await getKnowledgeBaseById(kbId);
     if (kb) await deleteDocumentChunks(kb.qdrantCollection, docId);
     await deleteDocument(docId);
+    // WS-1.4: mutation audit — destructive action on tenant content.
+    void writeAuditLog({
+      userId: auth.user.id,
+      orgId: (await orgIdFor(kbId)) ?? undefined,
+      action: "document.delete",
+      resourceType: "document",
+      resourceId: docId,
+      newData: { kbId, title: doc.title },
+    }).catch(() => undefined);
     return NextResponse.json({ deleted: true });
   } catch (err) {
     if (err instanceof NextResponse) return err;
@@ -425,4 +450,18 @@ function guessMimeType(filename: string): string {
 function isAllowedExtension(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   return ["pdf", "docx", "xlsx", "xls", "txt", "md", "csv", "html", "htm", "xhtml"].includes(ext);
+}
+
+/** Best-effort org resolution for mutation audit rows (kb → agent → org). */
+async function orgIdFor(kbId: string): Promise<string | null> {
+  try {
+    const { query } = await import("@/lib/db");
+    const rows = await query<{ org_id: string }>(
+      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
+      [kbId],
+    );
+    return rows[0]?.org_id ?? null;
+  } catch {
+    return null;
+  }
 }

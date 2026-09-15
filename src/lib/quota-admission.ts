@@ -30,6 +30,7 @@ import { withTransaction } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { resolveOrgPlanLimits, NEAR_LIMIT_PCT } from "@/lib/plan-guard";
 import type { QuerySurface, QueryStatus } from "@/modules/knowledge-bases/core/analytics-db";
+import { redactText, redactionEntries } from "@/lib/redact";
 
 export type QuotaWarning = {
   limitKey: "max_req_day";
@@ -74,12 +75,10 @@ export type AdmitQueryEventInput = {
   latencyMs?:   number;
 };
 
-/** Advisory-lock key: stable per org across pool connections. */
-function orgLockKey(orgId: string): string {
-  // hashtext() exists in Postgres ≥ 8.1; the two-arg form avoids collisions
-  // with other advisory users by namespacing under a constant.
-  return `SELECT pg_advisory_xact_lock(hashtext('clara:quota:' || $1))`;
-}
+/** Advisory-lock SQL: serialises quota admissions per org. hashtext()
+ *  namespaces the lock under a constant so it cannot collide with other
+ *  advisory-lock users (e.g. the WS-1.4 hash-chain lock). */
+const ORG_QUOTA_LOCK_SQL = `SELECT pg_advisory_xact_lock(hashtext('clara:quota:' || $1))`;
 
 export async function admitQueryEvent(input: AdmitQueryEventInput): Promise<AdmissionResult> {
   const { orgId, kbId, queryText } = input;
@@ -105,7 +104,7 @@ export async function admitQueryEvent(input: AdmitQueryEventInput): Promise<Admi
   try {
     return await withTransaction(async (tx) => {
       // 1. Serialise admissions for this org — concurrent requests block here.
-      await tx.query(orgLockKey(orgId), [orgId]);
+      await tx.query(ORG_QUOTA_LOCK_SQL, [orgId]);
 
       // 2. Effective limits (same tx — a plan change mid-flight stays consistent).
       const limits = await resolveOrgPlanLimits(orgId, {
@@ -133,6 +132,24 @@ export async function admitQueryEvent(input: AdmitQueryEventInput): Promise<Admi
 
       // 5. Over the limit → refuse BEFORE any retrieval/LLM spend.
       if (current >= limits.max_req_day) {
+        // WS-1.4: the refusal itself is audited (fire-and-forget).
+        try {
+          const { writeAuditLog } = await import("@/modules/auth/core/db");
+          void writeAuditLog({
+            orgId,
+            action: "quota.denied",
+            resourceType: "query_event",
+            newData: {
+              limitKey: "max_req_day",
+              current,
+              limit: limits.max_req_day,
+              planId: limits.plan_id,
+              downgraded: limits.downgraded,
+              kbId,
+              surface: input.surface ?? "workspace",
+            },
+          }).catch(() => undefined);
+        } catch { /* audit import failure must not affect the refusal */ }
         return {
           admitted: false,
           reason:
@@ -206,15 +223,20 @@ async function insertPendingEvent(
   orgId: string,
 ): Promise<string | null> {
   const status: QueryStatus = input.status ?? (input.answerText != null ? "ok" : "pending");
+  // WS-1.4: the prompt is masked at write time; the original is kept in the
+  // restricted query_raw column only when redaction occurred.
+  const promptRedaction = redactText(input.queryText);
   const res = await tx.query(
     `INSERT INTO query_events
        (kb_id, query_text, source_count, latency_ms, session_id,
-        org_id, user_id, answer_text, surface, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        org_id, user_id, answer_text, surface, status,
+        redactions, query_raw)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING id`,
     [
       input.kbId,
-      input.queryText,
+      promptRedaction.text,
+      promptRedaction.changed ? input.queryText : null,
       input.sourceCount ?? 0,
       input.latencyMs ?? null,
       input.sessionId ?? null,
@@ -223,6 +245,7 @@ async function insertPendingEvent(
       input.answerText != null ? input.answerText.slice(0, 8000) : null,
       input.surface ?? "workspace",
       status,
+      JSON.stringify(redactionEntries(promptRedaction.counts)),
     ],
   );
   return (res.rows[0] as { id: string } | undefined)?.id ?? null;

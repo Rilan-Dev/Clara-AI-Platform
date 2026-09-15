@@ -24,7 +24,6 @@
 
 import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
-import type { PoolClient } from "pg";
 
 // ─── Plan limits as defined in the DB migration ──────────────────────────────
 

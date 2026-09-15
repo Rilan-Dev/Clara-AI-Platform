@@ -15,11 +15,13 @@
  * the separate usage_events table via logUsageEvent().
  */
 
-import { query, execute } from "@/lib/db";
+import { query, execute, withTransaction } from "@/lib/db";
+import { createHash } from "node:crypto";
 import {
   estimateChatCostUsdMicros,
   estimateEmbeddingCostUsdMicros,
 } from "@/modules/ai-core/model-catalog";
+import { redactText, redactionEntries } from "@/lib/redact";
 
 // ── Write ─────────────────────────────────────────────────────────────────────
 
@@ -52,23 +54,31 @@ export async function logQueryEvent(opts: {
       orgId = orgRows[0]?.org_id ?? null;
     }
 
+    // WS-1.4: prompts are masked at write time. The original is kept in the
+    // restricted query_raw column ONLY when redaction occurred; it leaves
+    // that column solely through the audited super-admin reveal endpoint.
+    const promptRedaction = redactText(opts.queryText);
+
     const rows = await query<{ id: string }>(
       `INSERT INTO query_events
          (kb_id, query_text, source_count, latency_ms, session_id,
-          org_id, user_id, answer_text, surface, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          org_id, user_id, answer_text, surface, status,
+          redactions, query_raw)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [
         opts.kbId,
-        opts.queryText,
+        promptRedaction.text,
+        promptRedaction.changed ? opts.queryText : null,
         opts.sourceCount ?? 0,
         opts.latencyMs ?? null,
         opts.sessionId ?? null,
         orgId,
         opts.userId ?? null,
-        opts.answerText != null ? truncate(opts.answerText, 8000) : null,
+        opts.answerText != null ? truncate(redactText(opts.answerText).text, 8000) : null,
         opts.surface ?? "workspace",
         opts.status ?? (opts.answerText != null ? "ok" : "pending"),
+        JSON.stringify(redactionEntries(promptRedaction.counts)),
       ]
     );
     return rows[0]?.id ?? null;
@@ -91,8 +101,15 @@ export type UsageMetering = {
 
 /**
  * Finalise a query event after the AI stream completes — persists the
- * generated answer so platform admins can audit prompts AND responses,
- * plus the token/cost metering for the usage spine.
+ * generated answer (PII-masked) so platform admins can audit prompts AND
+ * responses, plus the token/cost metering for the usage spine, and seals the
+ * row into the per-org tamper-evident hash chain (WS-1.4).
+ *
+ * The finalise UPDATE and the hash-chain extension run inside ONE transaction
+ * guarded by a per-org advisory lock, so concurrent finalises cannot fork the
+ * chain. Finalising is idempotent-per-status: re-finalise (e.g. a retry)
+ * recomputes and overwrites the same row's hash only while the row has not
+ * been superseded; verified rows keep their chain position.
  */
 export async function finalizeQueryEvent(
   eventId: string | null,
@@ -114,42 +131,201 @@ export async function finalizeQueryEvent(
       ? truncate(opts.answerText, 8000)
       : null;
 
+    // WS-1.4: answers are masked like prompts; the original is kept in the
+    // restricted answer_raw column only when redaction occurred.
+    const answerRedaction = answer != null ? redactText(answer) : null;
+
     const metering = opts.metering ?? null;
     const costUsdMicros = metering
       ? metering.costUsdMicros ??
         estimateChatCostUsdMicros(metering.model, metering.promptTokens, metering.completionTokens)
       : 0;
 
-    await execute(
-      `UPDATE query_events
-          SET answer_text       = $2,
-              status            = $3,
-              latency_ms        = COALESCE($4, latency_ms),
-              source_count      = COALESCE($5, source_count),
-              model             = COALESCE($6, model),
-              provider          = COALESCE($7, provider),
-              prompt_tokens     = COALESCE($8, prompt_tokens),
-              completion_tokens = COALESCE($9, completion_tokens),
-              cost_usd_micros   = $10,
-              cancelled         = $11
-        WHERE id = $1`,
-      [
-        eventId,
-        answer,
-        opts.status ?? "ok",
-        opts.latencyMs ?? null,
-        opts.sourceCount ?? null,
-        metering?.model ?? null,
-        metering?.provider ?? null,
-        metering?.promptTokens ?? null,
-        metering?.completionTokens ?? null,
-        costUsdMicros,
-        opts.cancelled ?? false,
-      ]
-    );
+    await withTransaction(async (tx) => {
+      // Existing redaction counts (prompt masking happened at insert time)
+      // are merged with the answer masking so the row reports both.
+      const existing = await tx.query<{ redactions: string; query_raw: string | null }>(
+        `SELECT redactions::text AS redactions, query_raw FROM query_events WHERE id = $1 FOR UPDATE`,
+        [eventId],
+      );
+      const priorCounts: Record<string, number> = {};
+      try {
+        for (const entry of JSON.parse(existing.rows[0]?.redactions ?? "[]") as Array<{ type: string; count: number }>) {
+          priorCounts[entry.type] = (priorCounts[entry.type] ?? 0) + entry.count;
+        }
+      } catch { /* malformed legacy JSON — start fresh */ }
+      if (answerRedaction) {
+        for (const [type, count] of Object.entries(answerRedaction.counts)) {
+          priorCounts[type] = (priorCounts[type] ?? 0) + count;
+        }
+      }
+      const mergedRedactions = JSON.stringify(redactionEntries(priorCounts));
+
+      await tx.query(
+        `UPDATE query_events
+            SET answer_text       = $2,
+                answer_raw        = $3,
+                redactions        = $4::jsonb,
+                status            = $5,
+                latency_ms        = COALESCE($6, latency_ms),
+                source_count      = COALESCE($7, source_count),
+                model             = COALESCE($8, model),
+                provider          = COALESCE($9, provider),
+                prompt_tokens     = COALESCE($10, prompt_tokens),
+                completion_tokens = COALESCE($11, completion_tokens),
+                cost_usd_micros   = $12,
+                cancelled         = $13
+          WHERE id = $1`,
+        [
+          eventId,
+          answerRedaction ? answerRedaction.text : answer,
+          answerRedaction?.changed ? answer : null,
+          mergedRedactions,
+          opts.status ?? "ok",
+          opts.latencyMs ?? null,
+          opts.sourceCount ?? null,
+          metering?.model ?? null,
+          metering?.provider ?? null,
+          metering?.promptTokens ?? null,
+          metering?.completionTokens ?? null,
+          costUsdMicros,
+          opts.cancelled ?? false,
+        ],
+      );
+
+      // ── WS-1.4: extend the per-org hash chain ────────────────────────────
+      const row = (await tx.query<{ org_id: string | null }>(
+        `SELECT org_id FROM query_events WHERE id = $1`,
+        [eventId],
+      )).rows[0];
+      if (row?.org_id) {
+        // Serialise chain extension per org — concurrent finalises queue here.
+        await tx.query(`SELECT pg_advisory_xact_lock(hashtext('clara:qechain:' || $1))`, [row.org_id]);
+        const prev = (await tx.query<{ row_hash: string | null }>(
+          `SELECT row_hash FROM query_events
+            WHERE org_id = $1 AND row_hash IS NOT NULL AND id <> $2
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1`,
+          [row.org_id, eventId],
+        )).rows[0];
+
+        // Canonical content — every field a tamperer would want to change.
+        const canonical = await tx.query<{
+          id: string; org_id: string; kb_id: string | null; user_id: string | null;
+          query_text: string; answer_text: string | null; status: string;
+          model: string | null; prompt_tokens: number; completion_tokens: number;
+          created_at: string;
+        }>(
+          `SELECT id, org_id::text AS org_id, kb_id::text AS kb_id, user_id::text AS user_id,
+                  query_text, answer_text, status, model,
+                  prompt_tokens, completion_tokens, created_at::text AS created_at
+             FROM query_events WHERE id = $1`,
+          [eventId],
+        );
+        const c = canonical.rows[0];
+        if (c) {
+          const prevHash = prev?.row_hash ?? "";
+          const payload = [
+            prevHash,
+            c.id, c.org_id, c.kb_id ?? "", c.user_id ?? "",
+            c.query_text, c.answer_text ?? "", c.status,
+            c.model ?? "", String(c.prompt_tokens), String(c.completion_tokens),
+            c.created_at,
+          ].join("\u001f");
+          const rowHash = createHash("sha256").update(payload, "utf8").digest("hex");
+          await tx.query(
+            `UPDATE query_events SET prev_hash = $2, row_hash = $3 WHERE id = $1`,
+            [eventId, prevHash, rowHash],
+          );
+        }
+      }
+    });
   } catch (err) {
     console.warn("[analytics] failed to finalise query event:", (err as Error).message);
   }
+}
+
+// ── WS-1.4: chain verification ────────────────────────────────────────────────
+
+export type ChainBreak = {
+  eventId: string;
+  orgId: string | null;
+  reason: "hash_mismatch" | "prev_hash_mismatch";
+  expectedRowHash?: string;
+  actualRowHash?: string;
+};
+
+export type ChainVerification = {
+  orgId: string | null;
+  rowsVerified: number;
+  breaks: ChainBreak[];
+};
+
+/**
+ * Recompute the per-org hash chain and report integrity breaks.
+ * Pass an orgId to verify one org; omit to verify every org with hashed rows.
+ */
+export async function verifyQueryEventChain(orgId?: string): Promise<ChainVerification[]> {
+  const orgs = await query<{ org_id: string }>(
+    orgId
+      ? `SELECT $1::uuid AS org_id`
+      : `SELECT DISTINCT org_id FROM query_events WHERE row_hash IS NOT NULL AND org_id IS NOT NULL`,
+    orgId ? [orgId] : undefined,
+  );
+
+  const results: ChainVerification[] = [];
+  for (const { org_id } of orgs) {
+    const rows = await query<{
+      id: string; org_id: string; kb_id: string | null; user_id: string | null;
+      query_text: string; answer_text: string | null; status: string;
+      model: string | null; prompt_tokens: number; completion_tokens: number;
+      created_at: string; prev_hash: string | null; row_hash: string;
+    }>(
+      `SELECT id, org_id::text AS org_id, kb_id::text AS kb_id, user_id::text AS user_id,
+              query_text, answer_text, status, model,
+              prompt_tokens, completion_tokens, created_at::text AS created_at,
+              prev_hash, row_hash
+         FROM query_events
+        WHERE org_id = $1 AND row_hash IS NOT NULL
+        ORDER BY created_at ASC, id ASC`,
+      [org_id],
+    );
+
+    const breaks: ChainBreak[] = [];
+    let prevHash = "";
+    for (const row of rows) {
+      const payload = [
+        prevHash,
+        row.id, row.org_id, row.kb_id ?? "", row.user_id ?? "",
+        row.query_text, row.answer_text ?? "", row.status,
+        row.model ?? "", String(row.prompt_tokens), String(row.completion_tokens),
+        row.created_at,
+      ].join("\u001f");
+      const expected = createHash("sha256").update(payload, "utf8").digest("hex");
+      if (expected !== row.row_hash) {
+        breaks.push({
+          eventId: row.id,
+          orgId: row.org_id,
+          reason: "hash_mismatch",
+          expectedRowHash: expected,
+          actualRowHash: row.row_hash,
+        });
+        // Continue with the stored hash so one bad row doesn't cascade.
+        prevHash = row.row_hash;
+      } else if (row.prev_hash !== prevHash) {
+        breaks.push({
+          eventId: row.id,
+          orgId: row.org_id,
+          reason: "prev_hash_mismatch",
+        });
+        prevHash = row.row_hash;
+      } else {
+        prevHash = row.row_hash;
+      }
+    }
+    results.push({ orgId: org_id, rowsVerified: rows.length, breaks });
+  }
+  return results;
 }
 
 /**

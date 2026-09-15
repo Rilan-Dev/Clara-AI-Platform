@@ -9,6 +9,7 @@ import { ProviderFactory } from "@/modules/ai-core/factory";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { requireAuth, requireAgentPermission, requireKbPermission } from "@/modules/auth/core/rbac";
 import { planGuard, planLimitResponse } from "@/lib/plan-guard";
+import { writeAuditLog } from "@/modules/auth/core/db";
 
 export async function createKbHandler(req: NextRequest, agentId: string): Promise<NextResponse> {
   try {
@@ -33,6 +34,15 @@ export async function createKbHandler(req: NextRequest, agentId: string): Promis
       await deleteKnowledgeBase(kb.id).catch(() => null);
       throw new Error(`Failed to create Qdrant collection "${kb.qdrantCollection}": ${(qdrantErr as Error).message}`);
     }
+    // WS-1.4: mutation audit — who created which KB, when.
+    void writeAuditLog({
+      userId: auth.user.id,
+      orgId: agent.orgId,
+      action: "kb.create",
+      resourceType: "knowledge_base",
+      resourceId: kb.id,
+      newData: { name: kb.name, agentId },
+    }).catch(() => undefined);
     return NextResponse.json(kb, { status: 201 });
   } catch (err) {
     if (err instanceof NextResponse) return err;
@@ -93,6 +103,14 @@ export async function deleteKbHandler(req: NextRequest, kbId: string): Promise<N
     if (!collectionName) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
     try { await getQdrantClient().deleteCollection(collectionName); }
     catch (qdrantErr) { console.warn(`[kbs] deleteKb: could not delete Qdrant collection "${collectionName}":`, (qdrantErr as Error).message); }
+    // WS-1.4: mutation audit — destructive action on tenant content.
+    void writeAuditLog({
+      userId: auth.user.id,
+      action: "kb.delete",
+      resourceType: "knowledge_base",
+      resourceId: kbId,
+      newData: { collection: collectionName },
+    }).catch(() => undefined);
     return NextResponse.json({ deleted: true });
   } catch (err) {
     if (err instanceof NextResponse) return err;
