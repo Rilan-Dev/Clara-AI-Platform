@@ -271,10 +271,14 @@ async function postChatKb(
         let answerBuffer = "";
         let streamError: string | null = null;
         const streamT0 = Date.now();
+        // WS-1.1: provider-reported token usage for the usage-event spine.
+        // (Ref object — TS narrows a closure-written `let` to null at read time.)
+        const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
         try {
           const completionStream = provider.chatStream(chatMessages, {
             temperature: resolved.temperature ?? config.temperature,
             maxTokens: resolved.maxTokens ?? config.maxTokens,
+            onUsage: (u) => { usageRef.value = u; },
           });
           for await (const delta of completionStream) {
             if (delta) {
@@ -286,11 +290,18 @@ async function postChatKb(
           streamError = (err as Error).message;
           write({ type: "error", payload: streamError });
         } finally {
-          // Persist the AI-generated answer for the platform audit trail.
+          // Persist the AI-generated answer + metering for the platform
+          // audit trail and the usage-event spine.
           void finalizeQueryEvent(eventId, {
             answerText: answerBuffer,
             status: streamError ? "error" : "ok",
             latencyMs: Date.now() - streamT0,
+            metering: {
+              model: resolved.chatModel ?? provider.getModelName("chat"),
+              provider: resolved.provider,
+              promptTokens: usageRef.value?.promptTokens ?? 0,
+              completionTokens: usageRef.value?.completionTokens ?? 0,
+            },
           });
           write({ type: "done" });
           controller.close();
@@ -457,12 +468,15 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
         (async () => {
           let streamedAny = false;
           let bufferedAnswer = "";
+          // WS-1.1: provider-reported token usage for the usage-event spine.
+          const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
 
           try {
             // P1 FIX: use CHAT_MAX_TOKENS (env-configured) instead of 500.
             const completionStream = provider.chatStream(augmentedMessages, {
               temperature: 0,
               maxTokens: CHAT_MAX_TOKENS,
+              onUsage: (u) => { usageRef.value = u; },
             });
 
             for await (const delta of completionStream) {

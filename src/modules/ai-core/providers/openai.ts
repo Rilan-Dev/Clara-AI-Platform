@@ -3,7 +3,7 @@ import type {
   ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { LLMProvider, ChatMessage, ChatOptions, ProviderConfig } from "../types";
+import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 
 const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
 const DEFAULT_EMBEDDING_MODEL =
@@ -72,6 +72,9 @@ export class OpenAIProvider implements LLMProvider {
       messages: openaiMessages,
       stop: options?.stop,
       stream: true,
+      // WS-1.1: the final chunk carries the authoritative token usage so the
+      // usage-event spine records real numbers instead of estimates.
+      stream_options: { include_usage: true },
     };
 
     // Reasoning models (o-series, GPT-5.x Luna/Terra/Sol) require
@@ -95,15 +98,29 @@ export class OpenAIProvider implements LLMProvider {
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) yield delta;
+      // The usage chunk arrives after the last token chunk (choices empty).
+      if (chunk.usage) {
+        options?.onUsage?.({
+          promptTokens: chunk.usage.prompt_tokens ?? 0,
+          completionTokens: chunk.usage.completion_tokens ?? 0,
+        });
+      }
     }
   }
 
-  async embedText(text: string): Promise<number[]> {
+  async embedText(text: string, options?: EmbedOptions): Promise<number[]> {
     const model = this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
     const response = await this.client.embeddings.create({
       input: text,
       model,
     });
+
+    if (response.usage) {
+      options?.onUsage?.({
+        promptTokens: response.usage.prompt_tokens ?? 0,
+        completionTokens: 0,
+      });
+    }
 
     const embedding = response.data[0]?.embedding;
     if (!embedding) {
@@ -112,7 +129,7 @@ export class OpenAIProvider implements LLMProvider {
     return embedding;
   }
 
-  async embedBatch(texts: string[]): Promise<number[][]> {
+  async embedBatch(texts: string[], options?: EmbedOptions): Promise<number[][]> {
     if (texts.length === 0) return [];
 
     const model = this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
@@ -120,6 +137,13 @@ export class OpenAIProvider implements LLMProvider {
       input: texts,
       model,
     });
+
+    if (response.usage) {
+      options?.onUsage?.({
+        promptTokens: response.usage.prompt_tokens ?? 0,
+        completionTokens: 0,
+      });
+    }
 
     return response.data
       .sort((a, b) => a.index - b.index)

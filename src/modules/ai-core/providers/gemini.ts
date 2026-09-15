@@ -1,5 +1,5 @@
 import { GoogleGenAI, type Content } from "@google/genai";
-import { LLMProvider, ChatMessage, ChatOptions, ProviderConfig } from "../types";
+import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 
 const DEFAULT_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.0-flash";
 const DEFAULT_EMBEDDING_MODEL =
@@ -83,10 +83,18 @@ export class GeminiProvider implements LLMProvider {
       if (text) {
         yield text;
       }
+      // WS-1.1: Gemini streams carry usageMetadata on the final chunk.
+      const meta = chunk.usageMetadata;
+      if (meta && options?.onUsage) {
+        options.onUsage({
+          promptTokens: Number(meta.promptTokenCount ?? 0),
+          completionTokens: Number(meta.candidatesTokenCount ?? 0),
+        });
+      }
     }
   }
 
-  async embedText(text: string): Promise<number[]> {
+  async embedText(text: string, options?: EmbedOptions): Promise<number[]> {
     const result = await this.ai.models.embedContent({
       model: this.getEmbeddingModelName(),
       contents: text,
@@ -95,10 +103,11 @@ export class GeminiProvider implements LLMProvider {
         ...this.embeddingOutputDimensionality(),
       },
     });
+    reportEmbeddingUsage([text], [result], options);
     return result.embeddings?.[0]?.values ?? [];
   }
 
-  async embedBatch(texts: string[]): Promise<number[][]> {
+  async embedBatch(texts: string[], options?: EmbedOptions): Promise<number[][]> {
     if (texts.length === 0) return [];
 
     // The new SDK doesn't have a direct batchEmbedContents method on models,
@@ -116,6 +125,8 @@ export class GeminiProvider implements LLMProvider {
         })
       )
     );
+    // WS-1.1: batch usage aggregated across per-call responses.
+    reportEmbeddingUsage(texts, results, options);
     return results.map((r) => r.embeddings?.[0]?.values ?? []);
   }
 
@@ -155,4 +166,26 @@ export class GeminiProvider implements LLMProvider {
     if (!Number.isFinite(dim) || dim <= 0 || dim > 3072) return {};
     return { outputDimensionality: dim };
   }
+}
+
+/**
+ * WS-1.1 embedding usage for Gemini. The AI Studio embedContent response
+ * carries no token count (Vertex-only `billableCharacterCount`), so usage is
+ * computed from billable characters when present and otherwise estimated
+ * at ~4 characters per token — the documented industry heuristic. Estimated
+ * values are flagged in the metadata so dashboards can label them.
+ */
+function reportEmbeddingUsage(
+  texts: string[],
+  results: Array<{ metadata?: { billableCharacterCount?: number } }>,
+  options?: EmbedOptions,
+): void {
+  if (!options?.onUsage || texts.length === 0) return;
+  let chars = 0;
+  for (let i = 0; i < texts.length; i++) {
+    const billable = results[i]?.metadata?.billableCharacterCount;
+    chars += billable ?? texts[i]?.length ?? 0;
+  }
+  if (chars <= 0) return;
+  options.onUsage({ promptTokens: Math.ceil(chars / 4), completionTokens: 0 });
 }

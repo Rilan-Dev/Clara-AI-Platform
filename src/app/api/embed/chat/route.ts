@@ -181,6 +181,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ? sources.map((result, index) => `[S${index + 1}] ${result.snippet}`).join("\n\n")
       : "No relevant information was found in the knowledge base for this query.";
 
+    // WS-1.1: provider-reported token usage for the usage-event spine.
+    // (Ref object — TS narrows a closure-written `let` to null at read time.)
+    const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
     const completion = provider.chatStream(
       [
         { role: "system", content: systemPrompt },
@@ -190,7 +193,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         })),
         { role: "system", content: `Knowledge base context:\n${context}` },
       ],
-      { maxTokens, temperature },
+      { maxTokens, temperature, onUsage: (u) => { usageRef.value = u; } },
     );
 
     // Voice flows that surface sources to the customer are already covered by
@@ -232,10 +235,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           } finally {
             write({ type: "done" });
             controller.close();
-            // Persist the AI-generated answer for the platform audit trail.
+            // Persist the AI-generated answer + metering for the platform
+            // audit trail and the usage-event spine.
             void finalizeQueryEvent(eventId, {
               answerText: answerBuffer,
               status: streamError ? "error" : "ok",
+              metering: {
+                model: resolved.chatModel ?? provider.getModelName("chat"),
+                provider: resolved.provider,
+                promptTokens: usageRef.value?.promptTokens ?? 0,
+                completionTokens: usageRef.value?.completionTokens ?? 0,
+              },
             });
           }
         })();

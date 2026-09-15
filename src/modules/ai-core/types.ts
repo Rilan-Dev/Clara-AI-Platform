@@ -5,10 +5,28 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * Token usage reported by the provider for one invocation (WS-1.1 metering).
+ */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+}
+
 export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   stop?: string[];
+  /**
+   * Called exactly once when the provider reports final usage for the
+   * stream. Usage-event metering hangs off this — never off guesswork.
+   */
+  onUsage?: (usage: TokenUsage) => void;
+}
+
+export interface EmbedOptions {
+  /** Usage callback for embedding batches (ingestion metering). */
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 export interface LLMProvider {
@@ -23,12 +41,12 @@ export interface LLMProvider {
   /**
    * Generates an embedding for a single text string.
    */
-  embedText(text: string): Promise<number[]>;
+  embedText(text: string, options?: EmbedOptions): Promise<number[]>;
 
   /**
    * Generates embeddings for an array of text strings.
    */
-  embedBatch(texts: string[]): Promise<number[][]>;
+  embedBatch(texts: string[], options?: EmbedOptions): Promise<number[][]>;
 
   /**
    * Returns the name of the provider (e.g., 'openai', 'gemini').

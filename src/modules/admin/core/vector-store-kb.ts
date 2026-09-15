@@ -17,6 +17,7 @@ import { getQdrantClient, ensureCollectionExists } from "./vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { logUsageEvent } from "@/modules/knowledge-bases/core/analytics-db";
 
 // Re-use batch config from env
 const EMBED_BATCH_SIZE = (() => {
@@ -91,11 +92,24 @@ async function embedBatchWithRetry(
   texts: string[],
   providerConfig: ProviderConfig,
   attempt = 0,
+  metering?: {
+    orgId?: string | null;
+    kbId?: string | null;
+    documentId?: string | null;
+    onTokens?: (tokens: number) => void;
+  },
 ): Promise<number[][]> {
   const provider = ProviderFactory.getProvider(providerConfig);
   const providerDesc = describeProvider(provider);
   try {
-    return await provider.embedBatch(texts);
+    // WS-1.1: the usage callback feeds the usage-event spine (ingestion
+    // metering) — tokens are provider-reported, never estimated.
+    const embeddings = await provider.embedBatch(texts, {
+      onUsage: metering?.onTokens
+        ? (u) => metering.onTokens!(u.promptTokens)
+        : undefined,
+    });
+    return embeddings;
   } catch (err: unknown) {
     const e = err as Record<string, unknown>;
     const status = typeof e?.status === "number" ? e.status
@@ -107,7 +121,7 @@ async function embedBatchWithRetry(
         `[vs-kb] embedding batch failed (${providerDesc}), retrying in ${wait}ms (attempt ${attempt + 1}/${EMBED_MAX_RETRIES}): ${(e?.message as string) ?? err}`
       );
       await sleep(wait);
-      return embedBatchWithRetry(texts, providerConfig, attempt + 1);
+      return embedBatchWithRetry(texts, providerConfig, attempt + 1, metering);
     }
     // Attach provider context so document error_messages in the UI and logs
     // say exactly what failed and where, instead of a bare "Request timed out."
@@ -123,6 +137,11 @@ async function embedBatchWithRetry(
 async function embedBatches(
   texts: string[],
   providerConfig: ProviderConfig,
+  metering?: {
+    orgId?: string | null;
+    kbId?: string | null;
+    documentId?: string | null;
+  },
 ): Promise<number[][]> {
   const results: number[][] = [];
   const totalBatches = Math.ceil(texts.length / EMBED_BATCH_SIZE);
@@ -132,7 +151,23 @@ async function embedBatches(
     console.log(`[vs-kb] embedding batch ${batchNum}/${totalBatches} (${batch.length} chunks)`);
     // One API call per batch (provider batch endpoint) instead of N parallel
     // single-text calls — fewer requests, fewer rate limits, faster ingest.
-    const embeddings = await embedBatchWithRetry(batch, providerConfig);
+    // WS-1.1: each batch appends one EMBEDDING usage event (tokens + cost).
+    const embeddings = await embedBatchWithRetry(batch, providerConfig, 0, {
+      ...metering,
+      onTokens: (tokens) => {
+        const provider = ProviderFactory.getProvider(providerConfig);
+        void logUsageEvent({
+          kind: "EMBEDDING",
+          model: provider.getModelName("embedding"),
+          provider: provider.getProviderName(),
+          orgId: metering?.orgId ?? null,
+          kbId: metering?.kbId ?? null,
+          documentId: metering?.documentId ?? null,
+          promptTokens: tokens,
+          metadata: { batch: batchNum, chunks: batch.length },
+        });
+      },
+    });
     if (embeddings.length !== batch.length) {
       throw new Error(
         `Embedding provider returned ${embeddings.length} vectors for ${batch.length} inputs`
@@ -182,7 +217,11 @@ export async function upsertDocumentsKb(
     vectorSize: provider.getEmbeddingDimension(),
   });
 
-  const embeddings = await embedBatches(textChunks, providerConfig);
+  const embeddings = await embedBatches(textChunks, providerConfig, {
+    orgId: resolved.orgId,
+    kbId: meta.kbId,
+    documentId: meta.documentId,
+  });
   const uploadedAt = new Date().toISOString();
 
   const points = textChunks.map((chunk, index) => ({
