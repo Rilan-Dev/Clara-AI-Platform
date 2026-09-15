@@ -1,11 +1,38 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Check, Copy } from "lucide-react";
 import { MarkdownMessage } from "@/modules/assistant/ui/chat/MarkdownMessage";
 import type { AssistantMessageModel } from "@/modules/assistant/core";
 
 import { RoleBadge } from "./RoleBadge";
+
+/** WS-1.5: per-message copy affordance (assistant messages only). */
+function CopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      aria-label="Copy message"
+      className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(content);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        } catch {
+          // Clipboard permission denied — silently ignore.
+        }
+      }}
+    >
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      {copied ? "Copied" : "Copy"}
+    </Button>
+  );
+}
 
 export function MessageList({
   messages,
@@ -53,6 +80,16 @@ export function MessageList({
                   <span className="text-xs text-muted-foreground">
                     Streaming...
                   </span>
+                )}
+                {/* WS-1.5: stopped generation — partial answer, kept + labelled. */}
+                {message.isTruncated && !message.isStreaming && (
+                  <span className="text-xs text-amber-600 dark:text-amber-300">
+                    Stopped — answer truncated
+                  </span>
+                )}
+                {/* WS-1.5: copy the completed assistant answer. */}
+                {!message.isStreaming && message.role === "assistant" && (
+                  <CopyButton content={message.content} />
                 )}
               </div>
 

@@ -101,6 +101,8 @@ export interface Message {
   content: string;
   sources?: Source[];
   isStreaming?: boolean;
+  /** WS-1.5: true when the user stopped generation — partial answer kept. */
+  isTruncated?: boolean;
 }
 
 export class AssistantMessageModel implements Message {
@@ -109,6 +111,7 @@ export class AssistantMessageModel implements Message {
   content: string;
   sources?: SourceModel[];
   isStreaming?: boolean;
+  isTruncated?: boolean;
 
   constructor(message: Message | AssistantMessageModel) {
     this.id = message.id;
@@ -120,6 +123,7 @@ export class AssistantMessageModel implements Message {
         : message.sources?.map((source) => SourceModel.from(source)!);
     this.sources = rawSources?.map((source) => SourceModel.from(source)!);
     this.isStreaming = message.isStreaming ?? false;
+    this.isTruncated = message.isTruncated ?? false;
   }
 
   updateContent(content: string, isStreaming = this.isStreaming): AssistantMessageModel {
@@ -134,6 +138,24 @@ export class AssistantMessageModel implements Message {
         url: source.url,
       })),
       isStreaming,
+      isTruncated: this.isTruncated,
+    });
+  }
+
+  /** WS-1.5: mark a stopped stream — the partial answer is kept and labelled. */
+  withTruncated(isTruncated: boolean): AssistantMessageModel {
+    return new AssistantMessageModel({
+      id: this.id,
+      role: this.role,
+      content: this.content,
+      sources: this.sources?.map((source) => ({
+        id: source.id,
+        title: source.title,
+        snippet: source.snippet,
+        url: source.url,
+      })),
+      isStreaming: false,
+      isTruncated,
     });
   }
 
@@ -157,7 +179,8 @@ export type StreamEvent =
   | { type: "sources"; payload: Source[] }
   | { type: "token"; payload: string }
   | { type: "done" }
-  | { type: "error"; payload: string };
+  | { type: "error"; payload: string }
+  | { type: "quota_warning"; payload: { limitKey: string; used: number; limit: number; pct: number } };
 
 type StreamEventWithPayload = Extract<StreamEvent, { payload: unknown }>;
 
@@ -172,6 +195,7 @@ export class StreamEventEnvelope {
       case "error":
       case "sources":
       case "document":
+      case "quota_warning":
         this.payload = event.payload;
         break;
       default:

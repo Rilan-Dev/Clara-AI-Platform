@@ -12,8 +12,8 @@ import {
 } from "@/modules/embed/core/validate-embed";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
-import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { planGuard } from "@/lib/plan-guard";
+import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { query as dbQuery } from "@/lib/db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { getPlatformEnvSettings } from "@/modules/phone/core/db";
@@ -93,23 +93,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB not found" }, { status: 404, headers: corsHeaders });
     }
 
-    // ── Plan limit: daily request quota (org-wide, rolling 24h) ────────────
+    // ── WS-1.2: atomic quota admission (org-wide, rolling 24h) ────────────
     // Voice turns and phone calls hit this endpoint — they count too.
+    // Advisory-locked check-and-insert: search requests cannot race past the
+    // limit, and the audit row exists before any retrieval spend.
     const t0 = Date.now();
     const orgRows = await dbQuery<{ org_id: string }>(
       `SELECT a.org_id FROM agents a JOIN knowledge_bases kbx ON kbx.agent_id = a.id WHERE kbx.id = $1`,
       [kbId]
     );
     const orgId = orgRows[0]?.org_id ?? null;
-    if (orgId) {
-      const reqGuard = await planGuard(orgId, "requests");
-      if (!reqGuard.allowed) {
-        const blocked = reqGuard as { reason: string };
-        return NextResponse.json(
-          { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
-          { status: 402, headers: corsHeaders }
-        );
-      }
+    const searchAdmission = await admitQueryEvent({
+      orgId,
+      kbId,
+      queryText: query,
+      surface: "voice",
+    });
+    if (!searchAdmission.admitted) {
+      const denied = searchAdmission;
+      return NextResponse.json(
+        { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: denied.reason,
+          limitKey: denied.limitKey, current: denied.current, limit: denied.limit },
+        { status: 402, headers: corsHeaders }
+      );
     }
 
     // if (isDemo) {
@@ -129,13 +135,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Voice / phone queries are part of the audit trail (no LLM answer is
     // generated here — the voice provider composes the spoken response).
-    void logQueryEvent({
-      kbId,
-      queryText: query,
+    // WS-1.2: the row was atomically admitted before retrieval — finalise it.
+    void finalizeQueryEvent(searchAdmission.admitted ? searchAdmission.eventId : null, {
+      answerText: "",
       sourceCount: results.length,
       latencyMs: Date.now() - t0,
-      orgId,
-      surface: "voice",
       status: "ok",
     });
 

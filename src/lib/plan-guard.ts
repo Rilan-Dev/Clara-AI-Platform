@@ -24,6 +24,7 @@
 
 import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 
 // ─── Plan limits as defined in the DB migration ──────────────────────────────
 
@@ -64,15 +65,33 @@ export const NEAR_LIMIT_PCT = 80;
 
 // ─── Internal: resolve the effective limits for an org ────────────────────────
 
-type EffectiveLimits = PlanLimits & {
+export type EffectiveLimits = PlanLimits & {
   plan_id:     string;
   plan_name:   string;
   status:      string;            // raw subscription status ('none' if no row)
   downgraded:  boolean;           // true → free limits applied (expired etc.)
 };
 
-async function resolveLimits(orgId: string): Promise<EffectiveLimits> {
-  const rows = await query<{
+/** Minimal query interface so limits can be resolved inside a transaction. */
+export type SqlExecutor = {
+  query<T extends { [key: string]: unknown }>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T[]>;
+};
+
+/**
+ * Resolve the effective plan limits for an org. `via` defaults to the shared
+ * pool; pass a transaction client so quota admission (WS-1.2) can resolve
+ * limits and count usage under one advisory lock — closing the TOCTOU race
+ * where two concurrent requests both pass a count-then-insert check.
+ */
+export async function resolveOrgPlanLimits(
+  orgId: string,
+  via?: SqlExecutor,
+): Promise<EffectiveLimits> {
+  const run = via ?? { query };
+  const rows = await run.query<{
     plan_id: string; plan_name: string; status: string;
     current_period_end: string | null;
     max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
@@ -103,7 +122,7 @@ async function resolveLimits(orgId: string): Promise<EffectiveLimits> {
 
   // No subscription row → free tier.
   if (!sub) {
-    const free = await fetchPlanRow("free");
+    const free = await fetchPlanRow("free", via);
     return {
       ...(free ?? FREE_FALLBACK_LIMITS),
       plan_id: "free", plan_name: free?.plan_name ?? "Free",
@@ -116,7 +135,7 @@ async function resolveLimits(orgId: string): Promise<EffectiveLimits> {
   const end = sub.current_period_end ? new Date(sub.current_period_end).getTime() : null;
   const isExpired = end !== null && end < Date.now();
   if (!FULL_LIMIT_STATUSES.has(sub.status) || isExpired) {
-    const free = await fetchPlanRow("free");
+    const free = await fetchPlanRow("free", via);
     return {
       ...(free ?? FREE_FALLBACK_LIMITS),
       plan_id: sub.plan_id, plan_name: sub.plan_name,
@@ -127,8 +146,12 @@ async function resolveLimits(orgId: string): Promise<EffectiveLimits> {
   return { ...sub, downgraded: false };
 }
 
-async function fetchPlanRow(planId: string): Promise<PlanLimits & { plan_name: string } | null> {
-  const rows = await query<PlanLimits & { plan_name: string }>(
+async function fetchPlanRow(
+  planId: string,
+  via?: SqlExecutor,
+): Promise<PlanLimits & { plan_name: string } | null> {
+  const run = via ?? { query };
+  const rows = await run.query<PlanLimits & { plan_name: string }>(
     `SELECT sp.id AS plan_id, sp.name AS plan_name,
             sp.max_kbs, sp.max_docs_per_kb, sp.max_req_day, sp.max_storage_mb,
             sp.voice_enabled, sp.api_access, sp.custom_branding, sp.sso_enabled
@@ -156,7 +179,7 @@ export async function planGuard(
   context?: { kbId?: string; incomingBytes?: number },
 ): Promise<GuardResult> {
   try {
-    const limits = await resolveLimits(orgId);
+    const limits = await resolveOrgPlanLimits(orgId);
 
     switch (check) {
 
@@ -280,10 +303,21 @@ export async function planGuard(
         return { allowed: true };
     }
   } catch (err) {
-    // On DB errors, fail open (don't block the request). Note: a genuine DB
-    // outage also fails the subsequent mutation itself, so this cannot be
-    // abused to bypass limits — the guarded write would fail anyway.
+    // On DB errors the guard fails open by default (documented rationale: a
+    // genuine DB outage also fails the subsequent mutation itself, so this
+    // cannot be abused to bypass limits). Operators who prefer hard closure
+    // can set PLAN_GUARD_FAIL_MODE=closed — the request is then refused with
+    // 503 instead of silently proceeding (WS-1.2 defence-in-depth option).
     console.error("[planGuard] error:", err);
+    if (process.env.PLAN_GUARD_FAIL_MODE?.toLowerCase() === "closed") {
+      return {
+        allowed: false,
+        reason: "Plan limits could not be verified right now. Please try again shortly.",
+        limitKey: "plan_guard_unavailable",
+        current: 0,
+        limit: 0,
+      };
+    }
     return { allowed: true };
   }
 }
@@ -312,7 +346,7 @@ export function planLimitResponse(guard: GuardResult & { allowed: false }): Resp
  * Fetch the full plan limits for an org (useful for UI usage indicators).
  */
 export async function getOrgPlanLimits(orgId: string): Promise<PlanLimits & { plan_id: string }> {
-  const limits = await resolveLimits(orgId).catch(() => null);
+  const limits = await resolveOrgPlanLimits(orgId).catch(() => null);
   if (limits) {
     const { plan_name: _planName, status: _status, downgraded: _dg, ...rest } = limits;
     return rest;
@@ -346,7 +380,7 @@ export type OrgUsageSnapshot = {
  * KPI show 0 for IST users chatting after midnight.
  */
 export async function getOrgUsageSnapshot(orgId: string): Promise<OrgUsageSnapshot> {
-  const limits = await resolveLimits(orgId);
+  const limits = await resolveOrgPlanLimits(orgId);
 
   const usageR = await query<{
     kb_count: number;

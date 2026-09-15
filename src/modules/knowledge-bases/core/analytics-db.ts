@@ -27,7 +27,7 @@ export type QuerySurface = "workspace" | "embed" | "voice" | "search";
 export type QueryStatus  = "pending" | "ok" | "error";
 
 export async function logQueryEvent(opts: {
-  kbId:        string;
+  kbId:        string | null;   // null for legacy document-scoped chat
   queryText:   string;
   sourceCount?: number;   // known after retrieval; 0 at request time
   latencyMs?:  number;
@@ -44,7 +44,7 @@ export async function logQueryEvent(opts: {
     // Resolve the owning org from kb → agent unless the caller already
     // knows it (embed context carries it from the validated API key).
     let orgId = opts.orgId ?? null;
-    if (!orgId) {
+    if (!orgId && opts.kbId) {
       const orgRows = await query<{ org_id: string }>(
         `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
         [opts.kbId]

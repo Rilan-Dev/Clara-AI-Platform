@@ -5,8 +5,8 @@ import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledg
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
-import { logQueryEvent, finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { planGuard } from "@/lib/plan-guard";
+import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
@@ -96,18 +96,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // ── Plan limit: daily request quota (org-wide, rolling 24h) ────────────
+    // ── WS-1.2: atomic quota admission (org-wide, rolling 24h) ────────────
+    // Advisory-locked check-and-insert: concurrent embed requests cannot race
+    // past the limit, and quota state cannot diverge from the audit trail.
     // Enforced before retrieval/LLM work so over-limit orgs cost nothing.
-    if (ctx.orgId) {
-      const reqGuard = await planGuard(ctx.orgId, "requests");
-      if (!reqGuard.allowed) {
-        const blocked = reqGuard as { reason: string };
-        return NextResponse.json(
-          { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
-          { status: 402, headers: corsHeaders },
-        );
-      }
-    }
 
     const allowedLanguages = resolved.allowedLanguages;
     const maxTokens = resolved.maxTokens ?? config.maxTokens;
@@ -128,16 +120,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const t0 = Date.now();
 
-    // Audit trail — inserted at REQUEST time (status='pending') so the prompt
-    // is audited and the daily quota counts even when retrieval later fails.
-    const eventId = await logQueryEvent({
+    // Audit trail + daily quota, atomically admitted (status='pending') so
+    // the prompt is audited, the quota counts even when retrieval later
+    // fails, and a crossing of 80% of the daily limit carries a warning the
+    // widget can surface as a dismissible banner.
+    const admission = await admitQueryEvent({
       kbId: ctx.kbId,
       queryText: query,
       sessionId: body.sessionId,
       orgId: ctx.orgId,
       surface: "embed",
-      status: "pending",
     });
+    if (!admission.admitted) {
+      return admissionDeniedResponse(admission) as NextResponse;
+    }
+    const eventId = admission.eventId;
+    const quotaWarning = admission.warning;
 
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
@@ -218,6 +216,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           });
         }
 
+        // WS-1.2: 80% soft warning — the widget renders a dismissible banner.
+        if (quotaWarning) {
+          write({ type: "quota_warning", payload: quotaWarning });
+        }
+
         void (async () => {
           let answerBuffer = "";
           let streamError: string | null = null;
@@ -246,6 +249,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                 promptTokens: usageRef.value?.promptTokens ?? 0,
                 completionTokens: usageRef.value?.completionTokens ?? 0,
               },
+              // WS-1.5: user stopped the stream — partial answer, cancelled flag.
+              cancelled: req.signal.aborted,
             });
           }
         })();

@@ -18,11 +18,11 @@ import {
 import { getKnowledgeBaseById, getAssistantConfigByKb } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
-import { logQueryEvent, finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
-import { planGuard } from "@/lib/plan-guard";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import {
   CHART_RESPONSE_INSTRUCTIONS,
@@ -169,7 +169,10 @@ async function postChatKb(
   if (!config) throw new Error("Knowledge base configuration not found.");
   if (kb.status !== "active") throw new Error("Knowledge base is archived.");
 
-  // ── Plan limit: daily request quota (org-wide, rolling 24h) ─────────────
+  // ── WS-1.2: atomic quota admission (org-wide, rolling 24h) ─────────────
+  // ONE transaction: advisory-lock the org, resolve limits, count the window,
+  // then INSERT the pending audit row — check-and-increment cannot race, and
+  // quota state can never diverge from the audit trail.
   // Enforced BEFORE any retrieval/LLM work so over-limit orgs cost nothing.
   // (Named dbQuery — `query` below shadows it with the chat question text.)
   const orgRows = await dbQuery<{ org_id: string }>(
@@ -177,16 +180,6 @@ async function postChatKb(
     [kbId]
   );
   const orgId = orgRows[0]?.org_id ?? null;
-  if (orgId) {
-    const reqGuard = await planGuard(orgId, "requests");
-    if (!reqGuard.allowed) {
-      const blocked = reqGuard as { reason: string };
-      return NextResponse.json(
-        { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
-        { status: 402 }
-      );
-    }
-  }
 
   // Audit context — workspace chat is authenticated; the question is still
   // logged for anonymous surfaces (user_id NULL).
@@ -200,15 +193,21 @@ async function postChatKb(
 
   console.log(`[chat/kb] kbId=${kbId} query="${query.slice(0, 100)}"`);
 
-  // Analytics + audit trail. Inserted at REQUEST time with status='pending':
+  // Analytics + audit trail + daily quota, atomically admitted:
   //   • the prompt is audited even when retrieval or the LLM later fails
   //   • the daily quota counts immediately (no abort-the-stream bypass)
-  // Finalised with the AI answer once the stream completes.
-  const eventId = await logQueryEvent({
-    kbId, queryText: query, sessionId,
-    orgId, userId: authCtx?.user.id ?? null, surface: "workspace",
-    status: "pending",
+  //   • concurrent requests cannot race past the limit (advisory lock)
+  //   • crossing 80% of the daily limit streams a soft warning banner
+  // Finalised with the AI answer + metering once the stream completes.
+  const admission = await admitQueryEvent({
+    orgId, kbId, queryText: query, sessionId,
+    userId: authCtx?.user.id ?? null, surface: "workspace",
   });
+  if (!admission.admitted) {
+    return admissionDeniedResponse(admission);
+  }
+  const eventId = admission.eventId;
+  const quotaWarning = admission.warning;
 
   // RAG search across the full KB collection
   const providerConfig = toProviderConfig(resolved);
@@ -267,6 +266,11 @@ async function postChatKb(
       write({ type: "kb", payload: { id: kb.id, name: kb.name } });
       write({ type: "sources", payload: sources });
 
+      // WS-1.2: 80% soft warning — the client renders a dismissible banner.
+      if (quotaWarning) {
+        write({ type: "quota_warning", payload: quotaWarning });
+      }
+
       (async () => {
         let answerBuffer = "";
         let streamError: string | null = null;
@@ -302,6 +306,8 @@ async function postChatKb(
               promptTokens: usageRef.value?.promptTokens ?? 0,
               completionTokens: usageRef.value?.completionTokens ?? 0,
             },
+            // WS-1.5: user stopped the stream — partial answer, cancelled flag.
+            cancelled: request.signal.aborted,
           });
           write({ type: "done" });
           controller.close();
@@ -355,6 +361,33 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     const documentRecord = await getDocumentById(documentId);
     if (!documentRecord)
       throw new Error("The requested document is not available.");
+    // ── WS-1.2: close the Mode-B bypass ────────────────────────────────────
+    // Legacy document-scoped chat previously skipped BOTH the daily request
+    // quota and the query audit trail — an enforcement hole. Workspace chat
+    // is authenticated, so the caller's org membership supplies quota
+    // attribution; the audit row is inserted with kb_id NULL (legacy
+    // documents live in the Qdrant catalog, not in knowledge_bases).
+    const modeBAuth = await getAuthContext(request).catch(() => null);
+    let modeBOrgId: string | null = null;
+    if (modeBAuth && !modeBAuth.user.isSuperAdmin) {
+      const modeBOrgRows = await dbQuery<{ org_id: string }>(
+        `SELECT om.org_id FROM org_members om WHERE om.user_id = $1 ORDER BY om.created_at ASC LIMIT 1`,
+        [modeBAuth.user.id]
+      );
+      modeBOrgId = modeBOrgRows[0]?.org_id ?? null;
+    }
+    const modeBAdmission = await admitQueryEvent({
+      orgId: modeBOrgId,
+      kbId: null,
+      queryText: latest.content,
+      userId: modeBAuth?.user.id ?? null,
+      surface: "workspace",
+    });
+    if (!modeBAdmission.admitted) {
+      return admissionDeniedResponse(modeBAdmission);
+    }
+    const modeBEventId = modeBAdmission.eventId;
+    const modeBQuotaWarning = modeBAdmission.warning;
 
     const query = latest.content;
     console.log(
@@ -441,11 +474,18 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
           });
           writeEvent({ type: "sources", payload: retrieved });
 
+          // WS-1.2: 80% soft warning banner.
+          if (modeBQuotaWarning) {
+            writeEvent({ type: "quota_warning", payload: modeBQuotaWarning });
+          }
+
           // P3 FIX: emit the entire fallback as a single token event.
           // Old code: for (const char of friendlyFallback) { writeEvent(...) }
           // A 200-char string created 200 NDJSON events, 200 JSON.parse calls,
           // and 200 setMessages state updates on the client.
           writeEvent({ type: "token", payload: friendlyFallback });
+          // WS-1.2: audit the fallback answer too.
+          void finalizeQueryEvent(modeBEventId, { answerText: friendlyFallback, status: "ok" });
           writeEvent({ type: "done" });
           controller.close();
         },
@@ -465,8 +505,14 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
         });
         writeEvent({ type: "sources", payload: retrieved });
 
+          // WS-1.2: 80% soft warning banner.
+          if (modeBQuotaWarning) {
+            writeEvent({ type: "quota_warning", payload: modeBQuotaWarning });
+          }
+
         (async () => {
           let streamedAny = false;
+          let streamFailed = false;
           let bufferedAnswer = "";
           // WS-1.1: provider-reported token usage for the usage-event spine.
           const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
@@ -523,6 +569,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
               }
             }
           } catch (error) {
+            streamFailed = true;
             console.error("[chat] streaming error:", error);
             writeEvent({
               type: "error",
@@ -532,6 +579,21 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
                   : "Streaming error occurred.",
             });
           } finally {
+            // WS-1.2 + WS-1.1: audit the answer + record token metering
+            // for the legacy path (previously neither was captured).
+            void finalizeQueryEvent(modeBEventId, {
+              answerText: bufferedAnswer,
+              status: streamFailed ? "error" : "ok",
+              metering: usageRef.value
+                ? {
+                    model: provider.getModelName("chat"),
+                    provider: provider.getProviderName(),
+                    promptTokens: usageRef.value.promptTokens,
+                    completionTokens: usageRef.value.completionTokens,
+                  }
+                : null,
+              cancelled: request.signal.aborted,
+            });
             writeEvent({ type: "done" });
             controller.close();
           }

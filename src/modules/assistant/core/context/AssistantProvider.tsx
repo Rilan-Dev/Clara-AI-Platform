@@ -43,6 +43,13 @@ import { apiUrl } from "@/lib/runtime";
 // as the final element.
 const MAX_HISTORY_MESSAGES = 20;
 
+type QuotaWarningPayload = {
+  limitKey: string;
+  used: number;
+  limit: number;
+  pct: number;
+};
+
 type AssistantContextValue = {
   documents: KnowledgeDocumentModel[];
   documentsLoading: boolean;
@@ -66,7 +73,17 @@ type AssistantContextValue = {
   hasConversation: boolean;
   currentDocumentOverviews: Record<string, DocumentOverviewModel>;
   language: LanguagePreferences;
-  // ── Chat persistence (DB-backed) ──────────────────────────────────────────
+  // ── WS-1.2: 80% soft quota warning (dismissible banner state) ──────────
+  quotaWarning: QuotaWarningPayload | null;
+  dismissQuotaWarning: () => void;
+  // ── WS-1.5: streaming controls ─────────────────────────────────────────
+  /** Abort the in-flight generation; the partial answer is kept, marked truncated. */
+  stopGeneration: () => void;
+  /** Re-run the last user prompt as a fresh (billed) turn. */
+  regenerate: () => void;
+  /** True when the last completed turn can be regenerated. */
+  canRegenerate: boolean;
+  // ── Chat persistence (DB-backed) ──────────────────────────────────────
   /** Conversation history for the active KB (most recently updated first). */
   sessions: ChatSessionSummary[];
   /** Currently restored session id, or null when a fresh (un-persisted) conversation is active. */
@@ -183,6 +200,13 @@ export function AssistantProvider({
   // can reference their setters without a "cannot access before init" error.
   const [messages, setMessages] = useState<AssistantMessageModel[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  // WS-1.2: soft quota warning streamed by the quota middleware when a
+  // request crosses 80% of the plan's daily limit. Dismissible.
+  const [quotaWarning, setQuotaWarning] = useState<QuotaWarningPayload | null>(null);
+  const dismissQuotaWarning = useCallback(() => setQuotaWarning(null), []);
+  // WS-1.5: true when the USER pressed stop (vs an automatic abort from
+  // sending a new message / switching context — those replace the turn).
+  const userStoppedRef = useRef(false);
   const [documentOverviews, setDocumentOverviews] = useState<
     Record<string, DocumentOverviewModel>
   >({});
@@ -840,6 +864,11 @@ export function AssistantProvider({
 
               case "document":
                 break;
+
+              // WS-1.2: 80% soft warning — surfaced as a dismissible banner.
+              case "quota_warning":
+                setQuotaWarning(event.payload);
+                break;
             }
           },
           options
@@ -849,37 +878,52 @@ export function AssistantProvider({
         console.error("[AssistantProvider] stream error:", error);
 
         // Aborted turns (user sent a new message / switched away) must not be
-        // persisted as "Request was cancelled" history entries.
+        // persisted as "Request was cancelled" history entries. A USER stop
+        // (WS-1.5) is different: the partial answer is kept, clearly labelled
+        // as truncated, and persisted.
+        const wasUserStop = userStoppedRef.current;
         if (error instanceof Error && error.name === "AbortError") {
-          skipPersistence = true;
+          skipPersistence = !wasUserStop;
         }
 
-        const errorMessage =
-          error instanceof AssistantError
-            ? error.message
-            : error instanceof Error && error.name === "AbortError"
-            ? "Request was cancelled"
-            : "I'm having trouble connecting right now. Please check your internet connection and try again.";
+        if (wasUserStop) {
+          // Keep the partial answer, mark it truncated.
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? AssistantMessageModel.from(m).withTruncated(true)
+                : m
+            )
+          );
+          streamedContent = ""; // partial already rendered; skip re-persist below
+        } else {
+          const errorMessage =
+            error instanceof AssistantError
+              ? error.message
+              : error instanceof Error && error.name === "AbortError"
+              ? "Request was cancelled"
+              : "I'm having trouble connecting right now. Please check your internet connection and try again.";
 
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? new AssistantMessageModel({
-                  id: m.id,
-                  role: m.role,
-                  content: errorMessage,
-                  sources: m.sources?.map((s) => ({
-                    id: s.id,
-                    title: s.title,
-                    snippet: s.snippet,
-                    url: s.url,
-                  })),
-                  isStreaming: false,
-                })
-              : m
-          )
-        );
-        streamedContent = errorMessage;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? new AssistantMessageModel({
+                    id: m.id,
+                    role: m.role,
+                    content: errorMessage,
+                    sources: m.sources?.map((s) => ({
+                      id: s.id,
+                      title: s.title,
+                      snippet: s.snippet,
+                      url: s.url,
+                    })),
+                    isStreaming: false,
+                  })
+                : m
+            )
+          );
+          streamedContent = errorMessage;
+        }
       } finally {
         // ── Chat persistence: write the completed turn (KB mode only) ────────
         // Non-fatal by design — see persistTurn.
@@ -899,6 +943,7 @@ export function AssistantProvider({
         if (mountedRef.current) {
           setIsStreaming(false);
           abortControllerRef.current = null;
+          userStoppedRef.current = false;
         }
       }
     },
@@ -912,6 +957,33 @@ export function AssistantProvider({
   const setKbSuggestedPrompts = useCallback((prompts: string[]) => {
     setSuggestedPrompts(prompts.length > 0 ? prompts : [...DEFAULT_SUGGESTED]);
   }, []);
+
+  // ── WS-1.5: streaming controls ───────────────────────────────────────────
+  /** User-facing stop: abort the provider stream; the partial answer is
+   *  kept and labelled truncated (see the AbortError branch in sendPrompt). */
+  const stopGeneration = useCallback(() => {
+    userStoppedRef.current = true;
+    abortControllerRef.current?.abort();
+  }, []);
+
+  /** Re-run the last user prompt as a fresh turn (billed as a new request). */
+  const regenerate = useCallback(() => {
+    if (isStreaming) return;
+    const msgs = messagesRef.current;
+    let lastUserIdx = -1;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === "user") { lastUserIdx = i; break; }
+    }
+    if (lastUserIdx === -1) return;
+    const prompt = msgs[lastUserIdx].content;
+    // Drop the previous user turn + everything after it, then re-send —
+    // the fresh completion streams as a brand-new (billed) turn.
+    setMessages(msgs.slice(0, lastUserIdx));
+    void sendPrompt(prompt);
+  }, [isStreaming, sendPrompt]);
+
+  const canRegenerate =
+    !isStreaming && messages.length > 0 && messages[messages.length - 1]?.role === "assistant";
 
   const clearMessages = useCallback(() => {
     // Clearing the visible chat also detaches from the stored session, so the
@@ -938,6 +1010,11 @@ export function AssistantProvider({
       sendPrompt,
       reloadDocuments,
       clearMessages,
+      quotaWarning,
+      dismissQuotaWarning,
+      stopGeneration,
+      regenerate,
+      canRegenerate,
       hasConversation: messages.length > 0,
       currentDocumentOverviews: documentOverviews,
       language: languageConfig,
@@ -962,6 +1039,11 @@ export function AssistantProvider({
       sendPrompt,
       reloadDocuments,
       clearMessages,
+      quotaWarning,
+      dismissQuotaWarning,
+      stopGeneration,
+      regenerate,
+      canRegenerate,
       languageConfig,
       documentOverviews,
       setActiveDocumentWithReset,

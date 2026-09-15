@@ -8,9 +8,9 @@ import { getDocumentById } from "@/modules/admin/core";
 import { searchHybrid } from "@/modules/admin/core/hybrid-search";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
-import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { planGuard } from "@/lib/plan-guard";
 import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
@@ -50,21 +50,22 @@ export async function postRagSearch(
         return NextResponse.json({ error: "Knowledge base is archived" }, { status: 400 });
       }
 
-      // ── Plan limit: daily request quota (org-wide, rolling 24h) ────────────
+      // ── WS-1.2: atomic quota admission (org-wide, rolling 24h) ────────────
+      // Advisory-locked check-and-insert: search requests cannot race past
+      // the limit, and the audit row exists before any retrieval spend.
       const orgRows = await dbQuery<{ org_id: string }>(
         `SELECT a.org_id FROM agents a JOIN knowledge_bases kbx ON kbx.agent_id = a.id WHERE kbx.id = $1`,
         [kb.id]
       );
       const orgId = orgRows[0]?.org_id ?? null;
-      if (orgId) {
-        const reqGuard = await planGuard(orgId, "requests");
-        if (!reqGuard.allowed) {
-          const blocked = reqGuard as { reason: string };
-          return NextResponse.json(
-            { error: "plan_limit_exceeded", code: "plan_limit_exceeded", message: blocked.reason },
-            { status: 402 }
-          );
-        }
+      const searchAdmission = await admitQueryEvent({
+        orgId,
+        kbId: kb.id,
+        queryText: query,
+        surface: "search",
+      });
+      if (!searchAdmission.admitted) {
+        return admissionDeniedResponse(searchAdmission);
       }
 
       // Public Demo passes an explicit provider so KB/org settings cannot
@@ -135,13 +136,10 @@ export async function postRagSearch(
         })
         .join("\n\n");
 
-      void logQueryEvent({
-        kbId: kb.id,
-        queryText: query,
+      void finalizeQueryEvent(searchAdmission.admitted ? searchAdmission.eventId : null, {
+        answerText: "",
         sourceCount: vectorResults.length + graphHits.length,
         latencyMs: Date.now() - t0,
-        orgId,
-        surface: "search",
         status: "ok",
       });
 
