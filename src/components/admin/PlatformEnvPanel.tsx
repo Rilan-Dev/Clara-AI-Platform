@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, AlertCircle, ExternalLink, Bot, CreditCard, Smartphone, Globe } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
+import { validateModelField } from "@/modules/ai-core/model-catalog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,15 @@ type EnvSetting = {
 };
 
 const MASK = "●●●●●●●●";
+
+/** WS-0.4: shared validator for the model fields in this panel — a chat
+ *  model in the embedding field (or vice versa) is blocked at entry. */
+const modelFieldValidation =
+  (field: "chat" | "embedding", provider: "openai" | "gemini") =>
+  (v: string): string | null => {
+    const result = validateModelField({ field, model: v, provider });
+    return result.ok ? null : result.message;
+  };
 
 // Predefined model/voice options for dropdowns (custom entry always allowed)
 const OPENAI_CHAT_MODELS = [
@@ -103,11 +113,14 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     label: "Chat Model", placeholder: "Select or type model",
     hint: "Model used for chat completions",
     type: "select", options: OPENAI_CHAT_MODELS, group: "OpenAI",
+    validation: modelFieldValidation("chat", "openai"),
   },
   OPENAI_EMBEDDING_MODEL: {
     label: "Embedding Model", placeholder: "Select or type model",
     hint: "Model used for document embeddings (must match vector dimension)",
     type: "select", options: OPENAI_EMBEDDING_MODELS, group: "OpenAI",
+    // WS-0.4: a chat model here silently corrupts retrieval — block it.
+    validation: modelFieldValidation("embedding", "openai"),
   },
   OPENAI_REALTIME_MODEL: {
     label: "Realtime Model", placeholder: "Select or type model",
@@ -133,11 +146,13 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     label: "Chat Model", placeholder: "Select or type model",
     hint: "Model used for chat completions",
     type: "select", options: GEMINI_CHAT_MODELS, group: "Gemini",
+    validation: modelFieldValidation("chat", "gemini"),
   },
   GEMINI_EMBEDDING_MODEL: {
     label: "Embedding Model", placeholder: "Select or type model",
     hint: "Model used for document embeddings",
     type: "select", options: GEMINI_EMBEDDING_MODELS, group: "Gemini",
+    validation: modelFieldValidation("embedding", "gemini"),
   },
   GEMINI_REALTIME_MODEL: {
     label: "Realtime Model", placeholder: "Select or type model",

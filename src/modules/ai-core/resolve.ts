@@ -4,6 +4,7 @@ import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settin
 import { getAssistantConfigByAgent, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
+import { looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
 import type {
   AIProvider,
   AISurface,
@@ -201,11 +202,37 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     getAllowedValues(orgSettings?.allowedChatModels, provider),
     defaultChat,
   );
-  const embeddingModel = pickAllowedString(
+  let embeddingModel = pickAllowedString(
     embeddingCandidate,
     getAllowedValues(orgSettings?.allowedEmbeddingModels, provider),
     defaultEmbedding,
   );
+
+  // ── WS-0.4 runtime self-heal ─────────────────────────────────────────────
+  // Legacy rows can still carry a chat model id in the embedding field (the
+  // reported defect: gpt-4o-2024-08-06 configured as the embedding model).
+  // The write path now rejects this, but reads must not silently corrupt
+  // retrieval: fall back to the provider default and log loudly instead.
+  if (embeddingModel && looksLikeChatModel(embeddingModel)) {
+    const fallback =
+      getAllowedValues(orgSettings?.allowedEmbeddingModels, provider)?.find(
+        (m) => !looksLikeChatModel(m),
+      ) ?? defaultEmbedding ?? null;
+    console.error(
+      `[ai-config] embedding model "${embeddingModel}" (source: ${input.kbId ? "kb/agent/org config" : "env"}) ` +
+      `is a chat model — falling back to "${fallback ?? "provider default"}". ` +
+      `Fix the stored configuration (Settings → AI / KB runtime overrides).`,
+    );
+    embeddingModel = fallback;
+  }
+
+  // Inverse trap: an embedding model id configured as the chat model.
+  if (chatModel && looksLikeEmbeddingModel(chatModel)) {
+    console.error(
+      `[ai-config] chat model "${chatModel}" is an embedding model — ` +
+      `requests for this tenant would fail. Ask the operator to fix the stored configuration.`,
+    );
+  }
   const realtimeModel = pickAllowedString(
     realtimeCandidate,
     getAllowedValues(orgSettings?.allowedRealtimeModels, provider),

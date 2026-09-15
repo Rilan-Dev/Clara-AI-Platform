@@ -5,6 +5,15 @@ import { getPlatformEnvSettings, setPlatformEnvSetting } from "@/modules/phone/c
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { invalidateOpenAICatalogCache } from "@/modules/assistant/api/openai-catalog-cache";
 import { resetEmailTransportCache } from "@/lib/email";
+import { validateModelField } from "@/modules/ai-core/model-catalog";
+
+// WS-0.4: model keys that must hold a model id from the correct catalogue.
+const MODEL_FIELD_KEYS: Record<string, { field: "chat" | "embedding"; provider: "openai" | "gemini" }> = {
+  OPENAI_CHAT_MODEL:        { field: "chat",      provider: "openai" },
+  OPENAI_EMBEDDING_MODEL:   { field: "embedding", provider: "openai" },
+  GEMINI_CHAT_MODEL:        { field: "chat",      provider: "gemini" },
+  GEMINI_EMBEDDING_MODEL:   { field: "embedding", provider: "gemini" },
+};
 
 const CONFIRM_SECRET = process.env.PLATFORM_CONFIRM_SECRET ?? process.env.NEXTAUTH_SECRET ?? "clara-platform-confirm-secret";
 const TOKEN_TTL_MS = 5 * 60 * 1000;
@@ -60,6 +69,22 @@ export async function POST(req:NextRequest):Promise<NextResponse>{
     const expected=buildToken(body.key,body.value,ts); const provided=body.confirmation_token.padEnd(64,"0").slice(0,64); let valid=false;
     try{valid=crypto.timingSafeEqual(Buffer.from(expected,"hex"),Buffer.from(provided,"hex"));}catch{valid=false;}
     if(!valid)return NextResponse.json({error:"Invalid confirmation token."},{status:403});
+    // WS-0.4: server-side catalogue check — a chat model saved into an
+    // embedding key is rejected even when the request bypasses the UI.
+    const modelField = MODEL_FIELD_KEYS[body.key];
+    if (modelField) {
+      const validation = validateModelField({
+        field: modelField.field,
+        model: body.value,
+        provider: modelField.provider,
+      });
+      if (!validation.ok) {
+        return NextResponse.json(
+          { error: "invalid_model_selection", code: validation.code, key: body.key, message: validation.message },
+          { status: 400 },
+        );
+      }
+    }
     await setPlatformEnvSetting(body.key,body.value,auth.user.id);
     // Voice / AI catalog provenance: rotating an OpenAI key or model changes
     // what the Voice tab should show, so reset its Redis cache (best-effort).

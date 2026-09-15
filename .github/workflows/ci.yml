@@ -29,6 +29,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Test
         run: npm run test -- --run
+      - name: Validate model configuration (WS-0.4)
+        run: npm run validate:model-config
 
   bridge-build:
     name: Build RabbitMQ Bridge

@@ -472,10 +472,21 @@ export async function fetchKBAIOverrides(
 export async function patchKBAIOverrides(
   id: string,
   data: Partial<Omit<KBAIOverrides, "id" | "kbId" | "createdAt" | "updatedAt">>,
+  options?: {
+    /**
+     * WS-0.4: set when the caller re-processes the KB's documents in the
+     * same action ("Save & Reprocess Docs"). The API refuses embedding-model
+     * changes on embedded KBs without it (409 embedding_dimension_change).
+     */
+    allowEmbeddingReprocess?: boolean;
+  },
 ): Promise<KBAIOverrides> {
   return apiFetch<KBAIOverrides>(`/api/kbs/${id}/ai-overrides`, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      ...(options?.allowEmbeddingReprocess ? { allowEmbeddingReprocess: true } : {}),
+    }),
   });
 }
 export type ConfigSnapshot = {

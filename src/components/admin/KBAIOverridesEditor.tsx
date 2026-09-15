@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AIProvider, BulkReprocessResult, KBAIOverrides } from "@/modules/admin-ui/api";
+import {
+  chatModelOptions,
+  embeddingModelOptions,
+  embeddingDimensionFor,
+  validateModelField,
+} from "@/modules/ai-core/model-catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +30,12 @@ type Props = {
   onSaveAndReprocess?: (
     data: Partial<Omit<KBAIOverrides, "id" | "kbId" | "createdAt" | "updatedAt">>,
   ) => Promise<BulkReprocessResult>;
+};
+
+/** Extended payload: the reprocess variant carries the WS-0.4 flag that
+ *  acknowledges the embedding-model change and the rebuild that follows. */
+type SavePayload = Partial<Omit<KBAIOverrides, "id" | "kbId" | "createdAt" | "updatedAt">> & {
+  allowEmbeddingReprocess?: boolean;
 };
 
 type Draft = {
@@ -89,7 +101,7 @@ export function KBAIOverridesEditor({
     setReprocessMessage(null);
   }, [overrides]);
 
-  function buildPayload(): Partial<Omit<KBAIOverrides, "id" | "kbId" | "createdAt" | "updatedAt">> {
+  function buildPayload(reprocessDocs = false): SavePayload {
     return {
       provider: draft.provider,
       chatModel: emptyToNull(draft.chatModel),
@@ -98,6 +110,8 @@ export function KBAIOverridesEditor({
       transcriptionModel: emptyToNull(draft.transcriptionModel),
       disableVoice: draft.disableVoice,
       disablePublicEmbed: draft.disablePublicEmbed,
+      // WS-0.4: tells the API the vectors will be rebuilt with the new model.
+      ...(reprocessDocs ? { allowEmbeddingReprocess: true } : {}),
     };
   }
 
@@ -121,7 +135,14 @@ export function KBAIOverridesEditor({
     setReprocessMessage(null);
 
     try {
-      const payload = buildPayload();
+      // WS-0.4: block catalogue violations before they reach the API.
+      const provider = draft.provider ?? undefined;
+      const chatCheck = validateModelField({ field: "chat", model: draft.chatModel, provider });
+      if (!chatCheck.ok) throw new Error(chatCheck.message);
+      const embeddingCheck = validateModelField({ field: "embedding", model: draft.embeddingModel, provider });
+      if (!embeddingCheck.ok) throw new Error(embeddingCheck.message);
+
+      const payload = buildPayload(reprocessDocs);
       if (reprocessDocs) {
         if (!onSaveAndReprocess) {
           throw new Error("Bulk reprocess is not available for this KB.");
@@ -184,6 +205,24 @@ export function KBAIOverridesEditor({
     !draft.transcriptionModel &&
     !draft.disableVoice &&
     !draft.disablePublicEmbed;
+
+  // ── WS-0.4: live catalogue validation for the two model fields ──────────
+  const chatModelError = useMemo(() => {
+    const result = validateModelField({ field: "chat", model: draft.chatModel, provider: draft.provider ?? undefined });
+    return result.ok ? null : result.message;
+  }, [draft.chatModel, draft.provider]);
+
+  const embeddingModelError = useMemo(() => {
+    const result = validateModelField({ field: "embedding", model: draft.embeddingModel, provider: draft.provider ?? undefined });
+    return result.ok ? null : result.message;
+  }, [draft.embeddingModel, draft.provider]);
+
+  const embeddingHint = useMemo(() => {
+    const dim = embeddingDimensionFor(draft.embeddingModel);
+    return dim
+      ? `${draft.embeddingModel} produces ${dim}-dimensional vectors — changing the model requires re-processing documents.`
+      : "Only embedding models can be selected — chat models are rejected.";
+  }, [draft.embeddingModel]);
 
   const embeddingRoutingChanged = hasEmbeddingRoutingChange();
   const pendingChanges = useMemo<PreviewChange[]>(() => {
@@ -288,19 +327,41 @@ export function KBAIOverridesEditor({
             </div>
           </Field>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Field label="Chat Model Override">
+            <Field
+              label="Chat Model Override"
+              hint="Only chat models can be selected — embedding models are rejected."
+              error={chatModelError}
+            >
               <Input
                 value={draft.chatModel}
                 onChange={(event) => setField("chatModel", event.target.value)}
                 placeholder="Leave blank to inherit"
+                list="kb-chat-model-options"
               />
+              <datalist id="kb-chat-model-options">
+                {chatModelOptions(draft.provider ?? undefined).map((m) => (
+                  <option key={m.id} value={m.id} />
+                ))}
+              </datalist>
             </Field>
-            <Field label="Embedding Model Override">
+            <Field
+              label="Embedding Model Override"
+              hint={embeddingHint}
+              error={embeddingModelError}
+            >
               <Input
                 value={draft.embeddingModel}
                 onChange={(event) => setField("embeddingModel", event.target.value)}
                 placeholder="Leave blank to inherit"
+                list="kb-embedding-model-options"
               />
+              <datalist id="kb-embedding-model-options">
+                {embeddingModelOptions(draft.provider ?? undefined).map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {`${m.id} — ${m.dimension} dims`}
+                  </option>
+                ))}
+              </datalist>
             </Field>
             <Field label="Realtime Model Override">
               <Input
@@ -383,10 +444,12 @@ export function KBAIOverridesEditor({
 function Field({
   label,
   hint,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
+  error?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -394,6 +457,7 @@ function Field({
       <div>
         <Label className="text-sm font-medium">{label}</Label>
         {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+        {error && <p className="mt-0.5 text-xs font-medium text-destructive">{error}</p>}
       </div>
       {children}
     </div>
