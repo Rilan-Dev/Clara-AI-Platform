@@ -15,6 +15,7 @@ import {
   BarChart3, Database, RefreshCw, Zap,
   Server, Cpu, Globe, Users,
   CheckCircle2, AlertCircle, ArrowUpRight, FileSearch, Search,
+  ShieldCheck, Download,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
@@ -148,6 +149,10 @@ export default function AnalyticsScreen() {
   const [auditSearch,   setAuditSearch]   = useState("");
   const [auditDebounced, setAuditDebounced] = useState("");
   const [expandedRow,   setExpandedRow]   = useState<string | null>(null);
+  // WS-1.4: chain verification + CSV export state
+  const [chainResult, setChainResult] = useState<{ integrity: string; rowsVerified: number; breaks: number } | null>(null);
+  const [chainBusy,   setChainBusy]   = useState(false);
+  const [exportBusy,  setExportBusy]  = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setAuditDebounced(auditSearch), 350);
@@ -180,6 +185,50 @@ export default function AnalyticsScreen() {
     if (tab === "audit") loadAudit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, range, auditOrg, auditDebounced]);
+
+  // WS-1.4: recompute the tamper-evident hash chain and surface integrity.
+  const verifyChain = useCallback(async () => {
+    setChainBusy(true);
+    try {
+      const params = new URLSearchParams();
+      if (auditOrg) params.set("orgId", auditOrg);
+      const res = await fetch(apiUrl(`/api/analytics/audit/verify?${params.toString()}`), { headers: withAuthHeaders({}) });
+      const data = await res.json().catch(() => null);
+      if (data && !data.error) {
+        setChainResult({ integrity: data.integrity, rowsVerified: data.rowsVerified, breaks: data.breaks });
+      } else {
+        setChainResult({ integrity: "unknown", rowsVerified: 0, breaks: -1 });
+      }
+    } finally {
+      setChainBusy(false);
+    }
+  }, [auditOrg]);
+
+  // WS-1.4: CSV export with the viewer's current filters (auth headers in
+  // play, so the download is assembled from a fetched blob).
+  const exportAuditCsv = useCallback(async () => {
+    setExportBusy(true);
+    try {
+      const to   = new Date();
+      const from = new Date(Date.now() - RANGE_DAYS[range] * 86400 * 1000);
+      const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+      if (auditOrg)         params.set("orgId", auditOrg);
+      if (auditDebounced)   params.set("q", auditDebounced);
+      const res = await fetch(apiUrl(`/api/analytics/audit/export?${params.toString()}`), { headers: withAuthHeaders({}) });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `clara-qa-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportBusy(false);
+    }
+  }, [range, auditOrg, auditDebounced]);
 
   const load = useCallback(async (r: DateRange) => {
     setLoading(true);
@@ -675,7 +724,55 @@ export default function AnalyticsScreen() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${auditLoading ? "animate-spin" : ""}`} /> Refresh
             </button>
+            {/* WS-1.4: integrity + export actions */}
+            <button
+              onClick={() => void verifyChain()}
+              disabled={chainBusy}
+              aria-label="Verify audit hash chain integrity"
+              title="Recompute the tamper-evident hash chain"
+              className="flex items-center justify-center gap-2 text-xs text-emerald-300/80 hover:text-emerald-200 border border-emerald-500/20 hover:border-emerald-500/40 px-4 py-2.5 rounded-xl transition-all shrink-0 disabled:opacity-50"
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 ${chainBusy ? "animate-pulse" : ""}`} /> Verify integrity
+            </button>
+            <button
+              onClick={() => void exportAuditCsv()}
+              disabled={exportBusy}
+              aria-label="Export audit trail as CSV"
+              title="Download the filtered audit trail as CSV"
+              className="flex items-center justify-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2.5 rounded-xl transition-all shrink-0 disabled:opacity-50"
+            >
+              <Download className={`w-3.5 h-3.5 ${exportBusy ? "animate-pulse" : ""}`} /> Export CSV
+            </button>
           </div>
+
+          {/* WS-1.4: chain verification result banner */}
+          {chainResult && (
+            <div
+              role="status"
+              className={`rounded-2xl border px-4 py-3 text-xs flex items-center justify-between gap-3 ${
+                chainResult.integrity === "intact"
+                  ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"
+                  : "border-rose-500/20 bg-rose-500/5 text-rose-300"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" />
+                {chainResult.integrity === "intact"
+                  ? `Hash chain intact — ${chainResult.rowsVerified.toLocaleString()} sealed rows verified${auditOrg ? " for this organisation" : " across all organisations"}.`
+                  : chainResult.breaks >= 0
+                  ? `INTEGRITY COMPROMISED — ${chainResult.breaks.toLocaleString()} chain break(s) detected. Investigate before trusting this trail.`
+                  : "Verification could not be completed."}
+              </span>
+              <button
+                type="button"
+                onClick={() => setChainResult(null)}
+                aria-label="Dismiss verification result"
+                className="shrink-0 opacity-60 hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* Audit list */}
           <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">

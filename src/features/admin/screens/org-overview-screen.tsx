@@ -33,10 +33,16 @@ type DashboardData = {
   org: { id: string; name: string; slug: string };
   totals: {
     agents: number; knowledgeBases: number; documents: number; members: number;
-    storageBytes: number; queriesToday: number; queries30d: number;
+    storageBytes: number; queriesToday: number; queries7d: number; queries30d: number;
     queriesPrev30d: number; trendPct: number; chatSessions30d: number;
-    avgLatencyMs: number | null;
+    avgLatencyMs: number | null; activeUsers30d: number;
   };
+  // WS-1.6 + WS-1.1: token/cost metering from the usage-event spine.
+  usageMetering: {
+    chat: { promptTokens: number; completionTokens: number; costUsdMicros: number; requests: number };
+    embedding: { promptTokens: number; costUsdMicros: number; batches: number };
+    byModel: Array<{ model: string; requests: number; promptTokens: number; completionTokens: number; costUsdMicros: number }>;
+  } | null;
   queriesPerDay: { day: string; queries: number }[];
   topQuestions: { query_text: string; count: number }[];
   hourlyDist: { hour: number; count: number }[];
@@ -331,7 +337,8 @@ export default function OrgOverviewScreen() {
 
   const kpis = [
     { label: "Queries today",     value: totals?.queriesToday?.toLocaleString() ?? "—",       icon: Activity,     color: "text-indigo-300",   sub: null },
-    { label: "Queries · 30 days", value: totals?.queries30d?.toLocaleString() ?? "—",         icon: TrendingUp,   color: "text-violet-300",   sub: totals ? `${totals.trendPct >= 0 ? "+" : ""}${totals.trendPct}% vs prev 30d` : null },
+    { label: "Queries · 30 days", value: totals?.queries30d?.toLocaleString() ?? "—",         icon: TrendingUp,   color: "text-violet-300",   sub: totals ? `${totals.trendPct >= 0 ? "+" : ""}${totals.trendPct}% vs prev 30d · ${totals.queries7d?.toLocaleString?.() ?? 0} in 7d` : null },
+    { label: "Active users · 30d", value: totals?.activeUsers30d?.toLocaleString() ?? "—",    icon: Users,        color: "text-sky-300",      sub: null },
     { label: "Knowledge Bases",   value: totals ? `${totals.knowledgeBases}${maxKbs > 0 ? ` / ${maxKbs === -1 ? "∞" : maxKbs}` : ""}` : "—", icon: Database, color: "text-cyan-300", sub: null },
     { label: "Documents",         value: totals?.documents?.toLocaleString() ?? "—",          icon: FileText,     color: "text-pink-300",     sub: null },
     { label: "Storage used",      value: totals ? formatBytes(totals.storageBytes) : "—",     icon: HardDrive,    color: "text-emerald-300",  sub: null },
@@ -391,6 +398,13 @@ export default function OrgOverviewScreen() {
                 {totals?.chatSessions30d ?? 0} conversations · {totals?.queries30d?.toLocaleString() ?? 0} queries
                 {totals?.avgLatencyMs ? ` · ~${totals.avgLatencyMs}ms avg response` : ""}
               </p>
+              {/* WS-1.6 + WS-1.1: metering parity — tokens + estimated cost. */}
+              {data?.usageMetering && (data.usageMetering.chat.promptTokens > 0 || data.usageMetering.embedding.promptTokens > 0) && (
+                <p className="hidden sm:block text-xs text-white/25 mt-0.5">
+                  AI usage · 30d: {((data.usageMetering.chat.promptTokens + data.usageMetering.embedding.promptTokens) / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k tokens
+                  {` · ~$${((data.usageMetering.chat.costUsdMicros + data.usageMetering.embedding.costUsdMicros) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} est. cost`}
+                </p>
+              )}
             </div>
             <button onClick={load} aria-label="Refresh usage" className="text-white/30 hover:text-white/60 active:text-white transition-colors shrink-0">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />

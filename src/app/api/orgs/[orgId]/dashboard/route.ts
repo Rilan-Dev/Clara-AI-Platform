@@ -27,6 +27,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { computeEffectiveSubscription } from "@/lib/subscription-expiry";
 import { getOrgUsageSnapshot } from "@/lib/plan-guard";
+import { getOrgUsageMetering } from "@/modules/knowledge-bases/core/analytics-db";
 
 export async function GET(
   req: NextRequest,
@@ -55,8 +56,9 @@ export async function GET(
       query<{
         agent_count: number; kb_count: number; doc_count: number;
         member_count: number; storage_bytes: string;
-        queries_today: number; queries_30d: number; queries_prev_30d: number;
+        queries_today: number; queries_7d: number; queries_30d: number; queries_prev_30d: number;
         chat_sessions_30d: number; avg_latency_ms: number | null;
+        active_users_30d: number;
       }>(`
         SELECT
           (SELECT COUNT(*)::int FROM agents WHERE org_id = $1) AS agent_count,
@@ -65,10 +67,12 @@ export async function GET(
           (SELECT COUNT(*)::int FROM org_members WHERE org_id = $1) AS member_count,
           (SELECT COALESCE(SUM(d.file_size), 0)::text FROM documents d JOIN knowledge_bases kb ON kb.id = d.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1) AS storage_bytes,
           (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND (qe.created_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date) AS queries_today,
+          (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '7 days') AS queries_7d,
           (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS queries_30d,
           (SELECT COUNT(*)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '60 days' AND qe.created_at < now() - INTERVAL '30 days') AS queries_prev_30d,
           (SELECT COUNT(DISTINCT cs.id)::int FROM chat_sessions cs JOIN knowledge_bases kb ON kb.id = cs.kb_id JOIN agents p ON p.id = kb.agent_id WHERE p.org_id = $1 AND cs.created_at >= now() - INTERVAL '30 days') AS chat_sessions_30d,
-          (SELECT AVG(qe.latency_ms)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS avg_latency_ms
+          (SELECT AVG(qe.latency_ms)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.created_at >= now() - INTERVAL '30 days') AS avg_latency_ms,
+          (SELECT COUNT(DISTINCT qe.user_id)::int FROM query_events qe WHERE qe.org_id = $1 AND qe.user_id IS NOT NULL AND qe.created_at >= now() - INTERVAL '30 days') AS active_users_30d
       `, [orgId]),
 
       // IST-day buckets — matches the user's calendar, not the UTC server.
@@ -207,6 +211,10 @@ export async function GET(
     // Usage-vs-limits monitoring block (drives the meters + warnings).
     const usageSnapshot = await getOrgUsageSnapshot(orgId).catch(() => null);
 
+    // WS-1.6 + WS-1.1: token/cost metering parity — the org sees what its
+    // usage actually costs, aggregated from the usage-event spine.
+    const usageMetering = await getOrgUsageMetering(orgId, 30).catch(() => null);
+
     return NextResponse.json({
       org: { id: org.id, name: org.name, slug: org.slug, logoUrl: org.logo_url },
       totals: {
@@ -216,11 +224,13 @@ export async function GET(
         members:       totals?.member_count ?? 0,
         storageBytes:  Number(totals?.storage_bytes ?? 0),
         queriesToday:  totals?.queries_today ?? 0,
+        queries7d:     totals?.queries_7d ?? 0,
         queries30d,
         queriesPrev30d: queriesPrev,
         trendPct,
         chatSessions30d: totals?.chat_sessions_30d ?? 0,
         avgLatencyMs: totals?.avg_latency_ms ?? null,
+        activeUsers30d: totals?.active_users_30d ?? 0,
       },
       queriesPerDay: perDayR,
       topQuestions:  topQsR,
@@ -231,6 +241,7 @@ export async function GET(
       subscription: sub ?? null,
       effective,
       usageLimits: usageSnapshot,
+      usageMetering,
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
