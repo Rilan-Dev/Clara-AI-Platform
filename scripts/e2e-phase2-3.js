@@ -303,13 +303,15 @@ function makeTestPdf(text) {
     check("P3-4 stream carries answer content OR typed error event (provider-block safe)",
       hasAnswer || hasTypedError, `answer=${hasAnswer} typedError=${hasTypedError}`);
   } else {
-    // Sandbox geo-block: the LLM provider rejects the region (403 Country…).
-    // The endpoint must still degrade gracefully — a JSON error payload, not
-    // a hang or a 5xx. Production (non-blocked egress) streams normally.
+    // Sandbox geo-block: the LLM/embedding provider rejects the region (403 Country…).
+    // The endpoint must still degrade gracefully — the friendly JSON error (502,
+    // same contract as /api/embed/search), never a raw provider/edge error leak.
+    // Production (non-blocked egress) streams normally.
     const errBody = await chatRes.json().catch(() => ({}));
-    const graceful = typeof errBody?.error === "string" && errBody.error.length > 0;
-    check("P3-4 chat endpoint degrades gracefully under provider geo-block (JSON error, no 5xx)",
-      graceful && chatRes.status < 500,
+    const graceful = typeof errBody?.error === "string" && errBody.error.length > 0
+      && !/country|region|cloudflare|api\.openai|sk-/i.test(String(errBody.error));
+    check("P3-4 chat endpoint degrades gracefully under provider geo-block (friendly 502, no raw leak)",
+      graceful && (chatRes.status === 502 || chatRes.status === 400),
       `status=${chatRes.status} body=${JSON.stringify(errBody).slice(0, 140)}`);
   }
 
