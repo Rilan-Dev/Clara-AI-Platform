@@ -13,15 +13,10 @@ import {
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
+import { admitQueryEvent } from "@/lib/quota-admission";
 import { query as dbQuery } from "@/lib/db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
-
-function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
-  return settings.find((s) => s.key === key)?.value?.trim() ?? "";
-}
 
 // function demoProviderConfig(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>): ProviderConfig | null {
 //   const provider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() || process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";

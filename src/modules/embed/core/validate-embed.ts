@@ -21,7 +21,6 @@ import {
   type ValidatedKey,
   type OrgPlanLimits,
 } from "./api-keys-db";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 
 export type EmbedContext = ValidatedKey & {
   planLimits: OrgPlanLimits | null;

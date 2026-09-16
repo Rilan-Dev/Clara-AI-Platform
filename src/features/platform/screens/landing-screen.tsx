@@ -9,7 +9,6 @@ import {
   MessageSquare, Cpu, Building2, Play, ExternalLink,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
-import InteractiveGradientBackground from "@/features/platform/components/InteractiveGradientBackground";
 
 const DemoAssistantFAB = lazy(() => import("@/features/platform/components/DemoAssistantFAB"));
 const DemoVoiceSection = lazy(() => import("@/features/platform/components/DemoVoiceSection"));

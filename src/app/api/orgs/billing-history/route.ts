@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { requireAuth } from "@/modules/auth/core/rbac";
 
 export async function GET(req: NextRequest) {
   const orgId = req.nextUrl.searchParams.get("orgId");

@@ -13,7 +13,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Mic, MicOff, PhoneOff, Zap, Volume2, Radio } from "lucide-react";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
 import { useAudioVisualizer } from "@/modules/assistant/core";
-import { Button } from "@/components/ui/button";
 
 type Props = {
   kbId: string;
@@ -113,7 +112,6 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
       {/* Hidden audio element for OpenAI WebRTC playback */}
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio ref={audioRef} autoPlay playsInline className="hidden" />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}

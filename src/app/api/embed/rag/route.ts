@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { postRagSearch } from "@/modules/assistant/api/rag";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
-
-function setting(
-  settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>,
-  key: string,
-): string {
-  return settings.find((s) => s.key === key)?.value?.trim() ?? "";
-}
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -21,7 +13,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const origin = req.headers.get("origin");
   const corsHeaders = buildCorsHeaders(origin, validation.ctx.allowedOrigins, req.nextUrl.origin);
-  const authHeader = req.headers.get("authorization") ?? "";
   // const isDemo = authHeader.trim() === "Bearer DEMO_MODE";
 
   try {
