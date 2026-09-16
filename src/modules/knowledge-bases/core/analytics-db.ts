@@ -61,9 +61,8 @@ export async function logQueryEvent(opts: {
 
     const rows = await query<{ id: string }>(
       `INSERT INTO query_events
-         (kb_id, query_text, source_count, latency_ms, session_id,
-          org_id, user_id, answer_text, surface, status,
-          redactions, query_raw)
+         (kb_id, query_text, query_raw, source_count, latency_ms, session_id,
+          org_id, user_id, answer_text, surface, status, redactions)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [
