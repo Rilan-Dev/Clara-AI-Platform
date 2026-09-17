@@ -25,8 +25,7 @@ type Props = {
   voiceGreeting?: string;
   language?: LanguagePreferences;
   suggestedPrompts?: string[];
-  // demoMode?: boolean;
-  // demoApiKey?: string;
+  embedApiKey?: string;
   onClose: () => void;
 };
 
@@ -46,8 +45,8 @@ type VoiceSessionState = {
 };
 
 export default function VoiceChatModal(props: Props) {
-  const { documentId, kbId, overviewContext, voiceGreeting, language, suggestedPrompts, 
-    // demoMode, demoApiKey, 
+  const { documentId, kbId, overviewContext, voiceGreeting, language, suggestedPrompts,
+    embedApiKey,
     onClose } = props;
 
   const session = useVoiceClient({
@@ -56,8 +55,7 @@ export default function VoiceChatModal(props: Props) {
     documentOverview: overviewContext,
     voiceGreeting,
     language,
-    // demoMode,
-    // demoApiKey,
+    embedApiKey,
   });
 
   return (

@@ -231,7 +231,7 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
        welcome_message = EXCLUDED.welcome_message`,
     [IDS.demoAgentId],
   );
-
+``
   // Embed API key — the raw key comes from env; only the hash is stored.
   await client.query(
     `INSERT INTO api_keys (id, kb_id, org_id, name, key_prefix, key_hash, is_active)

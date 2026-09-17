@@ -28,10 +28,10 @@ function VoiceActive({ config, apiKey, onEnd }: {
 }) {
   const session = useVoiceClient({
     kbId: config.kbId,
-    // demoMode: true,
-    // demoMode here only selects the public embed session transport. The value
-    // is the real clr_ API key and is never the DEMO_MODE bypass token.
-    // demoApiKey: apiKey,
+    // Presence of embedApiKey alone selects the public embed session/RAG
+    // transport. The value is the real clr_ API key, resolved server-side
+    // from the DB (embed_api_key table) or env fallback — never a bypass token.
+    embedApiKey: apiKey,
     voiceGreeting: config.welcomeMessage,
   });
 

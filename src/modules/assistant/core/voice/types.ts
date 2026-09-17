@@ -18,8 +18,13 @@ export type VoiceClientOptions = {
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
-  // demoMode?: boolean;
-  // demoApiKey?: string;
+  /**
+   * Public embed API key (real `clr_...` value — never a bypass token). When
+   * present, the underlying session/RAG requests route to the public
+   * /api/embed/* endpoints with this key instead of the protected endpoints
+   * + platform JWT. Used only by the public embed voice widget.
+   */
+  embedApiKey?: string;
   onStatusChange?: (status: VoiceStatus) => void;
   onError?: (error: string | null) => void;
   onHistoryChange?: (history: VoiceTurn[]) => void;

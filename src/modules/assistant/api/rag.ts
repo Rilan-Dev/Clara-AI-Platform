@@ -15,6 +15,7 @@ import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
+import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 
 const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K = 6;
@@ -235,9 +236,15 @@ async function searchKbCollection(
   const client = getQdrantClient();
   const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
 
+  // See searchKbEmbedded (src/modules/embed/core/search.ts) for rationale:
+  // fetch a wider candidate pool so a document-scoped filter isn't required
+  // just to keep a smaller document's chunks from being crowded out by a
+  // larger one in the same KB collection.
+  const fetchLimit = filter ? topK : candidatePoolSize(topK);
+
   const searchParams: Record<string, unknown> = {
     vector: embedding,
-    limit: topK,
+    limit: fetchLimit,
     with_payload: true,
     score_threshold: SCORE_THRESHOLD,
     ...(filter ? { filter } : {}),
@@ -262,7 +269,7 @@ async function searchKbCollection(
     results = await client.search(collectionName, fallbackParams as Parameters<typeof client.search>[1]);
   }
 
-  return (results as Array<{ id: string | number; score?: number; payload?: Record<string, unknown> }>)
+  const mapped = (results as Array<{ id: string | number; score?: number; payload?: Record<string, unknown> }>)
     .map((r) => ({
       id: String(r.id),
       snippet: r.payload?.chunk ? String(r.payload.chunk) : "",
@@ -270,4 +277,12 @@ async function searchKbCollection(
       payload: r.payload as Record<string, unknown>,
     }))
     .sort((a, b) => b.score - a.score);
+
+  if (filter) return mapped;
+
+  return diversifyByDocument(mapped, {
+    getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
+    getScore: (r) => r.score,
+    topK,
+  });
 }

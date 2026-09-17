@@ -8,6 +8,7 @@
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import type { ProviderConfig } from "@/modules/ai-core/types";
+import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 
 const SCORE_THRESHOLD = 0.25;
 
@@ -31,9 +32,17 @@ export async function searchKbEmbedded(
   const client = getQdrantClient();
   const embedding = await ProviderFactory.getProvider(options?.providerConfig).embedText(query);
 
+  // Fetch a larger candidate pool than topK so that when a KB has multiple
+  // documents, a smaller/less-chunky document still has a chance to surface
+  // relevant chunks instead of being drowned out by a document with far more
+  // chunks (e.g. a 71-chunk FAQ PDF vs a 27-chunk project DOCX). The pool is
+  // narrowed back down to topK below via diversifyByDocument, unless an
+  // explicit documentId filter is already scoping the search to one document.
+  const fetchLimit = options?.filter ? topK : candidatePoolSize(topK);
+
   const searchParams = {
     vector: embedding,
-    limit: topK,
+    limit: fetchLimit,
     with_payload: true,
     score_threshold: SCORE_THRESHOLD,
     ...(options?.filter ? { filter: options.filter } : {}),
@@ -56,7 +65,7 @@ export async function searchKbEmbedded(
     return [];
   }
 
-  return (
+  const mapped = (
     results as Array<{
       id: string | number;
       score?: number;
@@ -71,4 +80,12 @@ export async function searchKbEmbedded(
       documentId: r.payload?.documentId ? String(r.payload.documentId) : undefined,
     }))
     .sort((a, b) => b.score - a.score);
+
+  if (options?.filter) return mapped;
+
+  return diversifyByDocument(mapped, {
+    getDocId: (r) => r.documentId,
+    getScore: (r) => r.score,
+    topK,
+  });
 }

@@ -58,8 +58,14 @@ type Options = {
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
-  // demoMode?: boolean;
-  // demoApiKey?: string;
+  /**
+   * Public embed API key (real `clr_...` value from embed_api_key / KB
+   * settings — never a bypass token). When present, session/RAG requests are
+   * routed to the public /api/embed/* endpoints with this key as a Bearer
+   * token instead of the protected endpoints + platform JWT. Used only by
+   * the public embed voice widget (src/features/embed/screens/voice-screen.tsx).
+   */
+  embedApiKey?: string;
 };
 
 type TurnStatus = "pending" | "speaking" | "done";
@@ -306,12 +312,10 @@ export function useOpenAIRealtime(opts?: Options) {
       // response.create per user turn. The debounce (300ms) plus Qdrant
       // round-trip (~300-600ms) gives a total pre-speech latency of ~600-900ms,
       // which is far better than the previous 1500ms debounce alone.
-      const endpoint = 
-      // opts?.demoMode ? "/api/embed/rag" : 
-      "/api/rag/search";
-      const headers = 
-      // opts?.demoMode ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` } : 
-      withAuthHeaders({ "Content-Type": "application/json" });
+      const endpoint = opts?.embedApiKey ? "/api/embed/rag" : "/api/rag/search";
+      const headers = opts?.embedApiKey
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.embedApiKey}` }
+        : withAuthHeaders({ "Content-Type": "application/json" });
 
       const res = await fetch(apiUrl(endpoint), {
         method: "POST",
@@ -423,6 +427,7 @@ export function useOpenAIRealtime(opts?: Options) {
     documentOverview,
     kbId,
     languageGuidance.follow,
+    opts?.embedApiKey,
     sendJSON,
   ]);
 
@@ -549,12 +554,10 @@ export function useOpenAIRealtime(opts?: Options) {
           );
         }
 
-        const endpoint = 
-        // opts?.demoMode ? "/api/embed/rag" : 
-        "/api/rag/search";
-        const headers = 
-        // opts?.demoMode ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }: 
-        withAuthHeaders({ "Content-Type": "application/json" });
+        const endpoint = opts?.embedApiKey ? "/api/embed/rag" : "/api/rag/search";
+        const headers = opts?.embedApiKey
+          ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.embedApiKey}` }
+          : withAuthHeaders({ "Content-Type": "application/json" });
 
         const res = await fetch(apiUrl(endpoint), {
           method: "POST",
@@ -621,7 +624,7 @@ export function useOpenAIRealtime(opts?: Options) {
         }
       }
     },
-    [documentId, kbId, sendJSON]
+    [documentId, kbId, opts?.embedApiKey, sendJSON]
   );
 
   // ── connect ───────────────────────────────────────────────────────────────
@@ -671,12 +674,10 @@ export function useOpenAIRealtime(opts?: Options) {
 
     try {
       // ── 1. Create ephemeral session ──────────────────────────────────────
-      const endpoint = 
-      // opts?.demoMode ? "/api/embed/session" : 
-      "/api/realtime/session";
-      const headers = 
-      // opts?.demoMode ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` } : 
-      withAuthHeaders({ "Content-Type": "application/json" });
+      const endpoint = opts?.embedApiKey ? "/api/embed/session" : "/api/realtime/session";
+      const headers = opts?.embedApiKey
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.embedApiKey}` }
+        : withAuthHeaders({ "Content-Type": "application/json" });
 
       const sessRes = await fetch(apiUrl(endpoint), {
         method: "POST",
@@ -1185,6 +1186,7 @@ export function useOpenAIRealtime(opts?: Options) {
     languageGuidance.session,
     languagePrefs.assistant,
     languagePrefs.customer,
+    opts?.embedApiKey,
     resolveTurnId,
     scheduleRag,
     sendJSON,

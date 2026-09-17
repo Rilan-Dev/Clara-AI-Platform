@@ -34,8 +34,13 @@ type Options = {
   documentOverview?: string;
   voiceGreeting?: string;
   language?: LanguagePreferences;
-  demoMode?: boolean;
-  demoApiKey?: string;
+  /**
+   * Public embed API key (real `clr_...` value — never a bypass token). When
+   * present, session/RAG requests route to the public /api/embed/* endpoints
+   * with this key as a Bearer token instead of the protected endpoints +
+   * platform JWT. Used only by the public embed voice widget.
+   */
+  embedApiKey?: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -506,9 +511,9 @@ export function useGeminiLive(opts?: Options) {
 
           void (async () => {
             try {
-              const endpoint = opts?.demoMode ? "/api/embed/rag" : "/api/rag/search";
-              const headers = opts?.demoMode
-                ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+              const endpoint = opts?.embedApiKey ? "/api/embed/rag" : "/api/rag/search";
+              const headers = opts?.embedApiKey
+                ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.embedApiKey}` }
                 : withAuthHeaders({ "Content-Type": "application/json" });
 
               const res = await fetch(apiUrl(endpoint), {
@@ -731,6 +736,7 @@ export function useGeminiLive(opts?: Options) {
     documentId,
     kbId,
     flushAudio,
+    opts?.embedApiKey,
     patchTurn,
     playPCM16,
     sendWS,
@@ -772,9 +778,9 @@ export function useGeminiLive(opts?: Options) {
 
     try {
       // ── 1. Fetch session config from server (API key never in browser) ──
-      const endpoint = opts?.demoMode ? "/api/embed/session" : "/api/gemini/session";
-      const headers = opts?.demoMode
-        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.demoApiKey}` }
+      const endpoint = opts?.embedApiKey ? "/api/embed/session" : "/api/gemini/session";
+      const headers = opts?.embedApiKey
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${opts.embedApiKey}` }
         : withAuthHeaders({ "Content-Type": "application/json" });
 
       const sessRes = await fetch(apiUrl(endpoint), {
@@ -1105,6 +1111,7 @@ export function useGeminiLive(opts?: Options) {
     languageGuidance.session,
     languagePrefs.assistant,
     languagePrefs.customer,
+    opts?.embedApiKey,
     // flushAudio intentionally omitted: it is only used inside handleMessage
     // (via handleMessageRef) when setupComplete fires, not inside connect().
     // voiceGreeting intentionally omitted: accessed via handleMessageRef.current.
