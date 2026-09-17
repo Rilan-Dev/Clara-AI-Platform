@@ -15,6 +15,8 @@ import { query } from "@/lib/db";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { planGuard, planLimitResponse } from "@/lib/plan-guard";
+import { hit, rateLimitResponse, UPLOAD_RATE } from "@/lib/rate-limit";
+import { scanUpload, VirusScanUnavailableError } from "@/modules/ingest/virus-scan";
 import { writeAuditLog } from "@/modules/auth/core/db";
 import {
   createDocument,
@@ -81,6 +83,19 @@ export async function uploadDocumentsHandler(
     );
     const orgId = orgRows[0]?.org_id ?? null;
 
+    // ── Phase 6.4: upload rate limit (10 req / min / org) ──────────────────
+    // Applied per request (not per file) BEFORE parsing the multipart body,
+    // so oversized bursts never reach formData() or plan-limit queries.
+    {
+      const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        ?? req.headers.get("x-real-ip") ?? "unknown";
+      const gate = hit(`upload:${orgId ? `org:${orgId}` : `ip:${ip}`}`, UPLOAD_RATE.limit, UPLOAD_RATE.windowMs);
+      if (!gate.allowed) {
+        const rl = rateLimitResponse(gate.retryAfterSec, "Upload request limit reached. Please try again shortly.");
+        return NextResponse.json(rl.body, { status: rl.status, headers: rl.headers });
+      }
+    }
+
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -117,11 +132,11 @@ export async function uploadDocumentsHandler(
     }
 
     const results: { document: Awaited<ReturnType<typeof createDocument>>; jobId: string }[] = [];
-    const errors: { filename: string; error: string }[] = [];
+    const errors: { filename: string; error: string; code: string }[] = [];
 
     for (const entry of fileEntries) {
       if (!(entry instanceof File)) {
-        errors.push({ filename: "(unknown)", error: "Invalid file entry" });
+        errors.push({ filename: "(unknown)", error: "Invalid file entry", code: "INVALID_FILE_ENTRY" });
         continue;
       }
 
@@ -132,6 +147,7 @@ export async function uploadDocumentsHandler(
         errors.push({
           filename,
           error: `Unsupported file type: ${mimeType || "unknown"}. Allowed: PDF, DOCX, XLSX, XLS, TXT, MD, CSV, HTML`,
+          code: "INVALID_FILE_TYPE",
         });
         continue;
       }
@@ -140,12 +156,37 @@ export async function uploadDocumentsHandler(
         errors.push({
           filename,
           error: `File too large (${Math.round(entry.size / 1024 / 1024)}MB). Max 50MB.`,
+          code: "FILE_TOO_LARGE",
         });
         continue;
       }
 
       try {
         const arrayBuffer = await entry.arrayBuffer();
+
+        // ── Phase 6.1: virus scan hook (no-op unless VIRUS_SCAN_URL is set) ──
+        // Scanned BEFORE persistence: an infected file never reaches the
+        // documents table, object storage, or the ingest pipeline.
+        try {
+          const scan = await scanUpload(Buffer.from(arrayBuffer), filename);
+          if (!scan.clean) {
+            errors.push({
+              filename,
+              error: `File rejected by virus scanner${scan.signature ? ` (${scan.signature})` : ""}.`,
+              code: "MALWARE_DETECTED",
+            });
+            continue;
+          }
+        } catch (scanErr) {
+          if (scanErr instanceof VirusScanUnavailableError) {
+            return NextResponse.json(
+              { error: scanErr.message, code: "VIRUS_SCAN_UNAVAILABLE", status: 503 },
+              { status: 503 }
+            );
+          }
+          throw scanErr;
+        }
+
         const base64 = Buffer.from(arrayBuffer).toString("base64");
         const title = filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || filename;
 
@@ -166,7 +207,7 @@ export async function uploadDocumentsHandler(
 
         results.push({ document: doc, jobId: job.id });
       } catch (fileErr) {
-        errors.push({ filename, error: (fileErr as Error).message });
+        errors.push({ filename, error: (fileErr as Error).message, code: "UPLOAD_FAILED" });
       }
     }
 
@@ -188,10 +229,16 @@ export async function uploadDocumentsHandler(
     }
 
     const status = results.length > 0 ? 202 : 400;
-    return NextResponse.json(
-      { queued: results.map((r) => ({ ...r.document, jobId: r.jobId })), errors },
-      { status }
-    );
+    // Phase 6.3 error contract: when every file was rejected, surface the
+    // first rejection as the headline { error, code } so clients (and the
+    // Phase 6 acceptance suite) see 400 + INVALID_FILE_TYPE directly.
+    const body: Record<string, unknown> =
+      { queued: results.map((r) => ({ ...r.document, jobId: r.jobId })), errors };
+    if (results.length === 0 && errors.length > 0) {
+      body.error = errors[0]!.error;
+      body.code = errors[0]!.code;
+    }
+    return NextResponse.json(body, { status });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[documents] upload:", err);

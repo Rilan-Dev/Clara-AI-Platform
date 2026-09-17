@@ -8,6 +8,7 @@ import { resolveLanguagePreferences } from "@/modules/assistant/core/config";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
+import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
@@ -53,6 +54,20 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         [kbId]
       );
       const orgId = orgRows[0]?.org_id ?? null;
+
+      // ── Phase 6.4: realtime session rate limit (10 / hour / org) ─────────
+      // Ephemeral session minting is expensive (provider round-trip + a
+      // client secret), so it gets its own much tighter budget than chat.
+      {
+        const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+          ?? request.headers.get("x-real-ip") ?? "unknown";
+        const gate = hit(`realtime:${orgId ? `org:${orgId}` : `ip:${ip}`}`, REALTIME_SESSION_RATE.limit, REALTIME_SESSION_RATE.windowMs);
+        if (!gate.allowed) {
+          const rl = rateLimitResponse(gate.retryAfterSec, "Voice session limit reached for this organisation. Please try again later.");
+          return NextResponse.json(rl.body, { status: rl.status, headers: rl.headers });
+        }
+      }
+
       if (orgId) {
         const voiceGuard = await planGuard(orgId, "voice");
         if (!voiceGuard.allowed) {

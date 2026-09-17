@@ -42,6 +42,16 @@ const REQUIRED: Array<keyof Env> = [
   "AUTH_SECRET",
 ];
 
+// Phase 6.2: AUTH_SECRET must be a real secret (min 32 chars), not the
+// template placeholder — session-token HMACs are only as strong as it.
+const AUTH_SECRET_MIN_LENGTH = 32;
+const AUTH_SECRET_PLACEHOLDERS = new Set([
+  "change-me-in-production",
+  "insecure-default-change-me",
+  "your-auth-secret",
+  "changeme",
+]);
+
 function loadEnv(): Env {
   const missing: string[] = [];
   const provider = process.env.AI_PROVIDER === "gemini" ? "gemini" : "openai";
@@ -55,6 +65,24 @@ function loadEnv(): Env {
   const providerKey = provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
   if (!process.env[providerKey]) {
     missing.push(providerKey);
+  }
+
+  const authSecret = process.env.AUTH_SECRET ?? "";
+  const authSecretWeak =
+    !authSecret ||
+    AUTH_SECRET_PLACEHOLDERS.has(authSecret.trim().toLowerCase()) ||
+    authSecret.trim().length < AUTH_SECRET_MIN_LENGTH;
+
+  if (authSecretWeak) {
+    const msg =
+      `[Clara AI] AUTH_SECRET must be at least ${AUTH_SECRET_MIN_LENGTH} characters ` +
+      `and must not be a placeholder (found ${authSecret ? `${authSecret.trim().length} chars` : "empty"}).\n` +
+      `Generate one with: openssl rand -hex 32`;
+    if (process.env.NODE_ENV === "production") {
+      missing.push(`AUTH_SECRET (weak — ${msg})`);
+    } else {
+      console.warn("\x1b[33m%s\x1b[0m", msg);
+    }
   }
 
   if (missing.length > 0) {

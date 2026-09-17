@@ -17,6 +17,27 @@
 const SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 
 export async function registerNode(): Promise<void> {
+  // Phase 6.2: fail fast — deliberately OUTSIDE the tolerant try/catch below
+  // so a missing required variable ABORTS process startup instead of being
+  // logged past. The env module is a singleton: importing it evaluates the
+  // validation exactly once per process. In production a missing
+  // DATABASE_URL / QDRANT_URL / AUTH_SECRET / provider key throws here,
+  // before migrations run or any request is served. (In development the
+  // same gaps only warn, so `next dev` stays usable without a full .env.)
+  // Next.js only LOGS a rejected register() promise, so the exit is
+  // explicit — that is what makes "refuses to start" a real guarantee.
+  try {
+    const { env } = await import("@/lib/env");
+    if (env.NODE_ENV === "production") {
+      console.info(
+        `[instrumentation] env validated (provider=${env.AI_PROVIDER}, app=${env.NEXT_PUBLIC_APP_URL})`
+      );
+    }
+  } catch (err) {
+    console.error("[instrumentation] FATAL — refusing to start:", (err as Error).message);
+    process.exit(1);
+  }
+
   try {
     const { ensureMigrated } = await import("@/lib/db/migrate");
     await ensureMigrated();

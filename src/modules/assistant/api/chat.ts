@@ -20,6 +20,7 @@ import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
+import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
@@ -68,6 +69,24 @@ function normaliseSuggestions(input: unknown): string[] {
     if (result.length >= 5) break;
   }
   return result;
+}
+
+// ── Phase 6.4: chat rate limit (60 req / min / org) ──────────────────────────
+// Returns a 429 response when the caller's org (or IP, when the org cannot
+// be resolved) has exceeded the per-minute chat budget, else null.
+function chatRateGate(orgId: string | null, request: NextRequest): NextResponse | null {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? request.headers.get("x-real-ip") ?? "unknown";
+  const key = `chat:${orgId ? `org:${orgId}` : `ip:${ip}`}`;
+  const gate = hit(key, CHAT_RATE.limit, CHAT_RATE.windowMs);
+  if (!gate.allowed) {
+    const rl = rateLimitResponse(
+      gate.retryAfterSec,
+      "Chat request limit reached. Please try again shortly."
+    );
+    return NextResponse.json(rl.body, { status: rl.status, headers: rl.headers });
+  }
+  return null;
 }
 
 function buildFriendlyFallbackMessage(
@@ -196,6 +215,11 @@ async function postChatKb(
     [kbId]
   );
   const orgId = orgRows[0]?.org_id ?? null;
+
+  // Phase 6.4: per-org chat rate limit — enforced BEFORE the quota admission
+  // transaction so over-rate traffic never touches the advisory lock.
+  const chatGated = chatRateGate(orgId, request);
+  if (chatGated) return chatGated;
 
   // Audit context — workspace chat is authenticated; the question is still
   // logged for anonymous surfaces (user_id NULL).
@@ -396,6 +420,11 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
       );
       modeBOrgId = modeBOrgRows[0]?.org_id ?? null;
     }
+
+    // Phase 6.4: per-org chat rate limit (Mode B).
+    const modeBGated = chatRateGate(modeBOrgId, request);
+    if (modeBGated) return modeBGated;
+
     const modeBAdmission = await admitQueryEvent({
       orgId: modeBOrgId,
       kbId: null,

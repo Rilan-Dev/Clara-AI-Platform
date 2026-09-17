@@ -80,13 +80,61 @@ export async function getUserById(id: string): Promise<User | null> {
   return row ? toUser(row) : null;
 }
 
-export async function getUserByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
+export async function getUserByEmail(email: string): Promise<(User & { passwordHash: string; failedLoginAttempts: number; lockedUntil: string | null }) | null> {
   const row = await queryOne<Record<string, unknown>>(
     "SELECT * FROM users WHERE email = $1",
     [email.toLowerCase().trim()]
   );
   if (!row) return null;
-  return { ...toUser(row), passwordHash: String(row.password_hash) };
+  return {
+    ...toUser(row),
+    passwordHash: String(row.password_hash),
+    failedLoginAttempts: row.failed_login_attempts != null ? Number(row.failed_login_attempts) : 0,
+    lockedUntil: row.locked_until != null ? String(row.locked_until) : null,
+  };
+}
+
+// ── Login lockout (Phase 6.1) ─────────────────────────────────────────────────
+
+/** Lockout policy: 10 consecutive failures lock the account for 30 minutes. */
+export const LOGIN_MAX_FAILURES = 10;
+export const LOGIN_LOCKOUT_MINUTES = 30;
+
+/** Record a failed password attempt; returns the new counter and lock state. */
+export async function recordFailedLogin(userId: string): Promise<{ failures: number; lockedUntil: string | null }> {
+  const row = await queryOne<Record<string, unknown>>(
+    `UPDATE users SET
+       failed_login_attempts = failed_login_attempts + 1,
+       locked_until = CASE
+         WHEN failed_login_attempts + 1 >= $2 THEN now() + ($3 || ' minutes')::interval
+         ELSE locked_until
+       END,
+       updated_at = now()
+     WHERE id = $1
+     RETURNING failed_login_attempts, locked_until`,
+    [userId, LOGIN_MAX_FAILURES, String(LOGIN_LOCKOUT_MINUTES)]
+  );
+  return {
+    failures: row?.failed_login_attempts != null ? Number(row.failed_login_attempts) : 1,
+    lockedUntil: row?.locked_until != null ? String(row.locked_until) : null,
+  };
+}
+
+/** Clear the failure counter / lock on successful login. */
+export async function recordSuccessfulLogin(userId: string): Promise<void> {
+  await execute(
+    "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = now() WHERE id = $1",
+    [userId]
+  );
+}
+
+/** Super-admin unlock: reset the counter and lift the lock early. */
+export async function clearLoginLockout(userId: string): Promise<boolean> {
+  const row = await queryOne<Record<string, unknown>>(
+    "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = now() WHERE id = $1 RETURNING id",
+    [userId]
+  );
+  return row != null;
 }
 
 export async function listUsers(orgId?: string): Promise<User[]> {

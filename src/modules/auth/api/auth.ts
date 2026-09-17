@@ -5,13 +5,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
+import { z } from "zod";
 import { ensureMigrated } from "@/lib/db/migrate";
 import {
   createUser, getUserByEmail, getUserById,
   createSession, deleteSession, deleteAllUserSessions,
   getSessionByTokenHash, addOrgMember, listOrgMembers,
   removeOrgMember, writeAuditLog, touchLastLogin, updateUser,
+  recordFailedLogin, recordSuccessfulLogin, LOGIN_MAX_FAILURES,
 } from "../core/db";
+import { hit, clear, LOGIN_RATE, rateLimitResponse } from "@/lib/rate-limit";
 import { hashPassword, verifyPassword } from "../core/password";
 import {
   generateToken, hashToken, sessionExpiresAt,
@@ -180,48 +183,115 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
     return res;
   } catch (err) {
+    // Phase 6.3: never leak raw internals — log server-side, return a generic 500.
     console.error("[auth] register:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Registration failed due to an internal error. Please try again.", code: "INTERNAL_ERROR", status: 500 },
+      { status: 500 }
+    );
   }
 }
 
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 
+const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().min(3, "email is required").email("Invalid email address"),
+  password: z.string().min(1, "password is required"),
+});
+
 export async function loginHandler(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
-    const body = await req.json();
-    const { email, password } = body ?? {};
-    if (!email || !password)
-      return NextResponse.json({ error: "email and password are required" }, { status: 400 });
+
+    // ── Phase 6.1: IP-scoped failed-login rate limit (5 failures / 15 min) ──
+    // Every attempt passes the gate (cheap DoS cap on the bcrypt endpoint);
+    // the bucket is cleared on SUCCESS, so only failures accumulate —
+    // brute-force protection without penalising repeated sign-ins.
+    const ip = getIp(req);
+    const failBucket = `login:fail:ip:${ip}`;
+    const gate = hit(failBucket, LOGIN_RATE.limit, LOGIN_RATE.windowMs);
+    if (!gate.allowed) {
+      const rl = rateLimitResponse(gate.retryAfterSec, "Too many failed login attempts. Please try again later.");
+      return NextResponse.json(rl.body, { status: rl.status, headers: rl.headers });
+    }
+
+    // ── Phase 6.1: Zod input validation ──────────────────────────────────────
+    const parsed = loginSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request body", code: "INVALID_INPUT", status: 400 },
+        { status: 400 }
+      );
+    }
+    const { email, password } = parsed.data;
 
     const userWithHash = await getUserByEmail(email);
     if (!userWithHash) {
       await hashPassword("dummy-anti-timing-run");
+      // Unknown email still counts as a failed attempt from this IP — do NOT
+      // clear the bucket, otherwise alternating real/unknown emails would
+      // reset the brute-force counter.
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
-    if (!await verifyPassword(password, userWithHash.passwordHash))
+
+    // ── Phase 6.1: account lockout (10 consecutive failures → 30 min lock) ──
+    if (userWithHash.lockedUntil && new Date(userWithHash.lockedUntil).getTime() > Date.now()) {
+      const retryAfterSec = Math.max(1, Math.ceil((new Date(userWithHash.lockedUntil).getTime() - Date.now()) / 1000));
+      return NextResponse.json(
+        {
+          error: `Account temporarily locked after repeated failed login attempts. Try again in ${Math.ceil(retryAfterSec / 60)} minute(s) or contact an administrator.`,
+          code: "ACCOUNT_LOCKED",
+          status: 403,
+          retryAfter: retryAfterSec,
+        },
+        { status: 403, headers: { "Retry-After": String(retryAfterSec) } }
+      );
+    }
+
+    if (!await verifyPassword(password, userWithHash.passwordHash)) {
+      const { failures, lockedUntil } = await recordFailedLogin(userWithHash.id);
+      if (failures >= LOGIN_MAX_FAILURES && lockedUntil) {
+        await writeAuditLog({
+          userId: userWithHash.id, action: "auth.account_locked",
+          resourceType: "user", resourceId: userWithHash.id,
+          newData: { failures, lockedUntil }, ipAddress: ip,
+        });
+      }
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
     if (userWithHash.status === "suspended")
       return NextResponse.json({ error: "Account is suspended" }, { status: 403 });
 
+    // Success — reset both the IP failure bucket and the account counter.
+    clear(failBucket);
+    await recordSuccessfulLogin(userWithHash.id);
+
     const token   = generateToken();
     const expires = sessionExpiresAt();
-    await createSession(userWithHash.id, hashToken(token), expires, getIp(req), req.headers.get("user-agent") ?? undefined);
+    await createSession(userWithHash.id, hashToken(token), expires, ip, req.headers.get("user-agent") ?? undefined);
     await touchLastLogin(userWithHash.id);
-    await writeAuditLog({ userId: userWithHash.id, action: "user.login", resourceType: "user", resourceId: userWithHash.id, ipAddress: getIp(req) });
+    await writeAuditLog({ userId: userWithHash.id, action: "user.login", resourceType: "user", resourceId: userWithHash.id, ipAddress: ip });
 
     const user = {
       ...userWithHash,
       passwordHash: undefined,
+      failedLoginAttempts: undefined,
+      lockedUntil: undefined,
     };
     delete user.passwordHash;
+    delete (user as Record<string, unknown>).failedLoginAttempts;
+    delete (user as Record<string, unknown>).lockedUntil;
     const res = NextResponse.json({ user, token });
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
     return res;
   } catch (err) {
+    // Phase 6.3: never leak raw internals — log server-side, return a generic 500.
     console.error("[auth] login:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Login failed due to an internal error. Please try again.", code: "INTERNAL_ERROR", status: 500 },
+      { status: 500 }
+    );
   }
 }
 

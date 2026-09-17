@@ -2,6 +2,18 @@
 
 Clara is a Next.js + Tailwind application that layers Retrieval Augmented Generation (RAG) on top of your private documents. Each document you ingest is embedded with OpenAI, stored in its own Qdrant collection, and catalogued for quick selection before every chat session.
 
+## Documentation
+
+| Guide | Audience |
+|-------|----------|
+| [SETUP.md](./SETUP.md) | Developers — full local setup, tests, troubleshooting |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Ops — self-host & cloud deployment, env matrix, day-2 runbook |
+| [API.md](./API.md) | Developers — REST reference for every endpoint |
+| [SEED.md](./SEED.md) | Developers — demo data layers, seeding & reset semantics |
+| [TENANT-GUIDE.md](./TENANT-GUIDE.md) | Clients — using the tenant workspace portal |
+| [EMBED-GUIDE.md](./EMBED-GUIDE.md) | Clients — embedding the Clara widget on any website |
+| [DEPLOY.md](./DEPLOY.md) | Docker/TLS specifics · [DEPLOY_RABBITMQ.md](./DEPLOY_RABBITMQ.md) · [Doc/](./Doc/) architecture notes |
+
 ## Features
 
 - **Streaming chat UI** – token-by-token responses, inline citations, and quick prompts.
