@@ -269,6 +269,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
         agentId: agent?.id ?? "",
         orgId: orgId ?? "",
         provider,
+        voiceProvider: null,
         chatModel: null,
         embeddingModel: null,
         realtimeModel: null,

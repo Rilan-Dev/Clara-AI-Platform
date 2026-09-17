@@ -61,8 +61,12 @@ export async function getOrgHandler(req: NextRequest, orgId: string): Promise<Ne
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    if (auth.user.isSuperAdmin) return adminForbidden();
-    await requireOrgPermission(auth, orgId, "org:read");
+    // Platform admins may READ any org — the admin console org settings page
+    // needs the org profile alongside the AI configuration they manage.
+    // Mutations below still require org membership.
+    if (!auth.user.isSuperAdmin) {
+      await requireOrgPermission(auth, orgId, "org:read");
+    }
     const org = await getOrganisationById(orgId);
     if (!org) return NextResponse.json({ error: "Organisation not found" }, { status: 404 });
     return NextResponse.json(org);

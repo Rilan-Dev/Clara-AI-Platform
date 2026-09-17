@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
-import { getPlatformAIDefaults, resolveAIConfig } from "@/modules/ai-core/resolve";
+import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
+import { resolveVoiceConfig } from "@/modules/ai-core/voice-resolve";
 
 export async function postVoiceProvider(request: NextRequest): Promise<NextResponse> {
   try {
@@ -12,6 +13,7 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
       const defaults = getPlatformAIDefaults();
       return NextResponse.json({
         provider: defaults.provider,
+        voiceProvider: defaults.provider,
         flags: {
           voiceEnabled: true,
           realtimeEnabled: true,
@@ -25,16 +27,26 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
       return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
     }
 
-    const resolved = await resolveAIConfig({ kbId, surface: "chat" });
+    // Full voice-surface resolution (kb → agent → org → env, allow-lists,
+    // kill switch, surface flags) — same guards the session endpoints apply.
+    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+
     return NextResponse.json({
-      provider: resolved.provider,
+      provider: resolved.brain.provider,
+      // Voice-provider axis: 'elevenlabs' routes the browser to the hybrid
+      // pipeline; openai/gemini keep their existing realtime paths.
+      voiceProvider: resolved.voiceProvider,
       flags: {
-        voiceEnabled: resolved.flags.voiceEnabled,
-        realtimeEnabled: resolved.flags.realtimeEnabled,
+        voiceEnabled: resolved.brain.flags.voiceEnabled,
+        realtimeEnabled: resolved.brain.flags.realtimeEnabled,
       },
     });
   } catch (error) {
     console.error("[voice-provider] post:", error);
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    // Surface resolution failures (disabled voice, not-allowed provider, kill
+    // switch) as a 400 the client can render directly — same contract the
+    // realtime session endpoints use.
+    const message = (error as Error).message ?? "Voice configuration could not be resolved.";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

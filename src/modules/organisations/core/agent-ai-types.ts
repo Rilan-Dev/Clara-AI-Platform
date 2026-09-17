@@ -1,18 +1,19 @@
 import type { AIProvider } from "@/modules/ai-core/config-types";
+import type { VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
 
 export type AgentLanguage = { id: string; orgId: string; code: string; name: string; nativeName: string | null; enabled: boolean };
-export type AgentVoice = { id: string; orgId: string; provider: AIProvider; voiceId: string; name: string; enabled: boolean; metadata: Record<string, unknown> };
-export type AgentAISettings = { id: string; agentId: string; orgId: string; provider: AIProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languages: AgentLanguage[]; voices: AgentVoice[] };
-export type PatchAgentAISettingsInput = Partial<{ provider: AIProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languageIds: string[]; voiceIds: string[] }>;
+export type AgentVoice = { id: string; orgId: string; provider: AIProvider | "elevenlabs"; voiceId: string; name: string; enabled: boolean; metadata: Record<string, unknown> };
+export type AgentAISettings = { id: string; agentId: string; orgId: string; provider: AIProvider | null; voiceProvider: VoiceProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languages: AgentLanguage[]; voices: AgentVoice[] };
+export type PatchAgentAISettingsInput = Partial<{ provider: AIProvider | null; voiceProvider: VoiceProvider | null; chatModel: string | null; embeddingModel: string | null; realtimeModel: string | null; transcriptionModel: string | null; defaultLanguageId: string | null; defaultVoiceId: string | null; languageIds: string[]; voiceIds: string[] }>;
 export type AgentRuntimeSelectionInput = {
   provider: AIProvider;
   assistantLanguage: string | null | undefined;
   assistantAllowedLanguages?: string[] | null;
   assistantVoice: string | null | undefined;
   assignedLanguages: Array<{ code: string; enabled: boolean }>;
-  assignedVoices: Array<{ provider: AIProvider; voiceId: string; enabled: boolean }>;
+  assignedVoices: Array<{ provider: AIProvider | "elevenlabs"; voiceId: string; enabled: boolean }>;
   defaultLanguageCode?: string | null;
-  defaultVoice?: { provider: AIProvider; voiceId: string } | null;
+  defaultVoice?: { provider: AIProvider | "elevenlabs"; voiceId: string } | null;
 };
 export type AgentRuntimeSelection = { allowedLanguages: string[]; defaultLanguage: string | null; voiceId: string | null };
 

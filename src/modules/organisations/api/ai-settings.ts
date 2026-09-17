@@ -6,6 +6,11 @@ import {
   getOrgAISettings,
   upsertOrgAISettings,
 } from "@/modules/organisations/core/ai-settings-db";
+import { isVoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import {
+  ELEVENLABS_TTS_MODELS,
+  isSupportedTTSModel,
+} from "@/modules/voice-elevenlabs/core/config";
 import type {
   AIProvider,
   PatchOrgAISettingsInput,
@@ -14,6 +19,20 @@ import type {
 
 function parseProvider(value: unknown): AIProvider | null {
   return value === "openai" || value === "gemini" ? value : null;
+}
+
+function parseVoiceProvider(value: unknown): "openai" | "gemini" | "elevenlabs" | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return isVoiceProvider(value) ? value : undefined;
+}
+
+function parseVoiceProviderList(value: unknown): ("openai" | "gemini" | "elevenlabs")[] | null {
+  if (!Array.isArray(value)) return null;
+  const providers = value
+    .map((item) => (isVoiceProvider(item) ? item : null))
+    .filter((item): item is "openai" | "gemini" | "elevenlabs" => item !== null);
+  return providers.length > 0 ? providers : null;
 }
 
 function parseProviderList(value: unknown): AIProvider[] | null {
@@ -66,6 +85,29 @@ function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput
 
   const allowedProviders = parseProviderList(body.allowedProviders);
   if (allowedProviders) input.allowedProviders = allowedProviders;
+
+  // ── Voice-provider axis (ElevenLabs) ──
+  const voiceProvider = parseVoiceProvider(body.voiceProvider);
+  if (voiceProvider !== undefined) input.voiceProvider = voiceProvider;
+
+  const allowedVoiceProviders = parseVoiceProviderList(body.allowedVoiceProviders);
+  if (allowedVoiceProviders) input.allowedVoiceProviders = allowedVoiceProviders;
+
+  const elevenlabsTtsModel = parseOptionalString(body.elevenlabsTtsModel);
+  if (elevenlabsTtsModel !== undefined) {
+    if (elevenlabsTtsModel && !isSupportedTTSModel(elevenlabsTtsModel)) {
+      throw new Error(
+        `Unsupported ElevenLabs TTS model "${elevenlabsTtsModel}". Choose one of: ${ELEVENLABS_TTS_MODELS.map((m) => m.modelId).join(", ")}.`,
+      );
+    }
+    input.elevenlabsTtsModel = elevenlabsTtsModel;
+  }
+
+  const elevenlabsSttModel = parseOptionalString(body.elevenlabsSttModel);
+  if (elevenlabsSttModel !== undefined) input.elevenlabsSttModel = elevenlabsSttModel;
+
+  const defaultElevenlabsVoice = parseOptionalString(body.defaultElevenlabsVoice);
+  if (defaultElevenlabsVoice !== undefined) input.defaultElevenlabsVoice = defaultElevenlabsVoice;
 
   const allowedChatModels = parseProviderScopedList(body.allowedChatModels);
   if (allowedChatModels) input.allowedChatModels = allowedChatModels;
@@ -129,13 +171,11 @@ export async function getOrgAISettingsHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    if (auth.user.isSuperAdmin) {
-      return NextResponse.json(
-        { error: "AI configuration is managed by each organisation. Platform admins only see aggregate counts." },
-        { status: 403 },
-      );
+    // Platform admins manage org AI configuration from the admin console
+    // (org detail → AI settings); org users need org:read.
+    if (!auth.user.isSuperAdmin) {
+      await requireOrgPermission(auth, orgId, "org:read");
     }
-    await requireOrgPermission(auth, orgId, "org:read");
 
     const org = await getOrganisationById(orgId);
     if (!org) {
@@ -161,13 +201,11 @@ export async function patchOrgAISettingsHandler(
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    if (auth.user.isSuperAdmin) {
-      return NextResponse.json(
-        { error: "AI configuration is managed by each organisation. Platform admins only see aggregate counts." },
-        { status: 403 },
-      );
+    // Platform admins manage org AI configuration from the admin console;
+    // org users need org:update.
+    if (!auth.user.isSuperAdmin) {
+      await requireOrgPermission(auth, orgId, "org:update");
     }
-    await requireOrgPermission(auth, orgId, "org:update");
 
     const org = await getOrganisationById(orgId);
     if (!org) {
@@ -178,7 +216,12 @@ export async function patchOrgAISettingsHandler(
     // Organisations own their AI model / provider / limit configuration.
     // Identity, Behaviour, Language and Voice are platform-level defaults
     // now — the org PATCH intentionally ignores those fields.
-    const input = buildPatchInput(body);
+    let input: PatchOrgAISettingsInput;
+    try {
+      input = buildPatchInput(body);
+    } catch (validationError) {
+      return NextResponse.json({ error: (validationError as Error).message }, { status: 400 });
+    }
     const settings = await upsertOrgAISettings(orgId, input);
     return NextResponse.json(settings);
   } catch (err) {

@@ -1,4 +1,5 @@
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
+import type { VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
 
 export type AIProvider = "openai" | "gemini";
 export type AISurface = "chat" | "rag-embedding" | "realtime" | "embed";
@@ -79,6 +80,13 @@ export interface OrgAISettings {
   orgId: string;
   defaultProvider: AIProvider | null;
   allowedProviders: AIProvider[];
+  /** Voice-provider axis (ElevenLabs integration): NULL = inherit brain provider. */
+  voiceProvider: VoiceProvider | null;
+  allowedVoiceProviders: VoiceProvider[];
+  /** Org-level ElevenLabs defaults (NULL = platform defaults). */
+  elevenlabsTtsModel: string | null;
+  elevenlabsSttModel: string | null;
+  defaultElevenlabsVoice: string | null;
   allowedChatModels: ProviderScopedList;
   allowedEmbeddingModels: ProviderScopedList;
   allowedRealtimeModels: ProviderScopedList;
@@ -115,6 +123,11 @@ export interface OrgAISettings {
 export interface PatchOrgAISettingsInput {
   defaultProvider?: AIProvider | null;
   allowedProviders?: AIProvider[];
+  voiceProvider?: VoiceProvider | null;
+  allowedVoiceProviders?: VoiceProvider[];
+  elevenlabsTtsModel?: string | null;
+  elevenlabsSttModel?: string | null;
+  defaultElevenlabsVoice?: string | null;
   allowedChatModels?: ProviderScopedList;
   allowedEmbeddingModels?: ProviderScopedList;
   allowedRealtimeModels?: ProviderScopedList;
@@ -150,6 +163,8 @@ export interface KBAIOverrides {
   id: string;
   kbId: string;
   provider: AIProvider | null;
+  /** Voice-provider override (NULL = inherit agent/org). */
+  voiceProvider: VoiceProvider | null;
   chatModel: string | null;
   embeddingModel: string | null;
   realtimeModel: string | null;
@@ -162,6 +177,7 @@ export interface KBAIOverrides {
 
 export interface PatchKBAIOverridesInput {
   provider?: AIProvider | null;
+  voiceProvider?: VoiceProvider | null;
   chatModel?: string | null;
   embeddingModel?: string | null;
   realtimeModel?: string | null;

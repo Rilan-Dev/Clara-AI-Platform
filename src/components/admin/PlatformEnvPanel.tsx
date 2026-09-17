@@ -5,6 +5,7 @@ import { Check, AlertCircle, ExternalLink, Bot, CreditCard, Smartphone, Globe } 
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
+import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-elevenlabs/core/config";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,9 @@ type EnvSetting = {
 };
 
 const MASK = "●●●●●●●●";
+
+/** ElevenLabs TTS model ids for the select dropdowns in this panel. */
+const ELEVENLABS_TTS_MODEL_IDS = ELEVENLABS_TTS_MODELS.map((model) => model.modelId);
 
 /** WS-0.4: shared validator for the model fields in this panel — a chat
  *  model in the embedding field (or vice versa) is blocked at entry. */
@@ -169,6 +173,33 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     hint: "Default voice for TTS output",
     type: "select", options: GEMINI_VOICES, group: "Gemini",
   },
+  // ── ElevenLabs (voice provider — hybrid mode) ──────────────────────
+  ELEVENLABS_ENABLED: {
+    label: "Enable ElevenLabs", placeholder: "true",
+    hint: "Master switch for the ElevenLabs voice provider (true/false). The API key must also be set.",
+    type: "select", options: ["true", "false"], group: "ElevenLabs",
+  },
+  ELEVENLABS_API_KEY: {
+    label: "API Key", placeholder: "sk_...",
+    hint: "Your secret password for ElevenLabs. Copy it from elevenlabs.io → Profile → API Keys. Used ONLY for voice (TTS/STT) — documents and knowledge bases never leave Clara.",
+    type: "password", isSecret: true, group: "ElevenLabs",
+    helperLink: { label: "ElevenLabs Dashboard →", href: "https://elevenlabs.io/app/settings/api-keys" },
+  },
+  ELEVENLABS_DEFAULT_TTS_MODEL: {
+    label: "Default TTS Model", placeholder: "Select or type model",
+    hint: "Voice model used to speak answers (Flash = lowest latency)",
+    type: "select", options: ELEVENLABS_TTS_MODEL_IDS, group: "ElevenLabs",
+  },
+  ELEVENLABS_DEFAULT_STT_MODEL: {
+    label: "Default STT Model", placeholder: "scribe_v1",
+    hint: "Speech-to-text model (Scribe) used to understand spoken questions",
+    type: "select", options: ["scribe_v1"], group: "ElevenLabs",
+  },
+  ELEVENLABS_DEFAULT_VOICE_ID: {
+    label: "Default Voice ID", placeholder: "e.g. JBFqnCBsd6RMkjVDRZzb",
+    hint: "Platform-fallback ElevenLabs voice id. Organisations pick their own voices in the org AI settings.",
+    group: "ElevenLabs",
+  },
   AI_MAX_CHAT_TOKENS: {
     label: "Max Chat Tokens", placeholder: "4000", hint: "The longest reply your assistant can write. Bigger numbers allow more detailed answers but cost more.",
     type: "number", validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
@@ -278,6 +309,7 @@ const CATEGORY_KEYS: Record<typeof CATEGORIES[number], string[]> = {
     "AI_PROVIDER",
     "OPENAI_API_KEY", "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL", "OPENAI_DEFAULT_VOICE",
     "GEMINI_API_KEY", "GEMINI_CHAT_MODEL", "GEMINI_EMBEDDING_MODEL", "GEMINI_REALTIME_MODEL", "GEMINI_TRANSCRIPTION_MODEL", "GEMINI_DEFAULT_VOICE",
+    "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "ELEVENLABS_DEFAULT_TTS_MODEL", "ELEVENLABS_DEFAULT_STT_MODEL", "ELEVENLABS_DEFAULT_VOICE_ID",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
   ],
   payments: [

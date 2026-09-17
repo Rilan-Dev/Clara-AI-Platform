@@ -5,6 +5,7 @@ import type {
   PatchOrgAISettingsInput,
   ProviderScopedList,
 } from "@/modules/ai-core/config-types";
+import { isVoiceProvider, type VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
 
 type Row = Record<string, unknown>;
 
@@ -14,6 +15,12 @@ function normalizeProviderList(input: unknown): AIProvider[] {
     (value): value is AIProvider => value === "openai" || value === "gemini",
   );
   return values.length > 0 ? values : ["openai", "gemini"];
+}
+
+function normalizeVoiceProviderList(input: unknown): VoiceProvider[] {
+  if (!Array.isArray(input)) return ["openai", "gemini", "elevenlabs"];
+  const values = input.filter((value): value is VoiceProvider => isVoiceProvider(value));
+  return values.length > 0 ? values : ["openai", "gemini", "elevenlabs"];
 }
 
 function normalizeProviderScopedList(input: unknown): ProviderScopedList {
@@ -40,6 +47,11 @@ function toOrgAISettings(row: Row): OrgAISettings {
         ? row.default_provider
         : null,
     allowedProviders: normalizeProviderList(row.allowed_providers),
+    voiceProvider: isVoiceProvider(row.voice_provider) ? row.voice_provider : null,
+    allowedVoiceProviders: normalizeVoiceProviderList(row.allowed_voice_providers),
+    elevenlabsTtsModel: typeof row.elevenlabs_tts_model === "string" ? row.elevenlabs_tts_model : null,
+    elevenlabsSttModel: typeof row.elevenlabs_stt_model === "string" ? row.elevenlabs_stt_model : null,
+    defaultElevenlabsVoice: typeof row.default_elevenlabs_voice === "string" ? row.default_elevenlabs_voice : null,
     allowedChatModels: normalizeProviderScopedList(row.allowed_chat_models),
     allowedEmbeddingModels: normalizeProviderScopedList(
       row.allowed_embedding_models,
@@ -146,6 +158,20 @@ export async function upsertOrgAISettings(
     defaultProvider: input.defaultProvider ?? current?.defaultProvider ?? null,
     allowedProviders: input.allowedProviders ??
       current?.allowedProviders ?? ["openai", "gemini"],
+    voiceProvider: input.voiceProvider !== undefined
+      ? input.voiceProvider
+      : (current?.voiceProvider ?? null),
+    allowedVoiceProviders: input.allowedVoiceProviders ??
+      current?.allowedVoiceProviders ?? ["openai", "gemini", "elevenlabs"],
+    elevenlabsTtsModel: input.elevenlabsTtsModel !== undefined
+      ? normalizeStringOrNull(input.elevenlabsTtsModel)
+      : (current?.elevenlabsTtsModel ?? null),
+    elevenlabsSttModel: input.elevenlabsSttModel !== undefined
+      ? normalizeStringOrNull(input.elevenlabsSttModel)
+      : (current?.elevenlabsSttModel ?? null),
+    defaultElevenlabsVoice: input.defaultElevenlabsVoice !== undefined
+      ? normalizeStringOrNull(input.defaultElevenlabsVoice)
+      : (current?.defaultElevenlabsVoice ?? null),
     allowedChatModels:
       input.allowedChatModels ?? current?.allowedChatModels ?? {},
     allowedEmbeddingModels:
@@ -221,10 +247,13 @@ export async function upsertOrgAISettings(
       input.defaultLanguage !== undefined
         ? normalizeStringOrNull(input.defaultLanguage)
         : (current?.defaultLanguage ?? null),
+    // NOT NULL in the schema (DEFAULT only applies when the column is omitted
+    // from the INSERT — we always list it), so coalesce to the schema default
+    // for fresh rows instead of failing the insert.
     allowedLanguages:
       input.allowedLanguages !== undefined
         ? input.allowedLanguages
-        : (current?.allowedLanguages ?? null),
+        : (current?.allowedLanguages ?? ["en"]),
     alwaysRespondIn:
       input.alwaysRespondIn !== undefined
         ? normalizeStringOrNull(input.alwaysRespondIn)
@@ -245,6 +274,11 @@ export async function upsertOrgAISettings(
        org_id,
        default_provider,
        allowed_providers,
+       voice_provider,
+       allowed_voice_providers,
+       elevenlabs_tts_model,
+       elevenlabs_stt_model,
+       default_elevenlabs_voice,
        allowed_chat_models,
        allowed_embedding_models,
        allowed_realtime_models,
@@ -272,14 +306,20 @@ export async function upsertOrgAISettings(
        speed
      )
      VALUES (
-       $1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb,
-       $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-       $18, $19, $20, $21, $22, $23::jsonb, $24, $25, $26, $27, $28
+       $1, $2, $3, $4, $5, $6, $7, $8,
+       $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb,
+       $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+       $23, $24, $25, $26, $27, $28::jsonb, $29, $30, $31, $32, $33
      )
      ON CONFLICT (org_id)
      DO UPDATE SET
        default_provider = EXCLUDED.default_provider,
        allowed_providers = EXCLUDED.allowed_providers,
+       voice_provider = EXCLUDED.voice_provider,
+       allowed_voice_providers = EXCLUDED.allowed_voice_providers,
+       elevenlabs_tts_model = EXCLUDED.elevenlabs_tts_model,
+       elevenlabs_stt_model = EXCLUDED.elevenlabs_stt_model,
+       default_elevenlabs_voice = EXCLUDED.default_elevenlabs_voice,
        allowed_chat_models = EXCLUDED.allowed_chat_models,
        allowed_embedding_models = EXCLUDED.allowed_embedding_models,
        allowed_realtime_models = EXCLUDED.allowed_realtime_models,
@@ -311,6 +351,11 @@ export async function upsertOrgAISettings(
       orgId,
       next.defaultProvider,
       next.allowedProviders,
+      next.voiceProvider,
+      next.allowedVoiceProviders,
+      next.elevenlabsTtsModel,
+      next.elevenlabsSttModel,
+      next.defaultElevenlabsVoice,
       JSON.stringify(next.allowedChatModels),
       JSON.stringify(next.allowedEmbeddingModels),
       JSON.stringify(next.allowedRealtimeModels),

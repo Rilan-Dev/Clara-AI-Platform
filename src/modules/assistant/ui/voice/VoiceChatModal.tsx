@@ -31,7 +31,7 @@ type Props = {
 
 // The normalised interface both inner hooks conform to after our updates.
 type VoiceSessionState = {
-  provider: "openai" | "gemini";
+  provider: "openai" | "gemini" | "elevenlabs";
   status: VoiceStatus;
   error: string | null;
   isSpeaking: boolean;

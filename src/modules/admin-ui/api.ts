@@ -53,12 +53,19 @@ export type Org = {
   knowledgeBaseCount?: number;
 };
 export type AIProvider = "openai" | "gemini";
+export type VoiceProvider = "openai" | "gemini" | "elevenlabs";
 export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;
 export type OrgAISettings = {
   id: string;
   orgId: string;
   defaultProvider: AIProvider | null;
   allowedProviders: AIProvider[];
+  /** Voice-provider axis (ElevenLabs): NULL = inherit brain provider. */
+  voiceProvider: VoiceProvider | null;
+  allowedVoiceProviders: VoiceProvider[];
+  elevenlabsTtsModel: string | null;
+  elevenlabsSttModel: string | null;
+  defaultElevenlabsVoice: string | null;
   allowedChatModels: ProviderScopedList;
   allowedEmbeddingModels: ProviderScopedList;
   allowedRealtimeModels: ProviderScopedList;
@@ -91,6 +98,7 @@ export type KBAIOverrides = {
   id: string;
   kbId: string;
   provider: AIProvider | null;
+  voiceProvider: VoiceProvider | null;
   chatModel: string | null;
   embeddingModel: string | null;
   realtimeModel: string | null;

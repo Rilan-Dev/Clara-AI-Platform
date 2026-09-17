@@ -63,7 +63,16 @@ const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics", "/s
 
 // Organisation-content routes — platform admins are redirected away from
 // these because orgs manage their own agents and knowledge bases.
+// EXCEPTION: the org SETTINGS page (/orgs/:id/settings) stays reachable by
+// platform admins — it hosts the AI provider / model / voice configuration
+// the platform operator manages (ElevenLabs integration, provider switching).
 const SUPERADMIN_BLOCKED_PATHS = ["/orgs", "/kbs"];
+
+function isSuperAdminBlocked(pathname: string): boolean {
+  // The org settings page is the operator's configuration surface.
+  if (/^\/orgs\/[^/]+\/settings(\/|$)/.test(pathname)) return false;
+  return SUPERADMIN_BLOCKED_PATHS.some((p) => matchesPath(pathname, p));
+}
 
 function matchesPath(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
@@ -136,8 +145,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     // Platform admins are locked out of organisation-content pages —
-    // they only see counts on the dashboard.
-    if (SUPERADMIN_BLOCKED_PATHS.some((p) => matchesPath(pathname, p))) {
+    // they only see counts on the dashboard. The org SETTINGS page is the
+    // exception (AI provider configuration surface).
+    if (isSuperAdminBlocked(pathname)) {
       router.replace("/dashboard");
     }
   }, [loading, user, primaryOrgId, pathname, router]);

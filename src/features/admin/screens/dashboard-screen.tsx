@@ -11,6 +11,8 @@ import {
   RefreshCw,
   BarChart3,
   Bot,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import http from "@/lib/http";
@@ -218,6 +220,29 @@ export default function AdminDashboard() {
                 <span className="text-sm text-emerald-400">${r.plan_mrr.toLocaleString()}/mo</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* AI provider configuration — the operator's entry point into
+            provider switching, API keys, models and the ElevenLabs voice
+            integration (platform defaults + per-org overrides). */}
+        <div className="border border-indigo-500/20 bg-gradient-to-br from-indigo-500/[0.08] to-transparent rounded-2xl p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-indigo-400" />
+              <div>
+                <h3 className="font-semibold text-white text-sm">AI providers &amp; voice</h3>
+                <p className="text-xs text-white/35 mt-0.5">
+                  Switch providers, change models, manage API keys — OpenAI, Gemini and ElevenLabs.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/settings/ai"
+              className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 px-3 py-2 rounded-lg"
+            >
+              Configure <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
       </div>

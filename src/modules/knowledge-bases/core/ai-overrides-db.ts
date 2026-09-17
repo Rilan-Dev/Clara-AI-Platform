@@ -3,6 +3,7 @@ import type {
   KBAIOverrides,
   PatchKBAIOverridesInput,
 } from "@/modules/ai-core/config-types";
+import { isVoiceProvider } from "@/modules/voice-elevenlabs/core/types";
 
 type Row = Record<string, unknown>;
 
@@ -19,6 +20,7 @@ function toKBAIOverrides(row: Row): KBAIOverrides {
     kbId: String(row.kb_id),
     provider:
       row.provider === "openai" || row.provider === "gemini" ? row.provider : null,
+    voiceProvider: isVoiceProvider(row.voice_provider) ? row.voice_provider : null,
     chatModel: normalizeStringOrNull(row.chat_model),
     embeddingModel: normalizeStringOrNull(row.embedding_model),
     realtimeModel: normalizeStringOrNull(row.realtime_model),
@@ -43,6 +45,8 @@ export async function upsertKbAIOverrides(
   const next = {
     provider:
       input.provider !== undefined ? input.provider : current?.provider ?? null,
+    voiceProvider:
+      input.voiceProvider !== undefined ? input.voiceProvider : current?.voiceProvider ?? null,
     chatModel:
       input.chatModel !== undefined ? normalizeStringOrNull(input.chatModel) : current?.chatModel ?? null,
     embeddingModel:
@@ -69,6 +73,7 @@ export async function upsertKbAIOverrides(
     `INSERT INTO kb_ai_overrides (
        kb_id,
        provider,
+       voice_provider,
        chat_model,
        embedding_model,
        realtime_model,
@@ -76,10 +81,11 @@ export async function upsertKbAIOverrides(
        disable_voice,
        disable_public_embed
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (kb_id)
      DO UPDATE SET
        provider = EXCLUDED.provider,
+       voice_provider = EXCLUDED.voice_provider,
        chat_model = EXCLUDED.chat_model,
        embedding_model = EXCLUDED.embedding_model,
        realtime_model = EXCLUDED.realtime_model,
@@ -91,6 +97,7 @@ export async function upsertKbAIOverrides(
     [
       kbId,
       next.provider,
+      next.voiceProvider,
       next.chatModel,
       next.embeddingModel,
       next.realtimeModel,

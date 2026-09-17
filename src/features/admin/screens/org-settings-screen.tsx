@@ -14,15 +14,17 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Building2, Settings2, Info } from "lucide-react";
-import { useAuth, useOrg } from "@/modules/admin-ui/hooks";
+import { useAuth, useOrg, useOrgAISettings } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { EditOrgPanel } from "@/components/admin/EditOrgPanel";
+import { OrgAIConfigEditor } from "@/components/admin/OrgAIConfigEditor";
 
 export default function OrgSettingsScreen() {
   const { id = "" } = useParams<{ id: string }>();
   const { user }    = useAuth();
   const isAdmin     = user?.isSuperAdmin ?? false;
   const { data: org } = useOrg(id);
+  const { settings: aiSettings, loading: aiLoading, save: saveAISettings } = useOrgAISettings(id);
 
   const [editedOrg, setEditedOrg] = useState<{ name: string; slug: string; logoUrl?: string | null } | null>(null);
 
@@ -46,6 +48,25 @@ export default function OrgSettingsScreen() {
         isSuperAdmin={isAdmin}
         onSaved={(updated) => setEditedOrg(updated)}
       />
+
+      {/* AI providers & models — provider switching, model defaults, voice
+          provider (incl. ElevenLabs hybrid), limits and feature flags. */}
+      <div className="mt-4 sm:mt-6">
+        {aiLoading && !aiSettings ? (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 text-sm text-white/50">
+            Loading AI configuration…
+          </div>
+        ) : aiSettings ? (
+          <OrgAIConfigEditor orgId={id} settings={aiSettings} onSave={saveAISettings} />
+        ) : (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+            <p className="text-sm text-white/70">AI configuration not initialised for this organisation yet.</p>
+            <p className="mt-1 text-xs text-white/40">
+              It is created automatically when the first agent or knowledge base is added.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Workspace facts */}
       <div className="mt-4 sm:mt-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +17,9 @@ import { EmailDeliveryPanel } from "@/components/admin/EmailDeliveryPanel";
 import { EmailTemplatesPanel } from "@/components/admin/EmailTemplatesPanel";
 import { PaymentGatewayPanel } from "@/components/admin/PaymentGatewayPanel";
 import { PlatformAssistantDefaultsEditor } from "@/components/admin/PlatformAssistantDefaultsEditor";
+import { PlatformEnvPanel } from "@/components/admin/PlatformEnvPanel";
+import { apiUrl } from "@/lib/runtime";
+import { withAuthHeaders } from "@/lib/client-auth";
 import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks";
 
 // ── Section model ────────────────────────────────────────────────────────────
@@ -280,6 +283,166 @@ function PlatformAIDefaultsSection() {
         <PlatformAssistantDefaultsEditor defaults={defaults} onSave={save} />
       )}
       {error && <p className="text-sm text-rose-400">{error}</p>}
+
+      {/* Platform AI provider keys & default models — OpenAI / Gemini /
+          ElevenLabs. The missing provider-switching + API-key surface the
+          admin console lost in the redesign, restored here. */}
+      <PlatformAIProvidersPanel />
+    </div>
+  );
+}
+
+// ── Platform AI providers: API keys, models, ElevenLabs status ────────────────
+
+function PlatformAIProvidersPanel() {
+  const [orgs, setOrgs] = useState<{ id: string; name: string; slug: string }[]>([]);
+
+  useEffect(() => {
+    fetch(apiUrl("/api/platform/orgs?perPage=100"), { headers: withAuthHeaders() })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { orgs?: { id: string; name: string; slug: string }[] };
+        setOrgs(data.orgs ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.06] to-transparent p-5 sm:p-6">
+        <h2 className="text-sm font-semibold text-white">AI providers &amp; API keys</h2>
+        <p className="mt-2 text-xs leading-relaxed text-white/45">
+          The platform-level keys and default models for OpenAI, Google Gemini and ElevenLabs.
+          Organisations pick their own provider and models in
+          <span className="text-white/70"> Organisation → Settings → AI Providers</span>;
+          what you set here is the default everything starts from.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-white/35">
+          ElevenLabs is a <span className="text-white/70">voice-only</span> provider — it speaks
+          and listens, while Clara&apos;s own AI answers. Documents and knowledge bases never
+          leave this platform.
+        </p>
+      </div>
+
+      <ElevenLabsStatusCard />
+
+      <PlatformEnvPanel />
+
+      {/* Per-organisation AI configuration — the operator's jump list. */}
+      {orgs.length > 0 && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
+          <h3 className="text-sm font-semibold text-white">Organisation AI configuration</h3>
+          <p className="mt-1 text-xs text-white/40">
+            Switch providers, models and voices for a specific organisation.
+          </p>
+          <div className="mt-4 grid sm:grid-cols-2 gap-3">
+            {orgs.map((org) => (
+              <Link
+                key={org.id}
+                href={`/orgs/${org.id}/settings`}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5 hover:bg-white/[0.05] hover:border-indigo-500/25 transition-all group"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white truncate group-hover:text-indigo-300 transition-colors">{org.name}</p>
+                  <p className="text-xs text-white/35 font-mono truncate">/{org.slug}</p>
+                </div>
+                <span className="text-xs text-indigo-400 shrink-0 group-hover:text-indigo-300">Configure →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── ElevenLabs connection status (operator health card) ──────────────────────
+
+function ElevenLabsStatusCard() {
+  const [status, setStatus] = useState<{
+    connected: boolean;
+    reason?: string;
+    tier?: string;
+    characterCount?: number;
+    characterLimit?: number;
+    characterUsagePercent?: number | null;
+    voiceLimit?: number;
+    canUseInstantCloning?: boolean;
+    enabled?: boolean;
+    defaultTtsModel?: string;
+    defaultSttModel?: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+
+  const load = useCallback(async () => {
+    setChecking(true);
+    try {
+      const res = await fetch(apiUrl("/api/admin/elevenlabs/status"), {
+        headers: withAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setStatus(data);
+    } catch {
+      setStatus({ connected: false, reason: "Status request failed." });
+    } finally {
+      setLoading(false);
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`h-2.5 w-2.5 rounded-full ${status?.connected ? "bg-emerald-400" : "bg-rose-400"}`} />
+          <div>
+            <h3 className="text-sm font-semibold text-white">ElevenLabs connection</h3>
+            <p className="text-xs text-white/40">
+              {loading ? "Checking…" : status?.connected ? `Tier: ${status.tier ?? "unknown"}` : status?.reason}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={load}
+          disabled={checking || loading}
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/60 hover:bg-white/[0.04] disabled:opacity-50"
+        >
+          {checking ? "Testing…" : "Test connection"}
+        </button>
+      </div>
+      {status?.connected && (
+        <div className="mt-4 grid sm:grid-cols-3 gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-white/35">Credits used</p>
+            <p className="mt-1 text-sm text-white/80">
+              {(status.characterCount ?? 0).toLocaleString()}
+              {status.characterLimit ? ` / ${status.characterLimit.toLocaleString()}` : ""}
+            </p>
+            {status.characterUsagePercent != null && (
+              <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${status.characterUsagePercent > 80 ? "bg-amber-400" : "bg-cyan-400"}`}
+                  style={{ width: `${Math.min(100, status.characterUsagePercent)}%` }}
+                />
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-white/35">Workspace voices</p>
+            <p className="mt-1 text-sm text-white/80">{status.voiceLimit ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-white/35">Defaults</p>
+            <p className="mt-1 text-sm text-white/80 font-mono text-xs">
+              {status.defaultTtsModel} · {status.defaultSttModel}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
