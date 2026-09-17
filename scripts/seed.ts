@@ -2,13 +2,19 @@
 /**
  * scripts/seed.ts — database seeding entry point.
  *
- *   tsx scripts/seed.ts --prod   production bootstrap (default when NODE_ENV=production)
+ *   tsx scripts/seed.ts --prod   production bootstrap (the DEFAULT — also `npm run seed`)
  *   tsx scripts/seed.ts --dev    production bootstrap + demo dataset (local dev only)
  *
  * Both modes are idempotent: safe to re-run at any time.
  *
- * The full Phase 5 demo dataset (npm run seed / npm run seed:reset) is
- * served by scripts/seed-demo.ts.
+ * The default is always the PRODUCTION bootstrap — the safe path that only
+ * writes what a real deployment needs. The --dev mode is guarded by
+ * src/lib/db/seed/demo-guard.ts: it requires an explicit NODE_ENV (normally
+ * "development"), a local database host, and `--force` for a remote shared
+ * dev database. The demo dataset must never land on a production database.
+ *
+ * The full Phase 5 demo story (npm run seed:dev / seed:reset) is served by
+ * scripts/seed-demo.ts.
  */
 
 // Load .env (Node >= 20.12) BEFORE importing the db pool, which reads
@@ -17,23 +23,21 @@ try { process.loadEnvFile(); } catch { /* .env optional */ }
 
 async function main() {
   const wantsDev = process.argv.includes("--dev");
-  const wantsProd = process.argv.includes("--prod");
-  const mode = wantsDev
-    ? "dev"
-    : wantsProd || process.env.NODE_ENV === "production"
-      ? "prod"
-      : null;
+  const mode = wantsDev ? "dev" : "prod";
 
-  if (!mode) {
-    console.error("Usage: tsx scripts/seed.ts --prod | --dev");
-    console.error("  --prod  production bootstrap (also the default when NODE_ENV=production)");
-    console.error("  --dev   production bootstrap + demo dataset (NEVER on a production DB)");
-    process.exit(1);
-  }
-
-  if (mode === "dev" && process.env.NODE_ENV === "production") {
-    console.error("[seed] refusing --dev seed while NODE_ENV=production");
-    process.exit(1);
+  if (mode === "dev") {
+    const { checkDemoSeedAllowed, formatDemoSeedRefusal } = await import("../src/lib/db/seed/demo-guard");
+    const check = checkDemoSeedAllowed();
+    if (!check.allowed) {
+      console.error(formatDemoSeedRefusal(check));
+      process.exit(1);
+    }
+    if (check.forced) {
+      console.warn(
+        `[seed] --force accepted: demo data will be written to REMOTE host "${check.dbHost}". ` +
+        "Never do this on a production database.",
+      );
+    }
   }
 
   const { pool } = await import("../src/lib/db");

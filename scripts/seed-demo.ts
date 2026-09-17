@@ -1,14 +1,19 @@
 #!/usr/bin/env tsx
 /**
- * scripts/seed-demo.ts — Phase 5 demo dataset CLI.
+ * scripts/seed-demo.ts — demo dataset CLI (LOCAL DEVELOPMENT ONLY).
  *
- *   npm run seed           full demo seed (production bootstrap + demo tenants)
- *   npm run seed:reset     purge demo data (demo UUID scope only) and re-seed
- *   tsx scripts/seed-demo.ts [--reset]
+ *   npm run seed:dev / seed:demo   full demo seed (production bootstrap + demo tenants)
+ *   npm run seed:reset             purge demo data (demo UUID scope only) and re-seed
+ *   tsx scripts/seed-demo.ts [--reset] [--force]
  *
- * Idempotent and safe to re-run at any time on a development database.
- * Refuses to run while NODE_ENV=production — the demo dataset (synthetic
- * analytics, demo tenants) must never touch a live production DB.
+ * Idempotent and safe to re-run on a development database.
+ *
+ * Guarded (see src/lib/db/seed/demo-guard.ts) — REFUSES unless:
+ *   • NODE_ENV is explicitly set to a non-production value (e.g. development)
+ *   • the database host is local (localhost / docker-compose service name)
+ * A remote shared dev database additionally requires `--force`.
+ * The demo dataset (synthetic analytics, demo tenants) must never touch a
+ * live production database. For production use `npm run seed:prod`.
  */
 
 // Load .env (Node >= 20.12) BEFORE importing the db pool, which reads
@@ -18,10 +23,17 @@ try { process.loadEnvFile(); } catch { /* .env optional */ }
 async function main() {
   const wantsReset = process.argv.includes("--reset");
 
-  if (process.env.NODE_ENV === "production") {
-    console.error("[seed:demo] refusing demo seed while NODE_ENV=production");
-    console.error("[seed:demo] use `npm run seed:prod` for the production bootstrap");
+  const { checkDemoSeedAllowed, formatDemoSeedRefusal } = await import("../src/lib/db/seed/demo-guard");
+  const check = checkDemoSeedAllowed();
+  if (!check.allowed) {
+    console.error(formatDemoSeedRefusal(check));
     process.exit(1);
+  }
+  if (check.forced) {
+    console.warn(
+      `[seed:demo] --force accepted: demo data will be written to REMOTE host "${check.dbHost}". ` +
+      "Never do this on a production database.",
+    );
   }
 
   const { pool } = await import("../src/lib/db");

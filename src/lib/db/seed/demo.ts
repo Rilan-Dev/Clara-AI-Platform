@@ -38,7 +38,7 @@ import {
 
 type Logger = Pick<typeof console, "log" | "warn" | "error">;
 
-const DEMO_IDS = {
+export const DEMO_IDS = {
   omenOrgId:     "10000000-0000-0000-0000-000000000010",
   techvisionOrgId: "10000000-0000-0000-0000-000000000011",
   omenAgentId:   "20000000-0000-0000-0000-000000000010",
@@ -61,7 +61,7 @@ export const DEMO_KB_IDS = [
   DEMO_IDS.tvKbEng,
 ] as readonly string[];
 
-const DEMO_ORG_IDS = [DEMO_IDS.omenOrgId, DEMO_IDS.techvisionOrgId] as readonly string[];
+export const DEMO_ORG_IDS = [DEMO_IDS.omenOrgId, DEMO_IDS.techvisionOrgId] as readonly string[];
 
 /** Synthetic events per KB (Omen totals 500, TechVision 200 — per plan). */
 export const DEMO_EVENT_COUNTS = {
@@ -614,12 +614,12 @@ async function seedDemoQueryEvents(client: PoolClient, logger: Logger) {
 
 // ── reset ────────────────────────────────────────────────────────────────────
 
-async function deleteQdrantCollections(logger: Logger) {
+async function deleteQdrantCollections(logger: Logger, names?: string[]) {
   const url = process.env.QDRANT_URL?.replace(/"/g, "");
   if (!url) return;
   const apiKey = process.env.QDRANT_API_KEY?.replace(/"/g, "") ?? "";
   const headers: Record<string, string> = apiKey ? { "api-key": apiKey } : {};
-  for (const name of [
+  for (const name of names ?? [
     "demo_omen_home_insurance", "demo_omen_motor_insurance", "demo_omen_life_health",
     "demo_tv_product_docs", "demo_tv_engineering",
   ]) {
@@ -634,43 +634,34 @@ async function deleteQdrantCollections(logger: Logger) {
 
 /**
  * Purges ONLY the demo tenants' data (scoped to the fixed demo UUIDs) and
- * re-seeds. Real organisations, users and traffic are untouched.
+ * re-seeds. Uses the shared purge plan (demo-purge.ts) so sessions,
+ * audit_logs, usage_events and every other org/kb/agent/user-scoped table
+ * are covered — not just the tables the seed writes directly. Real
+ * organisations, users and traffic are untouched.
  */
 export async function resetDemoData(options?: { logger?: Logger }) {
   const logger = options?.logger ?? console;
+  const { purgeDemoScope } = await import("@/lib/db/seed/demo-purge");
   const client = await pool.connect();
+  let qdrantCollections: string[] = [];
   try {
     await client.query("BEGIN");
-    await client.query(`DELETE FROM query_events WHERE kb_id = ANY($1::uuid[]) OR org_id = ANY($2::uuid[])`, [
-      [...DEMO_KB_IDS], [...DEMO_ORG_IDS],
-    ]);
-    await client.query(`DELETE FROM chat_sessions WHERE kb_id = ANY($1::uuid[])`, [[...DEMO_KB_IDS]]);
-    await client.query(`DELETE FROM ingest_jobs WHERE kb_id = ANY($1::uuid[])`, [[...DEMO_KB_IDS]]);
-    await client.query(`DELETE FROM documents WHERE kb_id = ANY($1::uuid[])`, [[...DEMO_KB_IDS]]);
-    await client.query(`DELETE FROM api_keys WHERE kb_id = ANY($1::uuid[])`, [[...DEMO_KB_IDS]]);
-    await client.query(`DELETE FROM knowledge_bases WHERE id = ANY($1::uuid[])`, [[...DEMO_KB_IDS]]);
-    await client.query(`DELETE FROM assistant_configs WHERE agent_id = ANY($1::uuid[])`, [
-      [DEMO_IDS.omenAgentId, DEMO_IDS.tvAgentId],
-    ]);
-    await client.query(`DELETE FROM agents WHERE id = ANY($1::uuid[])`, [
-      [DEMO_IDS.omenAgentId, DEMO_IDS.tvAgentId],
-    ]);
-    await client.query(`DELETE FROM subscription_audit_log WHERE org_id = ANY($1::uuid[])`, [[...DEMO_ORG_IDS]]);
-    await client.query(`DELETE FROM org_subscriptions WHERE org_id = ANY($1::uuid[])`, [[...DEMO_ORG_IDS]]);
-    await client.query(`DELETE FROM org_members WHERE org_id = ANY($1::uuid[])`, [[...DEMO_ORG_IDS]]);
-    await client.query(`DELETE FROM users WHERE id = ANY($1::uuid[])`, [
-      [DEMO_IDS.omenAdminUserId, DEMO_IDS.tvAdminUserId],
-    ]);
-    await client.query(`DELETE FROM organisations WHERE id = ANY($1::uuid[])`, [[...DEMO_ORG_IDS]]);
+    const result = await purgeDemoScope(client, { logger });
+    qdrantCollections = result.qdrantCollections;
     await client.query("COMMIT");
-    logger.log("[seed:demo] demo data purged (demo UUID scope only)");
+    const removed = result.rows.filter((r) => r.deleted > 0);
+    logger.log(
+      `[seed:demo] demo data purged (demo UUID scope only) — ${removed.length} tables touched, ` +
+      `${removed.reduce((n, r) => n + r.deleted, 0)} rows removed`,
+    );
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
   }
-  await deleteQdrantCollections(logger);
+  // Demo KB collections (the purge collected their names before deletion).
+  await deleteQdrantCollections(logger, qdrantCollections);
   await seedDemoData({ logger });
 }
 

@@ -103,16 +103,18 @@ async function chat(base, token, kbId, question) {
 async function main() {
   console.log(`\nPhase 5 acceptance — against ${BASE}` + (LIVE_BASE ? ` (live provider path: ${LIVE_BASE})` : "") + `\n`);
 
-  /* ── P5-1: npm run seed runs to completion with no errors ────────────── */
-  console.log("[P5-1] npm run seed — idempotent completion");
-  const seed = spawnSync("npm", ["run", "seed"], {
+  /* ── P5-1: demo seed runs to completion with no errors ───────────────── */
+  console.log("[P5-1] npm run seed:dev — idempotent completion");
+  // `seed:dev` is the guarded demo seeder (explicit NODE_ENV=development +
+  // --force for the shared remote dev database this acceptance runs against).
+  const seed = spawnSync("npm", ["run", "seed:dev", "--", "--force"], {
     cwd: path.resolve(process.cwd()),
     env: { ...process.env, NODE_ENV: "development" },
     encoding: "utf8",
     timeout: 240_000,
   });
   const seedOut = `${seed.stdout ?? ""}\n${seed.stderr ?? ""}`;
-  check("npm run seed exits 0 (re-run on an already-seeded DB)", seed.status === 0,
+  check("npm run seed:dev --force exits 0 (re-run on an already-seeded DB)", seed.status === 0,
     `exit=${seed.status} tail=${seedOut.trim().split("\n").slice(-3).join(" | ").slice(0, 200)}`);
   check("re-run is idempotent — all 5 sample documents already present",
     /5 already present\/ready/.test(seedOut), seedOut.match(/documents: .*/)?.[0] ?? "no documents line");

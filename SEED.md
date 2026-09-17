@@ -13,16 +13,24 @@ re-running any of them is safe. All seed logic lives in
 
 | Layer | Code | Creates | Command |
 |-------|------|---------|---------|
-| **Production bootstrap** | `src/lib/db/seed/production.ts` | Roles, 4 subscription plans, platform admin, the "Clara" demo org + Enterprise subscription + demo user | `npm run seed:prod` (runs automatically on first prod boot) |
-| **Demo dataset** | `src/lib/db/seed/demo.ts` (721 lines) | The two customer tenants, their KBs, agents, personas, documents, synthetic analytics | `npm run seed` |
+| **Production bootstrap** | `src/lib/db/seed/production.ts` | Roles, 4 subscription plans, platform admin, the "Clara" demo org + Enterprise subscription + demo user | `npm run seed` (= `npm run seed:prod`; runs automatically on first prod boot) |
+| **Demo dataset** | `src/lib/db/seed/demo.ts` (721 lines) | The two customer tenants, their KBs, agents, personas, documents, synthetic analytics | `npm run seed:dev` (LOCAL DEVELOPMENT ONLY — guarded) |
 | **Sample documents** | `scripts/generate-seed-docs.mjs` + content modules | 5 fictional PDFs under `public/seed-docs/` (~160 KB, deterministic) | `npm run seed:docs` |
 
-`development.ts` is a thin compatibility wrapper that now delegates to the
-demo dataset, so historic `seed:dev` invocations behave like `npm run seed`.
+`development.ts` is a thin compatibility wrapper that delegates to the demo
+dataset, so historic `seed:dev` invocations behave like `npm run seed:dev`.
 
-## 2. What `npm run seed` actually does
+> **`npm run seed` is ALWAYS the production bootstrap.** It used to point at
+> the demo seeder (Phase 5) — which let demo data reach production databases
+> whenever an operator shell had no `NODE_ENV` set. It now points at
+> `scripts/seed.ts --prod` and can never write demo tenants or synthetic
+> analytics. The demo dataset lives behind `seed:dev`/`seed:demo`, which are
+> guarded (§7).
 
-Runs `scripts/seed-demo.ts` → `seedDemoData()`:
+## 2. What `npm run seed:dev` actually does
+
+Runs `scripts/seed-demo.ts` → `seedDemoData()` (production bootstrap first,
+then the demo tenants):
 
 1. **Bootstrap first** — roles/plans/platform admin (idempotent upserts).
 2. **Omen United Insurance (Pro plan)** — org, `org_admin`
@@ -48,11 +56,13 @@ twice, get the same state. Credentials are overridable via
 
 ## 3. Reset semantics — `npm run seed:reset`
 
-`resetDemoData()` purges **only** the fixed demo UUID scope (both demo
-orgs, their users, agents, KBs, documents, chunks, events, embed keys) and
-re-seeds from scratch. Rows you created yourself (your own org, uploads,
-API keys) are untouched — the scope is defined by UUID constants inside
-`demo.ts`, never by "delete everything".
+`resetDemoData()` purges **only** the fixed demo UUID scope — every table
+with an org/kb/agent/user-scoped row owned by the demo tenants (orgs,
+users, agents, KBs, documents, chunks, events, embed keys, **sessions,
+audit_logs, usage_events, analytics aggregates**) — and re-seeds from
+scratch. Rows you created yourself (your own org, uploads, API keys) are
+untouched — the scope is defined by UUID constants inside `demo.ts`, never
+by "delete everything".
 
 Typical loop while developing against the demo tenants:
 
@@ -99,7 +109,8 @@ markers, so it never duplicates history) and is safe to re-run.
 ## 6. Verifying seeded state
 
 ```bash
-npm run seed
+npm run seed:prod                   # production bootstrap (safe anywhere)
+NODE_ENV=development npm run seed:dev   # demo dataset (local DB only)
 node scripts/e2e-phase5.js        # 53/53: seeding, logins, analytics, cited answers
 psql "$DATABASE_URL" -c "SELECT slug, plan_id FROM org_subscriptions s JOIN organisations o ON o.id=s.org_id;"
 ```
@@ -107,3 +118,37 @@ psql "$DATABASE_URL" -c "SELECT slug, plan_id FROM org_subscriptions s JOIN orga
 The e2e suite re-checks both tenant logins, per-KB analytics totals
 against SQL, and that streamed answers **cite the seeded PDFs** — the
 fastest confidence check that ingest + retrieval are wired end-to-end.
+
+## 7. Guards — why demo data can never reach production again
+
+Every code path that writes demo/development data
+(`scripts/seed-demo.ts`, `scripts/seed.ts --dev`, `scripts/db-reset.ts --dev`)
+is guarded by `src/lib/db/seed/demo-guard.ts`, which is **default-deny**:
+
+1. **`NODE_ENV` must be explicitly non-production** — normally
+   `NODE_ENV=development`. An *unset* `NODE_ENV` refuses (this is the exact
+   gap that previously let `npm run seed` demo-seed a production database
+   from an operator shell).
+2. **The database host must be local** — `localhost`, loopback, or a
+   docker-compose service name. A remote host (e.g. a shared dev server or
+   a production IP) is refused.
+3. **Remote shared dev databases require `--force`** — deliberate,
+   loud, and never available when `NODE_ENV=production`.
+
+The production bootstrap (`npm run seed` / `seed:prod`) needs no guard —
+it is idempotent upserts of exactly what a real deployment requires.
+
+## 8. Cleanup — `npm run seed:clean`
+
+If demo data or e2e artifacts (`…@clara-test.ai` users from live
+acceptance runs) ever land on a database they should not be on:
+
+```bash
+npm run seed:clean                 # DRY RUN: reports exactly what would be removed
+npm run seed:clean -- --yes        # executes the purge (single transaction)
+```
+
+`scripts/db-clean-demo.ts` removes only the fixed demo UUID scope plus
+orphaned e2e users (and, after commit, their Qdrant collections) — the
+production bootstrap rows and ALL real traffic are never matched. Safe to
+run on production.

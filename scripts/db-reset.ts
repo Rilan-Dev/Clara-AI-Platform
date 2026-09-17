@@ -41,9 +41,15 @@ async function main() {
   const wantsNoSeed = process.argv.includes("--no-seed");
   const wantsQdrantClean = process.argv.includes("--clean-qdrant");
 
-  if (wantsDev && process.env.NODE_ENV === "production") {
-    console.error("[db-reset] refusing --dev reset while NODE_ENV=production");
-    process.exit(1);
+  if (wantsDev) {
+    // Destructive + demo data: same hardened guard as the demo seeder —
+    // explicit NODE_ENV, local DB host (or --force for a remote shared dev DB).
+    const { checkDemoSeedAllowed, formatDemoSeedRefusal } = await import("../src/lib/db/seed/demo-guard");
+    const check = checkDemoSeedAllowed();
+    if (!check.allowed) {
+      console.error(formatDemoSeedRefusal(check));
+      process.exit(1);
+    }
   }
 
   const { pool } = await import("../src/lib/db");

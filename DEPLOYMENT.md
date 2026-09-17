@@ -80,8 +80,12 @@ Deploy steps (Railway example):
    (add `CLARA_SKIP_TYPECHECK=1` on small plans and run type-check in CI).
 3. Set every variable from §4 in the service dashboard.
 4. Health check path: `/api/health`.
-5. Seed once (see `SEED.md`): `npm run seed` from a one-off shell or your
-   workstation pointed at the same `DATABASE_URL`.
+5. Seed once (see `SEED.md`): `npm run seed` (= production bootstrap only —
+   platform admin, plans, settings, landing demo; never demo tenants) from a
+   one-off shell or your workstation pointed at the same `DATABASE_URL`.
+   Do NOT use `npm run seed:dev` / `seed:demo` on production — those are
+   guarded (explicit `NODE_ENV=development` + local DB host) and exist only
+   for local demo environments.
 
 > **Historical note:** the original implementation plan (§7.2) sketched
 > *Vercel for the two demo tenant apps + Railway for the backend*. The

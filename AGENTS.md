@@ -34,7 +34,7 @@ No ORM. Plain numbered SQL migrations in `src/lib/db/migrations/*.sql` (`NNN_des
 - `npm run type-check` — uses `tsconfig.typecheck.json` (adds `vitest/globals`, **excludes** `backups/`, `scripts/**`, `.next*/**`). IDE errors from those excluded paths are expected and not part of this check.
 - `npm test` / `npm run test:watch` — Vitest, `environment: "node"`, globs `src/**/*.test.ts(x)` only (files under `workers/` are not picked up by this glob).
 - `npm run ingest` / `npm run ingest-web` — CLI ingestion scripts (`tsx scripts/ingest.ts` / `ingest-web.ts`), bypass the UI.
-- `npm run seed` / `npm run seed:reset` — demo data seeding (`scripts/seed-demo.ts`); requires migrations to have run first.
+- `npm run seed` — production bootstrap (`scripts/seed.ts --prod`, safe on any DB); `npm run seed:dev` / `seed:reset` — demo dataset (`scripts/seed-demo.ts`, guarded: explicit NODE_ENV + local DB host); `npm run seed:clean` — purge demo/e2e artifacts; all require migrations to have run first.
 
 ## Local infra
 

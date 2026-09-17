@@ -103,13 +103,15 @@ psql "$DATABASE_URL" -c "SELECT filename FROM schema_migrations ORDER BY filenam
 
 ## 5. Seed data
 
-The demo dataset (recommended — it creates everything you need):
+Two layers (details in `SEED.md`):
 
 ```bash
-npm run seed          # idempotent demo story (see SEED.md)
+npm run seed          # production bootstrap only — safe on ANY database (admin, plans, settings)
+npm run seed:dev      # demo dataset — LOCAL DEVELOPMENT ONLY (guarded: needs
+                      #   NODE_ENV=development and a local DB host; --force for a shared dev DB)
 ```
 
-This creates two demo tenants with logins:
+`seed:dev` creates two demo tenants with logins:
 
 | Tenant | Plan | Login | Password |
 |--------|------|-------|----------|
