@@ -79,7 +79,13 @@ returned — they are logged server-side and replaced with a friendly 502/500.
 | `GET/PUT /api/platform/assistant-defaults` | Platform-wide assistant defaults. |
 | `GET/PUT /api/platform/demo-config` | Landing-demo configuration. |
 | `GET /api/platform/env` | Sanitized env report (never secrets). |
-| `GET/PUT /api/platform/email-templates`, `POST /api/platform/email/test` | Email template management. |
+| `GET/PUT /api/platform/email-templates` | Email template management. `PUT` saves **draft** content (`subject`/`bodyHtml` — never live) and applies `isActive` immediately. |
+| `GET /api/platform/email-templates/:key/audit` | Recent live changes (publish/reset/toggle) for the history panel. |
+| `POST /api/platform/email-templates/:key/publish` | Copy the saved draft into the live template (audited `publish`) — the only path edits reach recipients. |
+| `POST /api/platform/email-templates/:key/discard` | Delete the draft; live content untouched. |
+| `POST /api/platform/email-templates/:key/reset` | Restore the factory default (live + draft cleared, audited `reset`). |
+| `GET/POST /api/platform/email-variables`, `PUT/DELETE /api/platform/email-variables/:name` | Managed variable catalogue: system rows read-only (name = send-time contract), custom rows carry a static value injected into every render. DELETE is blocked while a template still uses the variable unless `?force=true`. |
+| `POST /api/platform/email/test` | Send a real test email (any template, sample data). |
 
 ## 4. Org & membership — `/api/orgs/*` (session, org-scoped)
 

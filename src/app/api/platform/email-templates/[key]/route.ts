@@ -3,16 +3,21 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import {
   getEmailTemplate,
-  updateEmailTemplate,
+  saveEmailTemplateDraft,
+  setEmailTemplateActive,
   EMAIL_TEMPLATE_DEFAULTS,
   type EmailTemplateKey,
 } from "@/lib/email-templates";
 
 /**
- * GET    /api/platform/email-templates/[key]  — fetch one template
- * PUT    /api/platform/email-templates/[key]  — save subject / bodyHtml / isActive
+ * GET    /api/platform/email-templates/[key]  — fetch one template (incl. draft)
+ * PUT    /api/platform/email-templates/[key]  — SAFE edit
  *        Body: { subject?: string, bodyHtml?: string, isActive?: boolean }
- *        Every save is appended to email_template_audit (who/what/when).
+ *        · subject / bodyHtml  → saved as the DRAFT (live content untouched;
+ *          goes out only after POST …/publish)
+ *        · isActive            → applied to the live row immediately (toggle)
+ *        Draft saves are deliberately NOT audited — only live changes are
+ *        (publish / reset / toggle), keeping the audit trail meaningful.
  */
 type Params = { params: Promise<{ key: string }> };
 
@@ -59,16 +64,23 @@ export async function PUT(req: NextRequest, { params }: Params): Promise<NextRes
       return NextResponse.json({ error: "Email body cannot be empty." }, { status: 400 });
     }
 
-    const template = await updateEmailTemplate(
-      key,
-      {
-        subject: body.subject?.trim(),
-        bodyHtml: body.bodyHtml,
-        isActive: body.isActive,
-      },
-      auth.user.id,
-    );
-    if (!template) return NextResponse.json({ error: "Template not found." }, { status: 404 });
+    // Content fields → draft only. The live template changes on publish.
+    let template = null;
+    if (body.subject !== undefined || body.bodyHtml !== undefined) {
+      template = await saveEmailTemplateDraft(
+        key,
+        { subject: body.subject?.trim(), bodyHtml: body.bodyHtml },
+        auth.user.id,
+      );
+    }
+    // isActive is a live setting, not content — apply it directly.
+    if (body.isActive !== undefined && typeof body.isActive === "boolean") {
+      template = await setEmailTemplateActive(key, body.isActive, auth.user.id);
+    }
+
+    if (!template) {
+      return NextResponse.json({ error: "Nothing to save — provide subject, bodyHtml or isActive." }, { status: 400 });
+    }
     return NextResponse.json({ ok: true, template });
   } catch (err) {
     if (err instanceof NextResponse) return err;

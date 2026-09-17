@@ -52,10 +52,30 @@ export type EmailTemplateDef = {
   variables: TemplateVariable[];
 };
 
+/** In-progress edit captured by "Save draft" — never rendered by senders. */
+export type EmailTemplateDraft = {
+  subject: string;
+  bodyHtml: string;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
 export type EmailTemplateRow = EmailTemplateDef & {
   isActive: boolean;
   updatedAt: string;
   isCustomized: boolean; // DB row differs from the code default
+  draft: EmailTemplateDraft | null; // non-null while an unpublished edit exists
+};
+
+/** A variable in the managed catalogue (Settings → Email Templates → Variables). */
+export type ManagedEmailVariable = {
+  name: string;
+  category: "auth" | "invitation" | "subscription" | "system" | "custom";
+  description: string;
+  value: string;      // custom rows: injected into every render; system rows: ""
+  isSystem: boolean;  // system variables are read-only (name is the code API)
+  usedIn: string[];   // template keys referencing {{name}} in published OR draft content
+  updatedAt: string;
 };
 
 export type RenderedEmail = {
@@ -351,6 +371,7 @@ const _cache = new Map<string, CachedTemplate>();
 
 export function invalidateEmailTemplateCache(): void {
   _cache.clear();
+  _customVarsCache = null;
 }
 
 async function fetchTemplate(key: EmailTemplateKey): Promise<CachedTemplate | null> {
@@ -389,6 +410,64 @@ async function fetchTemplate(key: EmailTemplateKey): Promise<CachedTemplate | nu
   }
 }
 
+// ── Managed variable catalogue ────────────────────────────────────────────────
+//
+// System variables are derived FROM the code defaults (single source of
+// truth): their names are the contract every send site passes, so they are
+// read-only in the manager. Custom variables are admin-created static values
+// injected into EVERY render as defaults — send-site values always win.
+
+function variableUsageRegex(name: string): RegExp {
+  return new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`);
+}
+
+const SYSTEM_VARIABLE_SEEDS: Array<{
+  name: string; description: string; category: ManagedEmailVariable["category"];
+}> = (() => {
+  const map = new Map<string, { name: string; description: string; category: ManagedEmailVariable["category"] }>();
+  for (const def of Object.values(EMAIL_TEMPLATE_DEFAULTS)) {
+    for (const v of def.variables) {
+      if (!map.has(v.name)) map.set(v.name, { name: v.name, description: v.description, category: def.category });
+    }
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+})();
+
+/** Every variable name the code can supply at send time (union over defaults). */
+export const SYSTEM_VARIABLE_NAMES: ReadonlySet<string> = new Set(SYSTEM_VARIABLE_SEEDS.map((v) => v.name));
+
+/** Seeds the system rows once (idempotent). Admin-edited descriptions persist. */
+async function ensureEmailTemplateVariables(): Promise<void> {
+  for (const v of SYSTEM_VARIABLE_SEEDS) {
+    await query(
+      `INSERT INTO email_template_variables (name, category, description, value, is_system)
+       VALUES ($1, $2, $3, '', TRUE)
+       ON CONFLICT (name) DO NOTHING`,
+      [v.name, v.category, v.description],
+    );
+  }
+}
+
+// Custom variable values are read on every render — cache them like templates.
+let _customVarsCache: { values: Record<string, string>; fetchedAt: number } | null = null;
+
+async function getCustomVariableValues(): Promise<Record<string, string>> {
+  if (_customVarsCache && Date.now() - _customVarsCache.fetchedAt < CACHE_TTL_MS) {
+    return _customVarsCache.values;
+  }
+  try {
+    const rows = await query<{ name: string; value: string }>(
+      `SELECT name, value FROM email_template_variables WHERE is_system = FALSE`,
+    );
+    const values = Object.fromEntries(rows.map((r) => [r.name, r.value]));
+    _customVarsCache = { values, fetchedAt: Date.now() };
+    return values;
+  } catch (err) {
+    console.warn("[email-templates] variable read failed, skipping custom vars:", (err as Error).message);
+    return {};
+  }
+}
+
 // ── Interpolation ─────────────────────────────────────────────────────────────
 
 export function interpolate(template: string, vars: Record<string, string | number | boolean>): string {
@@ -406,7 +485,8 @@ export async function renderEmailTemplate(
   key: EmailTemplateKey,
   vars: Record<string, string | number | boolean>,
 ): Promise<RenderedEmail> {
-  const effective = { appName: APP, ...vars };
+  // Precedence: send-site values > custom static variables > appName default.
+  const effective = { appName: APP, ...(await getCustomVariableValues()), ...vars };
   const row = await fetchTemplate(key);
   const def = row?.isActive ? row.def : EMAIL_TEMPLATE_DEFAULTS[key];
   const html = interpolate(def.bodyHtml, effective);
@@ -429,11 +509,21 @@ export async function ensureEmailTemplates(): Promise<void> {
   }
 }
 
-function rowToTemplate(row: {
+const TEMPLATE_ROW_SELECT = `
+  SELECT template_key, name, description, category, subject, body_html, variables,
+         is_active, updated_at,
+         draft_subject, draft_body_html, draft_updated_at, draft_updated_by
+    FROM email_templates`;
+
+type TemplateRowRaw = {
   template_key: string; name: string; description: string; category: string;
   subject: string; body_html: string; variables: TemplateVariable[];
   is_active: boolean; updated_at: string;
-}): EmailTemplateRow {
+  draft_subject: string | null; draft_body_html: string | null;
+  draft_updated_at: string | null; draft_updated_by: string | null;
+};
+
+function rowToTemplate(row: TemplateRowRaw): EmailTemplateRow {
   const key = row.template_key as EmailTemplateKey;
   const def = EMAIL_TEMPLATE_DEFAULTS[key];
   return {
@@ -449,61 +539,124 @@ function rowToTemplate(row: {
     isCustomized: Boolean(
       def && (def.subject !== row.subject || def.bodyHtml !== row.body_html),
     ),
+    draft:
+      row.draft_subject !== null && row.draft_body_html !== null
+        ? {
+            subject: row.draft_subject,
+            bodyHtml: row.draft_body_html,
+            updatedAt: row.draft_updated_at ?? row.updated_at,
+            updatedBy: row.draft_updated_by,
+          }
+        : null,
   };
 }
 
 export async function listEmailTemplates(): Promise<EmailTemplateRow[]> {
   await ensureEmailTemplates();
-  const rows = await query<{
-    template_key: string; name: string; description: string; category: string;
-    subject: string; body_html: string; variables: TemplateVariable[];
-    is_active: boolean; updated_at: string;
-  }>(
-    `SELECT template_key, name, description, category, subject, body_html, variables,
-            is_active, updated_at
-       FROM email_templates
-      ORDER BY category, name`,
+  const rows = await query<TemplateRowRaw>(
+    `${TEMPLATE_ROW_SELECT} ORDER BY category, name`,
   );
   return rows.map(rowToTemplate);
 }
 
 export async function getEmailTemplate(key: EmailTemplateKey): Promise<EmailTemplateRow | null> {
   await ensureEmailTemplates();
-  const rows = await query<{
-    template_key: string; name: string; description: string; category: string;
-    subject: string; body_html: string; variables: TemplateVariable[];
-    is_active: boolean; updated_at: string;
-  }>(
-    `SELECT template_key, name, description, category, subject, body_html, variables,
-            is_active, updated_at
-       FROM email_templates WHERE template_key = $1`,
+  const rows = await query<TemplateRowRaw>(
+    `${TEMPLATE_ROW_SELECT} WHERE template_key = $1`,
     [key],
   );
   return rows[0] ? rowToTemplate(rows[0]) : null;
 }
 
-export async function updateEmailTemplate(
+// ── Draft → publish flow ────────────────────────────────────────────────────
+//
+// "Save draft" writes ONLY the draft_* columns — the published subject/body
+// stay untouched, so live email sending is never affected by an in-progress
+// edit. "Publish" copies draft → live in one UPDATE (audited as 'publish'),
+// "Discard" deletes the draft.
+
+export async function saveEmailTemplateDraft(
   key: EmailTemplateKey,
-  patch: { subject?: string; bodyHtml?: string; isActive?: boolean },
+  patch: { subject?: string; bodyHtml?: string },
   updatedBy?: string,
 ): Promise<EmailTemplateRow | null> {
   const current = await getEmailTemplate(key);
   if (!current) return null;
 
-  const subject = patch.subject ?? current.subject;
-  const bodyHtml = patch.bodyHtml ?? current.bodyHtml;
-  const isActive = patch.isActive ?? current.isActive;
+  const subject = patch.subject ?? current.draft?.subject ?? current.subject;
+  const bodyHtml = patch.bodyHtml ?? current.draft?.bodyHtml ?? current.bodyHtml;
 
   await query(
     `UPDATE email_templates
-        SET subject = $2, body_html = $3, is_active = $4, updated_at = now(), updated_by = $5
+        SET draft_subject = $2, draft_body_html = $3,
+            draft_updated_at = now(), draft_updated_by = $4
       WHERE template_key = $1`,
-    [key, subject, bodyHtml, isActive, updatedBy ?? null],
+    [key, subject, bodyHtml, updatedBy ?? null],
+  );
+  invalidateEmailTemplateCache();
+  return getEmailTemplate(key);
+}
+
+/** Copies the draft into the live columns. Returns null when no draft exists. */
+export async function publishEmailTemplate(
+  key: EmailTemplateKey,
+  updatedBy?: string,
+): Promise<EmailTemplateRow | null> {
+  const current = await getEmailTemplate(key);
+  if (!current || !current.draft) return null;
+
+  await query(
+    `UPDATE email_templates
+        SET subject = $2, body_html = $3,
+            draft_subject = NULL, draft_body_html = NULL,
+            draft_updated_at = NULL, draft_updated_by = NULL,
+            updated_at = now(), updated_by = $4
+      WHERE template_key = $1`,
+    [key, current.draft.subject, current.draft.bodyHtml, updatedBy ?? null],
   );
   await query(
-    `INSERT INTO email_template_audit (template_key, subject, body_html, is_active, updated_by)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [key, subject, bodyHtml, isActive, updatedBy ?? null],
+    `INSERT INTO email_template_audit (template_key, subject, body_html, is_active, updated_by, action)
+     VALUES ($1, $2, $3, $4, $5, 'publish')`,
+    [key, current.draft.subject, current.draft.bodyHtml, current.isActive, updatedBy ?? null],
+  );
+  invalidateEmailTemplateCache();
+  return getEmailTemplate(key);
+}
+
+/** Deletes the in-progress draft. The published content is untouched (no audit). */
+export async function discardEmailTemplateDraft(
+  key: EmailTemplateKey,
+): Promise<EmailTemplateRow | null> {
+  await query(
+    `UPDATE email_templates
+        SET draft_subject = NULL, draft_body_html = NULL,
+            draft_updated_at = NULL, draft_updated_by = NULL
+      WHERE template_key = $1`,
+    [key],
+  );
+  invalidateEmailTemplateCache();
+  return getEmailTemplate(key);
+}
+
+/** Live toggle (applies immediately; audited like any other live change). */
+export async function setEmailTemplateActive(
+  key: EmailTemplateKey,
+  isActive: boolean,
+  updatedBy?: string,
+): Promise<EmailTemplateRow | null> {
+  const current = await getEmailTemplate(key);
+  if (!current) return null;
+
+  await query(
+    `UPDATE email_templates
+        SET is_active = $2, updated_at = now(), updated_by = $3
+      WHERE template_key = $1`,
+    [key, isActive, updatedBy ?? null],
+  );
+  await query(
+    `INSERT INTO email_template_audit (template_key, subject, body_html, is_active, updated_by, action)
+     VALUES ($1, $2, $3, $4, $5, 'update')`,
+    [key, current.subject, current.bodyHtml, isActive, updatedBy ?? null],
   );
   invalidateEmailTemplateCache();
   return getEmailTemplate(key);
@@ -517,13 +670,16 @@ export async function resetEmailTemplate(
   if (!def) return null;
   await query(
     `UPDATE email_templates
-        SET subject = $2, body_html = $3, is_active = TRUE, updated_at = now(), updated_by = $4
+        SET subject = $2, body_html = $3, is_active = TRUE,
+            draft_subject = NULL, draft_body_html = NULL,
+            draft_updated_at = NULL, draft_updated_by = NULL,
+            updated_at = now(), updated_by = $4
       WHERE template_key = $1`,
     [key, def.subject, def.bodyHtml, updatedBy ?? null],
   );
   await query(
-    `INSERT INTO email_template_audit (template_key, subject, body_html, is_active, updated_by)
-     VALUES ($1, $2, $3, TRUE, $4)`,
+    `INSERT INTO email_template_audit (template_key, subject, body_html, is_active, updated_by, action)
+     VALUES ($1, $2, $3, TRUE, $4, 'reset')`,
     [key, def.subject, def.bodyHtml, updatedBy ?? null],
   );
   invalidateEmailTemplateCache();
@@ -533,4 +689,209 @@ export async function resetEmailTemplate(
 /** Variable catalogue for a key (always from code defaults — hints for the editor). */
 export function templateVariables(key: EmailTemplateKey): TemplateVariable[] {
   return EMAIL_TEMPLATE_DEFAULTS[key]?.variables ?? [];
+}
+
+// ── Managed variable catalogue (Settings → Email Templates → Variables) ─────
+
+const VARIABLE_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/;
+const VARIABLE_CATEGORIES = ["auth", "invitation", "subscription", "system", "custom"] as const;
+export type VariableCategory = (typeof VARIABLE_CATEGORIES)[number];
+
+export class EmailVariableError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Lists every variable (system ∪ custom) with real usage across templates. */
+export async function listEmailTemplateVariables(): Promise<ManagedEmailVariable[]> {
+  await ensureEmailTemplateVariables();
+  const [rows, templates] = await Promise.all([
+    query<{
+      name: string; category: string; description: string; value: string;
+      is_system: boolean; updated_at: string;
+    }>(
+      `SELECT name, category, description, value, is_system, updated_at
+         FROM email_template_variables
+        ORDER BY category, name`,
+    ),
+    query<{ template_key: string; subject: string; body_html: string;
+            draft_subject: string | null; draft_body_html: string | null }>(
+      `SELECT template_key, subject, body_html, draft_subject, draft_body_html
+         FROM email_templates`,
+    ),
+  ]);
+
+  // Usage scan: a variable is "used" when {{name}} appears in the published
+  // OR draft subject/body of a template. Identifier-safe names need no regex escaping.
+  const usage = new Map<string, string[]>();
+  for (const v of rows) {
+    const re = variableUsageRegex(v.name);
+    const usedIn = templates
+      .filter((t) =>
+        re.test(t.subject) || re.test(t.body_html) ||
+        (t.draft_subject !== null && re.test(t.draft_subject)) ||
+        (t.draft_body_html !== null && re.test(t.draft_body_html)))
+      .map((t) => t.template_key);
+    usage.set(v.name, usedIn);
+  }
+
+  return rows.map((r) => ({
+    name: r.name,
+    category: r.category as ManagedEmailVariable["category"],
+    description: r.description,
+    value: r.value,
+    isSystem: r.is_system,
+    usedIn: usage.get(r.name) ?? [],
+    updatedAt: r.updated_at,
+  }));
+}
+
+export async function createEmailTemplateVariable(
+  input: { name: string; category: string; description: string; value: string },
+  updatedBy?: string,
+): Promise<ManagedEmailVariable> {
+  const name = input.name.trim();
+  if (!VARIABLE_NAME_RE.test(name)) {
+    throw new EmailVariableError(
+      "Variable names may only contain letters, digits and underscores, and must start with a letter or underscore.",
+    );
+  }
+  if (SYSTEM_VARIABLE_NAMES.has(name)) {
+    throw new EmailVariableError(
+      `"${name}" is a system variable supplied by the platform at send time — it cannot be redefined.`,
+    );
+  }
+  const category = (VARIABLE_CATEGORIES as readonly string[]).includes(input.category)
+    ? (input.category as VariableCategory)
+    : "custom";
+  if (typeof input.value !== "string" || input.value.trim().length === 0) {
+    throw new EmailVariableError("A custom variable needs a value (what gets inserted into emails).");
+  }
+
+  const existing = await query<{ name: string }>(
+    `SELECT name FROM email_template_variables WHERE name = $1`,
+    [name],
+  );
+  if (existing.length) {
+    throw new EmailVariableError(`A variable named "${name}" already exists.`, 409);
+  }
+
+  await query(
+    `INSERT INTO email_template_variables (name, category, description, value, is_system, updated_by)
+     VALUES ($1, $2, $3, $4, FALSE, $5)`,
+    [name, category, input.description.trim(), input.value, updatedBy ?? null],
+  );
+  invalidateEmailTemplateCache();
+  return (await listEmailTemplateVariables()).find((v) => v.name === name)
+    ?? { name, category, description: input.description.trim(), value: input.value, isSystem: false, usedIn: [], updatedAt: new Date().toISOString() };
+}
+
+export async function updateEmailTemplateVariable(
+  name: string,
+  patch: { description?: string; value?: string; category?: string },
+  updatedBy?: string,
+): Promise<ManagedEmailVariable> {
+  await ensureEmailTemplateVariables(); // self-heal system rows before lookup
+  const rows = await query<{
+    name: string; category: string; description: string; value: string;
+    is_system: boolean; updated_at: string;
+  }>(
+    `SELECT name, category, description, value, is_system, updated_at
+       FROM email_template_variables WHERE name = $1`,
+    [name],
+  );
+  const row = rows[0];
+  if (!row) throw new EmailVariableError(`No variable named "${name}" exists.`, 404);
+
+  // System variables: only the description may be edited (name + value are
+  // the code-level contract; values are supplied at send time).
+  const description = patch.description !== undefined ? patch.description.trim() : row.description;
+  if (row.is_system) {
+    if (patch.value !== undefined && patch.value !== row.value) {
+      throw new EmailVariableError(
+        `"${name}" is a system variable — its value comes from the platform at send time and cannot be set.`,
+      );
+    }
+    await query(
+      `UPDATE email_template_variables SET description = $2, updated_at = now(), updated_by = $3 WHERE name = $1`,
+      [name, description, updatedBy ?? null],
+    );
+  } else {
+    const value = patch.value !== undefined ? patch.value : row.value;
+    if (typeof value !== "string" || value.trim().length === 0) {
+      throw new EmailVariableError("A custom variable needs a value (what gets inserted into emails).");
+    }
+    const category = patch.category !== undefined
+      ? ((VARIABLE_CATEGORIES as readonly string[]).includes(patch.category) ? (patch.category as VariableCategory) : row.category)
+      : row.category;
+    await query(
+      `UPDATE email_template_variables
+          SET description = $2, value = $3, category = $4, updated_at = now(), updated_by = $5
+        WHERE name = $1`,
+      [name, description, value, category, updatedBy ?? null],
+    );
+  }
+  invalidateEmailTemplateCache();
+  const all = await listEmailTemplateVariables();
+  const updated = all.find((v) => v.name === name);
+  if (!updated) throw new EmailVariableError("Variable disappeared during update.", 500);
+  return updated;
+}
+
+/** Deletes a CUSTOM variable. Blocked while any template still uses it (unless force). */
+export async function deleteEmailTemplateVariable(
+  name: string,
+  opts: { force?: boolean } = {},
+): Promise<{ deleted: boolean; usedIn: string[] }> {
+  await ensureEmailTemplateVariables(); // self-heal system rows before lookup
+  const rows = await query<{ name: string; is_system: boolean }>(
+    `SELECT name, is_system FROM email_template_variables WHERE name = $1`,
+    [name],
+  );
+  const row = rows[0];
+  if (!row) throw new EmailVariableError(`No variable named "${name}" exists.`, 404);
+  if (row.is_system) {
+    throw new EmailVariableError(
+      `"${name}" is a system variable supplied by the platform — it cannot be deleted.`,
+    );
+  }
+
+  const all = await listEmailTemplateVariables();
+  const usedIn = all.find((v) => v.name === name)?.usedIn ?? [];
+  if (usedIn.length > 0 && !opts.force) {
+    return { deleted: false, usedIn };
+  }
+
+  await query(`DELETE FROM email_template_variables WHERE name = $1`, [name]);
+  invalidateEmailTemplateCache();
+  return { deleted: true, usedIn };
+}
+
+/** Recent live changes for the audit trail panel (newest first). */
+export async function listEmailTemplateAudit(
+  key: EmailTemplateKey,
+  limit = 10,
+): Promise<Array<{ id: number; action: string; subject: string; isActive: boolean; updatedBy: string | null; createdAt: string }>> {
+  const rows = await query<{
+    id: string; action: string; subject: string; is_active: boolean;
+    updated_by: string | null; created_at: string;
+  }>(
+    `SELECT id, action, subject, is_active, updated_by, created_at
+       FROM email_template_audit
+      WHERE template_key = $1
+      ORDER BY created_at DESC, id DESC
+      LIMIT $2`,
+    [key, limit],
+  );
+  return rows.map((r) => ({
+    id: Number(r.id),
+    action: r.action,
+    subject: r.subject,
+    isActive: r.is_active,
+    updatedBy: r.updated_by,
+    createdAt: r.created_at,
+  }));
 }
