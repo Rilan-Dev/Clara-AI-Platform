@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, PhoneOff, Sparkles, Volume2 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
+import DemoWebsiteFrame from "@/features/embed/components/DemoWebsiteFrame";
 
 type Config = {
   kbId: string;
@@ -192,7 +193,7 @@ function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config })
   );
 }
 
-export default function LandingEmbedFrame({ apiKey, mode }: { apiKey: string; mode: "fab" | "voice" }) {
+function VoiceLandingFrame({ apiKey }: { apiKey: string }) {
   const [config, setConfig] = useState<Config | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -209,7 +210,14 @@ export default function LandingEmbedFrame({ apiKey, mode }: { apiKey: string; mo
   }, [apiKey]);
   if (error) return <div className="min-h-screen flex items-center justify-center bg-transparent px-4 text-center text-xs text-red-300">{error}</div>;
   if (!config) return <div className="min-h-screen flex items-center justify-center bg-transparent"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /></div>;
-  if (mode === "fab") return <iframe title={`${config.assistantName} chat assistant`} src={`/embed/widget?key=${encodeURIComponent(apiKey)}`} className="fixed inset-0 w-full h-full border-0" allow="microphone; autoplay" referrerPolicy="strict-origin-when-cross-origin" />;
   if (config.voiceEnabled === false) return <div className="min-h-screen flex items-center justify-center bg-transparent text-sm text-white/50">Voice is not enabled for this assistant.</div>;
   return <VoiceExperience apiKey={apiKey} config={config} />;
+}
+
+export default function LandingEmbedFrame({ apiKey, mode }: { apiKey: string; mode: "fab" | "voice" }) {
+  // Phase 4 demo website: the TechVision page resolves its own embed key
+  // (explicit ?key param → platform demo-config fallback), so no config
+  // precondition applies in fab mode.
+  if (mode === "fab") return <DemoWebsiteFrame apiKey={apiKey} />;
+  return <VoiceLandingFrame apiKey={apiKey} />;
 }

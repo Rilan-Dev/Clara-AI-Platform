@@ -21,7 +21,7 @@ type VoiceConfig = {
   accentColour?: string | null;
 };
 
-function VoiceActive({ config, apiKey, onEnd }: {
+function VoiceActive({ config, onEnd }: {
   config: VoiceConfig;
   apiKey: string;
   onEnd: () => void;

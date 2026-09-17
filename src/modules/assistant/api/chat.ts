@@ -148,6 +148,22 @@ function validateMessages(input: unknown): ClientMessage[] {
 // for retrieval. This powers the workspace when a KB is selected instead of
 // a legacy document.
 
+/**
+ * Retrieval/embedding provider failure inside the chat pipeline.
+ *
+ * Thrown (typed) so the outer handler can return the friendly 502 instead of
+ * leaking raw provider/edge errors (which can reference regions, keys or
+ * upstream internals) to workspace users — mirrors the /api/embed/search
+ * error-hygiene contract.
+ */
+class ChatRetrievalError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "ChatRetrievalError";
+    this.cause = cause;
+  }
+}
+
 async function postChatKb(
   request: NextRequest,
   kbId: string,
@@ -222,7 +238,7 @@ async function postChatKb(
       answerText: "", status: "error",
       latencyMs: Date.now() - t0,
     });
-    throw searchErr;
+    throw new ChatRetrievalError(searchErr);
   }
   const latencyMs = Date.now() - t0;
   void finalizeQueryEvent(eventId, {
@@ -292,7 +308,11 @@ async function postChatKb(
           }
         } catch (err) {
           streamError = (err as Error).message;
-          write({ type: "error", payload: streamError });
+          // Raw provider/edge errors must not reach the client (they can
+          // reference regions, keys or upstream internals) — log them, show a
+          // friendly event. The audit row keeps the error status either way.
+          console.error("[chat] stream failed:", streamError);
+          write({ type: "error", payload: "The assistant could not complete the answer. Please try again in a moment." });
         } finally {
           // Persist the AI-generated answer + metering for the platform
           // audit trail and the usage-event spine.
@@ -395,7 +415,11 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
         `collection=${documentRecord.collectionName} ` +
         `query="${query.slice(0, 120)}" maxTokens=${CHAT_MAX_TOKENS}`
     );
-    const embedding = await embedQuery(query);
+    const embedding = await embedQuery(query).catch((embedErr) => {
+      // Provider failure during the Mode-B retrieval — same typed wrap so the
+      // outer handler returns the friendly 502 (never the raw provider text).
+      throw new ChatRetrievalError(embedErr);
+    });
     const retrieved = await searchSimilarDocuments(
       documentRecord.collectionName,
       embedding,
@@ -571,12 +595,11 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
           } catch (error) {
             streamFailed = true;
             console.error("[chat] streaming error:", error);
+            // Raw provider/edge errors must not reach the client — show a
+            // friendly event (mirrors the KB-mode stream error contract).
             writeEvent({
               type: "error",
-              payload:
-                error instanceof Error
-                  ? error.message
-                  : "Streaming error occurred.",
+              payload: "The assistant could not complete the answer. Please try again in a moment.",
             });
           } finally {
             // WS-1.2 + WS-1.1: audit the answer + record token metering
@@ -603,6 +626,15 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
 
     return new NextResponse(stream, { headers: baseHeaders });
   } catch (error) {
+    if (error instanceof ChatRetrievalError) {
+      // Retrieval/embedding provider failure — friendly 502, raw cause only
+      // in the server log (mirrors /api/embed/search error hygiene).
+      console.error("[chat] retrieval failed:", error.cause ?? error.message);
+      return NextResponse.json(
+        { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
+        { status: 502 },
+      );
+    }
     console.error("[chat] handler error:", error);
     const message =
       error instanceof Error ? error.message : "Unexpected server error.";

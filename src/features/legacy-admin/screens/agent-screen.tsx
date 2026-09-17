@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 export default function AgentPage() {
   const { orgId = "", agentId = "" } = useParams<{ orgId: string; agentId: string }>();
   const { data: org } = useOrg(orgId);
-  const { data: agent } = useAgent(agentId);
+  useAgent(agentId);
   const { kbs, loading, create, remove } = useKbs(agentId);
   const [name, setName]           = useState("");
   const [description, setDescription] = useState("");

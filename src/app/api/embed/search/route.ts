@@ -13,15 +13,10 @@ import {
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
+import { admitQueryEvent } from "@/lib/quota-admission";
 import { query as dbQuery } from "@/lib/db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { getPlatformEnvSettings } from "@/modules/phone/core/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
-
-function setting(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>, key: string): string {
-  return settings.find((s) => s.key === key)?.value?.trim() ?? "";
-}
 
 // function demoProviderConfig(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>): ProviderConfig | null {
 //   const provider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() || process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
@@ -131,7 +126,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const resolved = providerOverride ? null : await resolveAIConfig({ kbId, surface: "chat" });
     const providerConfig = providerOverride ?? toProviderConfig(resolved!);
-    const results = await searchKbEmbedded(kb.qdrantCollection, query, limit, { providerConfig });
+    let results;
+    try {
+      results = await searchKbEmbedded(kb.qdrantCollection, query, limit, { providerConfig });
+    } catch (searchErr) {
+      // Retrieval failed (e.g. embedding provider unreachable). Two duties:
+      // 1. Finalise the already-admitted query event so the audit trail never
+      //    keeps orphaned `pending` rows (mirrors the chat route's pattern).
+      // 2. Return a friendly message — raw provider/edge errors (which can
+      //    reference regions, keys or upstream internals) must not leak to
+      //    public embed visitors.
+      console.error("[embed/search] retrieval failed", searchErr);
+      void finalizeQueryEvent(searchAdmission.admitted ? searchAdmission.eventId : null, {
+        answerText: "",
+        sourceCount: 0,
+        latencyMs: Date.now() - t0,
+        status: "error",
+      });
+      return NextResponse.json(
+        { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
+        { status: 502, headers: corsHeaders },
+      );
+    }
 
     // Voice / phone queries are part of the audit trail (no LLM answer is
     // generated here — the voice provider composes the spoken response).
@@ -156,6 +172,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ context, sources, kbId }, { headers: corsHeaders });
   } catch (err) {
     console.error("[embed/search]:", err);
-    return NextResponse.json({ error: (err as Error).message || "Internal error" }, { status: 500, headers: corsHeaders });
+    return NextResponse.json(
+      { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
+      { status: 500, headers: corsHeaders },
+    );
   }
 }

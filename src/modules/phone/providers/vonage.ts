@@ -12,7 +12,6 @@
  * Vonage sends LINEAR PCM 16kHz — no mulaw conversion needed, just resample.
  * Docs: https://developer.vonage.com/en/voice/voice-api/webhook-reference
  */
-import crypto from "node:crypto";
 import type { PhoneCallConfig, PhoneProviderAdapter } from "../core/types";
 
 export class VonageAdapter implements PhoneProviderAdapter {

@@ -278,9 +278,12 @@ async function sql(query, params = []) {
       // The sandbox's egress region is blocked by some AI providers — that
       // surfaces as 400 "Country, region, or territory not supported" AFTER
       // the prompt has been logged (request-time insert). Production servers
-      // in supported regions stream normally.
-      const providerBlocked = chat.status === 400 && /not supported/i.test(chat.json?.error ?? "");
-      check("audit chat request accepted (200) or provider-blocked (400)",
+      // in supported regions stream normally. Provider-block presents as the
+      // friendly 502 (chat error-hygiene contract, mirrors /api/embed/search)
+      // or the legacy 400 on older builds.
+      const providerBlocked = (chat.status === 400 || chat.status === 502)
+        && (/not supported|Knowledge-base search failed/i.test(chat.json?.error ?? ""));
+      check("audit chat request accepted (200) or provider-blocked (friendly 502/400)",
         chat.status === 200 || providerBlocked,
         `status=${chat.status} ${chat.text?.slice(0, 140)}`);
       if (chat.status === 200 || providerBlocked) {

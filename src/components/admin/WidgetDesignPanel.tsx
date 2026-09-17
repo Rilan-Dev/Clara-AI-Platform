@@ -10,8 +10,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
 import {
-  ChevronDown, Code2, Eye, RefreshCw, Palette, Layout, Type,
-  MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check, Radio,
+  ChevronDown, Code2, RefreshCw, Palette, Layout, Type,
+  MessageSquare, Send, Sliders, Sparkles, Monitor, Wand2, Check,
   Mic,
 } from "lucide-react";
 import { Button }          from "@/components/ui/button";

@@ -53,7 +53,6 @@ import {
   markScrapeUrlRetryScheduled,
 } from "../src/modules/knowledge-bases/core/scrape-url-retry-db";
 import { getRetryQueue } from "../src/modules/queue/index";
-import { randomUUID } from "node:crypto";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRAWL WORKER

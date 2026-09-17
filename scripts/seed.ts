@@ -6,6 +6,9 @@
  *   tsx scripts/seed.ts --dev    production bootstrap + demo dataset (local dev only)
  *
  * Both modes are idempotent: safe to re-run at any time.
+ *
+ * The full Phase 5 demo dataset (npm run seed / npm run seed:reset) is
+ * served by scripts/seed-demo.ts.
  */
 
 // Load .env (Node >= 20.12) BEFORE importing the db pool, which reads
@@ -46,10 +49,10 @@ async function main() {
     } else {
       await seedDevelopmentData();
       console.log("\nLogin credentials:");
-      console.log("  Platform admin:   admin@clara.ai             / Admin1234!");
-      console.log("  Demo org user:    demo@clara.ai              / Demo1234!   (Enterprise)");
-      console.log("  Omen admin:       admin@omeninsurance.com    / Omen1234!");
-      console.log("  TechVision admin: admin@techvision.io        / Tech1234!\n");
+      console.log("  Platform admin:   admin@clara.ai                  / Admin1234!");
+      console.log("  Demo org user:    demo@clara.ai                   / Demo1234!   (Enterprise)");
+      console.log("  Omen admin:       omen-admin@omeninsurance.com    / Omen1234!   (Pro)");
+      console.log("  TechVision admin: techvision-admin@techvision.io  / Tech1234!   (Starter)\n");
     }
   } catch (error) {
     console.error("[seed] Failed:", error);

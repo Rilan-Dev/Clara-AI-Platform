@@ -9,7 +9,22 @@ const nextConfig: NextConfig = {
   // Standard Vercel output uses .next
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   output: "standalone",
-  serverExternalPackages: ["pg", "resend"],
+  // pdfjs-dist AND pdf-parse stay external on the server:
+  //  - pdfjs-dist's runtime "fake worker" import
+  //    (pdfjs-dist/legacy/build/pdf.worker.mjs) must resolve from node_modules
+  //    in the standalone output; bundling it into webpack chunks left a
+  //    dangling chunk path and broke the PDF parse fallback in production.
+  //  - pdf-parse's embedded pdfjs v1 mis-parses xref tables when webpack
+  //    bundles it ("bad XRef entry"); run externally it parses correctly.
+  serverExternalPackages: ["pg", "resend", "pdfjs-dist", "pdf-parse"],
+  // The pdfjs worker (and its own ./chunks/* imports) are loaded via
+  // runtime-computed paths that file tracing cannot see — include the whole
+  // legacy build directory so the standalone output carries them.
+  outputFileTracingIncludes: {
+    "**/*": [
+      "./node_modules/pdfjs-dist/legacy/build/**",
+    ],
+  },
   reactStrictMode: true,
   // CI / Docker / normal machines run the full tsc type-check. The 4GB
   // dev sandbox OOMs during that pass, so local sandbox builds set

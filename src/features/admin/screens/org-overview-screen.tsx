@@ -453,7 +453,7 @@ export default function OrgOverviewScreen() {
           <h3 className="font-semibold text-white text-sm mb-4">Busiest knowledge bases</h3>
           {(data?.topKnowledgeBases ?? []).length > 0 ? (
             <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-              {data!.topKnowledgeBases.map((kb, i) => (
+              {data!.topKnowledgeBases.map((kb) => (
                 <Link key={kb.kb_id} href={`/orgs/${id}/agents/${kb.agent_id}`}
                   className="block rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5 hover:bg-white/[0.05] hover:border-indigo-500/25 transition-all group">
                   <div className="flex items-center justify-between gap-2">
