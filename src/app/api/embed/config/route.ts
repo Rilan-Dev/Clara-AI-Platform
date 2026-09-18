@@ -8,6 +8,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { resolveAIConfig, AIConfigResolutionError } from "@/modules/ai-core/resolve";
+import { resolveVoiceConfig, VoiceConfigResolutionError } from "@/modules/voice-core/resolve";
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
   return handlePreflight(req);
@@ -41,6 +42,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Voice-axis resolution — the field used to report the BRAIN provider,
+    // which mis-branded ElevenLabs-configured orgs as "openai" on every
+    // embed host. Falls back to the brain provider on resolution failure so
+    // a voice misconfiguration never takes the whole embed config down.
+    let voiceProvider: string = resolved.provider ?? "openai";
+    try {
+      const voice = await resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" });
+      voiceProvider = voice.realtimeProvider;
+    } catch (voiceError) {
+      if (!(voiceError instanceof VoiceConfigResolutionError)) throw voiceError;
+    }
+
     return NextResponse.json(
       {
         kbId: kb.id,
@@ -51,7 +64,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         defaultLanguage: config.defaultLanguage,
 
         voiceEnabled: resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
-        voiceProvider: resolved.provider ?? "openai",
+        voiceProvider,
 
         // Non-secret effective AI runtime configuration. This makes tenant
         // resolution observable from the iframe without exposing API keys.

@@ -77,16 +77,24 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
     // kill switch, surface flags) — same guards the session endpoints apply.
     const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
 
+    // The voice modal IS the real-time voice assistant surface, so it routes
+    // on the REALTIME purpose axis. That axis inherits the voice-chat axis
+    // (which inherits the brain provider) when no explicit override exists —
+    // so a single provider pick keeps every surface native to it.
     const mode =
-      resolved.voiceProvider === "elevenlabs"
+      resolved.realtimeProvider === "elevenlabs"
         ? await resolveConversationalMode(resolved.brain.orgId, resolved.brain.agentId ?? kb.agentId)
         : "pipeline";
 
     return NextResponse.json({
       provider: resolved.brain.provider,
-      // Voice-provider axis: 'elevenlabs' routes the browser to the hybrid
-      // pipeline; openai/gemini keep their existing realtime paths.
-      voiceProvider: resolved.voiceProvider,
+      // Realtime-assistant purpose: 'elevenlabs' routes the browser to the
+      // hybrid pipeline (Mode A) or Agents session (Mode B); openai/gemini
+      // keep their existing realtime paths.
+      voiceProvider: resolved.realtimeProvider,
+      // Voice-chat purpose (chat-window voice-chat / Mode A) — same value as
+      // voiceProvider unless the admin pinned a realtime override.
+      voiceChatProvider: resolved.voiceProvider,
       // ElevenLabs mode split: pipeline (Mode A) vs conversational (Mode B).
       mode,
       flags: {

@@ -16,9 +16,16 @@ export type StreamChatOptions = {
   kbId?: string;
   /** Conversation id — links the logged query event to its chat session */
   sessionId?: string;
+  /**
+   * Embed (public) surface: switches the default endpoint to /api/embed/chat
+   * and authenticates with the clr_ API key instead of the platform JWT.
+   * An explicit `endpoint` still wins.
+   */
+  embedApiKey?: string;
 };
 
 const DEFAULT_CHAT_ENDPOINT = apiUrl("/api/chat");
+const DEFAULT_EMBED_CHAT_ENDPOINT = apiUrl("/api/embed/chat");
 
 export async function streamChatCompletion(
   documentOrKbId: string,
@@ -47,11 +54,18 @@ export async function streamChatCompletion(
       };
 
   const fetcher = options?.fetcher ?? fetch;
-  const endpoint = options?.endpoint ?? DEFAULT_CHAT_ENDPOINT;
+  const endpoint = options?.endpoint
+    ?? (options?.embedApiKey ? DEFAULT_EMBED_CHAT_ENDPOINT : DEFAULT_CHAT_ENDPOINT);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options?.embedApiKey) {
+    headers.Authorization = `Bearer ${options.embedApiKey}`;
+  } else {
+    Object.assign(headers, withAuthHeaders());
+  }
 
   const response = await fetcher(endpoint, {
     method: "POST",
-    headers: withAuthHeaders({ "Content-Type": "application/json" }),
+    headers,
     body: JSON.stringify(payload),
     signal: options?.signal,
   });

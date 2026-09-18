@@ -314,6 +314,14 @@
     return cfg && cfg.voiceProvider === 'gemini' ? 'gemini' : 'openai';
   }
 
+  /* Providers the WS relay can serve today. ElevenLabs voice-chat runs on
+   * Clara's own Mode A endpoints, which the relay cannot bridge yet — the
+   * iframe surfaces (/embed/voice + /embed/widget) carry it instead. */
+  function isRelaySupportedVoiceProvider() {
+    var p = cfg && cfg.voiceProvider;
+    return p === 'openai' || p === 'gemini' || !p;
+  }
+
   function voiceSendJson(payload) {
     var msg = JSON.stringify(payload);
     var dc = voiceDataChannel;
@@ -939,6 +947,10 @@
 
   function toggleVoice() {
     if (!$voiceBtn) return;
+    if (!isRelaySupportedVoiceProvider()) {
+      addNote('\uD83C\uDF99 This assistant speaks with its own voice provider \u2014 use the chat bubble / voice demo on the platform site for live voice');
+      return;
+    }
     if (voiceOn) {
       stopVoiceRuntime(true);
       return;

@@ -93,6 +93,12 @@ function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput
   const allowedVoiceProviders = parseVoiceProviderList(body.allowedVoiceProviders);
   if (allowedVoiceProviders) input.allowedVoiceProviders = allowedVoiceProviders;
 
+  // ── Realtime voice-assistant purpose (floating voice modal, embed voice,
+  // Agents, phone). NULL = inherit the voice-chat provider — the default that
+  // keeps every surface native to the picked chat provider. ──
+  const realtimeVoiceProvider = parseVoiceProvider(body.realtimeVoiceProvider);
+  if (realtimeVoiceProvider !== undefined) input.realtimeVoiceProvider = realtimeVoiceProvider;
+
   const elevenlabsTtsModel = parseOptionalString(body.elevenlabsTtsModel);
   if (elevenlabsTtsModel !== undefined) {
     if (elevenlabsTtsModel && !isSupportedTTSModel(elevenlabsTtsModel)) {

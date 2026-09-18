@@ -59,6 +59,19 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
   const [history, setHistory] = useState<VoiceTurn[]>([]);
   const [outputAnalyserNode, setOutputAnalyserNode] = useState<AnalyserNode | null>(null);
 
+  // Auth for every pipeline request: the platform JWT (in-app floating
+  // assistant / workspace voice modal) or the clr_ embed key (public
+  // /embed/voice + /embed/widget surfaces). The server bootstraps embed
+  // sessions with a chat descriptor pointing at /api/embed/chat so the
+  // whole pipeline runs on the same credential.
+  const pipelineHeaders = useCallback(
+    (extra: Record<string, string> = {}): HeadersInit =>
+      options.embedApiKey
+        ? { ...extra, Authorization: `Bearer ${options.embedApiKey}` }
+        : withAuthHeaders(extra),
+    [options.embedApiKey],
+  );
+
   const sessionRef = useRef<SessionPayload | null>(null);
   const connectTokenRef = useRef(0);
 
@@ -134,7 +147,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     try {
       const response = await fetch(apiUrl(session.tts.endpoint), {
         method: "POST",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        headers: pipelineHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           kbId: session.kbId,
           text,
@@ -169,7 +182,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         console.warn("[elevenlabs] tts failed:", (err as Error).message);
       }
     }
-  }, [enqueueAudio]);
+  }, [enqueueAudio, pipelineHeaders]);
 
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
@@ -219,6 +232,10 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         {
           kbId: session.kbId,
           signal: controller.signal,
+          // The session payload is authoritative: "/api/chat" for platform
+          // sessions, "/api/embed/chat" for embed-key sessions.
+          endpoint: apiUrl(session.chat.endpoint),
+          embedApiKey: options.embedApiKey,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
         },
@@ -244,7 +261,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     } finally {
       currentTurnRef.current = null;
     }
-  }, [options.language?.assistant, options.language?.customer, speakSentence]);
+  }, [options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence]);
 
   // ─── STT: transcribe one utterance blob ─────────────────────────────────────
 
@@ -258,7 +275,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       form.append("language", session.stt.language ?? "en");
       const response = await fetch(apiUrl(session.stt.endpoint), {
         method: "POST",
-        headers: withAuthHeaders(),
+        headers: pipelineHeaders(),
         body: form,
       });
       if (!response.ok) {
@@ -272,7 +289,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       setError(`Speech recognition failed: ${(err as Error).message}`);
       return null;
     }
-  }, []);
+  }, [pipelineHeaders]);
 
   // ─── Playback interruption (barge-in) ─────────────────────────────────────────
 
@@ -386,7 +403,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       // 1. Session bootstrap (guards + config resolution server-side).
       const response = await fetch(apiUrl("/api/voice/elevenlabs/session"), {
         method: "POST",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        headers: pipelineHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           kbId: options.kbId,
           ragMode: "hybrid",
@@ -466,7 +483,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, options.kbId, options.language?.assistant, options.voiceGreeting, speakSentence, startVad]);
+  }, [cleanup, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startVad]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;

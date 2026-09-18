@@ -83,6 +83,13 @@ export interface OrgAISettings {
   /** Voice-provider axis (ElevenLabs integration): NULL = inherit brain provider. */
   voiceProvider: VoiceProvider | null;
   allowedVoiceProviders: VoiceProvider[];
+  /**
+   * Realtime voice-assistant purpose (floating voice modal, embed voice,
+   * Agents, phone): NULL = inherit the voice-chat provider (voiceProvider),
+   * which itself inherits the brain provider — so leaving both NULL keeps
+   * every surface native to the picked chat provider.
+   */
+  realtimeVoiceProvider: VoiceProvider | null;
   /** Org-level ElevenLabs defaults (NULL = platform defaults). */
   elevenlabsTtsModel: string | null;
   elevenlabsSttModel: string | null;
@@ -125,6 +132,7 @@ export interface PatchOrgAISettingsInput {
   allowedProviders?: AIProvider[];
   voiceProvider?: VoiceProvider | null;
   allowedVoiceProviders?: VoiceProvider[];
+  realtimeVoiceProvider?: VoiceProvider | null;
   elevenlabsTtsModel?: string | null;
   elevenlabsSttModel?: string | null;
   defaultElevenlabsVoice?: string | null;
@@ -165,6 +173,8 @@ export interface KBAIOverrides {
   provider: AIProvider | null;
   /** Voice-provider override (NULL = inherit agent/org). */
   voiceProvider: VoiceProvider | null;
+  /** Realtime voice-provider override (NULL = inherit agent/org/voice-chat). */
+  realtimeVoiceProvider: VoiceProvider | null;
   chatModel: string | null;
   embeddingModel: string | null;
   realtimeModel: string | null;
@@ -178,6 +188,7 @@ export interface KBAIOverrides {
 export interface PatchKBAIOverridesInput {
   provider?: AIProvider | null;
   voiceProvider?: VoiceProvider | null;
+  realtimeVoiceProvider?: VoiceProvider | null;
   chatModel?: string | null;
   embeddingModel?: string | null;
   realtimeModel?: string | null;

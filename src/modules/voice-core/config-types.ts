@@ -35,12 +35,24 @@ export interface ElevenLabsResolvedConfig {
 }
 
 /**
- * Result of resolveVoiceConfig(): which provider serves the voice surface,
+ * Result of resolveVoiceConfig(): which provider serves each voice PURPOSE,
  * the (untouched) brain config, and the ElevenLabs specifics when selected.
+ *
+ * Two purposes are resolved in one pass:
+ *   • voiceProvider (voice-chat purpose) — the chat-window voice-chat
+ *     experience (Mode A pipeline for ElevenLabs; the provider's realtime
+ *     socket for OpenAI/Gemini, which have no separate STT/TTS pipeline).
+ *   • realtimeProvider (realtime purpose) — the real-time voice assistant
+ *     surfaces (floating voice modal, embed voice, Agents, phone).
+ *     NULL-configured at every level = inherit the voice-chat value, so
+ *     picking ONE provider keeps everything native to it.
  */
 export interface VoiceResolution {
   voiceProvider: VoiceProvider;
   source: "kb_override" | "agent_settings" | "org" | "env";
+  /** Realtime-assistant purpose (inherits voiceProvider when unset everywhere). */
+  realtimeProvider: VoiceProvider;
+  realtimeSource: "kb_override" | "agent_settings" | "org" | "voice_chat";
   /** Brain config resolved via the existing resolveAIConfig() — unchanged. */
   brain: ResolvedAIConfig;
   elevenlabs: ElevenLabsResolvedConfig | null;

@@ -29,6 +29,7 @@ import { ElevenLabsError } from "../../providers/elevenlabs";
 import { logTtsUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { sanitizeTtsText } from "../../tts-text";
+import { embedVoiceGuard } from "./embed-auth";
 
 export async function postElevenLabsTts(request: NextRequest): Promise<NextResponse | Response> {
   try {
@@ -71,6 +72,13 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
       return NextResponse.json({ error: "A valid kbId is required." }, { status: 400 });
     }
 
+    // Embed-authenticated callers (clr_ API key from the public voice
+    // surfaces): validate the key/KB pairing. No hourly-increment — this
+    // route fires per sentence and the dedicated TTS bucket already
+    // throttles per org (see embed-auth.ts for the rationale).
+    const embedDenied = await embedVoiceGuard(request, kbId);
+    if (embedDenied) return embedDenied;
+
     const orgRows = await dbQuery<{ org_id: string; agent_id: string }>(
       `SELECT a.org_id, a.id AS agent_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
       [kbId],
@@ -111,9 +119,14 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     // (~8 DB round trips) otherwise dominates the latency budget of every
     // short-sentence call (see ELEVENLABS_REALTIME_STREAMING_PLAN.md).
     const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
-    if (resolved.voiceProvider !== "elevenlabs" || !resolved.elevenlabs) {
+    // Either voice purpose selects the pipeline (voice-chat axis, or the
+    // realtime axis using Mode A as its fallback / embed transport).
+    if (
+      (resolved.voiceProvider !== "elevenlabs" && resolved.realtimeProvider !== "elevenlabs") ||
+      !resolved.elevenlabs
+    ) {
       return NextResponse.json(
-        { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.voiceProvider },
+        { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.realtimeProvider },
         { status: 409 },
       );
     }

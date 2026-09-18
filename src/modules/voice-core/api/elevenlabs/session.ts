@@ -10,6 +10,12 @@
  *   3. planGuard("voice") — 402 voice_not_enabled on free plans
  *   4. resolveVoiceConfig — surface flags + org allow-lists + kill switch
  *
+ * Two callers:
+ *   • platform sessions (floating assistant / workspace voice modal) — JWT
+ *   • embed sessions (/embed/voice screen, /embed/widget mic) — clr_ API key;
+ *     validated via embedVoiceGuard, and the returned chat descriptor points
+ *     at /api/embed/chat so the whole pipeline runs on the embed credential.
+ *
  * Returns capability descriptors ONLY — never keys. In Mode A the browser
  * talks exclusively to platform endpoints; CSP is unchanged.
  */
@@ -22,6 +28,7 @@ import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit"
 import { STT_MAX_AUDIO_SECONDS, TTS_OUTPUT_FORMAT, isValidUuid } from "../../model-catalog";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
+import { embedVoiceGuard } from "./embed-auth";
 import type { ElevenLabsSessionPayload } from "../../config-types";
 
 export async function postElevenLabsSession(request: NextRequest): Promise<NextResponse> {
@@ -38,6 +45,13 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     }
 
     await ensureMigrated();
+
+    // Embed-authenticated sessions (clr_ API key): the key must be valid and
+    // scoped to this KB before anything else runs. Platform JWT / anonymous
+    // requests keep the historical path.
+    const embedDenied = await embedVoiceGuard(request, kbId);
+    if (embedDenied) return embedDenied;
+    const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
 
     const orgRows = await dbQuery<{ org_id: string }>(
       `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
@@ -75,13 +89,19 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     }
 
     const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
-    if (resolved.voiceProvider !== "elevenlabs" || !resolved.elevenlabs) {
+    // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
+    // as the chat-window voice-chat experience) or the realtime axis (Mode A
+    // as the fallback when a realtime=elevenlabs config has no Mode-B
+    // binding, and the embed surfaces where Mode B is refused by design).
+    const pipelineSelected =
+      resolved.voiceProvider === "elevenlabs" || resolved.realtimeProvider === "elevenlabs";
+    if (!pipelineSelected || !resolved.elevenlabs) {
       // Config raced (provider switched mid-flight) — tell the client to
       // re-resolve rather than silently using the wrong provider.
       return NextResponse.json(
         {
           error: "Voice provider resolved to a non-ElevenLabs provider for this knowledge base.",
-          provider: resolved.voiceProvider,
+          provider: resolved.realtimeProvider,
         },
         { status: 409 },
       );
@@ -104,7 +124,9 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         voiceSettings: resolved.elevenlabs.voiceSettings,
       },
       chat: {
-        endpoint: "/api/chat",
+        // Embed sessions run the whole pipeline on the clr_ credential — the
+        // public chat endpoint carries the org's embed rate/quota accounting.
+        endpoint: isEmbedSession ? "/api/embed/chat" : "/api/chat",
         kbId,
         ragMode,
       },

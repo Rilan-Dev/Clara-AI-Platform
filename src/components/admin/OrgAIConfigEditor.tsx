@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Sparkles, Volume2, SlidersHorizontal, Mic, AudioLines } from "lucide-react";
+import { RefreshCw, Sparkles, Volume2, SlidersHorizontal, Mic, AudioLines, Phone } from "lucide-react";
 import type { OrgAISettings, AIProvider, VoiceProvider } from "@/modules/admin-ui/api";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
@@ -61,6 +61,7 @@ type Draft = {
   allowedProviders: AIProvider[];
   voiceProvider: VoiceProvider | null;
   allowedVoiceProviders: VoiceProvider[];
+  realtimeVoiceProvider: VoiceProvider | null;
   elevenlabsTtsModel: string;
   elevenlabsSttModel: string;
   defaultElevenlabsVoice: string;
@@ -83,12 +84,22 @@ const VOICE_PROVIDER_OPTIONS: { id: VoiceProvider | "inherit"; label: string; bl
   { id: "gemini",      label: "Gemini Live",           blurb: "Force Gemini Live even if chat uses OpenAI" },
 ];
 
+/** Realtime voice-assistant purpose (floating voice modal, embed voice,
+ *  Agents, phone) — "inherit" follows the voice-chat provider above. */
+const REALTIME_PROVIDER_OPTIONS: { id: VoiceProvider | "inherit"; label: string; blurb: string }[] = [
+  { id: "inherit",     label: "Follow voice provider",   blurb: "Same provider as voice chat above — one pick, everything native" },
+  { id: "elevenlabs",  label: "ElevenLabs Agents",       blurb: "Real-time streaming conversations (Mode B) with the ElevenLabs agent — needs an acknowledged agent binding" },
+  { id: "openai",      label: "OpenAI Realtime",         blurb: "The floating voice assistant runs on OpenAI Realtime" },
+  { id: "gemini",      label: "Gemini Live",             blurb: "The floating voice assistant runs on Gemini Live" },
+];
+
 function toDraft(settings: OrgAISettings | null): Draft {
   return {
     defaultProvider: settings?.defaultProvider ?? null,
     allowedProviders: settings?.allowedProviders ?? ["openai", "gemini"],
     voiceProvider: settings?.voiceProvider ?? null,
     allowedVoiceProviders: settings?.allowedVoiceProviders ?? ["openai", "gemini", "elevenlabs"],
+    realtimeVoiceProvider: settings?.realtimeVoiceProvider ?? null,
     elevenlabsTtsModel: settings?.elevenlabsTtsModel ?? "",
     elevenlabsSttModel: settings?.elevenlabsSttModel ?? "",
     defaultElevenlabsVoice: settings?.defaultElevenlabsVoice ?? "",
@@ -222,6 +233,7 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
           draft.allowedVoiceProviders.length > 0
             ? draft.allowedVoiceProviders
             : ["openai", "gemini", "elevenlabs"],
+        realtimeVoiceProvider: draft.realtimeVoiceProvider,
         elevenlabsTtsModel: draft.elevenlabsTtsModel.trim() || null,
         elevenlabsSttModel: draft.elevenlabsSttModel.trim() || null,
         defaultElevenlabsVoice: draft.defaultElevenlabsVoice.trim() || null,
@@ -348,6 +360,37 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
               setField("allowedVoiceProviders", toggleVoiceProvider(draft.allowedVoiceProviders, id as VoiceProvider))
             }
           />
+
+          {/* Realtime voice-assistant purpose — the floating voice modal,
+              embed voice surfaces and phone Agents. Defaults to following
+              the voice provider above, so one provider pick keeps every
+              surface native; pinning it splits the purposes (e.g. chat +
+              voice chat on OpenAI while real-time voice runs ElevenLabs). */}
+          <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-4">
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold text-foreground">
+                Real-time voice assistant provider
+              </h4>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Applies to the floating voice assistant, embedded voice demos and phone agents.
+              Leave on “Follow voice provider” and everything stays on one provider automatically.
+            </p>
+            <OptionCardGrid
+              options={REALTIME_PROVIDER_OPTIONS.map((option) => ({
+                id: option.id,
+                label: option.label,
+                blurb: option.blurb,
+                badge:
+                  option.id === "elevenlabs" && elEnabled === false
+                    ? { text: "Platform key missing", variant: "destructive" as const }
+                    : undefined,
+              }))}
+              value={draft.realtimeVoiceProvider ?? "inherit"}
+              onChange={(id) => setField("realtimeVoiceProvider", id === "inherit" ? null : (id as VoiceProvider))}
+            />
+          </div>
 
           {/* ElevenLabs specifics */}
           {draft.voiceProvider === "elevenlabs" && (

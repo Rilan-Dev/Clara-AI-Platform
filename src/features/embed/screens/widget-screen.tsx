@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiUrl } from "@/lib/runtime";
+import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
 // Note: apiUrl is used for internal admin API calls.
 // Voice runtime uses window.location.origin directly (works for embedded deploy).
 
@@ -57,322 +58,17 @@ type Message = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Voice runtime — mirrors clara.js startOpenAIVoiceRuntime() exactly
-// Uses /api/embed/voice-connect (secure SDP proxy — no API key in browser)
+// Voice runtime — provider-routed through useVoiceClient
+//
+// The SAME resolution chain as every other Clara voice surface (kb → agent →
+// org voice provider → brain inherit): an ElevenLabs-configured org runs the
+// Mode A STT/chat/TTS pipeline here (with the org's synced voice + models),
+// an OpenAI/Gemini org runs its realtime socket. The previous implementation
+// was hard-wired to OpenAI WebRTC via /api/embed/voice-connect and silently
+// ignored the platform admin's provider choice on embedded sites.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type VoiceState = "idle" | "connecting" | "connected" | "listening" | "speaking" | "error";
-
-function useVoiceRuntime(apiKey: string, config: AssistantConfig | null) {
-  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const voiceStateRef = useRef<VoiceState>("idle");
-
-  const pcRef            = useRef<RTCPeerConnection | null>(null);
-  const dcRef            = useRef<RTCDataChannel | null>(null);
-  const micRef           = useRef<MediaStream | null>(null);
-  const audioElRef       = useRef<HTMLAudioElement | null>(null);
-  const remoteStreamRef  = useRef<MediaStream | null>(null);
-  const sendQueueRef     = useRef<string[]>([]);
-  const manualStopRef    = useRef(false);
-  const lastTranscriptRef = useRef("");
-  const pendingTranscriptRef = useRef("");
-
-  // Callbacks injected from outside
-  const onUserTranscriptRef  = useRef<((t: string) => void) | null>(null);
-  const onAssistantDeltaRef  = useRef<((d: string) => void) | null>(null);
-  const onAssistantDoneRef   = useRef<(() => void) | null>(null);
-  const onVoiceRagRef        = useRef<((q: string) => void) | null>(null);
-  const onAutoplayBlockedRef  = useRef<(() => void) | null>(null);
-  const cleanupAudioElRef    = useRef<(() => void) | null>(null);
-
-  const sendJSON = useCallback((payload: unknown) => {
-    const dc  = dcRef.current;
-    const msg = JSON.stringify(payload);
-    if (dc && dc.readyState === "open") {
-      try { dc.send(msg); return; } catch {}
-    }
-    sendQueueRef.current.push(msg);
-  }, []);
-
-  const applyVoiceState = useCallback((next: VoiceState) => {
-    voiceStateRef.current = next;
-    setVoiceState(next);
-  }, []);
-
-  const release = useCallback(() => {
-    try { cleanupAudioElRef.current?.(); } catch {}
-    cleanupAudioElRef.current = null;
-    try { dcRef.current?.close(); } catch {}
-    try { pcRef.current?.close(); } catch {}
-    try { micRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    try { remoteStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    pcRef.current = null; dcRef.current = null;
-    micRef.current = null; remoteStreamRef.current = null;
-    sendQueueRef.current = [];
-    lastTranscriptRef.current = "";
-    pendingTranscriptRef.current = "";
-  }, []);
-
-  const stop = useCallback(() => {
-    manualStopRef.current = true;
-    release();
-    applyVoiceState("idle");
-    setVoiceError(null);
-    // Note: autoplayBlocked state lives in WidgetContent, not here.
-    // It resets automatically when voice restarts and audio plays.
-  }, [applyVoiceState, release]);
-
-  const start = useCallback(async () => {
-    if (!config) return;
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    manualStopRef.current = false;
-    lastTranscriptRef.current = "";
-    pendingTranscriptRef.current = "";
-    setVoiceError(null);
-    applyVoiceState("connecting");
-
-    // ── 1. Microphone ──────────────────────────────────────────────────────
-    let mic: MediaStream;
-    try {
-      mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-      });
-    } catch (e) {
-      const err = e as DOMException;
-      const msg =
-        err.name === "NotAllowedError" ? "Microphone access denied — click the lock icon in your browser and allow microphone access, then try again." :
-        err.name === "NotFoundError"   ? "No microphone detected. Connect a microphone and try again." :
-        err.name === "NotReadableError"? "Microphone is in use by another app (Zoom, Teams…). Close it and try again." :
-        `Microphone error: ${err.message || err.name}`;
-      setVoiceError(msg);
-      applyVoiceState("error");
-      return;
-    }
-    micRef.current = mic;
-
-    // ── 2. RTCPeerConnection ────────────────────────────────────────────────
-    // Include Google STUN so the browser can discover its public IP and
-    // generate srflx ICE candidates. Without STUN, only host (LAN) candidates
-    // are generated, which OpenAI cannot reach from the internet.
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-    pcRef.current = pc;
-    const remoteStream = new MediaStream();
-    remoteStreamRef.current = remoteStream;
-
-    // Create a dedicated <audio> element in JS for this session's remote stream.
-    // This avoids React ref timing issues — the element exists immediately.
-    const audioEl = document.createElement("audio");
-    audioEl.autoplay = true;
-    audioEl.muted = false;
-    audioEl.style.display = "none";
-    document.body.appendChild(audioEl);
-    // Also keep the ref in sync for the "Tap to enable audio" button
-    if (audioElRef.current) audioElRef.current.srcObject = null;
-
-    pc.ontrack = (ev) => {
-      const src = ev.streams?.[0];
-      if (!src) return;
-      src.getTracks().forEach((t) => {
-        if (!remoteStream.getTracks().includes(t)) remoteStream.addTrack(t);
-      });
-      audioEl.srcObject = remoteStream;
-      audioEl.play().catch((err: unknown) => {
-        if ((err as DOMException)?.name === "NotAllowedError") {
-          onAutoplayBlockedRef.current?.();
-        }
-      });
-    };
-
-    // Store reference for cleanup and "Tap to enable audio" button
-    const cleanupAudioEl = () => {
-      try { audioEl.pause(); } catch {}
-      try { audioEl.srcObject = null; } catch {}
-      try { if (audioEl.parentNode) audioEl.parentNode.removeChild(audioEl); } catch {}
-    };
-    cleanupAudioElRef.current = cleanupAudioEl;
-
-    const dc = pc.createDataChannel("oai-events");
-    dcRef.current = dc;
-
-    dc.onopen = () => {
-      // ── CRITICAL: send session.update with transcription ALWAYS ──────────
-      // OpenAI's WebRTC stack may not apply server-side session config until
-      // the client explicitly sends session.update. Without this,
-      // conversation.item.input_audio_transcription.completed never fires
-      // so the AI is deaf: no transcripts → no RAG → no response.create.
-      sendJSON({
-        type: "session.update",
-        session: {
-          type: "realtime",
-          output_modalities: ["audio"],
-          audio: {
-            input: {
-              transcription: { model: "gpt-4o-mini-transcribe" },
-              turn_detection: {
-                type: "server_vad",
-                threshold: 0.5,
-                prefix_padding_ms: 300,
-                silence_duration_ms: 700,
-                create_response: false,
-              },
-            },
-          },
-          tools: [{
-            type: "function",
-            name: "rag_search",
-            description: "Search the knowledge base for relevant information.",
-            parameters: {
-              type: "object",
-              properties: { query: { type: "string" } },
-              required: ["query"],
-            },
-          }],
-          tool_choice: "auto",
-        },
-      });
-      const q = sendQueueRef.current.splice(0);
-      for (const m of q) { try { dc.send(m); } catch {} }
-      applyVoiceState("listening");
-    };
-
-    dc.onclose = () => {
-      if (manualStopRef.current) return;
-      setVoiceError("Voice connection closed. Click the mic to reconnect.");
-      applyVoiceState("error");
-      release();
-    };
-
-    dc.onmessage = (ev) => {
-      let msg: Record<string, unknown>;
-      try { msg = JSON.parse(ev.data as string) as Record<string, unknown>; } catch { return; }
-      const type = String(msg?.type ?? "");
-
-      if (type === "input_audio_buffer.speech_started") {
-        if (voiceStateRef.current === "speaking") {
-          sendJSON({ type: "response.cancel" });
-        }
-        applyVoiceState("listening");
-        lastTranscriptRef.current = "";
-        pendingTranscriptRef.current = "";
-      }
-      if (type === "conversation.item.input_audio_transcription.delta") {
-        const d = String(msg.delta ?? "");
-        if (d) pendingTranscriptRef.current += d;
-      }
-      if (type === "conversation.item.input_audio_transcription.completed") {
-        const t = (typeof msg.transcript === "string" && msg.transcript.trim())
-          ? msg.transcript.trim() : pendingTranscriptRef.current.trim();
-        pendingTranscriptRef.current = "";
-        if (t && t !== lastTranscriptRef.current) {
-          lastTranscriptRef.current = t;
-          onUserTranscriptRef.current?.(t);
-          onVoiceRagRef.current?.(t);
-        }
-      }
-      if (type === "response.created") { applyVoiceState("speaking"); }
-      if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
-        const d = String(msg.delta ?? "");
-        if (d) { onAssistantDeltaRef.current?.(d); applyVoiceState("speaking"); }
-      }
-      if (type === "response.done") {
-        onAssistantDoneRef.current?.();
-        applyVoiceState("listening");
-      }
-      // rag_search tool call — model-initiated (server configured tool_choice:auto)
-      // This fires if the model decides to call rag_search itself. We handle it
-      // so the model isn't left waiting for a tool response.
-      if (type === "response.function_call_arguments.done") {
-        const callId = String(msg.call_id ?? "");
-        const name   = String(msg.name ?? "");
-        if (name === "rag_search" && callId) {
-          let args: Record<string, unknown> = {};
-          try { args = JSON.parse(String(msg.arguments ?? "{}")); } catch {}
-          const q = String(args.query ?? "").trim() || lastTranscriptRef.current;
-          const searchUrl = baseUrl + "/api/embed/search";
-          fetch(searchUrl, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ query: q, limit: 5 }),
-          })
-            .then((r) => r.ok ? r.json() : { context: "", sources: [] })
-            .then((payload: Record<string, unknown>) => {
-              sendJSON({ type: "conversation.item.create", item: {
-                type: "function_call_output", call_id: callId,
-                output: JSON.stringify({ context: payload.context ?? "", sources: payload.sources ?? [] }),
-              }});
-              sendJSON({ type: "response.create", response: { tool_choice: "none" } });
-            })
-            .catch(() => {
-              sendJSON({ type: "conversation.item.create", item: {
-                type: "function_call_output", call_id: callId,
-                output: JSON.stringify({ error: "search failed" }),
-              }});
-              sendJSON({ type: "response.create", response: { tool_choice: "none" } });
-            });
-        }
-      }
-    };
-
-    // Add mic track
-    const audioTrack = mic.getAudioTracks()[0];
-    if (!audioTrack) { release(); setVoiceError("No audio track from mic"); applyVoiceState("error"); return; }
-    pc.addTrack(audioTrack, mic);
-
-    // ── 3. SDP offer ───────────────────────────────────────────────────────
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    // Wait for ICE gathering
-    if (pc.iceGatheringState !== "complete") {
-      await new Promise<void>((resolve) => {
-        let done = false;
-        const finish = () => { if (!done) { done = true; pc.removeEventListener("icegatheringstatechange", cb); resolve(); } };
-        const cb = () => { if (pc.iceGatheringState === "complete") finish(); };
-        pc.addEventListener("icegatheringstatechange", cb);
-        if (pc.iceGatheringState === "complete") { finish(); return; }
-        setTimeout(finish, 8000);
-      });
-    }
-    const sdpOffer = pc.localDescription?.sdp || offer.sdp || "";
-
-    // ── 4. Secure SDP proxy via /api/embed/voice-connect ──────────────────
-    let sdpAnswer: string;
-    let welcomeMessage = "";
-    try {
-      const res = await fetch(baseUrl + "/api/embed/voice-connect", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ sdpOffer }),
-      });
-      const payload = await res.json() as Record<string, unknown>;
-      if (!res.ok || !payload.sdpAnswer) throw new Error(String(payload.error ?? "Voice connection failed"));
-      sdpAnswer = String(payload.sdpAnswer);
-      welcomeMessage = String(payload.welcomeMessage ?? "").trim();
-    } catch (e) {
-      release();
-      setVoiceError((e as Error).message || "Voice connection failed. Ensure voice is enabled for this assistant.");
-      applyVoiceState("error");
-      return;
-    }
-
-    await pc.setRemoteDescription({ type: "answer", sdp: sdpAnswer });
-
-    // Optional greeting
-    if (welcomeMessage) {
-      sendJSON({ type: "response.create", response: {
-        instructions: `Greet the user with this message verbatim: ${JSON.stringify(welcomeMessage)}`,
-        tool_choice: "none",
-      }});
-    }
-  }, [config, apiKey, applyVoiceState, sendJSON, release]);
-
-  return { voiceState, voiceError, start, stop, sendJSON, audioElRef,
-    onUserTranscriptRef, onAssistantDeltaRef, onAssistantDoneRef,
-    onVoiceRagRef, onAutoplayBlockedRef };
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main widget component
@@ -394,82 +90,81 @@ function WidgetContent() {
   const [autoplayBlocked, setAutoplay]  = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // ── Voice runtime ─────────────────────────────────────────────────────────
-  const voice = useVoiceRuntime(apiKey, config);
-  const voiceAudioRef = useRef<HTMLAudioElement>(null);
-  useEffect(() => { voice.audioElRef.current = voiceAudioRef.current; }, [voice.audioElRef]);
+  // ── Voice runtime (provider-routed) ──────────────────────────────────────
+  const voiceSession = useVoiceClient({
+    kbId: config?.kbId ?? null,
+    // Presence of embedApiKey selects the public embed transports
+    // (/api/embed/session + /api/embed/chat + clr_-key Mode A endpoints).
+    embedApiKey: apiKey,
+    voiceGreeting: config?.welcomeMessage,
+  });
 
-  // Voice RAG — search KB and inject context then trigger response
-  const pendingVoiceAssistantIdRef = useRef<string | null>(null);
-  const pendingVoiceAssistantTextRef = useRef("");
+  const voiceState: VoiceState =
+    voiceSession.status === "error" ? "error" :
+    voiceSession.status === "connecting" ? "connecting" :
+    voiceSession.status === "connected" ? (voiceSession.isSpeaking ? "speaking" : "listening") :
+    "idle";
+  const voiceError = voiceSession.error;
+
+  // Voice transcript → chat bubbles. Each voice turn renders as a user
+  // bubble plus a streaming assistant bubble (the same history model every
+  // voice hook maintains). Replaces the old onUserTranscript /
+  // onAssistantDelta callbacks.
+  const voiceTurnMapRef = useRef(new Map<string, { userIdx: number; assistantIdx: number }>());
+
+  const startVoice = useCallback(() => {
+    voiceTurnMapRef.current.clear();
+    setAutoplay(false);
+    void voiceSession.connect();
+  }, [voiceSession]);
+  const stopVoice = useCallback(() => {
+    voiceSession.disconnect();
+  }, [voiceSession]);
+
+  // Remote audio for the realtime sockets (OpenAI/Gemini surface a
+  // MediaStream; the ElevenLabs pipeline plays through its own AudioContext,
+  // which is created inside the click gesture so autoplay is granted).
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    const el = voiceAudioRef.current;
+    const stream = voiceSession.remoteAudioStream;
+    if (!el) return;
+    if (stream && el.srcObject !== stream) {
+      el.srcObject = stream;
+      el.play().catch(() => { setAutoplay(true); });
+    } else if (!stream && el.srcObject) {
+      el.srcObject = null;
+    }
+  }, [voiceSession.remoteAudioStream]);
 
   useEffect(() => {
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-
-    voice.onUserTranscriptRef.current = (text) => {
-      const id = `u${Date.now()}`;
-      setMsgs((p) => [...p, { id, role: "user", content: text }]);
-    };
-
-    voice.onVoiceRagRef.current = (query) => {
-      // Fetch KB context then inject it + fire response.create.
-      // tool_choice:"none" prevents the model from calling rag_search again
-      // (it already has the context) which would cause a second response.
-      fetch(baseUrl + "/api/embed/search", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query, limit: 6 }),
-      })
-        .then((r) => r.ok ? r.json() : { context: "", sources: [] })
-        .then((payload: Record<string, unknown>) => {
-          const context = String(payload.context ?? "").trim();
-          if (context) {
-            voice.sendJSON({ type: "conversation.item.create", item: {
-              type: "message", role: "system",
-              content: [{ type: "input_text",
-                text: `Relevant information from the knowledge base:\n${context}` }],
-            }});
-          }
-          // Inject the actual user question so the model answers it
-          voice.sendJSON({ type: "conversation.item.create", item: {
-            type: "message", role: "user",
-            content: [{ type: "input_text", text: query }],
-          }});
-          // Fire exactly ONE response.create with tool_choice:none so the model
-          // speaks the answer immediately without calling rag_search again.
-          voice.sendJSON({ type: "response.create", response: { tool_choice: "none" } });
-        })
-        .catch(() => {
-          // Fallback: answer without context
-          voice.sendJSON({ type: "conversation.item.create", item: {
-            type: "message", role: "user",
-            content: [{ type: "input_text", text: query }],
-          }});
-          voice.sendJSON({ type: "response.create", response: { tool_choice: "none" } });
-        });
-    };
-
-    voice.onAssistantDeltaRef.current = (delta) => {
-      if (!pendingVoiceAssistantIdRef.current) {
-        const id = `a${Date.now()}`;
-        pendingVoiceAssistantIdRef.current = id;
-        pendingVoiceAssistantTextRef.current = "";
-        setMsgs((p) => [...p, { id, role: "assistant", content: "" }]);
+    if (voiceSession.history.length === 0) return;
+    setMsgs((prev) => {
+      let next = prev;
+      for (const turn of voiceSession.history) {
+        let mapping = voiceTurnMapRef.current.get(turn.id);
+        if (!mapping) {
+          mapping = { userIdx: -1, assistantIdx: -1 };
+          voiceTurnMapRef.current.set(turn.id, mapping);
+        }
+        if (turn.question && mapping.userIdx === -1) {
+          mapping.userIdx = next.length;
+          next = [...next, { id: `${turn.id}-u`, role: "user", content: turn.question }];
+        }
+        if (mapping.assistantIdx === -1) {
+          mapping.assistantIdx = next.length;
+          next = [...next, { id: `${turn.id}-a`, role: "assistant", content: "" }];
+        }
+        const idx = mapping.assistantIdx;
+        const existing = next[idx];
+        if (existing && existing.role === "assistant" && existing.content !== turn.answer) {
+          next = next.map((m, i) => (i === idx ? { ...m, content: turn.answer } : m));
+        }
       }
-      pendingVoiceAssistantTextRef.current += delta;
-      const aid = pendingVoiceAssistantIdRef.current;
-      const txt = pendingVoiceAssistantTextRef.current;
-      setMsgs((p) => p.map((m) => m.id === aid ? { ...m, content: txt } : m));
-    };
+      return next;
+    });
+  }, [voiceSession.history]);
 
-    voice.onAssistantDoneRef.current = () => {
-      pendingVoiceAssistantIdRef.current = null;
-      pendingVoiceAssistantTextRef.current = "";
-    };
-
-    // Show "Tap to enable audio" banner if browser blocks autoplay
-    voice.onAutoplayBlockedRef.current = () => { setAutoplay(true); };
-  }, [apiKey, voice]);
 
   // ── Config loading ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -605,14 +300,14 @@ function WidgetContent() {
   const animStyle  = config?.messageAnimationStyle ?? "fade";
   const themeCss   = config?.customThemeCss   ?? "";
   const customCss  = config?.customCss        ?? "";
-  // Always show voice button on deployed widget (voice-connect handles access
-  // control server-side). Disable only in preview mode.
+  // Always show voice button on deployed widget (the session bootstrap
+  // resolves access server-side). Disable only in preview mode.
   const showVoice  = !isPreview;
   const vBtnBg     = t(config?.voiceBtnBg,     dark ? "#2a2a40" : "#e5e7eb");
   const vBtnSz     = config?.voiceBtnSize      ?? 36;
   const vBtnR      = config?.voiceBtnRadius    ?? 10;
   const vBtnActive = t(config?.voiceBtnActiveColor, "#ef4444");
-  const isVoiceActive = voice.voiceState !== "idle" && voice.voiceState !== "error";
+  const isVoiceActive = voiceState !== "idle" && voiceState !== "error";
 
   const globalCss = `
     .cw-msgs::-webkit-scrollbar { width: ${scrollW}px; }
@@ -651,10 +346,11 @@ function WidgetContent() {
   );
 
   const avatarLetter = config?.assistantName?.charAt(0)?.toUpperCase() ?? "A";
-  const vsLabel = voice.voiceState === "connecting" ? "Connecting…" :
-    voice.voiceState === "listening" ? "Listening…" :
-    voice.voiceState === "speaking"  ? "Speaking…"  :
-    voice.voiceState === "connected" ? "Connected"  : "";
+  // "connected" never renders as a label by itself: once the session is up it
+  // is either listening (mic open) or speaking (assistant audio playing).
+  const vsLabel = voiceState === "connecting" ? "Connecting…" :
+    voiceState === "listening" ? "Listening…" :
+    voiceState === "speaking"  ? "Speaking…"  : "";
 
   return (
     <div className="clara-widget" style={{
@@ -663,6 +359,11 @@ function WidgetContent() {
       borderRadius:radius,overflow:"hidden",
     }}>
       <style>{globalCss}</style>
+
+      {/* Hidden audio sink for realtime voice sessions (OpenAI/Gemini
+          MediaStreams). The ElevenLabs pipeline plays through its own
+          AudioContext instead. */}
+      <audio ref={(el) => { voiceAudioRef.current = el; }} autoPlay playsInline style={{ display: "none" }} />
 
       {/* ── Header ── */}
       <div className="clara-header" style={{
@@ -704,10 +405,10 @@ function WidgetContent() {
       </div>
 
       {/* ── Voice error banner ── */}
-      {voice.voiceError && (
+      {voiceError && (
         <div style={{ padding:"8px 16px",background:"#fef2f2",borderBottom:"1px solid #fecaca",
           fontSize:11,color:"#dc2626",flexShrink:0 }}>
-          {voice.voiceError}
+          {voiceError}
         </div>
       )}
 
@@ -806,20 +507,20 @@ function WidgetContent() {
           {/* Voice button — only when voiceEnabled === true on live deploy */}
           {showVoice && (
             <button
-              onClick={() => isVoiceActive ? voice.stop() : void voice.start()}
-              title={isVoiceActive ? `Voice: ${voice.voiceState} — click to stop` : "Start voice"}
+              onClick={() => isVoiceActive ? stopVoice() : startVoice()}
+              title={isVoiceActive ? `Voice: ${voiceState} — click to stop` : "Start voice"}
               className="clara-voice-btn"
               style={{
                 flexShrink:0,width:vBtnSz,height:vBtnSz,borderRadius:vBtnR,
-                background: voice.voiceState === "speaking"  ? "#10b981" :
-                            voice.voiceState === "connecting" ? accent :
+                background: voiceState === "speaking"  ? "#10b981" :
+                            voiceState === "connecting" ? accent :
                             isVoiceActive ? primary : vBtnBg,
                 color: isVoiceActive ? "#fff" : (dark?"#9ca3af":"#6b7280"),
                 border:"none",cursor:"pointer",
                 display:"flex",alignItems:"center",justifyContent:"center",
                 transition:"background 0.18s, transform 0.12s",
                 transform: isVoiceActive ? "scale(1.08)" : "scale(1)",
-                animation: voice.voiceState === "connecting" || voice.voiceState === "speaking"
+                animation: voiceState === "connecting" || voiceState === "speaking"
                   ? "voicePulse 1.2s ease-in-out infinite" : "none",
               }}>
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none"

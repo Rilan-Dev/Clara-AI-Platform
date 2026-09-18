@@ -117,12 +117,15 @@ export async function postElevenLabsAgentSession(request: NextRequest): Promise<
     }
 
     // ── 4. Voice-provider resolution (allow-lists + kill switch) ─────────────
+    // Mode B is a REALTIME-purpose session (true streaming duplex), so the
+    // realtime axis selects it — either directly (realtime_voice_provider =
+    // 'elevenlabs') or by inheriting the voice-chat axis.
     const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
-    if (resolved.voiceProvider !== "elevenlabs") {
+    if (resolved.realtimeProvider !== "elevenlabs") {
       return NextResponse.json(
         {
           error: "Voice provider resolved to a non-ElevenLabs provider for this knowledge base.",
-          provider: resolved.voiceProvider,
+          provider: resolved.realtimeProvider,
         },
         { status: 409 },
       );

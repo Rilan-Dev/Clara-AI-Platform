@@ -63,6 +63,8 @@ export type OrgAISettings = {
   /** Voice-provider axis (ElevenLabs): NULL = inherit brain provider. */
   voiceProvider: VoiceProvider | null;
   allowedVoiceProviders: VoiceProvider[];
+  /** Realtime voice-assistant purpose: NULL = inherit the voice-chat provider. */
+  realtimeVoiceProvider: VoiceProvider | null;
   elevenlabsTtsModel: string | null;
   elevenlabsSttModel: string | null;
   defaultElevenlabsVoice: string | null;
@@ -99,6 +101,7 @@ export type KBAIOverrides = {
   kbId: string;
   provider: AIProvider | null;
   voiceProvider: VoiceProvider | null;
+  realtimeVoiceProvider: VoiceProvider | null;
   chatModel: string | null;
   embeddingModel: string | null;
   realtimeModel: string | null;

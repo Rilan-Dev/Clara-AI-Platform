@@ -5,6 +5,14 @@
  * Public embed voice-session endpoint. The API key identifies the KB; all
  * provider, model, language, voice, and limits come from the effective
  * project -> organisation -> platform configuration chain.
+ *
+ * Provider routing follows the VOICE axis (resolveVoiceConfig), not just the
+ * brain axis: an organisation whose voice provider is ElevenLabs gets the
+ * Mode A pipeline descriptors (STT/TTS/chat endpoints) here — the same
+ * pipeline the in-app floating assistant uses — so embedded demos consume
+ * the SAME provider the platform admin configured instead of silently
+ * falling through to OpenAI Realtime. Mode B (Agents) is never minted for
+ * embed keys by design (data-flow gates); embeds run Mode A.
  */
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -26,6 +34,14 @@ import {
   createOpenAIRealtimeClientSecret,
 } from "@/modules/assistant/api/openai-realtime";
 import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
+import {
+  VoiceConfigResolutionError,
+  resolveVoiceConfig,
+} from "@/modules/voice-core/resolve";
+import {
+  STT_MAX_AUDIO_SECONDS,
+  TTS_OUTPUT_FORMAT,
+} from "@/modules/voice-core/model-catalog";
 
 const GEMINI_LIVE_WSS_URL =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
@@ -62,6 +78,75 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const provider = resolved.provider;
+
+    // ── Voice-axis routing ──────────────────────────────────────────────────
+    // The embed voice surfaces are realtime-purpose surfaces; when the
+    // resolved voice provider is ElevenLabs, the session answer is the Mode A
+    // pipeline descriptor set (STT/TTS/chat endpoints) rather than an
+    // OpenAI/Gemini realtime socket. Everything the client needs is
+    // capability descriptors — no keys ever cross this response.
+    let voiceResolution: Awaited<ReturnType<typeof resolveVoiceConfig>> | null = null;
+    try {
+      voiceResolution = await resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" });
+    } catch (voiceError) {
+      if (voiceError instanceof VoiceConfigResolutionError) {
+        return NextResponse.json({ error: voiceError.message }, { status: 400, headers: corsHeaders });
+      }
+      throw voiceError;
+    }
+
+    if (voiceResolution.realtimeProvider === "elevenlabs" && voiceResolution.elevenlabs) {
+      const el = voiceResolution.elevenlabs;
+      return NextResponse.json(
+        {
+          provider: voiceResolution.brain.provider,
+          voiceProvider: "elevenlabs",
+          // Embed keys never resolve a conversational (Mode B) session — the
+          // client hook forces pipeline mode and re-bootstraps through
+          // /api/voice/elevenlabs/session with the SAME clr_ credential.
+          mode: "pipeline",
+          kbId: ctx.kbId,
+          orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+          projectId: voiceResolution.brain.agentId,
+          stt: {
+            endpoint: "/api/voice/elevenlabs/transcribe",
+            model: el.sttModel,
+            language: el.language,
+            sampleRate: 16_000,
+            maxAudioSeconds: STT_MAX_AUDIO_SECONDS,
+          },
+          tts: {
+            endpoint: "/api/voice/elevenlabs/tts",
+            model: el.ttsModel,
+            voiceId: el.voiceId,
+            outputFormat: TTS_OUTPUT_FORMAT,
+            voiceSettings: el.voiceSettings,
+          },
+          chat: {
+            endpoint: "/api/embed/chat",
+            kbId: ctx.kbId,
+          },
+          welcomeMessage: config.welcomeMessage ?? "",
+          config: {
+            orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+            projectId: voiceResolution.brain.agentId,
+            provider: voiceResolution.brain.provider,
+            voiceProvider: "elevenlabs",
+            realtimeModel: null,
+            voiceId: el.voiceId,
+            transcriptionModel: el.sttModel,
+            allowedLanguages: resolved.allowedLanguages,
+            defaultLanguage: resolved.defaultLanguage,
+            maxTokens: resolved.maxTokens ?? config.maxTokens,
+            temperature: resolved.temperature ?? config.temperature,
+            sources: resolved.sources,
+            flags: resolved.flags,
+          },
+        },
+        { headers: corsHeaders },
+      );
+    }
+
     const realtimeModel = resolved.realtimeModel;
     const voiceId = resolved.voiceId;
     const transcriptionModel = resolved.transcriptionModel;
@@ -111,6 +196,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         {
           provider: "gemini",
+          // Voice axis resolved to a non-ElevenLabs provider: report it so the
+          // client (and hosts reading the config) see the real voice provider.
+          voiceProvider: voiceResolution.realtimeProvider,
           kbId: ctx.kbId,
           orgId: resolved.orgId ?? ctx.orgId,
           projectId: resolved.agentId,
@@ -224,6 +312,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         orgId: resolved.orgId ?? ctx.orgId,
         projectId: resolved.agentId,
         provider,
+        voiceProvider: voiceResolution.realtimeProvider,
         welcomeMessage: config.welcomeMessage ?? "",
         config: {
           orgId: resolved.orgId ?? ctx.orgId,

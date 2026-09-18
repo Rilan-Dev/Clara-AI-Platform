@@ -49,6 +49,7 @@ function toOrgAISettings(row: Row): OrgAISettings {
     allowedProviders: normalizeProviderList(row.allowed_providers),
     voiceProvider: isVoiceProvider(row.voice_provider) ? row.voice_provider : null,
     allowedVoiceProviders: normalizeVoiceProviderList(row.allowed_voice_providers),
+    realtimeVoiceProvider: isVoiceProvider(row.realtime_voice_provider) ? row.realtime_voice_provider : null,
     elevenlabsTtsModel: typeof row.elevenlabs_tts_model === "string" ? row.elevenlabs_tts_model : null,
     elevenlabsSttModel: typeof row.elevenlabs_stt_model === "string" ? row.elevenlabs_stt_model : null,
     defaultElevenlabsVoice: typeof row.default_elevenlabs_voice === "string" ? row.default_elevenlabs_voice : null,
@@ -163,6 +164,9 @@ export async function upsertOrgAISettings(
       : (current?.voiceProvider ?? null),
     allowedVoiceProviders: input.allowedVoiceProviders ??
       current?.allowedVoiceProviders ?? ["openai", "gemini", "elevenlabs"],
+    realtimeVoiceProvider: input.realtimeVoiceProvider !== undefined
+      ? input.realtimeVoiceProvider
+      : (current?.realtimeVoiceProvider ?? null),
     elevenlabsTtsModel: input.elevenlabsTtsModel !== undefined
       ? normalizeStringOrNull(input.elevenlabsTtsModel)
       : (current?.elevenlabsTtsModel ?? null),
@@ -276,6 +280,7 @@ export async function upsertOrgAISettings(
        allowed_providers,
        voice_provider,
        allowed_voice_providers,
+       realtime_voice_provider,
        elevenlabs_tts_model,
        elevenlabs_stt_model,
        default_elevenlabs_voice,
@@ -306,10 +311,10 @@ export async function upsertOrgAISettings(
        speed
      )
      VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8,
-       $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb,
-       $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-       $23, $24, $25, $26, $27, $28::jsonb, $29, $30, $31, $32, $33
+       $1, $2, $3, $4, $5, $6, $7, $8, $9,
+       $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb,
+       $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
+       $24, $25, $26, $27, $28, $29::jsonb, $30, $31, $32, $33, $34
      )
      ON CONFLICT (org_id)
      DO UPDATE SET
@@ -317,6 +322,7 @@ export async function upsertOrgAISettings(
        allowed_providers = EXCLUDED.allowed_providers,
        voice_provider = EXCLUDED.voice_provider,
        allowed_voice_providers = EXCLUDED.allowed_voice_providers,
+       realtime_voice_provider = EXCLUDED.realtime_voice_provider,
        elevenlabs_tts_model = EXCLUDED.elevenlabs_tts_model,
        elevenlabs_stt_model = EXCLUDED.elevenlabs_stt_model,
        default_elevenlabs_voice = EXCLUDED.default_elevenlabs_voice,
@@ -353,6 +359,7 @@ export async function upsertOrgAISettings(
       next.allowedProviders,
       next.voiceProvider,
       next.allowedVoiceProviders,
+      next.realtimeVoiceProvider,
       next.elevenlabsTtsModel,
       next.elevenlabsSttModel,
       next.defaultElevenlabsVoice,

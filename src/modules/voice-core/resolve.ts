@@ -6,13 +6,22 @@
  *
  * ElevenLabs is a VOICE layer, never a brain layer (see
  * Doc/18-07-2026/ELEVENLABS_INTEGRATION_PLAN.md §3). This resolver picks WHICH provider
- * serves the voice surface using the same precedence discipline as
+ * serves each voice PURPOSE using the same precedence discipline as
  * resolveAIConfig():
  *
- *   kb_ai_overrides.voice_provider
- *     → agent_ai_settings.voice_provider
- *       → org_ai_settings.voice_provider
- *         → brain provider (inherit — the default for every existing tenant)
+ *   voice-chat purpose (chat-window voice-chat / Mode A pipeline):
+ *     kb_ai_overrides.voice_provider
+ *       → agent_ai_settings.voice_provider
+ *         → org_ai_settings.voice_provider
+ *           → brain provider (inherit — the default for every existing tenant)
+ *
+ *   realtime purpose (real-time voice assistant: floating voice modal, embed
+ *   voice surfaces, ElevenLabs Agents, phone):
+ *     kb_ai_overrides.realtime_voice_provider
+ *       → agent_ai_settings.realtime_voice_provider
+ *         → org_ai_settings.realtime_voice_provider
+ *           → the voice-chat value (inherit — so one provider pick keeps
+ *              every surface native to it)
  *
  * The brain config (chat model, embedding model, RAG) is resolved by the
  * UNTOUCHED resolveAIConfig() and returned alongside, so callers get one
@@ -139,6 +148,31 @@ export async function resolveVoiceConfig(
     source = "env";
   }
 
+  // ── Realtime purpose: kb → agent → org → inherit voice-chat ──────────────
+  // NULL at every level means "follow the voice-chat provider", which itself
+  // follows the brain provider — so picking ONE provider keeps chat, voice
+  // chat AND the realtime voice assistant native to it. An explicit override
+  // pins the realtime assistant (e.g. chat + voice-chat on OpenAI while the
+  // real-time voice assistant runs on ElevenLabs Agents).
+  let realtimeProvider: VoiceProvider | null =
+    kbOverrides?.realtimeVoiceProvider ??
+    agentSettings?.realtimeVoiceProvider ??
+    orgSettings?.realtimeVoiceProvider ??
+    null;
+  let realtimeSource: VoiceResolution["realtimeSource"] =
+    kbOverrides?.realtimeVoiceProvider != null
+      ? "kb_override"
+      : agentSettings?.realtimeVoiceProvider != null
+        ? "agent_settings"
+        : orgSettings?.realtimeVoiceProvider != null
+          ? "org"
+          : "voice_chat";
+
+  if (!realtimeProvider) {
+    realtimeProvider = voiceProvider;
+    realtimeSource = "voice_chat";
+  }
+
   // ── Org allow-list (mirrors the allowedProviders check in resolveAIConfig) ─
   const allowedVoiceProviders = orgSettings?.allowedVoiceProviders?.length
     ? orgSettings.allowedVoiceProviders
@@ -149,6 +183,14 @@ export async function resolveVoiceConfig(
       `Voice provider ${voiceProvider} is not enabled for this organisation.`,
     );
   }
+  if (
+    realtimeProvider !== voiceProvider &&
+    !allowedVoiceProviders.includes(realtimeProvider)
+  ) {
+    throw new VoiceConfigResolutionError(
+      `Realtime voice provider ${realtimeProvider} is not enabled for this organisation.`,
+    );
+  }
 
   // ── Kill switch: platform-level ElevenLabs availability ───────────────────
   if (voiceProvider === "elevenlabs" && !isElevenLabsEnabled()) {
@@ -156,10 +198,21 @@ export async function resolveVoiceConfig(
       "ElevenLabs voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured).",
     );
   }
+  if (
+    realtimeProvider === "elevenlabs" &&
+    voiceProvider !== "elevenlabs" &&
+    !isElevenLabsEnabled()
+  ) {
+    throw new VoiceConfigResolutionError(
+      "ElevenLabs realtime voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured).",
+    );
+  }
 
   // ── ElevenLabs specifics ──────────────────────────────────────────────────
+  // Resolved when EITHER purpose selects ElevenLabs — both purposes share the
+  // same org-level models / voice configuration.
   let elevenlabs: ElevenLabsResolvedConfig | null = null;
-  if (voiceProvider === "elevenlabs") {
+  if (voiceProvider === "elevenlabs" || realtimeProvider === "elevenlabs") {
     const ttsModel =
       orgSettings?.elevenlabsTtsModel ??
       getPlatformDefaultTTSModel();
@@ -193,7 +246,14 @@ export async function resolveVoiceConfig(
     };
   }
 
-  return { voiceProvider, source, brain, elevenlabs };
+  return {
+    voiceProvider,
+    source,
+    realtimeProvider,
+    realtimeSource,
+    brain,
+    elevenlabs,
+  };
 }
 
 /**

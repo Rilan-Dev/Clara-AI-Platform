@@ -19,7 +19,7 @@ export async function getAgentAISettings(agentId: string): Promise<AgentAISettin
   ]);
   return {
     id: String(base.id), agentId: String(base.agent_id), orgId,
-    provider: provider(base.provider), voiceProvider: voiceProvider(base.voice_provider),
+    provider: provider(base.provider), voiceProvider: voiceProvider(base.voice_provider), realtimeVoiceProvider: voiceProvider(base.realtime_voice_provider),
     chatModel: base.chat_model == null ? null : String(base.chat_model), embeddingModel: base.embedding_model == null ? null : String(base.embedding_model),
     realtimeModel: base.realtime_model == null ? null : String(base.realtime_model), transcriptionModel: base.transcription_model == null ? null : String(base.transcription_model),
     defaultLanguageId: base.default_language_id == null ? null : String(base.default_language_id), defaultVoiceId: base.default_voice_id == null ? null : String(base.default_voice_id),
@@ -32,6 +32,7 @@ export async function upsertAgentAISettings(agentId: string, orgId: string, inpu
   const next = {
     provider: input.provider !== undefined ? input.provider : current?.provider ?? null,
     voiceProvider: input.voiceProvider !== undefined ? input.voiceProvider : current?.voiceProvider ?? null,
+    realtimeVoiceProvider: input.realtimeVoiceProvider !== undefined ? input.realtimeVoiceProvider : current?.realtimeVoiceProvider ?? null,
     chatModel: input.chatModel !== undefined ? input.chatModel : current?.chatModel ?? null,
     embeddingModel: input.embeddingModel !== undefined ? input.embeddingModel : current?.embeddingModel ?? null,
     realtimeModel: input.realtimeModel !== undefined ? input.realtimeModel : current?.realtimeModel ?? null,
@@ -42,10 +43,10 @@ export async function upsertAgentAISettings(agentId: string, orgId: string, inpu
   if (next.defaultLanguageId && input.languageIds !== undefined && !input.languageIds.includes(next.defaultLanguageId)) throw new Error("defaultLanguageId must be included in languageIds");
   if (next.defaultVoiceId && input.voiceIds !== undefined && !input.voiceIds.includes(next.defaultVoiceId)) throw new Error("defaultVoiceId must be included in voiceIds");
 
-  const row = await queryOne<Row>(`INSERT INTO agent_ai_settings (agent_id, org_id, provider, voice_provider, chat_model, embedding_model, realtime_model, transcription_model, default_language_id, default_voice_id)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    ON CONFLICT (agent_id) DO UPDATE SET org_id=EXCLUDED.org_id, provider=EXCLUDED.provider, voice_provider=EXCLUDED.voice_provider, chat_model=EXCLUDED.chat_model, embedding_model=EXCLUDED.embedding_model, realtime_model=EXCLUDED.realtime_model, transcription_model=EXCLUDED.transcription_model, default_language_id=EXCLUDED.default_language_id, default_voice_id=EXCLUDED.default_voice_id, updated_at=now() RETURNING *`,
-    [agentId, orgId, next.provider, next.voiceProvider, next.chatModel, next.embeddingModel, next.realtimeModel, next.transcriptionModel, next.defaultLanguageId, next.defaultVoiceId]);
+  const row = await queryOne<Row>(`INSERT INTO agent_ai_settings (agent_id, org_id, provider, voice_provider, realtime_voice_provider, chat_model, embedding_model, realtime_model, transcription_model, default_language_id, default_voice_id)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    ON CONFLICT (agent_id) DO UPDATE SET org_id=EXCLUDED.org_id, provider=EXCLUDED.provider, voice_provider=EXCLUDED.voice_provider, realtime_voice_provider=EXCLUDED.realtime_voice_provider, chat_model=EXCLUDED.chat_model, embedding_model=EXCLUDED.embedding_model, realtime_model=EXCLUDED.realtime_model, transcription_model=EXCLUDED.transcription_model, default_language_id=EXCLUDED.default_language_id, default_voice_id=EXCLUDED.default_voice_id, updated_at=now() RETURNING *`,
+    [agentId, orgId, next.provider, next.voiceProvider, next.realtimeVoiceProvider, next.chatModel, next.embeddingModel, next.realtimeModel, next.transcriptionModel, next.defaultLanguageId, next.defaultVoiceId]);
   if (!row) throw new Error(`Failed to save agent AI settings for ${agentId}`);
 
   if (input.languageIds !== undefined) {
