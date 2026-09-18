@@ -15,6 +15,30 @@ import {
   getPlatformDefaultSTTModel,
   TTS_MAX_CHARS_PER_REQUEST,
   STT_MAX_AUDIO_SECONDS,
+  isSupportedSarvamTTSModel,
+  isSupportedSarvamSTTModel,
+  findSarvamTTSModel,
+  findSarvamSpeaker,
+  isSupportedSarvamSpeaker,
+  looksLikeSarvamSpeaker,
+  isSarvamEnabled,
+  getSarvamBaseUrl,
+  getSarvamTimeoutMs,
+  getPlatformDefaultSarvamTTSModel,
+  getPlatformDefaultSarvamSttModel,
+  getPlatformDefaultSarvamSpeaker,
+  getSarvamInrToUsd,
+  SARVAM_TTS_MODELS,
+  SARVAM_STT_MODELS,
+  SARVAM_TTS_LANGUAGES,
+  SARVAM_STT_LANGUAGES,
+  SARVAM_SPEAKERS,
+  SARVAM_STT_VENDOR_MAX_AUDIO_SECONDS,
+  SARVAM_STT_MAX_AUDIO_SECONDS,
+  SARVAM_TTS_VENDOR_MAX_CHARS,
+  SARVAM_TTS_MAX_CHARS,
+  SARVAM_PREVIEW_MAX_CHARS,
+  SARVAM_TTS_SAMPLE_RATE_HZ,
 } from "./model-catalog";
 import { isVoiceProvider } from "./types";
 
@@ -110,5 +134,162 @@ describe("request caps", () => {
   it("keeps the documented abuse caps", () => {
     expect(TTS_MAX_CHARS_PER_REQUEST).toBe(2_000);
     expect(STT_MAX_AUDIO_SECONDS).toBe(120);
+  });
+});
+
+// ─── Sarvam static catalogue (V0 foundations — Doc/SARVAM_AI_INTEGRATION_PLAN.md) ──
+
+describe("Sarvam TTS model catalogue (V0)", () => {
+  it("accepts the canonical Bulbul model ids and rejects unknown ids", () => {
+    expect(isSupportedSarvamTTSModel("bulbul:v3")).toBe(true);
+    expect(isSupportedSarvamTTSModel("bulbul:v2")).toBe(true);
+    expect(isSupportedSarvamTTSModel("bulbul:v4")).toBe(false);
+    expect(isSupportedSarvamTTSModel("eleven_flash_v2_5")).toBe(false);
+  });
+
+  it("marks bulbul:v2 as legacy with the v3 price point", () => {
+    const v3 = findSarvamTTSModel("bulbul:v3");
+    const v2 = findSarvamTTSModel("bulbul:v2");
+    expect(v3?.usdPer1kChars).toBe(0.036);           // ₹30/10K chars @ 0.012
+    expect(v2?.legacy).toBe(true);
+    expect(v2?.usdPer1kChars).toBe(v3?.usdPer1kChars);
+  });
+
+  it("carries the vendor 2500-char REST cap", () => {
+    for (const model of SARVAM_TTS_MODELS) {
+      expect(model.maxCharactersPerRequest, model.modelId).toBe(2_500);
+    }
+  });
+
+  it("lists the 11 Bulbul languages as BCP-47 codes", () => {
+    expect(SARVAM_TTS_LANGUAGES).toHaveLength(11);
+    expect(SARVAM_TTS_LANGUAGES).toContain("hi-IN");
+    expect(SARVAM_TTS_LANGUAGES).toContain("en-IN");
+    for (const code of SARVAM_TTS_LANGUAGES) {
+      expect(code, code).toMatch(/^[a-z]{2,3}-IN$/);
+    }
+  });
+});
+
+describe("Sarvam STT model catalogue (V0)", () => {
+  it("accepts the canonical Saaras model ids", () => {
+    expect(isSupportedSarvamSTTModel("saaras:v3")).toBe(true);
+    expect(isSupportedSarvamSTTModel("saaras:v4")).toBe(true);
+    expect(isSupportedSarvamSTTModel("saaras:v2")).toBe(false);
+    expect(isSupportedSarvamSTTModel("scribe_v1")).toBe(false);
+  });
+
+  it("prices STT at the converted ₹30/hour rate and caps REST audio at 30s", () => {
+    for (const model of SARVAM_STT_MODELS) {
+      expect(model.usdPerMinute, model.modelId).toBe(0.006);       // $0.36/h ÷ 60
+      expect(model.maxAudioSecondsPerRequest, model.modelId).toBe(30);
+      expect(model.autoDetectLanguage).toBe(true);
+    }
+  });
+
+  it("lists the 23 Saaras languages as BCP-47 codes", () => {
+    expect(SARVAM_STT_LANGUAGES).toHaveLength(23);
+    expect(SARVAM_STT_LANGUAGES).toContain("hi-IN");
+    expect(SARVAM_STT_LANGUAGES).toContain("en-IN");
+  });
+});
+
+describe("Sarvam speaker catalogue (V0)", () => {
+  it("catalogues the 37 vendor speakers with unique ids", () => {
+    expect(SARVAM_SPEAKERS).toHaveLength(37);
+    const ids = new Set(SARVAM_SPEAKERS.map((s) => s.id));
+    expect(ids.size).toBe(37);
+  });
+
+  it("marks shubh as the default speaker", () => {
+    const defaults = SARVAM_SPEAKERS.filter((s) => s.isDefault);
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0]?.id).toBe("shubh");
+  });
+
+  it("resolves speakers case-insensitively and rejects unknown ids", () => {
+    expect(findSarvamSpeaker("priya")?.gender).toBe("female");
+    expect(findSarvamSpeaker("  Shubh  ")?.id).toBe("shubh");
+    expect(findSarvamSpeaker("clara")).toBeUndefined();
+    expect(isSupportedSarvamSpeaker("aditya")).toBe(true);
+    expect(isSupportedSarvamSpeaker("junk")).toBe(false);
+  });
+
+  it("validates speaker id shape without hitting the catalogue", () => {
+    expect(looksLikeSarvamSpeaker("shubh")).toBe(true);
+    expect(looksLikeSarvamSpeaker("Priya")).toBe(true);        // normalized lowercase
+    expect(looksLikeSarvamSpeaker("elevenlabsslug12345")).toBe(false); // too long
+    expect(looksLikeSarvamSpeaker("a")).toBe(false);           // too short
+    expect(looksLikeSarvamSpeaker("bulbul:v3")).toBe(false);   // not a speaker shape
+  });
+});
+
+describe("Sarvam request caps (V0)", () => {
+  it("keeps the vendor and platform caps aligned with the plan", () => {
+    expect(SARVAM_STT_VENDOR_MAX_AUDIO_SECONDS).toBe(30);      // vendor REST
+    expect(SARVAM_STT_MAX_AUDIO_SECONDS).toBe(120);            // platform bound
+    expect(SARVAM_TTS_VENDOR_MAX_CHARS).toBe(2_500);           // vendor REST
+    expect(SARVAM_TTS_MAX_CHARS).toBe(2_000);                  // platform bound
+    expect(SARVAM_PREVIEW_MAX_CHARS).toBe(300);
+    expect(SARVAM_TTS_SAMPLE_RATE_HZ).toBe(16_000);
+  });
+});
+
+describe("isSarvamEnabled (kill switch)", () => {
+  beforeEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("is off by default", () => {
+    expect(isSarvamEnabled()).toBe(false);
+  });
+
+  it("requires BOTH the flag and the key", () => {
+    vi.stubEnv("SARVAM_ENABLED", "true");
+    vi.stubEnv("SARVAM_API_KEY", "");
+    expect(isSarvamEnabled()).toBe(false);
+    vi.stubEnv("SARVAM_API_KEY", "sk-live-key");
+    expect(isSarvamEnabled()).toBe(true);
+  });
+
+  it("flag alone with key absent stays off", () => {
+    delete process.env.SARVAM_API_KEY;
+    vi.stubEnv("SARVAM_ENABLED", "true");
+    expect(isSarvamEnabled()).toBe(false);
+  });
+});
+
+describe("Sarvam connection settings and defaults (V0)", () => {
+  beforeEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("defaults the base URL, timeout and models", () => {
+    expect(getSarvamBaseUrl()).toBe("https://api.sarvam.ai");
+    expect(getSarvamTimeoutMs()).toBe(30_000);
+    expect(getPlatformDefaultSarvamTTSModel()).toBe("bulbul:v3");
+    expect(getPlatformDefaultSarvamSttModel()).toBe("saaras:v3");
+    expect(getPlatformDefaultSarvamSpeaker()).toBe("shubh");
+    expect(getSarvamInrToUsd()).toBe(0.012);
+  });
+
+  it("honours env overrides and strips trailing slashes from the base URL", () => {
+    vi.stubEnv("SARVAM_BASE_URL", "https://sarvam.example.com/");
+    vi.stubEnv("SARVAM_TIMEOUT_MS", "90000");
+    vi.stubEnv("SARVAM_TTS_MODEL", "bulbul:v2");
+    vi.stubEnv("SARVAM_STT_MODEL", "saaras:v4");
+    vi.stubEnv("SARVAM_DEFAULT_SPEAKER", "priya");
+    vi.stubEnv("SARVAM_INR_TO_USD", "0.011");
+    expect(getSarvamBaseUrl()).toBe("https://sarvam.example.com");
+    expect(getSarvamTimeoutMs()).toBe(90_000);
+    expect(getPlatformDefaultSarvamTTSModel()).toBe("bulbul:v2");
+    expect(getPlatformDefaultSarvamSttModel()).toBe("saaras:v4");
+    expect(getPlatformDefaultSarvamSpeaker()).toBe("priya");
+    expect(getSarvamInrToUsd()).toBe(0.011);
+  });
+
+  it("falls back to safe defaults on malformed env values", () => {
+    vi.stubEnv("SARVAM_TIMEOUT_MS", "not-a-number");
+    vi.stubEnv("SARVAM_INR_TO_USD", "-3");
+    expect(getSarvamTimeoutMs()).toBe(30_000);
+    expect(getSarvamInrToUsd()).toBe(0.012);
   });
 });

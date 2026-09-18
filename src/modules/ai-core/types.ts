@@ -1,4 +1,15 @@
-export type AIProvider = "openai" | "gemini";
+/**
+ * Brain-axis provider union.
+ *
+ * "sarvam" joins the union in V0 (catalogue + migration only — dark launch):
+ * the runtime machinery (factory case, resolve embedding split, env key
+ * validation) lands in V1 per Doc/SARVAM_AI_INTEGRATION_PLAN.md. Nothing can
+ * produce a "sarvam" resolution until an operator flips SARVAM_ENABLED and
+ * the settings UI offers the provider, so behaviour is unchanged on deploy.
+ * Sarvam serves CHAT ONLY — it publishes no embeddings API; embeddings run
+ * on the platform backbone (SARVAM_EMBEDDING_FALLBACK_PROVIDER, V1).
+ */
+export type AIProvider = "openai" | "gemini" | "sarvam";
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

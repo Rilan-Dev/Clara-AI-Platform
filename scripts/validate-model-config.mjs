@@ -35,6 +35,10 @@ const GEMINI_CHAT = [
   "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-pro",
   "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b",
 ];
+const SARVAM_CHAT = [
+  "sarvam-105b", "sarvam-105b-conversations",
+  "gemma4", "deepseekv4-flash", "glm5.3",
+];
 const OPENAI_EMBEDDING = [
   "text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002",
 ];
@@ -42,11 +46,13 @@ const GEMINI_EMBEDDING = [
   "gemini-embedding-001", "text-embedding-004", "embedding-001",
 ];
 
-const CHAT_IDS = new Set([...OPENAI_CHAT, ...GEMINI_CHAT].map((s) => s.toLowerCase()));
+const CHAT_IDS = new Set([...OPENAI_CHAT, ...GEMINI_CHAT, ...SARVAM_CHAT].map((s) => s.toLowerCase()));
 const EMBEDDING_IDS = new Set([...OPENAI_EMBEDDING, ...GEMINI_EMBEDDING].map((s) => s.toLowerCase()));
 
-const CHAT_PATTERNS = [/^gpt-\d/, /^gpt-realtime/, /^o[1-9](-|$)/, /^chat-bison/];
+const CHAT_PATTERNS = [/^gpt-\d/, /^gpt-realtime/, /^o[1-9](-|$)/, /^chat-bison/, /^sarvam-/];
 const EMBEDDING_PATTERNS = [/embedding/, /^embed-?gecko/];
+// Voice-surface model ids (Sarvam Bulbul/Saaras) — invalid in ANY brain field.
+const VOICE_PATTERNS = [/^bulbul:/, /^saaras:/];
 
 function looksLikeChatModel(id) {
   const v = String(id ?? "").trim().toLowerCase();
@@ -68,9 +74,19 @@ function looksLikeEmbeddingModel(id) {
 
 const violations = [];
 
+function looksLikeVoiceModel(id) {
+  const v = String(id ?? "").trim().toLowerCase();
+  if (!v) return false;
+  return VOICE_PATTERNS.some((p) => p.test(v));
+}
+
 function checkField(where, field, value, kind) {
   const v = String(value ?? "").trim();
   if (!v) return;
+  if (looksLikeVoiceModel(v)) {
+    violations.push(`${where}: ${field}="${v}" is a voice-surface model (TTS/STT) in a brain field`);
+    return;
+  }
   if (kind === "embedding" && looksLikeChatModel(v)) {
     violations.push(`${where}: ${field}="${v}" is a chat model in an embedding field`);
   }
@@ -85,7 +101,7 @@ async function checkEnvFile(file) {
   const text = await readFile(full, "utf8");
   const lines = text.split("\n");
   for (const line of lines) {
-    const m = line.match(/^\s*(OPENAI_CHAT_MODEL|OPENAI_EMBEDDING_MODEL|GEMINI_CHAT_MODEL|GEMINI_EMBEDDING_MODEL)\s*=\s*(.+)\s*$/);
+    const m = line.match(/^\s*(OPENAI_CHAT_MODEL|OPENAI_EMBEDDING_MODEL|GEMINI_CHAT_MODEL|GEMINI_EMBEDDING_MODEL|SARVAM_CHAT_MODEL)\s*=\s*(.+)\s*$/);
     if (!m) continue;
     const [, key, raw] = m;
     const value = raw.replace(/^["']|["']$/g, "");
@@ -99,7 +115,7 @@ async function checkSeedFile(file) {
   if (!existsSync(full)) return;
   const text = await readFile(full, "utf8");
   // Seeds use template literals or quoted strings for model ids.
-  const re = /(OPENAI_CHAT_MODEL|OPENAI_EMBEDDING_MODEL|GEMINI_CHAT_MODEL|GEMINI_EMBEDDING_MODEL)["'`\s:=]+(["'`]?)([A-Za-z0-9._-]+)\2/g;
+  const re = /(OPENAI_CHAT_MODEL|OPENAI_EMBEDDING_MODEL|GEMINI_CHAT_MODEL|GEMINI_EMBEDDING_MODEL|SARVAM_CHAT_MODEL)["'`\s:=]+(["'`]?)([A-Za-z0-9._-]+)\2/g;
   let m;
   while ((m = re.exec(text)) !== null) {
     const kind = m[1].includes("EMBEDDING_MODEL") ? "embedding" : "chat";
@@ -116,7 +132,7 @@ async function checkMigrationSeed() {
     if (!f.endsWith(".sql")) continue;
     const text = await readFile(path.join(dir, f), "utf8");
     // Matches: 'OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'
-    const re = /'(OPENAI_CHAT_MODEL|OPENAI_EMBEDDING_MODEL|GEMINI_CHAT_MODEL|GEMINI_EMBEDDING_MODEL)',\s*'([^']+)'/g;
+    const re = /'(OPENAI_CHAT_MODEL|OPENAI_EMBEDDING_MODEL|GEMINI_CHAT_MODEL|GEMINI_EMBEDDING_MODEL|SARVAM_CHAT_MODEL)',\s*'([^']+)'/g;
     let m;
     while ((m = re.exec(text)) !== null) {
       const kind = m[1].includes("EMBEDDING_MODEL") ? "embedding" : "chat";
@@ -155,7 +171,8 @@ async function checkDatabase() {
       where: "platform_env_settings",
       sql: `SELECT key, value FROM platform_env_settings
              WHERE key IN ('OPENAI_CHAT_MODEL','OPENAI_EMBEDDING_MODEL',
-                           'GEMINI_CHAT_MODEL','GEMINI_EMBEDDING_MODEL')`,
+                           'GEMINI_CHAT_MODEL','GEMINI_EMBEDDING_MODEL',
+                           'SARVAM_CHAT_MODEL')`,
       keyOf: (r) => r.key,
       valOf: (r) => r.value,
     },

@@ -1,13 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   looksLikeChatModel,
   looksLikeEmbeddingModel,
+  looksLikeVoiceModel,
   validateModelField,
   embeddingDimensionFor,
   estimateChatCostUsdMicros,
   estimateEmbeddingCostUsdMicros,
   findChatModel,
   findEmbeddingModel,
+  chatModelOptions,
+  SARVAM_CHAT_MODELS,
 } from "./model-catalog";
 
 describe("model catalogue classification", () => {
@@ -123,5 +126,121 @@ describe("catalogue integrity", () => {
     }
     expect(findChatModel("text-embedding-3-small")).toBeUndefined();
     expect(findEmbeddingModel("text-embedding-3-small")).toBeDefined();
+  });
+});
+
+// ─── Sarvam V0 foundations (Doc/SARVAM_AI_INTEGRATION_PLAN.md §15 V0) ────────
+
+describe("Sarvam chat catalogue (V0)", () => {
+  it("catalogues the five vendor chat models with chat-only providers", () => {
+    const ids = ["sarvam-105b", "sarvam-105b-conversations", "gemma4", "deepseekv4-flash", "glm5.3"];
+    for (const id of ids) {
+      expect(looksLikeChatModel(id), id).toBe(true);
+      expect(looksLikeEmbeddingModel(id), id).toBe(false);
+      const entry = findChatModel(id);
+      expect(entry, id).toBeDefined();
+      expect(entry?.provider).toBe("sarvam");
+    }
+  });
+
+  it("marks exactly the three open-source models as beta", () => {
+    const beta = SARVAM_CHAT_MODELS.filter((m) => m.beta).map((m) => m.id);
+    expect(beta.sort()).toEqual(["deepseekv4-flash", "gemma4", "glm5.3"]);
+    expect(SARVAM_CHAT_MODELS.find((m) => m.id === "sarvam-105b")?.beta).toBeUndefined();
+  });
+
+  it("classifies unknown future sarvam releases as chat models by pattern", () => {
+    expect(looksLikeChatModel("sarvam-2")).toBe(true);
+    expect(looksLikeEmbeddingModel("sarvam-2")).toBe(false);
+  });
+
+  it("carries the documented context windows", () => {
+    expect(findChatModel("sarvam-105b")?.contextTokens).toBe(128_000);
+    expect(findChatModel("sarvam-105b-conversations")?.contextTokens).toBe(32_000);
+  });
+});
+
+describe("Sarvam provider cross-check (V0)", () => {
+  it("rejects a sarvam chat model configured for another provider", () => {
+    const result = validateModelField({ field: "chat", model: "sarvam-105b", provider: "openai" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("provider_model_mismatch");
+  });
+
+  it("accepts a sarvam chat model on the sarvam provider", () => {
+    expect(validateModelField({ field: "chat", model: "sarvam-105b", provider: "sarvam" }).ok).toBe(true);
+  });
+
+  it("rejects a sarvam chat model in an embedding field (no embeddings API)", () => {
+    const result = validateModelField({ field: "embedding", model: "sarvam-105b" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("chat_model_in_embedding_field");
+  });
+});
+
+describe("voice-surface model trap (V0)", () => {
+  it("rejects Bulbul/Saaras model ids in BOTH brain fields", () => {
+    for (const field of ["chat", "embedding"] as const) {
+      for (const id of ["bulbul:v3", "bulbul:v2", "saaras:v3", "saaras:v4"]) {
+        const result = validateModelField({ field, model: id });
+        expect(result.ok, `${field}: ${id}`).toBe(false);
+        if (!result.ok) expect(result.code).toBe("voice_model_in_brain_field");
+      }
+    }
+  });
+
+  it("looksLikeVoiceModel accepts the vendor ids and rejects brain ids", () => {
+    expect(looksLikeVoiceModel("bulbul:v3")).toBe(true);
+    expect(looksLikeVoiceModel("saaras:v4")).toBe(true);
+    expect(looksLikeVoiceModel("sarvam-105b")).toBe(false);
+    expect(looksLikeVoiceModel("gpt-4o")).toBe(false);
+    expect(looksLikeVoiceModel("")).toBe(false);
+  });
+});
+
+describe("Sarvam dark-launch option gating (V0)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("hides sarvam entries from option lists while the kill switch is off", () => {
+    vi.stubEnv("SARVAM_ENABLED", "false");
+    vi.stubEnv("SARVAM_API_KEY", "test-key");
+    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(false);
+    // The provider-filtered view never leaks them either.
+    expect(chatModelOptions("sarvam")).toEqual([]);
+  });
+
+  it("shows only stable sarvam models when enabled without the beta flag", () => {
+    vi.stubEnv("SARVAM_ENABLED", "true");
+    vi.stubEnv("SARVAM_API_KEY", "test-key");
+    vi.stubEnv("SARVAM_BETA_MODELS_ENABLED", "false");
+    const ids = chatModelOptions("sarvam").map((m) => m.id);
+    expect(ids).toEqual(["sarvam-105b", "sarvam-105b-conversations"]);
+  });
+
+  it("shows beta models too when the beta flag is on", () => {
+    vi.stubEnv("SARVAM_ENABLED", "true");
+    vi.stubEnv("SARVAM_API_KEY", "test-key");
+    vi.stubEnv("SARVAM_BETA_MODELS_ENABLED", "true");
+    expect(chatModelOptions("sarvam")).toHaveLength(5);
+  });
+
+  it("requires the API key before the provider is offered at all", () => {
+    vi.stubEnv("SARVAM_ENABLED", "true");
+    vi.stubEnv("SARVAM_API_KEY", "");
+    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(false);
+  });
+});
+
+describe("Sarvam cost estimation (V0)", () => {
+  it("prices sarvam-105b from the converted INR list (₹29.28/₹73.2 per 1M @ 0.012)", () => {
+    // $0.35 / 1M input + $0.88 / 1M output → 1M each = $1.23 = 1_230_000 micros
+    expect(estimateChatCostUsdMicros("sarvam-105b", 1_000_000, 1_000_000)).toBe(1_230_000);
+  });
+
+  it("prices glm5.3 reasoning output at the premium rate", () => {
+    // $1.51 / 1M in + $4.75 / 1M out → 1M each = $6.26
+    expect(estimateChatCostUsdMicros("glm5.3", 1_000_000, 1_000_000)).toBe(6_260_000);
   });
 });

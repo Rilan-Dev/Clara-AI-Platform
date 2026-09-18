@@ -20,6 +20,7 @@
  */
 
 import type { AIProvider } from "./types";
+import { isSarvamEnabled } from "@/modules/voice-core/model-catalog";
 
 // ─── Catalogue entries ────────────────────────────────────────────────────────
 
@@ -34,6 +35,8 @@ export type ChatModelEntry = {
   inputUsdPerMTokens?: number;
   /** Price per 1M completion tokens, USD. */
   outputUsdPerMTokens?: number;
+  /** Beta / rolling-release vendor model — hidden unless SARVAM_BETA_MODELS_ENABLED. */
+  beta?: boolean;
 };
 
 export type EmbeddingModelEntry = {
@@ -90,10 +93,39 @@ export const GEMINI_EMBEDDING_MODELS: EmbeddingModelEntry[] = [
   { id: "embedding-001",        provider: "gemini", dimension: 768,  inputUsdPerMTokens: 0.075 },
 ];
 
+// ─── Sarvam (Indic-first brain — chat ONLY, no embeddings) ──────────────────
+//
+// Vendor INR list prices converted at SARVAM_INR_TO_USD = 0.012 (default;
+// operator-tunable via env, see voice-core/model-catalog getSarvamInrToUsd):
+//   sarvam-105b(-conversations)  ₹29.28 in / ₹73.2 out  per 1M → $0.35 / $0.88
+//   gemma4  (beta)               ₹36.6  in / ₹91.5  out per 1M → $0.44 / $1.10
+//   deepseekv4-flash (beta)      ₹19.8  in / ₹59.4  out per 1M → $0.24 / $0.71
+//   glm5.3  (beta)               ₹126   in / ₹396   out per 1M → $1.51 / $4.75
+// Sarvam publishes NO embeddings API: an entry can never appear in the
+// embedding catalogues — orgs on the sarvam brain keep embeddings on the
+// platform backbone (SARVAM_EMBEDDING_FALLBACK_PROVIDER, resolve split in V1).
+
+export const SARVAM_CHAT_MODELS: ChatModelEntry[] = [
+  { id: "sarvam-105b",              provider: "sarvam", label: "Sarvam 105B (128K)",             contextTokens: 128_000, inputUsdPerMTokens: 0.35, outputUsdPerMTokens: 0.88 },
+  { id: "sarvam-105b-conversations", provider: "sarvam", label: "Sarvam 105B Conversations (32K)", contextTokens: 32_000,  inputUsdPerMTokens: 0.35, outputUsdPerMTokens: 0.88 },
+  { id: "gemma4",                   provider: "sarvam", label: "Gemma 4 31B (beta)",              inputUsdPerMTokens: 0.44, outputUsdPerMTokens: 1.1,  beta: true },
+  { id: "deepseekv4-flash",         provider: "sarvam", label: "DeepSeek V4 Flash (beta)",        inputUsdPerMTokens: 0.24, outputUsdPerMTokens: 0.71, beta: true },
+  { id: "glm5.3",                   provider: "sarvam", label: "GLM 5.3 (beta, reasons)",         inputUsdPerMTokens: 1.51, outputUsdPerMTokens: 4.75, beta: true },
+];
+
+/**
+ * Exposes the beta open-source chat models (gemma4, glm5.3,
+ * deepseekv4-flash) in option lists. Off by default — beta models roll out
+ * gradually at the vendor and reasoning tokens bill as output (glm5.3).
+ */
+export function isSarvamBetaModelsEnabled(): boolean {
+  return (process.env.SARVAM_BETA_MODELS_ENABLED ?? "false").toLowerCase() === "true";
+}
+
 // ─── Lookup helpers ───────────────────────────────────────────────────────────
 
 const CHAT_BY_ID = new Map<string, ChatModelEntry>();
-for (const entry of [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS]) {
+for (const entry of [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS, ...SARVAM_CHAT_MODELS]) {
   CHAT_BY_ID.set(entry.id.toLowerCase(), entry);
 }
 
@@ -121,12 +153,28 @@ const CHAT_MODEL_PATTERNS: RegExp[] = [
   /^gpt-realtime/,                 // gpt-realtime-2.1-mini…
   /^o[1-9](-|$)/,                  // o1, o3, o4-mini reasoning models
   /^chat-bison/,                   // legacy PaLM chat
+  /^sarvam-/,                      // sarvam-105b, sarvam-105b-conversations, future releases
 ];
 
 const EMBEDDING_MODEL_PATTERNS: RegExp[] = [
   /embedding/,                     // text-embedding-3-*, gemini-embedding-001…
   /^embed-?gecko/,                 // legacy PaLM embedding
 ];
+
+// Voice-axis model ids (Bulbul TTS / Saaras STT). They must never be stored
+// in a brain-axis field — a TTS model cannot chat and cannot embed. Trapped
+// by validateModelField below with a dedicated error code.
+const VOICE_MODEL_PATTERNS: RegExp[] = [
+  /^bulbul:/,                      // bulbul:v3, bulbul:v2 (Sarvam TTS)
+  /^saaras:/,                      // saaras:v3, saaras:v4 (Sarvam STT)
+];
+
+/** True when the id looks like a voice-surface model (TTS/STT, not brain). */
+export function looksLikeVoiceModel(id: string): boolean {
+  const value = id.trim().toLowerCase();
+  if (!value) return false;
+  return VOICE_MODEL_PATTERNS.some((p) => p.test(value));
+}
 
 /** True when the id is *known* to be a chat model OR matches a chat pattern. */
 export function looksLikeChatModel(id: string): boolean {
@@ -174,6 +222,8 @@ const REINDEX_DOC_HINT =
  * Rules (WS-0.4):
  *   • A chat-model id in the embedding field is REJECTED (the reported defect).
  *   • An embedding-model id in the chat field is REJECTED (the inverse trap).
+ *   • A voice-surface model id (bulbul:/saaras:) in EITHER brain field is
+ *     REJECTED (Sarvam V0 — same trap class, caught before it ships).
  *   • Unknown ids are accepted (forward-compatibility with new releases) —
  *     they fail neither pattern class.
  *   • An explicit provider cross-check catches e.g. a Gemini embedding model
@@ -186,6 +236,17 @@ export function validateModelField(opts: {
 }): ModelValidation {
   const model = opts.model?.trim() ?? "";
   if (!model) return { ok: true };   // blank = inherit / unset is always valid
+
+  if (looksLikeVoiceModel(model)) {
+    return {
+      ok: false,
+      code: "voice_model_in_brain_field",
+      message:
+        `“${model}” is a voice model (TTS/STT), not a brain model — it cannot ` +
+        `hold a conversation or generate embeddings. Voice models are ` +
+        `configured in the voice-provider settings, not here.`,
+    };
+  }
 
   if (opts.field === "embedding") {
     if (looksLikeChatModel(model)) {
@@ -269,8 +330,19 @@ export function estimateEmbeddingCostUsdMicros(
 
 // ─── Dropdown option lists (UI helpers) ───────────────────────────────────────
 
+// Dark-launch gate: Sarvam entries join the option lists ONLY when the
+// provider kill switch is on (SARVAM_ENABLED + key present) — with the kill
+// switch off, every dropdown renders exactly as before V0. Beta entries
+// additionally require SARVAM_BETA_MODELS_ENABLED.
+function visibleSarvamChatModels(): ChatModelEntry[] {
+  if (!isSarvamEnabled()) return [];
+  return isSarvamBetaModelsEnabled()
+    ? SARVAM_CHAT_MODELS
+    : SARVAM_CHAT_MODELS.filter((m) => !m.beta);
+}
+
 export function chatModelOptions(provider?: AIProvider): ChatModelEntry[] {
-  const all = [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS];
+  const all = [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS, ...visibleSarvamChatModels()];
   return provider ? all.filter((m) => m.provider === provider) : all;
 }
 

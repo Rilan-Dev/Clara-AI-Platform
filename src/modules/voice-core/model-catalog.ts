@@ -16,6 +16,11 @@
  *                             id shape validation during resolution
  *   • voice-core/pricing    — per-model price list → cost per invocation
  *
+ * Sarvam section (V0 foundations, Doc/SARVAM_AI_INTEGRATION_PLAN.md §5.1):
+ * the Bulbul speaker catalogue is STATIC (37 enumerable string speakers —
+ * no DB sync, no sarvam_voices table), so this file doubles as the vendor
+ * voice registry until the pipeline provider lands in V2.
+ *
  * All configuration is SERVER-ONLY. ELEVENLABS_API_KEY never appears in any
  * NEXT_PUBLIC_ variable, never crosses an API boundary, and is scrubbed from
  * logs via src/lib/redact.ts.
@@ -220,3 +225,257 @@ export const VOICE_PROVIDER_LABELS: Record<VoiceProvider, string> = {
   gemini: "Gemini Live",
   elevenlabs: "ElevenLabs (hybrid)",
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sarvam AI — Indic voice pipeline (Saaras STT + Bulbul TTS)
+//
+// Static catalogue only in V0 (dark launch): the pipeline provider
+// (providers/sarvam.ts), routes, and resolve arm land in V2. Prices are the
+// vendor INR list converted at SARVAM_INR_TO_USD = 0.012 (operator-tunable
+// via env; see getSarvamInrToUsd below):
+//   Bulbul TTS   ₹30 / 10K chars  → $0.036 per 1K chars
+//   Saaras STT   ₹30 / hour       → $0.36 per hour = $0.006 per minute
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SarvamTTSModel {
+  modelId: string;
+  name: string;
+  /** Vendor per-request character cap (REST). */
+  maxCharactersPerRequest: number;
+  /** USD per 1,000 characters (INR list price converted at catalogue build). */
+  usdPer1kChars: number;
+  /** Vendor default output sample rate; the platform requests 16 kHz WAV. */
+  defaultSampleRateHz: number;
+  supportedSampleRatesHz: number[];
+  /** BCP-47 codes the TTS pre-normalization model understands. */
+  supportedLanguages: string[];
+  /** Legacy model kept for backward compatibility only. */
+  legacy?: boolean;
+}
+
+export interface SarvamSTTModel {
+  modelId: string;
+  name: string;
+  /** Vendor REST cap per request (batch API handles longer; out of scope). */
+  maxAudioSecondsPerRequest: number;
+  /** USD per audio-minute (₹30/hour converted at catalogue build). */
+  usdPerMinute: number;
+  /** Language auto-detection with confidence score when no code is given. */
+  autoDetectLanguage: boolean;
+}
+
+export interface SarvamSpeaker {
+  /** Vendor speaker id — an enumerable lowercase string, NOT an opaque slug. */
+  id: string;
+  name: string;
+  gender: "male" | "female";
+  isDefault?: boolean;
+}
+
+// Bulbul language coverage: 10 Indian languages + Indian English.
+export const SARVAM_TTS_LANGUAGES: string[] = [
+  "hi-IN", "bn-IN", "ta-IN", "te-IN", "gu-IN",
+  "kn-IN", "ml-IN", "mr-IN", "pa-IN", "od-IN", "en-IN",
+];
+
+// Saaras language coverage: 22 Indian languages + English (auto-detected).
+export const SARVAM_STT_LANGUAGES: string[] = [
+  "hi-IN", "bn-IN", "kn-IN", "ml-IN", "mr-IN", "od-IN", "pa-IN", "ta-IN",
+  "te-IN", "en-IN", "gu-IN", "as-IN", "ur-IN", "ne-IN", "kok-IN", "ks-IN",
+  "sd-IN", "sa-IN", "sat-IN", "mni-IN", "brx-IN", "mai-IN", "doi-IN",
+];
+
+export const SARVAM_TTS_MODELS: SarvamTTSModel[] = [
+  {
+    modelId: "bulbul:v3",
+    name: "Bulbul v3",
+    maxCharactersPerRequest: 2_500,
+    usdPer1kChars: 0.036,
+    defaultSampleRateHz: 24_000,
+    supportedSampleRatesHz: [8_000, 16_000, 22_050, 24_000],
+    supportedLanguages: SARVAM_TTS_LANGUAGES,
+  },
+  {
+    modelId: "bulbul:v2",
+    name: "Bulbul v2 (legacy)",
+    maxCharactersPerRequest: 2_500,
+    usdPer1kChars: 0.036,
+    defaultSampleRateHz: 22_050,
+    supportedSampleRatesHz: [8_000, 16_000, 22_050],
+    supportedLanguages: SARVAM_TTS_LANGUAGES,
+    legacy: true,
+  },
+];
+
+export const SARVAM_STT_MODELS: SarvamSTTModel[] = [
+  {
+    modelId: "saaras:v3",
+    name: "Saaras v3 (default)",
+    maxAudioSecondsPerRequest: 30,
+    usdPerMinute: 0.006,
+    autoDetectLanguage: true,
+  },
+  {
+    modelId: "saaras:v4",
+    name: "Saaras v4 (latest — Global English)",
+    maxAudioSecondsPerRequest: 30,
+    usdPerMinute: 0.006,
+    autoDetectLanguage: true,
+  },
+];
+
+// Static Bulbul v3 speaker catalogue (vendor docs, 37 named voices).
+// Deliberately NOT a DB table: speakers are enumerable strings, so there is
+// no sync job and no per-org catalogue — contrast elevenlabs_voices (033).
+export const SARVAM_SPEAKERS: SarvamSpeaker[] = [
+  { id: "shubh",     name: "Shubh",     gender: "male",   isDefault: true },
+  { id: "aditya",    name: "Aditya",    gender: "male"   },
+  { id: "ritu",      name: "Ritu",      gender: "female" },
+  { id: "priya",     name: "Priya",     gender: "female" },
+  { id: "neha",      name: "Neha",      gender: "female" },
+  { id: "rahul",     name: "Rahul",     gender: "male"   },
+  { id: "pooja",     name: "Pooja",     gender: "female" },
+  { id: "rohan",     name: "Rohan",     gender: "male"   },
+  { id: "simran",    name: "Simran",    gender: "female" },
+  { id: "kavya",     name: "Kavya",     gender: "female" },
+  { id: "amit",      name: "Amit",      gender: "male"   },
+  { id: "dev",       name: "Dev",       gender: "male"   },
+  { id: "ishita",    name: "Ishita",    gender: "female" },
+  { id: "shreya",    name: "Shreya",    gender: "female" },
+  { id: "ratan",     name: "Ratan",     gender: "male"   },
+  { id: "varun",     name: "Varun",     gender: "male"   },
+  { id: "manan",     name: "Manan",     gender: "male"   },
+  { id: "sumit",     name: "Sumit",     gender: "male"   },
+  { id: "roopa",     name: "Roopa",     gender: "female" },
+  { id: "kabir",     name: "Kabir",     gender: "male"   },
+  { id: "aayan",     name: "Aayan",     gender: "male"   },
+  { id: "ashutosh",  name: "Ashutosh",  gender: "male"   },
+  { id: "advait",    name: "Advait",    gender: "male"   },
+  { id: "anand",     name: "Anand",     gender: "male"   },
+  { id: "tanya",     name: "Tanya",     gender: "female" },
+  { id: "tarun",     name: "Tarun",     gender: "male"   },
+  { id: "sunny",     name: "Sunny",     gender: "male"   },
+  { id: "mani",      name: "Mani",      gender: "female" },
+  { id: "gokul",     name: "Gokul",     gender: "male"   },
+  { id: "vijay",     name: "Vijay",     gender: "male"   },
+  { id: "shruti",    name: "Shruti",    gender: "female" },
+  { id: "suhani",    name: "Suhani",    gender: "female" },
+  { id: "mohit",     name: "Mohit",     gender: "male"   },
+  { id: "kavitha",   name: "Kavitha",   gender: "female" },
+  { id: "rehan",     name: "Rehan",     gender: "male"   },
+  { id: "soham",     name: "Soham",     gender: "male"   },
+  { id: "rupali",    name: "Rupali",    gender: "female" },
+];
+
+export function findSarvamTTSModel(modelId: string): SarvamTTSModel | undefined {
+  return SARVAM_TTS_MODELS.find((model) => model.modelId === modelId.trim());
+}
+
+export function isSupportedSarvamTTSModel(modelId: string): boolean {
+  return findSarvamTTSModel(modelId) != null;
+}
+
+export function findSarvamSTTModel(modelId: string): SarvamSTTModel | undefined {
+  return SARVAM_STT_MODELS.find((model) => model.modelId === modelId.trim());
+}
+
+export function isSupportedSarvamSTTModel(modelId: string): boolean {
+  return findSarvamSTTModel(modelId) != null;
+}
+
+export function findSarvamSpeaker(speakerId: string): SarvamSpeaker | undefined {
+  return SARVAM_SPEAKERS.find((speaker) => speaker.id === speakerId.trim().toLowerCase());
+}
+
+export function isSupportedSarvamSpeaker(speakerId: string): boolean {
+  return findSarvamSpeaker(speakerId) != null;
+}
+
+// ─── Sarvam request caps (abuse guards — see plan §11/§18) ──────────────────
+
+/** Vendor REST cap for Saaras speech-to-text (batch API excluded). */
+export const SARVAM_STT_VENDOR_MAX_AUDIO_SECONDS = 30;
+/** Platform cap — matches the provider-agnostic STT_MAX_AUDIO_SECONDS. */
+export const SARVAM_STT_MAX_AUDIO_SECONDS = 120;
+/** Vendor REST cap for Bulbul text-to-speech. */
+export const SARVAM_TTS_VENDOR_MAX_CHARS = 2_500;
+/** Platform cap — matches the provider-agnostic TTS_MAX_CHARS_PER_REQUEST. */
+export const SARVAM_TTS_MAX_CHARS = 2_000;
+/** Studio preview cap (same contract as TTS_PREVIEW_MAX_CHARS). */
+export const SARVAM_PREVIEW_MAX_CHARS = 300;
+/** Platform playback sample rate — Bulbul returns 16 kHz WAV; the RIFF
+ *  container is stripped server-side to raw PCM for the shared queue. */
+export const SARVAM_TTS_SAMPLE_RATE_HZ = 16_000;
+
+// ─── Sarvam kill switches / connection settings ─────────────────────────────
+
+/**
+ * Platform-level availability gate for the Sarvam provider (brain + voice).
+ * Requires BOTH the explicit opt-in flag and a usable API key — the same
+ * posture as isElevenLabsEnabled(). Dark until an operator turns it on.
+ */
+export function isSarvamEnabled(): boolean {
+  return (process.env.SARVAM_ENABLED ?? "false").toLowerCase() === "true"
+    && Boolean(getSarvamApiKey());
+}
+
+export function getSarvamApiKey(): string | undefined {
+  const value = process.env.SARVAM_API_KEY?.trim();
+  return value || undefined;
+}
+
+/**
+ * Fixed base URL — an SSRF guard, exactly like getElevenLabsBaseUrl().
+ * Override exists for SageMaker self-hosted deployments only.
+ */
+export function getSarvamBaseUrl(): string {
+  return (process.env.SARVAM_BASE_URL ?? "https://api.sarvam.ai").trim().replace(/\/+$/, "");
+}
+
+export function getSarvamTimeoutMs(): number {
+  const value = Number(process.env.SARVAM_TIMEOUT_MS ?? "30000");
+  return Number.isFinite(value) && value > 0 ? value : 30_000;
+}
+
+// ─── Sarvam platform defaults (env-backed; org columns override in V2) ──────
+
+export const DEFAULT_SARVAM_TTS_MODEL = "bulbul:v3";
+export const DEFAULT_SARVAM_STT_MODEL = "saaras:v3";
+export const DEFAULT_SARVAM_SPEAKER = "shubh";
+
+export function getPlatformDefaultSarvamTTSModel(): string {
+  return process.env.SARVAM_TTS_MODEL?.trim() || DEFAULT_SARVAM_TTS_MODEL;
+}
+
+export function getPlatformDefaultSarvamSttModel(): string {
+  return process.env.SARVAM_STT_MODEL?.trim() || DEFAULT_SARVAM_STT_MODEL;
+}
+
+export function getPlatformDefaultSarvamSpeaker(): string {
+  return process.env.SARVAM_DEFAULT_SPEAKER?.trim() || DEFAULT_SARVAM_SPEAKER;
+}
+
+/**
+ * INR→USD FX rate for Sarvam cost estimation (default 0.012). Chat catalogue
+ * prices are converted at build time; the V3 pricing module consults this
+ * getter for STT/TTS/translation so dashboards stay honest when the rupee
+ * moves. Env override wins over the default.
+ */
+export function getSarvamInrToUsd(): number {
+  const value = Number(process.env.SARVAM_INR_TO_USD ?? "0.012");
+  return Number.isFinite(value) && value > 0 ? value : 0.012;
+}
+
+// ─── Sarvam speaker id shape validation ─────────────────────────────────────
+
+/**
+ * Bulbul speaker ids are enumerable lowercase given names ("shubh",
+ * "priya", …), unlike the opaque 17–25 char ElevenLabs voice slugs. Shape
+ * validation is a first-line 400 guard; catalogue membership is the strong
+ * check (findSarvamSpeaker).
+ */
+const SARVAM_SPEAKER_PATTERN = /^[a-z]{2,12}$/;
+
+export function looksLikeSarvamSpeaker(value: string): boolean {
+  return SARVAM_SPEAKER_PATTERN.test(value.trim().toLowerCase());
+}
