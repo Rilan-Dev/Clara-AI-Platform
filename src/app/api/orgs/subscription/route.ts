@@ -16,6 +16,7 @@ const FREE_PLAN_FALLBACK = {
   voice_enabled: false, api_access: false, custom_branding: false,
   analytics_level: "basic", features: ["1 Knowledge Base","10 documents","100 requests/day"],
   price_usd: 0,
+  scheduled_plan_id: null, scheduled_at: null, scheduled_plan_name: null,
 };
 
 /** GET /api/orgs/subscription?orgId=xxx */
@@ -51,6 +52,8 @@ export async function GET(req: NextRequest) {
           os.cancel_at_period_end, os.paused_at, os.cancelled_at,
           os.trial_extended_days, os.admin_note, os.gateway,
           os.stripe_subscription_id, os.razorpay_subscription_id,
+          os.scheduled_plan_id, os.scheduled_at,
+          sched_sp.name AS scheduled_plan_name,
           COALESCE(pv.name, sp.name) AS plan_name,
           COALESCE(pv.price_usd, sp.price_usd) AS price_usd,
           COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
@@ -66,6 +69,7 @@ export async function GET(req: NextRequest) {
         FROM org_subscriptions os
         JOIN subscription_plans sp ON sp.id = os.plan_id
         LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
+        LEFT JOIN subscription_plans sched_sp ON sched_sp.id = os.scheduled_plan_id
         WHERE os.org_id = $1
         ORDER BY os.updated_at DESC
         LIMIT 1
@@ -171,7 +175,8 @@ export async function PUT(req: NextRequest) {
       ON CONFLICT (org_id) DO UPDATE SET
         plan_id=$2, plan_version_id=$3, plan_snapshot=$4::jsonb, price_snapshot=$5,
         status='active', cancel_at_period_end=FALSE, paused_at=NULL,
-        cancelled_at=NULL, admin_note=$6, updated_at=now()
+        cancelled_at=NULL, admin_note=$6, updated_at=now(),
+        scheduled_plan_id=NULL, scheduled_at=NULL
     `, [
       orgId, planId, newPlan.plan_version_id, JSON.stringify(snapshot), newPlan.price_usd, note ?? null,
     ]);
