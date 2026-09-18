@@ -21,6 +21,7 @@ import {
   GEMINI_EMBEDDING_MODELS,
 } from "@/modules/ai-core/model-catalog";
 import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-core/model-catalog";
+import { SUPPORTED_LANGUAGES } from "@/modules/assistant/core/config";
 
 // ─── Brain providers (option cards) ──────────────────────────────────────────
 
@@ -134,23 +135,34 @@ export function elevenlabsSttOptions() {
 
 // ─── Languages ───────────────────────────────────────────────────────────────
 
+/**
+ * Market-first head for the settings pickers: the platform's primary markets
+ * (English, Sinhala, Tamil, Hindi, Arabic...) lead, then the remaining global
+ * languages follow alphabetically. The tail is derived from the canonical
+ * SUPPORTED_LANGUAGES catalog so this list can never drift below it again —
+ * the two used to be maintained by hand (18 here vs 57 there), which is how
+ * Sinhala/Urdu/Bengali and 40+ other catalog languages went missing from the
+ * settings UI.
+ */
+const MARKET_LANGUAGE_CODES = [
+  "en", "si", "ta", "hi", "ar",
+  "zh", "ja", "ko", "es", "fr",
+  "de", "pt", "ru", "it", "id",
+  "tr", "vi", "th",
+] as const;
+
+const MARKET_LANGUAGE_SET = new Set<string>(MARKET_LANGUAGE_CODES);
+
+// Widen the readonly literal catalogue into the mutable { code, label } shape
+// the settings pickers consume.
+const CATALOG_LANGUAGES: { code: string; label: string }[] =
+  SUPPORTED_LANGUAGES.map((l) => ({ code: l.code, label: l.label }));
+
 export const COMMON_LANGUAGES: { code: string; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "si", label: "Sinhala" },
-  { code: "ta", label: "Tamil" },
-  { code: "hi", label: "Hindi" },
-  { code: "ar", label: "Arabic" },
-  { code: "zh", label: "Chinese" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-  { code: "ru", label: "Russian" },
-  { code: "it", label: "Italian" },
-  { code: "id", label: "Indonesian" },
-  { code: "tr", label: "Turkish" },
-  { code: "vi", label: "Vietnamese" },
-  { code: "th", label: "Thai" },
+  // 1. Market languages in the curated order users already know.
+  ...MARKET_LANGUAGE_CODES
+    .map((code) => CATALOG_LANGUAGES.find((l) => l.code === code))
+    .filter((l): l is { code: string; label: string } => Boolean(l)),
+  // 2. Every other catalog language, alphabetical by label.
+  ...CATALOG_LANGUAGES.filter((l) => !MARKET_LANGUAGE_SET.has(l.code)),
 ];

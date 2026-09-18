@@ -122,13 +122,15 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   ELEVENLABS_TOOL_HMAC_SECRET: {
     label: "Mode-B tool secret",
-    hint: "HMAC secret for the signed RAG server-tool callback. Required before any Mode-B agent can be created.",
+    hint: "HMAC secret for the signed RAG server-tool callback. Required before any Mode-B agent can be created. Generate with: openssl rand -hex 32",
     isSecret: true,
+    helperLink: { label: "Setup guide →", href: "https://github.com/Rilan-Dev/Clara-AI-Platform/blob/Vite-Converted/Doc/MODE_B_AND_WEBHOOK_SECRETS_SETUP.md" },
   },
   ELEVENLABS_WEBHOOK_SECRET: {
     label: "Post-call webhook secret",
     hint: "Signing secret for ElevenLabs post-call webhooks. Register the URL in the ElevenLabs dashboard.",
     isSecret: true,
+    helperLink: { label: "Setup guide →", href: "https://github.com/Rilan-Dev/Clara-AI-Platform/blob/Vite-Converted/Doc/MODE_B_AND_WEBHOOK_SECRETS_SETUP.md" },
   },
   ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT: {
     label: "Credit alert threshold (%)",

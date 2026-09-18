@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -120,8 +120,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [moreOpen]);
 
   // ── Redirect unauthenticated users to login ─────────────────────────────────
+  // Skipped during an intentional sign-out: handleSignOut clears the session
+  // and navigates to the public landing page — the unauthenticated state it
+  // produces must not re-route the user back to /login mid-transition.
+  const signingOutRef = useRef(false);
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !signingOutRef.current) {
       router.replace("/login");
     }
   }, [loading, router, user]);
@@ -153,7 +157,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [loading, user, primaryOrgId, pathname, router]);
 
   async function handleSignOut() {
-    try { await logout(); } finally { router.push("/login"); }
+    // Sign-out lands on the public landing page (not the login screen) — the
+    // user has just left the product, the next natural step is the site root.
+    signingOutRef.current = true;
+    try { await logout(); } finally { router.push("/"); }
   }
 
   if (loading) {

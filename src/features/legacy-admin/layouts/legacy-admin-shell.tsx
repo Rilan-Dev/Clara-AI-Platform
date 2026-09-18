@@ -6,7 +6,7 @@
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { cn } from "@/lib/utils";
 
@@ -15,16 +15,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== "/admin/login") {
+    if (!loading && !user && !signingOutRef.current && pathname !== "/admin/login") {
       router.replace("/admin/login");
     }
   }, [user, loading, pathname, router]);
 
   const handleLogout = useCallback(async () => {
+    // Sign-out lands on the public landing page, consistent with the main
+    // admin shell — the user is leaving the product, not re-entering creds.
+    signingOutRef.current = true;
     await logout();
-    router.push("/admin/login");
+    router.push("/");
   }, [logout, router]);
 
   // Show blank while checking auth (avoids flash)

@@ -35,6 +35,27 @@ describe("assistant language configuration", () => {
     ].every(isSupportedLanguage)).toBe(true);
   });
 
+  it("contains the platform's market languages and the added Indic/Asian catalog", () => {
+    // si (Sinhala) is the platform's home market — it was historically missing
+    // from this catalog while being offered first in the settings UI pickers.
+    // The rest are the Indic/SE-Asian additions that close the gap between the
+    // canonical catalog and the vendor STT/TTS coverage.
+    expect([
+      "si",
+      "bn",
+      "ml",
+      "te",
+      "gu",
+      "pa",
+      "kn",
+      "mr",
+      "my",
+      "km",
+      "lo",
+      "ka",
+    ].every(isSupportedLanguage)).toBe(true);
+  });
+
   it("normalises language codes before validation", () => {
     expect(normaliseLanguageCode("  AR ")).toBe("ar");
     expect(isSupportedLanguage(" EN ")).toBe(true);

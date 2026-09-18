@@ -26,28 +26,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey } from "@/modules/embed/core/api-keys-db";
+import { isOriginAllowedForEmbed } from "@/modules/embed/core/validate-embed";
 import type { ValidatedKey } from "@/modules/embed/core/api-keys-db";
-
-const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 const CACHE_TTL_MS = 5_000;
 const keyCache = new Map<string, { expiresAt: number; value: ValidatedKey | null }>();
 
-function normalizeOrigin(origin: string): string {
-  return origin.replace(/\/$/, "").toLowerCase();
-}
-
+/**
+ * Same canonical origin policy as every other /api/embed/* route
+ * (isOriginAllowedForEmbed): empty list or "*" → unrestricted, localhost and
+ * same-origin always allowed, otherwise exact / "*.sub.domain" match with an
+ * http ⇄ https alternate. Previously this guard had its own stricter policy
+ * (empty list = nothing allowed), which made Mode A routes reject origins
+ * that /api/embed/chat happily accepted for the same key.
+ */
 function isOriginAllowed(origin: string | null, allowedOrigins: string[], selfOrigin: string): boolean {
-  if (!origin) return true; // non-browser clients (curl, server-to-server)
-  if (LOCALHOST_RE.test(origin)) return true;
-  if (normalizeOrigin(origin) === normalizeOrigin(selfOrigin)) return true;
-  if (allowedOrigins.includes("*")) return true;
-  const alternate = origin.startsWith("https://")
-    ? origin.replace("https://", "http://")
-    : origin.replace("http://", "https://");
-  return [origin, alternate].some((candidate) =>
-    allowedOrigins.some((allowed) => normalizeOrigin(allowed) === normalizeOrigin(candidate)),
-  );
+  return isOriginAllowedForEmbed(origin, allowedOrigins, selfOrigin);
 }
 
 /**

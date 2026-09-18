@@ -93,6 +93,26 @@ function isOriginAllowed(
   allowedOrigins: string[],
   selfOrigin?: string | null,
 ): boolean {
+  return isOriginAllowedForEmbed(origin, allowedOrigins, selfOrigin);
+}
+
+/**
+ * Canonical embed origin policy — shared by every embed-authenticated surface
+ * (validateEmbedRequest for the /api/embed/* routes AND the voice-core Mode A
+ * pipeline guard in embed-auth.ts). Semantics:
+ *   • empty / missing list, or "*" entry  → unrestricted
+ *   • no Origin header (non-browser)      → allowed
+ *   • localhost / 127.0.0.1               → allowed (dev surfaces)
+ *   • origin === selfOrigin               → allowed (same-host embeds, e.g.
+ *     the platform's own /embed/voice page served from the same domain)
+ *   • exact match or "*.example.com" subdomain match on the key's list
+ *   • http ⇄ https alternate-protocol match
+ */
+export function isOriginAllowedForEmbed(
+  origin: string | null,
+  allowedOrigins: string[],
+  selfOrigin?: string | null,
+): boolean {
   // Explicitly configured wildcard is unrestricted.
   if (isWildcardOriginPolicy(allowedOrigins)) return true;
 
