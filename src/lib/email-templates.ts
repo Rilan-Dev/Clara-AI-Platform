@@ -38,6 +38,8 @@ export type EmailTemplateKey =
   | "payment_failed"
   | "renewal_reminder"
   | "subscription_expired"
+  | "downgrade_scheduled"
+  | "downgrade_applied"
   | "test_email";
 
 export type TemplateVariable = { name: string; description: string };
@@ -337,6 +339,38 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDef>
       <p style="margin-top:16px;">Renew your subscription to instantly restore full access.</p>`,
       "{{renewUrl}}", "Renew now"),
     variables: [VAR_ORG, VAR_PLAN, VAR_END_DATE, VAR_APP, { name: "renewUrl", description: "Renewal / login link" }],
+  },
+
+  downgrade_scheduled: {
+    key: "downgrade_scheduled",
+    name: "Downgrade scheduled",
+    description: "Sent when an org owner schedules a self-serve downgrade (takes effect at period end).",
+    category: "subscription",
+    subject: "Your {{appName}} plan will change to {{newPlan}} on {{trialEnd}} — {{orgName}}",
+    bodyHtml: subWrap(`
+      <h2 style="margin:0 0 12px;">Downgrade scheduled</h2>
+      <p>Hi <strong>{{orgName}}</strong>,</p>
+      <p>You've scheduled a downgrade from <strong>{{oldPlan}}</strong> to <strong>{{newPlan}}</strong>.</p>
+      <p>You'll keep every <strong>{{oldPlan}}</strong> feature until <strong>{{trialEnd}}</strong> —
+         no refund is issued for unused time. The new plan's limits apply after that date.</p>
+      <p>Changed your mind? You can cancel the scheduled downgrade any time before then
+         from your billing page.</p>`),
+    variables: [VAR_ORG, VAR_OLD_PLAN, VAR_NEW_PLAN, VAR_END_DATE, VAR_APP],
+  },
+
+  downgrade_applied: {
+    key: "downgrade_applied",
+    name: "Downgrade applied",
+    description: "Sent when a scheduled downgrade takes effect at the end of the billing period.",
+    category: "subscription",
+    subject: "Your {{appName}} plan is now {{newPlan}} — {{orgName}}",
+    bodyHtml: subWrap(`
+      <h2 style="margin:0 0 12px;">Plan changed</h2>
+      <p>Hi <strong>{{orgName}}</strong>,</p>
+      <p>Your scheduled downgrade from <strong>{{oldPlan}}</strong> to <strong>{{newPlan}}</strong>
+         has now taken effect.</p>
+      <p>You can upgrade again at any time from your billing page.</p>`),
+    variables: [VAR_ORG, VAR_OLD_PLAN, VAR_NEW_PLAN, VAR_APP],
   },
 
   // ── System ──────────────────────────────────────────────────────────────

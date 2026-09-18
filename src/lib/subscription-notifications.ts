@@ -30,6 +30,8 @@ export type NotificationType =
   | "subscription_reactivated"
   | "renewal_reminder"
   | "subscription_expired"
+  | "downgrade_scheduled"
+  | "downgrade_applied"
   | "password_reset"
   | "password_changed"
   | "org_invitation";
@@ -118,7 +120,7 @@ async function sendEmail(opts: {
 export async function writeSubscriptionAudit(params: {
   orgId:       string;
   actorUserId?: string;
-  actorLabel:  "admin" | "system" | "webhook";
+  actorLabel:  "admin" | "system" | "webhook" | "user";
   action:      string;
   oldPlanId?:  string;
   newPlanId?:  string;

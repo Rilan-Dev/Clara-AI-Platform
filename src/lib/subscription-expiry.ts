@@ -71,7 +71,18 @@ export type SweepResult = {
   checked:        number;
   reminded:       number;
   expired:        number;
+  downgraded:     number;
   errors:         string[];
+};
+
+type DueDowngrade = {
+  org_id:             string;
+  org_name:           string;
+  plan_id:            string;       // current plan (about to change)
+  old_plan_name:      string;
+  scheduled_plan_id:  string;       // target plan
+  new_plan_name:      string;
+  owner_email:        string | null;
 };
 
 /**
@@ -79,7 +90,7 @@ export type SweepResult = {
  * deduped and idempotent.
  */
 export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
-  const result: SweepResult = { checked: 0, reminded: 0, expired: 0, errors: [] };
+  const result: SweepResult = { checked: 0, reminded: 0, expired: 0, downgraded: 0, errors: [] };
 
   try {
     // Paid, non-terminal subscriptions only. Free is perpetual.
@@ -167,13 +178,62 @@ export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
         result.errors.push(`${sub.org_name}: ${(err as Error).message}`);
       }
     }
+
+    // ── 3. Apply due self-serve downgrades ────────────────────────────────
+    // Scheduled by POST /api/subscriptions/downgrade at current_period_end.
+    // No payment involved — this only flips plan_id and clears the schedule.
+    const dueDowngrades = await query<DueDowngrade>(`
+      SELECT os.org_id, o.name AS org_name, os.plan_id, sp.name AS old_plan_name,
+             os.scheduled_plan_id, newsp.name AS new_plan_name
+        FROM org_subscriptions os
+        JOIN organisations o ON o.id = os.org_id
+        JOIN subscription_plans sp ON sp.id = os.plan_id
+        JOIN subscription_plans newsp ON newsp.id = os.scheduled_plan_id
+       WHERE os.scheduled_plan_id IS NOT NULL
+         AND os.scheduled_at IS NOT NULL
+         AND os.scheduled_at <= now()
+    `);
+
+    for (const dg of dueDowngrades) {
+      try {
+        await query(
+          `UPDATE org_subscriptions
+              SET plan_id = scheduled_plan_id, scheduled_plan_id = NULL, scheduled_at = NULL,
+                  updated_at = now()
+            WHERE org_id = $1`,
+          [dg.org_id]
+        );
+        await writeSubscriptionAudit({
+          orgId: dg.org_id,
+          actorLabel: "system",
+          action: "downgrade_applied",
+          oldPlanId: dg.plan_id,
+          newPlanId: dg.scheduled_plan_id,
+          note: "Scheduled downgrade applied at period end (expiry sweep)",
+        });
+
+        const ownerEmail = await getOrgOwnerEmail(dg.org_id);
+        if (ownerEmail) {
+          await queueNotification({
+            orgId: dg.org_id,
+            orgName: dg.org_name,
+            recipientEmail: ownerEmail,
+            type: "downgrade_applied",
+            data: { orgName: dg.org_name, oldPlan: dg.old_plan_name, newPlan: dg.new_plan_name },
+          });
+        }
+        result.downgraded++;
+      } catch (err) {
+        result.errors.push(`${dg.org_name} (downgrade): ${(err as Error).message}`);
+      }
+    }
   } catch (err) {
     result.errors.push(`sweep: ${(err as Error).message}`);
   }
 
-  if (result.expired || result.reminded || result.errors.length) {
+  if (result.expired || result.reminded || result.downgraded || result.errors.length) {
     console.log(
-      `[subscription-expiry] checked=${result.checked} reminded=${result.reminded} expired=${result.expired}` +
+      `[subscription-expiry] checked=${result.checked} reminded=${result.reminded} expired=${result.expired} downgraded=${result.downgraded}` +
       (result.errors.length ? ` errors=${JSON.stringify(result.errors)}` : "")
     );
   }

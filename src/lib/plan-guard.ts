@@ -170,6 +170,104 @@ async function fetchPlanRow(
   return rows[0] ?? null;
 }
 
+export type DowngradeBlocker = {
+  key: "kbs" | "docs_per_kb" | "storage" | "voice" | "api" | "branding" | "sso";
+  current: number;
+  limit: number;
+  label: string;
+};
+
+export type DowngradeFit = {
+  ok: boolean;
+  targetPlanId: string;
+  targetPlanName: string;
+  /** Hard blockers — current usage already exceeds the target plan's limits. */
+  blockers: DowngradeBlocker[];
+  /** Soft warnings — features the org currently uses that the target plan does not include. */
+  warnings: string[];
+};
+
+/**
+ * Compare an org's CURRENT usage against a TARGET plan's limits.
+ * Used by the self-serve downgrade flow to show a proper warning (and to
+ * refuse a downgrade that would immediately put the org over-quota).
+ *
+ * Numeric limits of `-1` mean unlimited. Feature flags (`voice_enabled` etc.)
+ * produce warnings, not hard blocks, because they don't destroy data.
+ */
+export async function evaluateDowngradeFit(
+  orgId: string,
+  targetPlanId: string,
+): Promise<DowngradeFit> {
+  const [target, snapshot] = await Promise.all([
+    fetchPlanRow(targetPlanId),
+    getOrgUsageSnapshot(orgId),
+  ]);
+  if (!target) {
+    return {
+      ok: false,
+      targetPlanId,
+      targetPlanName: targetPlanId,
+      blockers: [{ key: "kbs", current: 0, limit: 0, label: `Unknown plan "${targetPlanId}"` }],
+      warnings: [],
+    };
+  }
+
+  const u = snapshot.usage;
+  const blockers: DowngradeBlocker[] = [];
+  const warnings: string[] = [];
+
+  if (target.max_kbs !== -1 && u.kb_count > target.max_kbs) {
+    blockers.push({
+      key: "kbs",
+      current: u.kb_count,
+      limit: target.max_kbs,
+      label: `You have ${u.kb_count} knowledge base${u.kb_count === 1 ? "" : "s"}; ${target.plan_name} allows ${target.max_kbs}. Archive extras first.`,
+    });
+  }
+  if (target.max_docs_per_kb !== -1 && u.max_docs_in_kb > target.max_docs_per_kb) {
+    blockers.push({
+      key: "docs_per_kb",
+      current: u.max_docs_in_kb,
+      limit: target.max_docs_per_kb,
+      label: `One of your knowledge bases has ${u.max_docs_in_kb} documents; ${target.plan_name} allows ${target.max_docs_per_kb} per KB. Remove extras first.`,
+    });
+  }
+  if (target.max_storage_mb !== -1) {
+    const usedMb = Math.ceil(u.storage_bytes / 1_048_576);
+    if (usedMb > target.max_storage_mb) {
+      blockers.push({
+        key: "storage",
+        current: usedMb,
+        limit: target.max_storage_mb,
+        label: `You're using ${usedMb} MB of storage; ${target.plan_name} includes ${target.max_storage_mb} MB. Delete unused documents first.`,
+      });
+    }
+  }
+
+  const currentLimits = snapshot.limits;
+  if (currentLimits.voice_enabled && !target.voice_enabled) {
+    warnings.push("Voice assistant will be disabled on the new plan.");
+  }
+  if (currentLimits.api_access && !target.api_access) {
+    warnings.push("API access and embed keys will be disabled on the new plan.");
+  }
+  if (currentLimits.custom_branding && !target.custom_branding) {
+    warnings.push("Custom branding will revert to Clara defaults.");
+  }
+  if (currentLimits.sso_enabled && !target.sso_enabled) {
+    warnings.push("SSO / SAML will no longer be available.");
+  }
+
+  return {
+    ok: blockers.length === 0,
+    targetPlanId,
+    targetPlanName: target.plan_name,
+    blockers,
+    warnings,
+  };
+}
+
 // ─── Main guard function ──────────────────────────────────────────────────────
 
 /**

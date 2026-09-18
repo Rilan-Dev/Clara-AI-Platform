@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { queryOne, query } from "@/lib/db";
+import { comparePlans } from "@/lib/plans";
 import {
   getRazorpay,
   PLAN_AMOUNTS_INR_PAISE,
@@ -57,6 +58,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
     if (!membership && !auth.user.isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Guard against charging for a downgrade — a crafted request must not be
+    // able to pay Razorpay for a lower plan than the org already has.
+    // Downgrades are always free and go through /api/subscriptions/downgrade.
+    const currentSub = await queryOne<{ plan_id: string; status: string; current_period_end: string | null }>(
+      "SELECT plan_id, status, current_period_end::text AS current_period_end FROM org_subscriptions WHERE org_id = $1",
+      [orgId]
+    );
+    const currentPlanId = currentSub?.plan_id ?? "free";
+    const direction = comparePlans(currentPlanId, planId);
+    if (direction === "downgrade") {
+      return NextResponse.json(
+        { error: "That's a downgrade — use POST /api/subscriptions/downgrade instead (no payment required)." },
+        { status: 400 }
+      );
+    }
+    if (direction === "same") {
+      const periodEnd = currentSub?.current_period_end ? new Date(currentSub.current_period_end) : null;
+      const stillActive = !!periodEnd && periodEnd.getTime() > Date.now()
+        && currentSub?.status !== "past_due" && currentSub?.status !== "cancelled";
+      if (stillActive) {
+        return NextResponse.json({ error: "You're already on this plan and it's still active." }, { status: 400 });
+      }
+      // else: expired/past_due same-plan renewal is allowed to fall through.
     }
 
     const amountPaise = PLAN_AMOUNTS_INR_PAISE[planId];
