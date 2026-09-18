@@ -88,10 +88,16 @@ function parseOptionalFloat(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-/** Known languages + any custom code already saved (so nothing disappears). */
+/** Known languages + any custom code already saved (so nothing disappears).
+ *
+ * Empty codes are filtered: "Always respond in" stores "" for "follow the
+ * user's language", and an "" item used to render <SelectItem value=""> —
+ * Radix throws on empty-string values and took the whole /settings/ai page
+ * down with the global error boundary ("We'll be right back").
+ */
 function languageChipItems(saved: string[]): { id: string; label: string }[] {
   const extras = saved
-    .filter((code) => !KNOWN_LANGUAGES.has(code))
+    .filter((code) => code && !KNOWN_LANGUAGES.has(code))
     .map((code) => ({ id: code, label: code.toUpperCase() }));
   return [
     ...COMMON_LANGUAGES.map((l) => ({ id: l.code, label: `${l.label} (${l.code})` })),

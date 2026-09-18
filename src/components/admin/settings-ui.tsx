@@ -111,7 +111,12 @@ export function OptionCardGrid({
 
 export type SelectOption = { value: string; label: string; meta?: string };
 
-/** Label + dropdown + hint. Options may carry metadata (price, dimensions…). */
+/** Label + dropdown + hint. Options may carry metadata (price, dimensions…).
+ *
+ * Defence in depth: options with an empty-string value are dropped before
+ * rendering — a <SelectItem value=""> throws in Radix and has previously
+ * taken whole settings pages down through the global error boundary.
+ */
 export function ModelSelect({
   label, hint, value, onChange, options, placeholder = "Platform default", disabled, emptyOption,
 }: {
@@ -126,7 +131,8 @@ export function ModelSelect({
   emptyOption?: string;
 }) {
   const UNSET = "__unset__";
-  const known = new Set(options.map((o) => o.value));
+  const safeOptions = options.filter((o) => o.value);
+  const known = new Set(safeOptions.map((o) => o.value));
   const custom = value && !known.has(value) ? value : "";
   return (
     <div className="space-y-2">
@@ -136,7 +142,7 @@ export function ModelSelect({
         <SelectContent>
           {emptyOption && <SelectItem value={UNSET}>{emptyOption}</SelectItem>}
           {custom && <SelectItem value={custom}>{custom}</SelectItem>}
-          {options.map((option) => (
+          {safeOptions.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               <span className="flex items-center justify-between gap-3">
                 <span>{option.label}</span>
@@ -151,7 +157,8 @@ export function ModelSelect({
   );
 }
 
-/** Grouped variant — e.g. voices grouped by provider. */
+/** Grouped variant — e.g. voices grouped by provider. Empty-value options
+ *  are dropped for the same Radix-safety reason as ModelSelect. */
 export function GroupedModelSelect({
   label, hint, value, onChange, groups, placeholder = "Platform default", emptyOption,
 }: {
@@ -165,7 +172,11 @@ export function GroupedModelSelect({
   emptyOption?: string;
 }) {
   const UNSET = "__unset__";
-  const known = new Set(groups.flatMap((g) => g.options.map((o) => o.value)));
+  const safeGroups = groups.map((group) => ({
+    ...group,
+    options: group.options.filter((o) => o.value),
+  }));
+  const known = new Set(safeGroups.flatMap((g) => g.options.map((o) => o.value)));
   const custom = value && !known.has(value) ? value : "";
   return (
     <div className="space-y-2">
@@ -180,7 +191,7 @@ export function GroupedModelSelect({
               <SelectItem value={custom}>{custom}</SelectItem>
             </SelectGroup>
           )}
-          {groups.map((group) => (
+          {safeGroups.map((group) => (
             <SelectGroup key={group.label}>
               <SelectLabel>{group.label}</SelectLabel>
               {group.options.map((option) => (
