@@ -147,6 +147,154 @@ export interface VoiceProviderService {
   getProviderName(): VoiceProvider;
 }
 
+// ─── Conversational capability (Mode B, V4/V5) ───────────────────────────────
+
+/**
+ * OPTIONAL capability group on top of VoiceProviderService: Conversational
+ * AI agents (Mode B), conversation history, and voice cloning / design.
+ *
+ * Kept as a separate interface — NOT folded into VoiceProviderService —
+ * because these are vendor-specific capability axes. A future TTS-only
+ * voice vendor implements just VoiceProviderService and stays valid; this
+ * platform exposes Mode B only when the resolved service also satisfies
+ * this contract (see isConversationalVoiceService below).
+ */
+export interface ConversationalVoiceService {
+  /** Conversational AI agent CRUD (Mode B). */
+  listConversationalAgents(): Promise<ConversationalAgentRecord[]>;
+  createConversationalAgent(params: ConversationalAgentCreateParams): Promise<ConversationalAgentRecord>;
+  updateConversationalAgent(agentId: string, params: ConversationalAgentUpdateParams): Promise<ConversationalAgentRecord>;
+  deleteConversationalAgent(agentId: string): Promise<void>;
+
+  /** Short-lived signed URL for a browser Mode-B websocket session. */
+  getAgentSignedUrl(agentId: string): Promise<SignedAgentSession>;
+
+  /** Conversation history (post-call records, vendor side). */
+  listConversations(params?: ConversationListParams): Promise<ConversationHistoryItem[]>;
+
+  /** Instant voice cloning (consent-gated by the API layer, not here). */
+  cloneVoice(params: VoiceCloneParams): Promise<VoiceCloneResult>;
+
+  /** Voice Design — describe a voice in text, vendor returns one. */
+  designVoice(params: VoiceDesignParams): Promise<VoiceDesignResult>;
+
+  /** Removes a voice from the vendor workspace. */
+  deleteVoice(voiceId: string): Promise<void>;
+}
+
+/**
+ * Narrows a VoiceProviderService to the Mode-B capability group. Duck-typed
+ * (not instanceof) so the check survives module duplication in dev builds.
+ */
+export function isConversationalVoiceService(
+  service: VoiceProviderService,
+): service is VoiceProviderService & ConversationalVoiceService {
+  return typeof (service as Partial<ConversationalVoiceService>).createConversationalAgent === "function";
+}
+
+// ─── Conversational agent payloads (vendor shape) ────────────────────────────
+
+export interface ConversationalAgentRecord {
+  agentId: string;
+  name: string;
+  voiceId: string | null;
+  language: string | null;
+  firstMessage: string | null;
+  systemPrompt: string | null;
+  /** Raw vendor config (twilio block, tools list) — snapshot for the UI. */
+  raw: Record<string, unknown>;
+}
+
+export interface ConversationalAgentCreateParams {
+  name: string;
+  voiceId: string;
+  /** Platform RAG bridge: the webhook tool the vendor agent may call. */
+  ragTool: {
+    /** Absolute URL of /api/internal/elevenlabs/tools/rag-search. */
+    url: string;
+    /** HMAC secret the vendor signs tool calls with. */
+    secret: string;
+    kbId: string;
+    orgId: string;
+    agentId?: string | null;
+  };
+  systemPrompt?: string | null;
+  firstMessage?: string | null;
+  language?: string | null;
+  /** Native telephony (opt-in): binds the vendor agent to Twilio directly. */
+  twilio?: {
+    phoneNumbers: string[];
+    attachPhoneNumbers?: boolean;
+  } | null;
+}
+
+export interface ConversationalAgentUpdateParams {
+  name?: string;
+  voiceId?: string;
+  systemPrompt?: string | null;
+  firstMessage?: string | null;
+  language?: string | null;
+  twilio?: {
+    phoneNumbers: string[];
+    attachPhoneNumbers?: boolean;
+  } | null;
+}
+
+export interface SignedAgentSession {
+  /** Short-lived signed URL — browser connects directly (Mode B, CSP-gated). */
+  signedUrl: string;
+  agentId: string;
+  /** Unix ms when the signed URL expires. */
+  expiresAt: number;
+}
+
+// ─── Conversation history payloads (vendor shape) ────────────────────────────
+
+export interface ConversationListParams {
+  agentId?: string;
+  pageSize?: number;
+}
+
+export interface ConversationHistoryItem {
+  conversationId: string;
+  agentId: string | null;
+  status: string | null;
+  startedAtUnix: number | null;
+  endedAtUnix: number | null;
+  /** Turn count + vendor analysis fields, untyped passthrough. */
+  raw: Record<string, unknown>;
+}
+
+// ─── Voice cloning / design payloads (V5) ────────────────────────────────────
+
+export interface VoiceCloneParams {
+  name: string;
+  description?: string | null;
+  files: { blob: Blob; filename: string }[];
+  /** Voice labels for catalog organisation (accent, gender, use case…). */
+  labels?: Record<string, string>;
+}
+
+export interface VoiceCloneResult {
+  voiceId: string;
+  /** Cloned voices start unverified on some tiers — surfaced to the UI. */
+  requiresVerification: boolean;
+}
+
+export interface VoiceDesignParams {
+  name: string;
+  /** Free-text description of the target voice. */
+  textPrompt: string;
+  /** Optional loudness/quality hints — passthrough to the vendor. */
+  options?: Record<string, unknown>;
+}
+
+export interface VoiceDesignResult {
+  voiceId: string;
+  /** Media ids of generated samples — the UI previews via /voices/preview. */
+  sampleMediaIds: string[];
+}
+
 // ─── Provider construction config ────────────────────────────────────────────
 
 export interface VoiceServiceConfig {

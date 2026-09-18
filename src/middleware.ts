@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { EMBED_WIDGET_HEADERS, SECURITY_HEADERS } from "./security/csp";
+import { getEmbedWidgetHeaders, getSecurityHeaders } from "./security/csp";
 
 function buildAllowedOrigins(): Set<string> {
   const origins = new Set<string>();
@@ -67,12 +67,12 @@ function startsWith(path: string, prefixes: string[]): boolean {
 }
 
 function addSecurityHeaders(response: NextResponse): NextResponse {
-  for (const [header, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(header, value);
+  for (const [header, value] of Object.entries(getSecurityHeaders())) response.headers.set(header, value);
   return response;
 }
 
 function addEmbedWidgetHeaders(response: NextResponse): NextResponse {
-  for (const [header, value] of Object.entries(EMBED_WIDGET_HEADERS)) response.headers.set(header, value);
+  for (const [header, value] of Object.entries(getEmbedWidgetHeaders())) response.headers.set(header, value);
   response.headers.delete("X-Frame-Options");
   return response;
 }

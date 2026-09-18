@@ -18,9 +18,11 @@ import {
   isConversationalAIEnabled,
   isElevenLabsEnabled,
   isVoiceCloningEnabled,
+  isVoiceDesignEnabled,
 } from "../../model-catalog";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
+import { evaluateCreditBurn } from "../../credit-alerts";
 
 export async function getElevenLabsStatus(request: NextRequest): Promise<NextResponse> {
   try {
@@ -36,6 +38,7 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
       enabled,
       conversationalAI: isConversationalAIEnabled(),
       voiceCloning: isVoiceCloningEnabled(),
+      voiceDesign: isVoiceDesignEnabled(),
       defaultTtsModel: getPlatformDefaultTTSModel(),
       defaultSttModel: getPlatformDefaultSTTModel(),
     };
@@ -53,6 +56,11 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
       ? Math.round((subscription.characterCount / subscription.characterLimit) * 100)
       : null;
 
+    // V6 credit-burn alerting: evaluate on every operator health probe —
+    // records the crossing and queues super-admin notifications once per
+    // (threshold, limit) pair. Never throws into the status payload.
+    const burn = await evaluateCreditBurn(subscription);
+
     return NextResponse.json({
       connected: true,
       tier: subscription.tier,
@@ -62,6 +70,12 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
       nextCharacterCountResetUnix: subscription.nextCharacterCountResetUnix,
       voiceLimit: subscription.voiceLimit,
       canUseInstantCloning: subscription.canUseInstantCloning,
+      creditAlert: {
+        thresholdPct: burn.thresholdPct,
+        usagePercent: burn.usagePercent,
+        crossed: burn.crossed,
+        alerted: burn.alerted,
+      },
       ...flags,
     });
   } catch (error) {

@@ -19,7 +19,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit";
-import { STT_MAX_AUDIO_SECONDS, TTS_OUTPUT_FORMAT } from "../../model-catalog";
+import { STT_MAX_AUDIO_SECONDS, TTS_OUTPUT_FORMAT, isValidUuid } from "../../model-catalog";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import type { ElevenLabsSessionPayload } from "../../config-types";
@@ -30,9 +30,9 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : null;
     const ragMode = typeof body?.ragMode === "string" ? body.ragMode : "hybrid";
 
-    if (!kbId) {
+    if (!kbId || !isValidUuid(kbId)) {
       return NextResponse.json(
-        { error: "kbId is required for ElevenLabs voice sessions." },
+        { error: "A valid kbId is required for ElevenLabs voice sessions." },
         { status: 400 },
       );
     }

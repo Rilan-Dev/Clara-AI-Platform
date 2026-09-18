@@ -256,16 +256,19 @@ src/modules/voice-core/                 # VOICE axis — mirrors ai-core/
         ├── session.ts     # Mode A pipeline bootstrap
         ├── transcribe.ts  # Scribe STT handler
         ├── tts.ts         # TTS handler (streams audio)
-        ├── voices.ts      # Catalog list / sync handlers
-        ├── agentSession.ts # Mode B signed-URL handler (opt-in, V4)
-        └── webhooks.ts    # Post-call webhook + internal tool callback (V5)
+        ├── voices.ts      # Catalog list / sync / preview / clone / design
+        ├── agents.ts      # Mode-B agent binding CRUD (V4, admin)
+        ├── agent-session.ts # Mode B signed-URL handler (opt-in, V4)
+        ├── webhooks.ts    # RAG server-tool callback + post-call webhook (V4/V5)
+        └── conversations.ts # Mode-B history list + sync (V5)
 
 # Client side (unchanged conventions):
 src/modules/assistant/core/hooks/
-    useVoiceClient.ts         # routes by resolved voiceProvider
+    useVoiceClient.ts         # routes by resolved voiceProvider + elevenlabs mode
     useOpenAIRealtime.ts      # openai realtime (WebRTC)
     useGeminiLive.ts          # gemini live (WS)
     useElevenLabsVoice.ts     # elevenlabs hybrid pipeline (Mode A)
+    useElevenLabsConvAI.ts    # elevenlabs Conversational AI (Mode B, V4)
 src/modules/assistant/core/voice/
     sentence-split.ts         # streaming-TTS sentence chunker (shared + tested)
     realtime-audio-config.ts  # (existing shared voice utils)

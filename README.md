@@ -13,6 +13,7 @@ Clara is a Next.js + Tailwind application that layers Retrieval Augmented Genera
 | [TENANT-GUIDE.md](./TENANT-GUIDE.md) | Clients — using the tenant workspace portal |
 | [EMBED-GUIDE.md](./EMBED-GUIDE.md) | Clients — embedding the Clara widget on any website |
 | [DEPLOY.md](./DEPLOY.md) | Docker/TLS specifics · [DEPLOY_RABBITMQ.md](./DEPLOY_RABBITMQ.md) · [Doc/](./Doc/) architecture notes |
+| [Doc/ELEVENLABS_INTEGRATION.md](./Doc/ELEVENLABS_INTEGRATION.md) | Ops — ElevenLabs voice integration runbook: env vars, flags, Mode A/B enablement, alerting, kill switches |
 
 ## Features
 
