@@ -3,7 +3,7 @@ import type {
   KBAIOverrides,
   PatchKBAIOverridesInput,
 } from "@/modules/ai-core/config-types";
-import { isVoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import { isVoiceProvider } from "@/modules/voice-core/types";
 
 type Row = Record<string, unknown>;
 

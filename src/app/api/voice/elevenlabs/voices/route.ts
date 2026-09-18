@@ -1,1 +1,1 @@
-export { getElevenLabsVoices as GET } from "@/modules/voice-elevenlabs/api/voices";
+export { getElevenLabsVoices as GET } from "@/modules/voice-core/api/elevenlabs/voices";

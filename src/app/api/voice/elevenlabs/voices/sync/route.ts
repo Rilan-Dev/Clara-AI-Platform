@@ -1,1 +1,1 @@
-export { postElevenLabsVoicesSync as POST } from "@/modules/voice-elevenlabs/api/voices";
+export { postElevenLabsVoicesSync as POST } from "@/modules/voice-core/api/elevenlabs/voices";

@@ -1,6 +1,6 @@
 import { query, queryOne } from "@/lib/db";
 import type { AIProvider } from "@/modules/ai-core/config-types";
-import type { VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import type { VoiceProvider } from "@/modules/voice-core/types";
 import type { PatchAgentAISettingsInput, AgentAISettings, AgentLanguage, AgentVoice } from "./agent-ai-types";
 
 type Row = Record<string, unknown>;

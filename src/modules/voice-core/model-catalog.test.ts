@@ -1,9 +1,9 @@
 /**
- * Unit tests for the ElevenLabs voice integration core.
+ * Unit tests for the voice-core model catalogue — the voice-axis mirror of
+ * ai-core/model-catalog.test.ts.
  *
- * Covers: config kill-switches, TTS model catalogue validation, voice-id
- * shape checks, pricing math, and the org settings PATCH input parsing
- * (voice-provider axis round-trip).
+ * Covers: kill-switch semantics, TTS model catalogue validation, voice-id
+ * shape checks, provider union guards, and request caps.
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
@@ -15,15 +15,8 @@ import {
   getPlatformDefaultSTTModel,
   TTS_MAX_CHARS_PER_REQUEST,
   STT_MAX_AUDIO_SECONDS,
-} from "@/modules/voice-elevenlabs/core/config";
-import {
-  ttsCostUsdMicros,
-  sttCostUsdMicros,
-  conversationCostUsdMicros,
-  ttsUsdPer1kChars,
-} from "@/modules/voice-elevenlabs/core/pricing";
-import { isVoiceProvider } from "@/modules/voice-elevenlabs/core/types";
-import { splitSentencesLike } from "./sentence-helpers";
+} from "./model-catalog";
+import { isVoiceProvider } from "./types";
 
 // ─── Kill switch ─────────────────────────────────────────────────────────────
 
@@ -111,68 +104,11 @@ describe("isVoiceProvider", () => {
   });
 });
 
-// ─── Pricing math ────────────────────────────────────────────────────────────
-
-describe("ElevenLabs pricing", () => {
-  it("charges flash at ~$0.06 per 1k characters", () => {
-    // 1,000 chars of flash at default $0.06/1k = $60,000 micros
-    expect(ttsCostUsdMicros("eleven_flash_v2_5", 1_000)).toBe(60_000);
-  });
-
-  it("scales linearly with characters", () => {
-    expect(ttsCostUsdMicros("eleven_flash_v2_5", 2_000)).toBe(120_000);
-    expect(ttsCostUsdMicros("eleven_flash_v2_5", 0)).toBe(0);
-  });
-
-  it("falls back to the flash rate for unknown models", () => {
-    expect(ttsCostUsdMicros("unknown_model", 1_000)).toBe(60_000);
-  });
-
-  it("honours the env override", () => {
-    process.env.ELEVENLABS_TTS_USD_PER_1K_CHARS = "0.10";
-    expect(ttsUsdPer1kChars("eleven_flash_v2_5")).toBe(0.10);
-    delete process.env.ELEVENLABS_TTS_USD_PER_1K_CHARS;
-  });
-
-  it("meters STT by the audio-minute", () => {
-    // 60 s at $0.40/min = $400,000 micros
-    expect(sttCostUsdMicros(60)).toBe(400_000);
-    expect(sttCostUsdMicros(30)).toBe(200_000);
-  });
-
-  it("meters conversations by the minute", () => {
-    expect(conversationCostUsdMicros(120)).toBe(200_000);
-  });
-});
-
 // ─── Request caps ────────────────────────────────────────────────────────────
 
 describe("request caps", () => {
   it("keeps the documented abuse caps", () => {
     expect(TTS_MAX_CHARS_PER_REQUEST).toBe(2_000);
     expect(STT_MAX_AUDIO_SECONDS).toBe(120);
-  });
-});
-
-// ─── Sentence chunking (mirrors the hook's splitter) ─────────────────────────
-
-describe("sentence chunking", () => {
-  it("splits on terminal punctuation and keeps the remainder", () => {
-    const { sentences, rest } = splitSentencesLike(
-      "This is the first sentence. And here comes the second one! A trailing fragment",
-    );
-    expect(sentences).toEqual(["This is the first sentence.", "And here comes the second one!"]);
-    expect(rest.trim()).toBe("A trailing fragment");
-  });
-
-  it("returns nothing when no sentence is complete yet", () => {
-    const { sentences, rest } = splitSentencesLike("Still generating the first");
-    expect(sentences).toEqual([]);
-    expect(rest).toBe("Still generating the first");
-  });
-
-  it("handles international punctuation", () => {
-    const { sentences } = splitSentencesLike("Is this a question? Sí, es una respuesta.");
-    expect(sentences.length).toBe(2);
   });
 });

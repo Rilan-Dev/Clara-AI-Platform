@@ -1,7 +1,8 @@
 /**
- * src/modules/ai-core/voice-resolve.ts
+ * src/modules/voice-core/resolve.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Voice-provider resolution for the realtime/embed surfaces.
+ * Voice-provider resolution for the realtime/embed surfaces — the voice-axis
+ * counterpart of src/modules/ai-core/resolve.ts (resolveAIConfig).
  *
  * ElevenLabs is a VOICE layer, never a brain layer (see
  * Doc/ELEVENLABS_INTEGRATION_PLAN.md §3). This resolver picks WHICH provider
@@ -23,7 +24,7 @@ import { getAgentById } from "@/modules/organisations/core/db";
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
-import { resolveAIConfig } from "./resolve";
+import { resolveAIConfig } from "@/modules/ai-core/resolve";
 import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
@@ -31,12 +32,13 @@ import {
   isElevenLabsEnabled,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
-} from "@/modules/voice-elevenlabs/core/config";
+} from "./model-catalog";
 import type {
   ElevenLabsResolvedConfig,
-  VoiceProvider,
+  ResolveVoiceConfigInput,
   VoiceResolution,
-} from "@/modules/voice-elevenlabs/core/types";
+} from "./config-types";
+import type { VoiceProvider } from "./types";
 import { query } from "@/lib/db";
 
 export class VoiceConfigResolutionError extends Error {
@@ -46,11 +48,7 @@ export class VoiceConfigResolutionError extends Error {
   }
 }
 
-export interface ResolveVoiceConfigInput {
-  kbId?: string;
-  orgId?: string;
-  surface: "realtime" | "embed";
-}
+export type { ResolveVoiceConfigInput };
 
 /**
  * Resolve the voice provider + ElevenLabs specifics for a tenant. The brain
@@ -154,7 +152,7 @@ export async function resolveVoiceConfig(
 }
 
 /**
- * Voice-id selection for the ElevenLabs axis. ElevenLabs voice ids are NOT a
+ * Voice-id selection for the ElevenLabs axis. Vendor voice ids are NOT a
  * fixed enumerable set (unlike OPENAI_REALTIME_VOICES), so validation runs
  * against the org's synced catalog + a shape check. Precedence:
  *

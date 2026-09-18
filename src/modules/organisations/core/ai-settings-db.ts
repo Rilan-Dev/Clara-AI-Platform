@@ -5,7 +5,7 @@ import type {
   PatchOrgAISettingsInput,
   ProviderScopedList,
 } from "@/modules/ai-core/config-types";
-import { isVoiceProvider, type VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import { isVoiceProvider, type VoiceProvider } from "@/modules/voice-core/types";
 
 type Row = Record<string, unknown>;
 

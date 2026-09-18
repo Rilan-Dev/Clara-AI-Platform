@@ -1,7 +1,7 @@
 /**
- * src/modules/voice-elevenlabs/core/metering.ts
+ * src/modules/voice-core/metering.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Append-only usage_events writers for ElevenLabs billable invocations.
+ * Append-only usage_events writers for voice provider billable invocations.
  *
  * Mirrors the WS-1.1 usage-event spine discipline in analytics-db.ts:
  *   • append-only (corrections are compensating rows)
@@ -59,7 +59,7 @@ async function insertVoiceUsageEvent(row: {
     );
   } catch (err) {
     // metering must never break the metered pipeline
-    console.warn("[elevenlabs] failed to log usage event:", (err as Error).message);
+    console.warn("[voice-core] failed to log usage event:", (err as Error).message);
   }
 }
 

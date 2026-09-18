@@ -1,8 +1,19 @@
+/**
+ * src/modules/voice-core/api/provider.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * POST /api/voice/provider — voice-provider routing lookup for the browser.
+ *
+ * Returns which provider serves the voice surface for a knowledge base so
+ * useVoiceClient can route to the right hook (useOpenAIRealtime /
+ * useGeminiLive / useElevenLabsVoice) BEFORE allocating any audio resources.
+ * Capability flags only — never keys, never model secrets.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
-import { resolveVoiceConfig } from "@/modules/ai-core/voice-resolve";
+import { resolveVoiceConfig } from "../resolve";
 
 export async function postVoiceProvider(request: NextRequest): Promise<NextResponse> {
   try {

@@ -1,5 +1,5 @@
 /**
- * src/modules/voice-elevenlabs/api/session.ts
+ * src/modules/voice-core/api/elevenlabs/session.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * POST /api/voice/elevenlabs/session — Mode A pipeline bootstrap.
  *
@@ -19,16 +19,10 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit";
-import {
-  STT_MAX_AUDIO_SECONDS,
-  TTS_OUTPUT_FORMAT,
-} from "@/modules/voice-elevenlabs/core/config";
-import {
-  VoiceConfigResolutionError,
-  resolveVoiceConfig,
-} from "@/modules/ai-core/voice-resolve";
+import { STT_MAX_AUDIO_SECONDS, TTS_OUTPUT_FORMAT } from "../../model-catalog";
+import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
-import type { ElevenLabsSessionPayload } from "@/modules/voice-elevenlabs/core/types";
+import type { ElevenLabsSessionPayload } from "../../config-types";
 
 export async function postElevenLabsSession(request: NextRequest): Promise<NextResponse> {
   try {

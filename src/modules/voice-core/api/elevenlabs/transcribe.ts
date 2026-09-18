@@ -1,5 +1,5 @@
 /**
- * src/modules/voice-elevenlabs/api/transcribe.ts
+ * src/modules/voice-core/api/elevenlabs/transcribe.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * POST /api/voice/elevenlabs/transcribe — Scribe STT (Mode A speech-in).
  *
@@ -17,16 +17,11 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, ELEVENLABS_STT_RATE } from "@/lib/rate-limit";
-import {
-  STT_MAX_AUDIO_BYTES,
-  STT_MAX_AUDIO_SECONDS,
-} from "@/modules/voice-elevenlabs/core/config";
-import { ElevenLabsError, transcribeAudio } from "@/modules/voice-elevenlabs/core/client";
-import { logSttUsage } from "@/modules/voice-elevenlabs/core/metering";
-import {
-  VoiceConfigResolutionError,
-  resolveVoiceConfig,
-} from "@/modules/ai-core/voice-resolve";
+import { STT_MAX_AUDIO_BYTES, STT_MAX_AUDIO_SECONDS } from "../../model-catalog";
+import { VoiceProviderFactory } from "../../factory";
+import { ElevenLabsError } from "../../providers/elevenlabs";
+import { logSttUsage } from "../../metering";
+import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 
 export async function postElevenLabsTranscribe(request: NextRequest): Promise<NextResponse> {
   try {
@@ -102,8 +97,10 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
     const clientLanguage = typeof form.get("language") === "string" ? String(form.get("language")) : null;
     const language = clientLanguage || resolved.elevenlabs.language || null;
 
+    const voiceService = VoiceProviderFactory.getVoiceService();
+
     const startedAt = Date.now();
-    const result = await transcribeAudio({
+    const result = await voiceService.transcribeAudio({
       file: audio,
       modelId: resolved.elevenlabs.sttModel,
       languageCode: language,

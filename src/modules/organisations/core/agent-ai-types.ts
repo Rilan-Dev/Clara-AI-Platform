@@ -1,5 +1,5 @@
 import type { AIProvider } from "@/modules/ai-core/config-types";
-import type { VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import type { VoiceProvider } from "@/modules/voice-core/types";
 
 export type AgentLanguage = { id: string; orgId: string; code: string; name: string; nativeName: string | null; enabled: boolean };
 export type AgentVoice = { id: string; orgId: string; provider: AIProvider | "elevenlabs"; voiceId: string; name: string; enabled: boolean; metadata: Record<string, unknown> };

@@ -1,1 +1,1 @@
-export { postElevenLabsTts as POST } from "@/modules/voice-elevenlabs/api/tts";
+export { postElevenLabsTts as POST } from "@/modules/voice-core/api/elevenlabs/tts";

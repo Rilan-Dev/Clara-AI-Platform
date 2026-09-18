@@ -27,12 +27,12 @@ import type { VoiceClientOptions } from "../voice/types";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
+import { splitSentences } from "../voice/sentence-split";
 
 // ─── VAD tuning ───────────────────────────────────────────────────────────────
 const VAD_THRESHOLD = 0.015;        // RMS level that counts as speech
 const VAD_START_FRAMES = 6;         // ~100 ms of speech to open an utterance
 const VAD_SILENCE_MS = 800;         // silence after speech to close it
-const TTS_SENTENCE_MIN_CHARS = 12;  // don't TTS tiny fragments
 
 type SessionPayload = {
   mode: "pipeline";
@@ -44,21 +44,6 @@ type SessionPayload = {
 
 function generateTurnId(): string {
   return `turn_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-/** Split buffered text into speakable sentences; returns them and the unspoken remainder. */
-function splitSentences(buffer: string): { sentences: string[]; rest: string } {
-  const sentences: string[] = [];
-  // Match up to terminal punctuation (incl. international ?, !) + closing quotes.
-  const pattern = /[^.!?…।\n]+[.!?…।\n]+["'”’)\]]*\s*/g;
-  let consumed = 0;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(buffer)) !== null) {
-    const sentence = match[0].trim();
-    consumed = match.index + match[0].length;
-    if (sentence.length >= TTS_SENTENCE_MIN_CHARS) sentences.push(sentence);
-  }
-  return { sentences, rest: buffer.slice(consumed) };
 }
 
 export function useElevenLabsVoice(options: VoiceClientOptions) {

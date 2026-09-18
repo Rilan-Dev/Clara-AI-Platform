@@ -1,15 +1,15 @@
 /**
- * src/modules/voice-elevenlabs/core/pricing.ts
+ * src/modules/voice-core/pricing.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Unit-cost model for ElevenLabs usage, mirroring the per-model price list
- * philosophy of src/modules/ai-core/model-catalog.ts.
+ * Unit-cost model for voice provider usage, mirroring the per-model price
+ * list philosophy of src/modules/ai-core/model-catalog.ts.
  *
  * Costs are computed from usage facts (characters / audio-seconds) reported
  * by the caller, NEVER guessed from the response body. Env overrides let
  * operators pin exact negotiated prices without a deploy.
  */
 
-import { findTTSModel } from "./config";
+import { findTTSModel } from "./model-catalog";
 
 /** USD per 1,000 TTS characters, with env override. */
 export function ttsUsdPer1kChars(modelId: string): number {

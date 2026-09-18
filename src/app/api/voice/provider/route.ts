@@ -1,1 +1,1 @@
-export { postVoiceProvider as POST } from "@/modules/assistant/api/voiceProvider";
+export { postVoiceProvider as POST } from "@/modules/voice-core/api/provider";

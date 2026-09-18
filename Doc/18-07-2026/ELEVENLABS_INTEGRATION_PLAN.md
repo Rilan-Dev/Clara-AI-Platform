@@ -222,26 +222,53 @@ Mode B is gated by an org-level acknowledgement flag plus
 
 ## 5. Target Architecture
 
-### 5.1 New module: `src/modules/voice-elevenlabs/`
+### 5.1 New module: `src/modules/voice-core/` (as built — V0–V3)
+
+> **As-built note:** the integration originally landed as a standalone
+> `src/modules/voice-elevenlabs/` module, then was restructured into
+> `src/modules/voice-core/` so the VOICE axis mirrors the BRAIN axis
+> (`src/modules/ai-core/`) file-for-file. One concern = one module = one
+> provider family behind a factory + interface. Adding any future voice
+> vendor is one file in `providers/` + one case in `factory.ts`.
 
 ```
-src/modules/voice-elevenlabs/
-├── core/
-│   ├── client.ts              # Thin REST/WS client (fetch + ws), no vendor SDK —
-│   │                          #   mirrors the timeout/retry discipline of openai.ts
-│   ├── config.ts              # Env parsing, kill-switch, model defaults, price table
-│   ├── catalog.ts             # Voice + model catalog sync, validation helpers
-│   ├── metering.ts            # usage_events writers (TTS / TRANSCRIPTION / CONVERSATION)
-│   ├── pricing.ts             # chars/seconds → costUsdMicros (config overrides)
-│   └── types.ts               # VoiceProvider, session payload, voice settings DTOs
-├── api/
-│   ├── session.ts             # POST /api/voice/elevenlabs/session handler
-│   ├── transcribe.ts          # STT handler
-│   ├── tts.ts                 # TTS handler (streams audio)
-│   ├── voices.ts              # Catalog list / preview / import handlers
-│   ├── agentSession.ts        # Mode B signed-URL handler (opt-in)
-│   └── webhooks.ts            # Post-call webhook + internal tool callback
-└── ui/ (re-export admin components under features/admin)
+src/modules/voice-core/                 # VOICE axis — mirrors ai-core/
+├── types.ts               # VoiceProvider union, VoiceProviderService interface
+│                          #   (the "adapter" contract), VoiceServiceConfig,
+│                          #   vendor payload DTOs — mirrors ai-core/types.ts
+├── config-types.ts        # ResolveVoiceConfigInput, VoiceResolution,
+│                          #   ElevenLabsSessionPayload — mirrors config-types.ts
+├── model-catalog.ts       # TTS/STT catalogue + caps + env defaults + kill
+│                          #   switches + voice-id shape — mirrors model-catalog.ts
+├── pricing.ts             # chars/seconds → costUsdMicros (env overrides)
+├── factory.ts             # VoiceProviderFactory (singleton cache, provider
+│                          #   switch) — mirrors ai-core/factory.ts
+├── resolve.ts             # resolveVoiceConfig(): kb → agent → org → env
+│                          #   precedence — mirrors ai-core/resolve.ts
+├── metering.ts            # usage_events writers (TTS / TRANSCRIPTION / CONVERSATION)
+├── providers/
+│   └── elevenlabs.ts      # ElevenLabsVoiceProvider implements
+│                          #   VoiceProviderService — class style mirrors
+│                          #   ai-core/providers/openai.ts
+└── api/
+    ├── provider.ts        # POST /api/voice/provider routing lookup
+    └── elevenlabs/
+        ├── session.ts     # Mode A pipeline bootstrap
+        ├── transcribe.ts  # Scribe STT handler
+        ├── tts.ts         # TTS handler (streams audio)
+        ├── voices.ts      # Catalog list / sync handlers
+        ├── agentSession.ts # Mode B signed-URL handler (opt-in, V4)
+        └── webhooks.ts    # Post-call webhook + internal tool callback (V5)
+
+# Client side (unchanged conventions):
+src/modules/assistant/core/hooks/
+    useVoiceClient.ts         # routes by resolved voiceProvider
+    useOpenAIRealtime.ts      # openai realtime (WebRTC)
+    useGeminiLive.ts          # gemini live (WS)
+    useElevenLabsVoice.ts     # elevenlabs hybrid pipeline (Mode A)
+src/modules/assistant/core/voice/
+    sentence-split.ts         # streaming-TTS sentence chunker (shared + tested)
+    realtime-audio-config.ts  # (existing shared voice utils)
 ```
 
 **No ElevenLabs SDK dependency.** The integration uses plain `fetch` + `ws`
@@ -252,7 +279,9 @@ discipline), and no silent auto-retry storms on streaming endpoints.
 
 ### 5.2 Resolution layer
 
-New `src/modules/ai-core/voice-resolve.ts`:
+`src/modules/voice-core/resolve.ts` (moved out of ai-core — voice-axis
+resolution belongs in the voice module, mirroring how brain resolution
+lives in ai-core):
 
 ```ts
 export interface VoiceResolution {
@@ -321,7 +350,7 @@ platform-wide).
 ## 6. Platform Endpoint Plan
 
 All handlers live under `src/app/api/...` re-exporting from
-`src/modules/voice-elevenlabs/api/`. Guards column = minimum enforcement
+`src/modules/voice-core/api/elevenlabs/`. Guards column = minimum enforcement
 (every handler additionally requires auth: platform JWT or embed API key,
 mirroring `realtime.ts`).
 
@@ -572,7 +601,7 @@ the house migration style. Auto-applied by `ensureMigrated()` on boot.
 
 ## 12. Usage Metering & Pricing
 
-`src/modules/voice-elevenlabs/pricing.ts` — cost model with env overrides
+`src/modules/voice-core/pricing.ts` — cost model with env overrides
 (ElevenLabs bills in credits; publish USD equivalents, verify at impl):
 
 | Kind | Unit | Default (env-overridable) |
@@ -617,7 +646,8 @@ build + an `scripts/e2e-elevenlabs*.js` run (house e2e pattern, mock mode
 included so CI never burns credits).
 
 ### Phase V0 — Foundation & guardrails (~3 days)
-- `src/modules/voice-elevenlabs/core/{client,config,types,pricing}.ts`
+- `src/modules/voice-core/{types,config-types,model-catalog,pricing,factory,resolve,metering}.ts`
+  and `src/modules/voice-core/providers/elevenlabs.ts`
 - Env parsing in `src/lib/env.ts`; redact pattern; kill switches
 - `/api/admin/elevenlabs/status` connection test; PlatformEnvPanel status
 - Catalog types + model list bootstrap
@@ -729,7 +759,7 @@ GA at ~17 days.
 
 ## 18. Appendix B — File Touch Map (summary)
 
-**New:** `src/modules/voice-elevenlabs/**` (§5.1), migration `033`,
+**New:** `src/modules/voice-core/**` (§5.1), migration `033`,
 `src/modules/ai-core/voice-{types,resolve}.ts`,
 `useElevenLabsVoice.ts`, shared `audio-worklet.ts`,
 `ElevenLabsVoiceCatalogDialog.tsx`, `scripts/e2e-elevenlabs.js`,

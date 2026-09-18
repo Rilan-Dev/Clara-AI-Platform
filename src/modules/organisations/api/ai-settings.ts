@@ -6,11 +6,11 @@ import {
   getOrgAISettings,
   upsertOrgAISettings,
 } from "@/modules/organisations/core/ai-settings-db";
-import { isVoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import { isVoiceProvider } from "@/modules/voice-core/types";
 import {
   ELEVENLABS_TTS_MODELS,
   isSupportedTTSModel,
-} from "@/modules/voice-elevenlabs/core/config";
+} from "@/modules/voice-core/model-catalog";
 import type {
   AIProvider,
   PatchOrgAISettingsInput,

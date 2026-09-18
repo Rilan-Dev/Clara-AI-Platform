@@ -1,5 +1,5 @@
 /**
- * src/modules/voice-elevenlabs/api/voices.ts
+ * src/modules/voice-core/api/elevenlabs/voices.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * Voice catalog endpoints.
  *
@@ -9,7 +9,7 @@
  *   POST /api/voice/elevenlabs/voices/preview    — TTS preview (capped, metered)
  *
  * Org catalog rows hold voice IDs + labels only — voice definitions and
- * audio stay at ElevenLabs. The sync endpoint is the ONLY path that reads
+ * audio stay at the vendor. The sync endpoint is the ONLY path that reads
  * the workspace list, and it requires an admin session.
  */
 
@@ -17,8 +17,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
-import { ElevenLabsError, listWorkspaceVoices } from "@/modules/voice-elevenlabs/core/client";
-import { isElevenLabsEnabled } from "@/modules/voice-elevenlabs/core/config";
+import { isElevenLabsEnabled } from "../../model-catalog";
+import { VoiceProviderFactory } from "../../factory";
+import { ElevenLabsError } from "../../providers/elevenlabs";
 
 export interface ElevenLabsVoiceRow {
   id: string;
@@ -88,7 +89,7 @@ export async function getElevenLabsVoices(request: NextRequest): Promise<NextRes
   }
 }
 
-// ─── POST /sync: pull the ElevenLabs workspace voice list into the org catalog ─
+// ─── POST /sync: pull the workspace voice list into the org catalog ──────────
 
 export async function postElevenLabsVoicesSync(request: NextRequest): Promise<NextResponse> {
   try {
@@ -109,12 +110,12 @@ export async function postElevenLabsVoicesSync(request: NextRequest): Promise<Ne
       );
     }
 
-    const workspaceVoices = await listWorkspaceVoices();
+    const workspaceVoices = await VoiceProviderFactory.getVoiceService().listVoices();
     if (workspaceVoices.length === 0) {
       return NextResponse.json({ synced: 0, voices: [] });
     }
 
-    // Upsert each voice. Voice definitions stay at ElevenLabs — only ids,
+    // Upsert each voice. Voice definitions stay at the vendor — only ids,
     // names, labels are catalogued here (data minimisation).
     for (const voice of workspaceVoices) {
       if (!voice.voiceId) continue;

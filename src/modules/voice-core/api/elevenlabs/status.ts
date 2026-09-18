@@ -1,9 +1,9 @@
 /**
- * src/modules/voice-elevenlabs/api/status.ts
+ * src/modules/voice-core/api/elevenlabs/status.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * GET /api/admin/elevenlabs/status — operator connection test.
  *
- * Server-side probe of the ElevenLabs subscription endpoint. Returns masked
+ * Server-side probe of the vendor subscription endpoint. Returns masked
  * account health (tier, credits burn-down, cloning availability) plus the
  * effective kill-switch states. The API key itself never crosses this
  * boundary in any direction.
@@ -12,14 +12,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
-import { ElevenLabsError, getSubscriptionInfo } from "@/modules/voice-elevenlabs/core/client";
 import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
   isConversationalAIEnabled,
   isElevenLabsEnabled,
   isVoiceCloningEnabled,
-} from "@/modules/voice-elevenlabs/core/config";
+} from "../../model-catalog";
+import { VoiceProviderFactory } from "../../factory";
+import { ElevenLabsError } from "../../providers/elevenlabs";
 
 export async function getElevenLabsStatus(request: NextRequest): Promise<NextResponse> {
   try {
@@ -47,7 +48,7 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
       });
     }
 
-    const subscription = await getSubscriptionInfo();
+    const subscription = await VoiceProviderFactory.getVoiceService().getSubscriptionInfo();
     const usagePct = subscription.characterLimit > 0
       ? Math.round((subscription.characterCount / subscription.characterLimit) * 100)
       : null;

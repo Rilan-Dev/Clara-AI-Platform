@@ -16,7 +16,7 @@
  *   ⚙️ Limits & features — token caps, temperature cap, feature flags
  *
  * Every dropdown draws from the canonical model catalogues
- * (src/modules/ai-core/model-catalog.ts + voice-elevenlabs/core/config.ts),
+ * (src/modules/ai-core/model-catalog.ts + voice-core/model-catalog.ts),
  * so the WS-0.4 "chat model in the embedding field" class of defect is
  * blocked at entry here too.
  */
@@ -30,7 +30,7 @@ import {
   GEMINI_CHAT_MODELS,
   GEMINI_EMBEDDING_MODELS,
 } from "@/modules/ai-core/model-catalog";
-import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-elevenlabs/core/config";
+import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-core/model-catalog";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { Button } from "@/components/ui/button";

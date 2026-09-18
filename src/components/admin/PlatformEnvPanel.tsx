@@ -5,7 +5,7 @@ import { Check, AlertCircle, ExternalLink, Bot, CreditCard, Smartphone, Globe } 
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
-import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-elevenlabs/core/config";
+import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-core/model-catalog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

@@ -1,5 +1,5 @@
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
-import type { VoiceProvider } from "@/modules/voice-elevenlabs/core/types";
+import type { VoiceProvider } from "@/modules/voice-core/types";
 
 export type AIProvider = "openai" | "gemini";
 export type AISurface = "chat" | "rag-embedding" | "realtime" | "embed";

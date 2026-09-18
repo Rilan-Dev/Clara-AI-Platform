@@ -1,5 +1,5 @@
 /**
- * src/modules/voice-elevenlabs/api/tts.ts
+ * src/modules/voice-core/api/elevenlabs/tts.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * POST /api/voice/elevenlabs/tts — streaming text-to-speech (Mode A speech-out).
  *
@@ -22,13 +22,11 @@ import {
   TTS_PREVIEW_MAX_CHARS,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
-} from "@/modules/voice-elevenlabs/core/config";
-import { ElevenLabsError, speak } from "@/modules/voice-elevenlabs/core/client";
-import { logTtsUsage } from "@/modules/voice-elevenlabs/core/metering";
-import {
-  VoiceConfigResolutionError,
-  resolveVoiceConfig,
-} from "@/modules/ai-core/voice-resolve";
+} from "../../model-catalog";
+import { VoiceProviderFactory } from "../../factory";
+import { ElevenLabsError } from "../../providers/elevenlabs";
+import { logTtsUsage } from "../../metering";
+import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 
 export async function postElevenLabsTts(request: NextRequest): Promise<NextResponse | Response> {
   try {
@@ -111,8 +109,10 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
       : resolved.elevenlabs.voiceId;
     const language = typeof body.language === "string" ? body.language : resolved.elevenlabs.language;
 
+    const voiceService = VoiceProviderFactory.getVoiceService();
+
     const startedAt = Date.now();
-    const audioResponse = await speak({
+    const audioResponse = await voiceService.speak({
       text,
       voiceId,
       modelId: model,
@@ -136,7 +136,7 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     });
 
     // Stream the raw audio through without buffering (PCM16 mono 16 kHz by
-    // default; format string passed straight to ElevenLabs).
+    // default; format string passed straight to the vendor).
     return new Response(audioResponse.body, {
       status: 200,
       headers: {

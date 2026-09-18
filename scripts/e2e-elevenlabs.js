@@ -53,15 +53,15 @@ async function main() {
   ok("status: kill-switch reason when off", !status.body?.connected || status.body?.tier != null);
 
   // ── 2. Org list → first org for config round-trip ───────────────────────
-  const orgs = await jfetch("/api/platform/workspaces", { method: "POST", headers: authHeaders, body: JSON.stringify({}) });
+  // GET /api/platform/orgs is the platform-admin org list (paginated
+  // {orgs:[...]}). POST /api/platform/workspaces is a CREATE endpoint and
+  // /api/admin/orgs is a page route — neither lists.
+  const orgs = await jfetch("/api/platform/orgs", { headers: authHeaders });
   let orgId = null;
-  if (orgs.res.ok && Array.isArray(orgs.body) && orgs.body.length > 0) {
-    orgId = orgs.body[0].id;
-  } else {
-    const orgList = await jfetch("/api/admin/orgs", { headers: authHeaders });
-    if (orgList.res.ok && Array.isArray(orgList.body)) orgId = orgList.body[0]?.id ?? null;
+  if (orgs.res.ok && Array.isArray(orgs.body?.orgs) && orgs.body.orgs.length > 0) {
+    orgId = orgs.body.orgs[0].id;
   }
-  ok("found an org for testing", Boolean(orgId), orgs.res.status);
+  ok("found an org for testing", Boolean(orgId), `status ${orgs.res.status}`);
 
   if (orgId) {
     // ── 5. Org AI settings GET (super admin now allowed) + PATCH round-trip ─
@@ -96,23 +96,39 @@ async function main() {
       });
       ok("invalid ElevenLabs TTS model rejected (400)", badModel.res.status === 400, `status ${badModel.res.status}`);
 
-      // ── 2b. voice provider resolution surface ────────────────────────────
-      const kbs = await jfetch("/api/kbs/all", { headers: authHeaders }).catch(() => null);
+      // ── 2a. Tenant session via impersonation (sanctioned path) ──
+      // Platform admins are blocked from tenant KB listings; the sanctioned
+      // path is POST /api/platform/orgs/:id/impersonate (super-admin only).
+      let tenantHeaders = authHeaders;
+      const imp = await jfetch(`/api/platform/orgs/${orgId}/impersonate`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({}),
+      });
+      if (imp.res.ok && imp.body?.token) {
+        tenantHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${imp.body.token}` };
+        ok("tenant session minted via impersonation", true);
+      } else {
+        ok("tenant session minted via impersonation", false, `status ${imp.res.status}`);
+      }
+
+      // ── 2b. voice provider resolution surface (KB discovery) ──
+      const kbs = await jfetch("/api/kbs/all", { headers: tenantHeaders }).catch(() => null);
       let kbId = null;
-      if (kbs && kbs.res.ok && Array.isArray(kbs.body) && kbs.body.length > 0) {
-        kbId = kbs.body[0].id ?? kbs.body[0].kbId;
+      if (kbs && kbs.res.ok && Array.isArray(kbs.body?.kbs) && kbs.body.kbs.length > 0) {
+        kbId = kbs.body.kbs[0].id ?? kbs.body.kbs[0].kbId;
       }
       if (!kbId) {
-        const agentList = await jfetch("/api/agents", { headers: authHeaders }).catch(() => null);
+        const agentList = await jfetch("/api/agents", { headers: tenantHeaders }).catch(() => null);
         if (agentList && agentList.res.ok && Array.isArray(agentList.body) && agentList.body.length > 0) {
-          const agentKbs = await jfetch(`/api/agents/${agentList.body[0].id}/kbs`, { headers: authHeaders }).catch(() => null);
+          const agentKbs = await jfetch(`/api/agents/${agentList.body[0].id}/kbs`, { headers: tenantHeaders }).catch(() => null);
           if (agentKbs && agentKbs.res.ok && Array.isArray(agentKbs.body)) kbId = agentKbs.body[0]?.id;
         }
       }
       if (kbId) {
         const vp = await jfetch("/api/voice/provider", {
           method: "POST",
-          headers: authHeaders,
+          headers: tenantHeaders,
           body: JSON.stringify({ kbId }),
         });
         ok("voice provider endpoint responds", vp.res.ok || vp.res.status === 400, `status ${vp.res.status}`);
@@ -131,21 +147,27 @@ async function main() {
         // ── 3. ElevenLabs session guards ──────────────────────────────────
         const session = await jfetch("/api/voice/elevenlabs/session", {
           method: "POST",
-          headers: authHeaders,
+          headers: tenantHeaders,
           body: JSON.stringify({ kbId }),
         });
-        ok("elevenlabs session: guarded (400 kill-switch while platform key absent)",
-          session.res.status === 400 && /ELEVENLABS|not available|not enabled/i.test(String(session.body?.error)),
+        // Either the kill-switch 400 (platform key absent) or the full Mode A
+        // capability payload (key configured) — both prove the resolver +
+        // handler chain works; anything else fails.
+        ok("elevenlabs session: kill-switch 400 OR Mode A payload",
+          (session.res.status === 400 && /ELEVENLABS|not available|not enabled/i.test(String(session.body?.error)))
+          || (session.res.ok && session.body?.mode === "pipeline" && session.body?.tts?.endpoint),
           `status ${session.res.status} ${String(session.body?.error).slice(0, 140)}`);
 
         // ── 4. TTS guards ──────────────────────────────────────────────────
         const tts = await jfetch("/api/voice/elevenlabs/tts", {
           method: "POST",
-          headers: authHeaders,
+          headers: tenantHeaders,
           body: JSON.stringify({ kbId, text: "Hello world." }),
         });
-        ok("elevenlabs tts: guarded without config (400/409)",
-          tts.res.status === 400 || tts.res.status === 409,
+        // Either guarded (400/409 — no config) or streaming audio (200 with
+        // a non-JSON body when a real key is configured).
+        ok("elevenlabs tts: guarded OR streaming audio",
+          tts.res.status === 400 || tts.res.status === 409 || tts.res.status === 200,
           `status ${tts.res.status}`);
       } else {
         console.log("  (no KB found — skipping KB-scoped checks)");
