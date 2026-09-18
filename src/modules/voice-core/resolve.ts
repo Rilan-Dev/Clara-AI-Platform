@@ -5,7 +5,7 @@
  * counterpart of src/modules/ai-core/resolve.ts (resolveAIConfig).
  *
  * ElevenLabs is a VOICE layer, never a brain layer (see
- * Doc/ELEVENLABS_INTEGRATION_PLAN.md §3). This resolver picks WHICH provider
+ * Doc/18-07-2026/ELEVENLABS_INTEGRATION_PLAN.md §3). This resolver picks WHICH provider
  * serves the voice surface using the same precedence discipline as
  * resolveAIConfig():
  *

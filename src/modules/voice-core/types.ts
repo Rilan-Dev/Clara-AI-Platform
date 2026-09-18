@@ -3,7 +3,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Type contracts for the VOICE provider axis.
  *
- * Architecture (Doc/ELEVENLABS_INTEGRATION_PLAN.md §3):
+ * Architecture (Doc/18-07-2026/ELEVENLABS_INTEGRATION_PLAN.md §3):
  *   Voice is a separate axis from the brain. The AIProvider union
  *   (openai | gemini) drives chat + embeddings + RAG and lives in
  *   src/modules/ai-core. The VoiceProvider union below decides WHO serves

@@ -1,7 +1,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 033_elevenlabs_voice.sql
 -- Clara AI Platform — ElevenLabs hybrid voice integration (see
--- Doc/ELEVENLABS_INTEGRATION_PLAN.md §10).
+-- Doc/18-07-2026/ELEVENLABS_INTEGRATION_PLAN.md §10).
 --
 -- Design: ElevenLabs is a VOICE provider, never a brain provider. A new
 -- voice-provider axis (openai | gemini | elevenlabs) is added orthogonally
