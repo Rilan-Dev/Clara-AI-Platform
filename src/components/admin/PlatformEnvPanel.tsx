@@ -1,19 +1,47 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+
+/**
+ * src/components/admin/PlatformEnvPanel.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Platform settings — API keys, default models and integrations, restyled with
+ * the shared settings design language (settings-ui.tsx), the same UX as the
+ * "AI Providers & Models" editor: provider cards, friendly dropdowns with
+ * pricing metadata, switches for flags, one Save bar per category.
+ *
+ * Behavioural notes:
+ *   • Everything is edited in a draft; only keys whose value actually changed
+ *     are sent on Save (secrets are only sent when something was typed, or
+ *     when explicitly cleared).
+ *   • The original security protocol is preserved end-to-end: each saved key
+ *     still goes through GET /api/platform/env?token=1 → HMAC confirmation
+ *     token → POST. The per-row "I confirm" checkbox is consolidated into a
+ *     single confirmation on the Save bar.
+ *   • Secrets never echo back — set secrets render as "Set up" with a blank
+ *     input; typing replaces, Clear unsets.
+ *   • Model dropdowns draw from the canonical catalogues via
+ *     ai-settings-options.ts; WS-0.4 chat/embedding cross-entry validation
+ *     runs client-side on save and server-side on write.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, Bot, CreditCard, Smartphone, Globe, Sparkles, KeyRound, Volume2, AudioLines, SlidersHorizontal, Phone, Building2, Waves, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Check, AlertCircle, ExternalLink, Bot, CreditCard, Smartphone, Globe } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/sonner";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
-import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-core/model-catalog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  SettingsSection, OptionCardGrid, ModelSelect, TextField, FeatureToggle, SecretField, SaveBar, StatusPills,
+} from "@/components/admin/settings-ui";
+import {
+  BRAIN_PROVIDERS,
+  openaiChatOptions, geminiChatOptions,
+  openaiEmbeddingOptions, geminiEmbeddingOptions,
+  realtimeOptions, transcriptionOptions, voiceOptions,
+  elevenlabsTtsOptions, elevenlabsSttOptions,
+} from "@/components/admin/ai-settings-options";
 
 type EnvSetting = {
   key: string;
@@ -26,13 +54,19 @@ type EnvSetting = {
   updatedAt: string;
 };
 
-const MASK = "●●●●●●●●";
+// ─── Field metadata (labels, hints, helper links, validation) ────────────────
 
-/** ElevenLabs TTS model ids for the select dropdowns in this panel. */
-const ELEVENLABS_TTS_MODEL_IDS = ELEVENLABS_TTS_MODELS.map((model) => model.modelId);
+interface FieldMeta {
+  label: string;
+  hint?: string;
+  validation?: (value: string) => string | null;
+  isSecret?: boolean;
+  helperLink?: { label: string; href: string };
+  deprecated?: boolean;
+}
 
-/** WS-0.4: shared validator for the model fields in this panel — a chat
- *  model in the embedding field (or vice versa) is blocked at entry. */
+/** WS-0.4: shared validator for the model fields — a chat model in the
+ *  embedding field (or vice versa) is blocked at entry. */
 const modelFieldValidation =
   (field: "chat" | "embedding", provider: "openai" | "gemini") =>
   (v: string): string | null => {
@@ -40,285 +74,161 @@ const modelFieldValidation =
     return result.ok ? null : result.message;
   };
 
-// Predefined model/voice options for dropdowns (custom entry always allowed)
-const OPENAI_CHAT_MODELS = [
-  "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol",
-  "gpt-4o", "gpt-4o-mini", "gpt-4o-2024-08-06", "gpt-4o-2024-11-20",
-  "gpt-4-turbo", "gpt-4-turbo-preview", "gpt-4-0125-preview",
-  "gpt-3.5-turbo", "gpt-3.5-turbo-0125"
-];
-const OPENAI_EMBEDDING_MODELS = [
-  "text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"
-];
-const OPENAI_REALTIME_MODELS = [
-  "gpt-realtime-2.1-mini", "gpt-realtime-2025-08-28",
-  "gpt-4o-realtime-preview", "gpt-4o-realtime-preview-2024-12-17", "gpt-4o-realtime-preview-2024-10-01",
-  "gpt-4o-mini-realtime-preview", "gpt-4o-mini-realtime-preview-2024-12-17"
-];
-const OPENAI_TRANSCRIPTION_MODELS = [
-  "gpt-realtime-whisper", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"
-];
-const OPENAI_REALTIME_VOICES = [
-  "alloy", "ash", "ballad", "coral", "echo", "fable", "onyx", "nova", "shimmer",
-  "verse", "marin", "cedar", "sage"
-];
-
-const GEMINI_CHAT_MODELS = [
-  "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-pro",
-  "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b"
-];
-const GEMINI_EMBEDDING_MODELS = [
-  "gemini-embedding-001", "text-embedding-004", "embedding-001"
-];
-const GEMINI_REALTIME_MODELS = [
-  "gemini-2.5-flash-native-audio-preview-12-2025",
-  "gemini-2.0-flash-native-audio-preview",
-  "gemini-2.0-flash-exp-native-audio"
-];
-const GEMINI_TRANSCRIPTION_MODELS = [
-  "gemini-2.5-flash", "gemini-2.0-flash"
-];
-const GEMINI_VOICES = [
-  "Aoede", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Zephyr"
-];
-
-// Field metadata for rendering
-interface FieldMeta {
-  label: string;
-  placeholder: string;
-  hint?: string;
-  validation?: (value: string) => string | null;
-  type?: "text" | "password" | "number" | "url" | "select";
-  options?: string[];
-  relatedKey?: string;
-  group?: string;
-  isSecret?: boolean;
-  helperLink?: { label: string; href: string };
-  deprecated?: boolean;
-  deprecationHint?: string;
-}
-
 const FIELD_METADATA: Record<string, FieldMeta> = {
   // ── AI ─────────────────────────────────────────────────────────────
-  AI_PROVIDER: {
-    label: "AI Provider",
-    placeholder: "Select provider",
-    hint: "Choose which AI company powers Clara. Make sure the matching access key below is filled in.",
-    type: "select",
-    options: ["openai", "gemini"],
-    group: "Provider",
-  },
   OPENAI_API_KEY: {
-    label: "API Key", placeholder: "sk-...", hint: "Your secret password for OpenAI. Copy it from platform.openai.com → API keys.",
-    type: "password", isSecret: true, group: "OpenAI",
+    label: "OpenAI API key",
+    hint: "Your secret password for OpenAI. Copy it from platform.openai.com → API keys.",
+    isSecret: true,
     helperLink: { label: "OpenAI Dashboard →", href: "https://platform.openai.com/api-keys" },
   },
   OPENAI_CHAT_MODEL: {
-    label: "Chat Model", placeholder: "Select or type model",
-    hint: "Model used for chat completions",
-    type: "select", options: OPENAI_CHAT_MODELS, group: "OpenAI",
+    label: "Chat model", hint: "Powers every assistant reply on OpenAI.",
     validation: modelFieldValidation("chat", "openai"),
   },
   OPENAI_EMBEDDING_MODEL: {
-    label: "Embedding Model", placeholder: "Select or type model",
-    hint: "Model used for document embeddings (must match vector dimension)",
-    type: "select", options: OPENAI_EMBEDDING_MODELS, group: "OpenAI",
-    // WS-0.4: a chat model here silently corrupts retrieval — block it.
+    label: "Embedding model", hint: "Turns documents into searchable vectors. Must match the vector dimension.",
     validation: modelFieldValidation("embedding", "openai"),
   },
-  OPENAI_REALTIME_MODEL: {
-    label: "Realtime Model", placeholder: "Select or type model",
-    hint: "Model for voice/realtime sessions",
-    type: "select", options: OPENAI_REALTIME_MODELS, group: "OpenAI",
-  },
-  OPENAI_TRANSCRIPTION_MODEL: {
-    label: "Transcription Model", placeholder: "Select or type model",
-    hint: "Model for speech-to-text in realtime sessions",
-    type: "select", options: OPENAI_TRANSCRIPTION_MODELS, group: "OpenAI",
-  },
-  OPENAI_DEFAULT_VOICE: {
-    label: "Default Voice", placeholder: "Select or type voice",
-    hint: "Default voice for TTS output",
-    type: "select", options: OPENAI_REALTIME_VOICES, group: "OpenAI",
-  },
+  OPENAI_REALTIME_MODEL: { label: "Realtime model", hint: "Live voice sessions (OpenAI Realtime)." },
+  OPENAI_TRANSCRIPTION_MODEL: { label: "Transcription model", hint: "Speech-to-text inside realtime sessions." },
+  OPENAI_DEFAULT_VOICE: { label: "Default voice", hint: "Voice for spoken answers on OpenAI." },
   GEMINI_API_KEY: {
-    label: "API Key", placeholder: "AIza...", hint: "Your secret password for Google Gemini. Copy it from aistudio.google.com → Get API key.",
-    type: "password", isSecret: true, group: "Gemini",
+    label: "Gemini API key",
+    hint: "Your secret password for Google Gemini. Copy it from aistudio.google.com → Get API key.",
+    isSecret: true,
     helperLink: { label: "Google AI Studio →", href: "https://aistudio.google.com/apikey" },
   },
   GEMINI_CHAT_MODEL: {
-    label: "Chat Model", placeholder: "Select or type model",
-    hint: "Model used for chat completions",
-    type: "select", options: GEMINI_CHAT_MODELS, group: "Gemini",
+    label: "Chat model", hint: "Powers every assistant reply on Gemini.",
     validation: modelFieldValidation("chat", "gemini"),
   },
   GEMINI_EMBEDDING_MODEL: {
-    label: "Embedding Model", placeholder: "Select or type model",
-    hint: "Model used for document embeddings",
-    type: "select", options: GEMINI_EMBEDDING_MODELS, group: "Gemini",
+    label: "Embedding model", hint: "Turns documents into searchable vectors. Must match the vector dimension.",
     validation: modelFieldValidation("embedding", "gemini"),
   },
-  GEMINI_REALTIME_MODEL: {
-    label: "Realtime Model", placeholder: "Select or type model",
-    hint: "Model for voice/realtime sessions (Live API)",
-    type: "select", options: GEMINI_REALTIME_MODELS, group: "Gemini",
-  },
-  GEMINI_TRANSCRIPTION_MODEL: {
-    label: "Transcription Model", placeholder: "Select or type model",
-    hint: "Model for speech-to-text",
-    type: "select", options: GEMINI_TRANSCRIPTION_MODELS, group: "Gemini",
-  },
-  GEMINI_DEFAULT_VOICE: {
-    label: "Default Voice", placeholder: "Select or type voice",
-    hint: "Default voice for TTS output",
-    type: "select", options: GEMINI_VOICES, group: "Gemini",
-  },
-  // ── ElevenLabs (voice provider — hybrid mode) ──────────────────────
-  ELEVENLABS_ENABLED: {
-    label: "Enable ElevenLabs", placeholder: "true",
-    hint: "Master switch for the ElevenLabs voice provider (true/false). The API key must also be set.",
-    type: "select", options: ["true", "false"], group: "ElevenLabs",
-  },
+  GEMINI_REALTIME_MODEL: { label: "Realtime model", hint: "Live voice sessions (Gemini Live API)." },
+  GEMINI_TRANSCRIPTION_MODEL: { label: "Transcription model", hint: "Speech-to-text for Gemini voice." },
+  GEMINI_DEFAULT_VOICE: { label: "Default voice", hint: "Voice for spoken answers on Gemini." },
   ELEVENLABS_API_KEY: {
-    label: "API Key", placeholder: "sk_...",
-    hint: "Your secret password for ElevenLabs. Copy it from elevenlabs.io → Profile → API Keys. Used ONLY for voice (TTS/STT) — documents and knowledge bases never leave Clara.",
-    type: "password", isSecret: true, group: "ElevenLabs",
+    label: "ElevenLabs API key",
+    hint: "Used ONLY for voice (speaking & listening) — documents and knowledge bases never leave Clara.",
+    isSecret: true,
     helperLink: { label: "ElevenLabs Dashboard →", href: "https://elevenlabs.io/app/settings/api-keys" },
   },
-  ELEVENLABS_DEFAULT_TTS_MODEL: {
-    label: "Default TTS Model", placeholder: "Select or type model",
-    hint: "Voice model used to speak answers (Flash = lowest latency)",
-    type: "select", options: ELEVENLABS_TTS_MODEL_IDS, group: "ElevenLabs",
-  },
-  ELEVENLABS_DEFAULT_STT_MODEL: {
-    label: "Default STT Model", placeholder: "scribe_v1",
-    hint: "Speech-to-text model (Scribe) used to understand spoken questions",
-    type: "select", options: ["scribe_v1"], group: "ElevenLabs",
-  },
   ELEVENLABS_DEFAULT_VOICE_ID: {
-    label: "Default Voice ID", placeholder: "e.g. JBFqnCBsd6RMkjVDRZzb",
-    hint: "Platform-fallback ElevenLabs voice id. Organisations pick their own voices in the org AI settings.",
-    group: "ElevenLabs",
-  },
-  // ── ElevenLabs Mode B / studio (V4-V6) ─────────────────────
-  ELEVENLABS_CONVERSATIONAL_AI_ENABLED: {
-    label: "Conversational AI (Mode B)", placeholder: "false",
-    hint: "Opt-in realtime ElevenLabs agents. Adds wss://api.elevenlabs.io to the browser CSP — REQUIRES a server restart after changing.",
-    type: "select", options: ["false", "true"], group: "ElevenLabs",
-  },
-  ELEVENLABS_VOICE_CLONING_ENABLED: {
-    label: "Voice Cloning", placeholder: "false",
-    hint: "Instant voice cloning from reference audio. Every clone still requires a recorded consent attestation.",
-    type: "select", options: ["false", "true"], group: "ElevenLabs",
-  },
-  ELEVENLABS_VOICE_DESIGN_ENABLED: {
-    label: "Voice Design", placeholder: "false",
-    hint: "Describe a voice in plain language; ElevenLabs generates it.",
-    type: "select", options: ["false", "true"], group: "ElevenLabs",
+    label: "Default voice ID",
+    hint: "Platform-fallback voice, e.g. JBFqnCBsd6RMkjVDRZzb. Organisations pick their own voices in their AI settings.",
   },
   ELEVENLABS_TOOL_HMAC_SECRET: {
-    label: "Mode-B Tool Secret", placeholder: "32+ random characters",
-    hint: "HMAC secret for the signed RAG server-tool callback (/api/internal/elevenlabs/tools/rag-search). Required before any Mode-B agent can be created.",
-    type: "password", isSecret: true, group: "ElevenLabs",
+    label: "Mode-B tool secret",
+    hint: "HMAC secret for the signed RAG server-tool callback. Required before any Mode-B agent can be created.",
+    isSecret: true,
   },
   ELEVENLABS_WEBHOOK_SECRET: {
-    label: "Post-call Webhook Secret", placeholder: "from ElevenLabs dashboard",
-    hint: "Signing secret for ElevenLabs post-call webhooks (/api/webhooks/elevenlabs/post-call). Register the URL in the ElevenLabs Conversational AI dashboard.",
-    type: "password", isSecret: true, group: "ElevenLabs",
+    label: "Post-call webhook secret",
+    hint: "Signing secret for ElevenLabs post-call webhooks. Register the URL in the ElevenLabs dashboard.",
+    isSecret: true,
   },
   ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT: {
-    label: "Credit Alert Threshold (%)", placeholder: "80",
+    label: "Credit alert threshold (%)",
     hint: "Email super admins when this percent of the monthly ElevenLabs character budget is consumed.",
-    type: "number", validation: (v) => { const n = parseInt(v, 10); return (n > 0 && n <= 100) ? null : "Must be 1–100" }, group: "ElevenLabs",
+    validation: (v) => { const n = parseInt(v, 10); return (n > 0 && n <= 100) ? null : "Must be 1–100"; },
   },
   AI_MAX_CHAT_TOKENS: {
-    label: "Max Chat Tokens", placeholder: "4000", hint: "The longest reply your assistant can write. Bigger numbers allow more detailed answers but cost more.",
-    type: "number", validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
-    group: "Limits",
+    label: "Max chat tokens",
+    hint: "The longest reply your assistant can write. Blank = no platform cap.",
+    validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
   },
   AI_MAX_REALTIME_TOKENS: {
-    label: "Max Realtime Tokens", placeholder: "1000", hint: "Same idea, but for spoken (voice) conversations.",
-    type: "number", validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
-    group: "Limits",
+    label: "Max realtime tokens",
+    hint: "The same cap for spoken (voice) conversations. Blank = no platform cap.",
+    validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
   },
   AI_MAX_TEMPERATURE: {
-    label: "Max Temperature", placeholder: "1.0", hint: "How creative the replies may get (0 = always the same, 2 = very creative). Keep between 0 and 2.",
-    type: "number", validation: (v) => { const n = parseFloat(v); return (n >= 0 && n <= 2) ? null : "Must be between 0 and 2" },
-    group: "Limits",
+    label: "Max temperature",
+    hint: "How creative replies may get (0 = always the same, 2 = very creative).",
+    validation: (v) => { const n = parseFloat(v); return (n >= 0 && n <= 2) ? null : "Must be between 0 and 2"; },
   },
 
   // ── Payments ──────────────────────────────────────────────────────
   STRIPE_SECRET_KEY: {
-    label: "Secret Key", placeholder: "sk_test_... or sk_live_...", hint: "Server-side secret key from Stripe Dashboard",
-    type: "password", isSecret: true, group: "Stripe",
+    label: "Stripe secret key",
+    hint: "Server-side secret key from the Stripe Dashboard (USD payments).",
+    isSecret: true,
     helperLink: { label: "Stripe API Keys →", href: "https://dashboard.stripe.com/apikeys" },
   },
   STRIPE_WEBHOOK_SECRET: {
-    label: "Webhook Secret", placeholder: "whsec_...", hint: "Signing secret from Stripe webhook endpoint",
-    type: "password", isSecret: true, group: "Stripe",
+    label: "Stripe webhook secret",
+    hint: "Signing secret from your Stripe webhook endpoint.",
+    isSecret: true,
     helperLink: { label: "Stripe Webhooks →", href: "https://dashboard.stripe.com/webhooks" },
   },
   STRIPE_PRICE_STARTER: {
-    label: "Starter Plan Price ID", placeholder: "price_...", hint: "Managed on Subscriptions page — not edited here",
-    type: "text", deprecated: true, deprecationHint: "Plan pricing is now managed on the Subscriptions page. This field is kept for legacy reference only.",
-    group: "Stripe (Legacy)",
+    label: "Starter plan price ID", hint: "Managed on the Subscriptions page — kept for reference only.",
+    deprecated: true,
   },
   STRIPE_PRICE_PRO: {
-    label: "Pro Plan Price ID", placeholder: "price_...", hint: "Managed on Subscriptions page — not edited here",
-    type: "text", deprecated: true, deprecationHint: "Plan pricing is now managed on the Subscriptions page. This field is kept for legacy reference only.",
-    group: "Stripe (Legacy)",
+    label: "Pro plan price ID", hint: "Managed on the Subscriptions page — kept for reference only.",
+    deprecated: true,
   },
-
-  // Razorpay — paired fields with clear public/secret distinction
   RAZORPAY_KEY_ID: {
-    label: "Key ID (Server)", placeholder: "rzp_test_... or rzp_live_...", hint: "Server-side Key ID from Razorpay Dashboard",
-    type: "text", isSecret: false, group: "Razorpay",
-    relatedKey: "NEXT_PUBLIC_RAZORPAY_KEY_ID",
+    label: "Razorpay Key ID (server)",
+    hint: "Server-side Key ID from the Razorpay Dashboard (INR payments).",
     helperLink: { label: "Razorpay API Keys →", href: "https://dashboard.razorpay.com/app/keys" },
   },
   NEXT_PUBLIC_RAZORPAY_KEY_ID: {
-    label: "Key ID (Public / Browser)", placeholder: "rzp_test_... or rzp_live_...", hint: "Client-safe Key ID passed to Razorpay Checkout.js. Usually identical to server Key ID.",
-    type: "text", isSecret: false, group: "Razorpay",
-    relatedKey: "RAZORPAY_KEY_ID",
+    label: "Razorpay Key ID (public)",
+    hint: "Browser-safe Key ID passed to Razorpay Checkout.js — usually identical to the server Key ID.",
   },
   RAZORPAY_KEY_SECRET: {
-    label: "Key Secret", placeholder: "Enter key secret…", hint: "Server-side secret (never exposed to browser)",
-    type: "password", isSecret: true, group: "Razorpay",
+    label: "Razorpay Key secret",
+    hint: "Server-side secret (never exposed to the browser).",
+    isSecret: true,
   },
   RAZORPAY_WEBHOOK_SECRET: {
-    label: "Webhook Secret", placeholder: "Enter webhook signing secret…", hint: "From Razorpay → Settings → Webhooks → Secret",
-    type: "password", isSecret: true, group: "Razorpay",
+    label: "Razorpay webhook secret",
+    hint: "From Razorpay → Settings → Webhooks → Secret.",
+    isSecret: true,
     helperLink: { label: "Razorpay Webhooks →", href: "https://dashboard.razorpay.com/app/webhooks" },
   },
 
-  // ── Platform ──────────────────────────────────────────────────────
+  // ── Phone ──────────────────────────────────────────────────────────
+  TWILIO_ACCOUNT_SID: { label: "Twilio Account SID", hint: "From the Twilio Console." },
+  TWILIO_AUTH_TOKEN: { label: "Twilio auth token", hint: "From the Twilio Console.", isSecret: true },
+  TWILIO_PHONE_NUMBER: { label: "Twilio phone number", hint: "E.164 format, e.g. +15551234567." },
+  VONAGE_API_KEY: { label: "Vonage API key", hint: "From the Vonage Dashboard." },
+  VONAGE_API_SECRET: { label: "Vonage API secret", hint: "From the Vonage Dashboard.", isSecret: true },
+  VONAGE_PHONE_NUMBER: { label: "Vonage phone number", hint: "E.164 format, e.g. +15551234567." },
+
+  // ── Platform ───────────────────────────────────────────────────────
   NEXT_PUBLIC_APP_URL: {
-    label: "Public App URL", placeholder: "https://your-domain.com", hint: "Base URL for payment callbacks, redirects, and webhook endpoints",
-    type: "url", group: "Platform",
+    label: "Public app URL",
+    hint: "Base URL for payment callbacks, redirects and webhook endpoints.",
   },
   NEXT_PUBLIC_LANDING_EMBED_API_KEY: {
-    label: "Landing Embed API Key", placeholder: "clr_...", hint: "Public API key for landing page embed widget",
-    type: "text", group: "Platform",
+    label: "Landing embed API key",
+    hint: "Public key used by the chat widget on your landing page.",
   },
-
-  // ── Phone ─────────────────────────────────────────────────────────
-  PHONE_PROVIDER: {
-    label: "Phone Provider", placeholder: "Select provider", hint: "Active voice provider for phone calls",
-    type: "select", options: ["twilio", "vonage"], group: "Provider",
-  },
-  TWILIO_ACCOUNT_SID: { label: "Account SID", placeholder: "AC...", hint: "Twilio Account SID from Console", type: "text", group: "Twilio" },
-  TWILIO_AUTH_TOKEN: { label: "Auth Token", placeholder: "...", hint: "Twilio Auth Token from Console", type: "password", isSecret: true, group: "Twilio" },
-  TWILIO_PHONE_NUMBER: { label: "Phone Number", placeholder: "+15551234567", hint: "E.164 format phone number from Twilio", type: "text", group: "Twilio" },
-  VONAGE_API_KEY: { label: "API Key", placeholder: "...", hint: "Vonage API Key from Dashboard", type: "text", group: "Vonage" },
-  VONAGE_API_SECRET: { label: "API Secret", placeholder: "...", hint: "Vonage API Secret from Dashboard", type: "password", isSecret: true, group: "Vonage" },
-  VONAGE_PHONE_NUMBER: { label: "Phone Number", placeholder: "+15551234567", hint: "E.164 format phone number from Vonage", type: "text", group: "Vonage" },
 };
 
+// ─── Categories ───────────────────────────────────────────────────────────────
+
 const CATEGORIES = ["ai", "payments", "phone", "platform"] as const;
-const CATEGORY_LABELS: Record<typeof CATEGORIES[number], { icon: React.ReactNode; short: string; title: string; description: string }> = {
+type Category = (typeof CATEGORIES)[number];
+
+/** Noun used in the per-tab Save button ("Save AI settings"). */
+const CATEGORY_SAVE_NOUN: Record<Category, string> = {
+  ai: "AI",
+  payments: "payments",
+  phone: "phone",
+  platform: "website & app",
+};
+
+const CATEGORY_LABELS: Record<Category, { icon: React.ReactNode; short: string; title: string; description: string }> = {
   ai: {
-    icon: <Bot className="w-4 h-4" />, short: "AI", title: "AI setup",
-    description: "Pick your AI company (OpenAI or Google Gemini), choose how smart your assistant should be, and paste your access keys. These choices apply to every organisation and assistant on the platform — organisations can only change their assistant's name, personality, language, and voice.",
+    icon: <Bot className="w-4 h-4" />, short: "AI", title: "AI Providers & Models",
+    description: "Platform-wide defaults: which AI company powers thinking (OpenAI or Google Gemini), the keys that connect them, the default models, and the ElevenLabs voice service. Organisations can pick their own provider and models — these are the defaults everything starts from.",
   },
   payments: {
     icon: <CreditCard className="w-4 h-4" />, short: "Payments", title: "Payments",
@@ -334,8 +244,7 @@ const CATEGORY_LABELS: Record<typeof CATEGORIES[number], { icon: React.ReactNode
   },
 };
 
-// Category → which keys belong
-const CATEGORY_KEYS: Record<typeof CATEGORIES[number], string[]> = {
+const CATEGORY_KEYS: Record<Category, string[]> = {
   ai: [
     "AI_PROVIDER",
     "OPENAI_API_KEY", "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL", "OPENAI_DEFAULT_VOICE",
@@ -348,7 +257,6 @@ const CATEGORY_KEYS: Record<typeof CATEGORIES[number], string[]> = {
   payments: [
     "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
     "RAZORPAY_KEY_ID", "NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET",
-    // Legacy price IDs — shown collapsed
     "STRIPE_PRICE_STARTER", "STRIPE_PRICE_PRO",
   ],
   phone: [
@@ -361,30 +269,36 @@ const CATEGORY_KEYS: Record<typeof CATEGORIES[number], string[]> = {
   ],
 };
 
+const PHONE_PROVIDERS = [
+  { id: "twilio", label: "Twilio", blurb: "Voice calls over the Twilio programmable-voice network." },
+  { id: "vonage", label: "Vonage", blurb: "Voice calls over the Vonage voice API." },
+];
+
+/** Field-metadata lookup, hoisted so callbacks close over a stable reference. */
+const meta = (key: string): FieldMeta | undefined => FIELD_METADATA[key];
+
+// ─── Panel ────────────────────────────────────────────────────────────────────
+
 export function PlatformEnvPanel() {
   const [settings, setSettings] = useState<EnvSetting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [newValue, setNewValue] = useState("");
+  const [tab, setTab] = useState<Category>("ai");
+
+  // Draft state — only the keys the user has touched.
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  // Secrets marked for explicit clearing (blank + Clear button).
+  const [cleared, setCleared] = useState<Record<string, true>>({});
+
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategory, setFilterCategory] = useState<typeof CATEGORIES[number] | "all">("ai");
-  const [showEmptyFields, setShowEmptyFields] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(apiUrl("/api/platform/env"), {
-        headers: withAuthHeaders(),
-      });
-      const data = (await res.json()) as {
-        settings: EnvSetting[];
-        error?: string;
-      };
+      const res = await fetch(apiUrl("/api/platform/env"), { headers: withAuthHeaders() });
+      const data = (await res.json()) as { settings?: EnvSetting[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to load settings");
       setSettings(data.settings ?? []);
     } catch (e) {
@@ -393,441 +307,787 @@ export function PlatformEnvPanel() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => {
-    void load();
-  }, [load]);
 
-  const meta = FIELD_METADATA;
+  useEffect(() => { void load(); }, [load]);
 
-  const validateInput = (key: string, value: string) => {
-    const m = meta[key];
-    if (m?.validation) return m.validation(value);
-    return null;
-  };
+  const settingMap = useMemo(() => new Map(settings.map((s) => [s.key, s])), [settings]);
 
-  const startEdit = (key: string, value: string) => {
-    setEditing(key);
-    setNewValue(value === MASK ? "" : value);
-    setConfirm(false);
-    setError(null);
-    setSuccess(null);
-    setValidationError(null);
-  };
-
-  const cancelEdit = () => {
-    setEditing(null);
-    setNewValue("");
-    setConfirm(false);
-    setError(null);
-    setValidationError(null);
-  };
-
-  const handleValueChange = (val: string) => {
-    setNewValue(val);
-    const err = validateInput(editing!, val);
-    setValidationError(err);
-  };
-
-  const saveEdit = async (key: string) => {
-    if (!confirm) {
-      setError("Please confirm you want to apply this change.");
-      return;
-    }
-    const err = validateInput(key, newValue);
-    if (err) {
-      setValidationError(err);
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const tokenRes = await fetch(
-        apiUrl(
-          `/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(newValue)}`,
-        ),
-        { headers: withAuthHeaders() },
-      );
-      const tokenData = (await tokenRes.json()) as {
-        confirmation_token?: string;
-        timestamp?: number;
-        error?: string;
-      };
-      if (!tokenRes.ok || !tokenData.confirmation_token)
-        throw new Error(
-          tokenData.error ?? "Could not create confirmation token",
-        );
-      const res = await fetch(apiUrl("/api/platform/env"), {
-        method: "POST",
-        headers: withAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          key,
-          value: newValue,
-          confirmation_token: tokenData.confirmation_token,
-          timestamp: tokenData.timestamp,
-        }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Failed to save");
-      setSuccess(`${key} updated successfully.`);
-      setEditing(null);
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Build lookup for quick access - always called, not conditional
-  const settingMap = useMemo(() => new Map(settings.map(s => [s.key, s])), [settings]);
-
-  if (loading)
-    return <div className="animate-pulse h-32 rounded-xl bg-muted/30" />;
-
-  // Helper to render a single field in view or edit mode
-  const renderField = (key: string, category: string, isLegacy: boolean = false) => {
-    const s = settingMap.get(key);
-    const m = meta[key];
-    if (!s && !m) return null; // field not in metadata
-
-    const value = s?.value || "";
-    const isSet = s?.isSet ?? Boolean(value);
-    const isSecret = s?.isSecret ?? m?.isSecret ?? false;
-    const showRelated = m?.relatedKey && settingMap.has(m.relatedKey);
-    const relatedItem = showRelated ? settingMap.get(m.relatedKey!) : null;
-
-    const isEditing = editing === key;
-
-    const InputComponent = (() => {
-      if (m?.type === "select" && m.options) {
-        return (
-          <Select value={newValue} onValueChange={handleValueChange} disabled={saving}>
-            <SelectTrigger className={`w-full ${validationError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : ""}`}>
-              <SelectValue placeholder={m.placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {m.options.map(opt => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      }
-      if (m?.type === "password" || isSecret) {
-        return (
-          <input
-            type="password"
-            value={newValue}
-            onChange={(e) => handleValueChange(e.target.value)}
-            placeholder={m?.placeholder || "Enter new secret value…"}
-            className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono ${validationError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : ""}`}
-            autoFocus
-            disabled={saving}
-          />
-        );
-      }
-      if (m?.type === "number") {
-        return (
-          <input
-            type="number"
-            value={newValue}
-            onChange={(e) => handleValueChange(e.target.value)}
-            placeholder={m?.placeholder || "Enter value…"}
-            className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono ${validationError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : ""}`}
-            autoFocus
-            disabled={saving}
-          />
-        );
-      }
-      if (m?.type === "url") {
-        return (
-          <input
-            type="url"
-            value={newValue}
-            onChange={(e) => handleValueChange(e.target.value)}
-            placeholder={m?.placeholder || "Enter value…"}
-            className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono ${validationError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : ""}`}
-            autoFocus
-            disabled={saving}
-          />
-        );
-      }
-      // default text
-      return (
-        <input
-          type="text"
-          value={newValue}
-          onChange={(e) => handleValueChange(e.target.value)}
-          placeholder={m?.placeholder || "Enter value…"}
-          className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono ${validationError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : ""}`}
-          autoFocus
-          disabled={saving}
-        />
-      );
-    })();
-
-    if (isEditing) {
-      return (
-        <div key={key} className="space-y-3 p-4 bg-card border border-border rounded-lg">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Label className="text-sm font-semibold text-foreground">{m?.label || key}</Label>
-            {isSecret && <Badge variant="secondary" className="text-[10px]">secret</Badge>}
-            {m?.deprecated && <Badge variant="destructive" className="text-[10px]">legacy</Badge>}
-          </div>
-          <p className="text-[11px] font-mono text-muted-foreground/70 select-all">{key}</p>
-          {InputComponent}
-          {m?.hint && <p className="text-xs text-muted-foreground">{m.hint}</p>}
-          {m?.deprecationHint && (
-            <p className="text-xs text-amber-400 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {m.deprecationHint}
-            </p>
-          )}
-          {showRelated && relatedItem && (
-            <p className="text-xs text-cyan-400 flex items-center gap-1">
-              <ExternalLink className="w-3 h-3" />
-              Paired with <code className="bg-muted px-1 rounded">{m.relatedKey}</code> (currently: {relatedItem.isSecret ? (relatedItem.isSet ? "✓ Configured" : "✗ Not set") : relatedItem.value || "(empty)"})
-            </p>
-          )}
-          {m?.helperLink && (
-            <a href={m.helperLink.href} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-1">
-              {m.helperLink.label}
-            </a>
-          )}
-          {validationError && (
-            <p className="text-xs text-destructive flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {validationError}
-            </p>
-          )}
-          <div className="rounded-lg bg-warning/5 border border-warning/20 px-3 py-2 text-xs text-warning flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <p className="font-semibold">This change takes effect immediately for everyone using the platform.</p>
-              <p className="mt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={confirm}
-                    onChange={(e) => setConfirm(e.target.checked)}
-                    className="rounded border-border text-primary focus:ring-primary/20"
-                  />
-                  I confirm this change
-                </label>
-              </p>
-            </div>
-          </div>
-          {error && (
-            <p className="text-xs text-destructive flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {error}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={cancelEdit} disabled={saving}>Cancel</Button>
-            <Button size="sm" onClick={() => saveEdit(key)} disabled={saving || !confirm || !!validationError}>
-              {saving ? "Saving…" : "Apply change"}
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    // View mode
-    return (
-      <div key={key} className={`flex items-center justify-between gap-4 p-3 ${isLegacy ? "opacity-60" : ""}`}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium text-foreground">{m?.label || key}</p>
-            {isSecret && <Badge variant="secondary" className="text-[10px]">secret</Badge>}
-            {m?.deprecated && <Badge variant="destructive" className="text-[10px]">legacy</Badge>}
-          </div>
-          <p className="text-[11px] font-mono text-muted-foreground/70 mt-0.5 select-all">{key}</p>
-          {m?.hint && <p className="text-[11px] text-muted-foreground/70 mt-0.5">{m.hint}</p>}
-          {m?.deprecationHint && (
-            <p className="text-[11px] text-amber-400/80 mt-0.5 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {m.deprecationHint}
-            </p>
-          )}
-          {showRelated && relatedItem && (
-            <p className="text-[11px] text-cyan-400 mt-1 flex items-center gap-1">
-              <ExternalLink className="w-3 h-3" />
-              Paired with <code className="bg-muted px-1 rounded">{m.relatedKey}</code>
-            </p>
-          )}
-          <div className="mt-1">
-            {isSecret ? (
-              <span className={`text-xs font-medium ${isSet ? "text-success" : "text-destructive"} flex items-center gap-1`}>
-                {isSet ? <Check className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                {isSet ? "Set up" : "Not set up yet"}
-              </span>
-            ) : (
-              <span className="text-xs font-mono bg-muted/40 px-2 py-0.5 rounded">
-                {value || "(empty)"}
-              </span>
-            )}
-          </div>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => startEdit(key, value)}>
-          Edit
-        </Button>
-      </div>
-    );
-  };
-
-  const renderGroup = (groupName: string, keys: string[], category: string, isLegacyGroup: boolean = false) => {
-    const filteredKeys = keys.filter(key => {
+  // ── Draft helpers ───────────────────────────────────────────────────────
+  const isSecretKey = useCallback(
+    (key: string) => settingMap.get(key)?.isSecret ?? FIELD_METADATA[key]?.isSecret ?? false,
+    [settingMap],
+  );
+  /** Editable saved value — secrets always start blank (never echoed). */
+  const savedValue = useCallback(
+    (key: string) => {
       const s = settingMap.get(key);
-      const m = meta[key];
-      const value = s?.value || "";
-      const isSet = s?.isSet ?? Boolean(value);
-
-      const matchesSearch = searchTerm === "" ||
-        key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m?.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m?.hint?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesShowEmpty = showEmptyFields || isSet;
-
-      return matchesSearch && matchesShowEmpty;
+      if (!s) return "";
+      return s.isSecret ? "" : s.value || "";
+    },
+    [settingMap],
+  );
+  const isSet = useCallback(
+    (key: string) => settingMap.get(key)?.isSet ?? false,
+    [settingMap],
+  );
+  const display = useCallback(
+    (key: string) => (key in draft ? draft[key] : savedValue(key)),
+    [draft, savedValue],
+  );
+  const setDraftValue = useCallback((key: string, value: string) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setCleared((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
     });
+  }, []);
+  const clearSecret = useCallback((key: string) => {
+    setDraft((current) => ({ ...current, [key]: "" }));
+    setCleared((current) => ({ ...current, [key]: true }));
+  }, []);
+  const isDirty = useCallback(
+    (key: string) => {
+      if (cleared[key]) return true;
+      if (!(key in draft)) return false;
+      if (isSecretKey(key)) return draft[key] !== "";
+      return draft[key] !== savedValue(key);
+    },
+    [cleared, draft, isSecretKey, savedValue],
+  );
 
-    if (filteredKeys.length === 0) return null;
+  const dirtyKeysFor = useCallback(
+    (keys: string[]) => keys.filter((k) => isDirty(k)),
+    [isDirty],
+  );
 
-    return (
-      <div key={groupName} className="space-y-1">
-        {groupName !== "General" && !isLegacyGroup && (
-          <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/30 rounded-t-lg">
-            {groupName}
-          </div>
-        )}
-        <Card className={`overflow-hidden ${isLegacyGroup ? "border-amber-500/20 bg-amber-500/5" : ""}`}>
-          <div className="divide-y divide-border/50">
-            {filteredKeys.map((key) => renderField(key, category, isLegacyGroup))}
-          </div>
-        </Card>
-      </div>
-    );
-  };
+  const resetTab = useCallback((keys: string[]) => {
+    setDraft((current) => {
+      const next = { ...current };
+      for (const k of keys) delete next[k];
+      return next;
+    });
+    setCleared((current) => {
+      const next = { ...current };
+      for (const k of keys) delete next[k];
+      return next;
+    });
+    setConfirm(false);
+    setError(null);
+  }, []);
+
+  // ── Save (per changed key, HMAC confirmation-token flow preserved) ──────
+  const saveTab = useCallback(
+    async (category: Category) => {
+      const keys = dirtyKeysFor(CATEGORY_KEYS[category]);
+      if (keys.length === 0) return;
+
+      // Client-side validation — WS-0.4 model cross-entry and numeric ranges.
+      for (const key of keys) {
+        const value = display(key);
+        const validation = meta(key)?.validation;
+        if (value.trim() && validation) {
+          const message = validation(value);
+          if (message) {
+            setError(`${meta(key)?.label ?? key}: ${message}`);
+            return;
+          }
+        }
+      }
+
+      setSaving(true);
+      setError(null);
+      const savedNow: string[] = [];
+      const failures: { key: string; message: string }[] = [];
+
+      for (const key of keys) {
+        const value = display(key);
+        try {
+          const tokenRes = await fetch(
+            apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`),
+            { headers: withAuthHeaders() },
+          );
+          const tokenData = (await tokenRes.json()) as { confirmation_token?: string; timestamp?: number; error?: string };
+          if (!tokenRes.ok || !tokenData.confirmation_token) {
+            throw new Error(tokenData.error ?? "Could not create confirmation token");
+          }
+          const res = await fetch(apiUrl("/api/platform/env"), {
+            method: "POST",
+            headers: withAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+              key,
+              value,
+              confirmation_token: tokenData.confirmation_token,
+              timestamp: tokenData.timestamp,
+            }),
+          });
+          const data = (await res.json()) as { ok?: boolean; error?: string };
+          if (!res.ok) throw new Error(data.error ?? `Failed to save ${key}`);
+          savedNow.push(key);
+        } catch (e) {
+          failures.push({ key, message: (e as Error).message });
+        }
+      }
+
+      // Drop successfully saved keys from the draft; keep failures for retry.
+      if (savedNow.length > 0) {
+        setDraft((current) => {
+          const next = { ...current };
+          for (const k of savedNow) delete next[k];
+          return next;
+        });
+        setCleared((current) => {
+          const next = { ...current };
+          for (const k of savedNow) delete next[k];
+          return next;
+        });
+      }
+
+      setSaving(false);
+
+      if (failures.length > 0) {
+        const detail = failures
+          .map((f) => `${meta(f.key)?.label ?? f.key}: ${f.message}`)
+          .join(" · ");
+        setError(detail);
+        toast.error("Some settings could not be saved", { description: detail });
+        return;
+      }
+
+      setSavedCount(savedNow.length);
+      window.setTimeout(() => setSavedCount(0), 2500);
+      setConfirm(false);
+      toast.success("Platform settings saved", {
+        description: `${savedNow.length} ${savedNow.length === 1 ? "change" : "changes"} applied — they take effect on the next request.`,
+      });
+      await load();
+    },
+    [dirtyKeysFor, display, load],
+  );
+
+  if (loading) return <div className="animate-pulse h-32 rounded-xl bg-muted/30" />;
+
+  const activeDirty = dirtyKeysFor(CATEGORY_KEYS[tab]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-base font-semibold text-foreground">All platform settings</h2>
-        <p className="text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-          Everything below is controlled in one place and applies to the whole platform. Changes take effect
-          straight away — no restart needed. Items marked <span className="font-medium">secret</span> are hidden
-          after saving, which keeps them safe.
-        </p>
-      </div>
-      {success && (
-        <div className="rounded-lg bg-success/10 border border-success/30 px-4 py-2 text-sm text-success flex items-center gap-2">
-          <Check className="w-4 h-4" /> {success}
-        </div>
-      )}
-      {error && !editing && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-2 text-sm text-destructive flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" /> {error}
-        </div>
-      )}
-
-      <Tabs value={filterCategory} onValueChange={(val) => setFilterCategory(val as typeof CATEGORIES[number] | "all")} className="w-full">
+      <Tabs value={tab} onValueChange={(value) => { setTab(value as Category); setError(null); setConfirm(false); }} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1">
-          {CATEGORIES.map(cat => (
-            <TabsTrigger key={cat} value={cat} className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-2">
-              <div className="flex items-center gap-2">
-                {CATEGORY_LABELS[cat].icon}
-                <span className="font-medium text-xs sm:text-sm">{CATEGORY_LABELS[cat].short}</span>
-              </div>
-            </TabsTrigger>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const catDirty = dirtyKeysFor(CATEGORY_KEYS[cat]);
+            return (
+              <TabsTrigger key={cat} value={cat} className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-2">
+                <div className="flex items-center gap-2">
+                  {CATEGORY_LABELS[cat].icon}
+                  <span className="font-medium text-xs sm:text-sm">{CATEGORY_LABELS[cat].short}</span>
+                  {catDirty.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5">{catDirty.length}</Badge>
+                  )}
+                </div>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
-          <Input
-            type="text"
-            placeholder="Search settings…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-64"
-          />
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Label htmlFor="show-empty" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
-                    Show items not set up yet
-                  </Label>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Turn on to also see settings you haven&apos;t filled in yet.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Switch
-              id="show-empty"
-              checked={showEmptyFields}
-              onCheckedChange={setShowEmptyFields}
-            />
-          </div>
-        </div>
+        {CATEGORIES.map((cat) => (
+          <TabsContent key={cat} value={cat} className="space-y-6 pt-4">
+            <Card className="border-border shadow-soft">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <span className="text-primary">{CATEGORY_LABELS[cat].icon}</span>
+                  {CATEGORY_LABELS[cat].title}
+                </CardTitle>
+                <CardDescription>
+                  {CATEGORY_LABELS[cat].description}
+                  {" "}Changes take effect on the next request — no redeploy needed. Secrets are hidden after saving, which keeps them safe.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {cat === "ai" && (
+                  <AICategoryEditor
+                    display={display} setDraftValue={setDraftValue} isSet={isSet} clearSecret={clearSecret}
+                  />
+                )}
+                {cat === "payments" && (
+                  <PaymentsCategoryEditor
+                    display={display} setDraftValue={setDraftValue} isSet={isSet} clearSecret={clearSecret}
+                  />
+                )}
+                {cat === "phone" && (
+                  <PhoneCategoryEditor
+                    display={display} setDraftValue={setDraftValue} isSet={isSet} clearSecret={clearSecret}
+                  />
+                )}
+                {cat === "platform" && (
+                  <PlatformCategoryEditor display={display} setDraftValue={setDraftValue} />
+                )}
 
-        {CATEGORIES.map(cat => (
-          <TabsContent key={cat} value={cat} className="space-y-4 pt-4">
-            <p className="text-sm text-muted-foreground">{CATEGORY_LABELS[cat].description}</p>
-
-            {(() => {
-              const keys = CATEGORY_KEYS[cat] || [];
-              // Group keys by metadata.group
-              const grouped = keys.reduce<Record<string, string[]>>((acc, key) => {
-                const g = meta[key]?.group || "General";
-                (acc[g] ??= []).push(key);
-                return acc;
-              }, {});
-
-              // Separate legacy groups
-              const legacyGroups: Record<string, string[]> = {};
-              const normalGroups: Record<string, string[]> = {};
-              Object.entries(grouped).forEach(([g, ks]) => {
-                if (g.includes("(Legacy)")) {
-                  legacyGroups[g] = ks;
-                } else {
-                  normalGroups[g] = ks;
-                }
-              });
-
-              const renderedNormalGroups = Object.entries(normalGroups).map(([groupName, groupKeys]) =>
-                renderGroup(groupName, groupKeys, cat, false)
-              ).filter(Boolean); // Filter out nulls from groups with no matching fields
-
-              const renderedLegacyGroups = Object.keys(legacyGroups).length > 0 && (
-                <div className="border-t border-amber-500/20 pt-4">
-                  <div className="flex items-center gap-2 text-xs text-amber-400 mb-2">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span className="font-medium">Legacy fields (kept for reference)</span>
-                  </div>
-                  {Object.entries(legacyGroups).map(([groupName, groupKeys]) =>
-                    renderGroup(groupName, groupKeys, cat, true)
-                  ).filter(Boolean)}
-                </div>
-              );
-
-              if (renderedNormalGroups.length === 0 && !renderedLegacyGroups) {
-                return (
-                  <div className="text-center text-muted-foreground py-8">
-                    <p>Nothing matches your search.</p>
-                    <p className="text-sm mt-1">Try a different word, or turn on “Show items not set up yet”.</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-4">
-                  {renderedNormalGroups}
-                  {renderedLegacyGroups}
-                </div>
-              );
-            })()}
+                <SaveBar
+                  error={error}
+                  saving={saving}
+                  onSave={() => void saveTab(cat)}
+                  onReset={() => resetTab(CATEGORY_KEYS[cat])}
+                  saveLabel={`Save ${CATEGORY_SAVE_NOUN[cat]} settings`}
+                  confirm={confirm}
+                  onConfirmChange={setConfirm}
+                  confirmLabel="I confirm — these changes apply immediately to everyone using the platform"
+                  dirty={activeDirty.length > 0}
+                  extra={
+                    savedCount > 0 ? (
+                      <span className="text-success">{savedCount} {savedCount === 1 ? "change" : "changes"} saved.</span>
+                    ) : activeDirty.length > 0 ? (
+                      <span className="text-muted-foreground">
+                        {activeDirty.length} unsaved {activeDirty.length === 1 ? "change" : "changes"} in this category.
+                      </span>
+                    ) : undefined
+                  }
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
         ))}
       </Tabs>
     </div>
+  );
+}
+
+// ─── Category editors ─────────────────────────────────────────────────────────
+
+type EditorProps = {
+  display: (key: string) => string;
+  setDraftValue: (key: string, value: string) => void;
+  isSet?: (key: string) => boolean;
+  clearSecret?: (key: string) => void;
+};
+
+function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
+  const activeProvider = display("AI_PROVIDER") === "gemini" ? "gemini" : "openai";
+  const elEnabled = display("ELEVENLABS_ENABLED") === "true";
+  const openaiKeySet = Boolean(isSet?.("OPENAI_API_KEY"));
+  const geminiKeySet = Boolean(isSet?.("GEMINI_API_KEY"));
+  const elKeySet = Boolean(isSet?.("ELEVENLABS_API_KEY"));
+
+  const boolToggle = (key: string, checked: boolean) => setDraftValue(key, checked ? "true" : "false");
+
+  return (
+    <>
+      {/* ── Thinking provider ──────────────────────────────────────────── */}
+      <SettingsSection
+        icon={<Sparkles />}
+        title="Thinking provider (chat & knowledge)"
+        description="The default for every organisation on the platform. Organisations can still switch to the other provider in their own AI settings — both keys below should be filled in."
+      >
+        <OptionCardGrid
+          options={BRAIN_PROVIDERS.map((p) => ({
+            id: p.id,
+            label: p.label,
+            blurb: p.blurb,
+            badge:
+              p.id === "openai" && !openaiKeySet ? { text: "Key missing", variant: "destructive" as const }
+              : p.id === "gemini" && !geminiKeySet ? { text: "Key missing", variant: "destructive" as const }
+              : undefined,
+          }))}
+          value={activeProvider}
+          onChange={(id) => {
+            const next = id === "gemini" ? "gemini" : "openai";
+            if (next !== activeProvider) setDraftValue("AI_PROVIDER", next);
+          }}
+        />
+      </SettingsSection>
+
+      {/* ── API keys ───────────────────────────────────────────────────── */}
+      <SettingsSection
+        icon={<KeyRound />}
+        title="API keys"
+        description="Platform-wide secret keys. Blank means untouched — type to replace, Clear to remove."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SecretField
+            label={FIELD_METADATA.OPENAI_API_KEY.label}
+            hint={FIELD_METADATA.OPENAI_API_KEY.hint}
+            helperLink={FIELD_METADATA.OPENAI_API_KEY.helperLink}
+            value={display("OPENAI_API_KEY")}
+            onChange={(value) => setDraftValue("OPENAI_API_KEY", value)}
+            isSet={openaiKeySet}
+            placeholder="sk-…"
+            onClear={() => clearSecret?.("OPENAI_API_KEY")}
+          />
+          <SecretField
+            label={FIELD_METADATA.GEMINI_API_KEY.label}
+            hint={FIELD_METADATA.GEMINI_API_KEY.hint}
+            helperLink={FIELD_METADATA.GEMINI_API_KEY.helperLink}
+            value={display("GEMINI_API_KEY")}
+            onChange={(value) => setDraftValue("GEMINI_API_KEY", value)}
+            isSet={geminiKeySet}
+            placeholder="AIza…"
+            onClear={() => clearSecret?.("GEMINI_API_KEY")}
+          />
+        </div>
+      </SettingsSection>
+
+      {/* ── OpenAI defaults ────────────────────────────────────────────── */}
+      <SettingsSection
+        title="Default models — OpenAI"
+        description="Starting models for organisations on OpenAI. Organisations and knowledge bases can override them."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ModelSelect
+            label={FIELD_METADATA.OPENAI_CHAT_MODEL.label}
+            hint={FIELD_METADATA.OPENAI_CHAT_MODEL.hint}
+            value={display("OPENAI_CHAT_MODEL")}
+            onChange={(value) => setDraftValue("OPENAI_CHAT_MODEL", value)}
+            options={openaiChatOptions()}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.OPENAI_EMBEDDING_MODEL.label}
+            hint={FIELD_METADATA.OPENAI_EMBEDDING_MODEL.hint}
+            value={display("OPENAI_EMBEDDING_MODEL")}
+            onChange={(value) => setDraftValue("OPENAI_EMBEDDING_MODEL", value)}
+            options={openaiEmbeddingOptions()}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.OPENAI_REALTIME_MODEL.label}
+            hint={FIELD_METADATA.OPENAI_REALTIME_MODEL.hint}
+            value={display("OPENAI_REALTIME_MODEL")}
+            onChange={(value) => setDraftValue("OPENAI_REALTIME_MODEL", value)}
+            options={realtimeOptions("openai")}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.OPENAI_TRANSCRIPTION_MODEL.label}
+            hint={FIELD_METADATA.OPENAI_TRANSCRIPTION_MODEL.hint}
+            value={display("OPENAI_TRANSCRIPTION_MODEL")}
+            onChange={(value) => setDraftValue("OPENAI_TRANSCRIPTION_MODEL", value)}
+            options={transcriptionOptions("openai")}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.OPENAI_DEFAULT_VOICE.label}
+            hint={FIELD_METADATA.OPENAI_DEFAULT_VOICE.hint}
+            value={display("OPENAI_DEFAULT_VOICE")}
+            onChange={(value) => setDraftValue("OPENAI_DEFAULT_VOICE", value)}
+            options={voiceOptions("openai")}
+            placeholder="Provider default"
+          />
+        </div>
+      </SettingsSection>
+
+      {/* ── Gemini defaults ────────────────────────────────────────────── */}
+      <SettingsSection
+        title="Default models — Gemini"
+        description="Starting models for organisations on Gemini. Organisations and knowledge bases can override them."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ModelSelect
+            label={FIELD_METADATA.GEMINI_CHAT_MODEL.label}
+            hint={FIELD_METADATA.GEMINI_CHAT_MODEL.hint}
+            value={display("GEMINI_CHAT_MODEL")}
+            onChange={(value) => setDraftValue("GEMINI_CHAT_MODEL", value)}
+            options={geminiChatOptions()}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.GEMINI_EMBEDDING_MODEL.label}
+            hint={FIELD_METADATA.GEMINI_EMBEDDING_MODEL.hint}
+            value={display("GEMINI_EMBEDDING_MODEL")}
+            onChange={(value) => setDraftValue("GEMINI_EMBEDDING_MODEL", value)}
+            options={geminiEmbeddingOptions()}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.GEMINI_REALTIME_MODEL.label}
+            hint={FIELD_METADATA.GEMINI_REALTIME_MODEL.hint}
+            value={display("GEMINI_REALTIME_MODEL")}
+            onChange={(value) => setDraftValue("GEMINI_REALTIME_MODEL", value)}
+            options={realtimeOptions("gemini")}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.GEMINI_TRANSCRIPTION_MODEL.label}
+            hint={FIELD_METADATA.GEMINI_TRANSCRIPTION_MODEL.hint}
+            value={display("GEMINI_TRANSCRIPTION_MODEL")}
+            onChange={(value) => setDraftValue("GEMINI_TRANSCRIPTION_MODEL", value)}
+            options={transcriptionOptions("gemini")}
+            placeholder="Provider default"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.GEMINI_DEFAULT_VOICE.label}
+            hint={FIELD_METADATA.GEMINI_DEFAULT_VOICE.hint}
+            value={display("GEMINI_DEFAULT_VOICE")}
+            onChange={(value) => setDraftValue("GEMINI_DEFAULT_VOICE", value)}
+            options={voiceOptions("gemini")}
+            placeholder="Provider default"
+          />
+        </div>
+      </SettingsSection>
+
+      {/* ── Voice provider (ElevenLabs) ────────────────────────────────── */}
+      <SettingsSection
+        icon={<Volume2 />}
+        title="Voice provider (ElevenLabs)"
+        description="ElevenLabs is a voice-only provider — it speaks and listens, while Clara's own AI answers. Documents and knowledge bases never leave this platform."
+      >
+        <StatusPills
+          items={[
+            elKeySet ? { text: "ElevenLabs key set", tone: "ok" } : { text: "ElevenLabs key missing", tone: "bad" },
+            elEnabled ? { text: "Enabled", tone: "ok" } : { text: "Disabled", tone: "neutral" },
+          ]}
+        />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <FeatureToggle
+            icon={<Volume2 />}
+            label="Enable ElevenLabs"
+            description="Master switch for the ElevenLabs voice provider. The API key must also be set."
+            checked={elEnabled}
+            onChange={(checked) => boolToggle("ELEVENLABS_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<AudioLines />}
+            label="Conversational AI (Mode B)"
+            description="Opt-in realtime ElevenLabs agents. Adds wss://api.elevenlabs.io to the browser CSP — requires a server restart after changing."
+            checked={display("ELEVENLABS_CONVERSATIONAL_AI_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("ELEVENLABS_CONVERSATIONAL_AI_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<Waves />}
+            label="Voice cloning"
+            description="Instant voice cloning from reference audio. Every clone still requires a recorded consent attestation."
+            checked={display("ELEVENLABS_VOICE_CLONING_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("ELEVENLABS_VOICE_CLONING_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<Gauge />}
+            label="Voice design"
+            description="Describe a voice in plain language; ElevenLabs generates it."
+            checked={display("ELEVENLABS_VOICE_DESIGN_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("ELEVENLABS_VOICE_DESIGN_ENABLED", checked)}
+          />
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
+          <div className="flex items-center gap-2">
+            <AudioLines className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold text-foreground">ElevenLabs settings</h4>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ModelSelect
+              label="Default TTS model (speaking)"
+              hint="Flash = lowest latency."
+              value={display("ELEVENLABS_DEFAULT_TTS_MODEL")}
+              onChange={(value) => setDraftValue("ELEVENLABS_DEFAULT_TTS_MODEL", value)}
+              options={elevenlabsTtsOptions()}
+              placeholder="Provider default"
+            />
+            <ModelSelect
+              label="Default STT model (listening)"
+              hint="Scribe transcribes spoken questions."
+              value={display("ELEVENLABS_DEFAULT_STT_MODEL")}
+              onChange={(value) => setDraftValue("ELEVENLABS_DEFAULT_STT_MODEL", value)}
+              options={elevenlabsSttOptions()}
+              placeholder="Provider default"
+            />
+            <SecretField
+              label={FIELD_METADATA.ELEVENLABS_API_KEY.label}
+              hint={FIELD_METADATA.ELEVENLABS_API_KEY.hint}
+              helperLink={FIELD_METADATA.ELEVENLABS_API_KEY.helperLink}
+              value={display("ELEVENLABS_API_KEY")}
+              onChange={(value) => setDraftValue("ELEVENLABS_API_KEY", value)}
+              isSet={elKeySet}
+              placeholder="sk_…"
+              onClear={() => clearSecret?.("ELEVENLABS_API_KEY")}
+            />
+            <TextField
+              label={FIELD_METADATA.ELEVENLABS_DEFAULT_VOICE_ID.label}
+              hint={FIELD_METADATA.ELEVENLABS_DEFAULT_VOICE_ID.hint}
+              value={display("ELEVENLABS_DEFAULT_VOICE_ID")}
+              onChange={(value) => setDraftValue("ELEVENLABS_DEFAULT_VOICE_ID", value)}
+              placeholder="e.g. JBFqnCBsd6RMkjVDRZzb"
+              mono
+            />
+            <SecretField
+              label={FIELD_METADATA.ELEVENLABS_TOOL_HMAC_SECRET.label}
+              hint={FIELD_METADATA.ELEVENLABS_TOOL_HMAC_SECRET.hint}
+              value={display("ELEVENLABS_TOOL_HMAC_SECRET")}
+              onChange={(value) => setDraftValue("ELEVENLABS_TOOL_HMAC_SECRET", value)}
+              isSet={Boolean(isSet?.("ELEVENLABS_TOOL_HMAC_SECRET"))}
+              placeholder="32+ random characters"
+              onClear={() => clearSecret?.("ELEVENLABS_TOOL_HMAC_SECRET")}
+            />
+            <SecretField
+              label={FIELD_METADATA.ELEVENLABS_WEBHOOK_SECRET.label}
+              hint={FIELD_METADATA.ELEVENLABS_WEBHOOK_SECRET.hint}
+              value={display("ELEVENLABS_WEBHOOK_SECRET")}
+              onChange={(value) => setDraftValue("ELEVENLABS_WEBHOOK_SECRET", value)}
+              isSet={Boolean(isSet?.("ELEVENLABS_WEBHOOK_SECRET"))}
+              placeholder="From the ElevenLabs dashboard"
+              onClear={() => clearSecret?.("ELEVENLABS_WEBHOOK_SECRET")}
+            />
+            <TextField
+              label={FIELD_METADATA.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT.label}
+              hint={FIELD_METADATA.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT.hint}
+              value={display("ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT")}
+              onChange={(value) => setDraftValue("ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT", value)}
+              placeholder="80"
+              inputMode="numeric"
+            />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* ── Limits ─────────────────────────────────────────────────────── */}
+      <SettingsSection
+        icon={<SlidersHorizontal />}
+        title="Limits"
+        description="Platform-wide ceilings. Organisations can only go lower, never higher. Blank = no platform cap."
+      >
+        <div className="grid gap-4 lg:grid-cols-3">
+          <TextField
+            label={FIELD_METADATA.AI_MAX_CHAT_TOKENS.label}
+            hint={FIELD_METADATA.AI_MAX_CHAT_TOKENS.hint}
+            value={display("AI_MAX_CHAT_TOKENS")}
+            onChange={(value) => setDraftValue("AI_MAX_CHAT_TOKENS", value)}
+            placeholder="No platform cap"
+            inputMode="numeric"
+          />
+          <TextField
+            label={FIELD_METADATA.AI_MAX_REALTIME_TOKENS.label}
+            hint={FIELD_METADATA.AI_MAX_REALTIME_TOKENS.hint}
+            value={display("AI_MAX_REALTIME_TOKENS")}
+            onChange={(value) => setDraftValue("AI_MAX_REALTIME_TOKENS", value)}
+            placeholder="No platform cap"
+            inputMode="numeric"
+          />
+          <TextField
+            label={FIELD_METADATA.AI_MAX_TEMPERATURE.label}
+            hint={FIELD_METADATA.AI_MAX_TEMPERATURE.hint}
+            value={display("AI_MAX_TEMPERATURE")}
+            onChange={(value) => setDraftValue("AI_MAX_TEMPERATURE", value)}
+            placeholder="No platform cap"
+            inputMode="decimal"
+          />
+        </div>
+      </SettingsSection>
+    </>
+  );
+}
+
+function PaymentsCategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
+  return (
+    <>
+      <SettingsSection
+        title="Stripe (USD)"
+        description="Connect Stripe so customers can subscribe and pay in US dollars."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SecretField
+            label={FIELD_METADATA.STRIPE_SECRET_KEY.label}
+            hint={FIELD_METADATA.STRIPE_SECRET_KEY.hint}
+            helperLink={FIELD_METADATA.STRIPE_SECRET_KEY.helperLink}
+            value={display("STRIPE_SECRET_KEY")}
+            onChange={(value) => setDraftValue("STRIPE_SECRET_KEY", value)}
+            isSet={Boolean(isSet?.("STRIPE_SECRET_KEY"))}
+            placeholder="sk_test_… or sk_live_…"
+            onClear={() => clearSecret?.("STRIPE_SECRET_KEY")}
+          />
+          <SecretField
+            label={FIELD_METADATA.STRIPE_WEBHOOK_SECRET.label}
+            hint={FIELD_METADATA.STRIPE_WEBHOOK_SECRET.hint}
+            helperLink={FIELD_METADATA.STRIPE_WEBHOOK_SECRET.helperLink}
+            value={display("STRIPE_WEBHOOK_SECRET")}
+            onChange={(value) => setDraftValue("STRIPE_WEBHOOK_SECRET", value)}
+            isSet={Boolean(isSet?.("STRIPE_WEBHOOK_SECRET"))}
+            placeholder="whsec_…"
+            onClear={() => clearSecret?.("STRIPE_WEBHOOK_SECRET")}
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Razorpay (INR)"
+        description="Connect Razorpay so customers can subscribe and pay in Indian rupees."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TextField
+            label={FIELD_METADATA.RAZORPAY_KEY_ID.label}
+            hint={FIELD_METADATA.RAZORPAY_KEY_ID.hint}
+            helperLink={FIELD_METADATA.RAZORPAY_KEY_ID.helperLink}
+            value={display("RAZORPAY_KEY_ID")}
+            onChange={(value) => setDraftValue("RAZORPAY_KEY_ID", value)}
+            placeholder="rzp_test_… or rzp_live_…"
+            mono
+          />
+          <TextField
+            label={FIELD_METADATA.NEXT_PUBLIC_RAZORPAY_KEY_ID.label}
+            hint={FIELD_METADATA.NEXT_PUBLIC_RAZORPAY_KEY_ID.hint}
+            value={display("NEXT_PUBLIC_RAZORPAY_KEY_ID")}
+            onChange={(value) => setDraftValue("NEXT_PUBLIC_RAZORPAY_KEY_ID", value)}
+            placeholder="Usually identical to the server Key ID"
+            mono
+          />
+          <SecretField
+            label={FIELD_METADATA.RAZORPAY_KEY_SECRET.label}
+            hint={FIELD_METADATA.RAZORPAY_KEY_SECRET.hint}
+            value={display("RAZORPAY_KEY_SECRET")}
+            onChange={(value) => setDraftValue("RAZORPAY_KEY_SECRET", value)}
+            isSet={Boolean(isSet?.("RAZORPAY_KEY_SECRET"))}
+            onClear={() => clearSecret?.("RAZORPAY_KEY_SECRET")}
+          />
+          <SecretField
+            label={FIELD_METADATA.RAZORPAY_WEBHOOK_SECRET.label}
+            hint={FIELD_METADATA.RAZORPAY_WEBHOOK_SECRET.hint}
+            helperLink={FIELD_METADATA.RAZORPAY_WEBHOOK_SECRET.helperLink}
+            value={display("RAZORPAY_WEBHOOK_SECRET")}
+            onChange={(value) => setDraftValue("RAZORPAY_WEBHOOK_SECRET", value)}
+            isSet={Boolean(isSet?.("RAZORPAY_WEBHOOK_SECRET"))}
+            onClear={() => clearSecret?.("RAZORPAY_WEBHOOK_SECRET")}
+          />
+        </div>
+      </SettingsSection>
+
+      {/* Legacy fields — kept for reference, managed elsewhere now. */}
+      <div className="space-y-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 opacity-90">
+        <div className="flex items-center gap-2 text-xs text-amber-400">
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span className="font-medium">Legacy fields (kept for reference)</span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TextField
+            label={FIELD_METADATA.STRIPE_PRICE_STARTER.label}
+            hint={FIELD_METADATA.STRIPE_PRICE_STARTER.hint}
+            value={display("STRIPE_PRICE_STARTER")}
+            onChange={(value) => setDraftValue("STRIPE_PRICE_STARTER", value)}
+            placeholder="price_…"
+            mono
+          />
+          <TextField
+            label={FIELD_METADATA.STRIPE_PRICE_PRO.label}
+            hint={FIELD_METADATA.STRIPE_PRICE_PRO.hint}
+            value={display("STRIPE_PRICE_PRO")}
+            onChange={(value) => setDraftValue("STRIPE_PRICE_PRO", value)}
+            placeholder="price_…"
+            mono
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PhoneCategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
+  const active = display("PHONE_PROVIDER") === "vonage" ? "vonage" : "twilio";
+  return (
+    <>
+      <SettingsSection
+        icon={<Phone />}
+        title="Phone provider"
+        description="Which network carries your assistant's outbound voice calls."
+      >
+        <OptionCardGrid
+          options={PHONE_PROVIDERS}
+          value={active}
+          onChange={(id) => {
+            const next = id === "vonage" ? "vonage" : "twilio";
+            if (next !== active) setDraftValue("PHONE_PROVIDER", next);
+          }}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Building2 />}
+        title="Twilio"
+        description="Credentials from your Twilio Console."
+      >
+        <div className="grid gap-4 lg:grid-cols-3">
+          <TextField
+            label={FIELD_METADATA.TWILIO_ACCOUNT_SID.label}
+            hint={FIELD_METADATA.TWILIO_ACCOUNT_SID.hint}
+            value={display("TWILIO_ACCOUNT_SID")}
+            onChange={(value) => setDraftValue("TWILIO_ACCOUNT_SID", value)}
+            placeholder="AC…"
+            mono
+          />
+          <SecretField
+            label={FIELD_METADATA.TWILIO_AUTH_TOKEN.label}
+            hint={FIELD_METADATA.TWILIO_AUTH_TOKEN.hint}
+            value={display("TWILIO_AUTH_TOKEN")}
+            onChange={(value) => setDraftValue("TWILIO_AUTH_TOKEN", value)}
+            isSet={Boolean(isSet?.("TWILIO_AUTH_TOKEN"))}
+            onClear={() => clearSecret?.("TWILIO_AUTH_TOKEN")}
+          />
+          <TextField
+            label={FIELD_METADATA.TWILIO_PHONE_NUMBER.label}
+            hint={FIELD_METADATA.TWILIO_PHONE_NUMBER.hint}
+            value={display("TWILIO_PHONE_NUMBER")}
+            onChange={(value) => setDraftValue("TWILIO_PHONE_NUMBER", value)}
+            placeholder="+15551234567"
+            mono
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Building2 />}
+        title="Vonage"
+        description="Credentials from your Vonage Dashboard."
+      >
+        <div className="grid gap-4 lg:grid-cols-3">
+          <TextField
+            label={FIELD_METADATA.VONAGE_API_KEY.label}
+            hint={FIELD_METADATA.VONAGE_API_KEY.hint}
+            value={display("VONAGE_API_KEY")}
+            onChange={(value) => setDraftValue("VONAGE_API_KEY", value)}
+            mono
+          />
+          <SecretField
+            label={FIELD_METADATA.VONAGE_API_SECRET.label}
+            hint={FIELD_METADATA.VONAGE_API_SECRET.hint}
+            value={display("VONAGE_API_SECRET")}
+            onChange={(value) => setDraftValue("VONAGE_API_SECRET", value)}
+            isSet={Boolean(isSet?.("VONAGE_API_SECRET"))}
+            onClear={() => clearSecret?.("VONAGE_API_SECRET")}
+          />
+          <TextField
+            label={FIELD_METADATA.VONAGE_PHONE_NUMBER.label}
+            hint={FIELD_METADATA.VONAGE_PHONE_NUMBER.hint}
+            value={display("VONAGE_PHONE_NUMBER")}
+            onChange={(value) => setDraftValue("VONAGE_PHONE_NUMBER", value)}
+            placeholder="+15551234567"
+            mono
+          />
+        </div>
+      </SettingsSection>
+    </>
+  );
+}
+
+function PlatformCategoryEditor({ display, setDraftValue }: EditorProps) {
+  return (
+    <SettingsSection
+      icon={<Globe />}
+      title="Website & app"
+      description="Your public website address and the landing-page chat widget key."
+    >
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TextField
+          label={FIELD_METADATA.NEXT_PUBLIC_APP_URL.label}
+          hint={FIELD_METADATA.NEXT_PUBLIC_APP_URL.hint}
+          value={display("NEXT_PUBLIC_APP_URL")}
+          onChange={(value) => setDraftValue("NEXT_PUBLIC_APP_URL", value)}
+          placeholder="https://your-domain.com"
+          type="url"
+        />
+        <TextField
+          label={FIELD_METADATA.NEXT_PUBLIC_LANDING_EMBED_API_KEY.label}
+          hint={FIELD_METADATA.NEXT_PUBLIC_LANDING_EMBED_API_KEY.hint}
+          value={display("NEXT_PUBLIC_LANDING_EMBED_API_KEY")}
+          onChange={(value) => setDraftValue("NEXT_PUBLIC_LANDING_EMBED_API_KEY", value)}
+          placeholder="clr_…"
+          mono
+        />
+      </div>
+    </SettingsSection>
   );
 }

@@ -5,8 +5,10 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * The AI provider / model / voice configuration editor for an organisation.
  *
- * This restores the provider-switching surface that was lost in the admin
- * console redesign, extended with the ElevenLabs voice-provider axis:
+ * This is the reference implementation of the settings design language
+ * (src/components/admin/settings-ui.tsx): sectioned card, selectable provider
+ * cards, model dropdowns with pricing metadata, friendly toggles and one
+ * Save bar. The platform-level settings editors reuse the same kit.
  *
  *   🧠 Brain provider  — which LLM powers chat + embeddings + RAG
  *                         (OpenAI / Gemini; per-provider default models)
@@ -16,29 +18,19 @@
  *   ⚙️ Limits & features — token caps, temperature cap, feature flags
  *
  * Every dropdown draws from the canonical model catalogues
- * (src/modules/ai-core/model-catalog.ts + voice-core/model-catalog.ts),
- * so the WS-0.4 "chat model in the embedding field" class of defect is
- * blocked at entry here too.
+ * (src/modules/ai-core/model-catalog.ts + voice-core/model-catalog.ts via
+ * ai-settings-options.ts), so the WS-0.4 "chat model in the embedding
+ * field" class of defect is blocked at entry here too.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Sparkles, Volume2, SlidersHorizontal, Mic, AudioLines } from "lucide-react";
 import type { OrgAISettings, AIProvider, VoiceProvider } from "@/modules/admin-ui/api";
-import {
-  OPENAI_CHAT_MODELS,
-  OPENAI_EMBEDDING_MODELS,
-  GEMINI_CHAT_MODELS,
-  GEMINI_EMBEDDING_MODELS,
-} from "@/modules/ai-core/model-catalog";
-import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-core/model-catalog";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
@@ -46,13 +38,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
-
-// ─── Model option lists (labels carry pricing context) ───────────────────────
-
-const OPENAI_REALTIME_MODELS = ["gpt-realtime-2.1-mini", "gpt-realtime-2.1", "gpt-4o-realtime-preview"];
-const OPENAI_TRANSCRIPTION_MODELS = ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"];
-const GEMINI_REALTIME_MODELS = ["gemini-2.5-flash-native-audio", "gemini-2.0-flash-live"];
-const GEMINI_TRANSCRIPTION_MODELS = ["gemini-2.5-flash"];
+import {
+  SettingsSection, OptionCardGrid, ModelSelect, TextField, FeatureToggle, AllowedRow, SaveBar,
+} from "@/components/admin/settings-ui";
+import {
+  BRAIN_PROVIDERS,
+  openaiChatOptions, geminiChatOptions,
+  openaiEmbeddingOptions, geminiEmbeddingOptions,
+  realtimeOptions, transcriptionOptions, elevenlabsTtsOptions, elevenlabsSttOptions,
+} from "@/components/admin/ai-settings-options";
 
 type Props = {
   orgId: string;
@@ -81,11 +75,6 @@ type Draft = {
   enableRealtime: boolean;
   enablePublicEmbed: boolean;
 };
-
-const BRAIN_PROVIDERS: { id: AIProvider; label: string; blurb: string }[] = [
-  { id: "openai", label: "OpenAI", blurb: "GPT models — chat, embeddings, realtime" },
-  { id: "gemini", label: "Google Gemini", blurb: "Gemini models — chat, embeddings, Live API" },
-];
 
 const VOICE_PROVIDER_OPTIONS: { id: VoiceProvider | "inherit"; label: string; blurb: string }[] = [
   { id: "inherit",     label: "Follow brain provider", blurb: "Same provider as chat (OpenAI Realtime / Gemini Live)" },
@@ -191,22 +180,18 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
       : [...list, provider];
   }
 
+  const activeProvider = draft.defaultProvider === "gemini" ? "gemini" : "openai";
+
   const chatModelOptions = useMemo(
-    () => (draft.defaultProvider === "gemini" ? GEMINI_CHAT_MODELS : OPENAI_CHAT_MODELS),
-    [draft.defaultProvider],
+    () => (activeProvider === "gemini" ? geminiChatOptions() : openaiChatOptions()),
+    [activeProvider],
   );
   const embeddingModelOptions = useMemo(
-    () => (draft.defaultProvider === "gemini" ? GEMINI_EMBEDDING_MODELS : OPENAI_EMBEDDING_MODELS),
-    [draft.defaultProvider],
+    () => (activeProvider === "gemini" ? geminiEmbeddingOptions() : openaiEmbeddingOptions()),
+    [activeProvider],
   );
-  const realtimeModelOptions = useMemo(
-    () => (draft.defaultProvider === "gemini" ? GEMINI_REALTIME_MODELS : OPENAI_REALTIME_MODELS),
-    [draft.defaultProvider],
-  );
-  const transcriptionModelOptions = useMemo(
-    () => (draft.defaultProvider === "gemini" ? GEMINI_TRANSCRIPTION_MODELS : OPENAI_TRANSCRIPTION_MODELS),
-    [draft.defaultProvider],
-  );
+  const realtimeModelOptions = useMemo(() => realtimeOptions(activeProvider), [activeProvider]);
+  const transcriptionModelOptions = useMemo(() => transcriptionOptions(activeProvider), [activeProvider]);
 
   async function handleSave() {
     setSaving(true);
@@ -279,144 +264,90 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
       </CardHeader>
       <CardContent className="space-y-8">
         {/* ── Brain provider ──────────────────────────────────────────────── */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Thinking provider (chat &amp; knowledge)</h3>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {BRAIN_PROVIDERS.map((provider) => {
-              const selected = draft.defaultProvider === provider.id;
-              return (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => setField("defaultProvider", provider.id)}
-                  className={`rounded-xl border p-4 text-left transition-colors ${
-                    selected
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">{provider.label}</span>
-                    {selected && <Badge variant="default" className="text-[10px]">Active</Badge>}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{provider.blurb}</p>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
-            <span className="text-xs font-medium text-muted-foreground">Organisation can switch between:</span>
-            {BRAIN_PROVIDERS.map((provider) => (
-              <label key={provider.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={draft.allowedProviders.includes(provider.id)}
-                  onCheckedChange={() => setField("allowedProviders", toggleProvider(draft.allowedProviders, provider.id))}
-                />
-                {provider.label}
-              </label>
-            ))}
-          </div>
-        </section>
+        <SettingsSection
+          icon={<Sparkles />}
+          title="Thinking provider (chat & knowledge)"
+        >
+          <OptionCardGrid
+            options={BRAIN_PROVIDERS.map((p) => ({ id: p.id, label: p.label, blurb: p.blurb }))}
+            value={draft.defaultProvider}
+            onChange={(id) => setField("defaultProvider", (id as AIProvider | null))}
+          />
+          <AllowedRow
+            caption="Organisation can switch between:"
+            items={BRAIN_PROVIDERS.map((p) => ({ id: p.id, label: p.label }))}
+            checkedIds={draft.allowedProviders}
+            onToggle={(id) => setField("allowedProviders", toggleProvider(draft.allowedProviders, id as AIProvider))}
+          />
+        </SettingsSection>
 
         {/* ── Default models per active brain provider ────────────────────── */}
-        <section className="space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              Default models — {draft.defaultProvider === "gemini" ? "Gemini" : "OpenAI"}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Starting models for this organisation. Agents and knowledge bases can override these.
-            </p>
-          </div>
+        <SettingsSection
+          title={`Default models — ${activeProvider === "gemini" ? "Gemini" : "OpenAI"}`}
+          description="Starting models for this organisation. Agents and knowledge bases can override these."
+        >
           <div className="grid gap-4 lg:grid-cols-2">
             <ModelSelect
               label="Chat model"
               hint="Powers every assistant reply."
               value={draft.defaultChatModel}
               onChange={(value) => setField("defaultChatModel", value)}
-              options={chatModelOptions.map((model) => ({
-                value: model.id,
-                label: model.label ?? model.id,
-                meta: model.inputUsdPerMTokens != null ? `$${model.inputUsdPerMTokens}/M in` : undefined,
-              }))}
+              options={chatModelOptions}
             />
             <ModelSelect
               label="Embedding model"
               hint="Turns documents into searchable vectors."
               value={draft.defaultEmbeddingModel}
               onChange={(value) => setField("defaultEmbeddingModel", value)}
-              options={embeddingModelOptions.map((model) => ({
-                value: model.id,
-                label: model.id,
-                meta: `${model.dimension} dims`,
-              }))}
+              options={embeddingModelOptions}
             />
             <ModelSelect
               label="Realtime model"
               hint="Live voice sessions (non-ElevenLabs voice)."
               value={draft.defaultRealtimeModel}
               onChange={(value) => setField("defaultRealtimeModel", value)}
-              options={realtimeModelOptions.map((id) => ({ value: id, label: id }))}
+              options={realtimeModelOptions}
             />
             <ModelSelect
               label="Transcription model"
               hint="Speech-to-text inside realtime sessions."
               value={draft.defaultTranscriptionModel}
               onChange={(value) => setField("defaultTranscriptionModel", value)}
-              options={transcriptionModelOptions.map((id) => ({ value: id, label: id }))}
+              options={transcriptionModelOptions}
             />
           </div>
-        </section>
+        </SettingsSection>
 
         {/* ── Voice provider ──────────────────────────────────────────────── */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Volume2 className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Voice provider (who speaks &amp; listens)</h3>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {VOICE_PROVIDER_OPTIONS.map((option) => {
-              const selected =
-                option.id === "inherit" ? draft.voiceProvider === null : draft.voiceProvider === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setField("voiceProvider", option.id === "inherit" ? null : option.id)}
-                  className={`rounded-xl border p-4 text-left transition-colors ${
-                    selected
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">{option.label}</span>
-                    {option.id === "elevenlabs" && elEnabled === false && (
-                      <Badge variant="destructive" className="text-[10px]">Platform key missing</Badge>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{option.blurb}</p>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
-            <span className="text-xs font-medium text-muted-foreground">Organisation can use voices from:</span>
-            {(["openai", "gemini", "elevenlabs"] as VoiceProvider[]).map((provider) => (
-              <label key={provider} className="flex items-center gap-2 text-sm capitalize">
-                <Checkbox
-                  checked={draft.allowedVoiceProviders.includes(provider)}
-                  onCheckedChange={() =>
-                    setField("allowedVoiceProviders", toggleVoiceProvider(draft.allowedVoiceProviders, provider))
-                  }
-                />
-                {provider === "elevenlabs" ? "ElevenLabs" : provider}
-              </label>
-            ))}
-          </div>
+        <SettingsSection
+          icon={<Volume2 />}
+          title="Voice provider (who speaks & listens)"
+        >
+          <OptionCardGrid
+            options={VOICE_PROVIDER_OPTIONS.map((option) => ({
+              id: option.id,
+              label: option.label,
+              blurb: option.blurb,
+              badge:
+                option.id === "elevenlabs" && elEnabled === false
+                  ? { text: "Platform key missing", variant: "destructive" as const }
+                  : undefined,
+            }))}
+            value={draft.voiceProvider ?? "inherit"}
+            onChange={(id) => setField("voiceProvider", id === "inherit" ? null : (id as VoiceProvider))}
+          />
+          <AllowedRow
+            caption="Organisation can use voices from:"
+            items={[
+              { id: "openai", label: "OpenAI" },
+              { id: "gemini", label: "Gemini" },
+              { id: "elevenlabs", label: "ElevenLabs" },
+            ]}
+            checkedIds={draft.allowedVoiceProviders}
+            onToggle={(id) =>
+              setField("allowedVoiceProviders", toggleVoiceProvider(draft.allowedVoiceProviders, id as VoiceProvider))
+            }
+          />
 
           {/* ElevenLabs specifics */}
           {draft.voiceProvider === "elevenlabs" && (
@@ -441,18 +372,14 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
                   hint="Flash = lowest latency."
                   value={draft.elevenlabsTtsModel}
                   onChange={(value) => setField("elevenlabsTtsModel", value)}
-                  options={ELEVENLABS_TTS_MODELS.map((model) => ({
-                    value: model.modelId,
-                    label: model.name,
-                    meta: `$${model.usdPer1kChars}/1k chars`,
-                  }))}
+                  options={elevenlabsTtsOptions()}
                 />
                 <ModelSelect
                   label="STT model (listening)"
                   hint="Scribe transcribes spoken questions."
                   value={draft.elevenlabsSttModel}
                   onChange={(value) => setField("elevenlabsSttModel", value)}
-                  options={[{ value: "scribe_v1", label: "Scribe v1" }]}
+                  options={elevenlabsSttOptions()}
                 />
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Default voice</Label>
@@ -486,140 +413,72 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
               </div>
             </div>
           )}
-        </section>
+        </SettingsSection>
 
         {/* ── Limits & features ───────────────────────────────────────────── */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Limits &amp; features</h3>
-          </div>
+        <SettingsSection
+          icon={<SlidersHorizontal />}
+          title="Limits & features"
+        >
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Max chat tokens</Label>
-              <Input
-                inputMode="numeric"
-                value={draft.maxChatTokens}
-                onChange={(event) => setField("maxChatTokens", event.target.value)}
-                placeholder="Platform default"
-              />
-              <p className="text-xs text-muted-foreground">Longest written reply allowed. Blank = platform default.</p>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Max realtime tokens</Label>
-              <Input
-                inputMode="numeric"
-                value={draft.maxRealtimeTokens}
-                onChange={(event) => setField("maxRealtimeTokens", event.target.value)}
-                placeholder="Platform default"
-              />
-              <p className="text-xs text-muted-foreground">Same cap for spoken replies. Blank = platform default.</p>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Max temperature</Label>
-              <Input
-                inputMode="decimal"
-                value={draft.maxTemperature}
-                onChange={(event) => setField("maxTemperature", event.target.value)}
-                placeholder="Platform default"
-              />
-              <p className="text-xs text-muted-foreground">Creativity ceiling (0–2). Blank = platform default.</p>
-            </div>
+            <TextField
+              label="Max chat tokens"
+              hint="Longest written reply allowed. Blank = platform default."
+              value={draft.maxChatTokens}
+              onChange={(value) => setField("maxChatTokens", value)}
+              placeholder="Platform default"
+              inputMode="numeric"
+            />
+            <TextField
+              label="Max realtime tokens"
+              hint="Same cap for spoken replies. Blank = platform default."
+              value={draft.maxRealtimeTokens}
+              onChange={(value) => setField("maxRealtimeTokens", value)}
+              placeholder="Platform default"
+              inputMode="numeric"
+            />
+            <TextField
+              label="Max temperature"
+              hint="Creativity ceiling (0–2). Blank = platform default."
+              value={draft.maxTemperature}
+              onChange={(value) => setField("maxTemperature", value)}
+              placeholder="Platform default"
+              inputMode="decimal"
+            />
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <FeatureToggle
-              icon={<Mic className="w-4 h-4" />}
+              icon={<Mic />}
               label="Voice assistant"
               description="Microphone + spoken answers"
               checked={draft.enableVoice}
               onChange={(value) => setField("enableVoice", value)}
             />
             <FeatureToggle
-              icon={<AudioLines className="w-4 h-4" />}
+              icon={<AudioLines />}
               label="Realtime sessions"
               description="Live two-way voice conversations"
               checked={draft.enableRealtime}
               onChange={(value) => setField("enableRealtime", value)}
             />
             <FeatureToggle
-              icon={<Volume2 className="w-4 h-4" />}
+              icon={<Volume2 />}
               label="Public website embed"
               description="Chat widget on customer websites"
               checked={draft.enablePublicEmbed}
               onChange={(value) => setField("enablePublicEmbed", value)}
             />
           </div>
-        </section>
+        </SettingsSection>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3 shadow-soft">
-          <div className="text-sm">
-            {error && <span className="text-destructive">{error}</span>}
-            {!error && (
-              <span className="text-muted-foreground">
-                Changes apply immediately to future requests and sessions.
-              </span>
-            )}
-          </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save AI configuration"}
-          </Button>
-        </div>
+        <SaveBar
+          error={error}
+          saving={saving}
+          onSave={handleSave}
+          saveLabel="Save AI configuration"
+          hint="Changes apply immediately to future requests and sessions."
+        />
       </CardContent>
     </Card>
-  );
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function ModelSelect({
-  label, hint, value, onChange, options,
-}: {
-  label: string;
-  hint?: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string; meta?: string }[];
-}) {
-  return (
-    <div className="space-y-2">
-      <Label className="text-sm font-medium">{label}</Label>
-      <Select value={value || undefined} onValueChange={onChange}>
-        <SelectTrigger><SelectValue placeholder="Platform default" /></SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <span className="flex items-center justify-between gap-3">
-                <span>{option.label}</span>
-                {option.meta && <span className="text-[10px] text-muted-foreground">{option.meta}</span>}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  );
-}
-
-function FeatureToggle({
-  icon, label, description, checked, onChange,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/10 px-4 py-3">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 text-primary">{icon}</div>
-        <div>
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
   );
 }

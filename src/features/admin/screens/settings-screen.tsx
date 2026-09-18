@@ -264,16 +264,6 @@ function PlatformAIDefaultsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">How platform defaults work</h2>
-        <p className="mt-2 text-xs leading-relaxed text-white/45">
-          Every newly onboarding agent starts with these identity, behaviour,
-          language and voice values. The values are copied at creation time, so changing them
-          later only affects future onboarding — existing agents keep exactly what
-          their organisations already configured.
-        </p>
-      </div>
-
       {loading ? (
         <div className="space-y-3">
           <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
@@ -309,23 +299,11 @@ function PlatformAIProvidersPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.06] to-transparent p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">AI providers &amp; API keys</h2>
-        <p className="mt-2 text-xs leading-relaxed text-white/45">
-          The platform-level keys and default models for OpenAI, Google Gemini and ElevenLabs.
-          Organisations pick their own provider and models in
-          <span className="text-white/70"> Organisation → Settings → AI Providers</span>;
-          what you set here is the default everything starts from.
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-white/35">
-          ElevenLabs is a <span className="text-white/70">voice-only</span> provider — it speaks
-          and listens, while Clara&apos;s own AI answers. Documents and knowledge bases never
-          leave this platform.
-        </p>
-      </div>
-
+      {/* ElevenLabs connection health — complements the settings editor. */}
       <ElevenLabsStatusCard />
 
+      {/* AI providers, keys, default models, voice, limits — the same design
+          language as Organisation → Settings → AI Providers & Models. */}
       <PlatformEnvPanel />
 
       {/* Per-organisation AI configuration — the operator's jump list. */}
