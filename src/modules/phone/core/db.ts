@@ -5,13 +5,14 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "@/lib/db";
 import { insertOutboxEvent } from "@/modules/events/outbox-db";
-import type { PhoneCallConfig, PhoneCallLog, PhoneProvider } from "./types";
+import type { PhoneCallConfig, PhoneCallLog, PhoneProvider, PhoneVoiceEngine } from "./types";
 
 function rowToConfig(r: Record<string, unknown>): PhoneCallConfig {
   return {
     id: r.id as string,
     kbId: r.kb_id as string,
     provider: r.provider as PhoneProvider,
+    voiceEngine: (r.voice_engine === "elevenlabs" ? "elevenlabs" : "openai") as PhoneVoiceEngine,
     enabled: Boolean(r.enabled),
     phoneNumber: (r.phone_number as string) ?? null,
     greetingMessage: r.greeting_message as string,
@@ -55,11 +56,12 @@ export async function upsertPhoneConfig(
   const { rows } = await pool.query(
     `
     INSERT INTO phone_call_configs
-      (kb_id, provider, enabled, phone_number, greeting_message,
+      (kb_id, provider, voice_engine, enabled, phone_number, greeting_message,
        max_call_duration_sec, record_calls, transcribe_calls, webhook_url_override)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     ON CONFLICT (kb_id, phone_number) DO UPDATE SET
       provider              = EXCLUDED.provider,
+      voice_engine          = EXCLUDED.voice_engine,
       enabled               = EXCLUDED.enabled,
       greeting_message      = EXCLUDED.greeting_message,
       max_call_duration_sec = EXCLUDED.max_call_duration_sec,
@@ -72,6 +74,7 @@ export async function upsertPhoneConfig(
     [
       kbId,
       input.provider ?? "twilio",
+      input.voiceEngine ?? "openai",
       input.enabled ?? false,
       input.phoneNumber ?? null,
       input.greetingMessage ?? "Hello! How can I help you today?",
@@ -95,13 +98,14 @@ export async function insertCallLog(data: {
   callSid: string;
   fromNumber: string | null;
   toNumber: string | null;
+  direction?: "inbound" | "outbound";
 }): Promise<string> {
   const { rows } = await pool.query(
     `
-    INSERT INTO phone_call_logs (config_id, kb_id, provider, call_sid, from_number, to_number)
-    VALUES ($1,$2,$3,$4,$5,$6) RETURNING id
+    INSERT INTO phone_call_logs (config_id, kb_id, provider, call_sid, from_number, to_number, direction)
+    VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id
   `,
-    [data.configId, data.kbId, data.provider, data.callSid, data.fromNumber, data.toNumber],
+    [data.configId, data.kbId, data.provider, data.callSid, data.fromNumber, data.toNumber, data.direction ?? "inbound"],
   );
   return rows[0].id as string;
 }

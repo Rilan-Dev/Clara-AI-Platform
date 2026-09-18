@@ -172,6 +172,29 @@ export interface ConversationalVoiceService {
   /** Conversation history (post-call records, vendor side). */
   listConversations(params?: ConversationListParams): Promise<ConversationHistoryItem[]>;
 
+  /**
+   * Telephony (register-call pattern): ask the vendor for TwiML that
+   * connects a Twilio call leg to the agent's realtime session. Our
+   * /api/phone/twilio/incoming webhook returns this TwiML verbatim — the
+   * phone audio then flows Twilio ⇄ vendor directly, never through Clara.
+   */
+  registerTwilioCall(params: TwilioCallRegistrationParams): Promise<string>;
+
+  /** Native integration: import a Twilio number into the vendor workspace. */
+  importTwilioPhoneNumber(params: TwilioNumberImportParams): Promise<TwilioPhoneNumberRecord>;
+
+  /** Native integration: vendor-initiated outbound call from an imported number. */
+  startTwilioOutboundCall(params: TwilioOutboundCallParams): Promise<{ callId: string }>;
+
+  /**
+   * Provision the workspace post-call webhook (transcripts + analytics →
+   * /api/webhooks/elevenlabs/post-call). The vendor GENERATES the signing
+   * secret and returns it here; the API layer persists it into
+   * platform_env_settings (ELEVENLABS_WEBHOOK_SECRET) so live verification
+   * picks it up immediately.
+   */
+  createWorkspaceWebhook(params: WorkspaceWebhookParams): Promise<WorkspaceWebhookRecord>;
+
   /** Instant voice cloning (consent-gated by the API layer, not here). */
   cloneVoice(params: VoiceCloneParams): Promise<VoiceCloneResult>;
 
@@ -212,7 +235,7 @@ export interface ConversationalAgentCreateParams {
   ragTool: {
     /** Absolute URL of /api/internal/elevenlabs/tools/rag-search. */
     url: string;
-    /** HMAC secret the vendor signs tool calls with. */
+    /** Shared secret sent as x-clara-tool-token on every tool call. */
     secret: string;
     kbId: string;
     orgId: string;
@@ -221,7 +244,9 @@ export interface ConversationalAgentCreateParams {
   systemPrompt?: string | null;
   firstMessage?: string | null;
   language?: string | null;
-  /** Native telephony (opt-in): binds the vendor agent to Twilio directly. */
+  /** Telephony: agent serves phone calls too (ulaw_8000 both directions). */
+  telephony?: boolean;
+  /** Native telephony (opt-in): imports Twilio numbers into the vendor workspace. */
   twilio?: {
     phoneNumbers: string[];
     attachPhoneNumbers?: boolean;
@@ -246,6 +271,53 @@ export interface SignedAgentSession {
   agentId: string;
   /** Unix ms when the signed URL expires. */
   expiresAt: number;
+}
+
+// ─── Telephony payloads (register-call + native Twilio integration) ─────────
+
+export interface TwilioCallRegistrationParams {
+  agentId: string;
+  fromNumber: string;
+  toNumber: string;
+  direction: "inbound" | "outbound";
+  /** Dynamic variables surfaced to the agent prompt (e.g. caller_number). */
+  dynamicVariables?: Record<string, string>;
+}
+
+export interface TwilioNumberImportParams {
+  label: string;
+  phoneNumber: string;
+  /** Twilio Account SID (AC…) or API Key SID (SK…). */
+  sid: string;
+  token: string;
+}
+
+export interface TwilioPhoneNumberRecord {
+  phoneNumberId: string;
+  label: string | null;
+  phoneNumber: string;
+  /** null until an agent is assigned for inbound calls. */
+  agentId: string | null;
+  raw: Record<string, unknown>;
+}
+
+export interface TwilioOutboundCallParams {
+  agentId: string;
+  /** ID of the imported phone number the call is placed from. */
+  agentPhoneNumberId: string;
+  toNumber: string;
+}
+
+export interface WorkspaceWebhookParams {
+  name: string;
+  /** Absolute HTTPS URL of /api/webhooks/elevenlabs/post-call. */
+  url: string;
+}
+
+export interface WorkspaceWebhookRecord {
+  webhookId: string;
+  /** Vendor-generated signing secret — persisted by the API layer. */
+  webhookSecret: string | null;
 }
 
 // ─── Conversation history payloads (vendor shape) ────────────────────────────

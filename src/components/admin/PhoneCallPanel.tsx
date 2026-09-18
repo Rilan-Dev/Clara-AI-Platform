@@ -1,7 +1,8 @@
 "use client";
 /**
  * PhoneCallPanel.tsx — Admin panel for KB phone call configuration
- * Shows: provider selector, phone number, greeting, call settings, call logs
+ * Shows: provider selector, realtime engine (OpenAI relay vs ElevenLabs
+ * Agents), phone number, greeting, call settings, call logs
  */
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,10 @@ import { Badge }  from "@/components/ui/badge";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 
+type PhoneVoiceEngine = "openai" | "elevenlabs";
 type PhoneConfig = {
   id: string; kbId: string; provider: "twilio"|"vonage"; enabled: boolean;
+  voiceEngine: PhoneVoiceEngine;
   phoneNumber: string|null; greetingMessage: string;
   maxCallDurationSec: number; recordCalls: boolean; transcribeCalls: boolean;
 };
@@ -29,6 +32,7 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState({
     provider: "twilio" as "twilio"|"vonage",
+    voiceEngine: "openai" as PhoneVoiceEngine,
     phoneNumber: "", greetingMessage: "Hello! How can I help you today?",
     maxCallDurationSec: 300, recordCalls: false, transcribeCalls: true, enabled: true,
   });
@@ -116,12 +120,33 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
             <div>
               <label className="block text-xs font-medium mb-1">Provider</label>
               <select value={form.provider}
-                onChange={e => setForm(f => ({ ...f, provider: e.target.value as "twilio"|"vonage" }))}
+                onChange={e => {
+                  const provider = e.target.value as "twilio"|"vonage";
+                  // The ElevenLabs Agents engine rides on the vendor's Twilio
+                  // register-call TwiML — Vonage keeps the OpenAI relay.
+                  setForm(f => ({ ...f, provider, ...(provider === "vonage" ? { voiceEngine: "openai" as const } : {}) }));
+                }}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                 <option value="twilio">Twilio</option>
                 <option value="vonage">Vonage</option>
               </select>
             </div>
+            {form.provider === "twilio" && (
+              <div>
+                <label className="block text-xs font-medium mb-1">Realtime engine</label>
+                <select value={form.voiceEngine}
+                  onChange={e => setForm(f => ({ ...f, voiceEngine: e.target.value as PhoneVoiceEngine }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  <option value="openai">OpenAI Realtime (Clara relay)</option>
+                  <option value="elevenlabs">ElevenLabs Agents (real-time)</option>
+                </select>
+                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                  {form.voiceEngine === "elevenlabs"
+                    ? "Sub-second turns: audio flows Twilio ⇄ ElevenLabs directly; answers are grounded in this KB through the Conversational AI agent binding."
+                    : "Clara bridges Twilio audio to OpenAI Realtime (existing behaviour)."}
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium mb-1">Phone number (E.164)</label>
               <input value={form.phoneNumber}
@@ -185,6 +210,9 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{c.phoneNumber ?? "No number"}</span>
                   <Badge variant="outline" className="text-xs">{c.provider}</Badge>
+                  {c.voiceEngine === "elevenlabs" && (
+                    <Badge variant="outline" className="text-primary border-primary/30 text-xs">ElevenLabs Agents</Badge>
+                  )}
                   {c.enabled
                     ? <Badge variant="outline" className="text-success border-success/30 text-xs">Active</Badge>
                     : <Badge variant="outline" className="text-muted-foreground text-xs">Disabled</Badge>}

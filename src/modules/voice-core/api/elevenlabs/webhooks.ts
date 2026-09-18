@@ -5,10 +5,14 @@
  *
  *   POST /api/internal/elevenlabs/tools/rag-search   — Mode-B server tool
  *     The vendor agent calls this DURING a conversation to ground answers in
- *     the tenant's Clara knowledge base. Authenticated with HMAC-SHA256 +
- *     timestamp window + single-use nonce (webhook-auth.ts). Returns answer
- *     snippets — per-turn snippets transit the vendor, documents never do
- *     (the disclosed Mode-B boundary, plan §3.3).
+ *     the tenant's Clara knowledge base. Authenticated with the static
+ *     shared token (x-clara-tool-token) baked into the tool config by
+ *     ElevenLabsVoiceProvider.createConversationalAgent (webhook-auth.ts);
+ *     the tenant ids ride along as constant headers (x-clara-org-id /
+ *     x-clara-kb-id / x-clara-agent-id) and are re-validated against the
+ *     elevenlabs_agents binding below — the disclosed Mode-B boundary
+ *     (plan §3.3): per-turn answer snippets transit the vendor, documents
+ *     never do.
  *
  *   POST /api/webhooks/elevenlabs/post-call         — vendor post-call
  *     Delivery of transcripts/analytics after a Mode-B conversation ends.
@@ -30,8 +34,14 @@ import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { getWebhookSecret, isValidUuid } from "../../model-catalog";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { appUrl } from "@/lib/stripe";
+import { setPlatformEnvSetting } from "@/modules/phone/core/db";
+import { getWebhookSecret, isElevenLabsEnabled, isValidUuid } from "../../model-catalog";
 import { logConversationUsage } from "../../metering";
+import { VoiceProviderFactory } from "../../factory";
+import { ElevenLabsError } from "../../providers/elevenlabs";
+import { isConversationalVoiceService } from "../../types";
 import {
   sweepExpiredNonces,
   verifyInternalToolCall,
@@ -41,6 +51,22 @@ import {
 /** Tool-callback request caps (abuse guards — plan §11.8). */
 const TOOL_QUERY_MAX_CHARS = 500;
 const TOOL_TOPK_MAX = 5;
+
+/**
+ * Resolves a tenant id from the tool-config constant headers first, falling
+ * back to the JSON body for pre-modernisation tool configs.
+ */
+function headerOrBody(
+  headers: Headers,
+  payload: Record<string, unknown>,
+  headerName: string,
+  bodyKey: string,
+): string | null {
+  const fromHeader = headers.get(headerName)?.trim();
+  if (fromHeader) return fromHeader;
+  const fromBody = payload[bodyKey];
+  return typeof fromBody === "string" && fromBody.trim() ? fromBody.trim() : null;
+}
 
 // ─── Internal Mode-B RAG server tool ─────────────────────────────────────────
 
@@ -59,10 +85,14 @@ export async function postElevenLabsToolRagSearch(request: NextRequest): Promise
     }
 
     // ── Payload ──────────────────────────────────────────────────────────────
+    // Current tool schema: the LLM supplies only {query}; the tenant ids are
+    // CONSTANT HEADERS from the tool config (x-clara-org-id/-kb-id/-agent-id).
+    // Body-supplied ids remain accepted for tool configs created before the
+    // 2026-09 modernisation.
     const payload = JSON.parse(rawBody || "{}") as Record<string, unknown>;
-    const orgId = typeof payload.orgId === "string" ? payload.orgId.trim() : null;
-    const agentId = typeof payload.agentId === "string" ? payload.agentId.trim() : null;
-    const kbId = typeof payload.kbId === "string" ? payload.kbId.trim() : null;
+    const orgId = headerOrBody(request.headers, payload, "x-clara-org-id", "orgId");
+    const agentId = headerOrBody(request.headers, payload, "x-clara-agent-id", "agentId");
+    const kbId = headerOrBody(request.headers, payload, "x-clara-kb-id", "kbId");
     const query = typeof payload.query === "string" ? payload.query.trim().slice(0, TOOL_QUERY_MAX_CHARS) : "";
     const topKRaw = Number(payload.topK ?? 4);
     const topK = Number.isFinite(topKRaw) ? Math.min(Math.max(Math.round(topKRaw), 1), TOOL_TOPK_MAX) : 4;
@@ -322,4 +352,84 @@ function normaliseTranscript(raw: unknown): Array<Record<string, unknown>> {
     });
   }
   return turns;
+}
+
+// ─── Admin: provision the vendor post-call webhook ──────────────────────────
+
+/**
+ * POST /api/admin/elevenlabs/webhooks — super-admin only.
+ *
+ * Creates (or re-creates) the ElevenLabs workspace webhook that delivers
+ * post-call transcripts + analytics to
+ * POST /api/webhooks/elevenlabs/post-call. The vendor GENERATES the signing
+ * secret; it is persisted straight into platform_env_settings
+ * (ELEVENLABS_WEBHOOK_SECRET) via setPlatformEnvSetting, which also updates
+ * the live process.env — verification picks it up without a restart.
+ *
+ * Re-running creates a second webhook at the vendor (webhooks are
+ * workspace-scoped and named); old ones can be removed from the ElevenLabs
+ * dashboard. Idempotence is NOT attempted — provisioning is a rare,
+ * audited, super-admin action.
+ */
+export async function postElevenLabsWebhookProvision(request: NextRequest): Promise<NextResponse> {
+  try {
+    await ensureMigrated();
+    const auth = await requireAuth(request);
+    await requireSuperAdmin(auth);
+
+    if (!isElevenLabsEnabled()) {
+      return NextResponse.json(
+        { error: "ElevenLabs is not enabled on this platform (missing API key or kill switch off)." },
+        { status: 503 },
+      );
+    }
+
+    const service = VoiceProviderFactory.getVoiceService();
+    if (!isConversationalVoiceService(service)) {
+      return NextResponse.json(
+        { error: "Voice provider does not support Conversational AI webhooks." },
+        { status: 501 },
+      );
+    }
+
+    const url = appUrl("/api/webhooks/elevenlabs/post-call");
+    const created = await service.createWorkspaceWebhook({
+      name: "Clara post-call",
+      url,
+    });
+
+    if (!created.webhookSecret) {
+      // Created but the vendor did not return a secret — the operator must
+      // copy it from the ElevenLabs dashboard into Settings → Platform → Env.
+      return NextResponse.json({
+        webhookId: created.webhookId,
+        url,
+        secretConfigured: false,
+        warning:
+          "The vendor did not return a signing secret. Copy it from the ElevenLabs dashboard into ELEVENLABS_WEBHOOK_SECRET.",
+      });
+    }
+
+    await setPlatformEnvSetting("ELEVENLABS_WEBHOOK_SECRET", created.webhookSecret, auth.user.id);
+
+    // Audit the provisioning (same ledger as Mode-B acknowledgement flips).
+    await dbQuery(
+      `INSERT INTO subscription_audit_log (org_id, actor_user_id, actor_label, action, metadata)
+       VALUES (NULL, $1, 'admin', 'elevenlabs_post_call_webhook_provisioned', $2::jsonb)`,
+      [auth.user.id, JSON.stringify({ webhookId: created.webhookId, url })],
+    ).catch(() => { /* audit is best-effort — the secret is already live */ });
+
+    return NextResponse.json({
+      webhookId: created.webhookId,
+      url,
+      secretConfigured: true,
+    });
+  } catch (error) {
+    console.error("[elevenlabs-webhook-provision] post:", error);
+    if (error instanceof NextResponse) return error;
+    if (error instanceof ElevenLabsError) {
+      return NextResponse.json({ error: error.message }, { status: error.status >= 400 && error.status < 600 ? error.status : 502 });
+    }
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
 }

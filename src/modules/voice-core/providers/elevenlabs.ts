@@ -31,6 +31,10 @@ import type {
   SpeakParams,
   TranscribeParams,
   TranscribeResult,
+  TwilioCallRegistrationParams,
+  TwilioNumberImportParams,
+  TwilioOutboundCallParams,
+  TwilioPhoneNumberRecord,
   VoiceCloneParams,
   VoiceCloneResult,
   VoiceDesignParams,
@@ -38,6 +42,8 @@ import type {
   VoiceProvider,
   VoiceProviderService,
   VoiceServiceConfig,
+  WorkspaceWebhookParams,
+  WorkspaceWebhookRecord,
 } from "../types";
 
 export class ElevenLabsError extends Error {
@@ -51,8 +57,28 @@ export class ElevenLabsError extends Error {
   }
 }
 
-/** Signed-URL TTL requested from the vendor (V4 agent sessions). */
-const AGENT_SIGNED_URL_TTL_SEC = 60;
+/** Signed-URL validity window — fixed by the vendor at 15 minutes (the
+ *  expiry_seconds query param no longer exists on the endpoint). */
+const AGENT_SIGNED_URL_TTL_SEC = 900;
+
+/** Tool-call response budget the vendor waits before timing out the RAG
+ *  bridge (vendor range: 5–300 s; RAG search p95 is well under 10 s). */
+const RAG_TOOL_RESPONSE_TIMEOUT_SEC = 20;
+
+/** Client events the Mode-B browser session relies on (useElevenLabsConvAI).
+ *  Streaming text parts are NOT in the vendor default set, so they are
+ *  opted into explicitly here. */
+const AGENT_CLIENT_EVENTS = [
+  "conversation_initiation_metadata",
+  "ping",
+  "audio",
+  "interruption",
+  "user_transcript",
+  "agent_response",
+  "agent_response_correction",
+  "agent_response_complete",
+  "agent_chat_response_part",
+];
 
 /**
  * Backoff before the single connect-level retry (ms). Short on purpose —
@@ -278,22 +304,29 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
     return "elevenlabs";
   }
 
-  // ─── Mode B: Conversational AI agents (V4) ───────────────────────────────
+  // ─── Mode B: Conversational AI agents (V4, modernised 2026-09) ────────
 
   private normalizeAgent(raw: Record<string, unknown>): ConversationalAgentRecord {
     const config = (raw.conversation_config ?? {}) as Record<string, unknown>;
     const tts = (config.tts ?? {}) as Record<string, unknown>;
     const agent = (config.agent ?? {}) as Record<string, unknown>;
     const prompt = (agent.prompt ?? {}) as Record<string, unknown>;
-    const firstMessage = (prompt.first_message ?? {}) as Record<string, unknown>;
+    // Current schema: agent.prompt.prompt + agent.first_message (string).
+    // Legacy schema fallback: agent.prompt.system_prompt + prompt.first_message.text.
+    const legacyFirst = (prompt.first_message ?? {}) as Record<string, unknown>;
     const language = (agent.language ?? config.language) as unknown;
+    const rawFirstMessage = agent.first_message ?? legacyFirst.text;
     return {
       agentId: String(raw.agent_id ?? ""),
       name: String(raw.name ?? "Unnamed agent"),
       voiceId: typeof tts.voice_id === "string" ? tts.voice_id : null,
       language: typeof language === "string" ? language : null,
-      firstMessage: typeof firstMessage.text === "string" ? firstMessage.text : null,
-      systemPrompt: typeof prompt.system_prompt === "string" ? prompt.system_prompt : null,
+      firstMessage: typeof rawFirstMessage === "string" ? rawFirstMessage : null,
+      systemPrompt: typeof prompt.prompt === "string"
+        ? prompt.prompt
+        : typeof prompt.system_prompt === "string"
+          ? prompt.system_prompt
+          : null,
       raw,
     };
   }
@@ -304,48 +337,91 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
     return (data.agents ?? []).map((raw) => this.normalizeAgent(raw));
   }
 
+  /**
+   * Current API discipline (2026-09, verified against the official docs):
+   *   1. Tools are created SEPARATELY (POST /v1/convai/tools) and attached
+   *      to the agent via conversation_config.agent.prompt.tool_ids — the
+   *      legacy inline `tools[]` create body is dead and silently dropped.
+   *   2. The RAG bridge authenticates with a static secret header
+   *      (x-clara-tool-token) — the vendor cannot sign tool calls with our
+   *      per-request HMAC scheme. Tenant ids ride along as constant headers
+   *      and are re-validated against the elevenlabs_agents binding on every
+   *      callback, so a leaked tool config cannot retarget another tenant.
+   *   3. platform_settings.auth.enable_auth = true — sessions must be
+   *      minted through get-signed-url (never a bare agent_id from the
+   *      browser).
+   */
   async createConversationalAgent(
     params: ConversationalAgentCreateParams,
   ): Promise<ConversationalAgentRecord> {
-    // The rag server-tool: every tool call is HMAC-signed with the shared
-    // secret and carries the tenant ids the callback re-validates.
-    const body = {
-      name: params.name,
-      conversation_config: {
-        tts: { voice_id: params.voiceId },
-        ...(params.language ? { language: params.language } : {}),
-        agent: {
-          prompt: {
-            ...(params.systemPrompt ? { system_prompt: params.systemPrompt } : {}),
-            ...(params.firstMessage ? { first_message: { text: params.firstMessage } } : {}),
-          },
-        },
-        ...(params.twilio
-          ? {
-              twilio: {
-                phone_numbers: params.twilio.phoneNumbers,
-                attach_phone_numbers: params.twilio.attachPhoneNumbers ?? false,
-              },
-            }
-          : {}),
-      },
-      tools: [
-        {
-          type_name: "webhook",
-          name: "clara_rag_search",
-          description:
-            "Searches the organisation's Clara knowledge base and returns grounded answer snippets.",
+    // ── 1. RAG webhook tool (workspace-scoped, reusable across agents) ────
+    const toolBody = {
+      tool_config: {
+        type: "webhook",
+        name: "clara_rag_search",
+        description:
+          "Searches the organisation's Clara knowledge base and returns grounded answer snippets. " +
+          "Use it for every question about the organisation, its products, policies, or documents.",
+        api_schema: {
           url: params.ragTool.url,
           method: "POST",
-          // Vendor API accepts config passthrough for auth material.
-          config: {
-            secret: params.ragTool.secret,
-            orgId: params.ragTool.orgId,
-            agentId: params.ragTool.agentId ?? null,
-            kbId: params.ragTool.kbId,
+          request_headers: {
+            "x-clara-tool-token": params.ragTool.secret,
+            "x-clara-org-id": params.ragTool.orgId,
+            "x-clara-kb-id": params.ragTool.kbId,
+            ...(params.ragTool.agentId ? { "x-clara-agent-id": params.ragTool.agentId } : {}),
           },
+          request_body_schema: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "The user's question, phrased as a self-contained search query.",
+              },
+            },
+            required: ["query"],
+          },
+          response_timeout_secs: RAG_TOOL_RESPONSE_TIMEOUT_SEC,
         },
-      ],
+      },
+    };
+    const toolResponse = await this.elevenLabsFetch("/v1/convai/tools", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toolBody),
+    });
+    const toolData = (await toolResponse.json()) as Record<string, unknown>;
+    const toolId =
+      typeof toolData.id === "string" ? toolData.id
+        : typeof toolData.tool_id === "string" ? toolData.tool_id : "";
+    if (!toolId) {
+      throw new ElevenLabsError("Conversational tool creation did not return a tool id.", 502);
+    }
+
+    // ── 2. Agent (references the tool; turn-taking owned by the vendor) ──
+    const agentPrompt: Record<string, unknown> = { tool_ids: [toolId] };
+    if (params.systemPrompt) agentPrompt.prompt = params.systemPrompt;
+    const conversationConfig: Record<string, unknown> = {
+      tts: { voice_id: params.voiceId },
+      conversation: { client_events: AGENT_CLIENT_EVENTS },
+      agent: {
+        ...(params.language ? { language: params.language } : {}),
+        ...(params.firstMessage != null && params.firstMessage !== ""
+          ? { first_message: params.firstMessage }
+          : {}),
+        prompt: agentPrompt,
+      },
+    };
+    if (params.telephony) {
+      // Twilio Media Streams are μ-law 8 kHz in both directions.
+      conversationConfig.asr = { user_input_audio_format: "ulaw_8000" };
+      conversationConfig.tts = { ...conversationConfig.tts as Record<string, unknown>, agent_output_audio_format: "ulaw_8000" };
+    }
+
+    const body = {
+      name: params.name,
+      conversation_config: conversationConfig,
+      platform_settings: { auth: { enable_auth: true } },
     };
     const response = await this.elevenLabsFetch("/v1/convai/agents/create", {
       method: "POST",
@@ -353,6 +429,23 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
       body: JSON.stringify(body),
     });
     const data = (await response.json()) as Record<string, unknown>;
+
+    // ── 3. Native Twilio import (optional; register-call needs no import) ─
+    if (params.twilio && params.twilio.phoneNumbers.length > 0) {
+      for (const number of params.twilio.phoneNumbers) {
+        await this.importTwilioPhoneNumber({
+          label: `${params.name} (${number})`,
+          phoneNumber: number,
+          sid: process.env.TWILIO_ACCOUNT_SID ?? "",
+          token: process.env.TWILIO_AUTH_TOKEN ?? "",
+        }).catch((err) => {
+          // Non-fatal: the agent exists; number import can be retried via
+          // the admin panel. Surface but never roll the agent back.
+          console.warn("[elevenlabs] Twilio number import failed:", (err as Error).message);
+        });
+      }
+    }
+
     return this.normalizeAgent(data);
   }
 
@@ -362,19 +455,15 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
   ): Promise<ConversationalAgentRecord> {
     const conversationConfig: Record<string, unknown> = {};
     if (params.voiceId != null) conversationConfig.tts = { voice_id: params.voiceId };
-    if (params.language != null) conversationConfig.language = params.language;
-    if (params.systemPrompt !== undefined || params.firstMessage !== undefined) {
-      const prompt: Record<string, unknown> = {};
-      if (params.systemPrompt !== undefined) prompt.system_prompt = params.systemPrompt;
-      if (params.firstMessage !== undefined) prompt.first_message = { text: params.firstMessage };
-      conversationConfig.agent = { prompt };
-    }
-    if (params.twilio) {
-      conversationConfig.twilio = {
-        phone_numbers: params.twilio.phoneNumbers,
-        attach_phone_numbers: params.twilio.attachPhoneNumbers ?? false,
-      };
-    }
+
+    const agent: Record<string, unknown> = {};
+    const prompt: Record<string, unknown> = {};
+    if (params.systemPrompt !== undefined) prompt.prompt = params.systemPrompt ?? "";
+    if (Object.keys(prompt).length > 0) agent.prompt = prompt;
+    if (params.firstMessage !== undefined) agent.first_message = params.firstMessage ?? "";
+    if (params.language != null) agent.language = params.language;
+    if (Object.keys(agent).length > 0) conversationConfig.agent = agent;
+
     const body: Record<string, unknown> = {};
     if (params.name != null) body.name = params.name;
     if (Object.keys(conversationConfig).length > 0) body.conversation_config = conversationConfig;
@@ -398,8 +487,12 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
   }
 
   async getAgentSignedUrl(agentId: string): Promise<SignedAgentSession> {
+    // Endpoint moved (2026-09): /v1/convai/conversation/get-signed-url?agent_id=…
+    // The legacy per-agent /get-signed-url?expiry_seconds=N path 404s, which
+    // used to make every Mode-B session mint fail and fall back to Mode A.
+    // The vendor fixes validity at 15 minutes — no expiry parameter exists.
     const response = await this.elevenLabsFetch(
-      `/v1/convai/agents/${encodeURIComponent(agentId)}/get-signed-url?expiry_seconds=${AGENT_SIGNED_URL_TTL_SEC}`,
+      `/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
     );
     const data = (await response.json()) as Record<string, unknown>;
     const signedUrl = typeof data.signed_url === "string" ? data.signed_url : "";
@@ -410,6 +503,121 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
       signedUrl,
       agentId,
       expiresAt: Date.now() + AGENT_SIGNED_URL_TTL_SEC * 1000,
+    };
+  }
+
+  // ─── Mode B: telephony (register-call + native Twilio) ───────────────────
+
+  async registerTwilioCall(params: TwilioCallRegistrationParams): Promise<string> {
+    const body = {
+      agent_id: params.agentId,
+      from_number: params.fromNumber,
+      to_number: params.toNumber,
+      direction: params.direction,
+      conversation_initiation_client_data: {
+        // Twilio Media Streams are μ-law 8 kHz on the wire; the agent's
+        // browser sessions keep PCM 16 kHz. The per-call override pins the
+        // phone leg's audio formats without reconfiguring the agent.
+        conversation_config_override: {
+          asr: { user_input_audio_format: "ulaw_8000" },
+          tts: { agent_output_audio_format: "ulaw_8000" },
+        },
+        ...(params.dynamicVariables && Object.keys(params.dynamicVariables).length > 0
+          ? { dynamic_variables: params.dynamicVariables }
+          : {}),
+      },
+    };
+    const response = await this.elevenLabsFetch("/v1/convai/twilio/register-call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const twiml = await response.text();
+    if (!twiml.includes("<Response")) {
+      throw new ElevenLabsError("register-call did not return TwiML.", 502);
+    }
+    return twiml;
+  }
+
+  async importTwilioPhoneNumber(params: TwilioNumberImportParams): Promise<TwilioPhoneNumberRecord> {
+    if (!params.sid || !params.token) {
+      throw new ElevenLabsError(
+        "Twilio credentials (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN) are required to import a number.",
+        400,
+      );
+    }
+    const body = {
+      provider: "twilio",
+      label: params.label,
+      phone_number: params.phoneNumber,
+      sid: params.sid,
+      token: params.token,
+    };
+    const response = await this.elevenLabsFetch("/v1/convai/phone-numbers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await response.json()) as Record<string, unknown>;
+    const phoneNumberId =
+      typeof data.phone_number_id === "string" ? data.phone_number_id
+        : typeof data.id === "string" ? data.id : "";
+    if (!phoneNumberId) {
+      throw new ElevenLabsError("Phone number import did not return an id.", 502);
+    }
+    return {
+      phoneNumberId,
+      label: typeof data.label === "string" ? data.label : null,
+      phoneNumber: typeof data.phone_number === "string" ? data.phone_number : params.phoneNumber,
+      agentId: typeof data.agent_id === "string" ? data.agent_id : null,
+      raw: data,
+    };
+  }
+
+  async startTwilioOutboundCall(params: TwilioOutboundCallParams): Promise<{ callId: string }> {
+    const body = {
+      agent_id: params.agentId,
+      agent_phone_number_id: params.agentPhoneNumberId,
+      to_number: params.toNumber,
+    };
+    const response = await this.elevenLabsFetch("/v1/convai/twilio/outbound-call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await response.json()) as Record<string, unknown>;
+    const callId =
+      typeof data.call_id === "string" ? data.call_id
+        : typeof data.conversation_id === "string" ? data.conversation_id : "";
+    if (!callId) {
+      throw new ElevenLabsError("Outbound call initiation did not return a call id.", 502);
+    }
+    return { callId };
+  }
+
+  async createWorkspaceWebhook(params: WorkspaceWebhookParams): Promise<WorkspaceWebhookRecord> {
+    const body = {
+      settings: {
+        auth_type: "hmac",
+        name: params.name,
+        webhook_url: params.url,
+      },
+    };
+    const response = await this.elevenLabsFetch("/v1/workspace/webhooks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await response.json()) as Record<string, unknown>;
+    const webhookId =
+      typeof data.webhook_id === "string" ? data.webhook_id
+        : typeof data.id === "string" ? data.id : "";
+    if (!webhookId) {
+      throw new ElevenLabsError("Workspace webhook creation did not return an id.", 502);
+    }
+    return {
+      webhookId,
+      webhookSecret: typeof data.webhook_secret === "string" ? data.webhook_secret : null,
     };
   }
 

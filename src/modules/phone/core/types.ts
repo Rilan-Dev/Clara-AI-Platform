@@ -3,8 +3,17 @@
  */
 export type PhoneProvider = "twilio" | "vonage";
 
+/**
+ * Realtime engine powering live conversations on a phone config.
+ *  - "openai": Clara relay (Twilio Media Streams ⇄ OpenAI Realtime)
+ *  - "elevenlabs": ElevenLabs Agents — the incoming webhook returns the
+ *    vendor register-call TwiML, audio flows Twilio ⇄ vendor directly.
+ */
+export type PhoneVoiceEngine = "openai" | "elevenlabs";
+
 export type PhoneCallConfig = {
   id: string; kbId: string; provider: PhoneProvider; enabled: boolean;
+  voiceEngine: PhoneVoiceEngine;
   phoneNumber: string | null; greetingMessage: string;
   maxCallDurationSec: number; recordCalls: boolean; transcribeCalls: boolean;
   webhookUrlOverride: string | null; createdAt: string; updatedAt: string;

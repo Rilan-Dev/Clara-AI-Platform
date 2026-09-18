@@ -111,6 +111,7 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
   const [formSystemPrompt, setFormSystemPrompt] = useState("");
   const [formFirstMessage, setFormFirstMessage] = useState("");
   const [formTwilio, setFormTwilio] = useState("");
+  const [formTelephony, setFormTelephony] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Acknowledgement modal state.
@@ -214,6 +215,7 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
           systemPrompt: formSystemPrompt.trim() || null,
           firstMessage: formFirstMessage.trim() || null,
           language: null,
+          telephony: formTelephony,
           orgAcknowledgedDataFlow: false, // set through the disclosure modal
           ...(formTwilio.trim()
             ? { twilio: { phoneNumbers: formTwilio.split(",").map((s) => s.trim()).filter(Boolean) } }
@@ -227,7 +229,7 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
       });
       setShowCreate(false);
       setFormAgentId(""); setFormKbId(""); setFormVoiceId(""); setFormName("");
-      setFormSystemPrompt(""); setFormFirstMessage(""); setFormTwilio("");
+      setFormSystemPrompt(""); setFormFirstMessage(""); setFormTwilio(""); setFormTelephony(false);
       await load();
     } catch (err) {
       toast.error("Could not create the agent", { description: (err as Error).message });
@@ -507,6 +509,22 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
                     <Input value={formTwilio} onChange={(e) => setFormTwilio(e.target.value)} placeholder="+15550001111, +919900000000" />
                   </div>
                   <p className="text-xs text-muted-foreground">Comma-separated. Binds the vendor agent to native telephony.</p>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                  <input
+                    type="checkbox"
+                    id="telephony-audio"
+                    checked={formTelephony}
+                    onChange={(e) => setFormTelephony(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="telephony-audio" className="text-sm leading-snug">
+                    Phone-ready audio (μ-law 8 kHz)
+                    <span className="block text-xs text-muted-foreground mt-0.5">
+                      Optimises the agent for Twilio calls. Browser sessions still work — the web client
+                      adapts to the agent&apos;s audio format automatically.
+                    </span>
+                  </label>
                 </div>
               </div>
               <div className="flex justify-end">

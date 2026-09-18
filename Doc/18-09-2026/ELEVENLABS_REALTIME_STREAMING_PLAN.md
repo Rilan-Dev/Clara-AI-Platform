@@ -214,3 +214,108 @@ V7-R1/R2 land **before** Sarvam V1–V3 implementation so the Saaras v3-realtime
 | Docs index | `tool-results/el-llms.txt` |
 
 (Repo-external paths refer to the build sandbox; the vendor URLs above are canonical.)
+
+---
+
+# 9. Addendum (2026-09-18, later session) — ElevenLabs Agents Mode-B Revival + Phone Agents
+
+## 9.1 Why Mode B never activated (root cause: vendor API drift)
+
+The V4–V6 Mode-B stack was complete in Clara, but a fresh read of the CURRENT
+ElevenLabs Agents documentation (docs reorganised under
+`/docs/eleven-agents/`, `.md` versions fetched 2026-09-18) showed the vendor
+API had moved underneath us. Every session mint silently failed and
+`useVoiceClient` fell back to Mode A — exactly the "gap between turns" the
+user reported:
+
+| Clara code (V4, stale) | Current vendor API (verified) | Impact |
+|---|---|---|
+| `GET /v1/convai/agents/{id}/get-signed-url?expiry_seconds=60` | `GET /v1/convai/conversation/get-signed-url?agent_id=` (fixed 15-min TTL) | **404 on every Mode-B session mint** → silent Mode-A fallback |
+| agent create: `prompt.system_prompt`, `prompt.first_message.text`, top-level `language` | `agent.prompt.prompt`, `agent.first_message` (string), `agent.language` | prompts/first message silently dropped |
+| inline `tools[]` with `type_name:"webhook"` + `config` passthrough | tools created separately via `POST /v1/convai/tools` (`tool_config.api_schema`) and attached through `agent.prompt.tool_ids` | **RAG tool never existed** — agents answered ungrounded |
+| client WS frames `agent_audio_chunk` / `agent_response_chunk` / `user_message_chunk` / `keep_alive` | `audio.audio_base_64` / `agent_chat_response_part` / `user_message.text` / ping→pong with `event_id` | browser session deaf-mute even when connected |
+| HMAC per-request tool-callback headers (`x-clara-signature`+timestamp+nonce) | webhook tools can only send CONSTANT headers (static token + tenant ids) | every RAG tool call rejected 401 |
+| post-call signature = plain HMAC over body | Stripe-style `elevenlabs-signature: t=…,v1=…` (HMAC over `{t}.{body}`) | post-call webhooks rejected 401 |
+| — (no phone path) | `POST /v1/convai/twilio/register-call` returns TwiML; `POST /v1/convai/phone-numbers` imports Twilio numbers; `POST /v1/convai/twilio/outbound-call` places calls | phone calls could not use Agents at all |
+
+## 9.2 What changed in this revision (all verified: tsc 0 errors, 288/288 tests)
+
+**voice-core provider** (`providers/elevenlabs.ts`)
+- Signed URLs from the current conversation endpoint (15-min TTL).
+- Agent create: RAG tool created FIRST via `POST /v1/convai/tools` — static
+  token (`x-clara-tool-token`) + tenant ids as constant request headers,
+  `request_body_schema {query}` for the LLM — then referenced via
+  `agent.prompt.tool_ids`. `platform_settings.auth.enable_auth=true`.
+  `conversation.client_events` pins the event set the browser consumes
+  (incl. `agent_chat_response_part` for streaming text).
+  Optional `telephony: true` → agent configured `ulaw_8000` both directions.
+- New methods: `registerTwilioCall` (per-call μ-law override + dynamic
+  variables), `importTwilioPhoneNumber`, `startTwilioOutboundCall`,
+  `createWorkspaceWebhook`.
+- `normalizeAgent` reads both current and legacy response shapes.
+
+**webhook-auth** — tool callback = constant-time static-token compare
+(`x-clara-tool-token`); post-call = Stripe-style `t=/v1=` parse with 10-min
+tolerance + multi-v1 rotation support + legacy plain-HMAC fallback.
+
+**RAG tool route** — tenant ids from constant headers first (body fallback for
+legacy tool configs); binding re-validation unchanged (the tenant boundary).
+
+**Browser client** (`useElevenLabsConvAI.ts`) — rewritten for the current
+protocol: `audio`/`user_transcript`/`agent_response`/`agent_chat_response_part`
+(streaming text)/`interruption`/`agent_response_correction`; `{user_audio_chunk}`
+bare frames; `user_message`; ping→pong with `event_id`; **format-adaptive
+audio** — reads `conversation_initiation_metadata` and decodes/encodes μ-law
+8 kHz when the agent is phone-configured, PCM 16 kHz otherwise.
+
+**Phone calls via ElevenLabs Agents (the new part)**
+- Migration `037_phone_elevenlabs_engine.sql`: `phone_call_configs.voice_engine`
+  (`openai` default | `elevenlabs`) — applied to the live DB (ledgered,
+  idempotent, zero existing configs affected).
+- `/api/phone/twilio/incoming`: engine branch — `elevenlabs` resolves the
+  KB's Mode-B binding (all gates re-applied), calls `register-call`, returns
+  the VENDOR TwiML verbatim. Audio then flows Twilio ⇄ ElevenLabs directly —
+  Clara is never in the audio path. The OpenAI relay path is untouched.
+- `phone/core/elevenlabs-call.ts` — binding resolution + call logging
+  (`phone_call_logs` row opened at ring; transcript arrives via the post-call
+  webhook, same as web sessions).
+- PhoneCallPanel UI: realtime-engine selector (Twilio only) + engine badge.
+- Same agent serves web + phone: register-call pins μ-law per call leg;
+  browser sessions keep PCM 16 kHz (and survive even a `telephony: true`
+  agent thanks to the format-adaptive client).
+
+**Admin surfaces**
+- `POST /api/admin/elevenlabs/webhooks` — provisions the vendor workspace
+  post-call webhook and persists the vendor-GENERATED signing secret into
+  `platform_env_settings` (live, no restart), audited.
+- Agent-create panel: "Phone-ready audio (μ-law 8 kHz)" toggle → `telephony`.
+- `.env.example`: full ElevenLabs section (Mode A + Mode B keys, documented).
+
+## 9.3 Production activation checklist (operator runbook)
+
+1. `ELEVENLABS_ENABLED=true` (already on) and set
+   `ELEVENLABS_CONVERSATIONAL_AI_ENABLED=true` (Settings → Platform → Env;
+   requires app restart — CSP snapshots the Mode-B websocket origin).
+2. Set `ELEVENLABS_TOOL_HMAC_SECRET` to a fresh static token
+   (`openssl rand -hex 32`) — same page.
+3. Super-admin: `POST /api/admin/elevenlabs/webhooks` once → the vendor
+   webhook is created and `ELEVENLABS_WEBHOOK_SECRET` is auto-persisted.
+4. Settings → AI Providers & Models → Conversational AI: create the agent
+   binding (voice + KB + first message; tick "Phone-ready audio" if phone
+   calls will use this agent), then accept the data-flow disclosure.
+5. Deploy the release (picks up migration 037 via ledger skip on prod DBs
+   where it was not pre-applied).
+6. Chat window → voice: sessions now resolve Mode B (sub-second turns; Mode A
+   remains the automatic fallback if any gate refuses).
+7. Phone: Settings → Phone Calls → configure the Twilio number with realtime
+   engine = ElevenLabs Agents → point the Twilio number's voice webhook at
+   `https://clara.ai.amazetechclans.com/api/phone/twilio/incoming` (unchanged
+   URL) → call the number.
+
+## 9.4 Relationship to V7 (§7)
+
+V7 (server-relayed TTS stream-input + Scribe Realtime for Mode A) remains the
+latency plan for the REST pipeline that public EMBEDS must keep using. Mode B
+(Agents) now delivers the sub-second experience for platform surfaces — web
+and phone — without any relay of our own to build. R1/R2 stay queued for the
+embed surface; R3 (embed Mode B decision) stays unchanged.

@@ -2,21 +2,26 @@
  * src/modules/voice-core/webhook-auth.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * Authenticity verification for the two signed inbound paths of the
- * ElevenLabs integration (plan §11.3):
+ * ElevenLabs integration (plan §11.3, modernised 2026-09):
  *
  *   1. INTERNAL server-tool callback — the Mode-B RAG bridge
  *      POST /api/internal/elevenlabs/tools/rag-search
- *      Verified with: HMAC-SHA256 (ELEVENLABS_TOOL_HMAC_SECRET) over the
- *      raw body + timestamp header (±5 min window) + single-use nonce
- *      (elevenlabs_webhook_nonces ledger, replay guard).
+ *      Verified with a STATIC SHARED TOKEN: the vendor's webhook tools
+ *      cannot compute per-request HMAC signatures, so the tool config
+ *      sends x-clara-tool-token (constant header, ELEVENLABS_TOOL_HMAC_SECRET)
+ *      alongside the tenant ids (x-clara-org-id / -kb-id / -agent-id).
+ *      Comparison is constant-time; the real tenant boundary is the
+ *      elevenlabs_agents binding re-validation in webhooks.ts — a stolen
+ *      tool config still cannot read another tenant's KB.
  *
  *   2. VENDOR post-call webhook — transcript/analytics delivery
  *      POST /api/webhooks/elevenlabs/post-call
- *      Verified with the vendor's signature scheme: HMAC-SHA256
- *      (ELEVENLABS_WEBHOOK_SECRET) over the raw body, delivered in the
- *      `elevenlabs-signature` header. Single-use nonce guard optional —
- *      the vendor does not send one, so replay protection relies on the
- *      upsert semantics (same conversation_id → same record).
+ *      Verified with the vendor's Stripe-style scheme: the
+ *      `elevenlabs-signature` header carries `t={unix_s},v1={hex HMAC}`
+ *      where the HMAC is SHA-256 of `{t}.{rawBody}` keyed with the
+ *      workspace webhook secret (ELEVENLABS_WEBHOOK_SECRET). Timestamp
+ *      tolerance bounds replay; a legacy plain-HMAC-over-body header is
+ *      still accepted for older vendor deliveries.
  *
  * Secrets are SERVER-ONLY and scrubbed from logs (src/lib/redact.ts).
  * Verification is constant-time where it matters (crypto.timingSafeEqual).
@@ -26,11 +31,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { execute, query as dbQuery } from "@/lib/db";
 import { getToolHmacSecret } from "./model-catalog";
 
-/** Allowed clock skew for internal tool callbacks (plan §11.3: ±5 min). */
-export const TOOL_TIMESTAMP_WINDOW_MS = 5 * 60 * 1000;
+/** Allowed clock skew for vendor post-call signatures (Stripe-style t= guard). */
+export const WEBHOOK_TIMESTAMP_TOLERANCE_MS = 10 * 60 * 1000;
 
-/** Nonce rows older than this are swept (double the timestamp window). */
-const NONCE_TTL_MS = TOOL_TIMESTAMP_WINDOW_MS * 2;
+/** Nonce rows older than this are swept (kept for ledger hygiene). */
+const NONCE_TTL_MS = WEBHOOK_TIMESTAMP_TOLERANCE_MS * 2;
 
 export type WebhookAuthFailure =
   | "missing_secret"
@@ -62,68 +67,51 @@ function hmacSha256Hex(secret: string, payload: string): string {
 /**
  * Verifies an internal Mode-B tool callback.
  *
- * Expected headers (sent by the vendor agent's webhook tool config):
- *   x-clara-signature : hex HMAC-SHA256(secret, `${timestamp}.${rawBody}`)
- *   x-clara-timestamp : unix milliseconds
- *   x-clara-nonce     : single-use random string (uuid or equivalent)
+ * Expected headers (constant headers baked into the vendor tool config by
+ * ElevenLabsVoiceProvider.createConversationalAgent):
+ *   x-clara-tool-token : the shared static secret
  *
- * The HMAC covers timestamp + body, so a captured signature cannot be
- * replayed with a different payload, and the timestamp bounds replay to
- * the ±5 min window; the nonce closes that window entirely.
+ * The tenant-id headers (x-clara-org-id / -kb-id / -agent-id) are read by
+ * the route handler and re-validated against the elevenlabs_agents binding
+ * THERE — this function only proves "the caller knows the shared secret".
  */
 export async function verifyInternalToolCall(
   rawBody: string,
   headers: Headers,
 ): Promise<WebhookAuthResult> {
+  void rawBody; // the static-token scheme is body-independent
   const secret = getToolHmacSecret();
   if (!secret) return { verified: false, failure: "missing_secret" };
 
-  const signature = headers.get("x-clara-signature")?.trim();
-  if (!signature) return { verified: false, failure: "missing_signature" };
+  const token = headers.get("x-clara-tool-token")?.trim();
+  if (!token) return { verified: false, failure: "missing_signature" };
 
-  const timestamp = headers.get("x-clara-timestamp")?.trim();
-  if (!timestamp || !/^\d+$/.test(timestamp)) {
-    return { verified: false, failure: "stale_timestamp" };
-  }
-
-  const timestampMs = Number(timestamp);
-  const drift = Math.abs(Date.now() - timestampMs);
-  if (drift > TOOL_TIMESTAMP_WINDOW_MS) {
-    return { verified: false, failure: "stale_timestamp" };
-  }
-
-  const expected = hmacSha256Hex(secret, `${timestamp}.${rawBody}`);
-  if (!safeEqualHex(expected, signature.toLowerCase())) {
+  if (!safeEqualHex(token, secret)) {
     return { verified: false, failure: "bad_signature" };
   }
-
-  const nonce = headers.get("x-clara-nonce")?.trim();
-  if (!nonce || nonce.length < 8 || nonce.length > 128) {
-    // Unsigned-replay protection requires a nonce — treat malformed ones
-    // as a bad signature rather than skipping the guard.
-    return { verified: false, failure: "bad_signature" };
-  }
-
-  const fresh = await consumeNonce(nonce, "tool");
-  if (!fresh) return { verified: false, failure: "replayed_nonce" };
 
   return { verified: true };
 }
 
-/** Composes the signature an authorised caller would send (tests + e2e). */
+/**
+ * Composes the token an authorised caller would send (tests + e2e).
+ */
 export function signInternalToolCall(
   secret: string,
-  rawBody: string,
-  timestampMs: number,
 ): string {
-  return hmacSha256Hex(secret, `${timestampMs}.${rawBody}`);
+  return secret;
 }
 
 // ─── Vendor post-call webhook verification ───────────────────────────────────
 
 /**
- * Verifies an ElevenLabs post-call webhook signature: the vendor sends
- * `elevenlabs-signature` — hex HMAC-SHA256(webhook secret, raw body).
+ * Verifies an ElevenLabs post-call webhook signature.
+ *
+ * Current scheme (Stripe-style, delivered in `elevenlabs-signature`):
+ *   t={unix_seconds},v1={hex HMAC-SHA256(secret, `${t}.${rawBody}`)}
+ * — possibly with several v1= entries (secret rotation); any match passes.
+ * A legacy plain `hex HMAC-SHA256(secret, rawBody)` header is still
+ * accepted so deliveries signed by older vendor infrastructure land.
  */
 export function verifyVendorWebhookSignature(
   rawBody: string,
@@ -135,11 +123,41 @@ export function verifyVendorWebhookSignature(
   const signature = headers.get("elevenlabs-signature")?.trim();
   if (!signature) return { verified: false, failure: "missing_signature" };
 
+  // ── Stripe-style: t=…,v1=… ────────────────────────────────────────────
+  const parts = splitSignatureHeader(signature);
+  if (parts.timestamp != null) {
+    const drift = Math.abs(Date.now() / 1000 - parts.timestamp);
+    if (drift > WEBHOOK_TIMESTAMP_TOLERANCE_MS / 1000) {
+      return { verified: false, failure: "stale_timestamp" };
+    }
+    const signedPayload = `${parts.timestamp}.${rawBody}`;
+    for (const candidate of parts.signatures) {
+      if (safeEqualHex(hmacSha256Hex(secret, signedPayload), candidate.toLowerCase())) {
+        return { verified: true };
+      }
+    }
+    return { verified: false, failure: "bad_signature" };
+  }
+
+  // ── Legacy: plain hex HMAC over the raw body ──────────────────────────
   const expected = hmacSha256Hex(secret, rawBody);
   if (!safeEqualHex(expected, signature.toLowerCase())) {
     return { verified: false, failure: "bad_signature" };
   }
   return { verified: true };
+}
+
+/** Parses `t=123,v1=abc,v1=def` — returns null timestamp for legacy headers. */
+function splitSignatureHeader(header: string): { timestamp: number | null; signatures: string[] } {
+  const signatures: string[] = [];
+  let timestamp: number | null = null;
+  for (const part of header.split(",")) {
+    const [key, ...rest] = part.trim().split("=");
+    const value = rest.join("=").trim();
+    if (key === "t" && /^\d+$/.test(value)) timestamp = Number(value);
+    if (key === "v1" && value.length > 0) signatures.push(value);
+  }
+  return { timestamp, signatures };
 }
 
 // ─── Nonce ledger (replay guard) ─────────────────────────────────────────────

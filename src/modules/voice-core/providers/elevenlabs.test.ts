@@ -229,7 +229,7 @@ describe("ElevenLabsVoiceProvider — Conversational AI capability", () => {
     expect(isConversationalVoiceService(provider)).toBe(true);
   });
 
-  it("normalises vendor agent records", async () => {
+  it("normalises vendor agent records (current + legacy shapes)", async () => {
     fetchMock.mockResolvedValueOnce(
       okResponse({
         agents: [
@@ -238,26 +238,46 @@ describe("ElevenLabsVoiceProvider — Conversational AI capability", () => {
             name: "Front desk voice",
             conversation_config: {
               tts: { voice_id: "JBFqnCBsd6RMkjVDRZzb" },
-              language: "en",
-              agent: { prompt: { system_prompt: "Be helpful.", first_message: { text: "Hi!" } } },
+              agent: {
+                language: "en",
+                first_message: "Hi there!",
+                prompt: { prompt: "Be helpful.", tool_ids: ["tool_1"] },
+              },
+            },
+          },
+          {
+            // Legacy pre-2026-09 schema — still readable.
+            agent_id: "agent_vendor_001b",
+            name: "Legacy shape",
+            conversation_config: {
+              tts: { voice_id: "V2" },
+              language: "de",
+              agent: { prompt: { system_prompt: "Old.", first_message: { text: "Hallo!" } } },
             },
           },
         ],
       }),
     );
     const agents = await new ElevenLabsVoiceProvider().listConversationalAgents();
-    expect(agents).toHaveLength(1);
+    expect(agents).toHaveLength(2);
     expect(agents[0]).toMatchObject({
       agentId: "agent_vendor_001",
       name: "Front desk voice",
       voiceId: "JBFqnCBsd6RMkjVDRZzb",
       language: "en",
-      firstMessage: "Hi!",
+      firstMessage: "Hi there!",
       systemPrompt: "Be helpful.",
+    });
+    expect(agents[1]).toMatchObject({
+      agentId: "agent_vendor_001b",
+      language: "de",
+      firstMessage: "Hallo!",
+      systemPrompt: "Old.",
     });
   });
 
-  it("registers the RAG server tool (HMAC secret + tenant ids) on agent create", async () => {
+  it("creates the RAG tool SEPARATELY and attaches it via tool_ids (current API)", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ id: "tool_vendor_777" }));
     fetchMock.mockResolvedValueOnce(
       okResponse({
         agent_id: "agent_vendor_002",
@@ -270,35 +290,99 @@ describe("ElevenLabsVoiceProvider — Conversational AI capability", () => {
       voiceId: "JBFqnCBsd6RMkjVDRZzb",
       ragTool: {
         url: "https://clara.example/api/internal/elevenlabs/tools/rag-search",
-        secret: "hmac_secret",
+        secret: "shared_token",
         orgId: "o1",
         agentId: "a1",
         kbId: "k1",
       },
-      twilio: { phoneNumbers: ["+15550001111"] },
+      systemPrompt: "Answer from the knowledge base.",
+      firstMessage: "Hello!",
+      language: "en",
     });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/v1/convai/agents/create");
-    const body = JSON.parse(String(init.body)) as {
-      tools: { name: string; url: string; config: Record<string, unknown> }[];
-      conversation_config: { twilio?: { phone_numbers: string[] } };
+
+    // ── Call 1: tool creation ──
+    const [toolUrl, toolInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(toolUrl).toContain("/v1/convai/tools");
+    const toolBody = JSON.parse(String(toolInit.body)) as {
+      tool_config: {
+        type: string;
+        name: string;
+        api_schema: {
+          url: string;
+          method: string;
+          request_headers: Record<string, string>;
+          request_body_schema: { required: string[] };
+        };
+      };
     };
-    expect(body.tools).toHaveLength(1);
-    expect(body.tools[0].name).toBe("clara_rag_search");
-    expect(body.tools[0].url).toContain("/api/internal/elevenlabs/tools/rag-search");
-    // The tenant ids + secret the callback re-validates ride in tool config.
-    expect(body.tools[0].config).toMatchObject({ orgId: "o1", agentId: "a1", kbId: "k1", secret: "hmac_secret" });
-    expect(body.conversation_config.twilio?.phone_numbers).toEqual(["+15550001111"]);
+    expect(toolBody.tool_config.type).toBe("webhook");
+    expect(toolBody.tool_config.name).toBe("clara_rag_search");
+    expect(toolBody.tool_config.api_schema.url).toContain("/api/internal/elevenlabs/tools/rag-search");
+    expect(toolBody.tool_config.api_schema.method).toBe("POST");
+    // Static-token auth + tenant ids ride as constant headers.
+    expect(toolBody.tool_config.api_schema.request_headers).toMatchObject({
+      "x-clara-tool-token": "shared_token",
+      "x-clara-org-id": "o1",
+      "x-clara-agent-id": "a1",
+      "x-clara-kb-id": "k1",
+    });
+    expect(toolBody.tool_config.api_schema.request_body_schema.required).toEqual(["query"]);
+
+    // ── Call 2: agent creation (references the tool; NO inline tools[]) ──
+    const [agentUrl, agentInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(agentUrl).toContain("/v1/convai/agents/create");
+    const agentBody = JSON.parse(String(agentInit.body)) as {
+      conversation_config: {
+        tts: { voice_id: string };
+        agent: {
+          language: string;
+          first_message: string;
+          prompt: { prompt: string; tool_ids: string[] };
+        };
+      };
+      platform_settings: { auth: { enable_auth: boolean } };
+      tools?: unknown[];
+    };
+    expect(agentBody.tools).toBeUndefined(); // the inline tools[] param is dead
+    expect(agentBody.conversation_config.agent.prompt.tool_ids).toEqual(["tool_vendor_777"]);
+    expect(agentBody.conversation_config.agent.prompt.prompt).toBe("Answer from the knowledge base.");
+    expect(agentBody.conversation_config.agent.first_message).toBe("Hello!");
+    expect(agentBody.conversation_config.agent.language).toBe("en");
+    expect(agentBody.conversation_config.tts.voice_id).toBe("JBFqnCBsd6RMkjVDRZzb");
+    // Sessions must go through signed URLs — never a bare agent_id.
+    expect(agentBody.platform_settings.auth.enable_auth).toBe(true);
   });
 
-  it("returns the signed URL with a short TTL", async () => {
-    fetchMock.mockResolvedValueOnce(okResponse({ signed_url: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=x&signed_url=y" }));
+  it("configures μ-law telephony audio when telephony: true", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ id: "tool_vendor_778" }));
+    fetchMock.mockResolvedValueOnce(okResponse({ agent_id: "agent_vendor_009" }));
+    await new ElevenLabsVoiceProvider().createConversationalAgent({
+      name: "Phone agent",
+      voiceId: "V",
+      ragTool: { url: "https://clara.example/t", secret: "s", orgId: "o", kbId: "k" },
+      telephony: true,
+    });
+    const [, agentInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const agentBody = JSON.parse(String(agentInit.body)) as {
+      conversation_config: {
+        asr: { user_input_audio_format: string };
+        tts: { agent_output_audio_format: string };
+      };
+    };
+    expect(agentBody.conversation_config.asr.user_input_audio_format).toBe("ulaw_8000");
+    expect(agentBody.conversation_config.tts.agent_output_audio_format).toBe("ulaw_8000");
+  });
+
+  it("mints signed URLs from the CURRENT conversation endpoint (15 min TTL)", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ signed_url: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=x&conversation_signature=y" }));
     const signed = await new ElevenLabsVoiceProvider().getAgentSignedUrl("agent_vendor_003");
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/v1/convai/agents/agent_vendor_003/get-signed-url");
+    // The legacy per-agent /get-signed-url?expiry_seconds=N path 404s now.
+    expect(url).toContain("/v1/convai/conversation/get-signed-url?agent_id=agent_vendor_003");
+    expect(url).not.toContain("expiry_seconds");
     expect(signed.signedUrl).toContain("wss://api.elevenlabs.io");
     expect(signed.expiresAt).toBeGreaterThan(Date.now());
-    expect(signed.expiresAt).toBeLessThanOrEqual(Date.now() + 60_000);
+    expect(signed.expiresAt).toBeLessThanOrEqual(Date.now() + 900_000);
   });
 
   it("errors loudly when the vendor returns no signed URL", async () => {
@@ -307,6 +391,67 @@ describe("ElevenLabsVoiceProvider — Conversational AI capability", () => {
       name: "ElevenLabsError",
       status: 502,
     });
+  });
+
+  it("registers Twilio calls with μ-law overrides and returns the vendor TwiML verbatim", async () => {
+    const twiml = '<?xml version="1.0"?><Response><Connect><Stream url="wss://api.elevenlabs.io/v1/convai/stream"/></Connect></Response>';
+    fetchMock.mockResolvedValueOnce(new Response(twiml, { status: 200 }));
+    const result = await new ElevenLabsVoiceProvider().registerTwilioCall({
+      agentId: "agent_vendor_005",
+      fromNumber: "+15550002222",
+      toNumber: "+15550001111",
+      direction: "inbound",
+      dynamicVariables: { caller_number: "+15550002222" },
+    });
+    expect(result).toBe(twiml);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/v1/convai/twilio/register-call");
+    const body = JSON.parse(String(init.body)) as {
+      agent_id: string;
+      from_number: string;
+      to_number: string;
+      direction: string;
+      conversation_initiation_client_data: {
+        conversation_config_override: {
+          asr: { user_input_audio_format: string };
+          tts: { agent_output_audio_format: string };
+        };
+        dynamic_variables: Record<string, string>;
+      };
+    };
+    expect(body.agent_id).toBe("agent_vendor_005");
+    expect(body.direction).toBe("inbound");
+    // Twilio Media Streams are μ-law 8 kHz — pinned per call so the same
+    // agent keeps PCM 16 kHz for browser sessions.
+    expect(body.conversation_initiation_client_data.conversation_config_override.asr.user_input_audio_format).toBe("ulaw_8000");
+    expect(body.conversation_initiation_client_data.conversation_config_override.tts.agent_output_audio_format).toBe("ulaw_8000");
+    expect(body.conversation_initiation_client_data.dynamic_variables).toEqual({ caller_number: "+15550002222" });
+  });
+
+  it("rejects register-call responses that are not TwiML", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ error: "agent not found" }));
+    await expect(
+      new ElevenLabsVoiceProvider().registerTwilioCall({
+        agentId: "agent_vendor_006",
+        fromNumber: "+15550002222",
+        toNumber: "+15550001111",
+        direction: "inbound",
+      }),
+    ).rejects.toMatchObject({ name: "ElevenLabsError", status: 502 });
+  });
+
+  it("provisions the workspace post-call webhook and surfaces the generated secret", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ webhook_id: "wh_1", webhook_secret: "vendor_generated_secret" }));
+    const created = await new ElevenLabsVoiceProvider().createWorkspaceWebhook({
+      name: "Clara post-call",
+      url: "https://clara.example/api/webhooks/elevenlabs/post-call",
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/v1/workspace/webhooks");
+    const body = JSON.parse(String(init.body)) as { settings: { auth_type: string; name: string; webhook_url: string } };
+    expect(body.settings.auth_type).toBe("hmac");
+    expect(body.settings.webhook_url).toContain("/api/webhooks/elevenlabs/post-call");
+    expect(created).toMatchObject({ webhookId: "wh_1", webhookSecret: "vendor_generated_secret" });
   });
 
   it("normalises conversation history timestamps from both vendor formats", async () => {

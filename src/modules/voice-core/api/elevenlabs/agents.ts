@@ -237,6 +237,7 @@ export async function postElevenLabsAgents(request: NextRequest): Promise<NextRe
     }
 
     const twilio = parseTwilioParam(body.twilio);
+    const telephony = body.telephony === true;
 
     const vendorAgent = await service.createConversationalAgent({
       name,
@@ -251,6 +252,7 @@ export async function postElevenLabsAgents(request: NextRequest): Promise<NextRe
       systemPrompt,
       firstMessage,
       language,
+      telephony,
       twilio,
     });
 
@@ -272,6 +274,7 @@ export async function postElevenLabsAgents(request: NextRequest): Promise<NextRe
           systemPrompt,
           firstMessage,
           language,
+          telephony,
           twilio: twilio ?? null,
         }),
       ],
