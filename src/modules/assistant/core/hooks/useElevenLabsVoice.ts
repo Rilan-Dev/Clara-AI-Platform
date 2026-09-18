@@ -28,11 +28,17 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
+import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
 
 // ─── VAD tuning ───────────────────────────────────────────────────────────────
-const VAD_THRESHOLD = 0.015;        // RMS level that counts as speech
+// Turn-taking budget: silence-to-submit used to be 800 ms of client VAD on
+// top of a full batch-STT round trip. 700 ms keeps a safe anti-cut-off
+// margin while trimming dead air; the threshold bump (0.015 → 0.02) cuts
+// background-noise false triggers (production HAR: [wind blowing] and
+// [heartbeat] utterances each burned a full chat + TTS cycle).
+const VAD_THRESHOLD = 0.02;         // RMS level that counts as speech
 const VAD_START_FRAMES = 6;         // ~100 ms of speech to open an utterance
-const VAD_SILENCE_MS = 800;         // silence after speech to close it
+const VAD_SILENCE_MS = 700;         // silence after speech to close it
 
 type SessionPayload = {
   mode: "pipeline";
@@ -114,9 +120,15 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
 
   // ─── TTS: speak one sentence ────────────────────────────────────────────────
 
-  const speakSentence = useCallback(async (text: string) => {
+  const speakSentence = useCallback(async (rawText: string) => {
     const session = sessionRef.current;
     if (!session) return;
+    // Strip citation tags + markdown before dispatching — a trailing
+    // "[S2]" fragment must never become its own TTS call (HAR 2026-09-18).
+    // The server sanitizes again; this client-side pass exists so the call
+    // is never even fired for non-speakable fragments.
+    const text = sanitizeTtsText(rawText);
+    if (!text) return;
     const controller = new AbortController();
     ttsAbortRef.current = controller;
     try {
@@ -292,9 +304,12 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     const blob = new Blob(captureChunksRef.current, { type: "audio/webm" });
     captureChunksRef.current = [];
     const text = await transcribeUtterance(blob);
-    if (text) {
-      await runAssistantTurn(text);
-    }
+    if (!text) return;
+    // Scribe annotates non-speech audio as bracketed sound events
+    // ([heartbeat], [wind blowing]). Dispatching those to the chat pipeline
+    // burns a full RAG + chat + TTS cycle on background noise — skip them.
+    if (isNonSpeechTranscript(text)) return;
+    await runAssistantTurn(text);
   }, [runAssistantTurn, transcribeUtterance]);
 
   const startUtterance = useCallback(() => {
@@ -426,17 +441,20 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
 
       // 6. Greet.
       if (options.voiceGreeting) {
-        setHistory((prev) => [
-          ...prev,
-          {
-            id: generateTurnId(),
-            question: "",
-            answer: options.voiceGreeting as string,
-            sources: [] as Source[],
-            status: "done" as const,
-          },
-        ]);
-        void speakSentence(options.voiceGreeting);
+        const greeting = sanitizeTtsText(options.voiceGreeting);
+        if (greeting) {
+          setHistory((prev) => [
+            ...prev,
+            {
+              id: generateTurnId(),
+              question: "",
+              answer: greeting,
+              sources: [] as Source[],
+              status: "done" as const,
+            },
+          ]);
+          void speakSentence(greeting);
+        }
       }
 
       setStatus("connected");

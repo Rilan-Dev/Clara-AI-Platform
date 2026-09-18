@@ -132,6 +132,79 @@ describe("ElevenLabsVoiceProvider", () => {
       labels: { accent: "american", use_case: "narration" },
     });
   });
+
+  // ─── Connect-level retry (2026-09-18 HAR hardening) ────────────────────────
+
+  /** Undici-shaped network failure: TypeError("fetch failed") + cause code. */
+  function connectFailure(code: string): TypeError {
+    const err = new TypeError("fetch failed");
+    (err as { cause?: unknown }).cause = Object.assign(new Error("connect failed"), { code });
+    return err;
+  }
+
+  it("retries once on connect-level failures and recovers (the HAR 'fetch failed' bursts)", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
+    fetchMock
+      .mockRejectedValueOnce(connectFailure("UND_ERR_CONNECT_TIMEOUT"))
+      .mockResolvedValueOnce(okResponse({ text: "Hi", language_code: "eng" }));
+    const provider = new ElevenLabsVoiceProvider();
+    const result = await provider.transcribeAudio({
+      file: new Blob(["audio-bytes"], { type: "audio/webm" }),
+      modelId: "scribe_v1",
+    });
+    expect(result.text).toBe("Hi");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries happy-eyeballs AggregateError connect failures", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
+    const err = new TypeError("fetch failed");
+    (err as { cause?: unknown }).cause = new AggregateError([
+      Object.assign(new Error("connect ECONNREFUSED ::1:443"), { code: "ECONNREFUSED" }),
+    ]);
+    fetchMock
+      .mockRejectedValueOnce(err)
+      .mockResolvedValueOnce(okResponse({ text: "Hi", language_code: "eng" }));
+    const provider = new ElevenLabsVoiceProvider();
+    const result = await provider.transcribeAudio({
+      file: new Blob(["audio-bytes"], { type: "audio/webm" }),
+      modelId: "scribe_v1",
+    });
+    expect(result.text).toBe("Hi");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does NOT retry twice — a second connect failure surfaces as 502", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
+    fetchMock
+      .mockRejectedValueOnce(connectFailure("ETIMEDOUT"))
+      .mockRejectedValueOnce(connectFailure("ETIMEDOUT"));
+    const provider = new ElevenLabsVoiceProvider();
+    await expect(provider.listVoices()).rejects.toMatchObject({
+      name: "ElevenLabsError",
+      status: 502,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry vendor HTTP errors (401 maps straight through)", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
+    fetchMock.mockResolvedValueOnce(new Response("denied", { status: 401, statusText: "Unauthorized" }));
+    const provider = new ElevenLabsVoiceProvider();
+    await expect(provider.listVoices()).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry non-connect TypeErrors (mid-stream socket loss stays 502)", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
+    fetchMock.mockRejectedValueOnce(new TypeError("terminated"));
+    const provider = new ElevenLabsVoiceProvider();
+    await expect(provider.listVoices()).rejects.toMatchObject({
+      name: "ElevenLabsError",
+      status: 502,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ─── Mode B capability methods (V4/V5) ───────────────────────────────────────

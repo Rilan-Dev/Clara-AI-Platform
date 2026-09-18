@@ -50,6 +50,51 @@ export class VoiceConfigResolutionError extends Error {
 
 export type { ResolveVoiceConfigInput };
 
+// ─── Hot-path resolution cache ─────────────────────────────────────────────────
+//
+// resolveVoiceConfig walks kb → agent → org settings → AI overrides → voice
+// catalog: ~8 remote-DB round trips. The Mode A pipeline calls it on EVERY
+// per-sentence TTS request and EVERY utterance STT request (a 10-sentence
+// answer repeats the whole walk 10 times), which stacks hundreds of ms of
+// pure database latency in front of every vendor call. A 5-second TTL memo
+// collapses that to one walk per speaking burst while staying short enough
+// that operator/provider switches propagate effectively immediately.
+
+const VOICE_CONFIG_CACHE_TTL_MS = 5_000;
+const voiceConfigCache = new Map<
+  string,
+  { expiresAt: number; value: VoiceResolution }
+>();
+
+function voiceConfigCacheKey(input: ResolveVoiceConfigInput): string {
+  return `${input.surface}|${input.kbId ?? ""}|${input.orgId ?? ""}`;
+}
+
+/**
+ * TTL-cached resolveVoiceConfig for hot per-request routes (tts, transcribe).
+ * Errors are NEVER cached — a failed resolution is retried on the next call.
+ * Session bootstrap keeps the uncached resolveVoiceConfig for freshness.
+ */
+export async function resolveVoiceConfigCached(
+  input: ResolveVoiceConfigInput,
+): Promise<VoiceResolution> {
+  const key = voiceConfigCacheKey(input);
+  const hit = voiceConfigCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) {
+    return hit.value;
+  }
+  const value = await resolveVoiceConfig(input);
+  voiceConfigCache.set(key, { expiresAt: Date.now() + VOICE_CONFIG_CACHE_TTL_MS, value });
+  if (voiceConfigCache.size > 512) {
+    // Cheap periodic sweep — never expected to trigger at this key cardinality.
+    const now = Date.now();
+    for (const [k, entry] of voiceConfigCache) {
+      if (entry.expiresAt <= now) voiceConfigCache.delete(k);
+    }
+  }
+  return value;
+}
+
 /**
  * Resolve the voice provider + ElevenLabs specifics for a tenant. The brain
  * config is resolved via the existing resolveAIConfig() with the SAME input

@@ -54,6 +54,48 @@ export class ElevenLabsError extends Error {
 /** Signed-URL TTL requested from the vendor (V4 agent sessions). */
 const AGENT_SIGNED_URL_TTL_SEC = 60;
 
+/**
+ * Backoff before the single connect-level retry (ms). Short on purpose —
+ * the failure mode this targets (undici connect timeout) already burned
+ * ~10 s, so the retry must fire promptly to keep sentence TTS viable.
+ */
+const CONNECT_RETRY_BACKOFF_MS = 250;
+
+/**
+ * Node/undici error codes that mean the request NEVER reached the vendor
+ * (DNS, routing, TCP connect). Retrying is then side-effect free for every
+ * verb — nothing was generated, nothing was billed.
+ *
+ * Production evidence (HAR, 2026-09-18): bursts of 502
+ * "ElevenLabs request failed … fetch failed" at ~10.3–10.6 s = undici's
+ * default 10 s connect timeout — exactly this class of failure.
+ */
+const CONNECT_FAILURE_CODES = new Set([
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+]);
+
+function isConnectLevelFailure(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false; // undici network errors are TypeErrors
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause == null || typeof cause !== "object") return false;
+  if (CONNECT_FAILURE_CODES.has(String((cause as { code?: unknown }).code ?? ""))) return true;
+  // Happy-eyeballs parallel connect failure surfaces as AggregateError of
+  // per-address errors — retry on IPv6/IPv4 races too.
+  if (Array.isArray((cause as { errors?: unknown }).errors)) return true;
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class ElevenLabsVoiceProvider implements VoiceProviderService {
   private config: VoiceServiceConfig;
   private apiKey: string | undefined;
@@ -90,6 +132,8 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
   private async elevenLabsFetch(
     path: string,
     init: RequestInit & { timeoutMs?: number } = {},
+    /** Internal: single retry budget for connect-level failures. */
+    allowConnectRetry = true,
   ): Promise<Response> {
     const { timeoutMs = this.timeoutMs, ...rest } = init;
     const controller = new AbortController();
@@ -116,6 +160,14 @@ export class ElevenLabsVoiceProvider implements VoiceProviderService {
       if (error instanceof ElevenLabsError) throw error;
       if ((error as Error).name === "AbortError") {
         throw new ElevenLabsError(`ElevenLabs request timed out after ${timeoutMs}ms on ${path}`, 504);
+      }
+      // Connect-level failure: the request never reached the vendor, so ONE
+      // bounded retry is safe for every endpoint (no double generation, no
+      // double billing). Only our own AbortController timeouts (504 above)
+      // and vendor HTTP errors (ElevenLabsError) skip this path.
+      if (allowConnectRetry && isConnectLevelFailure(error)) {
+        await sleep(CONNECT_RETRY_BACKOFF_MS);
+        return this.elevenLabsFetch(path, init, false);
       }
       throw new ElevenLabsError(`ElevenLabs request failed on ${path}: ${(error as Error).message}`, 502);
     } finally {

@@ -27,7 +27,8 @@ import {
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { logTtsUsage } from "../../metering";
-import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
+import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
+import { sanitizeTtsText } from "../../tts-text";
 
 export async function postElevenLabsTts(request: NextRequest): Promise<NextResponse | Response> {
   try {
@@ -46,10 +47,22 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
       return NextResponse.json({ error: "text is required." }, { status: 400 });
     }
 
-    const maxChars = preview ? TTS_PREVIEW_MAX_CHARS : TTS_MAX_CHARS_PER_REQUEST;
-    if (text.length > maxChars) {
+    // RAG answers carry markdown + [S1]-style citation tags meant for the
+    // eye, not the ear (production HAR showed "[S2]" dispatched as its own
+    // TTS call). Strip BEFORE the caps check, BEFORE metering, BEFORE the
+    // vendor call — metering then reflects exactly what was spoken.
+    const speakableText = sanitizeTtsText(text);
+    if (!speakableText) {
       return NextResponse.json(
-        { error: `Text too long (${text.length} chars). Maximum is ${maxChars} per request.` },
+        { error: "text contains nothing speakable after removing citations and markdown." },
+        { status: 400 },
+      );
+    }
+
+    const maxChars = preview ? TTS_PREVIEW_MAX_CHARS : TTS_MAX_CHARS_PER_REQUEST;
+    if (speakableText.length > maxChars) {
+      return NextResponse.json(
+        { error: `Text too long (${speakableText.length} chars). Maximum is ${maxChars} per request.` },
         { status: 413 },
       );
     }
@@ -94,7 +107,10 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     }
 
     // Server-side re-resolution: client-suggested voice/model are advisory.
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+    // Cached for 5 s — this route fires per sentence, and the resolution walk
+    // (~8 DB round trips) otherwise dominates the latency budget of every
+    // short-sentence call (see ELEVENLABS_REALTIME_STREAMING_PLAN.md).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
     if (resolved.voiceProvider !== "elevenlabs" || !resolved.elevenlabs) {
       return NextResponse.json(
         { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.voiceProvider },
@@ -114,7 +130,7 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
 
     const startedAt = Date.now();
     const audioResponse = await voiceService.speak({
-      text,
+      text: speakableText,
       voiceId,
       modelId: model,
       outputFormat: TTS_OUTPUT_FORMAT,
@@ -125,14 +141,15 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     });
     const latencyMs = Date.now() - startedAt;
 
-    // Meter from the request fact (character count) — cheap and exact.
+    // Meter from the request fact (character count of what was actually
+    // spoken) — cheap and exact.
     await logTtsUsage({
       orgId,
       kbId,
       agentId,
       model,
       latencyMs,
-      characters: text.length,
+      characters: speakableText.length,
       preview,
     });
 

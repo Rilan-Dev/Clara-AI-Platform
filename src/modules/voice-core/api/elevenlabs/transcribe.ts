@@ -21,7 +21,7 @@ import { STT_MAX_AUDIO_BYTES, STT_MAX_AUDIO_SECONDS, isValidUuid } from "../../m
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { logSttUsage } from "../../metering";
-import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
+import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 
 export async function postElevenLabsTranscribe(request: NextRequest): Promise<NextResponse> {
   try {
@@ -86,7 +86,8 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
 
     // Server-side re-resolution — the client-suggested model/language is
     // advisory only, exactly like realtime.ts re-validates the voice.
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+    // Cached for 5 s (hot path fires per utterance).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
     if (resolved.voiceProvider !== "elevenlabs" || !resolved.elevenlabs) {
       return NextResponse.json(
         { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.voiceProvider },
