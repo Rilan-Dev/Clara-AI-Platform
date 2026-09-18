@@ -465,6 +465,19 @@ export type OrgUsageMetering = {
     costUsdMicros:    number;
     batches:          number;
   };
+  /** Voice axis (ElevenLabs): TTS/STT/conversation usage + latency. */
+  voice: {
+    ttsCharacters:      number;
+    sttAudioSeconds:    number;
+    conversationSeconds: number;
+    costUsdMicros:      number;
+    ttsRequests:        number;
+    sttRequests:        number;
+    conversationCount:  number;
+    /** Latency percentiles (ms) over TTS+STT invocations, null when empty. */
+    latencyP50Ms:       number | null;
+    latencyP95Ms:       number | null;
+  };
   byModel: Array<{
     model:            string;
     requests:         number;
@@ -509,6 +522,30 @@ export async function getOrgUsageMetering(
     [orgId, String(days)]
   );
 
+  // Voice axis (ElevenLabs): per-kind totals + latency percentiles from the
+  // same usage_events spine (plan §12). prompt_tokens is the reused usage
+  // column — characters for TTS, audio-seconds for STT, duration-seconds
+  // for conversations.
+  const [voiceRow] = await query<{
+    tts_characters: string; stt_audio_seconds: string; conversation_seconds: string;
+    cost_usd_micros: string; tts_requests: string; stt_requests: string;
+    conversation_count: string; latency_p50: string | null; latency_p95: string | null;
+  }>(
+    `SELECT
+       COALESCE(SUM(prompt_tokens) FILTER (WHERE kind = 'TTS'), 0)            AS tts_characters,
+       COALESCE(SUM(prompt_tokens) FILTER (WHERE kind = 'TRANSCRIPTION'), 0)   AS stt_audio_seconds,
+       COALESCE(SUM(prompt_tokens) FILTER (WHERE kind = 'CONVERSATION'), 0)   AS conversation_seconds,
+       COALESCE(SUM(cost_usd_micros), 0)                                      AS cost_usd_micros,
+       COUNT(*) FILTER (WHERE kind = 'TTS')                                   AS tts_requests,
+       COUNT(*) FILTER (WHERE kind = 'TRANSCRIPTION')                         AS stt_requests,
+       COUNT(*) FILTER (WHERE kind = 'CONVERSATION')                          AS conversation_count,
+       percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE latency_ms IS NOT NULL) AS latency_p50,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE latency_ms IS NOT NULL) AS latency_p95
+     FROM usage_events
+     WHERE org_id = $1 AND kind IN ('TTS','TRANSCRIPTION','CONVERSATION') AND ${window}`,
+    [orgId, String(days)]
+  );
+
   const byModel = await query<{
     model: string; requests: string; prompt_tokens: string; completion_tokens: string; cost_usd_micros: string;
   }>(
@@ -537,6 +574,17 @@ export async function getOrgUsageMetering(
       promptTokens:     Number(embedRow?.prompt_tokens ?? 0),
       costUsdMicros:    Number(embedRow?.cost_usd_micros ?? 0),
       batches:          Number(embedRow?.batches ?? 0),
+    },
+    voice: {
+      ttsCharacters:       Number(voiceRow?.tts_characters ?? 0),
+      sttAudioSeconds:     Number(voiceRow?.stt_audio_seconds ?? 0),
+      conversationSeconds: Number(voiceRow?.conversation_seconds ?? 0),
+      costUsdMicros:       Number(voiceRow?.cost_usd_micros ?? 0),
+      ttsRequests:         Number(voiceRow?.tts_requests ?? 0),
+      sttRequests:         Number(voiceRow?.stt_requests ?? 0),
+      conversationCount:   Number(voiceRow?.conversation_count ?? 0),
+      latencyP50Ms:        voiceRow?.latency_p50 != null ? Math.round(Number(voiceRow.latency_p50)) : null,
+      latencyP95Ms:        voiceRow?.latency_p95 != null ? Math.round(Number(voiceRow.latency_p95)) : null,
     },
     byModel: byModel.map((r) => ({
       model:            r.model,

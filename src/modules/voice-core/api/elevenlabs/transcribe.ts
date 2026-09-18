@@ -17,7 +17,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, ELEVENLABS_STT_RATE } from "@/lib/rate-limit";
-import { STT_MAX_AUDIO_BYTES, STT_MAX_AUDIO_SECONDS } from "../../model-catalog";
+import { STT_MAX_AUDIO_BYTES, STT_MAX_AUDIO_SECONDS, isValidUuid } from "../../model-catalog";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { logSttUsage } from "../../metering";
@@ -47,8 +47,8 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
       );
     }
 
-    if (!kbId) {
-      return NextResponse.json({ error: "kbId is required." }, { status: 400 });
+    if (!kbId || !isValidUuid(kbId)) {
+      return NextResponse.json({ error: "A valid kbId is required." }, { status: 400 });
     }
 
     const orgRows = await dbQuery<{ org_id: string; agent_id: string }>(

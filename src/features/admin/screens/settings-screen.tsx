@@ -369,6 +369,10 @@ function ElevenLabsStatusCard() {
     voiceLimit?: number;
     canUseInstantCloning?: boolean;
     enabled?: boolean;
+    conversationalAI?: boolean;
+    voiceCloning?: boolean;
+    voiceDesign?: boolean;
+    creditAlert?: { thresholdPct: number; usagePercent: number | null; crossed: boolean; alerted: boolean };
     defaultTtsModel?: string;
     defaultSttModel?: string;
   } | null>(null);
@@ -425,10 +429,19 @@ function ElevenLabsStatusCard() {
             {status.characterUsagePercent != null && (
               <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${status.characterUsagePercent > 80 ? "bg-amber-400" : "bg-cyan-400"}`}
+                  className={`h-full rounded-full ${
+                    status.creditAlert?.crossed || status.characterUsagePercent > 80 ? "bg-amber-400" : "bg-cyan-400"
+                  }`}
                   style={{ width: `${Math.min(100, status.characterUsagePercent)}%` }}
                 />
               </div>
+            )}
+            {/* V6 credit-burn alerting — one-line operator signal. */}
+            {status.creditAlert?.crossed && (
+              <p className="mt-1.5 text-[11px] text-amber-300">
+                Burn alert: {status.creditAlert.usagePercent}% consumed (threshold {status.creditAlert.thresholdPct}%)
+                {status.creditAlert.alerted ? " — super admins notified." : ""}
+              </p>
             )}
           </div>
           <div>
@@ -441,6 +454,24 @@ function ElevenLabsStatusCard() {
               {status.defaultTtsModel} · {status.defaultSttModel}
             </p>
           </div>
+        </div>
+      )}
+      {/* Feature flags — always visible so operators see the Mode B / studio
+          kill-switch states even before a key is configured. */}
+      {status && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
+          <span className={status.connected ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-emerald-300" : "rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 py-0.5 text-rose-300"}>
+            {status.connected ? "Voice enabled" : "Voice off"}
+          </span>
+          <span className={status.conversationalAI ? "rounded-full border border-indigo-400/30 bg-indigo-400/10 px-2.5 py-0.5 text-indigo-300" : "rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-white/40"}>
+            Conversational AI (Mode B): {status.conversationalAI ? "on" : "off"}
+          </span>
+          <span className={status.voiceCloning ? "rounded-full border border-violet-400/30 bg-violet-400/10 px-2.5 py-0.5 text-violet-300" : "rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-white/40"}>
+            Cloning: {status.voiceCloning ? "on" : "off"}
+          </span>
+          <span className={status.voiceDesign ? "rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-0.5 text-cyan-300" : "rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-white/40"}>
+            Voice Design: {status.voiceDesign ? "on" : "off"}
+          </span>
         </div>
       )}
     </div>

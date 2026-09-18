@@ -21,6 +21,7 @@ import {
   TTS_OUTPUT_FORMAT,
   TTS_PREVIEW_MAX_CHARS,
   isSupportedTTSModel,
+  isValidUuid,
   looksLikeElevenLabsVoiceId,
 } from "../../model-catalog";
 import { VoiceProviderFactory } from "../../factory";
@@ -53,8 +54,8 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
       );
     }
 
-    if (!kbId) {
-      return NextResponse.json({ error: "kbId is required." }, { status: 400 });
+    if (!kbId || !isValidUuid(kbId)) {
+      return NextResponse.json({ error: "A valid kbId is required." }, { status: 400 });
     }
 
     const orgRows = await dbQuery<{ org_id: string; agent_id: string }>(

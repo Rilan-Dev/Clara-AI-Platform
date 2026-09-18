@@ -37,10 +37,16 @@ type DashboardData = {
     queriesPrev30d: number; trendPct: number; chatSessions30d: number;
     avgLatencyMs: number | null; activeUsers30d: number;
   };
-  // WS-1.6 + WS-1.1: token/cost metering from the usage-event spine.
+  // WS-1.6 + WS-1.1: token/cost metering from the usage-event spine,
+  // extended with the voice axis (ElevenLabs TTS/STT/conversations).
   usageMetering: {
     chat: { promptTokens: number; completionTokens: number; costUsdMicros: number; requests: number };
     embedding: { promptTokens: number; costUsdMicros: number; batches: number };
+    voice: {
+      ttsCharacters: number; sttAudioSeconds: number; conversationSeconds: number;
+      costUsdMicros: number; ttsRequests: number; sttRequests: number;
+      conversationCount: number; latencyP50Ms: number | null; latencyP95Ms: number | null;
+    };
     byModel: Array<{ model: string; requests: number; promptTokens: number; completionTokens: number; costUsdMicros: number }>;
   } | null;
   queriesPerDay: { day: string; queries: number }[];
@@ -403,6 +409,16 @@ export default function OrgOverviewScreen() {
                 <p className="hidden sm:block text-xs text-white/25 mt-0.5">
                   AI usage · 30d: {((data.usageMetering.chat.promptTokens + data.usageMetering.embedding.promptTokens) / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k tokens
                   {` · ~$${((data.usageMetering.chat.costUsdMicros + data.usageMetering.embedding.costUsdMicros) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} est. cost`}
+                </p>
+              )}
+              {/* Voice axis (ElevenLabs): TTS/STT/conversation metering + latency. */}
+              {data?.usageMetering && data.usageMetering.voice && (data.usageMetering.voice.ttsRequests > 0 || data.usageMetering.voice.sttRequests > 0 || data.usageMetering.voice.conversationCount > 0) && (
+                <p className="hidden sm:block text-xs text-white/25 mt-0.5">
+                  Voice · 30d: {data.usageMetering.voice.ttsCharacters.toLocaleString()} spoken chars
+                  {` · ${Math.round(data.usageMetering.voice.sttAudioSeconds / 60).toLocaleString()} min transcribed`}
+                  {data.usageMetering.voice.conversationCount > 0 ? ` · ${Math.round(data.usageMetering.voice.conversationSeconds / 60).toLocaleString()} min conversations` : ""}
+                  {` · ~$${(data.usageMetering.voice.costUsdMicros / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} est.`}
+                  {data.usageMetering.voice.latencyP95Ms != null ? ` · p95 ${data.usageMetering.voice.latencyP95Ms}ms` : ""}
                 </p>
               )}
             </div>

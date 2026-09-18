@@ -200,6 +200,37 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     hint: "Platform-fallback ElevenLabs voice id. Organisations pick their own voices in the org AI settings.",
     group: "ElevenLabs",
   },
+  // ── ElevenLabs Mode B / studio (V4-V6) ─────────────────────
+  ELEVENLABS_CONVERSATIONAL_AI_ENABLED: {
+    label: "Conversational AI (Mode B)", placeholder: "false",
+    hint: "Opt-in realtime ElevenLabs agents. Adds wss://api.elevenlabs.io to the browser CSP — REQUIRES a server restart after changing.",
+    type: "select", options: ["false", "true"], group: "ElevenLabs",
+  },
+  ELEVENLABS_VOICE_CLONING_ENABLED: {
+    label: "Voice Cloning", placeholder: "false",
+    hint: "Instant voice cloning from reference audio. Every clone still requires a recorded consent attestation.",
+    type: "select", options: ["false", "true"], group: "ElevenLabs",
+  },
+  ELEVENLABS_VOICE_DESIGN_ENABLED: {
+    label: "Voice Design", placeholder: "false",
+    hint: "Describe a voice in plain language; ElevenLabs generates it.",
+    type: "select", options: ["false", "true"], group: "ElevenLabs",
+  },
+  ELEVENLABS_TOOL_HMAC_SECRET: {
+    label: "Mode-B Tool Secret", placeholder: "32+ random characters",
+    hint: "HMAC secret for the signed RAG server-tool callback (/api/internal/elevenlabs/tools/rag-search). Required before any Mode-B agent can be created.",
+    type: "password", isSecret: true, group: "ElevenLabs",
+  },
+  ELEVENLABS_WEBHOOK_SECRET: {
+    label: "Post-call Webhook Secret", placeholder: "from ElevenLabs dashboard",
+    hint: "Signing secret for ElevenLabs post-call webhooks (/api/webhooks/elevenlabs/post-call). Register the URL in the ElevenLabs Conversational AI dashboard.",
+    type: "password", isSecret: true, group: "ElevenLabs",
+  },
+  ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT: {
+    label: "Credit Alert Threshold (%)", placeholder: "80",
+    hint: "Email super admins when this percent of the monthly ElevenLabs character budget is consumed.",
+    type: "number", validation: (v) => { const n = parseInt(v, 10); return (n > 0 && n <= 100) ? null : "Must be 1–100" }, group: "ElevenLabs",
+  },
   AI_MAX_CHAT_TOKENS: {
     label: "Max Chat Tokens", placeholder: "4000", hint: "The longest reply your assistant can write. Bigger numbers allow more detailed answers but cost more.",
     type: "number", validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
@@ -310,6 +341,8 @@ const CATEGORY_KEYS: Record<typeof CATEGORIES[number], string[]> = {
     "OPENAI_API_KEY", "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL", "OPENAI_DEFAULT_VOICE",
     "GEMINI_API_KEY", "GEMINI_CHAT_MODEL", "GEMINI_EMBEDDING_MODEL", "GEMINI_REALTIME_MODEL", "GEMINI_TRANSCRIPTION_MODEL", "GEMINI_DEFAULT_VOICE",
     "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "ELEVENLABS_DEFAULT_TTS_MODEL", "ELEVENLABS_DEFAULT_STT_MODEL", "ELEVENLABS_DEFAULT_VOICE_ID",
+    "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
+    "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
   ],
   payments: [

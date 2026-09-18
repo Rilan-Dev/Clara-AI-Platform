@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useOpenAIRealtime } from "./useOpenAIRealtime";
 import { useGeminiLive } from "./useGeminiLive";
 import { useElevenLabsVoice } from "./useElevenLabsVoice";
+import { useElevenLabsConvAI } from "./useElevenLabsConvAI";
 import type { VoiceClientOptions } from "../voice/types";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -22,6 +23,8 @@ type RuntimeProvider = "openai" | "gemini" | "elevenlabs";
 type VoiceProviderResponse = {
   provider: RuntimeProvider;
   voiceProvider?: RuntimeProvider;
+  /** ElevenLabs mode split: "pipeline" (Mode A) | "conversational" (Mode B). */
+  mode?: "pipeline" | "conversational";
   flags?: {
     voiceEnabled?: boolean;
     realtimeEnabled?: boolean;
@@ -37,9 +40,10 @@ type VoiceProviderResponse = {
  *   Old path:  VoiceChatModal → useVoiceClient → OpenAIVoiceAdapter (broken)
  *   New path:  VoiceChatModal → useVoiceClient → useOpenAIRealtime (fully fixed)
  *                                               → useGeminiLive     (fully fixed)
- *                                               → useElevenLabsVoice (hybrid pipeline)
+ *                                               → useElevenLabsVoice (Mode A pipeline)
+ *                                               → useElevenLabsConvAI (Mode B realtime)
  *
- * All three hooks are ALWAYS called unconditionally (React rules of hooks).
+ * All four hooks are ALWAYS called unconditionally (React rules of hooks).
  * Only the active provider's state and actions are forwarded; the inactive
  * hooks stay in "idle" state and neither connect nor allocate resources
  * until their connect() is explicitly called.
@@ -47,12 +51,15 @@ type VoiceProviderResponse = {
  * Voice-provider routing (ElevenLabs integration): the server may resolve a
  * VOICE provider that differs from the brain provider. When the response
  * carries `voiceProvider`, that wins for the voice surface; the legacy
- * `provider` field remains the fallback for older payloads.
+ * `provider` field remains the fallback for older payloads. Within the
+ * elevenlabs branch, `mode` selects the pipeline (Mode A) or the
+ * Conversational AI realtime session (Mode B).
  */
 export function useVoiceClient(options: VoiceClientOptions) {
   const [provider, setProvider] = useState<RuntimeProvider>(
     ACTIVE_PROVIDER === "gemini" ? "gemini" : "openai",
   );
+  const [elevenlabsMode, setElevenlabsMode] = useState<"pipeline" | "conversational">("pipeline");
 
   const sharedOpts = {
     documentId:       options.documentId,
@@ -67,13 +74,22 @@ export function useVoiceClient(options: VoiceClientOptions) {
   const openai      = useOpenAIRealtime(sharedOpts);
   const gemini      = useGeminiLive(sharedOpts);
   const elevenlabs  = useElevenLabsVoice(sharedOpts);
+  const elevenlabsConvAI = useElevenLabsConvAI(sharedOpts);
 
   const active =
-    provider === "elevenlabs" ? elevenlabs : provider === "gemini" ? gemini : openai;
+    provider === "elevenlabs"
+      ? elevenlabsMode === "conversational" ? elevenlabsConvAI : elevenlabs
+      : provider === "gemini" ? gemini : openai;
 
-  const resolveProvider = useCallback(async (): Promise<RuntimeProvider> => {
+  const resolveProvider = useCallback(async (): Promise<{
+    provider: RuntimeProvider;
+    mode: "pipeline" | "conversational";
+  }> => {
     if (!options.kbId) {
-      return ACTIVE_PROVIDER === "gemini" ? "gemini" : "openai";
+      return {
+        provider: ACTIVE_PROVIDER === "gemini" ? "gemini" : "openai",
+        mode: "pipeline" as const,
+      };
     }
 
     const endpoint = options.embedApiKey ? "/api/embed/session" : "/api/voice/provider";
@@ -101,27 +117,47 @@ export function useVoiceClient(options: VoiceClientOptions) {
 
     // Voice-provider axis first (ElevenLabs), legacy brain provider second.
     const resolved = payload.voiceProvider ?? payload.provider;
-    if (resolved === "elevenlabs") return "elevenlabs";
-    return resolved === "gemini" ? "gemini" : "openai";
+    if (resolved === "elevenlabs") {
+      // Mode split: Mode B realtime only for platform sessions — embed API
+      // keys never resolve a conversational mode (server refuses them too).
+      const mode: "pipeline" | "conversational" =
+        payload.mode === "conversational" && !options.embedApiKey ? "conversational" : "pipeline";
+      setElevenlabsMode(mode);
+      return { provider: "elevenlabs" as const, mode };
+    }
+    const mode = "pipeline" as const;
+    return { provider: resolved === "gemini" ? ("gemini" as const) : ("openai" as const), mode };
   }, [options.kbId, options.embedApiKey]);
 
   const connect = useCallback(async () => {
-    const nextProvider = await resolveProvider();
-    setProvider(nextProvider);
-    if (nextProvider === "elevenlabs") {
+    const next = await resolveProvider();
+    setProvider(next.provider);
+    if (next.provider === "elevenlabs") {
+      // Mode B realtime session; falls back to the Mode A pipeline when the
+      // agent-session route refuses (flag off / no binding / no ack).
+      if (next.mode === "conversational") {
+        try {
+          await elevenlabsConvAI.connect();
+          return;
+        } catch (err) {
+          console.warn("[voice] Mode-B session refused, falling back to the hybrid pipeline:", (err as Error).message);
+          setElevenlabsMode("pipeline");
+        }
+      }
       await elevenlabs.connect();
       return;
     }
-    if (nextProvider === "gemini") {
+    if (next.provider === "gemini") {
       await gemini.connect();
       return;
     }
     await openai.connect();
-  }, [elevenlabs, gemini, openai, resolveProvider]);
+  }, [elevenlabs, elevenlabsConvAI, gemini, openai, resolveProvider]);
 
   const disconnect = useCallback(() => {
     if (provider === "elevenlabs") {
-      elevenlabs.disconnect();
+      if (elevenlabsMode === "conversational") elevenlabsConvAI.disconnect();
+      else elevenlabs.disconnect();
       return;
     }
     if (provider === "gemini") {
@@ -129,11 +165,12 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.disconnect();
-  }, [elevenlabs, gemini, openai, provider]);
+  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider]);
 
   const interrupt = useCallback(() => {
     if (provider === "elevenlabs") {
-      elevenlabs.interrupt();
+      if (elevenlabsMode === "conversational") elevenlabsConvAI.interrupt();
+      else elevenlabs.interrupt();
       return;
     }
     if (provider === "gemini") {
@@ -141,11 +178,12 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.interrupt();
-  }, [elevenlabs, gemini, openai, provider]);
+  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider]);
 
   const sendText = useCallback((text: string) => {
     if (provider === "elevenlabs") {
-      elevenlabs.sendText(text);
+      if (elevenlabsMode === "conversational") elevenlabsConvAI.sendText(text);
+      else elevenlabs.sendText(text);
       return;
     }
     if (provider === "gemini") {
@@ -153,7 +191,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.sendText(text);
-  }, [elevenlabs, gemini, openai, provider]);
+  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider]);
 
   return {
     provider,

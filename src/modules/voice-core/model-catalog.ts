@@ -107,6 +107,45 @@ export function isVoiceCloningEnabled(): boolean {
   return (process.env.ELEVENLABS_VOICE_CLONING_ENABLED ?? "false").toLowerCase() === "true";
 }
 
+/** Voice Design (prompt → voice) — V5, off by default. */
+export function isVoiceDesignEnabled(): boolean {
+  return (process.env.ELEVENLABS_VOICE_DESIGN_ENABLED ?? "false").toLowerCase() === "true";
+}
+
+// ─── Mode-B callback secrets ────────────────────────────────────────────────
+
+/**
+ * HMAC secret for the internal RAG server-tool callback
+ * (/api/internal/elevenlabs/tools/rag-search). REQUIRED before any Mode-B
+ * agent can be created — the agent's server tool is registered with this
+ * secret at the vendor, and every callback is verified against it.
+ */
+export function getToolHmacSecret(): string | undefined {
+  const value = process.env.ELEVENLABS_TOOL_HMAC_SECRET?.trim();
+  return value || undefined;
+}
+
+/**
+ * Signing secret for ElevenLabs post-call webhooks
+ * (/api/webhooks/elevenlabs/post-call). REQUIRED before the webhook URL is
+ * handed to the vendor.
+ */
+export function getWebhookSecret(): string | undefined {
+  const value = process.env.ELEVENLABS_WEBHOOK_SECRET?.trim();
+  return value || undefined;
+}
+
+// ─── V6 credit-burn alerting ────────────────────────────────────────────────
+
+/**
+ * Alert threshold for the ElevenLabs character budget, in percent consumed
+ * (V6). 0 disables alerting.
+ */
+export function getCreditAlertThresholdPct(): number {
+  const value = Number(process.env.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT ?? "80");
+  return Number.isFinite(value) && value > 0 && value <= 100 ? Math.round(value) : 80;
+}
+
 // ─── Core connection settings ────────────────────────────────────────────────
 
 export function getElevenLabsApiKey(): string | undefined {
@@ -155,6 +194,19 @@ const VOICE_ID_PATTERN = /^[A-Za-z0-9]{17,25}$/;
 
 export function looksLikeElevenLabsVoiceId(value: string): boolean {
   return VOICE_ID_PATTERN.test(value.trim());
+}
+
+// ─── Request id shape validation ─────────────────────────────────────────────
+
+/**
+ * kb/org/agent ids are Postgres UUIDs — a malformed one must die as a 400
+ * BEFORE any DB query, or the driver surfaces "invalid input syntax for type
+ * uuid" as a 500 (guard-discipline violation, caught by the V6 load test).
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(value: string): boolean {
+  return UUID_PATTERN.test(value.trim());
 }
 
 // ─── Provider registry metadata ──────────────────────────────────────────────

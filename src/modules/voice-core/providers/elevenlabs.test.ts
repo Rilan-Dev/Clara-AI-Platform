@@ -11,6 +11,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { VoiceProviderFactory } from "../factory";
 import { ElevenLabsError, ElevenLabsVoiceProvider } from "./elevenlabs";
+import { isConversationalVoiceService } from "../types";
 
 function okResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -130,5 +131,161 @@ describe("ElevenLabsVoiceProvider", () => {
       category: "premade",
       labels: { accent: "american", use_case: "narration" },
     });
+  });
+});
+
+// ─── Mode B capability methods (V4/V5) ───────────────────────────────────────
+
+describe("ElevenLabsVoiceProvider — Conversational AI capability", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    VoiceProviderFactory.reset();
+    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockReset();
+  });
+  afterEach(() => {
+    VoiceProviderFactory.reset();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("satisfies the ConversationalVoiceService capability guard", () => {
+    const provider = new ElevenLabsVoiceProvider();
+    expect(isConversationalVoiceService(provider)).toBe(true);
+  });
+
+  it("normalises vendor agent records", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse({
+        agents: [
+          {
+            agent_id: "agent_vendor_001",
+            name: "Front desk voice",
+            conversation_config: {
+              tts: { voice_id: "JBFqnCBsd6RMkjVDRZzb" },
+              language: "en",
+              agent: { prompt: { system_prompt: "Be helpful.", first_message: { text: "Hi!" } } },
+            },
+          },
+        ],
+      }),
+    );
+    const agents = await new ElevenLabsVoiceProvider().listConversationalAgents();
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      agentId: "agent_vendor_001",
+      name: "Front desk voice",
+      voiceId: "JBFqnCBsd6RMkjVDRZzb",
+      language: "en",
+      firstMessage: "Hi!",
+      systemPrompt: "Be helpful.",
+    });
+  });
+
+  it("registers the RAG server tool (HMAC secret + tenant ids) on agent create", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse({
+        agent_id: "agent_vendor_002",
+        name: "Support voice",
+        conversation_config: { tts: { voice_id: "JBFqnCBsd6RMkjVDRZzb" } },
+      }),
+    );
+    await new ElevenLabsVoiceProvider().createConversationalAgent({
+      name: "Support voice",
+      voiceId: "JBFqnCBsd6RMkjVDRZzb",
+      ragTool: {
+        url: "https://clara.example/api/internal/elevenlabs/tools/rag-search",
+        secret: "hmac_secret",
+        orgId: "o1",
+        agentId: "a1",
+        kbId: "k1",
+      },
+      twilio: { phoneNumbers: ["+15550001111"] },
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/v1/convai/agents/create");
+    const body = JSON.parse(String(init.body)) as {
+      tools: { name: string; url: string; config: Record<string, unknown> }[];
+      conversation_config: { twilio?: { phone_numbers: string[] } };
+    };
+    expect(body.tools).toHaveLength(1);
+    expect(body.tools[0].name).toBe("clara_rag_search");
+    expect(body.tools[0].url).toContain("/api/internal/elevenlabs/tools/rag-search");
+    // The tenant ids + secret the callback re-validates ride in tool config.
+    expect(body.tools[0].config).toMatchObject({ orgId: "o1", agentId: "a1", kbId: "k1", secret: "hmac_secret" });
+    expect(body.conversation_config.twilio?.phone_numbers).toEqual(["+15550001111"]);
+  });
+
+  it("returns the signed URL with a short TTL", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ signed_url: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=x&signed_url=y" }));
+    const signed = await new ElevenLabsVoiceProvider().getAgentSignedUrl("agent_vendor_003");
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/v1/convai/agents/agent_vendor_003/get-signed-url");
+    expect(signed.signedUrl).toContain("wss://api.elevenlabs.io");
+    expect(signed.expiresAt).toBeGreaterThan(Date.now());
+    expect(signed.expiresAt).toBeLessThanOrEqual(Date.now() + 60_000);
+  });
+
+  it("errors loudly when the vendor returns no signed URL", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({}));
+    await expect(new ElevenLabsVoiceProvider().getAgentSignedUrl("agent_vendor_004")).rejects.toMatchObject({
+      name: "ElevenLabsError",
+      status: 502,
+    });
+  });
+
+  it("normalises conversation history timestamps from both vendor formats", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse({
+        conversations: [
+          { conversation_id: "c1", agent_id: "agent_vendor_001", status: "done", started_at: 1718000000, ended_at: 1718000120 },
+          { conversation_id: "c2", agent_id: "agent_vendor_001", status: "processing", started_at: "2025-06-10T12:00:00Z", ended_at: "2025-06-10T12:02:00Z" },
+        ],
+      }),
+    );
+    const history = await new ElevenLabsVoiceProvider().listConversations({ agentId: "agent_vendor_001" });
+    expect(history).toHaveLength(2);
+    expect(history[0].startedAtUnix).toBe(1718000000);
+    expect(history[1].startedAtUnix).toBeGreaterThan(0);
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("agent_id=agent_vendor_001");
+  });
+
+  it("refuses cloning with zero reference files before any vendor call", async () => {
+    await expect(
+      new ElevenLabsVoiceProvider().cloneVoice({ name: "Brand", files: [] }),
+    ).rejects.toMatchObject({ name: "ElevenLabsError", status: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("parses clone results including the verification flag", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse({ voice_id: "newClonedVoice12345", requires_verification: true }));
+    const result = await new ElevenLabsVoiceProvider().cloneVoice({
+      name: "Brand voice",
+      files: [{ blob: new Blob(["audio"]), filename: "ref.webm" }],
+    });
+    expect(result).toEqual({ voiceId: "newClonedVoice12345", requiresVerification: true });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/v1/voices/add");
+    expect(init.method).toBe("POST");
+    // Reference audio travels as multipart form data, never JSON.
+    expect(init.body).toBeInstanceOf(FormData);
+  });
+
+  it("parses Voice Design results (voice id + sample media ids)", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse({ voice_id: "designedVoice67890", media_ids: ["m1", "m2"] }),
+    );
+    const result = await new ElevenLabsVoiceProvider().designVoice({
+      name: "Calm narrator",
+      textPrompt: "A calm middle-aged British male, warm and patient.",
+    });
+    expect(result).toEqual({ voiceId: "designedVoice67890", sampleMediaIds: ["m1", "m2"] });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/v1/text-to-voice/design");
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(body.text_description).toContain("calm");
   });
 });
