@@ -154,12 +154,18 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     next.source.start();
   }, []);
 
-  const enqueueAudio = useCallback((pcm16: Int16Array) => {
+  const enqueueAudio = useCallback((pcm16: Int16Array, sourceSampleRate = 16_000) => {
     const ctx = playbackCtxRef.current;
     if (!ctx) return;
     const floats = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) floats[i] = pcm16[i] / 32768;
-    const buffer = ctx.createBuffer(1, floats.length, ctx.sampleRate);
+    // PCM16 is already sampled at Sarvam's declared TTS rate. Using
+    // ctx.sampleRate here silently changes the playback speed/pitch on
+    // browsers that run AudioContext at 48 kHz.
+    const rate = Number.isFinite(sourceSampleRate) && sourceSampleRate > 0
+      ? sourceSampleRate
+      : 16_000;
+    const buffer = ctx.createBuffer(1, floats.length, rate);
     buffer.copyToChannel(floats, 0);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -210,8 +216,14 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       const bytes = new Uint8Array(totalBytes);
       let offset = 0;
       for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-      const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(totalBytes / 2));
-      enqueueAudio(pcm16);
+      const sourceSampleRate = Number(session.tts.outputFormat.replace(/[^0-9]/g, "")) || 16_000;
+      const pcmByteLength = totalBytes - (totalBytes % 2);
+      if (pcmByteLength === 0) {
+        console.warn("[sarvam] TTS returned an empty audio payload");
+        return;
+      }
+      const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, pcmByteLength / 2);
+      enqueueAudio(pcm16, sourceSampleRate);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.warn("[sarvam] tts failed:", (err as Error).message);
