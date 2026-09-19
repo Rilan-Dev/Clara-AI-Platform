@@ -1,5 +1,6 @@
 services:
-  # ──────────────── Infrastructure ────────────────
+  # ───────────────── Infrastructure ─────────────────
+
   redis:
     image: redis:7-alpine
     container_name: clara-redis
@@ -9,8 +10,6 @@ services:
     volumes:
       - ./infra/redis/data:/data
     command: redis-server --appendonly yes
-    networks:
-      - clara-net
 
   postgres:
     image: postgres:16-alpine
@@ -24,8 +23,6 @@ services:
       - "1234:5432"
     volumes:
       - ./infra/postgres/data:/var/lib/postgresql/data
-    networks:
-      - clara-net
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -36,8 +33,8 @@ services:
       - "6334:6334"
     volumes:
       - ./infra/qdrant/storage:/qdrant/storage
-    networks:
-      - clara-net
+
+  # ───────────────── Local RabbitMQ ─────────────────
 
   # ──────────────── Local RabbitMQ ────────────────
   # RabbitMQ is kept inside the Clara Docker network so the bridge can connect
@@ -57,15 +54,20 @@ services:
     volumes:
       - ./infra/rabbitmq/data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test:
+        [
+          "CMD",
+          "rabbitmq-diagnostics",
+          "-q",
+          "ping"
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 15s
-    networks:
-      - clara-net
 
-  # ──────────────── Clara Backend ────────────────
+  # ───────────────── Clara Backend ─────────────────
+
   clara-backend:
     build:
       context: .
@@ -75,9 +77,9 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - SKIP_AUTH=false
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SKIP_AUTH: "false"
     ports:
       - "3000:3000"
     depends_on:
@@ -85,8 +87,10 @@ services:
       - qdrant
       - redis
     networks:
-      - clara-net
-      - proxy-network
+      - default
+      - npm-proxy
+
+  # ───────────────── Clara Worker ──────────────────
 
   # ──────────────── Clara Worker (BullMQ) ────────────────
   clara-worker:
@@ -98,17 +102,17 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CRAWL_WORKER_CONCURRENCY=2
-      - RETRY_WORKER_CONCURRENCY=3
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CRAWL_WORKER_CONCURRENCY: 2
+      RETRY_WORKER_CONCURRENCY: 3
     depends_on:
       - redis
       - postgres
       - qdrant
     networks:
-      - clara-net
-      - proxy-network
+      - default
+      - npm-proxy
 
   # ──────────────── Clara RabbitMQ Bridge ────────────────
   # Relays the PostgreSQL transactional outbox to local RabbitMQ and delivers
@@ -140,10 +144,17 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
-    networks:
-      - clara-net
 
-  # # ──────────────── Clara Omen ────────────────
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  npm-proxy:
+    external: true
+    name: nginx-proxy_default
+
+  # ─────────────── Clara Omen ──────────────────────
+  #
   # clara-omen:
   #   build:
   #     context: .
@@ -156,10 +167,9 @@ services:
   #     - "3001:3001"
   #   depends_on:
   #     - clara-backend
-  #   networks:
-  #     - clara-net
 
-  # # ──────────────── Clara TechVision ────────────────
+  # ─────────────── Clara TechVision ────────────────
+  #
   # clara-techvision:
   #   build:
   #     context: .
@@ -172,12 +182,3 @@ services:
   #     - "3002:3002"
   #   depends_on:
   #     - clara-backend
-  #   networks:
-  #     - clara-net
-
-networks:
-  clara-net:
-    driver: bridge
-
-  proxy-network:
-    external: true
