@@ -824,3 +824,608 @@ Only after all migration tests pass:
 11. Finish the development branch only after migration and rollback checks pass.
 
 **Do not start with a UI-only migration. Backend ownership and resolver behavior must be authoritative first.**
+
+
+---
+
+# 19. ElevenLabs-aligned product/design philosophy
+
+The implementation must be **aligned with the current ElevenLabs Agents product model**, while keeping Clara's own information architecture, branding and business rules. This is an architectural/UX reference, not a pixel-for-pixel clone.
+
+Reference: https://elevenlabs.io/docs/eleven-agents/operate/versioning
+
+## 19.1 Core UX principles
+
+Adopt these product principles:
+
+1. **Configuration is a workspace, not a settings form.**
+2. **Draft state is explicit.**
+3. **Versions are immutable.**
+4. **Branches are isolated workspaces for experimentation.**
+5. **Publishing/deployment is separate from editing.**
+6. **Production always points to an exact version.**
+7. **Changes are reviewable before they become production.**
+8. **Users should always see what is currently live.**
+9. **Restore creates a new version; history is never destroyed.**
+10. **Use progressive disclosure instead of exposing every control at once.**
+
+## 19.2 Agent header pattern
+
+The Agent workspace should have a persistent context/header similar in philosophy to modern agent-building products:
+
+~~~
+← Agents
+
+Clara Sales Assistant
+Main · v12 · Published
+
+[Preview] [Versions] [Publish]
+~~~
+
+The header should answer immediately:
+
+- Which agent am I editing?
+- Which branch am I on?
+- Which version is current?
+- Are there unsaved changes?
+- What is currently published?
+- What action can I take next?
+
+Avoid forcing users to navigate to another page to discover production state.
+
+## 19.3 Branch-first editing model
+
+The default editing context is a branch.
+
+~~~
+Main
+● v12 Published
+
+experiment/new-voice
+○ v4 Draft
+~~~
+
+Branch selection should be visible near the agent title.
+
+Creating a branch should clearly state the source version.
+
+Do not hide branch semantics inside an advanced settings menu.
+
+## 19.4 Draft vs version vs deployment
+
+These must be visually distinct:
+
+**Draft**
+- mutable;
+- not production;
+- user can continue editing.
+
+**Version**
+- immutable;
+- reviewable;
+- reproducible.
+
+**Deployment**
+- points to one exact version;
+- represents what production is executing.
+
+Use distinct status labels and icons.
+
+Never call a draft "published" simply because it was saved.
+
+## 19.5 Version timeline
+
+Use a compact version timeline inspired by version-control workflows:
+
+~~~
+Versions
+
+● v12   Published
+  "Updated Tamil voice behaviour"
+  Mohammed · 2 min ago
+
+○ v11
+  "Added Tamil language"
+  Mohammed · yesterday
+
+○ v10
+  "Initial production"
+  Admin · Sep 18
+
+[Compare] [Restore]
+~~~
+
+Selecting a version opens a half-canvas detail/diff rather than navigating the user away from the agent workspace.
+
+## 19.6 Diff experience
+
+The diff must be semantic rather than raw JSON.
+
+Prefer:
+
+~~~
+Behaviour
++ Added "Keep responses concise"
+
+Voice
+Alloy
+→ Sarvam Tamil Female
+
+Tools
+No changes
+
+Knowledge
+No changes
+~~~
+
+Do not expose JSON unless an advanced/debug view is intentionally requested.
+
+## 19.7 Branch creation
+
+Branch creation should feel like an isolated experiment:
+
+~~~
+Create branch
+
+From
+Main · v12
+
+Branch name
+experiment/new-voice
+
+Description
+Test Tamil realtime voice
+
+[Create branch]
+~~~
+
+After creation, immediately switch the user into the new branch and make that context obvious.
+
+## 19.8 Merge/rebase review
+
+Never merge silently.
+
+The review surface should show:
+
+~~~
+Merge experiment/new-voice → Main
+
+3 changes
+2 compatible
+1 conflict
+
+[Review conflict]
+[Cancel] [Merge]
+~~~
+
+For conflicts, provide field-level resolution.
+
+Do not make the user compare raw configuration objects.
+
+## 19.9 Publish flow
+
+Publishing should use a dedicated review surface:
+
+~~~
+Publish
+
+Main · v12
+
+Production currently
+v11
+
+Changes
++ Behaviour
++ Language
++ Voice
+
+Validation
+✓ Provider available
+✓ Model available
+✓ Voice available
+✓ Subscription allows capability
+✓ Tools valid
+
+[Publish v12]
+~~~
+
+After publishing:
+
+~~~
+Published
+Production is now running Main · v12
+~~~
+
+This explicit feedback is important because the user should never have to infer whether Save means Publish.
+
+---
+
+# 20. ElevenLabs-aligned information architecture without copying the UI
+
+Clara should follow the same conceptual separation used by mature agent platforms:
+
+~~~
+Agent
+│
+├── Build
+│   ├── Assistant & AI
+│   ├── Knowledge
+│   └── Tools
+│
+├── Develop
+│   └── Versions / Branches
+│
+└── Deploy
+    └── Publish
+~~~
+
+Do not turn every concept into a top-level global settings page.
+
+The user should spend most of their time inside the Agent workspace.
+
+---
+
+# 21. Provider workspace UX
+
+The provider area should follow the same progressive-disclosure philosophy.
+
+Top level:
+
+~~~
+AI Providers & Models
+
+[Chat] [Voice Chat] [Realtime Voice]
+~~~
+
+Provider cards:
+
+~~~
+OpenAI
+Healthy
+3 Chat models
+2 Voice models
+
+[Open provider]
+~~~
+
+Opening a provider uses a dedicated workspace/half-canvas:
+
+~~~
+OpenAI
+
+Healthy · Last checked 2 min ago
+
+Connection
+API key ••••••••••A91
+[Update] [Test]
+
+Capabilities
+✓ Chat
+✓ Voice Chat
+✓ Realtime Voice
+
+Models
+3 available
+
+Usage
+68% monthly allocation
+⚠ Recharge recommended
+
+[Disable provider]
+~~~
+
+This avoids the current anti-pattern of mixing credentials, health, model defaults, organization settings and provider configuration into one large panel.
+
+---
+
+# 22. Default Assistant should behave like a reusable baseline
+
+The Default Assistant is the platform equivalent of a reusable starting configuration.
+
+Show:
+
+~~~
+Default Assistant
+
+Used when creating new agents
+
+Current
+v12
+
+[Edit draft] [View versions]
+~~~
+
+When an agent is created:
+
+~~~
+Created from Default Assistant v12
+~~~
+
+When the default changes:
+
+~~~
+New platform default available
+
+Your agent was created from v12.
+Current platform default is v13.
+
+[Review changes] [Keep current]
+~~~
+
+Do not automatically mutate the agent.
+
+---
+
+# 23. Platform Default version UI
+
+Use the same conceptual version workflow as the Agent workspace:
+
+~~~
+Default Assistant
+v12 Current
+
+[Edit] [Versions] [Preview]
+
+Version history
+v12 Current
+v11
+v10
+...
+~~~
+
+The user can:
+
+- open a version;
+- compare versions;
+- restore as a new version;
+- preview the configuration.
+
+The version screen should not expose organization/agent data.
+
+---
+
+# 24. UI state model
+
+Every relevant configuration screen should explicitly represent:
+
+~~~
+Loading
+Ready
+Draft changes
+Saving
+Saved
+Validation error
+Unavailable dependency
+Published
+Deployment failed
+~~~
+
+For example:
+
+~~~
+3 unsaved changes
+[Save version]
+~~~
+
+After save:
+
+~~~
+Version 13 created
+[View version]
+~~~
+
+After publish:
+
+~~~
+Production running v13
+~~~
+
+This eliminates ambiguous "Save" behavior.
+
+---
+
+# 25. No mental cross-checking rule
+
+The final UX must obey this rule:
+
+> **A user should never need to open three different screens to determine whether an AI provider/model/voice can be used.**
+
+The UI receives resolved availability from the backend.
+
+Example:
+
+~~~
+Realtime Voice
+
+Provider
+[ Sarvam ✓ ]
+
+Model
+[ Available realtime models ]
+
+Voice
+[ Available voices ]
+
+Plan
+✓ Included
+
+Status
+✓ Ready for this agent
+~~~
+
+If unavailable:
+
+~~~
+OpenAI Realtime
+
+Unavailable
+
+Reason
+Not enabled by platform
+~~~
+
+or, in organization-facing agent UI, simply omit the unusable option when showing only selectable choices.
+
+---
+
+# 26. Visual design direction
+
+The UI should be inspired by ElevenLabs' **product philosophy**, not copied literally.
+
+Required characteristics:
+
+- dark-first professional AI workspace;
+- restrained visual hierarchy;
+- compact but readable controls;
+- persistent workspace context;
+- strong typography hierarchy;
+- subtle borders/dividers;
+- status indicators;
+- dense information where useful;
+- large content canvas for actual configuration;
+- right-side contextual drawers/half-canvas;
+- sticky action areas;
+- minimal modal usage;
+- clear primary action;
+- explicit production state;
+- no dashboard-card overload.
+
+Avoid:
+
+- giant dashboard cards for every setting;
+- nested accordion overload;
+- duplicated provider information;
+- unnecessary full-screen navigation for simple inspection;
+- settings pages where the user cannot see current state;
+- ambiguous Save/Publish buttons;
+- hiding version context.
+
+---
+
+# 27. Responsive interaction pattern
+
+Desktop:
+
+~~~
+Sidebar | Main workspace | Context drawer
+~~~
+
+Example:
+
+~~~
+Agent sidebar
+    |
+    | Assistant & AI
+    |
+    +-------------------------+----------------+
+    | Configuration workspace | Version detail |
+    |                         | / Diff drawer  |
+    +-------------------------+----------------+
+~~~
+
+Tablet:
+
+- collapse secondary navigation;
+- retain primary workspace;
+- convert drawer to overlay.
+
+Mobile:
+
+- stack workspace;
+- version/diff becomes full-screen;
+- preserve branch/version/publish status at the top.
+
+---
+
+# 28. Design-system reuse
+
+Do not create separate visual systems for:
+
+- Platform Default Assistant;
+- Agent Assistant & AI;
+- Version history;
+- Provider detail.
+
+Create reusable primitives:
+
+~~~
+AssistantEditor
+ProviderCard
+ProviderStatus
+CapabilityTabs
+VersionTimeline
+VersionBadge
+DiffViewer
+BranchSelector
+PublishReview
+DeploymentStatus
+ContextDrawer
+~~~
+
+Context/permissions should change the behavior, not the visual language.
+
+---
+
+# 29. ElevenLabs-inspired acceptance tests
+
+### Agent workspace
+
+- [ ] Current branch is always visible.
+- [ ] Current version is always visible.
+- [ ] Published version is always discoverable.
+- [ ] Draft state is explicit.
+- [ ] Preview does not publish.
+- [ ] Save creates a version.
+- [ ] Publish names the exact version.
+
+### Versioning
+
+- [ ] Versions are immutable.
+- [ ] Branches start from an explicit version.
+- [ ] Diff is semantic.
+- [ ] Restore creates a new version.
+- [ ] Merge requires review.
+- [ ] Production points to an exact version.
+
+### Provider UX
+
+- [ ] Capability tabs are obvious.
+- [ ] Provider health is visible without opening multiple settings.
+- [ ] Configuration status is visible.
+- [ ] Usage warnings are visible.
+- [ ] Credentials are isolated from model selection.
+- [ ] Unsupported capabilities do not appear as usable options.
+
+### Platform defaults
+
+- [ ] Default Assistant clearly says it is a baseline.
+- [ ] Existing agents are not silently changed.
+- [ ] New default availability is communicated explicitly.
+- [ ] Version history is available from the same workspace.
+
+---
+
+# 30. Reference boundary
+
+ElevenLabs is the reference for the **workflow model**:
+
+- agent workspace;
+- drafts;
+- immutable versions;
+- branches;
+- version comparison;
+- merge/rebase concepts;
+- explicit deployment;
+- production pointing to an exact version.
+
+Clara-specific behavior remains authoritative for:
+
+- platform/organization/agent ownership;
+- OpenAI/Gemini/Sarvam integrations;
+- subscription entitlements;
+- provider health/usage policy;
+- Clara branding;
+- Clara-specific tools, knowledge and runtime architecture.
+
+Do not copy ElevenLabs proprietary UI assets, text, branding or implementation. Adopt the interaction model and engineering principles.
+
