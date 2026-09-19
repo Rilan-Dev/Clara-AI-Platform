@@ -21,8 +21,33 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        /* Google Fonts import was removed — keep the same system stack used by
+           `body` in globals.css so Tailwind's `font-sans` matches the page. */
+        sans: [
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "Noto Sans",
+          "sans-serif",
+          "Apple Color Emoji",
+          "Segoe UI Emoji",
+          "Segoe UI Symbol",
+          "Noto Color Emoji",
+        ],
+        mono: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "SF Mono",
+          "Menlo",
+          "Consolas",
+          "Liberation Mono",
+          "monospace",
+        ],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -71,6 +96,9 @@ module.exports = {
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
+          /* NEW: was defined in CSS but missing here — dropdown/select
+             item hover surfaces now resolve correctly. */
+          hover: "hsl(var(--popover-hover))",
         },
         card: {
           DEFAULT: "hsl(var(--card))",
@@ -95,6 +123,8 @@ module.exports = {
         md: "var(--radius-md)",
         lg: "var(--radius-lg)",
         xl: "var(--radius-xl)",
+        /* NEW: matches the --radius-2xl token added in globals.css. */
+        "2xl": "var(--radius-2xl)",
         full: "var(--radius-full)",
       },
       spacing: {
@@ -124,6 +154,16 @@ module.exports = {
       },
       transitionTimingFunction: {
         bounce: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+      },
+      backgroundImage: {
+        /* Expose the CSS gradient tokens as Tailwind utilities so
+           `bg-gradient-primary`, `bg-gradient-secondary`, `bg-gradient-hero`,
+           and `bg-gradient-surface` all work without the @layer utilities
+           duplication in globals.css. */
+        "gradient-primary": "var(--gradient-primary)",
+        "gradient-secondary": "var(--gradient-secondary)",
+        "gradient-hero": "var(--gradient-hero)",
+        "gradient-surface": "var(--gradient-surface)",
       },
       boxShadow: {
         soft: "var(--shadow-sm)",
@@ -170,7 +210,7 @@ module.exports = {
           "0%": { transform: "translateY(10px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
-        "shimmer": {
+        shimmer: {
           "0%, 100%": { transform: "translateX(-100%)" },
           "50%": { transform: "translateX(100%)" },
         },
@@ -178,9 +218,57 @@ module.exports = {
           "0%, 100%": { boxShadow: "0 0 20px hsla(var(--primary), 0.2)" },
           "50%": { boxShadow: "0 0 40px hsla(var(--primary), 0.4)" },
         },
-        "float": {
+        float: {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-10px)" },
+        },
+        /* ── Added to mirror the hand-written keyframes in globals.css ── */
+        orbit: {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        breathe: {
+          "0%, 100%": {
+            transform: "scale(1)",
+            boxShadow: "0 0 20px rgba(99, 102, 241, 0.3)",
+          },
+          "50%": {
+            transform: "scale(1.06)",
+            boxShadow: "0 0 40px rgba(99, 102, 241, 0.5)",
+          },
+        },
+        "morph-in": {
+          "0%": {
+            opacity: "0",
+            transform: "scale(0.6) translateY(20px)",
+            borderRadius: "50%",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "scale(1) translateY(0)",
+            borderRadius: "1.5rem",
+          },
+        },
+        "morph-out": {
+          "0%": {
+            opacity: "1",
+            transform: "scale(1) translateY(0)",
+            borderRadius: "1.5rem",
+          },
+          "100%": {
+            opacity: "0",
+            transform: "scale(0.6) translateY(20px)",
+            borderRadius: "50%",
+          },
+        },
+        "pulse-ring": {
+          "0%": { transform: "scale(1)", opacity: "0.6" },
+          "100%": { transform: "scale(1.8)", opacity: "0" },
+        },
+        "gradient-shift": {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
         },
       },
       animation: {
@@ -193,10 +281,17 @@ module.exports = {
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "slide-out-right": "slide-out-right 0.3s ease-out",
         "slide-up": "slide-up 0.4s ease-out",
-        "shimmer": "shimmer 2s ease-in-out infinite",
+        shimmer: "shimmer 2s ease-in-out infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
-        "float": "float 3s ease-in-out infinite",
+        float: "float 3s ease-in-out infinite",
         "spin-slow": "spin 3s linear infinite",
+        /* ── Mirrors of the CSS-only animations ── */
+        orbit: "orbit 20s linear infinite",
+        breathe: "breathe 3s ease-in-out infinite",
+        "morph-in": "morphIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+        "morph-out": "morphOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+        "pulse-ring": "pulse-ring 2s ease-out infinite",
+        gradient: "gradient-shift 6s ease infinite",
       },
     },
   },
