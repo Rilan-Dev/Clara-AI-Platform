@@ -72,7 +72,7 @@ describe("connectPcm16Capture", () => {
       () => {},
     );
 
-    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(2048, 1, 1);
     expect(source.connect).toHaveBeenCalledWith(processor);
     // THE regression guard: without a path to the destination the render
     // thread never pulls the node and onaudioprocess never fires.

@@ -42,6 +42,8 @@ const VAD_SILENCE_MS = 700;
 // ─── Realtime mode tuning ────────────────────────────────────────────────────
 /** How often captured PCM frames are flushed upstream (~100 ms batches). */
 const REALTIME_FLUSH_MS = 100;
+/** Sarvam fast realtime STT rejects a single audio frame above 16000 bytes. */
+const REALTIME_MAX_FRAME_BYTES = 16_000;
 
 type SessionPayload = {
   mode: "pipeline";
@@ -463,14 +465,21 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         );
       }
 
-      // Base64 the PCM16 bytes (Sarvam realtime wire format).
-      const bytes = new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      socket.send(JSON.stringify({
-        event: "audio_input",
-        audio: btoa(binary),
-      }));
+      // Sarvam `stream_type=fast` caps each audio_input frame at 16000 bytes.
+      // ScriptProcessor scheduling can occasionally batch multiple capture
+      // callbacks, so never let a delayed timer turn several PCM blocks into
+      // one oversized vendor frame.
+      const maxSamplesPerFrame = REALTIME_MAX_FRAME_BYTES / Int16Array.BYTES_PER_ELEMENT;
+      for (let start = 0; start < merged.length; start += maxSamplesPerFrame) {
+        const frame = merged.subarray(start, Math.min(start + maxSamplesPerFrame, merged.length));
+        const bytes = new Uint8Array(frame.buffer, frame.byteOffset, frame.byteLength);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        socket.send(JSON.stringify({
+          event: "audio_input",
+          audio: btoa(binary),
+        }));
+      }
     }, REALTIME_FLUSH_MS);
 
     return true;

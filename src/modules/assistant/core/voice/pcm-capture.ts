@@ -45,7 +45,7 @@ export function connectPcm16Capture(
   source: AudioNode,
   onPcmFrame: (pcm16: Int16Array) => void,
 ): Pcm16Capture {
-  const processor = ctx.createScriptProcessor(4096, 1, 1);
+  const processor = ctx.createScriptProcessor(2048, 1, 1);
   processor.onaudioprocess = (audioEvent: AudioProcessingEvent) => {
     onPcmFrame(floatToPcm16(audioEvent.inputBuffer.getChannelData(0)));
   };
