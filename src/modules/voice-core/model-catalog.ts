@@ -388,6 +388,33 @@ export function isSupportedSarvamSTTModel(modelId: string): boolean {
   return findSarvamSTTModel(modelId) != null;
 }
 
+// ─── Saaras realtime model mapping ──────────────────────────────────────────
+//
+// The catalogue carries the BATCH REST ids (saaras:v3 | saaras:v4) that
+// /speech-to-text accepts, but the realtime WebSocket
+// (/speech-to-text-realtime/ws) ONLY accepts 'saaras:v3-realtime' and
+// 'saaras:v4' — the vendor rejects every other id with a fatal
+// "Invalid model '<id>'" error right after the socket opens. Resolved voice
+// configs (org columns, platform defaults) store the batch ids, so the
+// realtime leg must translate before building the upstream URL.
+
+/** Vendor-supported realtime Saaras model ids (in preference order). */
+export const SARVAM_REALTIME_STT_MODEL_IDS: string[] = ["saaras:v3-realtime", "saaras:v4"];
+
+/** Safe fallback when a config carries an unknown/blank STT model. */
+export const SARVAM_REALTIME_STT_MODEL_FALLBACK = "saaras:v3-realtime";
+
+/**
+ * Map a catalogued Saaras STT id to the vendor realtime-WebSocket model id.
+ * Idempotent: already-realtime ids pass through untouched.
+ */
+export function toSarvamRealtimeSttModel(modelId: string): string {
+  const id = modelId.trim();
+  if (id === "saaras:v4" || id === "saaras:v3-realtime") return id;
+  // saaras:v3 (batch) and anything unknown → the realtime v3 variant.
+  return SARVAM_REALTIME_STT_MODEL_FALLBACK;
+}
+
 export function findSarvamSpeaker(speakerId: string): SarvamSpeaker | undefined {
   return SARVAM_SPEAKERS.find((speaker) => speaker.id === speakerId.trim().toLowerCase());
 }

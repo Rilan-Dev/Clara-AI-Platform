@@ -40,6 +40,9 @@ import {
   SARVAM_TTS_MAX_CHARS,
   SARVAM_PREVIEW_MAX_CHARS,
   SARVAM_TTS_SAMPLE_RATE_HZ,
+  toSarvamRealtimeSttModel,
+  SARVAM_REALTIME_STT_MODEL_IDS,
+  SARVAM_REALTIME_STT_MODEL_FALLBACK,
 } from "./model-catalog";
 import { isVoiceProvider } from "./types";
 
@@ -192,6 +195,49 @@ describe("Sarvam STT model catalogue (V0)", () => {
     expect(SARVAM_STT_LANGUAGES).toHaveLength(23);
     expect(SARVAM_STT_LANGUAGES).toContain("hi-IN");
     expect(SARVAM_STT_LANGUAGES).toContain("en-IN");
+  });
+});
+
+describe("Saaras realtime model mapping (V5 relay)", () => {
+  it("maps the batch REST id saaras:v3 to the realtime variant", () => {
+    // Production incident 2026-09-20: the relay passed the resolved batch id
+    // straight into /speech-to-text-realtime/ws and the vendor answered
+    // "Invalid model 'saaras:v3'. Only 'saaras:v3-realtime' and 'saaras:v4'
+    // are supported." with fatal=true.
+    expect(toSarvamRealtimeSttModel("saaras:v3")).toBe("saaras:v3-realtime");
+  });
+
+  it("keeps the realtime-capable saaras:v4 untouched", () => {
+    expect(toSarvamRealtimeSttModel("saaras:v4")).toBe("saaras:v4");
+  });
+
+  it("is idempotent for already-realtime ids", () => {
+    expect(toSarvamRealtimeSttModel("saaras:v3-realtime")).toBe("saaras:v3-realtime");
+  });
+
+  it("falls back to saaras:v3-realtime for unknown or blank ids", () => {
+    expect(toSarvamRealtimeSttModel("saaras:v2")).toBe("saaras:v3-realtime");
+    expect(toSarvamRealtimeSttModel("scribe_v1")).toBe("saaras:v3-realtime");
+    expect(toSarvamRealtimeSttModel("")).toBe("saaras:v3-realtime");
+    expect(toSarvamRealtimeSttModel("   ")).toBe("saaras:v3-realtime");
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(toSarvamRealtimeSttModel("  saaras:v3  ")).toBe("saaras:v3-realtime");
+    expect(toSarvamRealtimeSttModel("\tsaaras:v4\n")).toBe("saaras:v4");
+  });
+
+  it("maps EVERY catalogued STT id to a vendor-supported realtime id", () => {
+    // Contract guard: if a new batch model joins SARVAM_STT_MODELS, its
+    // realtime translation must land inside the vendor allow-list.
+    expect(SARVAM_STT_MODELS.length).toBeGreaterThan(0);
+    for (const model of SARVAM_STT_MODELS) {
+      expect(
+        SARVAM_REALTIME_STT_MODEL_IDS,
+        model.modelId,
+      ).toContain(toSarvamRealtimeSttModel(model.modelId));
+    }
+    expect(SARVAM_REALTIME_STT_MODEL_FALLBACK).toBe("saaras:v3-realtime");
   });
 });
 

@@ -87,6 +87,16 @@ function transcriptText(event) {
   return String(event.transcript ?? event.text ?? event.partial ?? "");
 }
 
+/** Map a resolved Saaras STT id to the vendor realtime-WS model id.
+ *  realtime-init already translates, but the relay is the LAST line of
+ *  defense: the vendor rejects anything but 'saaras:v3-realtime' and
+ *  'saaras:v4' with a fatal "Invalid model" error on connect. Idempotent. */
+function toRealtimeModel(model) {
+  const id = String(model ?? "").trim();
+  if (id === "saaras:v4" || id === "saaras:v3-realtime") return id;
+  return "saaras:v3-realtime"; // saaras:v3 (batch) + anything unknown
+}
+
 // ── Entry point called from start.mjs ────────────────────────────────────────
 
 export async function handleSarvamRealtimeConnection(browserWs, req) {
@@ -128,7 +138,11 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
   }
 
   // ── 2. Upstream Saaras realtime socket ─────────────────────────────────────
-  const model = encodeURIComponent(cfg.sttModel ?? "saaras:v3");
+  // Batch REST ids (saaras:v3) are invalid here — the vendor only accepts
+  // 'saaras:v3-realtime' and 'saaras:v4'. One canonical realtime model id
+  // feeds BOTH the upstream URL and the metering events below.
+  const realtimeModel = toRealtimeModel(cfg.sttModel);
+  const model = encodeURIComponent(realtimeModel);
   const language = encodeURIComponent(cfg.languageCode ?? "en-IN");
   const sampleRate = Number(cfg.sampleRate ?? 16000);
   const upstreamUrl =
@@ -198,7 +212,7 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
         orgId: cfg.orgId ?? orgId,
         kbId,
         agentId: cfg.agentId ?? null,
-        model: `${cfg.sttModel ?? "saaras:v3"}-realtime`,
+        model: realtimeModel,
         audioSeconds,
         languageCode: languageCode ?? cfg.languageCode ?? null,
       }),

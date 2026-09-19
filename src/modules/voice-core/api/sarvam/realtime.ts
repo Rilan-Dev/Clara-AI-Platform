@@ -19,7 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { planGuard } from "@/lib/plan-guard";
-import { getSarvamApiKey, getSarvamBaseUrl } from "../../model-catalog";
+import { getSarvamApiKey, getSarvamBaseUrl, toSarvamRealtimeSttModel } from "../../model-catalog";
 import { logSttUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { isSarvamRelayRequest } from "./realtime-auth";
@@ -72,12 +72,14 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
       );
     }
 
-    // Saaras realtime model id — the catalogued REST ids carry over; the
-    // relay appends the realtime query parameters.
+    // Saaras realtime model id — the resolved config stores the BATCH REST id
+    // (saaras:v3 | saaras:v4); the vendor realtime WS only accepts
+    // 'saaras:v3-realtime' | 'saaras:v4', so translate here (the relay also
+    // maps defensively for older callers) and meter with the same id.
     return NextResponse.json({
       apiKey,
       baseUrl: getSarvamBaseUrl(),
-      sttModel: resolved.sarvam.sttModel,
+      sttModel: toSarvamRealtimeSttModel(resolved.sarvam.sttModel),
       languageCode: resolved.sarvam.language,
       sampleRate: resolved.sarvam.sampleRate,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,
