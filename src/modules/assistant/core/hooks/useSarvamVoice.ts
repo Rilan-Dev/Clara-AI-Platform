@@ -31,6 +31,7 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
+import { connectPcm16Capture, type Pcm16Capture } from "../voice/pcm-capture";
 import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
 
 // ─── VAD tuning (utterance mode — mirrors useElevenLabsVoice) ──────────────
@@ -116,9 +117,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
   // Realtime mode state
   const realtimeWsRef = useRef<WebSocket | null>(null);
-  const realtimeProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const realtimeCaptureRef = useRef<Pcm16Capture | null>(null);
   const realtimePcmBufferRef = useRef<Int16Array[]>([]);
   const realtimeFlushTimerRef = useRef<number | null>(null);
+  const realtimeSilenceWarnedRef = useRef(false);
   const partialQuestionRef = useRef("");
   const partialTurnRef = useRef<VoiceTurn | null>(null);
   const bargeInArmedRef = useRef(false);
@@ -404,24 +406,18 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       if (realtimeWsRef.current === ws) realtimeWsRef.current = null;
     };
 
-    // 2. PCM16 capture: mic → capture ctx (16 kHz) → ScriptProcessor →
-    //    base64 frames batched every REALTIME_FLUSH_MS.
+    // 2. PCM16 capture: mic → capture ctx (16 kHz) → ScriptProcessor.
+    //    connectPcm16Capture wires the zero-gain pull-through to the
+    //    destination — WITHOUT it the render thread never pulls the node and
+    //    onaudioprocess never fires (mic "on" but zero frames sent).
     const source = captureCtxRef.current.createMediaStreamSource(mic);
-    const processor = captureCtxRef.current.createScriptProcessor(4096, 1, 1);
-    realtimeProcessorRef.current = processor;
-
-    processor.onaudioprocess = (audioEvent) => {
+    const capture = connectPcm16Capture(captureCtxRef.current, source, (pcm16) => {
       if (realtimeWsRef.current?.readyState !== WebSocket.OPEN) return;
-      const input = audioEvent.inputBuffer.getChannelData(0);
-      const pcm16 = new Int16Array(input.length);
-      for (let i = 0; i < input.length; i++) {
-        const clamped = Math.max(-1, Math.min(1, input[i]));
-        pcm16[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
-      }
       realtimePcmBufferRef.current.push(pcm16);
-    };
-    source.connect(processor); // processor NOT connected to destination
+    });
+    realtimeCaptureRef.current = capture;
 
+    // 3. Flush captured PCM upstream in ~100 ms base64 batches.
     realtimeFlushTimerRef.current = window.setInterval(() => {
       const socket = realtimeWsRef.current;
       if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -431,10 +427,30 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       const frames = realtimePcmBufferRef.current.splice(0);
       if (frames.length === 0) return;
       let totalSamples = 0;
+      let maxAbs = 0;
       for (const frame of frames) totalSamples += frame.length;
       const merged = new Int16Array(totalSamples);
       let offset = 0;
-      for (const frame of frames) { merged.set(frame, offset); offset += frame.length; }
+      for (const frame of frames) {
+        merged.set(frame, offset);
+        for (let i = 0; i < frame.length; i++) {
+          const abs = frame[i] < 0 ? -frame[i] : frame[i];
+          if (abs > maxAbs) maxAbs = abs;
+        }
+        offset += frame.length;
+      }
+
+      // Field diagnostics: an OPEN socket fed nothing but digital silence
+      // for 2+ seconds means the capture graph or the mic input is dead —
+      // surface it instead of failing as "not listening".
+      if (maxAbs === 0 && !realtimeSilenceWarnedRef.current) {
+        realtimeSilenceWarnedRef.current = true;
+        console.warn(
+          "[sarvam-realtime] Microphone is producing digital silence — " +
+            "check the browser tab's input device selection and permissions.",
+        );
+      }
+
       // Base64 the PCM16 bytes (Sarvam realtime wire format).
       const bytes = new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength);
       let binary = "";
@@ -453,13 +469,14 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       clearInterval(realtimeFlushTimerRef.current);
       realtimeFlushTimerRef.current = null;
     }
-    try { realtimeProcessorRef.current?.disconnect(); } catch {}
-    realtimeProcessorRef.current = null;
+    realtimeCaptureRef.current?.stop();
+    realtimeCaptureRef.current = null;
     realtimePcmBufferRef.current = [];
     try { realtimeWsRef.current?.close(); } catch {}
     realtimeWsRef.current = null;
     partialQuestionRef.current = "";
     partialTurnRef.current = null;
+    realtimeSilenceWarnedRef.current = false;
   }, []);
 
   // ─── UTTERANCE mode: Saaras REST STT (fallback) ─────────────────────────────
