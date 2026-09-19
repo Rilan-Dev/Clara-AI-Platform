@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Brain, Menu } from "lucide-react";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const NAV = [
   { label: "Features", href: "/features" },
@@ -29,6 +30,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
             ))}
           </div>
           <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Sign in
             </Link>
@@ -36,7 +38,8 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
               Get started
             </Link>
           </div>
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
             <Sheet>
               <SheetTrigger asChild>
                 <button className="inline-flex items-center justify-center rounded-lg border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">

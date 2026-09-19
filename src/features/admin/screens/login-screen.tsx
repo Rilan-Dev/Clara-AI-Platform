@@ -5,6 +5,7 @@ import { Brain, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import axios, { isAxiosError } from "axios";
 import { setStoredToken } from "@/lib/client-auth";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { AUTH_LOGIN_ENDPOINT, getSafeRedirect } from "./login-redirect";
 
 // Authentication is intentionally same-origin. The login API sets the
@@ -65,7 +66,12 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+    <div className="relative min-h-screen bg-background flex items-center justify-center px-4">
+      {/* Personal theme switch — the platform default still governs the
+          first visit; anyone can flip their own copy here. */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">

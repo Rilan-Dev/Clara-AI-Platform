@@ -9,6 +9,7 @@ import {
   CreditCard,
   KeyRound,
   Mail,
+  Palette,
   UserRound,
 } from "lucide-react";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
@@ -16,6 +17,7 @@ import { EmbedApiKeyPanel } from "@/components/admin/EmbedApiKeyPanel";
 import { EmailDeliveryPanel } from "@/components/admin/EmailDeliveryPanel";
 import { EmailTemplatesPanel } from "@/components/admin/EmailTemplatesPanel";
 import { PaymentGatewayPanel } from "@/components/admin/PaymentGatewayPanel";
+import { PlatformAppearancePanel } from "@/components/admin/PlatformAppearancePanel";
 import { PlatformAssistantDefaultsEditor } from "@/components/admin/PlatformAssistantDefaultsEditor";
 import { PlatformEnvPanel } from "@/components/admin/PlatformEnvPanel";
 import { apiUrl } from "@/lib/runtime";
@@ -37,7 +39,7 @@ import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks"
 //     Voice are NOT org-level settings any more — orgs tune their own
 //     agents and knowledge bases.
 
-export type SettingsSection = "account" | "ai" | "embed" | "payments" | "email" | "templates";
+export type SettingsSection = "account" | "appearance" | "ai" | "embed" | "payments" | "email" | "templates";
 
 type SectionDef = {
   id: SettingsSection;
@@ -62,6 +64,16 @@ const ACCOUNT_SECTION: SectionDef = {
 /** Platform admins — onboarding defaults, billing and platform keys. */
 export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
   ACCOUNT_SECTION,
+  {
+    id: "appearance",
+    href: "/settings/appearance",
+    icon: Palette,
+    label: "Appearance",
+    title: "Default theme",
+    description:
+      "Choose the theme new visitors see first — light, dark, or follow their device. People can still switch it themselves.",
+    audience: "Platform admin",
+  },
   {
     id: "ai",
     href: "/settings/ai",
@@ -226,6 +238,8 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
             sections={sections}
           />
         )}
+
+        {section === "appearance" && <PlatformAppearancePanel />}
 
         {section === "embed" && (
           <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">

@@ -17,6 +17,10 @@
     --color-secondary: hsl(var(--secondary));
     --color-secondary-foreground: hsl(var(--secondary-foreground));
 
+    /* Native UI (scrollbars, form controls) follows the active palette.
+       The .dark block below declares color-scheme: dark in lockstep. */
+    color-scheme: light;
+
     /* ── Modern light theme (indigo → violet on soft neutral) ─────────────────
        The default theme is now a bright, airy light palette built on a cool
        neutral base (#FCFCFD) with an indigo→violet accent system. Everything
@@ -151,6 +155,7 @@
     --color-primary-foreground: hsl(var(--primary-foreground));
     --color-secondary: hsl(var(--secondary));
     --color-secondary-foreground: hsl(var(--secondary-foreground));
+    color-scheme: dark;
 
     /* ── Modern dark variant (kept in sync with the light palette) ──────────
        Same indigo→violet accent, rendered on a soft near-black base. This is

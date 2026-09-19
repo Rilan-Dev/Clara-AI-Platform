@@ -6,10 +6,11 @@ import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
-  MoreHorizontal, X,
+  MoreHorizontal, X, Palette,
 } from "lucide-react";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ const ADMIN_NAV = [
 // agents and knowledge bases.
 const SETTINGS_NAV = [
   { href: "/settings/account",  icon: UserRound, label: "Account"          },
+  { href: "/settings/appearance", icon: Palette, label: "Appearance"       },
   { href: "/settings/ai",       icon: Bot,       label: "AI Configuration" },
   { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
   { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
@@ -376,14 +378,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          {/* Profile avatar → menu */}
-          {user && (
-            <ProfileMenu
-              user={user}
-              onSignOut={handleSignOut}
-              billingHref={!isAdmin && primaryOrgId ? `/orgs/${primaryOrgId}/billing` : null}
-            />
-          )}
+          {/* Theme switch + profile avatar → menu */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {user && (
+              <ProfileMenu
+                user={user}
+                onSignOut={handleSignOut}
+                billingHref={!isAdmin && primaryOrgId ? `/orgs/${primaryOrgId}/billing` : null}
+              />
+            )}
+          </div>
         </header>
 
         {/* Bottom safe area for the tab bar */}
