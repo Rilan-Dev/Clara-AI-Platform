@@ -163,19 +163,50 @@ describe("voice resolution — guards", () => {
     await expect(resolve()).rejects.toThrow(/Realtime voice provider elevenlabs/);
   });
 
-  it("rejects a realtime elevenlabs pick when the platform kill switch is off", async () => {
+  it("degrades a realtime elevenlabs pick to the voice-chat provider when the platform kill switch is off", async () => {
     orgSettingsMock.mockResolvedValue({
       ...baseOrg,
       voiceProvider: null,
       realtimeVoiceProvider: "elevenlabs",
     } as never);
     isElevenLabsEnabledMock.mockReturnValue(false);
-    await expect(resolve()).rejects.toThrow(/ElevenLabs realtime voice is not available/);
+    const r = await resolve();
+    expect(r.voiceProvider).toBe("openai");          // voice-chat axis untouched
+    expect(r.realtimeProvider).toBe("openai");      // realtime degraded, not fatal
+    expect(r.realtimeSource).toBe("voice_chat");
+    expect(r.elevenlabs).toBeNull();                // no ElevenLabs specifics resolved
   });
 
-  it("still rejects the voice-chat elevenlabs axis when the kill switch is off", async () => {
+  it("degrades the voice-chat elevenlabs axis to the brain provider when the kill switch is off", async () => {
     orgSettingsMock.mockResolvedValue({ ...baseOrg, voiceProvider: "elevenlabs" } as never);
     isElevenLabsEnabledMock.mockReturnValue(false);
-    await expect(resolve()).rejects.toThrow(/ElevenLabs voice is not available/);
+    const r = await resolve();
+    expect(r.voiceProvider).toBe("openai");
+    expect(r.realtimeProvider).toBe("openai"); // inherited pick degrades with it
+    expect(r.source).toBe("env");
+    expect(r.elevenlabs).toBeNull();
+  });
+
+  it("degrades a sarvam selection when SARVAM_ENABLED is off (dark-launch posture)", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+      voiceProvider: "sarvam",
+    } as never);
+    // isSarvamEnabled defaults to false in the mock surface.
+    const r = await resolve();
+    expect(r.voiceProvider).toBe("openai");
+    expect(r.realtimeProvider).toBe("openai");
+    expect(r.sarvam).toBeNull();
+  });
+
+  it("still hard-fails when the org allow-list excludes every fallback provider", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["elevenlabs"], // brain fallback (openai) not allowed
+      voiceProvider: "elevenlabs",
+    } as never);
+    isElevenLabsEnabledMock.mockReturnValue(false);
+    await expect(resolve()).rejects.toThrow(/ElevenLabs voice is not available on this platform/);
   });
 });

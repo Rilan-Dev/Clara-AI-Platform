@@ -224,36 +224,61 @@ export async function resolveVoiceConfig(
     );
   }
 
-  // ── Kill switch: platform-level ElevenLabs availability ───────────────────
-  if (voiceProvider === "elevenlabs" && !isElevenLabsEnabled()) {
-    throw new VoiceConfigResolutionError(
-      "ElevenLabs voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured).",
+  // ── Platform availability: kill-switch FALLBACK (not a hard error) ────────
+  // An org may have explicitly selected a voice provider (e.g. ElevenLabs)
+  // that the platform operator has since disabled platform-wide
+  // (ELEVENLABS_ENABLED=false / key cleared — same posture for Sarvam). Hard-
+  // failing every voice surface for that org makes the whole platform look
+  // broken, which is exactly what happens when an operator retires a vendor:
+  // embeds, the floating assistant, and the realtime modal all 400. Instead
+  // the selection DEGRADES to the brain provider (the inherit default every
+  // pre-voice-axis tenant already uses) and the event is logged loudly for
+  // the operator. The org-level selection stays in the DB untouched, so
+  // re-enabling the provider restores the org's choice instantly.
+  const platformUnavailable = (p: VoiceProvider): boolean =>
+    (p === "elevenlabs" && !isElevenLabsEnabled()) ||
+    (p === "sarvam" && !isSarvamEnabled());
+
+  const unavailableError = (p: VoiceProvider): VoiceConfigResolutionError =>
+    new VoiceConfigResolutionError(
+      p === "elevenlabs"
+        ? "ElevenLabs voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured), and no fallback voice provider is enabled for this organisation."
+        : "Sarvam voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured), and no fallback voice provider is enabled for this organisation.",
     );
-  }
-  if (
-    realtimeProvider === "elevenlabs" &&
-    voiceProvider !== "elevenlabs" &&
-    !isElevenLabsEnabled()
-  ) {
-    throw new VoiceConfigResolutionError(
-      "ElevenLabs realtime voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured).",
+
+  // Voice-chat purpose. The brain provider is the natural fallback — the
+  // org's chat already runs on it — and when the brain itself is the disabled
+  // provider (a Sarvam brain before the operator enables Sarvam), the
+  // terminal fallback is OpenAI, matching the platform's default-provider
+  // posture.
+  if (platformUnavailable(voiceProvider)) {
+    const fallback: VoiceProvider = platformUnavailable(brain.provider)
+      ? "openai"
+      : brain.provider;
+    if (!allowedVoiceProviders.includes(fallback)) {
+      // Genuinely no usable voice provider for this org — surface the
+      // operator-actionable message instead of silently violating the org's
+      // explicit allow-list.
+      throw unavailableError(voiceProvider);
+    }
+    console.warn(
+      `[voice-core] ${voiceProvider} is disabled at platform level — degrading voice-chat for org ${orgId ?? "(unknown)"} to ${fallback}. Re-enable the provider or change the org's voice provider setting to restore the selection.`,
     );
+    voiceProvider = fallback;
+    source = "env";
   }
 
-  // ── Kill switch: platform-level Sarvam availability ──────────────────────
-  if (voiceProvider === "sarvam" && !isSarvamEnabled()) {
-    throw new VoiceConfigResolutionError(
-      "Sarvam voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured).",
+  // Realtime purpose — degrades to the (possibly already degraded)
+  // voice-chat provider, mirroring the null-inherit semantics above.
+  if (platformUnavailable(realtimeProvider)) {
+    if (!allowedVoiceProviders.includes(voiceProvider)) {
+      throw unavailableError(realtimeProvider);
+    }
+    console.warn(
+      `[voice-core] ${realtimeProvider} is disabled at platform level — degrading realtime voice for org ${orgId ?? "(unknown)"} to ${voiceProvider}. Re-enable the provider or change the org's realtime voice provider setting to restore the selection.`,
     );
-  }
-  if (
-    realtimeProvider === "sarvam" &&
-    voiceProvider !== "sarvam" &&
-    !isSarvamEnabled()
-  ) {
-    throw new VoiceConfigResolutionError(
-      "Sarvam realtime voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured).",
-    );
+    realtimeProvider = voiceProvider;
+    realtimeSource = "voice_chat";
   }
 
   // ── ElevenLabs specifics ──────────────────────────────────────────────────

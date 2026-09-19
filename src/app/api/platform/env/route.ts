@@ -30,6 +30,17 @@ const MANAGED_KEYS = new Set([
   // ElevenLabs Mode B / studio (V4-V6) — secrets + flags
   "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
   "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
+  // Sarvam AI — Indic brain, voice & language services
+  // (Doc/SARVAM_AI_INTEGRATION.md §Platform settings; kept in lockstep with
+  // the PlatformEnvPanel CATEGORY_KEYS.ai list and migration 036's seeded
+  // platform_env_settings rows — without these entries the Settings → AI
+  // Sarvam section can render but every save is rejected with 403
+  // "Setting is not managed by the platform settings page".)
+  "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_BASE_URL", "SARVAM_TIMEOUT_MS",
+  "SARVAM_CHAT_MODEL", "SARVAM_BETA_MODELS_ENABLED",
+  "SARVAM_TTS_MODEL", "SARVAM_STT_MODEL", "SARVAM_DEFAULT_SPEAKER",
+  "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
+  "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED",
   "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
   // Phone Configuration
   "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
