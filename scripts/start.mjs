@@ -76,7 +76,7 @@ http.createServer = (...args) => {
 };
 
 import { dirname, resolve } from "node:path";
-import { existsSync } from "node:fs";
+import { cpSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 const __dir    = dirname(fileURLToPath(import.meta.url));
 const serverCandidates = [
@@ -87,5 +87,29 @@ const serverJs = serverCandidates.find((candidate) => existsSync(candidate));
 if (!serverJs) {
   throw new Error("Could not locate standalone Next server.js for relay startup");
 }
+
+// Standalone output doesn't include .next/static or public/ (the Dockerfile
+// COPYs them separately). When running `npm start` straight from a repo
+// checkout, sync them in so CSS/JS chunks and public assets resolve —
+// without this the app boots but every page renders unstyled (404 on
+// /_next/static/css/*). Mirrors the Dockerfile steps:
+//   COPY .next/static    ./.next/static
+//   COPY public          ./public
+const standaloneDir = dirname(serverJs);
+const assetSyncs = [
+  [resolve(__dir, "..", ".next", "static"), resolve(standaloneDir, ".next", "static")],
+  [resolve(__dir, "..", "public"), resolve(standaloneDir, "public")],
+];
+for (const [src, dst] of assetSyncs) {
+  if (existsSync(src) && !existsSync(dst)) {
+    try {
+      cpSync(src, dst, { recursive: true });
+      console.log("[clara-relay] synced", src, "→", dst);
+    } catch (err) {
+      console.warn("[clara-relay] could not sync", src, ":", err && err.message);
+    }
+  }
+}
+
 await import(pathToFileURL(serverJs).href);
 
