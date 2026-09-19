@@ -12,7 +12,7 @@ type Row = Record<string, unknown>;
 function normalizeProviderList(input: unknown): AIProvider[] {
   if (!Array.isArray(input)) return ["openai", "gemini"];
   const values = input.filter(
-    (value): value is AIProvider => value === "openai" || value === "gemini",
+    (value): value is AIProvider => value === "openai" || value === "gemini" || value === "sarvam",
   );
   return values.length > 0 ? values : ["openai", "gemini"];
 }
@@ -21,6 +21,10 @@ function normalizeVoiceProviderList(input: unknown): VoiceProvider[] {
   if (!Array.isArray(input)) return ["openai", "gemini", "elevenlabs"];
   const values = input.filter((value): value is VoiceProvider => isVoiceProvider(value));
   return values.length > 0 ? values : ["openai", "gemini", "elevenlabs"];
+}
+
+function normalizeTranslationMode(input: unknown): "off" | "query" | "query+answer" {
+  return input === "query" || input === "query+answer" ? input : "off";
 }
 
 function normalizeProviderScopedList(input: unknown): ProviderScopedList {
@@ -43,7 +47,7 @@ function toOrgAISettings(row: Row): OrgAISettings {
     id: String(row.id),
     orgId: String(row.org_id),
     defaultProvider:
-      row.default_provider === "openai" || row.default_provider === "gemini"
+      row.default_provider === "openai" || row.default_provider === "gemini" || row.default_provider === "sarvam"
         ? row.default_provider
         : null,
     allowedProviders: normalizeProviderList(row.allowed_providers),
@@ -53,6 +57,10 @@ function toOrgAISettings(row: Row): OrgAISettings {
     elevenlabsTtsModel: typeof row.elevenlabs_tts_model === "string" ? row.elevenlabs_tts_model : null,
     elevenlabsSttModel: typeof row.elevenlabs_stt_model === "string" ? row.elevenlabs_stt_model : null,
     defaultElevenlabsVoice: typeof row.default_elevenlabs_voice === "string" ? row.default_elevenlabs_voice : null,
+    sarvamTtsModel: typeof row.sarvam_tts_model === "string" ? row.sarvam_tts_model : null,
+    sarvamSttModel: typeof row.sarvam_stt_model === "string" ? row.sarvam_stt_model : null,
+    defaultSarvamSpeaker: typeof row.default_sarvam_speaker === "string" ? row.default_sarvam_speaker : null,
+    translationMode: normalizeTranslationMode(row.translation_mode),
     allowedChatModels: normalizeProviderScopedList(row.allowed_chat_models),
     allowedEmbeddingModels: normalizeProviderScopedList(
       row.allowed_embedding_models,
@@ -176,6 +184,18 @@ export async function upsertOrgAISettings(
     defaultElevenlabsVoice: input.defaultElevenlabsVoice !== undefined
       ? normalizeStringOrNull(input.defaultElevenlabsVoice)
       : (current?.defaultElevenlabsVoice ?? null),
+    sarvamTtsModel: input.sarvamTtsModel !== undefined
+      ? normalizeStringOrNull(input.sarvamTtsModel)
+      : (current?.sarvamTtsModel ?? null),
+    sarvamSttModel: input.sarvamSttModel !== undefined
+      ? normalizeStringOrNull(input.sarvamSttModel)
+      : (current?.sarvamSttModel ?? null),
+    defaultSarvamSpeaker: input.defaultSarvamSpeaker !== undefined
+      ? normalizeStringOrNull(input.defaultSarvamSpeaker)
+      : (current?.defaultSarvamSpeaker ?? null),
+    translationMode: input.translationMode !== undefined
+      ? input.translationMode
+      : (current?.translationMode ?? "off"),
     allowedChatModels:
       input.allowedChatModels ?? current?.allowedChatModels ?? {},
     allowedEmbeddingModels:
@@ -284,6 +304,10 @@ export async function upsertOrgAISettings(
        elevenlabs_tts_model,
        elevenlabs_stt_model,
        default_elevenlabs_voice,
+       sarvam_tts_model,
+       sarvam_stt_model,
+       default_sarvam_speaker,
+       translation_mode,
        allowed_chat_models,
        allowed_embedding_models,
        allowed_realtime_models,
@@ -311,10 +335,10 @@ export async function upsertOrgAISettings(
        speed
      )
      VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9,
-       $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb,
+       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
        $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-       $24, $25, $26, $27, $28, $29::jsonb, $30, $31, $32, $33, $34
+       $24, $25, $26, $27, $28, $29::jsonb, $30, $31, $32, $33, $34,
+       $35, $36, $37, $38
      )
      ON CONFLICT (org_id)
      DO UPDATE SET
@@ -326,6 +350,10 @@ export async function upsertOrgAISettings(
        elevenlabs_tts_model = EXCLUDED.elevenlabs_tts_model,
        elevenlabs_stt_model = EXCLUDED.elevenlabs_stt_model,
        default_elevenlabs_voice = EXCLUDED.default_elevenlabs_voice,
+       sarvam_tts_model = EXCLUDED.sarvam_tts_model,
+       sarvam_stt_model = EXCLUDED.sarvam_stt_model,
+       default_sarvam_speaker = EXCLUDED.default_sarvam_speaker,
+       translation_mode = EXCLUDED.translation_mode,
        allowed_chat_models = EXCLUDED.allowed_chat_models,
        allowed_embedding_models = EXCLUDED.allowed_embedding_models,
        allowed_realtime_models = EXCLUDED.allowed_realtime_models,
@@ -363,6 +391,10 @@ export async function upsertOrgAISettings(
       next.elevenlabsTtsModel,
       next.elevenlabsSttModel,
       next.defaultElevenlabsVoice,
+      next.sarvamTtsModel,
+      next.sarvamSttModel,
+      next.defaultSarvamSpeaker,
+      next.translationMode,
       JSON.stringify(next.allowedChatModels),
       JSON.stringify(next.allowedEmbeddingModels),
       JSON.stringify(next.allowedRealtimeModels),

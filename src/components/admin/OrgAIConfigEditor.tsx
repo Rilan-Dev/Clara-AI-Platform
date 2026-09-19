@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Sparkles, Volume2, SlidersHorizontal, Mic, AudioLines, Phone } from "lucide-react";
+import { RefreshCw, Sparkles, Volume2, SlidersHorizontal, Mic, AudioLines, Phone, Languages } from "lucide-react";
 import type { OrgAISettings, AIProvider, VoiceProvider } from "@/modules/admin-ui/api";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
@@ -43,9 +43,10 @@ import {
 } from "@/components/admin/settings-ui";
 import {
   BRAIN_PROVIDERS,
-  openaiChatOptions, geminiChatOptions,
+  openaiChatOptions, geminiChatOptions, sarvamChatOptions,
   openaiEmbeddingOptions, geminiEmbeddingOptions,
   realtimeOptions, transcriptionOptions, elevenlabsTtsOptions, elevenlabsSttOptions,
+  sarvamTtsOptions, sarvamSttOptions, sarvamSpeakerOptions,
 } from "@/components/admin/ai-settings-options";
 
 type Props = {
@@ -65,6 +66,10 @@ type Draft = {
   elevenlabsTtsModel: string;
   elevenlabsSttModel: string;
   defaultElevenlabsVoice: string;
+  sarvamTtsModel: string;
+  sarvamSttModel: string;
+  defaultSarvamSpeaker: string;
+  translationMode: "off" | "query" | "query+answer";
   defaultChatModel: string;
   defaultEmbeddingModel: string;
   defaultRealtimeModel: string;
@@ -80,6 +85,7 @@ type Draft = {
 const VOICE_PROVIDER_OPTIONS: { id: VoiceProvider | "inherit"; label: string; blurb: string }[] = [
   { id: "inherit",     label: "Follow brain provider", blurb: "Same provider as chat (OpenAI Realtime / Gemini Live)" },
   { id: "elevenlabs",  label: "ElevenLabs (hybrid)",   blurb: "Best-in-class voices. Documents & KBs stay inside Clara." },
+  { id: "sarvam",      label: "Sarvam AI (Indic)",     blurb: "Saaras + Bulbul — 22 Indian languages, 37 speakers. Documents & KBs stay inside Clara." },
   { id: "openai",      label: "OpenAI Realtime",       blurb: "Force OpenAI Realtime even if chat uses Gemini" },
   { id: "gemini",      label: "Gemini Live",           blurb: "Force Gemini Live even if chat uses OpenAI" },
 ];
@@ -89,6 +95,7 @@ const VOICE_PROVIDER_OPTIONS: { id: VoiceProvider | "inherit"; label: string; bl
 const REALTIME_PROVIDER_OPTIONS: { id: VoiceProvider | "inherit"; label: string; blurb: string }[] = [
   { id: "inherit",     label: "Follow voice provider",   blurb: "Same provider as voice chat above — one pick, everything native" },
   { id: "elevenlabs",  label: "ElevenLabs Agents",       blurb: "Real-time streaming conversations (Mode B) with the ElevenLabs agent — needs an acknowledged agent binding" },
+  { id: "sarvam",      label: "Sarvam pipeline",         blurb: "Saaras STT + Bulbul TTS pipeline with optional realtime partial-transcript streaming (live captions, early barge-in)" },
   { id: "openai",      label: "OpenAI Realtime",         blurb: "The floating voice assistant runs on OpenAI Realtime" },
   { id: "gemini",      label: "Gemini Live",             blurb: "The floating voice assistant runs on Gemini Live" },
 ];
@@ -103,6 +110,10 @@ function toDraft(settings: OrgAISettings | null): Draft {
     elevenlabsTtsModel: settings?.elevenlabsTtsModel ?? "",
     elevenlabsSttModel: settings?.elevenlabsSttModel ?? "",
     defaultElevenlabsVoice: settings?.defaultElevenlabsVoice ?? "",
+    sarvamTtsModel: settings?.sarvamTtsModel ?? "",
+    sarvamSttModel: settings?.sarvamSttModel ?? "",
+    defaultSarvamSpeaker: settings?.defaultSarvamSpeaker ?? "",
+    translationMode: settings?.translationMode ?? "off",
     defaultChatModel: settings?.defaultChatModel ?? "",
     defaultEmbeddingModel: settings?.defaultEmbeddingModel ?? "",
     defaultRealtimeModel: settings?.defaultRealtimeModel ?? "",
@@ -191,12 +202,20 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
       : [...list, provider];
   }
 
-  const activeProvider = draft.defaultProvider === "gemini" ? "gemini" : "openai";
+  const activeProvider =
+    draft.defaultProvider === "gemini" ? "gemini"
+    : draft.defaultProvider === "sarvam" ? "sarvam"
+    : "openai";
 
   const chatModelOptions = useMemo(
-    () => (activeProvider === "gemini" ? geminiChatOptions() : openaiChatOptions()),
+    () =>
+      activeProvider === "gemini" ? geminiChatOptions()
+      : activeProvider === "sarvam" ? sarvamChatOptions()
+      : openaiChatOptions(),
     [activeProvider],
   );
+  // Sarvam publishes no embeddings API — embeddings always run on the
+  // backbone (SARVAM_EMBEDDING_FALLBACK_PROVIDER, platform-configured).
   const embeddingModelOptions = useMemo(
     () => (activeProvider === "gemini" ? geminiEmbeddingOptions() : openaiEmbeddingOptions()),
     [activeProvider],
@@ -237,6 +256,10 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
         elevenlabsTtsModel: draft.elevenlabsTtsModel.trim() || null,
         elevenlabsSttModel: draft.elevenlabsSttModel.trim() || null,
         defaultElevenlabsVoice: draft.defaultElevenlabsVoice.trim() || null,
+        sarvamTtsModel: draft.sarvamTtsModel.trim() || null,
+        sarvamSttModel: draft.sarvamSttModel.trim() || null,
+        defaultSarvamSpeaker: draft.defaultSarvamSpeaker.trim() || null,
+        translationMode: draft.translationMode,
         defaultChatModel: draft.defaultChatModel.trim() || null,
         defaultEmbeddingModel: draft.defaultEmbeddingModel.trim() || null,
         defaultRealtimeModel: draft.defaultRealtimeModel.trim() || null,
@@ -354,6 +377,7 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
               { id: "openai", label: "OpenAI" },
               { id: "gemini", label: "Gemini" },
               { id: "elevenlabs", label: "ElevenLabs" },
+              { id: "sarvam", label: "Sarvam" },
             ]}
             checkedIds={draft.allowedVoiceProviders}
             onToggle={(id) =>
@@ -456,6 +480,70 @@ export function OrgAIConfigEditor({ orgId, settings, onSave }: Props) {
               </div>
             </div>
           )}
+
+          {/* Sarvam specifics — static catalogue, no sync job by design */}
+          {draft.voiceProvider === "sarvam" && (
+            <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
+              <div className="flex items-center gap-2">
+                <AudioLines className="w-4 h-4 text-primary" />
+                <h4 className="text-sm font-semibold text-foreground">Sarvam voice settings</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Indic pipeline: Saaras listens (22 Indian languages + English, tuned for 8 kHz phone
+                audio), Bulbul speaks (37 speakers). Bulbul speakers are a fixed vendor catalogue —
+                there is nothing to sync. When the platform enables the realtime relay, partial
+                transcripts stream for live captions and faster barge-in.
+              </p>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <ModelSelect
+                  label="TTS model (speaking)"
+                  hint="Bulbul v3 recommended."
+                  value={draft.sarvamTtsModel}
+                  onChange={(value) => setField("sarvamTtsModel", value)}
+                  options={sarvamTtsOptions()}
+                />
+                <ModelSelect
+                  label="STT model (listening)"
+                  hint="Saaras v3 default; v4 adds Global English tuning."
+                  value={draft.sarvamSttModel}
+                  onChange={(value) => setField("sarvamSttModel", value)}
+                  options={sarvamSttOptions()}
+                />
+                <ModelSelect
+                  label="Default speaker"
+                  hint="37 static Bulbul speakers, gender-tagged."
+                  value={draft.defaultSarvamSpeaker}
+                  onChange={(value) => setField("defaultSarvamSpeaker", value)}
+                  options={sarvamSpeakerOptions()}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Cross-lingual RAG posture (Sarvam language services, V4) */}
+          <div className="space-y-3 rounded-xl border border-border bg-muted/10 p-4">
+            <div className="flex items-center gap-2">
+              <Languages className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold text-foreground">Cross-lingual answers</h4>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              When the platform enables Sarvam language services, users can ask in their own language
+              (including romanized Hinglish) against a knowledge base in another language. Clara
+              identifies the language, translates the question, retrieves, and can translate the
+              answer back sentence-by-sentence.
+            </p>
+            <OptionCardGrid
+              options={[
+                { id: "off", label: "Off", blurb: "Same-language questions and answers only (default — zero translation cost)" },
+                { id: "query", label: "Translate questions", blurb: "Questions are translated for retrieval quality; answers stay in the knowledge base language" },
+                { id: "query+answer", label: "Translate questions + answers", blurb: "Full round-trip: answers stream back in the user's language, sentence by sentence" },
+              ]}
+              value={draft.translationMode}
+              onChange={(id) =>
+                setField("translationMode", id === "query" || id === "query+answer" ? id : "off")
+              }
+            />
+          </div>
         </SettingsSection>
 
         {/* ── Limits & features ───────────────────────────────────────────── */}

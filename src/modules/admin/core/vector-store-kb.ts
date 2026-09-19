@@ -210,7 +210,7 @@ export async function upsertDocumentsKb(
 
   const client = getQdrantClient();
   const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
-  const providerConfig = toProviderConfig(resolved);
+  const providerConfig = toProviderConfig(resolved, "embedding");
   const provider = ProviderFactory.getProvider(providerConfig);
 
   await ensureCollectionExists(collectionName, {
@@ -332,7 +332,7 @@ export async function updateChunk(
   meta: KbChunkMeta
 ): Promise<void> {
   const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
-  const providerConfig = toProviderConfig(resolved);
+  const providerConfig = toProviderConfig(resolved, "embedding");
   const embedding = await embedWithRetry(newText, providerConfig);
 
   const client = getQdrantClient();
@@ -365,7 +365,7 @@ export async function addChunk(
   meta: KbChunkMeta
 ): Promise<string> {
   const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
-  const providerConfig = toProviderConfig(resolved);
+  const providerConfig = toProviderConfig(resolved, "embedding");
   const embedding = await embedWithRetry(text, providerConfig);
 
   const client = getQdrantClient();

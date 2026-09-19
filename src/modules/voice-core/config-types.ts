@@ -34,6 +34,22 @@ export interface ElevenLabsResolvedConfig {
   language: string;
 }
 
+/** Sarvam specifics resolved when either voice purpose selects "sarvam". */
+export interface SarvamResolvedConfig {
+  /** TTS model id (bulbul:v3 | bulbul:v2 legacy). */
+  ttsModel: string;
+  /** STT model id (saaras:v3 | saaras:v4). */
+  sttModel: string;
+  /** Bulbul speaker id — static catalogue, validated by isSupportedSarvamSpeaker. */
+  speaker: string;
+  /** BCP-47-ish language hint derived from the agent language chain (hi-IN, ta-IN, …). */
+  language: string;
+  /** Playback sample rate for the shared PCM queue (16000 default). */
+  sampleRate: number;
+  /** True when the realtime STT relay is available (V5 — capability flag). */
+  realtimeSttEnabled: boolean;
+}
+
 /**
  * Result of resolveVoiceConfig(): which provider serves each voice PURPOSE,
  * the (untouched) brain config, and the ElevenLabs specifics when selected.
@@ -56,6 +72,8 @@ export interface VoiceResolution {
   /** Brain config resolved via the existing resolveAIConfig() — unchanged. */
   brain: ResolvedAIConfig;
   elevenlabs: ElevenLabsResolvedConfig | null;
+  /** Sarvam specifics — non-null when either voice purpose selects "sarvam". */
+  sarvam: SarvamResolvedConfig | null;
 }
 
 // ─── Session bootstrap payload (hybrid pipeline, Mode A) ─────────────────────
@@ -89,4 +107,45 @@ export interface ElevenLabsSessionPayload {
   provider: "elevenlabs";
   kbId: string | null;
   ragMode: string;
+}
+
+/**
+ * Returned by POST /api/voice/sarvam/session. Same capability-descriptor-only
+ * posture as the ElevenLabs payload: never keys, never vendor URLs — the
+ * browser drives the pipeline through platform endpoints.
+ */
+export interface SarvamSessionPayload {
+  mode: "pipeline";
+  stt: {
+    endpoint: string;
+    model: string;
+    language: string;
+    sampleRate: number;
+    maxAudioSeconds: number;
+    /** V5 realtime relay — present when the relay capability is on. */
+    realtime?: {
+      endpoint: string;
+      /** Session-minted HMAC token (?token= on the WS upgrade). */
+      token: string;
+      sampleRate: number;
+      encoding: string;
+      vadSilenceMs: number;
+    };
+  };
+  tts: {
+    endpoint: string;
+    model: string;
+    speaker: string;
+    outputFormat: string;
+    language: string;
+  };
+  chat: {
+    endpoint: string;
+    kbId: string | null;
+    ragMode: string;
+  };
+  provider: "sarvam";
+  kbId: string | null;
+  ragMode: string;
+  languages: string[];
 }

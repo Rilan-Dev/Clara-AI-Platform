@@ -28,7 +28,7 @@ export async function createKbHandler(req: NextRequest, agentId: string): Promis
     const kb = await createKnowledgeBase(agentId, { name: body.name.trim(), description: body.description?.trim() || undefined });
     try {
       const resolved = await resolveAIConfig({ kbId: kb.id, orgId: agent.orgId, surface: "rag-embedding" });
-      const provider = ProviderFactory.getProvider(toProviderConfig(resolved));
+      const provider = ProviderFactory.getProvider(toProviderConfig(resolved, "embedding"));
       await ensureCollectionExists(kb.qdrantCollection, { vectorSize: provider.getEmbeddingDimension() });
     } catch (qdrantErr) {
       await deleteKnowledgeBase(kb.id).catch(() => null);

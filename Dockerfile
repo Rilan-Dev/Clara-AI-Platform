@@ -27,6 +27,7 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
     cp scripts/start.mjs .next/standalone/scripts/start.mjs && \
     cp scripts/voice-relay.mjs .next/standalone/scripts/voice-relay.mjs && \
     cp scripts/phone-stream.mjs .next/standalone/scripts/phone-stream.mjs && \
+    cp scripts/sarvam-relay.mjs .next/standalone/scripts/sarvam-relay.mjs && \
     cp -r node_modules/ws .next/standalone/node_modules/ws
 
 FROM base AS runner

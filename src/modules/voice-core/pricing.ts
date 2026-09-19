@@ -9,7 +9,7 @@
  * operators pin exact negotiated prices without a deploy.
  */
 
-import { findTTSModel } from "./model-catalog";
+import { findTTSModel, findSarvamSTTModel, findSarvamTTSModel } from "./model-catalog";
 
 /** USD per 1,000 TTS characters, with env override. */
 export function ttsUsdPer1kChars(modelId: string): number {
@@ -47,4 +47,29 @@ export function sttCostUsdMicros(audioSeconds: number): number {
 
 export function conversationCostUsdMicros(durationSeconds: number): number {
   return usdToMicros((durationSeconds / 60) * conversationUsdPerMinute());
+}
+
+// ─── Sarvam (V3) — INR list prices converted at catalogue build; env
+// overrides keep dashboards honest when the rupee moves (plan §13). ─────────
+
+/** USD per 1,000 Bulbul TTS characters, with env override. */
+export function sarvamTtsUsdPer1kChars(modelId: string): number {
+  const override = Number(process.env.SARVAM_TTS_USD_PER_1K_CHARS);
+  if (Number.isFinite(override) && override > 0) return override;
+  return findSarvamTTSModel(modelId)?.usdPer1kChars ?? 0.036;
+}
+
+/** USD per audio-minute of Saaras STT (₹30/hour ≈ $0.36/h), with env override. */
+export function sarvamSttUsdPerMinute(modelId?: string): number {
+  const override = Number(process.env.SARVAM_STT_USD_PER_MIN);
+  if (Number.isFinite(override) && override > 0) return override;
+  return (modelId ? findSarvamSTTModel(modelId)?.usdPerMinute : undefined) ?? 0.006;
+}
+
+export function sarvamTtsCostUsdMicros(modelId: string, characters: number): number {
+  return usdToMicros((characters / 1_000) * sarvamTtsUsdPer1kChars(modelId));
+}
+
+export function sarvamSttCostUsdMicros(audioSeconds: number, modelId?: string): number {
+  return usdToMicros((audioSeconds / 60) * sarvamSttUsdPerMinute(modelId));
 }

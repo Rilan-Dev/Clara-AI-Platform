@@ -5,6 +5,7 @@ import { getAssistantConfigByAgent, getKnowledgeBaseById } from "@/modules/knowl
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
+import { isSarvamEnabled } from "@/modules/voice-core/model-catalog";
 import type {
   AIProvider,
   AISurface,
@@ -23,6 +24,22 @@ export class AIConfigResolutionError extends Error {
   }
 }
 
+/**
+ * Parse SARVAM_EMBEDDING_FALLBACK_PROVIDER (default "openai"). Only "openai"
+ * and "gemini" are valid backbones — a fallback of "sarvam" is rejected with
+ * a clear operator-facing message (Sarvam has no embeddings API).
+ */
+export function parseSarvamEmbeddingFallbackProvider(): "openai" | "gemini" {
+  const raw = (process.env.SARVAM_EMBEDDING_FALLBACK_PROVIDER ?? "openai").trim().toLowerCase();
+  if (raw === "gemini") return "gemini";
+  if (raw === "openai" || raw === "") return "openai";
+  console.error(
+    `[ai-config] SARVAM_EMBEDDING_FALLBACK_PROVIDER="${raw}" is not a valid embedding backbone ` +
+    `(openai | gemini) — falling back to "openai".`,
+  );
+  return "openai";
+}
+
 function parsePositiveInt(value: string | undefined): number | null {
   if (!value?.trim()) return null;
   const parsed = Number(value);
@@ -37,7 +54,8 @@ function parseNumber(value: string | undefined): number | null {
 
 export function getPlatformAIDefaults(): PlatformAIDefaults {
   const provider = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
-  const normalizedProvider: AIProvider = provider === "gemini" ? "gemini" : "openai";
+  const normalizedProvider: AIProvider =
+    provider === "gemini" ? "gemini" : provider === "sarvam" ? "sarvam" : "openai";
 
   return {
     provider: normalizedProvider,
@@ -55,6 +73,15 @@ export function getPlatformAIDefaults(): PlatformAIDefaults {
         realtime: process.env.GEMINI_REALTIME_MODEL?.trim() || null,
         transcription: process.env.GEMINI_TRANSCRIPTION_MODEL?.trim() || null,
         defaultVoice: process.env.GEMINI_DEFAULT_VOICE?.trim() || null,
+      },
+      // Sarvam is chat-only: no embedding / realtime / transcription models.
+      // Embedding surfaces run on the backbone via the embedding split below.
+      sarvam: {
+        chat: process.env.SARVAM_CHAT_MODEL?.trim() || null,
+        embedding: null,
+        realtime: null,
+        transcription: null,
+        defaultVoice: null,
       },
     },
     limits: {
@@ -173,14 +200,32 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   const allowedProviders = orgSettings?.allowedProviders?.length
     ? orgSettings.allowedProviders
-    : (["openai", "gemini"] as AIProvider[]);
+    : (["openai", "gemini", "sarvam"] as AIProvider[]);
 
   if (!allowedProviders.includes(provider)) {
     throw new AIConfigResolutionError(`Agent provider ${provider} is not enabled for this organisation.`);
   }
 
+  // ── Sarvam kill switch (same posture as the ElevenLabs voice axis) ──────
+  // A clean 400 at resolution instead of a 500 from the adapter constructor
+  // when the platform has not enabled the provider yet.
+  if (provider === "sarvam" && !isSarvamEnabled()) {
+    throw new AIConfigResolutionError(
+      "Sarvam is not available on this platform (SARVAM_ENABLED is off or the API key is not configured).",
+    );
+  }
+
+  // ── Embedding capability split (V1) ──────────────────────────────────
+  // Sarvam publishes no embeddings API. When the brain is Sarvam, embedding
+  // work runs on the platform backbone; Qdrant collections stay byte-identical
+  // (dimensions are pinned to the backbone — 1536/3072/768 — unchanged).
+  const embeddingProvider: AIProvider =
+    provider === "sarvam" ? parseSarvamEmbeddingFallbackProvider() : provider;
+
   const defaultChat = defaults.models[provider].chat;
-  const defaultEmbedding = defaults.models[provider].embedding;
+  // Embedding defaults ALWAYS come from the backbone record — for openai/gemini
+  // brains this is identical to the previous behaviour.
+  const defaultEmbedding = defaults.models[embeddingProvider].embedding;
   const defaultRealtime = defaults.models[provider].realtime;
   const defaultTranscription = defaults.models[provider].transcription;
   const defaultVoice = defaults.models[provider].defaultVoice;
@@ -204,7 +249,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   );
   let embeddingModel = pickAllowedString(
     embeddingCandidate,
-    getAllowedValues(orgSettings?.allowedEmbeddingModels, provider),
+    getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider),
     defaultEmbedding,
   );
 
@@ -215,7 +260,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // retrieval: fall back to the provider default and log loudly instead.
   if (embeddingModel && looksLikeChatModel(embeddingModel)) {
     const fallback =
-      getAllowedValues(orgSettings?.allowedEmbeddingModels, provider)?.find(
+      getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider)?.find(
         (m) => !looksLikeChatModel(m),
       ) ?? defaultEmbedding ?? null;
     console.error(
@@ -325,12 +370,24 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     throw new AIConfigResolutionError("No languages are configured for this assistant.");
   }
 
+  // The realtime voice/model requirements only apply when the brain provider
+  // serves realtime natively (OpenAI Realtime / Gemini Live). A Sarvam brain
+  // has no native realtime voice — the VOICE axis (Sarvam pipeline or
+  // ElevenLabs) serves realtime surfaces, so the brain check is skipped.
+  const nativeRealtimeBrain = provider !== "sarvam";
+
   const voiceId =
     input.surface === "realtime" || input.surface === "embed"
-      ? normalizeRealtimeVoice(provider, agentSelection.voiceId, organisationFallbackVoices, defaultVoice)
+      ? nativeRealtimeBrain
+        ? normalizeRealtimeVoice(provider, agentSelection.voiceId, organisationFallbackVoices, defaultVoice)
+        : null
       : null;
 
-  if ((input.surface === "realtime" || input.surface === "embed") && !voiceId) {
+  if (
+    (input.surface === "realtime" || input.surface === "embed") &&
+    nativeRealtimeBrain &&
+    !voiceId
+  ) {
     throw new AIConfigResolutionError(`No ${provider} voice is configured for this agent or platform.`);
   }
 
@@ -358,7 +415,11 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   if (input.surface === "rag-embedding" && !embeddingModel) {
     throw new AIConfigResolutionError("No embedding model is configured for this tenant.");
   }
-  if ((input.surface === "realtime" || input.surface === "embed") && !realtimeModel) {
+  if (
+    (input.surface === "realtime" || input.surface === "embed") &&
+    nativeRealtimeBrain &&
+    !realtimeModel
+  ) {
     throw new AIConfigResolutionError("No realtime model is configured for this tenant.");
   }
 
@@ -367,6 +428,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     agentId: agent?.id ?? null,
     kbId: input.kbId ?? null,
     provider,
+    embeddingProvider,
     chatModel,
     embeddingModel,
     realtimeModel,
@@ -374,12 +436,20 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     voiceId,
     allowedLanguages: agentSelection.allowedLanguages,
     defaultLanguage: agentSelection.defaultLanguage,
+    translationMode:
+      orgSettings?.translationMode === "query" || orgSettings?.translationMode === "query+answer"
+        ? orgSettings.translationMode
+        : "off",
     temperature,
     maxTokens,
     assistantConfig,
     flags,
     sources: {
       provider: providerSource,
+      embeddingProvider:
+        provider === "sarvam"
+          ? "env" // the split comes from SARVAM_EMBEDDING_FALLBACK_PROVIDER
+          : providerSource,
       chatModel:
         kbOverrides?.chatModel != null
           ? "kb_override"
@@ -443,12 +513,42 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 }
 
 export function getProviderApiKey(provider: AIProvider): string | undefined {
-  const envKey = provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+  const envKey =
+    provider === "openai" ? "OPENAI_API_KEY" : provider === "gemini" ? "GEMINI_API_KEY" : "SARVAM_API_KEY";
   const value = process.env[envKey]?.trim();
   return value || undefined;
 }
 
-export function toProviderConfig(resolved: ResolvedAIConfig): ProviderConfig {
+/**
+ * Build a ProviderConfig from a resolved tenant config.
+ *
+ * `purpose` selects WHICH capability the config feeds (V1 embedding split):
+ *  - "chat" (default): the brain provider — chatStream work.
+ *  - "embedding": the embedding backbone — embedText/embedBatch work. For
+ *    openai/gemini brains this is identical to the previous behaviour; for a
+ *    Sarvam brain the factory receives the backbone (never Sarvam), so the
+ *    EMBEDDING_UNSUPPORTED guardrail in SarvamProvider is unreachable by
+ *    design — callers must pass purpose:"embedding" for embedding work.
+ */
+export function toProviderConfig(
+  resolved: ResolvedAIConfig,
+  purpose: "chat" | "embedding" = "chat",
+): ProviderConfig {
+  if (purpose === "embedding") {
+    const embeddingDimension = Number(
+      process.env[`${resolved.embeddingProvider.toUpperCase()}_EMBEDDING_DIMENSION`],
+    );
+    return {
+      provider: resolved.embeddingProvider,
+      apiKey: getProviderApiKey(resolved.embeddingProvider),
+      embeddingModel: resolved.embeddingModel ?? undefined,
+      embeddingDimension:
+        Number.isFinite(embeddingDimension) && embeddingDimension > 0
+          ? embeddingDimension
+          : undefined,
+    };
+  }
+
   const embeddingDimension = Number(
     process.env[`${resolved.provider.toUpperCase()}_EMBEDDING_DIMENSION`],
   );

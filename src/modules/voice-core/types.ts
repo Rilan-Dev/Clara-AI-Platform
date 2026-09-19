@@ -17,6 +17,11 @@
  *                    streaming TTS). Documents/KBs never leave the platform
  *                    in this mode — the only provider with a server-side
  *                    VoiceProviderService implementation today.
+ *   - "sarvam"     → Indic pipeline (Saaras STT + platform RAG/chat +
+ *                    Bulbul TTS, 8–48 kHz WAV → raw PCM). Pipeline only —
+ *                    Sarvam's Samvaad "Voice Agents" is a hosted no-code
+ *                    platform, not an embeddable signed-agent runtime, so
+ *                    there is NO Mode-B equivalent (plan §3.2).
  *
  * This file mirrors src/modules/ai-core/types.ts one-for-one so the two axes
  * stay recognisably parallel:
@@ -30,12 +35,12 @@
 
 // ─── Voice provider axis ─────────────────────────────────────────────────────
 
-export type VoiceProvider = "openai" | "gemini" | "elevenlabs";
+export type VoiceProvider = "openai" | "gemini" | "elevenlabs" | "sarvam";
 
-export const VOICE_PROVIDERS: VoiceProvider[] = ["openai", "gemini", "elevenlabs"];
+export const VOICE_PROVIDERS: VoiceProvider[] = ["openai", "gemini", "elevenlabs", "sarvam"];
 
 export function isVoiceProvider(value: unknown): value is VoiceProvider {
-  return value === "openai" || value === "gemini" || value === "elevenlabs";
+  return value === "openai" || value === "gemini" || value === "elevenlabs" || value === "sarvam";
 }
 
 // ─── TTS voice tuning (hybrid pipeline) ──────────────────────────────────────

@@ -334,7 +334,7 @@ export function estimateEmbeddingCostUsdMicros(
 // provider kill switch is on (SARVAM_ENABLED + key present) — with the kill
 // switch off, every dropdown renders exactly as before V0. Beta entries
 // additionally require SARVAM_BETA_MODELS_ENABLED.
-function visibleSarvamChatModels(): ChatModelEntry[] {
+export function visibleSarvamChatModels(): ChatModelEntry[] {
   if (!isSarvamEnabled()) return [];
   return isSarvamBetaModelsEnabled()
     ? SARVAM_CHAT_MODELS

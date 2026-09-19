@@ -88,8 +88,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const providerConfig = toProviderConfig(resolved);
+    // Retrieval embedding runs on the embedding backbone (V1 split — a Sarvam
+    // brain keeps its Qdrant collections on OpenAI/Gemini embeddings).
+    const embeddingConfig = toProviderConfig(resolved, "embedding");
     if (!providerConfig.apiKey) {
-      const envName = resolved.provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+      const envName =
+        resolved.provider === "openai" ? "OPENAI_API_KEY"
+        : resolved.provider === "gemini" ? "GEMINI_API_KEY"
+        : "SARVAM_API_KEY";
       return NextResponse.json(
         { error: `${resolved.provider} is selected for this tenant, but ${envName} is not configured on the server.` },
         { status: 503, headers: corsHeaders },
@@ -139,7 +145,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
-      const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig });
+      const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig: embeddingConfig });
       const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
       void finalizeQueryEvent(eventId, { answerText: "", status: "pending", latencyMs: Date.now() - t0, sourceCount: searchResults.length });

@@ -41,10 +41,18 @@ import {
   isElevenLabsEnabled,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
+  getPlatformDefaultSarvamSttModel,
+  getPlatformDefaultSarvamSpeaker,
+  getPlatformDefaultSarvamTTSModel,
+  isSarvamEnabled,
+  isSupportedSarvamSpeaker,
+  isSupportedSarvamTTSModel,
+  SARVAM_TTS_LANGUAGES,
 } from "./model-catalog";
 import type {
   ElevenLabsResolvedConfig,
   ResolveVoiceConfigInput,
+  SarvamResolvedConfig,
   VoiceResolution,
 } from "./config-types";
 import type { VoiceProvider } from "./types";
@@ -58,6 +66,30 @@ export class VoiceConfigResolutionError extends Error {
 }
 
 export type { ResolveVoiceConfigInput };
+
+/**
+ * Map a 2-letter assistant language ("hi", "ta", "en", "si", …) to the
+ * BCP-47 code Saaras/Bulbul understand ("hi-IN", …). Bulbul covers 10 Indian
+ * languages + Indian English — anything else (Sinhala, Arabic, …) falls back
+ * to en-IN so voice stays usable while the brain answers in the assistant's
+ * language (text chat is unaffected; only the spoken voice is English).
+ */
+const SARVAM_TTS_LANGUAGE_BASES = new Set(
+  SARVAM_TTS_LANGUAGES.map((code) => code.split("-")[0]!),
+);
+
+export function toSarvamLanguageCode(language: string | null | undefined): string {
+  const base = (language ?? "").trim().toLowerCase().split("-")[0] ?? "";
+  if (!base) return "en-IN";
+  if (base === "en") return "en-IN";
+  if (SARVAM_TTS_LANGUAGE_BASES.has(base)) return `${base}-IN`;
+  return "en-IN";
+}
+
+/** V5 realtime STT relay capability flag (off until an operator opts in). */
+export function isSarvamRealtimeSttEnabled(): boolean {
+  return (process.env.SARVAM_REALTIME_STT_ENABLED ?? "false").toLowerCase() === "true";
+}
 
 // ─── Hot-path resolution cache ─────────────────────────────────────────────────
 //
@@ -176,7 +208,7 @@ export async function resolveVoiceConfig(
   // ── Org allow-list (mirrors the allowedProviders check in resolveAIConfig) ─
   const allowedVoiceProviders = orgSettings?.allowedVoiceProviders?.length
     ? orgSettings.allowedVoiceProviders
-    : (["openai", "gemini", "elevenlabs"] as VoiceProvider[]);
+    : (["openai", "gemini", "elevenlabs", "sarvam"] as VoiceProvider[]);
 
   if (!allowedVoiceProviders.includes(voiceProvider)) {
     throw new VoiceConfigResolutionError(
@@ -205,6 +237,22 @@ export async function resolveVoiceConfig(
   ) {
     throw new VoiceConfigResolutionError(
       "ElevenLabs realtime voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured).",
+    );
+  }
+
+  // ── Kill switch: platform-level Sarvam availability ──────────────────────
+  if (voiceProvider === "sarvam" && !isSarvamEnabled()) {
+    throw new VoiceConfigResolutionError(
+      "Sarvam voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured).",
+    );
+  }
+  if (
+    realtimeProvider === "sarvam" &&
+    voiceProvider !== "sarvam" &&
+    !isSarvamEnabled()
+  ) {
+    throw new VoiceConfigResolutionError(
+      "Sarvam realtime voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured).",
     );
   }
 
@@ -246,6 +294,42 @@ export async function resolveVoiceConfig(
     };
   }
 
+  // ── Sarvam specifics ──────────────────────────────────────────────────────
+  // Resolved when EITHER purpose selects Sarvam — both purposes share the
+  // same org-level models / speaker configuration. Speakers are a STATIC
+  // catalogue (no DB round-trip, no sync job — contrast ElevenLabs above).
+  let sarvam: SarvamResolvedConfig | null = null;
+  if (voiceProvider === "sarvam" || realtimeProvider === "sarvam") {
+    const sarvamTtsModel =
+      orgSettings?.sarvamTtsModel ??
+      getPlatformDefaultSarvamTTSModel();
+    if (!isSupportedSarvamTTSModel(sarvamTtsModel)) {
+      throw new VoiceConfigResolutionError(
+        `Unsupported Sarvam TTS model: ${sarvamTtsModel}`,
+      );
+    }
+
+    const sarvamSttModel =
+      orgSettings?.sarvamSttModel ??
+      getPlatformDefaultSarvamSttModel();
+
+    const speaker = resolveSarvamSpeaker({
+      assistantVoiceId: brain.assistantConfig?.voiceId ?? null,
+      orgDefaultSpeaker: orgSettings?.defaultSarvamSpeaker ?? null,
+    });
+
+    sarvam = {
+      ttsModel: sarvamTtsModel,
+      sttModel: sarvamSttModel,
+      speaker,
+      language: toSarvamLanguageCode(
+        brain.defaultLanguage ?? brain.assistantConfig?.alwaysRespondIn ?? "en",
+      ),
+      sampleRate: 16_000,
+      realtimeSttEnabled: isSarvamRealtimeSttEnabled(),
+    };
+  }
+
   return {
     voiceProvider,
     source,
@@ -253,7 +337,35 @@ export async function resolveVoiceConfig(
     realtimeSource,
     brain,
     elevenlabs,
+    sarvam,
   };
+}
+
+/**
+ * Speaker selection for the Sarvam axis. Bulbul speakers are a fixed
+ * enumerable set, so validation is a catalogue lookup — no org catalog, no
+ * sync job. Precedence:
+ *
+ *   assistant config voiceId (when it is a known Bulbul speaker)
+ *     → org default Sarvam speaker
+ *       → platform default (env SARVAM_DEFAULT_SPEAKER)
+ *         → "shubh" (the vendor default)
+ */
+function resolveSarvamSpeaker(params: {
+  assistantVoiceId: string | null;
+  orgDefaultSpeaker: string | null;
+}): string {
+  if (params.assistantVoiceId && isSupportedSarvamSpeaker(params.assistantVoiceId)) {
+    return params.assistantVoiceId.trim().toLowerCase();
+  }
+  if (params.orgDefaultSpeaker && isSupportedSarvamSpeaker(params.orgDefaultSpeaker)) {
+    return params.orgDefaultSpeaker.trim().toLowerCase();
+  }
+  const platformDefault = getPlatformDefaultSarvamSpeaker();
+  if (isSupportedSarvamSpeaker(platformDefault)) {
+    return platformDefault;
+  }
+  return "shubh";
 }
 
 /**

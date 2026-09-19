@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, Bot, CreditCard, Smartphone, Globe, Sparkles, KeyRound, Volume2, AudioLines, SlidersHorizontal, Phone, Building2, Waves, Gauge } from "lucide-react";
+import { AlertCircle, Bot, CreditCard, Smartphone, Globe, Sparkles, KeyRound, Volume2, AudioLines, SlidersHorizontal, Phone, Building2, Waves, Gauge, Languages } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -37,10 +37,11 @@ import {
 } from "@/components/admin/settings-ui";
 import {
   BRAIN_PROVIDERS,
-  openaiChatOptions, geminiChatOptions,
+  openaiChatOptions, geminiChatOptions, sarvamChatOptions,
   openaiEmbeddingOptions, geminiEmbeddingOptions,
   realtimeOptions, transcriptionOptions, voiceOptions,
   elevenlabsTtsOptions, elevenlabsSttOptions,
+  sarvamTtsOptions, sarvamSttOptions, sarvamSpeakerOptions,
 } from "@/components/admin/ai-settings-options";
 
 type EnvSetting = {
@@ -153,6 +154,67 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     validation: (v) => { const n = parseFloat(v); return (n >= 0 && n <= 2) ? null : "Must be between 0 and 2"; },
   },
 
+  // ── Sarvam (Indic brain + voice + language services) ──────────────
+  SARVAM_ENABLED: {
+    label: "Enable Sarvam",
+    hint: "Master switch for the Sarvam provider (brain, voice and language services). The API key must also be set.",
+  },
+  SARVAM_API_KEY: {
+    label: "Sarvam API key",
+    hint: "API subscription key from dashboard.sarvam.ai — sent as the api-subscription-key header.",
+    isSecret: true,
+    helperLink: { label: "Sarvam API Keys →", href: "https://dashboard.sarvam.ai/settings/api-keys" },
+  },
+  SARVAM_BASE_URL: {
+    label: "Sarvam API base URL",
+    hint: "Override only for self-hosted endpoints. Default: https://api.sarvam.ai",
+  },
+  SARVAM_TIMEOUT_MS: {
+    label: "Sarvam timeout (ms)",
+    hint: "Vendor timeout — STT uses 90 s headroom, chat 60 s.",
+  },
+  SARVAM_CHAT_MODEL: {
+    label: "Default chat model",
+    hint: "Starting brain model for organisations on Sarvam (sarvam-105b recommended).",
+  },
+  SARVAM_BETA_MODELS_ENABLED: {
+    label: "Beta open-source models",
+    hint: "Expose gemma4 / deepseekv4-flash / glm5.3 (hosted on the /v2 beta endpoint) in pickers.",
+  },
+  SARVAM_TTS_MODEL: {
+    label: "Default TTS model",
+    hint: "Bulbul model used for spoken replies (bulbul:v3 recommended).",
+  },
+  SARVAM_STT_MODEL: {
+    label: "Default STT model",
+    hint: "Saaras model used for understanding speech (saaras:v3 default).",
+  },
+  SARVAM_DEFAULT_SPEAKER: {
+    label: "Default Bulbul speaker",
+    hint: "Voice used when an organisation has not picked one (shubh default).",
+  },
+  SARVAM_EMBEDDING_FALLBACK_PROVIDER: {
+    label: "Embedding backbone",
+    hint: "Sarvam publishes no embeddings API — embeddings run on this provider (openai | gemini).",
+  },
+  SARVAM_TRANSLATION_ENABLED: {
+    label: "Language services",
+    hint: "Kill switch for translation / transliteration / language identification (cross-lingual RAG).",
+  },
+  SARVAM_TRANSLATE_MODEL: {
+    label: "Default translation model",
+    hint: "sarvam-translate:v1 (22 languages) or mayura:v1 (11 languages).",
+  },
+  SARVAM_INR_TO_USD: {
+    label: "INR → USD rate",
+    hint: "FX rate for cost dashboards (Sarvam bills in rupees). Default 0.012.",
+    validation: (v) => { const n = parseFloat(v); return (n > 0 && n < 1) ? null : "Must be between 0 and 1"; },
+  },
+  SARVAM_REALTIME_STT_ENABLED: {
+    label: "Realtime STT relay",
+    hint: "Stream partial transcripts and fire early barge-in via the saaras realtime WebSocket relay. Requires the custom server (npm run start).",
+  },
+
   // ── Payments ──────────────────────────────────────────────────────
   STRIPE_SECRET_KEY: {
     label: "Stripe secret key",
@@ -254,6 +316,11 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
     "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "ELEVENLABS_DEFAULT_TTS_MODEL", "ELEVENLABS_DEFAULT_STT_MODEL", "ELEVENLABS_DEFAULT_VOICE_ID",
     "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
     "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
+    "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_BASE_URL", "SARVAM_TIMEOUT_MS",
+    "SARVAM_CHAT_MODEL", "SARVAM_BETA_MODELS_ENABLED",
+    "SARVAM_TTS_MODEL", "SARVAM_STT_MODEL", "SARVAM_DEFAULT_SPEAKER",
+    "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
+    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
   ],
   payments: [
@@ -564,11 +631,18 @@ type EditorProps = {
 };
 
 function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
-  const activeProvider = display("AI_PROVIDER") === "gemini" ? "gemini" : "openai";
+  const activeProvider =
+    display("AI_PROVIDER") === "gemini" ? "gemini"
+    : display("AI_PROVIDER") === "sarvam" ? "sarvam"
+    : "openai";
   const elEnabled = display("ELEVENLABS_ENABLED") === "true";
+  const svEnabled = display("SARVAM_ENABLED") === "true";
+  const svTranslationEnabled = display("SARVAM_TRANSLATION_ENABLED") === "true";
+  const svRealtimeEnabled = display("SARVAM_REALTIME_STT_ENABLED") === "true";
   const openaiKeySet = Boolean(isSet?.("OPENAI_API_KEY"));
   const geminiKeySet = Boolean(isSet?.("GEMINI_API_KEY"));
   const elKeySet = Boolean(isSet?.("ELEVENLABS_API_KEY"));
+  const svKeySet = Boolean(isSet?.("SARVAM_API_KEY"));
 
   const boolToggle = (key: string, checked: boolean) => setDraftValue(key, checked ? "true" : "false");
 
@@ -588,11 +662,12 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             badge:
               p.id === "openai" && !openaiKeySet ? { text: "Key missing", variant: "destructive" as const }
               : p.id === "gemini" && !geminiKeySet ? { text: "Key missing", variant: "destructive" as const }
+              : p.id === "sarvam" && !svKeySet ? { text: "Key missing", variant: "destructive" as const }
               : undefined,
           }))}
           value={activeProvider}
           onChange={(id) => {
-            const next = id === "gemini" ? "gemini" : "openai";
+            const next = id === "gemini" ? "gemini" : id === "sarvam" ? "sarvam" : "openai";
             if (next !== activeProvider) setDraftValue("AI_PROVIDER", next);
           }}
         />
@@ -624,6 +699,16 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             isSet={geminiKeySet}
             placeholder="AIza…"
             onClear={() => clearSecret?.("GEMINI_API_KEY")}
+          />
+          <SecretField
+            label={FIELD_METADATA.SARVAM_API_KEY.label}
+            hint={FIELD_METADATA.SARVAM_API_KEY.hint}
+            helperLink={FIELD_METADATA.SARVAM_API_KEY.helperLink}
+            value={display("SARVAM_API_KEY")}
+            onChange={(value) => setDraftValue("SARVAM_API_KEY", value)}
+            isSet={svKeySet}
+            placeholder="API subscription key from dashboard.sarvam.ai"
+            onClear={() => clearSecret?.("SARVAM_API_KEY")}
           />
         </div>
       </SettingsSection>
@@ -723,6 +808,140 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             options={voiceOptions("gemini")}
             placeholder="Provider default"
           />
+        </div>
+      </SettingsSection>
+
+      {/* ── Sarvam defaults (brain) ─────────────────────────────────── */}
+      <SettingsSection
+        title="Default models — Sarvam"
+        description="Starting models for organisations on Sarvam. Sarvam is chat-only: embeddings always run on the backbone below, so switching a brain to Sarvam never re-embeds a knowledge base."
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_CHAT_MODEL.label}
+            hint={FIELD_METADATA.SARVAM_CHAT_MODEL.hint}
+            value={display("SARVAM_CHAT_MODEL")}
+            onChange={(value) => setDraftValue("SARVAM_CHAT_MODEL", value)}
+            options={sarvamChatOptions()}
+            placeholder="sarvam-105b"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_EMBEDDING_FALLBACK_PROVIDER.label}
+            hint={FIELD_METADATA.SARVAM_EMBEDDING_FALLBACK_PROVIDER.hint}
+            value={display("SARVAM_EMBEDDING_FALLBACK_PROVIDER")}
+            onChange={(value) => setDraftValue("SARVAM_EMBEDDING_FALLBACK_PROVIDER", value)}
+            options={[
+              { value: "openai", label: "OpenAI embeddings", meta: "1536 / 3072 dims" },
+              { value: "gemini", label: "Gemini embeddings", meta: "768 / 3072 dims" },
+            ]}
+            placeholder="openai"
+          />
+        </div>
+      </SettingsSection>
+
+      {/* ── Voice provider (Sarvam AI) + language services ───────────── */}
+      <SettingsSection
+        icon={<Volume2 />}
+        title="Voice & language provider (Sarvam AI)"
+        description="Sarvam is India's sovereign AI stack: Saaras speech-to-text (23 languages, 8 kHz telephony tuning), Bulbul text-to-speech (11 languages, 37 speakers) and translation services. Pipeline mode only — documents and knowledge bases never leave this platform."
+      >
+        <StatusPills
+          items={[
+            svKeySet ? { text: "Sarvam key set", tone: "ok" } : { text: "Sarvam key missing", tone: "bad" },
+            svEnabled ? { text: "Enabled", tone: "ok" } : { text: "Disabled", tone: "neutral" },
+            svTranslationEnabled ? { text: "Language services on", tone: "ok" } : { text: "Language services off", tone: "neutral" },
+            svRealtimeEnabled ? { text: "Realtime STT relay on", tone: "ok" } : { text: "Realtime STT relay off", tone: "neutral" },
+          ]}
+        />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <FeatureToggle
+            icon={<Volume2 />}
+            label="Enable Sarvam"
+            description="Master switch for the Sarvam provider (brain + voice + language services). The API key must also be set."
+            checked={svEnabled}
+            onChange={(checked) => boolToggle("SARVAM_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<Languages />}
+            label="Language services (cross-lingual RAG)"
+            description="Translation, transliteration and language identification. Organisations then choose their translation mode (off / query / query+answer) in their AI settings."
+            checked={svTranslationEnabled}
+            onChange={(checked) => boolToggle("SARVAM_TRANSLATION_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<AudioLines />}
+            label="Realtime STT relay"
+            description="Stream partial transcripts for live captions and fire barge-in before the user stops speaking. Runs through the platform WebSocket relay — the Sarvam key never reaches the browser. Requires the custom server (npm run start) and a restart."
+            checked={svRealtimeEnabled}
+            onChange={(checked) => boolToggle("SARVAM_REALTIME_STT_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<Gauge />}
+            label="Beta open-source models"
+            description="Expose gemma4 / deepseekv4-flash / glm5.3 (hosted on the /v2 beta endpoint) in model pickers."
+            checked={display("SARVAM_BETA_MODELS_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("SARVAM_BETA_MODELS_ENABLED", checked)}
+          />
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
+          <div className="flex items-center gap-2">
+            <AudioLines className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold text-foreground">Sarvam voice settings</h4>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ModelSelect
+              label={FIELD_METADATA.SARVAM_TTS_MODEL.label}
+              hint={FIELD_METADATA.SARVAM_TTS_MODEL.hint}
+              value={display("SARVAM_TTS_MODEL")}
+              onChange={(value) => setDraftValue("SARVAM_TTS_MODEL", value)}
+              options={sarvamTtsOptions()}
+              placeholder="bulbul:v3"
+            />
+            <ModelSelect
+              label={FIELD_METADATA.SARVAM_STT_MODEL.label}
+              hint={FIELD_METADATA.SARVAM_STT_MODEL.hint}
+              value={display("SARVAM_STT_MODEL")}
+              onChange={(value) => setDraftValue("SARVAM_STT_MODEL", value)}
+              options={sarvamSttOptions()}
+              placeholder="saaras:v3"
+            />
+            <ModelSelect
+              label={FIELD_METADATA.SARVAM_DEFAULT_SPEAKER.label}
+              hint={FIELD_METADATA.SARVAM_DEFAULT_SPEAKER.hint}
+              value={display("SARVAM_DEFAULT_SPEAKER")}
+              onChange={(value) => setDraftValue("SARVAM_DEFAULT_SPEAKER", value)}
+              options={sarvamSpeakerOptions()}
+              placeholder="shubh"
+            />
+            <ModelSelect
+              label={FIELD_METADATA.SARVAM_TRANSLATE_MODEL.label}
+              hint={FIELD_METADATA.SARVAM_TRANSLATE_MODEL.hint}
+              value={display("SARVAM_TRANSLATE_MODEL")}
+              onChange={(value) => setDraftValue("SARVAM_TRANSLATE_MODEL", value)}
+              options={[
+                { value: "sarvam-translate:v1", label: "Sarvam Translate v1", meta: "22 languages" },
+                { value: "mayura:v1", label: "Mayura v1", meta: "11 languages" },
+              ]}
+              placeholder="sarvam-translate:v1"
+            />
+            <TextField
+              label={FIELD_METADATA.SARVAM_BASE_URL.label}
+              hint={FIELD_METADATA.SARVAM_BASE_URL.hint}
+              value={display("SARVAM_BASE_URL")}
+              onChange={(value) => setDraftValue("SARVAM_BASE_URL", value)}
+              placeholder="https://api.sarvam.ai"
+              mono
+            />
+            <TextField
+              label={FIELD_METADATA.SARVAM_INR_TO_USD.label}
+              hint={FIELD_METADATA.SARVAM_INR_TO_USD.hint}
+              value={display("SARVAM_INR_TO_USD")}
+              onChange={(value) => setDraftValue("SARVAM_INR_TO_USD", value)}
+              placeholder="0.012"
+              inputMode="decimal"
+            />
+          </div>
         </div>
       </SettingsSection>
 

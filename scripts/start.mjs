@@ -8,6 +8,7 @@ import http from "node:http";
 import { WebSocketServer } from "ws";
 import { handleVoiceConnection } from "./voice-relay.mjs";
 import { handleTwilioStream, handleVonageStream } from "./phone-stream.mjs";
+import { handleSarvamRealtimeConnection } from "./sarvam-relay.mjs";
 
 const _orig = http.createServer.bind(http);
 
@@ -16,6 +17,7 @@ http.createServer = (...args) => {
   const wss       = new WebSocketServer({ noServer: true });
   const wssTwilio = new WebSocketServer({ noServer: true });
   const wssVonage = new WebSocketServer({ noServer: true });
+  const wssSarvam = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (req, socket, head) => {
       try {
@@ -26,6 +28,8 @@ http.createServer = (...args) => {
           wssTwilio.handleUpgrade(req, socket, head, ws => wssTwilio.emit("connection", ws, req));
         } else if (pathname === "/api/phone/vonage/stream") {
           wssVonage.handleUpgrade(req, socket, head, ws => wssVonage.emit("connection", ws, req));
+        } else if (pathname === "/api/voice/sarvam/realtime") {
+          wssSarvam.handleUpgrade(req, socket, head, ws => wssSarvam.emit("connection", ws, req));
         } else {
           socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
           socket.destroy();
@@ -40,9 +44,17 @@ http.createServer = (...args) => {
     console.log("[clara-relay]    /api/embed/voice         — voice relay");
     console.log("[clara-relay]    /api/phone/twilio/stream — Twilio phone");
     console.log("[clara-relay]    /api/phone/vonage/stream — Vonage phone");
+    console.log("[clara-relay]    /api/voice/sarvam/realtime — Saaras realtime STT relay");
   });
 
   wss.on("connection", (ws, req) => handleVoiceConnection(ws, req));
+
+  wssSarvam.on("connection", (ws, req) => {
+    Promise.resolve(handleSarvamRealtimeConnection(ws, req)).catch(err => {
+      console.error("[sarvam-relay] fatal:", err && err.message);
+      try { ws.close(1011); } catch (_) {}
+    });
+  });
 
   wssTwilio.on("connection", (ws, req) => {
     console.log("[phone/twilio] stream connected");

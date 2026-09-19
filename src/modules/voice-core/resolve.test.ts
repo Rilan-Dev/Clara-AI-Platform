@@ -58,6 +58,14 @@ vi.mock("./model-catalog", () => ({
   isElevenLabsEnabled: vi.fn(() => true),
   isSupportedTTSModel: () => true,
   looksLikeElevenLabsVoiceId: () => true,
+  // Sarvam arm (V2) — mock surface mirrors the real exports resolve.ts uses.
+  isSarvamEnabled: vi.fn(() => false),
+  getPlatformDefaultSarvamTTSModel: () => "bulbul:v3",
+  getPlatformDefaultSarvamSttModel: () => "saaras:v3",
+  getPlatformDefaultSarvamSpeaker: () => "shubh",
+  isSupportedSarvamTTSModel: () => true,
+  isSupportedSarvamSpeaker: () => true,
+  SARVAM_TTS_LANGUAGES: ["hi-IN", "ta-IN", "en-IN"],
 }));
 
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";

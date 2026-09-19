@@ -1,6 +1,7 @@
 import { LLMProvider, ProviderConfig } from "./types";
 import { OpenAIProvider } from "./providers/openai";
 import { GeminiProvider } from "./providers/gemini";
+import { SarvamProvider } from "./providers/sarvam";
 
 export class ProviderFactory {
   private static defaultInstance: LLMProvider | null = null;
@@ -22,6 +23,8 @@ export class ProviderFactory {
         return new OpenAIProvider(config);
       case "gemini":
         return new GeminiProvider(config);
+      case "sarvam":
+        return new SarvamProvider(config);
       default:
         throw new Error(`Unsupported AI provider: ${config.provider}`);
     }
@@ -49,6 +52,12 @@ export class ProviderFactory {
       }
 
       const providerType = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
+      // NOTE: the DEFAULT instance keeps serving openai/gemini even when
+      // AI_PROVIDER=sarvam — the config-less call sites (hybrid-search,
+      // vector-store admin paths) are embedding-heavy, and Sarvam has no
+      // embeddings API. Sarvam brain tenants resolve through resolveAIConfig()
+      // → toProviderConfig() with an explicit config, so the factory only
+      // ever builds a SarvamProvider for CHAT work.
       this.defaultInstance = this.createProvider({
         provider: providerType === "gemini" ? "gemini" : "openai",
       });

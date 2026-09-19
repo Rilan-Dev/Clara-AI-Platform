@@ -14,6 +14,7 @@ Clara is a Next.js + Tailwind application that layers Retrieval Augmented Genera
 | [EMBED-GUIDE.md](./EMBED-GUIDE.md) | Clients — embedding the Clara widget on any website |
 | [DEPLOY.md](./DEPLOY.md) | Docker/TLS specifics · [DEPLOY_RABBITMQ.md](./DEPLOY_RABBITMQ.md) · [Doc/](./Doc/) architecture notes |
 | [Doc/ELEVENLABS_INTEGRATION.md](./Doc/ELEVENLABS_INTEGRATION.md) | Ops — ElevenLabs voice integration runbook: env vars, flags, Mode A/B enablement, alerting, kill switches |
+| [Doc/SARVAM_AI_INTEGRATION.md](./Doc/SARVAM_AI_INTEGRATION.md) | Ops — Sarvam AI integration runbook: Indic brain/voice/language services, cross-lingual RAG, realtime STT relay, env vars, kill switches |
 
 ## Features
 

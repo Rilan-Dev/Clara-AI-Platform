@@ -19,15 +19,26 @@ import {
   OPENAI_EMBEDDING_MODELS,
   GEMINI_CHAT_MODELS,
   GEMINI_EMBEDDING_MODELS,
+  visibleSarvamChatModels,
 } from "@/modules/ai-core/model-catalog";
-import { ELEVENLABS_TTS_MODELS } from "@/modules/voice-core/model-catalog";
+import {
+  ELEVENLABS_TTS_MODELS,
+  SARVAM_TTS_MODELS,
+  SARVAM_STT_MODELS,
+  SARVAM_SPEAKERS,
+} from "@/modules/voice-core/model-catalog";
 import { SUPPORTED_LANGUAGES } from "@/modules/assistant/core/config";
 
 // ─── Brain providers (option cards) ──────────────────────────────────────────
 
-export const BRAIN_PROVIDERS: { id: "openai" | "gemini"; label: string; blurb: string }[] = [
+export const BRAIN_PROVIDERS: { id: "openai" | "gemini" | "sarvam"; label: string; blurb: string }[] = [
   { id: "openai", label: "OpenAI", blurb: "GPT models — chat, embeddings, realtime" },
   { id: "gemini", label: "Google Gemini", blurb: "Gemini models — chat, embeddings, Live API" },
+  {
+    id: "sarvam",
+    label: "Sarvam AI",
+    blurb: "Sarvam-105B — Indic-first chat, 128K context (embeddings stay on the platform backbone)",
+  },
 ];
 
 // ─── Realtime / transcription / voices ───────────────────────────────────────
@@ -106,12 +117,14 @@ export function geminiEmbeddingOptions() {
   }));
 }
 
-export function realtimeOptions(provider: "openai" | "gemini") {
+export function realtimeOptions(provider: "openai" | "gemini" | "sarvam") {
+  // Sarvam has no native realtime model — the VOICE axis serves realtime
+  // surfaces (Sarvam pipeline or ElevenLabs); the brain picker is moot.
   const ids = provider === "gemini" ? GEMINI_REALTIME_MODELS : OPENAI_REALTIME_MODELS;
   return ids.map((id) => ({ value: id, label: id }));
 }
 
-export function transcriptionOptions(provider: "openai" | "gemini") {
+export function transcriptionOptions(provider: "openai" | "gemini" | "sarvam") {
   const ids = provider === "gemini" ? GEMINI_TRANSCRIPTION_MODELS : OPENAI_TRANSCRIPTION_MODELS;
   return ids.map((id) => ({ value: id, label: id }));
 }
@@ -131,6 +144,42 @@ export function elevenlabsTtsOptions() {
 
 export function elevenlabsSttOptions() {
   return [{ value: "scribe_v1", label: "Scribe v1" }];
+}
+
+// ─── Sarvam (voice axis — pipeline only, static catalogue by design) ────────
+
+export function sarvamChatOptions() {
+  // Dark-launch gated: renders exactly as before while SARVAM_ENABLED is off
+  // (visibleSarvamChatModels returns [] unless enabled + beta flag per model).
+  return visibleSarvamChatModels().map((m) => ({
+    value: m.id,
+    label: m.label ?? m.id,
+    meta: m.inputUsdPerMTokens != null ? `$${m.inputUsdPerMTokens}/M in` : undefined,
+  }));
+}
+
+export function sarvamTtsOptions() {
+  return SARVAM_TTS_MODELS.map((m) => ({
+    value: m.modelId,
+    label: m.name,
+    meta: `$${m.usdPer1kChars}/1k chars`,
+  }));
+}
+
+export function sarvamSttOptions() {
+  return SARVAM_STT_MODELS.map((m) => ({
+    value: m.modelId,
+    label: m.name,
+    meta: `$${(m.usdPerMinute * 60).toFixed(2)}/h`,
+  }));
+}
+
+export function sarvamSpeakerOptions() {
+  return SARVAM_SPEAKERS.map((s) => ({
+    value: s.id,
+    label: s.name,
+    meta: s.gender === "female" ? "female" : "male",
+  }));
 }
 
 // ─── Languages ───────────────────────────────────────────────────────────────

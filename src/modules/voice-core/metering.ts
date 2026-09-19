@@ -14,7 +14,13 @@
  */
 
 import { execute } from "@/lib/db";
-import { conversationCostUsdMicros, sttCostUsdMicros, ttsCostUsdMicros } from "./pricing";
+import {
+  conversationCostUsdMicros,
+  sarvamSttCostUsdMicros,
+  sarvamTtsCostUsdMicros,
+  sttCostUsdMicros,
+  ttsCostUsdMicros,
+} from "./pricing";
 
 interface VoiceUsageEventBase {
   orgId: string | null;
@@ -22,6 +28,8 @@ interface VoiceUsageEventBase {
   agentId?: string | null;
   model: string;
   latencyMs?: number | null;
+  /** Which vendor executed the billable work (usage_events.provider). */
+  provider?: "elevenlabs" | "sarvam";
 }
 
 async function insertVoiceUsageEvent(row: {
@@ -70,15 +78,19 @@ export async function logTtsUsage(
     preview?: boolean;
   },
 ): Promise<void> {
+  const provider = base.provider ?? "elevenlabs";
   await insertVoiceUsageEvent({
     orgId: base.orgId,
     kbId: base.kbId ?? null,
     agentId: base.agentId ?? null,
     kind: "TTS",
     model: base.model,
-    provider: "elevenlabs",
+    provider,
     usageAmount: base.characters,
-    costUsdMicros: ttsCostUsdMicros(base.model, base.characters),
+    costUsdMicros:
+      provider === "sarvam"
+        ? sarvamTtsCostUsdMicros(base.model, base.characters)
+        : ttsCostUsdMicros(base.model, base.characters),
     latencyMs: base.latencyMs ?? null,
     metadata: { characters: base.characters, ...(base.preview ? { preview: true } : {}) },
   });
@@ -91,15 +103,19 @@ export async function logSttUsage(
     languageCode?: string | null;
   },
 ): Promise<void> {
+  const provider = base.provider ?? "elevenlabs";
   await insertVoiceUsageEvent({
     orgId: base.orgId,
     kbId: base.kbId ?? null,
     agentId: base.agentId ?? null,
     kind: "TRANSCRIPTION",
     model: base.model,
-    provider: "elevenlabs",
+    provider,
     usageAmount: Math.max(1, Math.round(base.audioSeconds)),
-    costUsdMicros: sttCostUsdMicros(base.audioSeconds),
+    costUsdMicros:
+      provider === "sarvam"
+        ? sarvamSttCostUsdMicros(base.audioSeconds, base.model)
+        : sttCostUsdMicros(base.audioSeconds),
     latencyMs: base.latencyMs ?? null,
     metadata: {
       audioSeconds: base.audioSeconds,

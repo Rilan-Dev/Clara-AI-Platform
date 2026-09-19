@@ -40,13 +40,16 @@ export type PlanLimits = {
   // dormant by default so voice usage behaves exactly like existing providers.
   max_tts_chars_day:     number;
   max_stt_audio_sec_day: number;
+  // Language services budget (Sarvam V4, migration 036). -1 = unlimited —
+  // dormant by default so translation usage is opt-in per plan.
+  max_translation_chars_day: number;
 };
 
 export type GuardResult =
   | { allowed: true }
   | { allowed: false; reason: string; limitKey: string; current: number; limit: number };
 
-export type LimitKey = "kbs" | "docs_per_kb" | "requests" | "storage" | "voice" | "api" | "branding" | "sso" | "tts" | "stt";
+export type LimitKey = "kbs" | "docs_per_kb" | "requests" | "storage" | "voice" | "api" | "branding" | "sso" | "tts" | "stt" | "translation";
 
 const FREE_FALLBACK_LIMITS: PlanLimits = {
   max_kbs:         1,
@@ -59,6 +62,7 @@ const FREE_FALLBACK_LIMITS: PlanLimits = {
   sso_enabled:     false,
   max_tts_chars_day:     -1,
   max_stt_audio_sec_day: -1,
+  max_translation_chars_day: -1,
 };
 
 // Statuses that keep the subscribed plan's limits. Everything else
@@ -101,7 +105,7 @@ export async function resolveOrgPlanLimits(
     current_period_end: string | null;
     max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
     voice_enabled: boolean; api_access: boolean; custom_branding: boolean; sso_enabled: boolean;
-    max_tts_chars_day: number; max_stt_audio_sec_day: number;
+    max_tts_chars_day: number; max_stt_audio_sec_day: number; max_translation_chars_day: number;
   }>(
     `SELECT os.plan_id,
             COALESCE(pv.name, sp.name)             AS plan_name,
@@ -116,7 +120,8 @@ export async function resolveOrgPlanLimits(
             COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
             COALESCE(pv.sso_enabled, sp.sso_enabled)       AS sso_enabled,
             COALESCE(pv.max_tts_chars_day, sp.max_tts_chars_day, -1) AS max_tts_chars_day,
-            COALESCE(pv.max_stt_audio_sec_day, sp.max_stt_audio_sec_day, -1) AS max_stt_audio_sec_day
+            COALESCE(pv.max_stt_audio_sec_day, sp.max_stt_audio_sec_day, -1) AS max_stt_audio_sec_day,
+            COALESCE(pv.max_translation_chars_day, sp.max_translation_chars_day, -1) AS max_translation_chars_day
        FROM org_subscriptions os
        JOIN subscription_plans sp ON sp.id = os.plan_id
        LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
@@ -445,6 +450,29 @@ export async function planGuard(
             limitKey: "max_stt_audio_sec_day",
             current,
             limit: limits.max_stt_audio_sec_day,
+          };
+        }
+        return { allowed: true };
+      }
+
+      // ── Language services budget (Sarvam V4, dormant by default: -1) ──
+      case "translation": {
+        if (limits.max_translation_chars_day === -1) return { allowed: true };
+        const countRow = await query<{ count: number }>(
+          `SELECT COALESCE(SUM(prompt_tokens), 0)::int AS count
+             FROM usage_events
+            WHERE org_id = $1 AND kind IN ('TRANSLATION', 'TRANSLITERATION')
+              AND created_at >= now() - INTERVAL '24 hours'`,
+          [orgId]
+        );
+        const current = countRow[0]?.count ?? 0;
+        if (current >= limits.max_translation_chars_day) {
+          return {
+            allowed: false,
+            reason: `Daily translation limit reached — your ${limits.plan_name} plan allows ${limits.max_translation_chars_day.toLocaleString()} translated characters per day (rolling 24 hours).${limits.downgraded ? " Your subscription is not active, so free-plan limits apply." : ""}`,
+            limitKey: "max_translation_chars_day",
+            current,
+            limit: limits.max_translation_chars_day,
           };
         }
         return { allowed: true };

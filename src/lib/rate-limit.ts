@@ -108,6 +108,12 @@ export const ELEVENLABS_STT_RATE = { limit: 30, windowMs: 60 * 1000 } as const; 
 export const ELEVENLABS_TTS_RATE = { limit: 60, windowMs: 60 * 1000 } as const; // 60 / min / org
 export const ELEVENLABS_PREVIEW_RATE = { limit: 10, windowMs: 60 * 1000 } as const; // 10 / min / org
 
+// ── Sarvam voice parity buckets (plan §7/§18 — same limits as ElevenLabs) ──
+export const SARVAM_STT_RATE = { limit: 30, windowMs: 60 * 1000 } as const; // 30 / min / org
+export const SARVAM_TTS_RATE = { limit: 60, windowMs: 60 * 1000 } as const; // 60 / min / org
+export const SARVAM_PREVIEW_RATE = { limit: 10, windowMs: 60 * 1000 } as const; // 10 / min / org
+export const SARVAM_TRANSLATE_RATE = { limit: 30, windowMs: 60 * 1000 } as const; // 30 / min / org
+
 /** Convenience: uniform 429 JSON body for the platform error contract. */
 export function rateLimitResponse(retryAfterSec: number, message = "Too many requests. Please try again shortly."): {
   status: number;

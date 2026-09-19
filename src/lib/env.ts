@@ -19,9 +19,10 @@ type Env = {
   QDRANT_API_KEY: string | undefined;
 
   // AI
-  AI_PROVIDER: "openai" | "gemini";
+  AI_PROVIDER: "openai" | "gemini" | "sarvam";
   OPENAI_API_KEY: string | undefined;
   GEMINI_API_KEY: string | undefined;
+  SARVAM_API_KEY: string | undefined;
 
   // Auth
   AUTH_SECRET: string;
@@ -54,7 +55,8 @@ const AUTH_SECRET_PLACEHOLDERS = new Set([
 
 function loadEnv(): Env {
   const missing: string[] = [];
-  const provider = process.env.AI_PROVIDER === "gemini" ? "gemini" : "openai";
+  const rawProvider = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
+  const provider = rawProvider === "gemini" ? "gemini" : rawProvider === "sarvam" ? "sarvam" : "openai";
 
   for (const key of REQUIRED) {
     if (!process.env[key]) {
@@ -62,7 +64,8 @@ function loadEnv(): Env {
     }
   }
 
-  const providerKey = provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
+  const providerKey =
+    provider === "gemini" ? "GEMINI_API_KEY" : provider === "sarvam" ? "SARVAM_API_KEY" : "OPENAI_API_KEY";
   if (!process.env[providerKey]) {
     missing.push(providerKey);
   }
@@ -105,6 +108,7 @@ function loadEnv(): Env {
     AI_PROVIDER:             provider,
     OPENAI_API_KEY:          process.env.OPENAI_API_KEY,
     GEMINI_API_KEY:          process.env.GEMINI_API_KEY,
+    SARVAM_API_KEY:          process.env.SARVAM_API_KEY,
     AUTH_SECRET:             process.env.AUTH_SECRET ?? "change-me-in-production",
     STRIPE_SECRET_KEY:       process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET:   process.env.STRIPE_WEBHOOK_SECRET,

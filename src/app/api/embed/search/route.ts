@@ -125,7 +125,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // }
 
     const resolved = providerOverride ? null : await resolveAIConfig({ kbId, surface: "chat" });
-    const providerConfig = providerOverride ?? toProviderConfig(resolved!);
+    // Embedding work runs on the embedding backbone (V1 split — a Sarvam
+    // brain keeps its Qdrant collections on OpenAI/Gemini embeddings).
+    const providerConfig = providerOverride ?? toProviderConfig(resolved!, "embedding");
     let results;
     try {
       results = await searchKbEmbedded(kb.qdrantCollection, query, limit, { providerConfig });

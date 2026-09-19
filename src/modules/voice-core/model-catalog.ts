@@ -224,6 +224,7 @@ export const VOICE_PROVIDER_LABELS: Record<VoiceProvider, string> = {
   openai: "OpenAI Realtime",
   gemini: "Gemini Live",
   elevenlabs: "ElevenLabs (hybrid)",
+  sarvam: "Sarvam AI (Indic pipeline)",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

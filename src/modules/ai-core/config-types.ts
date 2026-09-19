@@ -1,7 +1,7 @@
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
 import type { VoiceProvider } from "@/modules/voice-core/types";
 
-export type AIProvider = "openai" | "gemini";
+export type AIProvider = "openai" | "gemini" | "sarvam";
 export type AISurface = "chat" | "rag-embedding" | "realtime" | "embed";
 export type ResolutionSource =
   | "env"
@@ -94,6 +94,15 @@ export interface OrgAISettings {
   elevenlabsTtsModel: string | null;
   elevenlabsSttModel: string | null;
   defaultElevenlabsVoice: string | null;
+  /** Org-level Sarvam voice defaults (NULL = platform defaults — migration 036). */
+  sarvamTtsModel: string | null;
+  sarvamSttModel: string | null;
+  defaultSarvamSpeaker: string | null;
+  /**
+   * Cross-lingual RAG posture (V4): 'off' (default) | 'query' | 'query+answer'.
+   * Dormant until SARVAM_TRANSLATION_ENABLED is flipped platform-wide.
+   */
+  translationMode: "off" | "query" | "query+answer";
   allowedChatModels: ProviderScopedList;
   allowedEmbeddingModels: ProviderScopedList;
   allowedRealtimeModels: ProviderScopedList;
@@ -136,6 +145,10 @@ export interface PatchOrgAISettingsInput {
   elevenlabsTtsModel?: string | null;
   elevenlabsSttModel?: string | null;
   defaultElevenlabsVoice?: string | null;
+  sarvamTtsModel?: string | null;
+  sarvamSttModel?: string | null;
+  defaultSarvamSpeaker?: string | null;
+  translationMode?: "off" | "query" | "query+answer";
   allowedChatModels?: ProviderScopedList;
   allowedEmbeddingModels?: ProviderScopedList;
   allowedRealtimeModels?: ProviderScopedList;
@@ -208,6 +221,14 @@ export interface ResolvedAIConfig {
   agentId: string | null;
   kbId: string | null;
   provider: AIProvider;
+  /**
+   * Embedding capability split (V1): the provider that ACTUALLY executes
+   * embedding work. Equals `provider` except when the brain is Sarvam —
+   * Sarvam publishes no embeddings API, so embeddings run on the backbone
+   * (SARVAM_EMBEDDING_FALLBACK_PROVIDER, default openai). Qdrant collections
+   * stay byte-identical when a tenant flips its brain to Sarvam.
+   */
+  embeddingProvider: AIProvider;
   chatModel: string | null;
   embeddingModel: string | null;
   realtimeModel: string | null;
@@ -215,6 +236,12 @@ export interface ResolvedAIConfig {
   voiceId: string | null;
   allowedLanguages: string[];
   defaultLanguage: string | null;
+  /**
+   * Cross-lingual RAG posture from the org's translation_mode column
+   * (migration 036): 'off' (default — zero vendor calls) | 'query' |
+   * 'query+answer'. Dormant until SARVAM_TRANSLATION_ENABLED is flipped.
+   */
+  translationMode: "off" | "query" | "query+answer";
   temperature: number | null;
   maxTokens: number | null;
   assistantConfig: AssistantConfig | null;
@@ -225,6 +252,7 @@ export interface ResolvedAIConfig {
   };
   sources: {
     provider: ResolutionSource;
+    embeddingProvider: ResolutionSource;
     chatModel: ResolutionSource;
     embeddingModel: ResolutionSource;
     realtimeModel: ResolutionSource;

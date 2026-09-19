@@ -52,8 +52,8 @@ export type Org = {
   agentCount?: number;
   knowledgeBaseCount?: number;
 };
-export type AIProvider = "openai" | "gemini";
-export type VoiceProvider = "openai" | "gemini" | "elevenlabs";
+export type AIProvider = "openai" | "gemini" | "sarvam";
+export type VoiceProvider = "openai" | "gemini" | "elevenlabs" | "sarvam";
 export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;
 export type OrgAISettings = {
   id: string;
@@ -68,6 +68,11 @@ export type OrgAISettings = {
   elevenlabsTtsModel: string | null;
   elevenlabsSttModel: string | null;
   defaultElevenlabsVoice: string | null;
+  /** Sarvam voice defaults (migration 036). */
+  sarvamTtsModel: string | null;
+  sarvamSttModel: string | null;
+  defaultSarvamSpeaker: string | null;
+  translationMode: "off" | "query" | "query+answer";
   allowedChatModels: ProviderScopedList;
   allowedEmbeddingModels: ProviderScopedList;
   allowedRealtimeModels: ProviderScopedList;

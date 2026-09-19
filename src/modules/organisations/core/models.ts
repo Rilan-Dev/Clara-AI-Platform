@@ -41,7 +41,7 @@ export type UpdateAgentInput = Partial<
   Omit<Agent, "id" | "orgId" | "createdAt" | "updatedAt">
 >;
 
-export type AIProvider = "openai" | "gemini";
+export type AIProvider = "openai" | "gemini" | "sarvam";
 export type ProviderScopedList = Partial<Record<AIProvider, string[]>>;
 export type OrgAISettings = {
   id: string;

@@ -6,10 +6,15 @@ import {
   getOrgAISettings,
   upsertOrgAISettings,
 } from "@/modules/organisations/core/ai-settings-db";
-import { isVoiceProvider } from "@/modules/voice-core/types";
+import { isVoiceProvider, type VoiceProvider } from "@/modules/voice-core/types";
 import {
   ELEVENLABS_TTS_MODELS,
   isSupportedTTSModel,
+  SARVAM_TTS_MODELS,
+  SARVAM_STT_MODELS,
+  isSupportedSarvamTTSModel,
+  isSupportedSarvamSTTModel,
+  isSupportedSarvamSpeaker,
 } from "@/modules/voice-core/model-catalog";
 import type {
   AIProvider,
@@ -18,20 +23,20 @@ import type {
 } from "@/modules/ai-core/config-types";
 
 function parseProvider(value: unknown): AIProvider | null {
-  return value === "openai" || value === "gemini" ? value : null;
+  return value === "openai" || value === "gemini" || value === "sarvam" ? value : null;
 }
 
-function parseVoiceProvider(value: unknown): "openai" | "gemini" | "elevenlabs" | null | undefined {
+function parseVoiceProvider(value: unknown): VoiceProvider | null | undefined {
   if (value === undefined) return undefined;
   if (value === null) return null;
   return isVoiceProvider(value) ? value : undefined;
 }
 
-function parseVoiceProviderList(value: unknown): ("openai" | "gemini" | "elevenlabs")[] | null {
+function parseVoiceProviderList(value: unknown): VoiceProvider[] | null {
   if (!Array.isArray(value)) return null;
   const providers = value
     .map((item) => (isVoiceProvider(item) ? item : null))
-    .filter((item): item is "openai" | "gemini" | "elevenlabs" => item !== null);
+    .filter((item): item is VoiceProvider => item !== null);
   return providers.length > 0 ? providers : null;
 }
 
@@ -114,6 +119,43 @@ function buildPatchInput(body: Record<string, unknown>): PatchOrgAISettingsInput
 
   const defaultElevenlabsVoice = parseOptionalString(body.defaultElevenlabsVoice);
   if (defaultElevenlabsVoice !== undefined) input.defaultElevenlabsVoice = defaultElevenlabsVoice;
+
+  // ── Sarvam voice defaults (migration 036 columns — validated against the
+  // static catalogue exactly like the ElevenLabs models above). ──
+  const sarvamTtsModel = parseOptionalString(body.sarvamTtsModel);
+  if (sarvamTtsModel !== undefined) {
+    if (sarvamTtsModel && !isSupportedSarvamTTSModel(sarvamTtsModel)) {
+      throw new Error(
+        `Unsupported Sarvam TTS model "${sarvamTtsModel}". Choose one of: ${SARVAM_TTS_MODELS.map((m) => m.modelId).join(", ")}.`,
+      );
+    }
+    input.sarvamTtsModel = sarvamTtsModel;
+  }
+
+  const sarvamSttModel = parseOptionalString(body.sarvamSttModel);
+  if (sarvamSttModel !== undefined) {
+    if (sarvamSttModel && !isSupportedSarvamSTTModel(sarvamSttModel)) {
+      throw new Error(
+        `Unsupported Sarvam STT model "${sarvamSttModel}". Choose one of: ${SARVAM_STT_MODELS.map((m) => m.modelId).join(", ")}.`,
+      );
+    }
+    input.sarvamSttModel = sarvamSttModel;
+  }
+
+  const defaultSarvamSpeaker = parseOptionalString(body.defaultSarvamSpeaker);
+  if (defaultSarvamSpeaker !== undefined) {
+    if (defaultSarvamSpeaker && !isSupportedSarvamSpeaker(defaultSarvamSpeaker)) {
+      throw new Error(`Unsupported Sarvam speaker "${defaultSarvamSpeaker}". Choose a Bulbul speaker from the catalogue.`);
+    }
+    input.defaultSarvamSpeaker = defaultSarvamSpeaker;
+  }
+
+  if (body.translationMode !== undefined) {
+    input.translationMode =
+      body.translationMode === "query" || body.translationMode === "query+answer"
+        ? body.translationMode
+        : "off";
+  }
 
   const allowedChatModels = parseProviderScopedList(body.allowedChatModels);
   if (allowedChatModels) input.allowedChatModels = allowedChatModels;

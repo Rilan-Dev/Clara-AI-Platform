@@ -5,6 +5,7 @@ import { useOpenAIRealtime } from "./useOpenAIRealtime";
 import { useGeminiLive } from "./useGeminiLive";
 import { useElevenLabsVoice } from "./useElevenLabsVoice";
 import { useElevenLabsConvAI } from "./useElevenLabsConvAI";
+import { useSarvamVoice } from "./useSarvamVoice";
 import type { VoiceClientOptions } from "../voice/types";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -18,7 +19,7 @@ import { apiUrl } from "@/lib/runtime";
 const ACTIVE_PROVIDER =
   (process.env.NEXT_PUBLIC_AI_PROVIDER ?? "openai").toLowerCase();
 
-type RuntimeProvider = "openai" | "gemini" | "elevenlabs";
+type RuntimeProvider = "openai" | "gemini" | "elevenlabs" | "sarvam";
 
 type VoiceProviderResponse = {
   provider: RuntimeProvider;
@@ -43,17 +44,19 @@ type VoiceProviderResponse = {
  *                                               → useElevenLabsVoice (Mode A pipeline)
  *                                               → useElevenLabsConvAI (Mode B realtime)
  *
- * All four hooks are ALWAYS called unconditionally (React rules of hooks).
+ * All five hooks are ALWAYS called unconditionally (React rules of hooks).
  * Only the active provider's state and actions are forwarded; the inactive
  * hooks stay in "idle" state and neither connect nor allocate resources
  * until their connect() is explicitly called.
  *
- * Voice-provider routing (ElevenLabs integration): the server may resolve a
- * VOICE provider that differs from the brain provider. When the response
- * carries `voiceProvider`, that wins for the voice surface; the legacy
- * `provider` field remains the fallback for older payloads. Within the
- * elevenlabs branch, `mode` selects the pipeline (Mode A) or the
- * Conversational AI realtime session (Mode B).
+ * Voice-provider routing (ElevenLabs / Sarvam integrations): the server may
+ * resolve a VOICE provider that differs from the brain provider. When the
+ * response carries `voiceProvider`, that wins for the voice surface; the
+ * legacy `provider` field remains the fallback for older payloads. Within
+ * the elevenlabs branch, `mode` selects the pipeline (Mode A) or the
+ * Conversational AI realtime session (Mode B). The sarvam branch is always
+ * Mode A (pipeline — optionally with the V5 realtime STT relay inside the
+ * hook).
  */
 export function useVoiceClient(options: VoiceClientOptions) {
   const [provider, setProvider] = useState<RuntimeProvider>(
@@ -75,11 +78,14 @@ export function useVoiceClient(options: VoiceClientOptions) {
   const gemini      = useGeminiLive(sharedOpts);
   const elevenlabs  = useElevenLabsVoice(sharedOpts);
   const elevenlabsConvAI = useElevenLabsConvAI(sharedOpts);
+  const sarvam      = useSarvamVoice(sharedOpts);
 
   const active =
     provider === "elevenlabs"
       ? elevenlabsMode === "conversational" ? elevenlabsConvAI : elevenlabs
-      : provider === "gemini" ? gemini : openai;
+      : provider === "sarvam"
+        ? sarvam
+        : provider === "gemini" ? gemini : openai;
 
   const resolveProvider = useCallback(async (): Promise<{
     provider: RuntimeProvider;
@@ -115,7 +121,8 @@ export function useVoiceClient(options: VoiceClientOptions) {
       throw new Error("Realtime is disabled for this organisation.");
     }
 
-    // Voice-provider axis first (ElevenLabs), legacy brain provider second.
+    // Voice-provider axis first (ElevenLabs / Sarvam), legacy brain provider
+    // second.
     const resolved = payload.voiceProvider ?? payload.provider;
     if (resolved === "elevenlabs") {
       // Mode split: Mode B realtime only for platform sessions — embed API
@@ -124,6 +131,13 @@ export function useVoiceClient(options: VoiceClientOptions) {
         payload.mode === "conversational" && !options.embedApiKey ? "conversational" : "pipeline";
       setElevenlabsMode(mode);
       return { provider: "elevenlabs" as const, mode };
+    }
+    if (resolved === "sarvam") {
+      // Sarvam is pipeline-only (no Mode B — Samvaad is a hosted no-code
+      // platform, not an embeddable runtime). The V5 realtime STT relay is
+      // negotiated INSIDE useSarvamVoice via the session payload.
+      const mode = "pipeline" as const;
+      return { provider: "sarvam" as const, mode };
     }
     const mode = "pipeline" as const;
     return { provider: resolved === "gemini" ? ("gemini" as const) : ("openai" as const), mode };
@@ -147,12 +161,16 @@ export function useVoiceClient(options: VoiceClientOptions) {
       await elevenlabs.connect();
       return;
     }
+    if (next.provider === "sarvam") {
+      await sarvam.connect();
+      return;
+    }
     if (next.provider === "gemini") {
       await gemini.connect();
       return;
     }
     await openai.connect();
-  }, [elevenlabs, elevenlabsConvAI, gemini, openai, resolveProvider]);
+  }, [elevenlabs, elevenlabsConvAI, gemini, openai, resolveProvider, sarvam]);
 
   const disconnect = useCallback(() => {
     if (provider === "elevenlabs") {
@@ -160,12 +178,16 @@ export function useVoiceClient(options: VoiceClientOptions) {
       else elevenlabs.disconnect();
       return;
     }
+    if (provider === "sarvam") {
+      sarvam.disconnect();
+      return;
+    }
     if (provider === "gemini") {
       gemini.disconnect();
       return;
     }
     openai.disconnect();
-  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider]);
+  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
 
   const interrupt = useCallback(() => {
     if (provider === "elevenlabs") {
@@ -173,12 +195,16 @@ export function useVoiceClient(options: VoiceClientOptions) {
       else elevenlabs.interrupt();
       return;
     }
+    if (provider === "sarvam") {
+      sarvam.interrupt();
+      return;
+    }
     if (provider === "gemini") {
       gemini.interrupt();
       return;
     }
     openai.interrupt();
-  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider]);
+  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
 
   const sendText = useCallback((text: string) => {
     if (provider === "elevenlabs") {
@@ -186,12 +212,16 @@ export function useVoiceClient(options: VoiceClientOptions) {
       else elevenlabs.sendText(text);
       return;
     }
+    if (provider === "sarvam") {
+      sarvam.sendText(text);
+      return;
+    }
     if (provider === "gemini") {
       gemini.sendText(text);
       return;
     }
     openai.sendText(text);
-  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider]);
+  }, [elevenlabs, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
 
   return {
     provider,

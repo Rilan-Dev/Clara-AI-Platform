@@ -25,6 +25,8 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { SentenceTranslator, translateQueryForRag } from "@/modules/language-core/pipeline";
+import { toTranslateLanguageCode } from "@/modules/language-core/model-catalog";
 import {
   CHART_RESPONSE_INSTRUCTIONS,
   buildConversationAwareSearchQuery,
@@ -226,9 +228,22 @@ async function postChatKb(
   const authCtx = await getAuthContext(request).catch(() => null);
 
   const query = latest.content;
-  const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
-  const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
   const t0 = Date.now();
+
+  // ── V4 cross-lingual RAG: identify + normalize + translate the query into
+  // the KB language when the org opted in (translation_mode). Zero vendor
+  // calls when mode='off' or the kill switch is off; every failure degrades
+  // gracefully to the untranslated path. ──
+  const crossLingual = await translateQueryForRag({
+    query,
+    translationMode: resolved.translationMode,
+    targetLanguage: config.alwaysRespondIn ?? config.defaultLanguage ?? resolved.defaultLanguage,
+    orgId,
+    kbId,
+    agentId: resolved.agentId,
+  });
+  const retrievalQuery = buildConversationAwareSearchQuery(messages, crossLingual.effectiveQuery);
+  const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
   const sessionId = typeof body?.sessionId === "string" ? body.sessionId : undefined;
 
   console.log(`[chat/kb] kbId=${kbId} query="${query.slice(0, 100)}"`);
@@ -249,12 +264,16 @@ async function postChatKb(
   const eventId = admission.eventId;
   const quotaWarning = admission.warning;
 
-  // RAG search across the full KB collection
+  // RAG search across the full KB collection. The retrieval embedding runs
+  // on the embedding backbone (V1 split — a Sarvam brain keeps its Qdrant
+  // collections on OpenAI/Gemini embeddings); the answer stream runs on the
+  // brain provider below.
   const providerConfig = toProviderConfig(resolved);
+  const embeddingConfig = toProviderConfig(resolved, "embedding");
   let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
   try {
     results = await searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 6, {
-      providerConfig,
+      providerConfig: embeddingConfig,
     });
   } catch (searchErr) {
     // Retrieval failed — mark the audit row as an error, then surface it.
@@ -281,6 +300,16 @@ async function postChatKb(
     },
     ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
   ];
+  // Cross-lingual context: when the query was translated, give the model
+  // the translation it actually retrieved with (the last user message stays
+  // in the user's own words for tone/persona continuity).
+  if (crossLingual.translated && chatMessages.length >= 2) {
+    const lastUser = chatMessages[chatMessages.length - 1]!;
+    if (lastUser.role === "user") {
+      lastUser.content =
+        `${crossLingual.effectiveQuery}\n\n(User asked in ${crossLingual.userLanguage ?? "their language"}: ${crossLingual.originalQuery.trim()})`;
+    }
+  }
 
   const sources = results.map((r, i) => ({
     id: r.id,
@@ -292,6 +321,22 @@ async function postChatKb(
 
   const encoder = new TextEncoder();
   const provider = ProviderFactory.getProvider(providerConfig);
+  // V4 query+answer mode: sentence-wise translation of the streamed
+  // answer back into the user's language. Null in every other mode —
+  // the token loop below is then byte-identical to the previous path.
+  const answerTranslator =
+    resolved.translationMode === "query+answer" &&
+    crossLingual.translated &&
+    crossLingual.userLanguage &&
+    crossLingual.targetLanguageCode
+      ? new SentenceTranslator({
+          sourceLanguageCode: crossLingual.targetLanguageCode,
+          targetLanguageCode: toTranslateLanguageCode(crossLingual.userLanguage),
+          orgId,
+          kbId,
+          agentId: resolved.agentId,
+        })
+      : null;
   const baseHeaders = {
     "Content-Type": "application/x-ndjson",
     "Cache-Control": "no-store",
@@ -315,6 +360,13 @@ async function postChatKb(
         let answerBuffer = "";
         let streamError: string | null = null;
         const streamT0 = Date.now();
+        // Token emitter shared by the direct path and the V4 sentence
+        // translator (query+answer mode) — declared here so the finally
+        // flush can reuse it.
+        const emitToken = (text: string) => {
+          answerBuffer += text;
+          write({ type: "token", payload: text });
+        };
         // WS-1.1: provider-reported token usage for the usage-event spine.
         // (Ref object — TS narrows a closure-written `let` to null at read time.)
         const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
@@ -326,8 +378,11 @@ async function postChatKb(
           });
           for await (const delta of completionStream) {
             if (delta) {
-              answerBuffer += delta;
-              write({ type: "token", payload: delta });
+              if (answerTranslator) {
+                answerTranslator.push(delta, emitToken);
+              } else {
+                emitToken(delta);
+              }
             }
           }
         } catch (err) {
@@ -338,6 +393,15 @@ async function postChatKb(
           console.error("[chat] stream failed:", streamError);
           write({ type: "error", payload: "The assistant could not complete the answer. Please try again in a moment." });
         } finally {
+          // V4: flush pending sentence translations BEFORE closing the
+          // stream — done-event ordering stays intact.
+          if (answerTranslator) {
+            try {
+              await answerTranslator.finish(emitToken);
+            } catch (flushErr) {
+              console.warn("[chat] answer translation flush failed:", (flushErr as Error).message);
+            }
+          }
           // Persist the AI-generated answer + metering for the platform
           // audit trail and the usage-event spine.
           void finalizeQueryEvent(eventId, {

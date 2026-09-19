@@ -147,6 +147,58 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    if (voiceResolution.realtimeProvider === "sarvam" && voiceResolution.sarvam) {
+      const sv = voiceResolution.sarvam;
+      return NextResponse.json(
+        {
+          provider: voiceResolution.brain.provider,
+          voiceProvider: "sarvam",
+          // Sarvam has no Mode B — embeds always run the Mode A pipeline and
+          // re-bootstrap through /api/voice/sarvam/session with the SAME clr_
+          // credential.
+          mode: "pipeline",
+          kbId: ctx.kbId,
+          orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+          projectId: voiceResolution.brain.agentId,
+          stt: {
+            endpoint: "/api/voice/sarvam/transcribe",
+            model: sv.sttModel,
+            language: sv.language,
+            sampleRate: sv.sampleRate,
+            maxAudioSeconds: 30,
+          },
+          tts: {
+            endpoint: "/api/voice/sarvam/tts",
+            model: sv.ttsModel,
+            speaker: sv.speaker,
+            outputFormat: `pcm_${sv.sampleRate}`,
+            language: sv.language,
+          },
+          chat: {
+            endpoint: "/api/embed/chat",
+            kbId: ctx.kbId,
+          },
+          welcomeMessage: config.welcomeMessage ?? "",
+          config: {
+            orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+            projectId: voiceResolution.brain.agentId,
+            provider: voiceResolution.brain.provider,
+            voiceProvider: "sarvam",
+            realtimeModel: null,
+            voiceId: sv.speaker,
+            transcriptionModel: sv.sttModel,
+            allowedLanguages: resolved.allowedLanguages,
+            defaultLanguage: resolved.defaultLanguage,
+            maxTokens: resolved.maxTokens ?? config.maxTokens,
+            temperature: resolved.temperature ?? config.temperature,
+            sources: resolved.sources,
+            flags: resolved.flags,
+          },
+        },
+        { headers: corsHeaders },
+      );
+    }
+
     const realtimeModel = resolved.realtimeModel;
     const voiceId = resolved.voiceId;
     const transcriptionModel = resolved.transcriptionModel;
@@ -158,7 +210,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const audioPolicy = getRealtimeAudioPolicy();
 
     if (!apiKey) {
-      const envName = provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+      const envName =
+        provider === "openai" ? "OPENAI_API_KEY"
+        : provider === "gemini" ? "GEMINI_API_KEY"
+        : "SARVAM_API_KEY";
       return NextResponse.json(
         { error: `${provider} is selected for this tenant, but ${envName} is not configured on the server.` },
         { status: 503, headers: corsHeaders },

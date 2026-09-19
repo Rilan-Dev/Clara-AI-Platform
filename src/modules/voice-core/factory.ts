@@ -1,5 +1,6 @@
 import { VoiceProviderService, VoiceServiceConfig } from "./types";
 import { ElevenLabsVoiceProvider } from "./providers/elevenlabs";
+import { SarvamVoiceProvider } from "./providers/sarvam";
 
 /**
  * src/modules/voice-core/factory.ts
@@ -36,6 +37,8 @@ export class VoiceProviderFactory {
     switch (config.provider.toLowerCase()) {
       case "elevenlabs":
         return new ElevenLabsVoiceProvider(config);
+      case "sarvam":
+        return new SarvamVoiceProvider(config);
       case "openai":
       case "gemini":
         throw new Error(

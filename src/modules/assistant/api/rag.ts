@@ -75,7 +75,9 @@ export async function postRagSearch(
       const resolved = providerOverride
         ? null
         : await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
-      const providerConfig = providerOverride ?? toProviderConfig(resolved!);
+      // Embedding work runs on the embedding backbone (V1 split — a Sarvam
+      // brain keeps its Qdrant collections on OpenAI/Gemini embeddings).
+      const providerConfig = providerOverride ?? toProviderConfig(resolved!, "embedding");
       const runtime = getRagRuntimeConfig({ requestedMode: body.ragMode });
 
       const filter = body.documentId
