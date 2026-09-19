@@ -11,6 +11,7 @@ import {
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
   isElevenLabsEnabled,
+  getElevenLabsBaseUrl,
   getPlatformDefaultTTSModel,
   getPlatformDefaultSTTModel,
   TTS_MAX_CHARS_PER_REQUEST,
@@ -291,5 +292,25 @@ describe("Sarvam connection settings and defaults (V0)", () => {
     vi.stubEnv("SARVAM_INR_TO_USD", "-3");
     expect(getSarvamTimeoutMs()).toBe(30_000);
     expect(getSarvamInrToUsd()).toBe(0.012);
+  });
+
+  // Regression (2026-09-19 production incident): a platform-settings save of
+  // a blank Base URL field left SARVAM_BASE_URL set-but-empty, and the old
+  // `??` fallback kept "" — every Sarvam URL collapsed to a bare path and
+  // failed with "Failed to parse URL from /text-to-speech" (chat, TTS, STT
+  // and realtime alike). Set-but-empty must mean "unset".
+  it("treats a set-but-EMPTY SARVAM_BASE_URL as unset (panel blank-save regression)", () => {
+    vi.stubEnv("SARVAM_BASE_URL", "");
+    expect(getSarvamBaseUrl()).toBe("https://api.sarvam.ai");
+  });
+
+  it("treats a whitespace-only SARVAM_BASE_URL as unset", () => {
+    vi.stubEnv("SARVAM_BASE_URL", "   ");
+    expect(getSarvamBaseUrl()).toBe("https://api.sarvam.ai");
+  });
+
+  it("treats a set-but-EMPTY ELEVENLABS_API_BASE_URL as unset (same class of bug)", () => {
+    vi.stubEnv("ELEVENLABS_API_BASE_URL", "");
+    expect(getElevenLabsBaseUrl()).toBe("https://api.elevenlabs.io");
   });
 });

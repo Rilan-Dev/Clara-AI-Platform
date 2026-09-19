@@ -163,7 +163,11 @@ export function getElevenLabsApiKey(): string | undefined {
  * voice ids are opaque strings validated against the DB catalog first.
  */
 export function getElevenLabsBaseUrl(): string {
-  return (process.env.ELEVENLABS_API_BASE_URL ?? "https://api.elevenlabs.io").trim().replace(/\/+$/, "");
+  // `?.trim() ||` (NOT `??`): an env var that is set-but-empty ("" — e.g. a
+  // platform-settings save of a blank field, or `KEY=` in .env) must fall
+  // back to the default. `??` kept "" and every vendor URL collapsed to a
+  // bare path → "Failed to parse URL".
+  return (process.env.ELEVENLABS_API_BASE_URL?.trim() || "https://api.elevenlabs.io").replace(/\/+$/, "");
 }
 
 export function getElevenLabsTimeoutMs(): number {
@@ -430,7 +434,13 @@ export function getSarvamApiKey(): string | undefined {
  * Override exists for SageMaker self-hosted deployments only.
  */
 export function getSarvamBaseUrl(): string {
-  return (process.env.SARVAM_BASE_URL ?? "https://api.sarvam.ai").trim().replace(/\/+$/, "");
+  // `?.trim() ||` (NOT `??`): an env var that is set-but-empty ("" — e.g. a
+  // platform-settings save of a blank Base URL field, or `KEY=` in .env)
+  // must fall back to the default. `??` kept "" and every Sarvam URL —
+  // chat /v1/chat/completions, TTS /text-to-speech, STT /speech-to-text,
+  // realtime-init baseUrl — collapsed to a bare path, failing with
+  // "Failed to parse URL from <path>" platform-wide.
+  return (process.env.SARVAM_BASE_URL?.trim() || "https://api.sarvam.ai").replace(/\/+$/, "");
 }
 
 export function getSarvamTimeoutMs(): number {

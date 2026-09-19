@@ -288,7 +288,14 @@ export async function setPlatformEnvSetting(key: string, value: string, updatedB
      ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now(), updated_by = $3`,
     [key, value, safeUpdatedBy],
   );
-  process.env[key] = value;
+  // Live-process mirror — same discipline as syncEnvFromDb()/loadRuntimeSettings():
+  // only NON-empty values are applied. A blank save previously wrote
+  // process.env[key] = "" into the running server, which set-but-empty env
+  // vars defeated `?? default` fallbacks (Sarvam base URL → every vendor URL
+  // collapsed to a bare path → "Failed to parse URL"). Clearing a setting now
+  // deletes the key so .env / built-in defaults apply again.
+  if (value.trim()) process.env[key] = value;
+  else delete process.env[key];
 }
 
 export async function syncEnvFromDb(): Promise<void> {

@@ -184,6 +184,33 @@ describe("SarvamVoiceProvider", () => {
     });
   });
 
+  it("speak decodes Sarvam's live JSON base64 envelope {audios:[b64 WAV]} → PCM", async () => {
+    // Live wire shape verified 2026-09-19: the vendor returns
+    // {"request_id":"…","audios":["<base64 WAV>"]}, not raw RIFF bytes.
+    const pcm = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const b64Wav = btoa(String.fromCharCode(...canonicalWav(pcm)));
+    const envelope = JSON.stringify({ request_id: "req-1", audios: [b64Wav] });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(envelope, { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new SarvamVoiceProvider();
+    const response = await provider.speak({
+      text: "hello",
+      voiceId: "shubh",
+      modelId: "bulbul:v3",
+      outputFormat: "pcm_16000",
+      languageCode: "en-IN",
+    });
+
+    // Envelope decoded → RIFF stripped → raw PCM under the shared contract.
+    expect(response.headers.get("Content-Type")).toBe("application/octet-stream");
+    expect(response.headers.get("X-Sarvam-Audio-Format")).toBe("pcm_16000");
+    const body = new Uint8Array(await response.arrayBuffer());
+    expect(Array.from(body)).toEqual(Array.from(pcm));
+  });
+
   it("speak falls back to verbatim WAV (audio/wav) on a non-canonical container", async () => {
     const raw = new Uint8Array([9, 9, 9, 9]); // not RIFF
     const fetchMock = vi.fn().mockResolvedValue(

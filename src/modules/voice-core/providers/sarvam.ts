@@ -112,6 +112,36 @@ export function extractWavDataChunk(wav: Uint8Array): Uint8Array | null {
   return null;
 }
 
+/**
+ * Sarvam's /text-to-speech ships audio as a JSON envelope —
+ * {"request_id": "…", "audios": ["<base64 WAV>"]} — NOT raw bytes (the
+ * integration plan's "WAV bytes out" assumption was wrong for api.sarvam.ai;
+ * verified live 2026-09-19). Returns the decoded WAV bytes, or null when the
+ * payload is not that shape (raw RIFF already, or a genuinely foreign body —
+ * callers pass those through verbatim).
+ */
+export function decodeSarvamAudioEnvelope(body: Uint8Array): Uint8Array<ArrayBuffer> | null {
+  // Cheap shape sniff before parsing: a JSON envelope starts with '{'.
+  if (body.length === 0 || body[0] !== 0x7b) return null;
+  let parsed: { audios?: unknown };
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(body)) as { audios?: unknown };
+  } catch {
+    return null;
+  }
+  const first = Array.isArray(parsed.audios) ? parsed.audios[0] : null;
+  if (typeof first !== "string" || !first) return null;
+  try {
+    const binary = atob(first);
+    if (!binary) return null;
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
 export class SarvamVoiceProvider implements VoiceProviderService {
   private config: VoiceServiceConfig;
   private apiKey: string | undefined;
@@ -302,7 +332,14 @@ export class SarvamVoiceProvider implements VoiceProviderService {
       timeoutMs: Math.max(this.timeoutMs, 60_000),
     });
 
-    const wav = new Uint8Array(await response.arrayBuffer());
+    let wav = new Uint8Array(await response.arrayBuffer());
+    // Live vendor shape (2026-09-19): a JSON envelope with base64 WAV, not the
+    // raw RIFF bytes the plan assumed. Raw-RIFF bodies (proxies, future vendor
+    // changes) still take the direct path.
+    if (wav.length < 12 || wav[0] !== 0x52 || wav[1] !== 0x49 || wav[2] !== 0x46 || wav[3] !== 0x46) {
+      const decoded = decodeSarvamAudioEnvelope(wav);
+      if (decoded) wav = decoded;
+    }
     const pcm = extractWavDataChunk(wav);
     if (pcm) {
       return new Response(pcm as unknown as BodyInit, {
