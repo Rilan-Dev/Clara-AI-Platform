@@ -65,39 +65,39 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
             <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Welcome to Clara AI</h1>
-          <p className="text-white/40 text-sm mt-1">Sign in to manage Clara AI</p>
+          <h1 className="text-2xl font-bold text-foreground">Welcome to Clara AI</h1>
+          <p className="text-muted-foreground text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5 sm:p-6">
+        <div className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">Email</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Password</label>
               <div className="relative">
                 <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors" />
-                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors" />
+                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               <div className="flex justify-end mt-1.5">
-                <Link href="/login/forgot" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                <Link href="/login/forgot" className="text-xs text-primary hover:text-primary/80 transition-colors">
                   Forgot password?
                 </Link>
               </div>
             </div>
-            {error && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
-            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            {error && <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">{error}</div>}
+            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
@@ -109,7 +109,7 @@ function LoginForm() {
 
 export default function AdminLogin() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center"><div className="text-white/40">Loading...</div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>}>
       <LoginForm />
     </Suspense>
   );

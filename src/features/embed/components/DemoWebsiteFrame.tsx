@@ -157,26 +157,26 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
   }, [key]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-sky-500/30">
+    <div className="min-h-screen bg-white text-slate-900 font-sans antialiased selection:bg-sky-500/30">
       {/* ── Navbar ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <a href="#top" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 shadow-lg shadow-sky-500/25">
               <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
             </span>
             <span className="text-lg font-semibold tracking-tight">
-              TechVision<span className="text-sky-400"> Solutions</span>
+              TechVision<span className="text-sky-600"> Solutions</span>
             </span>
           </a>
-          <div className="hidden items-center gap-8 text-sm text-slate-400 md:flex">
-            <a href="#platform" className="transition-colors hover:text-slate-100">Platform</a>
-            <a href="#assistant" className="transition-colors hover:text-slate-100">AI Assistant</a>
-            <a href="#customers" className="transition-colors hover:text-slate-100">Customers</a>
-            <a href="#developers" className="transition-colors hover:text-slate-100">Developers</a>
+          <div className="hidden items-center gap-8 text-sm text-slate-600 md:flex">
+            <a href="#platform" className="transition-colors hover:text-slate-900">Platform</a>
+            <a href="#assistant" className="transition-colors hover:text-slate-900">AI Assistant</a>
+            <a href="#customers" className="transition-colors hover:text-slate-900">Customers</a>
+            <a href="#developers" className="transition-colors hover:text-slate-900">Developers</a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="#assistant" className="hidden text-sm text-slate-300 transition-colors hover:text-white sm:block">Sign in</a>
+            <a href="#assistant" className="hidden text-sm text-slate-600 transition-colors hover:text-slate-900 sm:block">Sign in</a>
             <a
               href="#assistant"
               className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-sky-500/25 transition-all hover:bg-sky-400 hover:shadow-sky-400/30"
@@ -199,7 +199,7 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 text-xs font-medium text-sky-300"
+              className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 text-xs font-medium text-sky-700"
             >
               <Sparkles className="h-3.5 w-3.5" />
               Now with a Clara AI assistant — click the button in the corner
@@ -208,16 +208,16 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.05 }}
-              className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-6xl"
+              className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl"
             >
               Ship intelligent products{" "}
-              <span className="bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent">faster</span>
+              <span className="bg-gradient-to-r from-sky-600 to-cyan-500 bg-clip-text text-transparent">faster</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.12 }}
-              className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-400"
+              className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600"
             >
               TechVision unifies your product and engineering knowledge into one live platform —
               and puts an AI assistant on top of it that answers with sources, in writing or by voice.
@@ -236,9 +236,9 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
               </a>
               <a
                 href="#assistant"
-                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-7 py-3 text-sm font-semibold text-slate-200 transition-colors hover:border-slate-500 hover:text-white"
+                className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white/60 px-7 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:text-slate-900"
               >
-                <Bot className="h-4 w-4 text-sky-400" />
+                <Bot className="h-4 w-4 text-sky-600" />
                 Try the AI assistant
               </a>
             </motion.div>
@@ -246,7 +246,7 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="mx-auto mt-16 grid max-w-3xl grid-cols-3 gap-6 border-t border-slate-800/80 pt-10"
+              className="mx-auto mt-16 grid max-w-3xl grid-cols-3 gap-6 border-t border-slate-200/80 pt-10"
             >
               {[
                 { value: "12,400+", label: "engineering teams" },
@@ -254,7 +254,7 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
                 { value: "4.9/5", label: "average rating" },
               ].map((stat) => (
                 <div key={stat.label}>
-                  <dt className="text-2xl font-bold text-white sm:text-3xl">{stat.value}</dt>
+                  <dt className="text-2xl font-bold text-slate-900 sm:text-3xl">{stat.value}</dt>
                   <dd className="mt-1 text-xs uppercase tracking-wider text-slate-500">{stat.label}</dd>
                 </div>
               ))}
@@ -263,13 +263,13 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
         </section>
 
         {/* ── Features ──────────────────────────────────────────────────── */}
-        <section id="platform" className="border-t border-slate-800/80 bg-slate-900/40">
+        <section id="platform" className="border-t border-slate-200/80 bg-slate-50">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                 One platform, your entire knowledge surface
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-slate-400">
+              <p className="mt-4 text-base leading-relaxed text-slate-600">
                 Everything your teams already know, made searchable, connected, and — with Clara — conversational.
               </p>
             </div>
@@ -281,13 +281,13 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ duration: 0.45 }}
-                  className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-7 transition-colors hover:border-sky-500/40"
+                  className="group rounded-2xl border border-slate-200 bg-white p-7 shadow-sm transition-colors hover:border-sky-500/40"
                 >
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 ring-1 ring-sky-500/20 transition-colors group-hover:bg-sky-500/15">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/20 transition-colors group-hover:bg-sky-500/15">
                     <feature.icon className="h-5 w-5" />
                   </span>
-                  <h3 className="mt-5 text-lg font-semibold text-white">{feature.title}</h3>
-                  <p className="mt-2.5 text-sm leading-relaxed text-slate-400">{feature.text}</p>
+                  <h3 className="mt-5 text-lg font-semibold text-slate-900">{feature.title}</h3>
+                  <p className="mt-2.5 text-sm leading-relaxed text-slate-600">{feature.text}</p>
                 </motion.article>
               ))}
             </div>
@@ -295,51 +295,51 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
         </section>
 
         {/* ── AI Assistant / embed snippet ──────────────────────────────── */}
-        <section id="assistant" className="relative overflow-hidden border-t border-slate-800/80">
+        <section id="assistant" className="relative overflow-hidden border-t border-slate-200/80">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center_right,rgba(14,165,233,0.1),transparent_55%)]" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 py-20 lg:grid-cols-2">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 text-xs font-medium text-sky-300">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 text-xs font-medium text-sky-700">
                 <Bot className="h-3.5 w-3.5" />
                 Meet Clara — this website&apos;s AI assistant
               </div>
-              <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              <h2 className="mt-5 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                 Your visitors get answers, not search results
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-slate-400">
+              <p className="mt-4 text-base leading-relaxed text-slate-600">
                 The floating button in the bottom-right corner of this page is a real Clara instance,
                 grounded in this company&apos;s knowledge bases. Ask it anything — it streams answers with cited sources.
               </p>
-              <ul className="mt-7 space-y-3.5 text-sm text-slate-300">
+              <ul className="mt-7 space-y-3.5 text-sm text-slate-700">
                 {[
                   "Streaming text chat grounded in your indexed documents",
                   "Voice mode — full WebRTC conversations with the same knowledge",
                   "Deployed with a single script tag, themed to your brand",
                 ].map((point) => (
                   <li key={point} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sky-400">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sky-600">
                       <Check className="h-3 w-3" strokeWidth={3} />
                     </span>
                     {point}
                   </li>
                 ))}
               </ul>
-              <div className="mt-8 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-xs text-slate-400">
-                <Mic className="h-4 w-4 shrink-0 text-sky-400" />
+              <div className="mt-8 flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 px-4 py-3 text-xs text-slate-600">
+                <Mic className="h-4 w-4 shrink-0 text-sky-600" />
                 Try it: click the assistant button, then the microphone icon, and just talk.
               </div>
             </div>
             <div id="developers">
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/80 shadow-2xl shadow-sky-500/5">
-                <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3.5">
+              <div className="rounded-2xl border border-border bg-card shadow-lg shadow-sky-500/5 overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
                   <div className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full bg-slate-700" />
-                    <span className="h-3 w-3 rounded-full bg-slate-700" />
-                    <span className="h-3 w-3 rounded-full bg-slate-700" />
+                    <span className="h-3 w-3 rounded-full bg-slate-300" />
+                    <span className="h-3 w-3 rounded-full bg-slate-300" />
+                    <span className="h-3 w-3 rounded-full bg-slate-300" />
                   </div>
-                  <span className="text-xs font-medium text-slate-500">index.html</span>
+                  <span className="text-xs font-medium text-muted-foreground">index.html</span>
                 </div>
-                <pre className="overflow-x-auto px-5 py-5 text-[13px] leading-relaxed">
+                <pre className="overflow-x-auto bg-slate-950 px-5 py-5 text-[13px] leading-relaxed">
                   <code className="font-mono">
                     {SNIPPET_LINES.map((line, index) => (
                       <span key={index} className={
@@ -364,13 +364,13 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
         </section>
 
         {/* ── Testimonials ──────────────────────────────────────────────── */}
-        <section id="customers" className="border-t border-slate-800/80 bg-slate-900/40">
+        <section id="customers" className="border-t border-slate-200/80 bg-slate-50">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                 Loved by teams that ship
               </h2>
-              <div className="mt-4 flex items-center justify-center gap-1 text-amber-400">
+              <div className="mt-4 flex items-center justify-center gap-1 text-amber-500">
                 {[0, 1, 2, 3, 4].map((star) => (
                   <Star key={star} className="h-4 w-4 fill-current" />
                 ))}
@@ -384,18 +384,18 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ duration: 0.45 }}
-                  className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-7"
+                  className="flex flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
                 >
                   <Quote className="h-6 w-6 text-sky-500/50" />
-                  <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-300">
+                  <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-700">
                     “{testimonial.quote}”
                   </blockquote>
-                  <figcaption className="mt-6 flex items-center gap-3 border-t border-slate-800 pt-5">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-500/30 to-slate-700 text-xs font-semibold text-sky-200 ring-1 ring-slate-700">
+                  <figcaption className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-500/30 to-slate-300 text-xs font-semibold text-sky-700 ring-1 ring-slate-300">
                       {testimonial.initials}
                     </span>
                     <div>
-                      <div className="text-sm font-medium text-white">{testimonial.name}</div>
+                      <div className="text-sm font-medium text-slate-900">{testimonial.name}</div>
                       <div className="text-xs text-slate-500">{testimonial.role}</div>
                     </div>
                   </figcaption>
@@ -406,12 +406,12 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
         </section>
 
         {/* ── Final CTA ─────────────────────────────────────────────────── */}
-        <section className="border-t border-slate-800/80">
+        <section className="border-t border-slate-200/80">
           <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
               Bring your knowledge to life
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base text-slate-400">
+            <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">
               Free for teams up to 10. No credit card, no sales call — and your AI assistant is one paste away.
             </p>
             <a
@@ -425,7 +425,7 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="border-t border-slate-800/80 bg-slate-950">
+      <footer className="border-t border-slate-200/80 bg-slate-50">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-xs text-slate-500 sm:flex-row">
           <div className="flex items-center gap-2">
             <span className="flex h-5 w-5 items-center justify-center rounded bg-gradient-to-br from-sky-400 to-sky-600">
@@ -434,16 +434,16 @@ export default function DemoWebsiteFrame({ apiKey }: { apiKey: string }) {
             © 2026 TechVision Solutions — a demo company website
           </div>
           <div className="flex items-center gap-5">
-            <a href="#platform" className="transition-colors hover:text-slate-300">Platform</a>
-            <a href="#assistant" className="transition-colors hover:text-slate-300">AI Assistant</a>
-            <a href="#customers" className="transition-colors hover:text-slate-300">Customers</a>
+            <a href="#platform" className="transition-colors hover:text-slate-700">Platform</a>
+            <a href="#assistant" className="transition-colors hover:text-slate-700">AI Assistant</a>
+            <a href="#customers" className="transition-colors hover:text-slate-700">Customers</a>
           </div>
         </div>
       </footer>
 
       {/* ── No-key warning (only when the demo has no usable API key) ────── */}
       {keyError && (
-        <div className="fixed inset-x-0 top-0 z-50 border-b border-amber-500/30 bg-amber-500/10 px-6 py-2.5 text-center text-xs text-amber-300 backdrop-blur">
+        <div className="fixed inset-x-0 top-0 z-50 border-b border-amber-500/30 bg-amber-500/10 px-6 py-2.5 text-center text-xs text-amber-600 backdrop-blur">
           {keyError}
         </div>
       )}

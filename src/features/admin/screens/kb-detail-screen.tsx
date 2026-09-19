@@ -138,12 +138,12 @@ export default function KbDashboardPage() {
         />
 
         {kb?.status === "archived" && (
-          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4">
+          <div className="rounded-2xl border border-amber-600/25 bg-amber-500/10 px-5 py-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
-                <p className="font-medium text-amber-200">This knowledge base is archived.</p>
-                <p className="mt-1 text-sm text-amber-100/80">
+                <p className="font-medium text-amber-700">This knowledge base is archived.</p>
+                <p className="mt-1 text-sm text-amber-700/80">
                   Document uploads, scrape runs, and voice sessions stay blocked until you restore the KB.
                 </p>
               </div>
@@ -153,22 +153,22 @@ export default function KbDashboardPage() {
 
         {kb && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-              <div className="text-xs uppercase tracking-[0.2em] text-white/35">Knowledge Base</div>
-              <p className="mt-3 text-sm leading-6 text-white/75">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">Knowledge Base</div>
+              <p className="mt-3 text-sm leading-6 text-foreground/80">
                 {kb.description || "No description yet. Add context in the assistant config so operators know what this KB covers."}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/35">
-                <Layers3 className="h-3.5 w-3.5 text-cyan-300" /> Collection
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground/70">
+                <Layers3 className="h-3.5 w-3.5 text-primary" /> Collection
               </div>
-              <p className="mt-3 break-all font-mono text-xs text-white/75">{kb.qdrantCollection}</p>
+              <p className="mt-3 break-all font-mono text-xs text-foreground/80">{kb.qdrantCollection}</p>
             </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-              <div className="text-xs uppercase tracking-[0.2em] text-white/35">Created</div>
-              <p className="mt-3 text-sm text-white/75">{formatDate(kb.createdAt)}</p>
-              {agent?.name ? <p className="mt-2 text-xs text-white/40">Agent: {agent.name}</p> : null}
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">Created</div>
+              <p className="mt-3 text-sm text-foreground/80">{formatDate(kb.createdAt)}</p>
+              {agent?.name ? <p className="mt-2 text-xs text-muted-foreground/70">Agent: {agent.name}</p> : null}
             </div>
           </div>
         )}
@@ -180,14 +180,14 @@ export default function KbDashboardPage() {
             { label: "Processing", value: processing },
             { label: "Total Chunks", value: totalChunks.toLocaleString() },
           ].map((item) => (
-            <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5">
-              <div className="text-xs text-white/40 mb-2">{item.label}</div>
-              <div className="text-xl sm:text-2xl font-black text-white">{item.value}</div>
+            <div key={item.label} className="border border-border bg-card rounded-2xl p-3 sm:p-5 shadow-sm">
+              <div className="text-xs text-muted-foreground/70 mb-2">{item.label}</div>
+              <div className="text-xl sm:text-2xl font-black text-foreground">{item.value}</div>
             </div>
           ))}
         </div>
 
-        <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
+        <div className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
           {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
             <button
               key={item}
@@ -195,7 +195,7 @@ export default function KbDashboardPage() {
                 setTab(item);
                 if (item === "analytics") refetchAnalytics();
               }}
-              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"
                 }`}
             >
               {item === "documents"
@@ -216,12 +216,12 @@ export default function KbDashboardPage() {
         {tab === "documents" && (
           <div className="space-y-4">
             {stuck > 0 && (
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-600/20 bg-amber-500/10 px-5 py-4">
                 <div>
-                  <p className="text-sm text-amber-300">
+                  <p className="text-sm text-amber-600">
                     {stuck} document{stuck > 1 ? "s have" : " has"} been waiting in the queue for more than 30 seconds.
                   </p>
-                  <p className="mt-1 text-xs text-amber-200/75">
+                  <p className="mt-1 text-xs text-amber-700/75">
                     Automatic processing appears stalled. The table keeps polling every 4 seconds while jobs are pending.
                   </p>
                 </div>
@@ -232,37 +232,37 @@ export default function KbDashboardPage() {
             )}
 
             {processing > 0 && stuck === 0 && (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4">
-                <p className="text-sm text-white/70">
+              <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+                <p className="text-sm text-muted-foreground">
                   {processing} document{processing > 1 ? "s are" : " is"} being processed automatically.
                 </p>
-                <p className="mt-1 text-xs text-white/35">No action is required. The table checks for status updates every 4 seconds.</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">No action is required. The table checks for status updates every 4 seconds.</p>
               </div>
             )}
 
             {drainResult && (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm text-white/70">
+              <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm text-sm text-muted-foreground">
                 {drainResult}
               </div>
             )}
 
             {failed > 0 && (
-              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-4 text-sm text-rose-300">
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-5 py-4 text-sm text-destructive">
                 <p>
                   {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause:
                 </p>
                 {failedReason && (
-                  <p className="mt-1.5 break-words rounded-lg border border-rose-500/20 bg-rose-500/[0.08] px-3 py-2 font-mono text-[11px] leading-4 text-rose-200/85">
+                  <p className="mt-1.5 break-words rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 text-destructive/85">
                     {failedReason}
                   </p>
                 )}
-                <p className="mt-1.5 text-xs text-rose-200/60">
+                <p className="mt-1.5 text-xs text-destructive/70">
                   Expand “Why did this fail?” on a row below for the full error. Each document row offers Retry once the cause is resolved.
                 </p>
               </div>
             )}
 
-            <div className="flex gap-1 rounded-lg bg-white/[0.03] p-1 border border-white/[0.06] w-fit">
+            <div className="flex gap-1 rounded-lg bg-muted/50 p-1 border border-border/70 w-fit">
               {(["uploads", "web"] as const).map((st) => {
                 const label = st === "uploads"
                   ? `Uploaded Files${uploadCount > 0 ? ` (${uploadCount})` : ""}`
@@ -270,8 +270,8 @@ export default function KbDashboardPage() {
                 return (
                   <button key={st} onClick={() => setDocSubTab(st)}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${docSubTab === st
-                        ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                        : "text-white/50 hover:text-white"
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-muted-foreground hover:text-foreground"
                       }`}>
                     {label}
                   </button>
@@ -280,16 +280,16 @@ export default function KbDashboardPage() {
             </div>
 
             {docsLoading && docs.length === 0 ? (
-              <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+              <div className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
                 {[1, 2, 3].map((item) => (
-                  <div key={item} className="h-12 rounded-lg bg-white/[0.04] animate-pulse" />
+                  <div key={item} className="h-12 rounded-lg bg-muted animate-pulse" />
                 ))}
               </div>
             ) : docSubTab === "uploads" ? (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
                 <UploadZone kbId={kbId} docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
                 {processing > 0 && (
-                  <p className="mt-4 flex items-center gap-2 text-xs text-white/35">
+                  <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                     Polling for document status updates every 4 seconds.
                   </p>
@@ -304,9 +304,9 @@ export default function KbDashboardPage() {
         {tab === "scrape" && <ScrapeWizard kbId={kbId} />}
 
         {tab === "analytics" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             {analyticsLoading || !analytics ? (
-              <div className="flex items-center gap-3 text-white/40">
+              <div className="flex items-center gap-3 text-muted-foreground/70">
                 <RefreshCw className="w-4 h-4 animate-spin" /> Loading analytics...
               </div>
             ) : (
@@ -316,19 +316,19 @@ export default function KbDashboardPage() {
         )}
 
         {tab === "deploy" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <ApiKeysManager kbId={kbId} />
           </div>
         )}
 
         {tab === "design" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <WidgetDesignPanel kbId={kbId} />
           </div>
         )}
 
         {tab === "phone" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <PhoneCallPanel kbId={kbId} />
           </div>
         )}
@@ -370,12 +370,12 @@ export default function KbDashboardPage() {
       />
 
       {kb?.status === "archived" && (
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4">
+        <div className="rounded-2xl border border-amber-600/25 bg-amber-500/10 px-5 py-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
             <div>
-              <p className="font-medium text-amber-200">This knowledge base is archived.</p>
-              <p className="mt-1 text-sm text-amber-100/80">
+              <p className="font-medium text-amber-700">This knowledge base is archived.</p>
+              <p className="mt-1 text-sm text-amber-700/80">
                 Document uploads, scrape runs, and voice sessions stay blocked until you restore the KB.
               </p>
             </div>
@@ -385,22 +385,22 @@ export default function KbDashboardPage() {
 
       {kb && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-white/35">Knowledge Base</div>
-            <p className="mt-3 text-sm leading-6 text-white/75">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">Knowledge Base</div>
+            <p className="mt-3 text-sm leading-6 text-foreground/80">
               {kb.description || "No description yet. Add context in the assistant config so operators know what this KB covers."}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/35">
-              <Layers3 className="h-3.5 w-3.5 text-cyan-300" /> Collection
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground/70">
+              <Layers3 className="h-3.5 w-3.5 text-primary" /> Collection
             </div>
-            <p className="mt-3 break-all font-mono text-xs text-white/75">{kb.qdrantCollection}</p>
+            <p className="mt-3 break-all font-mono text-xs text-foreground/80">{kb.qdrantCollection}</p>
           </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-white/35">Created</div>
-            <p className="mt-3 text-sm text-white/75">{formatDate(kb.createdAt)}</p>
-            {agent?.name ? <p className="mt-2 text-xs text-white/40">Agent: {agent.name}</p> : null}
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">Created</div>
+            <p className="mt-3 text-sm text-foreground/80">{formatDate(kb.createdAt)}</p>
+            {agent?.name ? <p className="mt-2 text-xs text-muted-foreground/70">Agent: {agent.name}</p> : null}
           </div>
         </div>
       )}
@@ -412,14 +412,14 @@ export default function KbDashboardPage() {
           { label: "Processing", value: processing },
           { label: "Total Chunks", value: totalChunks.toLocaleString() },
         ].map((item) => (
-          <div key={item.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-3 sm:p-5">
-            <div className="text-xs text-white/40 mb-2">{item.label}</div>
-            <div className="text-xl sm:text-2xl font-black text-white">{item.value}</div>
+          <div key={item.label} className="border border-border bg-card rounded-2xl p-3 sm:p-5 shadow-sm">
+            <div className="text-xs text-muted-foreground/70 mb-2">{item.label}</div>
+            <div className="text-xl sm:text-2xl font-black text-foreground">{item.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.08] w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
+      <div className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
         {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
           <button
             key={item}
@@ -427,7 +427,7 @@ export default function KbDashboardPage() {
               setTab(item);
               if (item === "analytics") refetchAnalytics();
             }}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-white/50 hover:text-white"
+            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"
               }`}
           >
             {item === "documents"
@@ -448,12 +448,12 @@ export default function KbDashboardPage() {
       {tab === "documents" && (
         <div className="space-y-4">
           {stuck > 0 && (
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4">
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-600/20 bg-amber-500/10 px-5 py-4">
               <div>
-                <p className="text-sm text-amber-300">
+                <p className="text-sm text-amber-600">
                   {stuck} document{stuck > 1 ? "s have" : " has"} been waiting in the queue for more than 30 seconds.
                 </p>
-                <p className="mt-1 text-xs text-amber-200/75">
+                <p className="mt-1 text-xs text-amber-700/75">
                   Automatic processing appears stalled. The table keeps polling every 4 seconds while jobs are pending.
                 </p>
               </div>
@@ -464,37 +464,37 @@ export default function KbDashboardPage() {
           )}
 
           {processing > 0 && stuck === 0 && (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4">
-              <p className="text-sm text-white/70">
+            <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+              <p className="text-sm text-muted-foreground">
                 {processing} document{processing > 1 ? "s are" : " is"} being processed automatically.
               </p>
-              <p className="mt-1 text-xs text-white/35">No action is required. The table checks for status updates every 4 seconds.</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">No action is required. The table checks for status updates every 4 seconds.</p>
             </div>
           )}
 
           {drainResult && (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm text-white/70">
+            <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm text-sm text-muted-foreground">
               {drainResult}
             </div>
           )}
 
           {failed > 0 && (
-            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-4 text-sm text-rose-300">
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-5 py-4 text-sm text-destructive">
               <p>
                 {failed} document{failed > 1 ? "s" : ""} failed. Retry them after fixing the root cause:
               </p>
               {failedReason && (
-                <p className="mt-1.5 break-words rounded-lg border border-rose-500/20 bg-rose-500/[0.08] px-3 py-2 font-mono text-[11px] leading-4 text-rose-200/85">
+                <p className="mt-1.5 break-words rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 text-destructive/85">
                   {failedReason}
                 </p>
               )}
-              <p className="mt-1.5 text-xs text-rose-200/60">
+              <p className="mt-1.5 text-xs text-destructive/70">
                 Expand “Why did this fail?” on a row below for the full error. Each document row offers Retry once the cause is resolved.
               </p>
             </div>
           )}
 
-          <div className="flex gap-1 rounded-lg bg-white/[0.03] p-1 border border-white/[0.06] w-fit">
+          <div className="flex gap-1 rounded-lg bg-muted/50 p-1 border border-border/70 w-fit">
             {(["uploads", "web"] as const).map((st) => {
               const label = st === "uploads"
                 ? `Uploaded Files${uploadCount > 0 ? ` (${uploadCount})` : ""}`
@@ -502,8 +502,8 @@ export default function KbDashboardPage() {
               return (
                 <button key={st} onClick={() => setDocSubTab(st)}
                   className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${docSubTab === st
-                      ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                      : "text-white/50 hover:text-white"
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "text-muted-foreground hover:text-foreground"
                     }`}>
                   {label}
                 </button>
@@ -512,16 +512,16 @@ export default function KbDashboardPage() {
           </div>
 
           {docsLoading && docs.length === 0 ? (
-            <div className="space-y-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+            <div className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="h-12 rounded-lg bg-white/[0.04] animate-pulse" />
+                <div key={item} className="h-12 rounded-lg bg-muted animate-pulse" />
               ))}
             </div>
           ) : docSubTab === "uploads" ? (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
               <UploadZone kbId={kbId} docs={docs} onUpload={upload} onDelete={remove} onReprocess={reprocess} />
               {processing > 0 && (
-                <p className="mt-4 flex items-center gap-2 text-xs text-white/35">
+                <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                   Polling for document status updates every 4 seconds.
                 </p>
@@ -536,9 +536,9 @@ export default function KbDashboardPage() {
       {tab === "scrape" && <ScrapeWizard kbId={kbId} />}
 
       {tab === "analytics" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           {analyticsLoading || !analytics ? (
-            <div className="flex items-center gap-3 text-white/40">
+            <div className="flex items-center gap-3 text-muted-foreground/70">
               <RefreshCw className="w-4 h-4 animate-spin" /> Loading analytics...
             </div>
           ) : (
@@ -548,19 +548,19 @@ export default function KbDashboardPage() {
       )}
 
       {tab === "deploy" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <ApiKeysManager kbId={kbId} />
         </div>
       )}
 
       {tab === "design" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <WidgetDesignPanel kbId={kbId} />
         </div>
       )}
 
       {tab === "phone" && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <PhoneCallPanel kbId={kbId} />
         </div>
       )}

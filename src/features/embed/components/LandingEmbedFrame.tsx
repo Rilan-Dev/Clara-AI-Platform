@@ -163,28 +163,28 @@ function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config })
   }, [active]);
 
   return (
-    <section className="relative w-full max-w-5xl mx-auto py-24 px-6 z-20 text-white">
+    <section className="relative w-full max-w-5xl mx-auto py-24 px-6 z-20 text-foreground">
       <div className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-6"><Sparkles className="w-3.5 h-3.5" /> Interactive Demo</div>
-        <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Experience Voice AI</h2>
-        <p className="text-white/50 text-lg max-w-2xl mx-auto">Try a real-time, low-latency conversation with {config.assistantName} directly from your browser. Powered by your configured voice provider.</p>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-6"><Sparkles className="w-3.5 h-3.5" /> Interactive Demo</div>
+        <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6 tracking-tight">Experience Voice AI</h2>
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">Try a real-time, low-latency conversation with {config.assistantName} directly from your browser. Powered by your configured voice provider.</p>
       </div>
-      <div className="relative rounded-3xl overflow-hidden border border-white/[0.08] min-h-[500px] flex items-center justify-center p-8 bg-black/40">
+      <div className="relative rounded-3xl overflow-hidden border border-border min-h-[500px] flex items-center justify-center p-8 bg-card shadow-lg">
         <div className="absolute inset-0 pointer-events-none blur-[100px]" style={{ background: `${primary}14` }} />
         <AnimatePresence mode="wait">
           {!active ? (
             <motion.div key="start" initial={{ opacity: 0, scale: .95 }} animate={{ opacity: 1, scale: 1 }} className="text-center relative z-10">
               <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 relative" style={{ background: `${primary}22` }}><div className="absolute inset-0 rounded-full border animate-pulse" style={{ borderColor: `${primary}55` }} /><div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${wave})` }}><Volume2 className="w-8 h-8 text-white" /></div></div>
-              <h3 className="text-xl font-medium text-white mb-2">{voice.state === "error" ? "Connection failed" : "Ready to talk?"}</h3>
-              <p className="text-sm text-white/40 mb-8 max-w-sm mx-auto">{voice.error || `Make sure your microphone is connected. Ask ${config.assistantName} about policies, coverage, claims, or services.`}</p>
-              <button onClick={() => void voice.start()} disabled={!config.voiceEnabled} className="px-8 py-3 rounded-xl bg-white text-black font-semibold hover:bg-white/90 transition-all hover:scale-105 disabled:opacity-50">{config.voiceEnabled ? "Start Voice Session" : "Voice unavailable"}</button>
+              <h3 className="text-xl font-medium text-foreground mb-2">{voice.state === "error" ? "Connection failed" : "Ready to talk?"}</h3>
+              <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">{voice.error || `Make sure your microphone is connected. Ask ${config.assistantName} about policies, coverage, claims, or services.`}</p>
+              <button onClick={() => void voice.start()} disabled={!config.voiceEnabled} className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-all hover:scale-105 disabled:opacity-50">{config.voiceEnabled ? "Start Voice Session" : "Voice unavailable"}</button>
             </motion.div>
           ) : (
             <motion.div key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full flex flex-col items-center justify-center relative z-10 py-12">
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-white/5 rounded-full px-4 py-1.5 border border-white/10"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span className="text-xs text-white/60 font-medium tracking-wide">{voice.state === "speaking" ? "SPEAKING" : voice.state === "connecting" ? "CONNECTING" : "LIVE"}</span></div>
-              {voice.state === "connecting" ? <div className="flex flex-col items-center"><Loader2 className="w-12 h-12 text-indigo-400 animate-spin mb-6" /><p className="text-sm text-indigo-300 animate-pulse font-medium">Establishing secure connection...</p></div> : <div className="flex gap-3 items-center justify-center z-10 h-32">{levels.map((level, index) => <motion.div key={index} animate={{ height: Math.max(16, level * 120) }} transition={{ duration: .08 }} className="w-4 rounded-full opacity-90" style={{ backgroundColor: wave }} />)}</div>}
-              <div className="h-28 w-full max-w-2xl flex flex-col justify-center text-center px-4 mt-8">{question && <><p className="text-xs text-white/30 uppercase tracking-wider mb-1 font-semibold">You said</p><p className="text-lg text-white/90 line-clamp-1">{question}</p></>}{answer && <><p className="text-xs text-indigo-400 uppercase tracking-wider mb-1 mt-3 font-semibold">{config.assistantName}</p><p className="text-lg text-indigo-100 line-clamp-2 leading-snug">{answer}</p></>}</div>
-              <button onClick={voice.stop} className="mt-8 flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30" title="End Session"><PhoneOff className="w-6 h-6 text-red-400" /></button>
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-muted/50 rounded-full px-4 py-1.5 border border-border/70"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /><span className="text-xs text-muted-foreground font-medium tracking-wide">{voice.state === "speaking" ? "SPEAKING" : voice.state === "connecting" ? "CONNECTING" : "LIVE"}</span></div>
+              {voice.state === "connecting" ? <div className="flex flex-col items-center"><Loader2 className="w-12 h-12 text-primary animate-spin mb-6" /><p className="text-sm text-primary animate-pulse font-medium">Establishing secure connection...</p></div> : <div className="flex gap-3 items-center justify-center z-10 h-32">{levels.map((level, index) => <motion.div key={index} animate={{ height: Math.max(16, level * 120) }} transition={{ duration: .08 }} className="w-4 rounded-full opacity-90" style={{ backgroundColor: wave }} />)}</div>}
+              <div className="h-28 w-full max-w-2xl flex flex-col justify-center text-center px-4 mt-8">{question && <><p className="text-xs text-muted-foreground/70 uppercase tracking-wider mb-1 font-semibold">You said</p><p className="text-lg text-foreground/80 line-clamp-1">{question}</p></>}{answer && <><p className="text-xs text-primary uppercase tracking-wider mb-1 mt-3 font-semibold">{config.assistantName}</p><p className="text-lg text-foreground line-clamp-2 leading-snug">{answer}</p></>}</div>
+              <button onClick={voice.stop} className="mt-8 flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10 hover:bg-destructive/20 border border-destructive/30" title="End Session"><PhoneOff className="w-6 h-6 text-destructive" /></button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -208,9 +208,9 @@ function VoiceLandingFrame({ apiKey }: { apiKey: string }) {
       .catch((err) => { if (!cancelled) setError((err as Error).message || "Unable to load assistant configuration"); });
     return () => { cancelled = true; };
   }, [apiKey]);
-  if (error) return <div className="min-h-screen flex items-center justify-center bg-transparent px-4 text-center text-xs text-red-300">{error}</div>;
-  if (!config) return <div className="min-h-screen flex items-center justify-center bg-transparent"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /></div>;
-  if (config.voiceEnabled === false) return <div className="min-h-screen flex items-center justify-center bg-transparent text-sm text-white/50">Voice is not enabled for this assistant.</div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center bg-transparent px-4 text-center text-xs text-destructive">{error}</div>;
+  if (!config) return <div className="min-h-screen flex items-center justify-center bg-transparent"><Loader2 className="w-5 h-5 text-primary animate-spin" /></div>;
+  if (config.voiceEnabled === false) return <div className="min-h-screen flex items-center justify-center bg-transparent text-sm text-muted-foreground">Voice is not enabled for this assistant.</div>;
   return <VoiceExperience apiKey={apiKey} config={config} />;
 }
 

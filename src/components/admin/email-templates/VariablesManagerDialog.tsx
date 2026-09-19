@@ -183,44 +183,44 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[85vh] w-[min(56rem,95vw)] overflow-y-auto border-white/10 bg-[#0d0f1a] text-white sm:rounded-2xl">
+      <DialogContent className="max-h-[85vh] w-[min(56rem,95vw)] overflow-y-auto sm:rounded-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
-            <Braces className="h-4 w-4 text-indigo-300" /> Template variables
+            <Braces className="h-4 w-4 text-primary" /> Template variables
           </DialogTitle>
-          <DialogDescription className="text-xs leading-relaxed text-white/45">
-            Placeholders like <code className="rounded bg-white/10 px-1">{"{{userName}}"}</code> are replaced
+          <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
+            Placeholders like <code className="rounded bg-muted px-1">{"{{userName}}"}</code> are replaced
             when an email goes out. System values are supplied by the platform (locked). Custom variables
             hold values you define — usable in every template.
           </DialogDescription>
         </DialogHeader>
 
         {error && (
-          <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </div>
         )}
         {notice && (
-          <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+          <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600">
             {notice}
           </div>
         )}
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-white/[0.04] px-2.5 py-1.5">
-            <Search className="h-3.5 w-3.5 shrink-0 text-white/30" />
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search variables…"
-              className="w-full bg-transparent text-xs text-white placeholder:text-white/25 focus:outline-none"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             />
           </div>
           <Button
             size="sm"
             onClick={() => { setAdding((a) => !a); setDraft(EMPTY_DRAFT); }}
-            className="h-8 bg-indigo-600 hover:bg-indigo-500"
+            className="h-8 bg-primary hover:bg-primary/90"
           >
             <Plus className="mr-1 h-3.5 w-3.5" /> New custom variable
           </Button>
@@ -228,30 +228,30 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
 
         {/* Add form */}
         {adding && (
-          <div className="space-y-2.5 rounded-xl border border-indigo-500/25 bg-indigo-500/[0.06] p-3.5">
+          <div className="space-y-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3.5">
             <div className="grid gap-2.5 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-[11px] font-medium text-white/55">Name</span>
-                <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] px-2.5 focus-within:border-indigo-500/50">
-                  <span className="font-mono text-xs text-white/30">{"{{"}</span>
+                <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Name</span>
+                <div className="flex items-center rounded-lg border border-input bg-background px-2.5 focus-within:border-primary/50">
+                  <span className="font-mono text-xs text-muted-foreground/70">{"{{"}</span>
                   <input
                     value={draft.name}
                     onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.replace(/[^a-zA-Z0-9_]/g, "") }))}
                     placeholder="supportEmail"
-                    className="w-full bg-transparent px-1 py-2 font-mono text-xs text-white placeholder:text-white/25 focus:outline-none"
+                    className="w-full bg-transparent px-1 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
                   />
-                  <span className="font-mono text-xs text-white/30">{"}}"}</span>
+                  <span className="font-mono text-xs text-muted-foreground/70">{"}}"}</span>
                 </div>
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11px] font-medium text-white/55">Category</span>
+                <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Category</span>
                 <select
                   value={draft.category}
                   onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-                  className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none"
+                  className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground focus:border-primary/50 focus:outline-none"
                 >
                   {VARIABLE_CATEGORY_ORDER.map((c) => (
-                    <option key={c} value={c} className="bg-[#12131f]">
+                    <option key={c} value={c}>
                       {CATEGORY_LABELS[c] ?? c}
                     </option>
                   ))}
@@ -259,34 +259,34 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
               </label>
             </div>
             <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-white/55">
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                 Value — inserted wherever {"{{name}}"} appears
               </span>
               <input
                 value={draft.value}
                 onChange={(e) => setDraft((d) => ({ ...d, value: e.target.value }))}
                 placeholder="support@yourcompany.com"
-                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-white/55">Description (optional)</span>
+              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Description (optional)</span>
               <input
                 value={draft.description}
                 onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
                 placeholder="Shown in the variable picker to explain what this holds"
-                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
               />
             </label>
             <div className="flex items-center justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={() => setAdding(false)} className="h-8 border-white/10">
+              <Button size="sm" variant="outline" onClick={() => setAdding(false)} className="h-8">
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={() => void createVariable()}
                 disabled={busy || !draft.name.trim() || !draft.value.trim()}
-                className="h-8 bg-indigo-600 hover:bg-indigo-500"
+                className="h-8 bg-primary hover:bg-primary/90"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                 Add variable
@@ -297,28 +297,28 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
 
         {/* Catalogue */}
         {loading ? (
-          <div className="flex h-40 items-center justify-center text-sm text-white/40">
+          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading variables…
           </div>
         ) : (
           <div className="space-y-4">
             {[...grouped.entries()].map(([cat, items]) => (
               <div key={cat}>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   {CATEGORY_LABELS[cat] ?? cat}
-                  <span className="ml-1.5 font-normal normal-case text-white/25">({items.length})</span>
+                  <span className="ml-1.5 font-normal normal-case text-muted-foreground/70">({items.length})</span>
                 </p>
-                <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.07]">
+                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
                   {items.map((v) => {
                     const isEditing = editing === v.name;
                     return (
-                      <li key={v.name} className="bg-white/[0.02]">
+                      <li key={v.name} className="bg-card">
                         {isEditing ? (
                           <div className="space-y-2.5 p-3.5">
                             <div className="flex items-center justify-between">
-                              <span className="font-mono text-xs text-indigo-200">{`{{${v.name}}}`}</span>
+                              <span className="font-mono text-xs text-primary">{`{{${v.name}}}`}</span>
                               {v.isSystem && (
-                                <span className="flex items-center gap-1 text-[10px] text-white/35">
+                                <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
                                   <Lock className="h-3 w-3" /> system — value comes from the platform
                                 </span>
                               )}
@@ -326,22 +326,22 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                             {!v.isSystem && (
                               <div className="grid gap-2.5 sm:grid-cols-2">
                                 <label className="block">
-                                  <span className="mb-1 block text-[11px] font-medium text-white/55">Value</span>
+                                  <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Value</span>
                                   <input
                                     value={editDraft.value}
                                     onChange={(e) => setEditDraft((d) => ({ ...d, value: e.target.value }))}
-                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none"
+                                    className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground focus:border-primary/50 focus:outline-none"
                                   />
                                 </label>
                                 <label className="block">
-                                  <span className="mb-1 block text-[11px] font-medium text-white/55">Category</span>
+                                  <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Category</span>
                                   <select
                                     value={editDraft.category}
                                     onChange={(e) => setEditDraft((d) => ({ ...d, category: e.target.value }))}
-                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none"
+                                    className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground focus:border-primary/50 focus:outline-none"
                                   >
                                     {VARIABLE_CATEGORY_ORDER.map((c) => (
-                                      <option key={c} value={c} className="bg-[#12131f]">
+                                      <option key={c} value={c}>
                                         {CATEGORY_LABELS[c] ?? c}
                                       </option>
                                     ))}
@@ -350,22 +350,22 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                               </div>
                             )}
                             <label className="block">
-                              <span className="mb-1 block text-[11px] font-medium text-white/55">Description</span>
+                              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">Description</span>
                               <input
                                 value={editDraft.description}
                                 onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
-                                className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none"
+                                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground focus:border-primary/50 focus:outline-none"
                               />
                             </label>
                             <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => setEditing(null)} className="h-8 border-white/10">
+                              <Button size="sm" variant="outline" onClick={() => setEditing(null)} className="h-8">
                                 Cancel
                               </Button>
                               <Button
                                 size="sm"
                                 onClick={() => void saveEdit()}
                                 disabled={busy || (!v.isSystem && !editDraft.value.trim())}
-                                className="h-8 bg-indigo-600 hover:bg-indigo-500"
+                                className="h-8 bg-primary hover:bg-primary/90"
                               >
                                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                                 Save
@@ -374,14 +374,14 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3.5 py-2.5">
-                            <code className="shrink-0 font-mono text-xs text-indigo-200">{`{{${v.name}}}`}</code>
-                            <span className="min-w-0 flex-1 truncate text-xs text-white/45">
+                            <code className="shrink-0 font-mono text-xs text-primary">{`{{${v.name}}}`}</code>
+                            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                               {v.isSystem
                                 ? v.description
                                 : `${v.description || "Custom variable"} — “${v.value}”`}
                             </span>
                             <span
-                              className={`shrink-0 text-[10px] ${v.usedIn.length ? "text-white/40" : "text-white/25"}`}
+                              className={`shrink-0 text-[10px] ${v.usedIn.length ? "text-muted-foreground" : "text-muted-foreground/70"}`}
                               title={v.usedIn.join(", ") || "Not referenced by any template"}
                             >
                               {v.usedIn.length
@@ -391,7 +391,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                             <span className="flex shrink-0 items-center gap-1">
                               {v.isSystem && (
                                 <span title="System variable — supplied by the platform at send time">
-                                  <Lock className="h-3.5 w-3.5 text-white/30" />
+                                  <Lock className="h-3.5 w-3.5 text-muted-foreground/70" />
                                 </span>
                               )}
                               <button
@@ -406,7 +406,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                                     value: v.value,
                                   });
                                 }}
-                                className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
+                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                               >
                                 <PencilLine className="h-3.5 w-3.5" />
                               </button>
@@ -415,7 +415,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                                   type="button"
                                   title="Delete"
                                   onClick={() => void deleteVariable(v.name)}
-                                  className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -430,11 +430,11 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
               </div>
             ))}
             {grouped.size === 0 && (
-              <p className="py-8 text-center text-sm text-white/30">
+              <p className="py-8 text-center text-sm text-muted-foreground/70">
                 No variables match “{q}”.
               </p>
             )}
-            <p className="text-[11px] text-white/30">
+            <p className="text-[11px] text-muted-foreground/70">
               Last refreshed {formatDate(new Date().toISOString())} · system names are the platform’s
               send-time contract and cannot be renamed or deleted.
             </p>
@@ -445,7 +445,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 rounded-md p-1 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
+          className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>

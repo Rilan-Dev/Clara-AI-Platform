@@ -54,15 +54,15 @@ export default function OrgSettingsScreen() {
           provider (incl. ElevenLabs hybrid), limits and feature flags. */}
       <div className="mt-4 sm:mt-6">
         {aiLoading && !aiSettings ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 text-sm text-white/50">
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             Loading AI configuration…
           </div>
         ) : aiSettings ? (
           <OrgAIConfigEditor orgId={id} settings={aiSettings} onSave={saveAISettings} />
         ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-            <p className="text-sm text-white/70">AI configuration not initialised for this organisation yet.</p>
-            <p className="mt-1 text-xs text-white/40">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <p className="text-sm text-muted-foreground">AI configuration not initialised for this organisation yet.</p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
               It is created automatically when the first agent or knowledge base is added.
             </p>
           </div>
@@ -76,25 +76,25 @@ export default function OrgSettingsScreen() {
       </div>
 
       {/* Workspace facts */}
-      <div className="mt-4 sm:mt-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
-        <h2 className="font-semibold text-white flex items-center gap-2 mb-4">
-          <Info className="w-4 h-4 text-cyan-400" /> Workspace facts
+      <div className="mt-4 sm:mt-6 border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
+        <h2 className="font-semibold text-foreground flex items-center gap-2 mb-4">
+          <Info className="w-4 h-4 text-sky-600" /> Workspace facts
         </h2>
         <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
           <div className="flex justify-between sm:block">
-            <dt className="text-xs text-white/40">Organisation ID</dt>
-            <dd className="text-sm text-white/70 font-mono text-right sm:text-left sm:mt-0.5 truncate">{id}</dd>
+            <dt className="text-xs text-muted-foreground/70">Organisation ID</dt>
+            <dd className="text-sm text-muted-foreground font-mono text-right sm:text-left sm:mt-0.5 truncate">{id}</dd>
           </div>
           <div className="flex justify-between sm:block">
-            <dt className="text-xs text-white/40">Public URL</dt>
-            <dd className="text-sm text-white/70 text-right sm:text-left sm:mt-0.5">
+            <dt className="text-xs text-muted-foreground/70">Public URL</dt>
+            <dd className="text-sm text-muted-foreground text-right sm:text-left sm:mt-0.5">
               /{displaySlug || "—"}
             </dd>
           </div>
           {org?.createdAt && (
             <div className="flex justify-between sm:block">
-              <dt className="text-xs text-white/40">Created</dt>
-              <dd className="text-sm text-white/70 text-right sm:text-left sm:mt-0.5">
+              <dt className="text-xs text-muted-foreground/70">Created</dt>
+              <dd className="text-sm text-muted-foreground text-right sm:text-left sm:mt-0.5">
                 {new Date(org.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
               </dd>
             </div>
@@ -110,15 +110,15 @@ export default function OrgSettingsScreen() {
           { href: "/settings/account",    title: "Your account",    desc: "Profile, password and sessions" },
         ].map((item) => (
           <Link key={item.href} href={item.href}
-            className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5 hover:bg-white/[0.05] hover:border-indigo-500/25 transition-all group">
-            <p className="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">{item.title}</p>
-            <p className="text-xs text-white/35 mt-0.5">{item.desc}</p>
+            className="rounded-xl border border-border/70 bg-card px-4 py-3.5 hover:bg-muted/50 hover:border-primary/25 transition-all group">
+            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{item.title}</p>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">{item.desc}</p>
           </Link>
         ))}
       </div>
 
       {isAdmin && (
-        <p className="mt-6 text-xs text-white/25 flex items-center gap-2">
+        <p className="mt-6 text-xs text-muted-foreground/50 flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5" />
           Platform-admin view · direct plan changes live on the Billing tab
         </p>

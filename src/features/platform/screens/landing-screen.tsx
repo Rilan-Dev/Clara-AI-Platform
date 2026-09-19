@@ -161,7 +161,7 @@ export default function LandingPage() {
             transition={{ delay: 0.8 }}
             className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center"
           >
-            <Link href="/signup?plan=free" className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25 active:scale-[0.98]">
+            <Link href="/signup?plan=free" className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-primary/20 active:scale-[0.98]">
               Start free — no card needed
               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -176,7 +176,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2, duration: 0.8 }}
-            className="mt-8 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-indigo-500/10"
+            className="mt-8 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-primary/10"
           >
             <div className="bg-card dark:bg-[#08081a]/90 rounded-2xl overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border dark:border-white/[0.06]">
@@ -206,7 +206,7 @@ export default function LandingPage() {
                       Policy-2024-Platinum.pdf · p.12
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs text-white shrink-0 shadow-lg shadow-indigo-500/20">C</div>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs text-white shrink-0 shadow-lg shadow-primary/20">C</div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -355,7 +355,7 @@ export default function LandingPage() {
                   <Link
                     href={plan.price_usd === -1 ? "/contact" : `/signup?plan=${plan.id}`}
                     className={`text-center py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] ${plan.id === "pro"
-                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/20"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-primary/20"
                         : "border border-border text-foreground/70 hover:text-foreground hover:border-primary/40 hover:bg-accent"
                       }`}
                   >
@@ -400,7 +400,7 @@ export default function LandingPage() {
                 </div>
                 <p className="text-foreground/70 text-sm leading-relaxed mb-5">&quot;{t.text}&quot;</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-indigo-500/20">{t.avatar}</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">{t.avatar}</div>
                   <div>
                     <div className="text-sm font-semibold text-foreground">{t.name}</div>
                     <div className="text-xs text-muted-foreground">{t.role}</div>
@@ -421,7 +421,7 @@ export default function LandingPage() {
             <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-3 sm:mb-4">Ready to build your AI?</h2>
             <p className="text-muted-foreground mb-6 sm:mb-8 text-[15px] sm:text-lg">Join 500+ organisations. Start free, upgrade when you&apos;re ready.</p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-              <Link href="/signup?plan=free" className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25">
+              <Link href="/signup?plan=free" className="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-base sm:text-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-primary/20">
                 Get started for free
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </Link>

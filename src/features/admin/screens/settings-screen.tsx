@@ -159,8 +159,8 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
                   isActive
-                    ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-200"
-                    : "border-white/10 bg-white/[0.02] text-white/50 hover:border-white/25 hover:text-white/80"
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground"
                 }`}
               >
                 <s.icon className="h-3.5 w-3.5" />
@@ -228,7 +228,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
         )}
 
         {section === "embed" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-7">
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
             <EmbedApiKeyPanel />
           </div>
         )}
@@ -236,7 +236,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
         {section === "ai" && <PlatformAIDefaultsSection />}
 
         {section === "payments" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-7">
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
             <PaymentGatewayPanel />
           </div>
         )}
@@ -266,13 +266,13 @@ function PlatformAIDefaultsSection() {
     <div className="space-y-6">
       {loading ? (
         <div className="space-y-3">
-          <div className="h-12 rounded-2xl bg-white/[0.04] animate-pulse" />
-          <div className="h-[28rem] rounded-2xl bg-white/[0.04] animate-pulse" />
+          <div className="h-12 rounded-2xl bg-muted animate-pulse" />
+          <div className="h-[28rem] rounded-2xl bg-muted animate-pulse" />
         </div>
       ) : (
         <PlatformAssistantDefaultsEditor defaults={defaults} onSave={save} />
       )}
-      {error && <p className="text-sm text-rose-400">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {/* Platform AI provider keys & default models — OpenAI / Gemini /
           ElevenLabs. The missing provider-switching + API-key surface the
@@ -308,9 +308,9 @@ function PlatformAIProvidersPanel() {
 
       {/* Per-organisation AI configuration — the operator's jump list. */}
       {orgs.length > 0 && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
-          <h3 className="text-sm font-semibold text-white">Organisation AI configuration</h3>
-          <p className="mt-1 text-xs text-white/40">
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground">Organisation AI configuration</h3>
+          <p className="mt-1 text-xs text-muted-foreground/70">
             Switch providers, models and voices for a specific organisation.
           </p>
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
@@ -318,13 +318,13 @@ function PlatformAIProvidersPanel() {
               <Link
                 key={org.id}
                 href={`/orgs/${org.id}/settings`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5 hover:bg-white/[0.05] hover:border-indigo-500/25 transition-all group"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3.5 hover:bg-muted/50 hover:border-primary/25 transition-all group"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate group-hover:text-indigo-300 transition-colors">{org.name}</p>
-                  <p className="text-xs text-white/35 font-mono truncate">/{org.slug}</p>
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{org.name}</p>
+                  <p className="text-xs text-muted-foreground/70 font-mono truncate">/{org.slug}</p>
                 </div>
-                <span className="text-xs text-indigo-400 shrink-0 group-hover:text-indigo-300">Configure →</span>
+                <span className="text-xs text-primary shrink-0 group-hover:text-primary/80">Configure →</span>
               </Link>
             ))}
           </div>
@@ -376,13 +376,13 @@ function ElevenLabsStatusCard() {
   useEffect(() => { void load(); }, [load]);
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:p-6">
+    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`h-2.5 w-2.5 rounded-full ${status?.connected ? "bg-emerald-400" : "bg-rose-400"}`} />
+          <div className={`h-2.5 w-2.5 rounded-full ${status?.connected ? "bg-emerald-500" : "bg-rose-500"}`} />
           <div>
-            <h3 className="text-sm font-semibold text-white">ElevenLabs connection</h3>
-            <p className="text-xs text-white/40">
+            <h3 className="text-sm font-semibold text-foreground">ElevenLabs connection</h3>
+            <p className="text-xs text-muted-foreground/70">
               {loading ? "Checking…" : status?.connected ? `Tier: ${status.tier ?? "unknown"}` : status?.reason}
             </p>
           </div>
@@ -391,7 +391,7 @@ function ElevenLabsStatusCard() {
           type="button"
           onClick={load}
           disabled={checking || loading}
-          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/60 hover:bg-white/[0.04] disabled:opacity-50"
+          className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
         >
           {checking ? "Testing…" : "Test connection"}
         </button>
@@ -399,16 +399,16 @@ function ElevenLabsStatusCard() {
       {status?.connected && (
         <div className="mt-4 grid sm:grid-cols-3 gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-white/35">Credits used</p>
-            <p className="mt-1 text-sm text-white/80">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Credits used</p>
+            <p className="mt-1 text-sm text-foreground/80">
               {(status.characterCount ?? 0).toLocaleString()}
               {status.characterLimit ? ` / ${status.characterLimit.toLocaleString()}` : ""}
             </p>
             {status.characterUsagePercent != null && (
-              <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+              <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
-                    status.creditAlert?.crossed || status.characterUsagePercent > 80 ? "bg-amber-400" : "bg-cyan-400"
+                    status.creditAlert?.crossed || status.characterUsagePercent > 80 ? "bg-amber-500" : "bg-primary"
                   }`}
                   style={{ width: `${Math.min(100, status.characterUsagePercent)}%` }}
                 />
@@ -416,19 +416,19 @@ function ElevenLabsStatusCard() {
             )}
             {/* V6 credit-burn alerting — one-line operator signal. */}
             {status.creditAlert?.crossed && (
-              <p className="mt-1.5 text-[11px] text-amber-300">
+              <p className="mt-1.5 text-[11px] text-amber-600">
                 Burn alert: {status.creditAlert.usagePercent}% consumed (threshold {status.creditAlert.thresholdPct}%)
                 {status.creditAlert.alerted ? " — super admins notified." : ""}
               </p>
             )}
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-white/35">Workspace voices</p>
-            <p className="mt-1 text-sm text-white/80">{status.voiceLimit ?? "—"}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Workspace voices</p>
+            <p className="mt-1 text-sm text-foreground/80">{status.voiceLimit ?? "—"}</p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-white/35">Defaults</p>
-            <p className="mt-1 text-sm text-white/80 font-mono text-xs">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Defaults</p>
+            <p className="mt-1 text-sm text-foreground/80 font-mono text-xs">
               {status.defaultTtsModel} · {status.defaultSttModel}
             </p>
           </div>
@@ -438,16 +438,16 @@ function ElevenLabsStatusCard() {
           kill-switch states even before a key is configured. */}
       {status && (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
-          <span className={status.connected ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-emerald-300" : "rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 py-0.5 text-rose-300"}>
+          <span className={status.connected ? "rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2.5 py-0.5 text-emerald-600" : "rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-destructive"}>
             {status.connected ? "Voice enabled" : "Voice off"}
           </span>
-          <span className={status.conversationalAI ? "rounded-full border border-indigo-400/30 bg-indigo-400/10 px-2.5 py-0.5 text-indigo-300" : "rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-white/40"}>
+          <span className={status.conversationalAI ? "rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary" : "rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-muted-foreground/70"}>
             Conversational AI (Mode B): {status.conversationalAI ? "on" : "off"}
           </span>
-          <span className={status.voiceCloning ? "rounded-full border border-violet-400/30 bg-violet-400/10 px-2.5 py-0.5 text-violet-300" : "rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-white/40"}>
+          <span className={status.voiceCloning ? "rounded-full border border-secondary/30 bg-secondary/10 px-2.5 py-0.5 text-secondary" : "rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-muted-foreground/70"}>
             Cloning: {status.voiceCloning ? "on" : "off"}
           </span>
-          <span className={status.voiceDesign ? "rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-0.5 text-cyan-300" : "rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-white/40"}>
+          <span className={status.voiceDesign ? "rounded-full border border-sky-600/30 bg-sky-500/10 px-2.5 py-0.5 text-sky-600" : "rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-muted-foreground/70"}>
             Voice Design: {status.voiceDesign ? "on" : "off"}
           </span>
         </div>
@@ -472,19 +472,19 @@ function PageHeader({
   return (
     <header className="mb-6 sm:mb-8">
       <div className="flex items-start gap-3 sm:gap-4">
-        <div className="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
-          <Icon className="h-5 w-5 text-indigo-300" />
+        <div className="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
+          <Icon className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-white">{title}</h1>
+            <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">{title}</h1>
             {audience && (
-              <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-indigo-300">
+              <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-primary">
                 {audience}
               </span>
             )}
           </div>
-          <p className="mt-1 sm:mt-1.5 max-w-2xl text-sm leading-relaxed text-white/45 line-clamp-1 sm:line-clamp-none">{description}</p>
+          <p className="mt-1 sm:mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-1 sm:line-clamp-none">{description}</p>
         </div>
       </div>
     </header>
@@ -496,13 +496,13 @@ function SettingsSkeleton() {
     <div className="p-4 sm:p-6 lg:p-10">
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 animate-pulse rounded-2xl bg-white/[0.04]" />
+          <div className="h-12 w-12 animate-pulse rounded-2xl bg-muted" />
           <div className="space-y-2">
-            <div className="h-5 w-48 animate-pulse rounded-lg bg-white/[0.04]" />
-            <div className="h-3.5 w-72 animate-pulse rounded-lg bg-white/[0.04]" />
+            <div className="h-5 w-48 animate-pulse rounded-lg bg-muted" />
+            <div className="h-3.5 w-72 animate-pulse rounded-lg bg-muted" />
           </div>
         </div>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/[0.02]" />
+        <div className="h-40 animate-pulse rounded-2xl bg-muted/50" />
       </div>
     </div>
   );
@@ -526,11 +526,11 @@ function ProfileCard({
 }) {
   if (!user) return null;
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
       <div className="flex flex-wrap items-center gap-5">
         {user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover ring-2 ring-white/10" />
+          <img src={user.avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover ring-2 ring-border" />
         ) : (
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-semibold text-white">
             {user.fullName.slice(0, 2).toUpperCase()}
@@ -538,16 +538,16 @@ function ProfileCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2.5">
-            <p className="truncate text-base font-semibold text-white">{user.fullName}</p>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-300">
+            <p className="truncate text-base font-semibold text-foreground">{user.fullName}</p>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
               {roleLabel}
             </span>
           </div>
-          <p className="mt-0.5 truncate text-sm text-white/40">{user.email}</p>
+          <p className="mt-0.5 truncate text-sm text-muted-foreground/70">{user.email}</p>
         </div>
         <button
           onClick={onEdit}
-          className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground"
         >
           <UserRound className="h-4 w-4" /> Edit profile
         </button>
@@ -593,14 +593,14 @@ function AccountPanel({
           <Link
             key={s.id}
             href={s.href}
-            className="group rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5 transition-colors hover:border-indigo-500/30 hover:bg-white/[0.03]"
+            className="group rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm transition-colors hover:border-primary/30 hover:bg-muted/50"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10">
-              <s.icon className="h-4 w-4 text-indigo-300" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <s.icon className="h-4 w-4 text-primary" />
             </div>
-            <h3 className="mt-3 text-sm font-medium text-white">{s.title}</h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-white/40">{s.description}</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-indigo-300 transition-transform group-hover:translate-x-0.5">
+            <h3 className="mt-3 text-sm font-medium text-foreground">{s.title}</h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/70">{s.description}</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform group-hover:translate-x-0.5">
               Open <ChevronRight className="h-3.5 w-3.5" />
             </span>
           </Link>

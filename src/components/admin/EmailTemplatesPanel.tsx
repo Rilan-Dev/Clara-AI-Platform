@@ -356,8 +356,8 @@ export function EmailTemplatesPanel() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 animate-pulse rounded-xl bg-white/[0.04]" />
-        <div className="h-[30rem] animate-pulse rounded-xl bg-white/[0.04]" />
+        <div className="h-10 animate-pulse rounded-xl bg-muted" />
+        <div className="h-[30rem] animate-pulse rounded-xl bg-muted" />
       </div>
     );
   }
@@ -366,27 +366,27 @@ export function EmailTemplatesPanel() {
     <div className="space-y-5">
       {/* Compact header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-xs leading-relaxed text-white/40">
-          Design every email Clara sends. Edits are saved as a <span className="text-white/70">draft</span> and
-          reach real recipients only when you <span className="text-emerald-300">publish</span>.
-          Placeholders like <code className="rounded bg-white/10 px-1 text-[11px] text-indigo-200">{"{{userName}}"}</code> fill in at send time.
+        <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+          Design every email Clara sends. Edits are saved as a <span className="text-foreground/70">draft</span> and
+          reach real recipients only when you <span className="text-emerald-600">publish</span>.
+          Placeholders like <code className="rounded bg-muted px-1 text-[11px] text-primary">{"{{userName}}"}</code> fill in at send time.
         </p>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setShowVariablesManager(true)}
-          className="h-8 border-white/10 bg-white/[0.03] text-white/70 hover:border-indigo-500/40 hover:text-white"
+          className="h-8"
         >
           <VariableIcon className="mr-1.5 h-3.5 w-3.5" />
           Manage variables
-          <span className="ml-1.5 rounded-full bg-white/10 px-1.5 text-[10px] text-white/50">
+          <span className="ml-1.5 rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
             {variables.filter((v) => !v.isSystem).length} custom
           </span>
         </Button>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" /> {error}
         </div>
       )}
@@ -394,21 +394,21 @@ export function EmailTemplatesPanel() {
       <div className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]">
         {/* ── Template rail ─────────────────────────────────────────────── */}
         <nav aria-label="Email templates" className="lg:sticky lg:top-20 lg:self-start">
-          <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-white/[0.04] px-2.5 py-1.5">
-            <Search className="h-3.5 w-3.5 shrink-0 text-white/30" />
+          <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
             <input
               value={railQuery}
               onChange={(e) => setRailQuery(e.target.value)}
               placeholder="Search templates…"
-              className="w-full bg-transparent text-xs text-white placeholder:text-white/25 focus:outline-none"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             />
           </div>
           <div className="max-h-[calc(100dvh-11rem)] space-y-4 overflow-y-auto pr-1">
             {[...grouped.entries()].map(([cat, items]) => (
               <div key={cat}>
-                <h4 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                <h4 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   {CATEGORY_LABELS[cat] ?? cat}
-                  <span className="ml-1.5 font-normal text-white/20">({items.length})</span>
+                  <span className="ml-1.5 font-normal text-muted-foreground/50">({items.length})</span>
                 </h4>
                 <ul className="space-y-1">
                   {items.map((t) => {
@@ -420,25 +420,25 @@ export function EmailTemplatesPanel() {
                           onClick={() => selectTemplate(t.key)}
                           className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                             active
-                              ? "bg-indigo-600/20 font-medium text-indigo-200 ring-1 ring-indigo-500/30"
-                              : "text-white/55 hover:bg-white/[0.04] hover:text-white/85"
+                              ? "bg-primary/10 font-medium text-primary ring-1 ring-primary/20"
+                              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                           }`}
                         >
                           <span className="flex items-center gap-1.5">
                             {t.draft && (
-                              <span title="Unpublished draft" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                              <span title="Unpublished draft" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
                             )}
                             <span className="block truncate">{t.name}</span>
                           </span>
                           {(t.isCustomized || !t.isActive) && (
                             <span className="mt-0.5 flex items-center gap-1.5">
                               {t.isCustomized && (
-                                <span className="flex items-center gap-0.5 text-[9px] text-amber-300/80">
+                                <span className="flex items-center gap-0.5 text-[9px] text-amber-600">
                                   <Sparkles className="h-2.5 w-2.5" /> custom
                                 </span>
                               )}
                               {!t.isActive && (
-                                <span className="flex items-center gap-0.5 text-[9px] text-white/30">
+                                <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70">
                                   <Ban className="h-2.5 w-2.5" /> using default
                                 </span>
                               )}
@@ -452,7 +452,7 @@ export function EmailTemplatesPanel() {
               </div>
             ))}
             {grouped.size === 0 && (
-              <p className="px-2 py-4 text-xs text-white/30">No templates match “{railQuery}”.</p>
+              <p className="px-2 py-4 text-xs text-muted-foreground/70">No templates match “{railQuery}”.</p>
             )}
           </div>
         </nav>
@@ -464,44 +464,44 @@ export function EmailTemplatesPanel() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <FileText className="h-4 w-4 shrink-0 text-indigo-300" />
-                  <h3 className="text-sm font-semibold text-white">{selected.name}</h3>
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">{selected.name}</h3>
                   {selected.draft && (
-                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 py-0 text-[10px] text-amber-300">
+                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 py-0 text-[10px] text-amber-600">
                       <Clock3 className="mr-1 h-2.5 w-2.5" /> draft pending
                     </Badge>
                   )}
                   {selected.isCustomized && (
-                    <Badge variant="outline" className="py-0 text-[10px] text-amber-300/80">customized</Badge>
+                    <Badge variant="outline" className="py-0 text-[10px] text-amber-600">customized</Badge>
                   )}
                   {!selected.isActive && (
-                    <Badge variant="outline" className="py-0 text-[10px] text-white/40">
+                    <Badge variant="outline" className="py-0 text-[10px] text-muted-foreground">
                       <Ban className="mr-1 h-2.5 w-2.5" /> using factory default
                     </Badge>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs text-white/40">{selected.description}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{selected.description}</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => { setShowTestDialog(true); setTestResult(null); }}
-                className="h-8 shrink-0 border-white/10 bg-white/[0.03] text-white/70 hover:text-white"
+                className="h-8 shrink-0"
               >
                 <Send className="mr-1.5 h-3.5 w-3.5" /> Send test…
               </Button>
             </div>
 
             <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-              <TabsList className="h-9 bg-white/[0.04] p-1">
-                <TabsTrigger value="overview" className="gap-1.5 px-3 text-xs data-[state=active]:bg-white/[0.08] data-[state=active]:text-white">
+              <TabsList className="h-9">
+                <TabsTrigger value="overview" className="gap-1.5 px-3 text-xs">
                   <Eye className="h-3.5 w-3.5" /> Overview
                 </TabsTrigger>
-                <TabsTrigger value="design" className="gap-1.5 px-3 text-xs data-[state=active]:bg-white/[0.08] data-[state=active]:text-white">
+                <TabsTrigger value="design" className="gap-1.5 px-3 text-xs">
                   <PencilLine className="h-3.5 w-3.5" /> Design
-                  {dirty && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+                  {dirty && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-1.5 px-3 text-xs data-[state=active]:bg-white/[0.08] data-[state=active]:text-white">
+                <TabsTrigger value="settings" className="gap-1.5 px-3 text-xs">
                   <Settings2 className="h-3.5 w-3.5" /> Settings & history
                 </TabsTrigger>
               </TabsList>
@@ -510,37 +510,37 @@ export function EmailTemplatesPanel() {
               <TabsContent value="overview" className="mt-4 space-y-4">
                 {/* Meta */}
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Live version</p>
-                    <p className="mt-1.5 text-sm text-white/80">
+                  <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Live version</p>
+                    <p className="mt-1.5 text-sm text-foreground/80">
                       {selected.isActive ? "Active — what recipients get" : "Using factory default"}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-white/35">Published {formatDate(selected.updatedAt)}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/70">Published {formatDate(selected.updatedAt)}</p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Draft</p>
-                    <p className="mt-1.5 text-sm text-white/80">
+                  <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Draft</p>
+                    <p className="mt-1.5 text-sm text-foreground/80">
                       {selected.draft
                         ? "Pending — not yet sent to anyone"
                         : dirty
                           ? "Unsaved edits in the Design tab"
                           : "None"}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-white/35">
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/70">
                       {selected.draft ? `Saved ${formatDate(selected.draft.updatedAt)}` : "Open Design to edit"}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Actions</p>
+                  <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => setTab("design")} className="h-7 bg-indigo-600 text-xs hover:bg-indigo-500">
+                      <Button size="sm" onClick={() => setTab("design")} className="h-7 bg-primary text-xs hover:bg-primary/90">
                         {selected.draft ? "Review draft" : "Edit"}
                       </Button>
                       {selected.draft && (
                         <Button
                           size="sm" variant="outline"
                           onClick={() => setConfirmPublish(true)}
-                          className="h-7 border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-300 hover:bg-emerald-500/20"
+                          className="h-7 border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 hover:bg-emerald-500/20"
                         >
                           <UploadCloud className="mr-1 h-3 w-3" /> Publish
                         </Button>
@@ -552,15 +552,15 @@ export function EmailTemplatesPanel() {
                 {/* Preview */}
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-white/60">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                       <Eye className="h-3.5 w-3.5" /> Live preview
-                      <span className="font-normal text-white/30">(sample data{Object.keys(customValues).length ? " + your custom variables" : ""})</span>
+                      <span className="font-normal text-muted-foreground/70">(sample data{Object.keys(customValues).length ? " + your custom variables" : ""})</span>
                     </label>
-                    <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
+                    <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5">
                       <button
                         type="button"
                         onClick={() => setDevice("desktop")}
-                        className={`rounded-md p-1.5 ${device === "desktop" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+                        className={`rounded-md p-1.5 ${device === "desktop" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                         title="Desktop width"
                       >
                         <Monitor className="h-3.5 w-3.5" />
@@ -568,18 +568,18 @@ export function EmailTemplatesPanel() {
                       <button
                         type="button"
                         onClick={() => setDevice("mobile")}
-                        className={`rounded-md p-1.5 ${device === "mobile" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+                        className={`rounded-md p-1.5 ${device === "mobile" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                         title="Mobile width (375px)"
                       >
                         <Smartphone className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
-                  <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-                    <div className="border-b border-white/[0.06] px-3 py-2 text-xs text-white/50">
-                      <span className="text-white/30">Subject:</span> {interpolate(selected.subject, previewVars)}
+                  <div className="overflow-hidden rounded-xl border border-border bg-card">
+                    <div className="border-b border-border/70 px-3 py-2 text-xs text-muted-foreground">
+                      <span className="text-muted-foreground/70">Subject:</span> {interpolate(selected.subject, previewVars)}
                     </div>
-                    <div className="flex justify-center bg-[#0a0a12] p-3">
+                    <div className="flex justify-center bg-muted p-3">
                       <iframe
                         title="Email preview"
                         srcDoc={interpolate(selected.bodyHtml, previewVars)}
@@ -592,7 +592,7 @@ export function EmailTemplatesPanel() {
 
                 {/* Unresolved variables + used variables */}
                 {unresolvedVariables(interpolate(selected.bodyHtml, previewVars)).length > 0 && (
-                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-xs text-amber-200/90">
+                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-600">
                     <span className="font-medium">Placeholders that resolve to nothing:</span>{" "}
                     {unresolvedVariables(interpolate(selected.bodyHtml, previewVars)).map((n) => (
                       <code key={n} className="mx-0.5 rounded bg-amber-500/15 px-1 py-0.5 font-mono text-[11px]">{`{{${n}}}`}</code>
@@ -601,12 +601,12 @@ export function EmailTemplatesPanel() {
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Variables</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Variables</span>
                   {selected.variables.map((v) => (
                     <span
                       key={v.name}
                       title={v.description}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[11px] text-indigo-200/90"
+                      className="rounded-full border border-border bg-muted px-2.5 py-1 font-mono text-[11px] text-primary"
                     >
                       {`{{${v.name}}}`}
                     </span>
@@ -615,7 +615,7 @@ export function EmailTemplatesPanel() {
                     <button
                       type="button"
                       onClick={() => setShowVariablesManager(true)}
-                      className="rounded-full border border-dashed border-white/15 px-2.5 py-1 text-[11px] text-white/40 hover:border-indigo-500/40 hover:text-indigo-200"
+                      className="rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
                     >
                       + {variables.filter((v) => !v.isSystem && !selected.variables.some((tv) => tv.name === v.name)).length} custom available
                     </button>
@@ -626,7 +626,7 @@ export function EmailTemplatesPanel() {
               {/* ── Design tab ───────────────────────────────────────────── */}
               <TabsContent value="design" className="mt-4 space-y-4">
                 {selected.draft && (
-                  <div className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-2.5 text-xs text-amber-200/90">
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-600">
                     <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>
                       You are editing a <strong>draft</strong> (saved {formatDate(selected.draft.updatedAt)}). Nothing
@@ -636,7 +636,7 @@ export function EmailTemplatesPanel() {
                   </div>
                 )}
                 {!selected.draft && (
-                  <div className="flex items-start gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-2.5 text-xs text-white/45">
+                  <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-xs text-muted-foreground">
                     <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>Saving creates a draft — the live email keeps being sent unchanged until you publish.</span>
                   </div>
@@ -644,12 +644,12 @@ export function EmailTemplatesPanel() {
 
                 {/* Subject */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-white/60">Subject line</label>
+                  <label className="text-xs font-medium text-muted-foreground">Subject line</label>
                   <input
                     type="text"
                     value={draftSubject}
                     onChange={(e) => { setDraftSubject(e.target.value); setDirty(true); }}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
                   />
                 </div>
 
@@ -657,7 +657,7 @@ export function EmailTemplatesPanel() {
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
                   <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-white/60">
+                      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                         <PencilLine className="h-3.5 w-3.5" /> HTML body
                       </label>
                       <div className="flex items-center gap-2">
@@ -665,7 +665,7 @@ export function EmailTemplatesPanel() {
                         <button
                           type="button"
                           onClick={() => setShowSidePreview((p) => !p)}
-                          className={`hidden items-center gap-1 text-[11px] transition-colors xl:flex ${showSidePreview ? "text-white/70" : "text-white/40 hover:text-white/70"}`}
+                          className={`hidden items-center gap-1 text-[11px] transition-colors xl:flex ${showSidePreview ? "text-foreground/70" : "text-muted-foreground hover:text-foreground/70"}`}
                         >
                           <Eye className="h-3.5 w-3.5" /> {showSidePreview ? "Preview on" : "Preview off"}
                         </button>
@@ -684,15 +684,15 @@ export function EmailTemplatesPanel() {
                   {showSidePreview && (
                     <div className="min-w-0 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-white/60">
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                           <Eye className="h-3.5 w-3.5" /> Live preview
-                          <span className="font-normal text-white/30">(sample data)</span>
+                          <span className="font-normal text-muted-foreground/70">(sample data)</span>
                         </label>
-                        <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
+                        <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5">
                           <button
                             type="button"
                             onClick={() => setDevice("desktop")}
-                            className={`rounded-md p-1.5 ${device === "desktop" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+                            className={`rounded-md p-1.5 ${device === "desktop" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                             title="Desktop width"
                           >
                             <Monitor className="h-3.5 w-3.5" />
@@ -700,18 +700,18 @@ export function EmailTemplatesPanel() {
                           <button
                             type="button"
                             onClick={() => setDevice("mobile")}
-                            className={`rounded-md p-1.5 ${device === "mobile" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+                            className={`rounded-md p-1.5 ${device === "mobile" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                             title="Mobile width (375px)"
                           >
                             <Smartphone className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
-                      <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] xl:sticky xl:top-20">
-                        <div className="border-b border-white/[0.06] px-3 py-2 text-xs text-white/50">
-                          <span className="text-white/30">Subject:</span> {previewSubject}
+                      <div className="overflow-hidden rounded-xl border border-border bg-card xl:sticky xl:top-20">
+                        <div className="border-b border-border/70 px-3 py-2 text-xs text-muted-foreground">
+                          <span className="text-muted-foreground/70">Subject:</span> {previewSubject}
                         </div>
-                        <div className="flex justify-center bg-[#0a0a12] p-3">
+                        <div className="flex justify-center bg-muted p-3">
                           <iframe
                             title="Draft email preview"
                             srcDoc={previewHtml}
@@ -721,7 +721,7 @@ export function EmailTemplatesPanel() {
                         </div>
                       </div>
                       {unresolved.length > 0 && (
-                        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-[11px] text-amber-200/90">
+                        <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600">
                           <span className="font-medium">Not resolved:</span>{" "}
                           {unresolved.map((n) => (
                             <code key={n} className="mx-0.5 rounded bg-amber-500/15 px-1 font-mono">{`{{${n}}}`}</code>
@@ -733,7 +733,7 @@ export function EmailTemplatesPanel() {
                 </div>
 
                 {/* Footer actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3.5">
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -749,25 +749,25 @@ export function EmailTemplatesPanel() {
                         void discardDraft();
                       }}
                       disabled={discarding || (!dirty && !selected.draft)}
-                      className="h-8 border-white/10 text-white/60 hover:border-red-500/30 hover:text-red-300"
+                      className="h-8 text-muted-foreground hover:border-destructive/30 hover:text-destructive"
                     >
                       <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Discard draft
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] ${dirty ? "text-amber-300/90" : "text-white/30"}`}>
+                    <span className={`text-[11px] ${dirty ? "text-amber-600" : "text-muted-foreground/70"}`}>
                       {dirty ? "Unsaved changes (Ctrl/Cmd+S)" : savedFlash ? "Draft saved" : hasServerDraft ? "Draft saved — not published" : "No changes"}
                     </span>
                     <Button
                       size="sm"
                       onClick={() => void saveDraft()}
                       disabled={saving || (!dirty && hasServerDraft)}
-                      className="h-8 bg-indigo-600 hover:bg-indigo-500"
+                      className="h-8 bg-primary hover:bg-primary/90"
                     >
                       {saving ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : savedFlash ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                       ) : null}
                       {savedFlash ? "Saved" : "Save draft"}
                     </Button>
@@ -791,11 +791,11 @@ export function EmailTemplatesPanel() {
 
               {/* ── Settings & history tab ────────────────────────────────── */}
               <TabsContent value="settings" className="mt-4 space-y-4">
-                <div className="space-y-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">Use this template</p>
-                      <p className="mt-1 text-xs leading-relaxed text-white/40">
+                      <p className="text-sm font-medium text-foreground">Use this template</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                         Off = the factory default is sent instead. Content edits you publish are kept and
                         return when you switch it back on.
                       </p>
@@ -807,11 +807,11 @@ export function EmailTemplatesPanel() {
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">Restore factory default</p>
-                      <p className="mt-1 text-xs leading-relaxed text-white/40">
+                      <p className="text-sm font-medium text-foreground">Restore factory default</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                         Resets wording and design to the built-in original and deletes any draft. Your
                         customizations cannot be recovered.
                       </p>
@@ -821,7 +821,7 @@ export function EmailTemplatesPanel() {
                       size="sm"
                       onClick={() => setConfirmReset(true)}
                       disabled={discarding}
-                      className="h-8 shrink-0 border-white/10 text-white/60 hover:border-amber-500/30 hover:text-amber-300"
+                      className="h-8 shrink-0 text-muted-foreground hover:border-amber-500/30 hover:text-amber-600"
                     >
                       <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
                     </Button>
@@ -829,38 +829,38 @@ export function EmailTemplatesPanel() {
                 </div>
 
                 {/* History */}
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-                  <p className="flex items-center gap-1.5 text-sm font-medium text-white">
-                    <History className="h-4 w-4 text-white/40" /> Recent changes
+                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <History className="h-4 w-4 text-muted-foreground" /> Recent changes
                   </p>
-                  <p className="mt-1 text-xs text-white/40">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Every change that affected real recipients (publishes, resets, toggles).
                   </p>
                   {auditLoading ? (
-                    <div className="mt-3 flex items-center gap-2 text-xs text-white/40">
+                    <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading history…
                     </div>
                   ) : audit.length === 0 ? (
-                    <p className="mt-3 text-xs text-white/30">No recorded changes yet.</p>
+                    <p className="mt-3 text-xs text-muted-foreground/70">No recorded changes yet.</p>
                   ) : (
                     <ul className="mt-3 space-y-2">
                       {audit.map((a) => (
-                        <li key={a.id} className="flex items-center gap-2.5 rounded-lg border border-white/[0.05] bg-white/[0.02] px-3 py-2">
+                        <li key={a.id} className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2">
                           <span
                             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                               a.action === "publish"
-                                ? "bg-emerald-500/15 text-emerald-300"
+                                ? "bg-emerald-500/15 text-emerald-600"
                                 : a.action === "reset"
-                                  ? "bg-amber-500/15 text-amber-300"
-                                  : "bg-white/10 text-white/50"
+                                  ? "bg-amber-500/15 text-amber-600"
+                                  : "bg-muted text-muted-foreground"
                             }`}
                           >
                             {a.action}
                           </span>
-                          <span className="min-w-0 flex-1 truncate text-xs text-white/60" title={a.subject}>
+                          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={a.subject}>
                             {a.subject}
                           </span>
-                          <span className="shrink-0 text-[10px] text-white/30">{formatDate(a.createdAt)}</span>
+                          <span className="shrink-0 text-[10px] text-muted-foreground/70">{formatDate(a.createdAt)}</span>
                         </li>
                       ))}
                     </ul>
@@ -870,7 +870,7 @@ export function EmailTemplatesPanel() {
             </Tabs>
           </div>
         ) : (
-          <div className="flex h-64 items-center justify-center rounded-xl border border-white/[0.08] text-sm text-white/30">
+          <div className="flex h-64 items-center justify-center rounded-xl border border-border text-sm text-muted-foreground/70">
             Select a template to edit.
           </div>
         )}
@@ -878,15 +878,15 @@ export function EmailTemplatesPanel() {
 
       {/* ── Unsaved-changes guard ────────────────────────────────────────── */}
       <Dialog open={guardKey !== null} onOpenChange={(o) => { if (!o) setGuardKey(null); }}>
-        <DialogContent className="w-[min(28rem,92vw)] border-white/10 bg-[#0d0f1a] text-white">
+        <DialogContent className="w-[min(28rem,92vw)]">
           <DialogHeader>
             <DialogTitle className="text-base">Unsaved changes</DialogTitle>
-            <DialogDescription className="text-sm text-white/50">
+            <DialogDescription className="text-sm text-muted-foreground">
               You edited this template but have not saved the draft. Switching now discards your edits.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setGuardKey(null)} className="border-white/10">
+            <Button variant="outline" onClick={() => setGuardKey(null)}>
               Keep editing
             </Button>
             <Button
@@ -899,7 +899,7 @@ export function EmailTemplatesPanel() {
                 }
                 setGuardKey(null);
               }}
-              className="border-red-500/30 text-red-300 hover:bg-red-500/10"
+              className="border-destructive/30 text-destructive hover:bg-destructive/10"
             >
               Discard & switch
             </Button>
@@ -909,16 +909,16 @@ export function EmailTemplatesPanel() {
 
       {/* ── Publish confirmation ─────────────────────────────────────────── */}
       <Dialog open={confirmPublish} onOpenChange={setConfirmPublish}>
-        <DialogContent className="w-[min(28rem,92vw)] border-white/10 bg-[#0d0f1a] text-white">
+        <DialogContent className="w-[min(28rem,92vw)]">
           <DialogHeader>
             <DialogTitle className="text-base">Publish this template?</DialogTitle>
-            <DialogDescription className="text-sm text-white/50">
+            <DialogDescription className="text-sm text-muted-foreground">
               The draft becomes the live version — every future {selected?.name} email is sent with it.
               The previous version is replaced (recorded in history).
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmPublish(false)} className="border-white/10">
+            <Button variant="outline" onClick={() => setConfirmPublish(false)}>
               Cancel
             </Button>
             <Button
@@ -935,16 +935,16 @@ export function EmailTemplatesPanel() {
 
       {/* ── Reset confirmation ───────────────────────────────────────────── */}
       <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
-        <DialogContent className="w-[min(28rem,92vw)] border-white/10 bg-[#0d0f1a] text-white">
+        <DialogContent className="w-[min(28rem,92vw)]">
           <DialogHeader>
             <DialogTitle className="text-base">Restore factory default?</DialogTitle>
-            <DialogDescription className="text-sm text-white/50">
+            <DialogDescription className="text-sm text-muted-foreground">
               Both the live template and any draft return to the built-in original. Customizations cannot
               be recovered.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmReset(false)} className="border-white/10">
+            <Button variant="outline" onClick={() => setConfirmReset(false)}>
               Cancel
             </Button>
             <Button
@@ -961,12 +961,12 @@ export function EmailTemplatesPanel() {
 
       {/* ── Test send dialog ─────────────────────────────────────────────── */}
       <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
-        <DialogContent className="w-[min(26rem,92vw)] border-white/10 bg-[#0d0f1a] text-white">
+        <DialogContent className="w-[min(26rem,92vw)]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
-              <Mail className="h-4 w-4 text-indigo-300" /> Send a test
+              <Mail className="h-4 w-4 text-primary" /> Send a test
             </DialogTitle>
-            <DialogDescription className="text-sm text-white/50">
+            <DialogDescription className="text-sm text-muted-foreground">
               Sends the <strong>live</strong> version of “{selected?.name}” with sample data to a real inbox —
               a great final check after publishing.
             </DialogDescription>
@@ -977,10 +977,10 @@ export function EmailTemplatesPanel() {
               value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
             />
             {testResult && (
-              <p className={`text-xs ${testResult.ok ? "text-emerald-400" : "text-red-400"}`}>
+              <p className={`text-xs ${testResult.ok ? "text-emerald-600" : "text-destructive"}`}>
                 {testResult.ok
                   ? "Sent — check the inbox (and spam folder on first sends)."
                   : `Failed: ${testResult.error ?? "unknown error"}`}
@@ -988,13 +988,13 @@ export function EmailTemplatesPanel() {
             )}
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowTestDialog(false)} className="border-white/10">
+            <Button variant="outline" onClick={() => setShowTestDialog(false)}>
               Close
             </Button>
             <Button
               onClick={() => void sendTest()}
               disabled={testing || !testTo.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500"
+              className="bg-primary hover:bg-primary/90"
             >
               {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Send test

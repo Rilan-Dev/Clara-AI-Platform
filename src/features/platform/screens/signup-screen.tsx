@@ -50,8 +50,8 @@ const PLAN_META: PlanMeta[] = [
     name: "Free",
     price: "$0/mo",
     description: "For trying Clara with a small internal knowledge base.",
-    ring: "ring-1 ring-white/10",
-    color: "border-white/[0.12] bg-white/[0.05]",
+    ring: "ring-1 ring-border",
+    color: "border-border bg-muted/50",
     features: ["1 knowledge base", "25 documents", "Basic chat"],
   },
   {
@@ -69,8 +69,8 @@ const PLAN_META: PlanMeta[] = [
     price: "$149/mo",
     description: "For production assistants with higher volume and branding needs.",
     badge: "Most popular",
-    ring: "ring-2 ring-indigo-500/50",
-    color: "border-indigo-500/40 bg-indigo-600/[0.08]",
+    ring: "ring-2 ring-primary/50",
+    color: "border-primary/40 bg-primary/10",
     features: ["10 knowledge bases", "200 docs per KB", "Custom branding", "Priority support"],
   },
 ];
@@ -94,7 +94,7 @@ function getPasswordStrength(password: string) {
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
 
   if (score <= 1) return { score, label: "Weak", color: "bg-rose-500" };
-  if (score <= 3) return { score, label: "Medium", color: "bg-amber-400" };
+  if (score <= 3) return { score, label: "Medium", color: "bg-amber-500" };
   return { score, label: "Strong", color: "bg-emerald-500" };
 }
 
@@ -221,17 +221,17 @@ export default function SignupScreen() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#0a0a0f] px-4 py-10 sm:py-20 flex items-start justify-center">
+    <div className="min-h-[100dvh] bg-background px-4 py-10 sm:py-20 flex items-start justify-center">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-white text-lg">Clara AI</span>
+            <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
-          <h1 className="text-2xl font-black text-white mb-1">Create your account</h1>
-          <p className="text-white/40 text-sm">Choose a plan and get started right away</p>
+          <h1 className="text-2xl font-black text-foreground mb-1">Create your account</h1>
+          <p className="text-muted-foreground text-sm">Choose a plan and get started right away</p>
         </div>
 
         <div className="flex items-center gap-0 mb-8">
@@ -247,8 +247,8 @@ export default function SignupScreen() {
                       done
                         ? "bg-emerald-500 text-white"
                         : current
-                          ? "bg-indigo-600 text-white"
-                          : "bg-white/[0.06] text-white/30"
+                          ? "bg-primary text-white"
+                          : "bg-muted text-muted-foreground/70"
                     }`}
                   >
                     {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
@@ -256,10 +256,10 @@ export default function SignupScreen() {
                   <div
                     className={`text-[10px] mt-1 font-medium ${
                       current
-                        ? "text-white/70"
+                        ? "text-foreground/80"
                         : done
-                          ? "text-emerald-400/70"
-                          : "text-white/20"
+                          ? "text-emerald-600/70"
+                          : "text-muted-foreground/50"
                     }`}
                   >
                     {label}
@@ -268,7 +268,7 @@ export default function SignupScreen() {
                 {i < STEP_LABELS.length - 1 && (
                   <div
                     className={`h-px flex-1 mx-1 transition-colors ${
-                      done ? "bg-emerald-500/40" : "bg-white/[0.06]"
+                      done ? "bg-emerald-500/40" : "bg-border"
                     }`}
                   />
                 )}
@@ -278,17 +278,17 @@ export default function SignupScreen() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm rounded-xl px-4 py-3 mb-4">
+          <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-xl px-4 py-3 mb-4">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>
         )}
 
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+        <div className="border border-border bg-card rounded-2xl p-6">
           {step === "plan" && (
             <div>
-              <h2 className="text-lg font-bold text-white mb-1">Choose your plan</h2>
-              <p className="text-white/40 text-sm mb-5">Your selected plan starts immediately.</p>
+              <h2 className="text-lg font-bold text-foreground mb-1">Choose your plan</h2>
+              <p className="text-muted-foreground text-sm mb-5">Your selected plan starts immediately.</p>
               <div className="space-y-3">
                 {PLAN_META.map((plan) => (
                   <button
@@ -298,40 +298,40 @@ export default function SignupScreen() {
                     className={`w-full text-left border rounded-xl p-4 transition-all ${
                       form.planId === plan.id
                         ? `${plan.ring} ${plan.color}`
-                        : "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.05]"
+                        : "border-border bg-card hover:bg-muted/50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                            form.planId === plan.id ? "border-indigo-400" : "border-white/20"
+                            form.planId === plan.id ? "border-primary" : "border-muted-foreground/60"
                           }`}
                         >
-                          {form.planId === plan.id && <div className="w-2 h-2 rounded-full bg-indigo-400" />}
+                          {form.planId === plan.id && <div className="w-2 h-2 rounded-full bg-primary" />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-sm">{plan.name}</span>
+                            <span className="font-bold text-foreground text-sm">{plan.name}</span>
                             {plan.badge && (
-                              <span className="text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">
+                              <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                 {plan.badge}
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-white/40">{plan.description}</div>
+                          <div className="text-xs text-muted-foreground">{plan.description}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-black text-white">{plan.price}</div>
-                        <div className="text-xs text-white/30">after trial</div>
+                        <div className="text-sm font-black text-foreground">{plan.price}</div>
+                        <div className="text-xs text-muted-foreground/70">after trial</div>
                       </div>
                     </div>
                     {form.planId === plan.id && (
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t border-white/[0.06]">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border">
                         {plan.features.map((feature) => (
-                          <span key={feature} className="text-xs text-white/50 flex items-center gap-1">
-                            <Check className="w-3 h-3 text-emerald-400" />
+                          <span key={feature} className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" />
                             {feature}
                           </span>
                         ))}
@@ -342,7 +342,7 @@ export default function SignupScreen() {
               </div>
               <Link
                 href="/pricing"
-                className="block text-center text-xs text-indigo-400 hover:text-indigo-300 mt-4 transition-colors"
+                className="block text-center text-xs text-primary hover:text-primary/80 mt-4 transition-colors"
               >
                 Compare all plans -&gt;
               </Link>
@@ -351,33 +351,33 @@ export default function SignupScreen() {
 
           {step === "account" && (
             <div>
-              <h2 className="text-lg font-bold text-white mb-1">Your account</h2>
-              <p className="text-white/40 text-sm mb-5">This will be your admin login.</p>
+              <h2 className="text-lg font-bold text-foreground mb-1">Your account</h2>
+              <p className="text-muted-foreground text-sm mb-5">This will be your admin login.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Full name</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Full name</label>
                   <input
                     type="text"
                     value={form.fullName}
                     onChange={set("fullName")}
                     placeholder="Jane Smith"
                     autoComplete="name"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Work email</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Work email</label>
                   <input
                     type="email"
                     value={form.email}
                     onChange={set("email")}
                     placeholder="jane@company.com"
                     autoComplete="email"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Password</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Password</label>
                   <div className="relative">
                     <input
                       type={showPw ? "text" : "password"}
@@ -385,12 +385,12 @@ export default function SignupScreen() {
                       onChange={set("password")}
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
-                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPw((current) => !current)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground"
                     >
                       {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -402,7 +402,7 @@ export default function SignupScreen() {
                           <div
                             key={index}
                             className={`h-1 flex-1 rounded-full transition-colors ${
-                              index <= pwStrength.score ? pwStrength.color : "bg-white/10"
+                              index <= pwStrength.score ? pwStrength.color : "bg-muted"
                             }`}
                           />
                         ))}
@@ -410,10 +410,10 @@ export default function SignupScreen() {
                       <span
                         className={`text-xs font-medium ${
                           pwStrength.score >= 4
-                            ? "text-emerald-400"
+                            ? "text-emerald-600"
                             : pwStrength.score >= 2
-                              ? "text-amber-400"
-                              : "text-rose-400"
+                              ? "text-amber-600"
+                              : "text-destructive"
                         }`}
                       >
                         {pwStrength.label}
@@ -422,7 +422,7 @@ export default function SignupScreen() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Confirm password</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm password</label>
                   <div className="relative">
                     <input
                       type={showCpw ? "text" : "password"}
@@ -430,22 +430,22 @@ export default function SignupScreen() {
                       onChange={set("confirmPassword")}
                       placeholder="Repeat password"
                       autoComplete="new-password"
-                      className={`w-full bg-white/[0.05] border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none transition-colors ${
+                      className={`w-full bg-muted/50 border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none transition-colors ${
                         form.confirmPassword && form.confirmPassword !== form.password
-                          ? "border-rose-500/60"
-                          : "border-white/10 focus:border-indigo-500"
+                          ? "border-destructive/60"
+                          : "border-border focus:border-primary"
                       }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowCpw((current) => !current)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground"
                     >
                       {showCpw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   {form.confirmPassword && form.confirmPassword !== form.password && (
-                    <p className="text-xs text-rose-400 mt-1">Passwords do not match</p>
+                    <p className="text-xs text-destructive mt-1">Passwords do not match</p>
                   )}
                 </div>
               </div>
@@ -454,25 +454,25 @@ export default function SignupScreen() {
 
           {step === "org" && (
             <div>
-              <h2 className="text-lg font-bold text-white mb-1">Your organisation</h2>
-              <p className="text-white/40 text-sm mb-5">This is your workspace name on Clara AI.</p>
+              <h2 className="text-lg font-bold text-foreground mb-1">Your organisation</h2>
+              <p className="text-muted-foreground text-sm mb-5">This is your workspace name on Clara AI.</p>
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Organisation name</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Organisation name</label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
                   <input
                     type="text"
                     value={form.orgName}
                     onChange={set("orgName")}
                     placeholder="Acme Corp"
                     autoComplete="organization"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-muted/50 border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 {form.orgName.trim() && (
-                  <p className="text-xs text-white/30 mt-1.5">
+                  <p className="text-xs text-muted-foreground/70 mt-1.5">
                     Slug:{" "}
-                    <span className="text-white/50 font-mono">
+                    <span className="text-muted-foreground font-mono">
                       {form.orgName
                         .trim()
                         .toLowerCase()
@@ -482,15 +482,15 @@ export default function SignupScreen() {
                   </p>
                 )}
               </div>
-              <div className="mt-5 border border-white/[0.06] bg-white/[0.02] rounded-xl p-4 space-y-2">
-                <div className="text-xs font-medium text-white/40 mb-2">Summary so far</div>
+              <div className="mt-5 border border-border/70 bg-surface rounded-xl p-4 space-y-2">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Summary so far</div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/40">Plan</span>
-                  <span className="text-white font-medium">{selectedPlan.name}</span>
+                  <span className="text-muted-foreground">Plan</span>
+                  <span className="text-foreground font-medium">{selectedPlan.name}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/40">Email</span>
-                  <span className="text-white/70 truncate max-w-[180px]">{form.email}</span>
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="text-foreground/80 truncate max-w-[180px]">{form.email}</span>
                 </div>
               </div>
             </div>
@@ -498,8 +498,8 @@ export default function SignupScreen() {
 
           {step === "review" && (
             <div>
-              <h2 className="text-lg font-bold text-white mb-1">Review &amp; confirm</h2>
-              <p className="text-white/40 text-sm mb-5">
+              <h2 className="text-lg font-bold text-foreground mb-1">Review &amp; confirm</h2>
+              <p className="text-muted-foreground text-sm mb-5">
                 {form.planId === "free"
                   ? "Everything look right? Click create to get started."
                   : "Everything look right? You'll choose your payment method next to activate your plan."}
@@ -517,21 +517,21 @@ export default function SignupScreen() {
                 ].map((row) => (
                   <div
                     key={row.label}
-                    className="flex items-center gap-3 border border-white/[0.06] bg-white/[0.02] rounded-xl px-4 py-3"
+                    className="flex items-center gap-3 border border-border/70 bg-surface rounded-xl px-4 py-3"
                   >
-                    <row.icon className="w-4 h-4 text-indigo-400 shrink-0" />
-                    <span className="text-xs text-white/40 w-24 shrink-0">{row.label}</span>
-                    <span className="text-sm text-white/80 truncate">{row.value}</span>
+                    <row.icon className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-xs text-muted-foreground w-24 shrink-0">{row.label}</span>
+                    <span className="text-sm text-foreground/80 truncate">{row.value}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-white/25 mt-4 leading-relaxed">
+              <p className="text-xs text-muted-foreground/70 mt-4 leading-relaxed">
                 By creating an account you agree to our{" "}
-                <Link href="/terms" className="text-indigo-400 hover:text-indigo-300">
+                <Link href="/terms" className="text-primary hover:text-primary/80">
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300">
+                <Link href="/privacy" className="text-primary hover:text-primary/80">
                   Privacy Policy
                 </Link>
                 .
@@ -544,7 +544,7 @@ export default function SignupScreen() {
               <button
                 type="button"
                 onClick={back}
-                className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white transition-colors px-3 py-2.5"
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2.5"
               >
                 <ArrowLeft className="w-4 h-4" /> Back
               </button>
@@ -554,7 +554,7 @@ export default function SignupScreen() {
               <button
                 type="button"
                 onClick={next}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all"
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2.5 rounded-xl text-sm transition-all"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -563,7 +563,7 @@ export default function SignupScreen() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all"
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-semibold px-6 py-2.5 rounded-xl text-sm transition-all"
               >
                 {loading ? (
                   "Creating account..."
@@ -581,9 +581,9 @@ export default function SignupScreen() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-white/25 mt-5">
+        <p className="text-center text-xs text-muted-foreground/70 mt-5">
           Already have an account?{" "}
-          <Link href="/login" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+          <Link href="/login" className="text-primary hover:text-primary/80 transition-colors">
             Sign in
           </Link>
         </p>

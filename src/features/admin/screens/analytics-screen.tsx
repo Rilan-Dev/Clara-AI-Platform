@@ -82,10 +82,10 @@ const RANGE_LABELS: Record<DateRange, string> = { "7d": "7 days", "30d": "30 day
 const AUDIT_PAGE_SIZE = 50;
 
 const SURFACE_BADGES: Record<string, { label: string; cls: string }> = {
-  workspace: { label: "Workspace", cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25" },
-  embed:    { label: "Widget",     cls: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25" },
-  voice:    { label: "Voice",      cls: "bg-violet-500/15 text-violet-300 border-violet-500/25" },
-  search:   { label: "API",        cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" },
+  workspace: { label: "Workspace", cls: "bg-primary/10 text-primary border-primary/25" },
+  embed:    { label: "Widget",     cls: "bg-sky-500/10 text-sky-600 border-sky-500/25" },
+  voice:    { label: "Voice",      cls: "bg-secondary/10 text-secondary border-secondary/25" },
+  search:   { label: "API",        cls: "bg-emerald-500/10 text-emerald-600 border-emerald-600/25" },
 };
 
 function rangeParams(range: DateRange) {
@@ -118,15 +118,15 @@ const CHART_COLORS = {
   success:   "#10b981",
   warning:   "#f59e0b",
   danger:    "#f43f5e",
-  grid:      "rgba(255,255,255,0.05)",
-  text:      "rgba(255,255,255,0.4)",
+  grid:      "#e2e8f0",
+  text:      "#64748b",
 };
 
 const tooltipStyle = {
-  backgroundColor: "#111118",
-  border:          "1px solid rgba(255,255,255,0.1)",
+  backgroundColor: "#ffffff",
+  border:          "1px solid #e2e8f0",
   borderRadius:    "10px",
-  color:           "#fff",
+  color:           "#1e293b",
   fontSize:        "12px",
 };
 
@@ -257,14 +257,14 @@ export default function AnalyticsScreen() {
   const ut = usageData?.summary;
 
   const kpiCards = [
-    { label: "Total Queries",   value: qt?.total_queries?.toLocaleString()  ?? "—", sub: RANGE_LABELS[range],              icon: MessageSquare, color: "text-violet-400" },
-    { label: "Unique Queries",  value: qt?.unique_queries?.toLocaleString() ?? "—", sub: "Distinct question patterns",      icon: Zap,           color: "text-cyan-400"   },
-    { label: "Avg Latency",     value: qt?.avg_latency ? `${qt.avg_latency}ms` : "—", sub: "End-to-end RAG response",      icon: Clock,         color: "text-amber-400"  },
-    { label: "Active KBs",      value: qt?.active_kbs?.toLocaleString()     ?? "—", sub: "Received at least 1 query",      icon: Database,      color: "text-indigo-400" },
-    { label: "MRR",             value: rt?.mrr ? `$${rt.mrr.toLocaleString()}` : "—", sub: `${rt?.paying_orgs ?? 0} paying orgs`, icon: TrendingUp, color: "text-emerald-400" },
-    { label: "Total Orgs",      value: ut?.total_orgs?.toLocaleString()     ?? "—", sub: `${ut?.total_users ?? 0} users`,  icon: Users,         color: "text-rose-400"   },
-    { label: "Documents",       value: ut?.total_docs?.toLocaleString()     ?? "—", sub: fmtBytes(ut?.total_storage ?? 0), icon: Globe,         color: "text-orange-400" },
-    { label: "Knowledge Bases", value: ut?.total_kbs?.toLocaleString()      ?? "—", sub: "Active across all orgs",          icon: BarChart3,     color: "text-pink-400"   },
+    { label: "Total Queries",   value: qt?.total_queries?.toLocaleString()  ?? "—", sub: RANGE_LABELS[range],              icon: MessageSquare, color: "text-violet-600" },
+    { label: "Unique Queries",  value: qt?.unique_queries?.toLocaleString() ?? "—", sub: "Distinct question patterns",      icon: Zap,           color: "text-sky-600"     },
+    { label: "Avg Latency",     value: qt?.avg_latency ? `${qt.avg_latency}ms` : "—", sub: "End-to-end RAG response",      icon: Clock,         color: "text-amber-600"  },
+    { label: "Active KBs",      value: qt?.active_kbs?.toLocaleString()     ?? "—", sub: "Received at least 1 query",      icon: Database,      color: "text-primary"    },
+    { label: "MRR",             value: rt?.mrr ? `$${rt.mrr.toLocaleString()}` : "—", sub: `${rt?.paying_orgs ?? 0} paying orgs`, icon: TrendingUp, color: "text-emerald-600" },
+    { label: "Total Orgs",      value: ut?.total_orgs?.toLocaleString()     ?? "—", sub: `${ut?.total_users ?? 0} users`,  icon: Users,         color: "text-rose-600"   },
+    { label: "Documents",       value: ut?.total_docs?.toLocaleString()     ?? "—", sub: fmtBytes(ut?.total_storage ?? 0), icon: Globe,         color: "text-orange-600" },
+    { label: "Knowledge Bases", value: ut?.total_kbs?.toLocaleString()      ?? "—", sub: "Active across all orgs",          icon: BarChart3,     color: "text-pink-600"   },
   ];
 
   return (
@@ -273,21 +273,21 @@ export default function AnalyticsScreen() {
       {/* ── Header — mobile: title row + controls wrap to their own row ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-2xl font-bold text-white">Platform Analytics</h1>
-          <p className="hidden sm:block text-white/40 text-sm mt-0.5">Real-time metrics across all organisations</p>
+          <h1 className="text-lg sm:text-2xl font-bold text-foreground">Platform Analytics</h1>
+          <p className="hidden sm:block text-muted-foreground/70 text-sm mt-0.5">Real-time metrics across all organisations</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex gap-1 bg-white/[0.04] border border-white/[0.08] rounded-xl p-1">
+          <div className="flex gap-1 bg-muted/50 border border-border rounded-xl p-1">
             {(["7d","30d","90d","180d"] as DateRange[]).map(r => (
               <button key={r} onClick={() => setRange(r)}
-                className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all ${range === r ? "bg-indigo-600 text-white" : "text-white/40 hover:text-white"}`}>
+                className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all ${range === r ? "bg-indigo-600 text-white" : "text-muted-foreground/70 hover:text-foreground"}`}>
                 {r}
               </button>
             ))}
           </div>
           <button onClick={() => load(range)}
             aria-label="Refresh analytics"
-            className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-lg transition-all">
+            className="flex items-center gap-2 text-xs text-muted-foreground/70 hover:text-foreground border border-border hover:border-foreground/20 px-3 py-2 rounded-lg transition-all">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
@@ -296,61 +296,61 @@ export default function AnalyticsScreen() {
       {/* ── KPI Grid ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {kpiCards.map(c => (
-          <div key={c.label} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4">
+          <div key={c.label} className="border border-border bg-card rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-white/40">{c.label}</span>
+              <span className="text-xs text-muted-foreground/70">{c.label}</span>
               <c.icon className={`w-4 h-4 ${c.color}`} />
             </div>
-            <div className="text-xl font-black text-white mb-0.5">
-              {loading ? <div className="h-6 w-16 bg-white/[0.06] rounded animate-pulse" /> : c.value}
+            <div className="text-xl font-black text-foreground mb-0.5">
+              {loading ? <div className="h-6 w-16 bg-muted rounded animate-pulse" /> : c.value}
             </div>
-            <div className="text-xs text-white/25">{c.sub}</div>
+            <div className="text-xs text-muted-foreground/50">{c.sub}</div>
           </div>
         ))}
       </div>
 
       {/* ── Health Panel ── */}
       {health && (
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
+        <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-              <Server className="w-4 h-4 text-amber-400" /> Platform Health
+            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+              <Server className="w-4 h-4 text-amber-600" /> Platform Health
             </h3>
-            <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${health.status === "healthy" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
+            <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${health.status === "healthy" ? "bg-emerald-500/10 text-emerald-600 border-emerald-600/20" : "bg-amber-500/10 text-amber-600 border-amber-600/20"}`}>
               {health.status === "healthy" ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
               {health.status === "healthy" ? "All systems operational" : "Degraded"}
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
-              { label: "Uptime",     value: health.uptime.human,                 icon: Activity,  color: "text-emerald-400" },
-              { label: "DB latency", value: `${health.checks.database.latencyMs}ms`, icon: Database, color: health.checks.database.status === "ok" ? "text-emerald-400" : "text-rose-400" },
-              { label: "Qdrant",     value: health.checks.qdrant.status === "unconfigured" ? "n/a" : `${health.checks.qdrant.latencyMs}ms`, icon: Zap, color: "text-cyan-400" },
-              { label: "Heap used",  value: `${health.memory.heapUsedMb} MB`,    icon: Cpu,       color: "text-violet-400" },
-              { label: "API resp.",  value: `${health.responseMs}ms`,             icon: Clock,     color: "text-amber-400" },
+              { label: "Uptime",     value: health.uptime.human,                 icon: Activity,  color: "text-emerald-600" },
+              { label: "DB latency", value: `${health.checks.database.latencyMs}ms`, icon: Database, color: health.checks.database.status === "ok" ? "text-emerald-600" : "text-rose-600" },
+              { label: "Qdrant",     value: health.checks.qdrant.status === "unconfigured" ? "n/a" : `${health.checks.qdrant.latencyMs}ms`, icon: Zap, color: "text-sky-600" },
+              { label: "Heap used",  value: `${health.memory.heapUsedMb} MB`,    icon: Cpu,       color: "text-violet-600" },
+              { label: "API resp.",  value: `${health.responseMs}ms`,             icon: Clock,     color: "text-amber-600" },
             ].map(h => (
-              <div key={h.label} className="bg-white/[0.03] rounded-xl p-3">
+              <div key={h.label} className="bg-muted/50 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
                   <h.icon className={`w-3.5 h-3.5 ${h.color}`} />
-                  <span className="text-xs text-white/40">{h.label}</span>
+                  <span className="text-xs text-muted-foreground/70">{h.label}</span>
                 </div>
                 <div className={`text-sm font-bold ${h.color}`}>{h.value}</div>
               </div>
             ))}
           </div>
           {health.checks.database.pool.total !== null && (
-            <div className="mt-3 flex gap-4 text-xs text-white/30">
-              <span>DB pool — Total: <span className="text-white/60">{health.checks.database.pool.total}</span></span>
-              <span>Idle: <span className="text-white/60">{health.checks.database.pool.idle}</span></span>
-              <span>Waiting: <span className="text-white/60">{health.checks.database.pool.waiting}</span></span>
-              {health.checks.qdrant.url && <span>Qdrant: <span className="text-white/60 font-mono">{health.checks.qdrant.url}</span></span>}
+            <div className="mt-3 flex gap-4 text-xs text-muted-foreground/70">
+              <span>DB pool — Total: <span className="text-muted-foreground">{health.checks.database.pool.total}</span></span>
+              <span>Idle: <span className="text-muted-foreground">{health.checks.database.pool.idle}</span></span>
+              <span>Waiting: <span className="text-muted-foreground">{health.checks.database.pool.waiting}</span></span>
+              {health.checks.qdrant.url && <span>Qdrant: <span className="text-muted-foreground font-mono">{health.checks.qdrant.url}</span></span>}
             </div>
           )}
         </div>
       )}
 
       {/* ── Tab bar — scrollable chips on mobile (app-style segmented control) ── */}
-      <div className="flex gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-none rail-fade-r sm:[mask-image:none] sm:[-webkit-mask-image:none] border-b border-white/[0.06]">
+      <div className="flex gap-1 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-none rail-fade-r sm:[mask-image:none] sm:[-webkit-mask-image:none] border-b border-border">
         {([
           { id: "queries", label: "Query Analytics", icon: MessageSquare },
           { id: "revenue", label: "Revenue",         icon: TrendingUp    },
@@ -358,7 +358,7 @@ export default function AnalyticsScreen() {
           { id: "audit",   label: "Query Audit",     icon: FileSearch    },
         ] as { id: typeof tab; label: string; icon: React.ElementType }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 border-b-2 transition-all -mb-px whitespace-nowrap ${tab === t.id ? "border-indigo-500 text-white" : "border-transparent text-white/40 hover:text-white/70"}`}>
+            className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 border-b-2 transition-all -mb-px whitespace-nowrap ${tab === t.id ? "border-primary text-foreground" : "border-transparent text-muted-foreground/70 hover:text-foreground"}`}>
             <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
@@ -369,12 +369,12 @@ export default function AnalyticsScreen() {
         <div className="space-y-6">
 
           {/* Query volume area chart */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-            <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-violet-400" /> Query Volume Over Time
+          <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
+            <h3 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-violet-600" /> Query Volume Over Time
             </h3>
             {loading || !queryData?.timeSeries.length ? (
-              <div className="h-52 flex items-center justify-center text-white/20 text-sm">
+              <div className="h-52 flex items-center justify-center text-muted-foreground/50 text-sm">
                 {loading ? "Loading chart…" : "No data for this period"}
               </div>
             ) : (
@@ -399,34 +399,34 @@ export default function AnalyticsScreen() {
           <div className="grid lg:grid-cols-2 gap-6">
 
             {/* Top Queries */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-                <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-indigo-400" /> Top Queries
+            <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-border/70 flex items-center justify-between">
+                <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" /> Top Queries
                 </h3>
-                <span className="text-xs text-white/30">by frequency</span>
+                <span className="text-xs text-muted-foreground/70">by frequency</span>
               </div>
               {loading ? (
-                <div className="p-5 space-y-3">{Array(5).fill(0).map((_,i) => <div key={i} className="h-10 bg-white/[0.04] rounded animate-pulse" />)}</div>
+                <div className="p-5 space-y-3">{Array(5).fill(0).map((_,i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}</div>
               ) : !queryData?.topQueries.length ? (
-                <div className="px-5 py-12 text-center text-white/25 text-sm">No queries in this period</div>
+                <div className="px-5 py-12 text-center text-muted-foreground/50 text-sm">No queries in this period</div>
               ) : (
-                <div className="divide-y divide-white/[0.04]">
+                <div className="divide-y divide-border/70">
                   {queryData.topQueries.map((q, i) => {
                     const pct = Math.round((q.count / (queryData.topQueries[0]?.count ?? 1)) * 100);
                     return (
-                      <div key={i} className="px-5 py-3 hover:bg-white/[0.02] transition-colors">
+                      <div key={i} className="px-5 py-3 hover:bg-muted/50 transition-colors">
                         <div className="flex items-start justify-between gap-3 mb-1.5">
-                          <span className="text-sm text-white/80 truncate flex-1">&quot;{q.query_text}&quot;</span>
+                          <span className="text-sm text-foreground/80 truncate flex-1">&quot;{q.query_text}&quot;</span>
                           <div className="text-right shrink-0">
-                            <span className="text-sm font-bold text-indigo-400">{q.count}</span>
-                            {q.avg_latency && <span className="text-xs text-white/25 ml-2">{q.avg_latency}ms</span>}
+                            <span className="text-sm font-bold text-primary">{q.count}</span>
+                            {q.avg_latency && <span className="text-xs text-muted-foreground/50 ml-2">{q.avg_latency}ms</span>}
                           </div>
                         </div>
-                        <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500/50 rounded-full" style={{ width: `${pct}%` }} />
+                        <div className="h-1 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary/50 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                        {q.orgs > 1 && <span className="text-xs text-white/25">{q.orgs} orgs</span>}
+                        {q.orgs > 1 && <span className="text-xs text-muted-foreground/50">{q.orgs} orgs</span>}
                       </div>
                     );
                   })}
@@ -435,12 +435,12 @@ export default function AnalyticsScreen() {
             </div>
 
             {/* Hourly distribution */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-              <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-400" /> Hourly Activity Pattern
+            <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
+              <h3 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600" /> Hourly Activity Pattern
               </h3>
               {loading || !queryData?.hourlyDist.length ? (
-                <div className="h-52 flex items-center justify-center text-white/20 text-sm">{loading ? "Loading…" : "No data"}</div>
+                <div className="h-52 flex items-center justify-center text-muted-foreground/50 text-sm">{loading ? "Loading…" : "No data"}</div>
               ) : (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={queryData.hourlyDist} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -464,27 +464,27 @@ export default function AnalyticsScreen() {
           {/* Revenue KPI strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "MRR",         value: `$${(rt?.mrr         ?? 0).toLocaleString()}`, color: "text-emerald-400" },
-              { label: "ARR (est.)",  value: `$${(rt?.arr         ?? 0).toLocaleString()}`, color: "text-indigo-400" },
-              { label: "Paying orgs", value: (rt?.paying_orgs ?? 0).toString(),              color: "text-cyan-400"   },
-              { label: "Trial orgs",  value: (rt?.trial_orgs  ?? 0).toString(),              color: "text-amber-400"  },
+              { label: "MRR",         value: `$${(rt?.mrr         ?? 0).toLocaleString()}`, color: "text-emerald-600" },
+              { label: "ARR (est.)",  value: `$${(rt?.arr         ?? 0).toLocaleString()}`, color: "text-primary" },
+              { label: "Paying orgs", value: (rt?.paying_orgs ?? 0).toString(),              color: "text-sky-600"     },
+              { label: "Trial orgs",  value: (rt?.trial_orgs  ?? 0).toString(),              color: "text-amber-600"  },
             ].map(c => (
-              <div key={c.label} className="border border-white/[0.08] bg-white/[0.03] rounded-xl p-4">
-                <div className="text-xs text-white/40 mb-2">{c.label}</div>
+              <div key={c.label} className="border border-border bg-card rounded-xl p-4 shadow-sm">
+                <div className="text-xs text-muted-foreground/70 mb-2">{c.label}</div>
                 <div className={`text-xl sm:text-2xl font-black ${c.color}`}>
-                  {loading ? <div className="h-7 w-20 bg-white/[0.06] rounded animate-pulse" /> : c.value}
+                  {loading ? <div className="h-7 w-20 bg-muted rounded animate-pulse" /> : c.value}
                 </div>
               </div>
             ))}
           </div>
 
           {/* MRR trend */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-            <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" /> MRR Trend
+          <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
+            <h3 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-600" /> MRR Trend
             </h3>
             {loading || !revenueData?.mrrTrend.length ? (
-              <div className="h-52 flex items-center justify-center text-white/20 text-sm">{loading ? "Loading…" : "No revenue data"}</div>
+              <div className="h-52 flex items-center justify-center text-muted-foreground/50 text-sm">{loading ? "Loading…" : "No revenue data"}</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={revenueData.mrrTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -503,12 +503,12 @@ export default function AnalyticsScreen() {
           <div className="grid lg:grid-cols-2 gap-6">
 
             {/* Plan distribution */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-              <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-indigo-400" /> Plan Distribution
+            <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
+              <h3 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" /> Plan Distribution
               </h3>
               {loading ? (
-                <div className="space-y-3">{Array(4).fill(0).map((_,i) => <div key={i} className="h-8 bg-white/[0.04] rounded animate-pulse" />)}</div>
+                <div className="space-y-3">{Array(4).fill(0).map((_,i) => <div key={i} className="h-8 bg-muted rounded animate-pulse" />)}</div>
               ) : (
                 <div className="space-y-3">
                   {(revenueData?.planDist ?? []).map(p => {
@@ -517,10 +517,10 @@ export default function AnalyticsScreen() {
                     return (
                       <div key={p.plan_id}>
                         <div className="flex justify-between text-xs mb-1.5">
-                          <span className="text-white/70 font-medium capitalize">{p.plan_name}</span>
-                          <span className="text-white/40">{p.count} orgs · {pct}%{p.mrr > 0 ? ` · $${p.mrr.toLocaleString()}/mo` : ""}</span>
+                          <span className="text-foreground/80 font-medium capitalize">{p.plan_name}</span>
+                          <span className="text-muted-foreground/70">{p.count} orgs · {pct}%{p.mrr > 0 ? ` · $${p.mrr.toLocaleString()}/mo` : ""}</span>
                         </div>
-                        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: PLAN_COLOR[p.plan_id] ?? "#6366f1" }} />
                         </div>
                       </div>
@@ -531,12 +531,12 @@ export default function AnalyticsScreen() {
             </div>
 
             {/* Billing events */}
-            <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-              <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-                <ArrowUpRight className="w-4 h-4 text-cyan-400" /> Payment Events
+            <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
+              <h3 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
+                <ArrowUpRight className="w-4 h-4 text-sky-600" /> Payment Events
               </h3>
               {loading || !revenueData?.billingTimeline.length ? (
-                <div className="h-44 flex items-center justify-center text-white/20 text-sm">{loading ? "Loading…" : "No payment events in period"}</div>
+                <div className="h-44 flex items-center justify-center text-muted-foreground/50 text-sm">{loading ? "Loading…" : "No payment events in period"}</div>
               ) : (
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={revenueData.billingTimeline} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -558,32 +558,32 @@ export default function AnalyticsScreen() {
         <div className="space-y-6">
 
           {/* Top KBs */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5">
-            <h3 className="font-semibold text-white text-sm mb-4 flex items-center gap-2">
-              <Database className="w-4 h-4 text-cyan-400" /> Top Knowledge Bases
+          <div className="border border-border bg-card rounded-2xl p-5 shadow-sm">
+            <h3 className="font-semibold text-foreground text-sm mb-4 flex items-center gap-2">
+              <Database className="w-4 h-4 text-sky-600" /> Top Knowledge Bases
             </h3>
             {loading ? (
-              <div className="space-y-2">{Array(4).fill(0).map((_,i) => <div key={i} className="h-10 bg-white/[0.04] rounded animate-pulse" />)}</div>
+              <div className="space-y-2">{Array(4).fill(0).map((_,i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}</div>
             ) : !usageData?.topKbs.length ? (
-              <div className="py-8 text-center text-white/25 text-sm">No KB activity in this period</div>
+              <div className="py-8 text-center text-muted-foreground/50 text-sm">No KB activity in this period</div>
             ) : (
               <div className="grid md:grid-cols-2 gap-3">
                 {usageData.topKbs.map(kb => {
                   const pct = Math.round((kb.query_count / (usageData.topKbs[0]?.query_count ?? 1)) * 100);
                   return (
-                    <div key={kb.kb_id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+                    <div key={kb.kb_id} className="bg-muted/50 border border-border/70 rounded-xl p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <div className="text-sm font-medium text-white">{kb.kb_name}</div>
-                          <div className="text-xs text-white/30">{kb.org_name} · {kb.doc_count} docs</div>
+                          <div className="text-sm font-medium text-foreground">{kb.kb_name}</div>
+                          <div className="text-xs text-muted-foreground/70">{kb.org_name} · {kb.doc_count} docs</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-bold text-indigo-400">{kb.query_count.toLocaleString()}</div>
-                          {kb.avg_latency && <div className="text-xs text-white/25">{kb.avg_latency}ms avg</div>}
+                          <div className="text-sm font-bold text-primary">{kb.query_count.toLocaleString()}</div>
+                          {kb.avg_latency && <div className="text-xs text-muted-foreground/50">{kb.avg_latency}ms avg</div>}
                         </div>
                       </div>
-                      <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-500/40 rounded-full" style={{ width: `${pct}%` }} />
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary/40 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
@@ -593,36 +593,36 @@ export default function AnalyticsScreen() {
           </div>
 
           {/* Per-org usage — desktop table, mobile cards */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
-              <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-                <Globe className="w-4 h-4 text-violet-400" /> Organisation Usage
+          <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-4 sm:px-5 py-4 border-b border-border/70 flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                <Globe className="w-4 h-4 text-violet-600" /> Organisation Usage
               </h3>
-              <span className="text-xs text-white/30 shrink-0">{RANGE_LABELS[range]}</span>
+              <span className="text-xs text-muted-foreground/70 shrink-0">{RANGE_LABELS[range]}</span>
             </div>
 
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-white/[0.03]">
-                  <tr className="text-xs text-white/40 text-left">
+                <thead className="bg-muted/50">
+                  <tr className="text-xs text-muted-foreground/70 text-left">
                     {["Organisation","Plan","KBs","Docs","Storage","Queries","Avg Latency","Users"].map(h => (
                       <th key={h} className="px-4 py-3 font-medium whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.04]">
+                <tbody className="divide-y divide-border/70">
                   {loading
                     ? Array(5).fill(0).map((_,i) => (
                         <tr key={i}>
-                          {Array(8).fill(0).map((_,j) => <td key={j} className="px-4 py-3"><div className="h-4 bg-white/[0.04] rounded animate-pulse" /></td>)}
+                          {Array(8).fill(0).map((_,j) => <td key={j} className="px-4 py-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>)}
                         </tr>
                       ))
                     : (usageData?.orgUsage ?? []).map(org => (
-                        <tr key={org.org_id} className="hover:bg-white/[0.02] transition-colors">
+                        <tr key={org.org_id} className="hover:bg-muted/50 transition-colors">
                           <td className="px-4 py-3">
-                            <div className="text-sm font-medium text-white">{org.org_name}</div>
-                            <div className="text-xs text-white/25 font-mono">{org.org_slug}</div>
+                            <div className="text-sm font-medium text-foreground">{org.org_name}</div>
+                            <div className="text-xs text-muted-foreground/50 font-mono">{org.org_slug}</div>
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
@@ -630,36 +630,36 @@ export default function AnalyticsScreen() {
                               {org.plan_name}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/60">{org.kb_count}</td>
-                          <td className="px-4 py-3 text-sm text-white/60">{org.doc_count}</td>
-                          <td className="px-4 py-3 text-sm text-white/60">{fmtBytes(org.storage_bytes)}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-indigo-400">{org.query_count.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-white/40">{org.avg_latency ? `${org.avg_latency}ms` : "—"}</td>
-                          <td className="px-4 py-3 text-sm text-white/60">{org.user_count}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{org.kb_count}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{org.doc_count}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{fmtBytes(org.storage_bytes)}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-primary">{org.query_count.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground/70">{org.avg_latency ? `${org.avg_latency}ms` : "—"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{org.user_count}</td>
                         </tr>
                       ))}
                 </tbody>
               </table>
               {!loading && !usageData?.orgUsage.length && (
-                <div className="px-5 py-12 text-center text-white/25 text-sm">No usage data found</div>
+                <div className="px-5 py-12 text-center text-muted-foreground/50 text-sm">No usage data found</div>
               )}
             </div>
 
             {/* Mobile org usage cards */}
-            <div className="md:hidden divide-y divide-white/[0.04]">
+            <div className="md:hidden divide-y divide-border/70">
               {loading
                 ? Array(4).fill(0).map((_, i) => (
                     <div key={i} className="px-4 py-4 space-y-2">
-                      <div className="h-4 w-1/2 bg-white/[0.04] rounded animate-pulse" />
-                      <div className="h-3 w-2/3 bg-white/[0.04] rounded animate-pulse" />
+                      <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+                      <div className="h-3 w-2/3 bg-muted rounded animate-pulse" />
                     </div>
                   ))
                 : (usageData?.orgUsage ?? []).map(org => (
                     <div key={org.org_id} className="px-4 py-4">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{org.org_name}</p>
-                          <p className="text-[11px] text-white/25 font-mono truncate">{org.org_slug}</p>
+                          <p className="text-sm font-medium text-foreground truncate">{org.org_name}</p>
+                          <p className="text-[11px] text-muted-foreground/50 font-mono truncate">{org.org_slug}</p>
                         </div>
                         <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium capitalize"
                           style={{ backgroundColor: `${PLAN_COLOR[org.plan_id] ?? "#6366f1"}20`, color: PLAN_COLOR[org.plan_id] ?? "#6366f1" }}>
@@ -676,16 +676,16 @@ export default function AnalyticsScreen() {
                           ["Storage", fmtBytes(org.storage_bytes)],
                           ["Latency", org.avg_latency ? `${org.avg_latency}ms` : "—"],
                         ].map(([label, value]) => (
-                          <div key={label as string} className="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center">
-                            <div className="text-[13px] font-semibold text-white truncate">{value}</div>
-                            <div className="text-[10px] text-white/30">{label}</div>
+                          <div key={label as string} className="rounded-lg bg-muted/50 px-2 py-1.5 text-center">
+                            <div className="text-[13px] font-semibold text-foreground truncate">{value}</div>
+                            <div className="text-[10px] text-muted-foreground/70">{label}</div>
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
               {!loading && !usageData?.orgUsage.length && (
-                <div className="px-5 py-12 text-center text-white/25 text-sm">No usage data found</div>
+                <div className="px-5 py-12 text-center text-muted-foreground/50 text-sm">No usage data found</div>
               )}
             </div>
           </div>
@@ -697,20 +697,20 @@ export default function AnalyticsScreen() {
         <div className="space-y-4">
 
           {/* Filter bar — org filter + free-text search */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
+          <div className="border border-border bg-card rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-muted-foreground/70 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 value={auditSearch}
                 onChange={(e) => setAuditSearch(e.target.value)}
                 placeholder="Search questions, answers, knowledge bases…"
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-indigo-500/40 transition-colors"
+                className="w-full bg-muted/50 border border-border rounded-xl pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/40 transition-colors"
               />
             </div>
             <select
               value={auditOrg}
               onChange={(e) => setAuditOrg(e.target.value)}
-              className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500/40 transition-colors max-w-full sm:w-56"
+              className="bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/40 transition-colors max-w-full sm:w-56"
             >
               <option value="">All organisations</option>
               {(auditData?.orgs ?? []).map(o => (
@@ -720,7 +720,7 @@ export default function AnalyticsScreen() {
             <button
               onClick={() => loadAudit()}
               aria-label="Refresh audit feed"
-              className="flex items-center justify-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2.5 rounded-xl transition-all shrink-0"
+              className="flex items-center justify-center gap-2 text-xs text-muted-foreground/70 hover:text-foreground border border-border hover:border-foreground/20 px-4 py-2.5 rounded-xl transition-all shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${auditLoading ? "animate-spin" : ""}`} /> Refresh
             </button>
@@ -730,7 +730,7 @@ export default function AnalyticsScreen() {
               disabled={chainBusy}
               aria-label="Verify audit hash chain integrity"
               title="Recompute the tamper-evident hash chain"
-              className="flex items-center justify-center gap-2 text-xs text-emerald-300/80 hover:text-emerald-200 border border-emerald-500/20 hover:border-emerald-500/40 px-4 py-2.5 rounded-xl transition-all shrink-0 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 text-xs text-emerald-600/80 hover:text-emerald-600 border border-emerald-600/20 hover:border-emerald-600/40 px-4 py-2.5 rounded-xl transition-all shrink-0 disabled:opacity-50"
             >
               <ShieldCheck className={`w-3.5 h-3.5 ${chainBusy ? "animate-pulse" : ""}`} /> Verify integrity
             </button>
@@ -739,7 +739,7 @@ export default function AnalyticsScreen() {
               disabled={exportBusy}
               aria-label="Export audit trail as CSV"
               title="Download the filtered audit trail as CSV"
-              className="flex items-center justify-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2.5 rounded-xl transition-all shrink-0 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 text-xs text-muted-foreground/70 hover:text-foreground border border-border hover:border-foreground/20 px-4 py-2.5 rounded-xl transition-all shrink-0 disabled:opacity-50"
             >
               <Download className={`w-3.5 h-3.5 ${exportBusy ? "animate-pulse" : ""}`} /> Export CSV
             </button>
@@ -751,8 +751,8 @@ export default function AnalyticsScreen() {
               role="status"
               className={`rounded-2xl border px-4 py-3 text-xs flex items-center justify-between gap-3 ${
                 chainResult.integrity === "intact"
-                  ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"
-                  : "border-rose-500/20 bg-rose-500/5 text-rose-300"
+                  ? "border-emerald-600/20 bg-emerald-500/5 text-emerald-600"
+                  : "border-destructive/20 bg-destructive/5 text-destructive"
               }`}
             >
               <span className="flex items-center gap-2">
@@ -775,35 +775,35 @@ export default function AnalyticsScreen() {
           )}
 
           {/* Audit list */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
-              <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-                <FileSearch className="w-4 h-4 text-rose-400" /> Prompts &amp; AI Answers
+          <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-4 sm:px-5 py-4 border-b border-border/70 flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                <FileSearch className="w-4 h-4 text-rose-600" /> Prompts &amp; AI Answers
               </h3>
-              <span className="text-xs text-white/30 shrink-0">
+              <span className="text-xs text-muted-foreground/70 shrink-0">
                 {auditData ? `${auditData.total.toLocaleString()} total · ${RANGE_LABELS[range]}` : ""}
               </span>
             </div>
 
             {auditLoading && !auditData ? (
               <div className="p-5 space-y-3">
-                {Array(6).fill(0).map((_, i) => <div key={i} className="h-16 bg-white/[0.04] rounded-xl animate-pulse" />)}
+                {Array(6).fill(0).map((_, i) => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
               </div>
             ) : !auditData?.rows.length ? (
               <div className="px-5 py-16 text-center">
-                <FileSearch className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                <p className="text-sm text-white/30">No logged conversations in this period</p>
-                <p className="text-xs text-white/20 mt-1">
+                <FileSearch className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground/70">No logged conversations in this period</p>
+                <p className="text-xs text-muted-foreground/50 mt-1">
                   Every workspace, widget and voice question is recorded here with its answer.
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.04]">
+              <div className="divide-y divide-border/70">
                 {auditData.rows.map(row => {
-                  const surface = SURFACE_BADGES[row.surface] ?? { label: row.surface, cls: "bg-white/10 text-white/50 border-white/15" };
+                  const surface = SURFACE_BADGES[row.surface] ?? { label: row.surface, cls: "bg-muted text-muted-foreground border-border" };
                   const open = expandedRow === row.id;
                   return (
-                    <div key={row.id} className="px-4 sm:px-5 py-4 hover:bg-white/[0.02] transition-colors">
+                    <div key={row.id} className="px-4 sm:px-5 py-4 hover:bg-muted/50 transition-colors">
                       <button
                         onClick={() => setExpandedRow(open ? null : row.id)}
                         className="w-full text-left"
@@ -811,13 +811,13 @@ export default function AnalyticsScreen() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             {/* Question */}
-                            <p className="text-sm text-white/85 leading-snug">
-                              <span className="text-white/30 mr-1.5 font-medium">Q:</span>
+                            <p className="text-sm text-foreground/80 leading-snug">
+                              <span className="text-muted-foreground/70 mr-1.5 font-medium">Q:</span>
                               {row.question}
                             </p>
                             {/* Answer preview */}
-                            <p className={`text-[13px] text-white/45 mt-1 leading-relaxed ${open ? "" : "line-clamp-1"}`}>
-                              <span className="text-white/30 mr-1.5 font-medium">A:</span>
+                            <p className={`text-[13px] text-muted-foreground mt-1 leading-relaxed ${open ? "" : "line-clamp-1"}`}>
+                              <span className="text-muted-foreground/70 mr-1.5 font-medium">A:</span>
                               {row.answer
                                 ? (open ? row.answer : row.answer.replace(/\s+/g, " ").slice(0, 200) + (row.answer.length > 200 ? "…" : ""))
                                 : <span className="italic">{row.status === "error" ? "Stream failed — no answer captured" : "Answer pending…"}</span>}
@@ -827,24 +827,24 @@ export default function AnalyticsScreen() {
                             <div className="flex items-center gap-1.5">
                               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
                               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                                row.status === "ok" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : row.status === "error" ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                : "bg-amber-500/10 text-amber-300 border-amber-500/20"}`}>
+                                row.status === "ok" ? "bg-emerald-500/10 text-emerald-600 border-emerald-600/20"
+                                : row.status === "error" ? "bg-destructive/10 text-destructive border-destructive/20"
+                                : "bg-amber-500/10 text-amber-600 border-amber-600/20"}`}>
                                 {row.status}
                               </span>
                             </div>
-                            <span className="text-[10px] text-white/25">
+                            <span className="text-[10px] text-muted-foreground/50">
                               {new Date(row.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                             </span>
                           </div>
                         </div>
                       </button>
                       {open && (
-                        <div className="mt-3 pt-3 border-t border-white/[0.06] flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/35">
-                          <span>Org: <span className="text-white/60">{row.org_name ?? "—"}</span></span>
-                          <span>KB: <span className="text-white/60">{row.kb_name ?? "—"}</span></span>
-                          <span>User: <span className="text-white/60">{row.user_email ?? "anonymous visitor"}</span></span>
-                          {row.latency_ms != null && <span>Latency: <span className="text-white/60">{row.latency_ms}ms</span></span>}
+                        <div className="mt-3 pt-3 border-t border-border/70 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground/70">
+                          <span>Org: <span className="text-muted-foreground">{row.org_name ?? "—"}</span></span>
+                          <span>KB: <span className="text-muted-foreground">{row.kb_name ?? "—"}</span></span>
+                          <span>User: <span className="text-muted-foreground">{row.user_email ?? "anonymous visitor"}</span></span>
+                          {row.latency_ms != null && <span>Latency: <span className="text-muted-foreground">{row.latency_ms}ms</span></span>}
                         </div>
                       )}
                     </div>
@@ -855,11 +855,11 @@ export default function AnalyticsScreen() {
 
             {/* Load more */}
             {auditData?.hasMore && (
-              <div className="px-5 py-4 border-t border-white/[0.06] flex justify-center">
+              <div className="px-5 py-4 border-t border-border/70 flex justify-center">
                 <button
                   onClick={() => loadAudit({ offset: auditData.rows.length, append: true })}
                   disabled={auditLoading}
-                  className="text-xs text-white/50 hover:text-white border border-white/10 hover:border-white/25 px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+                  className="text-xs text-muted-foreground hover:text-foreground border border-border hover:border-foreground/25 px-4 py-2 rounded-lg transition-all disabled:opacity-50"
                 >
                   {auditLoading ? "Loading…" : `Load more (${(auditData.total - auditData.rows.length).toLocaleString()} remaining)`}
                 </button>

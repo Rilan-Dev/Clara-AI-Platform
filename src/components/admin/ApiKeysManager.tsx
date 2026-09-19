@@ -258,7 +258,7 @@ function EditKeyModal({ kbId, apiKey, onClose, onUpdated }: {
               </div>
               <button onClick={() => setDesignEdit(v => !v)}
                 className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-                  designEdit ? "bg-indigo-600" : "bg-muted-foreground/30"
+                  designEdit ? "bg-primary" : "bg-muted-foreground/30"
                 }`}>
                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
                   designEdit ? "translate-x-4" : "translate-x-1"
@@ -525,8 +525,8 @@ await updateDesign({
         </p>
       )}
       {tab === "design" && designEditEnabled && (
-        <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-2.5 space-y-1">
-          <p className="text-xs font-medium text-indigo-400">✨ Design API is enabled for this key</p>
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 space-y-1">
+          <p className="text-xs font-medium text-primary">✨ Design API is enabled for this key</p>
           <p className="text-xs text-muted-foreground">Changes via <code className="bg-muted px-1 rounded">PATCH /api/embed/design</code> take effect immediately — live for all visitors within seconds. Only widget appearance fields are accepted. AI behaviour (prompts, model, rules) can only be changed from the admin panel.</p>
         </div>
       )}
@@ -646,7 +646,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
                       {key.keyPrefix}••••••••••••••••••••••••••••••••••••
                     </code>
                     {key.designEditEnabled && (
-                      <Badge variant="outline" className="text-xs border-indigo-500/30 bg-indigo-500/5 text-indigo-400">
+                      <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">
                         Design API ✨
                       </Badge>
                     )}

@@ -27,9 +27,9 @@ const VoiceSandboxPreview = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08]
-        bg-white/[0.02] px-5 py-6 text-sm text-white/35">
-        <span className="h-4 w-4 animate-spin rounded-full border border-white/20 border-t-white/60"/>
+      <div className="flex items-center gap-3 rounded-2xl border border-border
+        bg-card px-5 py-6 text-sm text-muted-foreground shadow-sm">
+        <span className="h-4 w-4 animate-spin rounded-full border border-primary/40 border-t-primary"/>
         Loading voice preview…
       </div>
     ),
@@ -462,11 +462,11 @@ function generateCustomCss(d: WidgetDesign): string {
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
     <div className="flex items-center gap-2.5 pt-4 pb-1">
-      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/15 border border-indigo-500/20">
-        <Icon className="h-3.5 w-3.5 text-indigo-300" />
+      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
+        <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{label}</span>
-      <div className="flex-1 h-px bg-white/[0.05]" />
+      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
@@ -489,12 +489,12 @@ function ColourInput({ value, onChange, placeholder }: {
     <div className="flex items-center gap-2">
       <input type="color" value={isHex ? value : "#888888"}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-10 cursor-pointer rounded-lg border border-white/10 bg-transparent p-0.5 shrink-0" />
+        className="h-8 w-10 cursor-pointer rounded-lg border border-input bg-transparent p-0.5 shrink-0" />
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "e.g. #6366f1 or leave empty for auto"}
-        className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-1.5
-          text-sm font-mono text-white/80 placeholder-white/25
-          focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30" />
+        className="flex-1 min-w-0 rounded-lg border border-input bg-background px-3 py-1.5
+          text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60
+          focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30" />
     </div>
   );
 }
@@ -507,12 +507,12 @@ function RangeInput({ value, min, max, step = 1, unit = "", onChange }: {
     <div className="flex items-center gap-3">
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 accent-indigo-500 cursor-pointer h-1.5" />
+        className="flex-1 accent-primary cursor-pointer h-1.5" />
       <input type="number" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value))))}
-        className="w-16 rounded-lg border border-white/[0.1] bg-white/[0.04] px-2 py-1
-          text-center text-sm font-mono text-white/80 focus:border-indigo-500/50 focus:outline-none" />
-      {unit && <span className="text-xs text-white/40 w-5 shrink-0">{unit}</span>}
+        className="w-16 rounded-lg border border-input bg-background px-2 py-1
+          text-center text-sm font-mono text-foreground/80 focus:border-primary/50 focus:outline-none" />
+      {unit && <span className="text-xs text-muted-foreground w-5 shrink-0">{unit}</span>}
     </div>
   );
 }
@@ -523,9 +523,9 @@ function TextInput({ value, onChange, placeholder, mono }: {
   return (
     <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-        text-sm text-white/80 placeholder-white/25
-        focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30
+      className={`w-full rounded-lg border border-input bg-background px-3 py-2
+        text-sm text-foreground/80 placeholder:text-muted-foreground/60
+        focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30
         ${mono ? "font-mono text-xs" : ""}`} />
   );
 }
@@ -536,12 +536,12 @@ function Toggle({ value, onChange, label, hint }: {
   return (
     <div className="flex items-center justify-between gap-4 py-0.5">
       <div>
-        <p className="text-xs font-medium text-white/65">{label}</p>
-        {hint && <p className="text-[11px] text-white/30 leading-snug">{hint}</p>}
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {hint && <p className="text-[11px] text-muted-foreground/70 leading-snug">{hint}</p>}
       </div>
       <button onClick={() => onChange(!value)}
         className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors
-          ${value ? "bg-indigo-600" : "bg-white/[0.12]"}`}>
+          ${value ? "bg-primary" : "bg-muted-foreground/30"}`}>
         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform
           ${value ? "translate-x-4" : "translate-x-1"}`} />
       </button>
@@ -559,8 +559,8 @@ function SegmentedControl<T extends string>({ value, options, onChange, small }:
         <button key={opt.value} onClick={() => onChange(opt.value)}
           className={`flex-1 rounded-lg border py-2 transition-all ${small ? "text-xs" : "text-sm"} ${
             value === opt.value
-              ? "border-indigo-500/50 bg-indigo-600/20 text-indigo-300 font-medium"
-              : "border-white/[0.1] bg-white/[0.03] text-white/45 hover:text-white hover:border-white/20"
+              ? "border-primary/50 bg-primary/10 text-primary font-medium"
+              : "border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
           }`}>
           {opt.label}
         </button>
@@ -574,8 +574,8 @@ function SelectInput({ value, options, onChange }: {
 }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-        text-sm text-white/80 focus:border-indigo-500/50 focus:outline-none cursor-pointer">
+      className="w-full rounded-lg border border-input bg-background px-3 py-2
+        text-sm text-foreground/80 focus:border-primary/50 focus:outline-none cursor-pointer">
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
@@ -701,7 +701,7 @@ function WidgetPreview({ design: d }: { design: WidgetDesign }) {
   return (
     <div style={{ fontFamily: d.widgetFontFamily, height: panelH, borderRadius: d.widgetBorderRadius,
         display: "flex", flexDirection: "column", overflow: "hidden" }}
-      className="border border-white/[0.1] shadow-2xl">
+      className="border border-border shadow-xl">
       <style>{dynCss}</style>
 
       {/* Header — background uses explicit inline style so it always wins over CSS classes */}
@@ -1044,17 +1044,17 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
   }, [origin, postMsg]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
-      <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border/70 bg-muted/50 px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-white">Live Sandbox Preview</p>
-          <p className="text-xs text-white/40">
-            Powered by <code className="bg-white/10 rounded px-1">/embed/widget</code> - 
+          <p className="text-sm font-semibold text-foreground">Live Sandbox Preview</p>
+          <p className="text-xs text-muted-foreground">
+            Powered by <code className="bg-muted rounded px-1">/embed/widget</code> - 
             shell-free widget renderer with live unsaved design tokens
           </p>
         </div>
         <div className="flex gap-1.5 items-center">
-          <span className="text-[10px] text-emerald-400/70 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">
+          <span className="text-[10px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">
             Synced ✓
           </span>
           {["rose-400/70","amber-300/70","emerald-400/70"].map((c) => (
@@ -1148,8 +1148,8 @@ function ControlsPanel({ d, set }: {
           <textarea value={d.welcomeMessage} rows={2}
             onChange={(e) => set("welcomeMessage", e.target.value)}
             placeholder="Hi! How can I help you today?"
-            className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm
-              text-white/80 placeholder-white/25 focus:border-indigo-500/50 focus:outline-none resize-none" />
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm
+              text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none resize-none" />
         </Field>
         <Field label="Avatar image URL" hint="A direct link to your logo or avatar image (PNG, JPG, WebP). Leave blank to show the initial letter of the assistant name instead.">
           <TextInput value={d.avatarUrl} onChange={(v) => set("avatarUrl", v)}
@@ -1187,8 +1187,8 @@ function ControlsPanel({ d, set }: {
           <textarea value={d.customHeaderHtml} rows={2}
             onChange={(e) => set("customHeaderHtml", e.target.value)}
             placeholder={'Example: <button style="color:#fff;background:none;border:none;cursor:pointer">✕ Close</button>'}
-            className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-              text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none" />
+            className="w-full rounded-lg border border-input bg-background px-3 py-2
+              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none" />
         </Field>
       </div>
 
@@ -1358,8 +1358,8 @@ function ControlsPanel({ d, set }: {
               <textarea value={d.customFooterHtml} rows={2}
                 onChange={(e) => set("customFooterHtml", e.target.value)}
                 placeholder={'Example: <a href="https://yoursite.com" style="color:#6366f1">My Brand</a>'}
-                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-                  text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none" />
+                className="w-full rounded-lg border border-input bg-background px-3 py-2
+                  text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none" />
             </Field>
           </>
         )}
@@ -1382,16 +1382,16 @@ function ControlsPanel({ d, set }: {
           <textarea value={d.customLauncherSvg} rows={3}
             onChange={(e) => set("customLauncherSvg", e.target.value)}
             placeholder={'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>'}
-            className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-              text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none" />
+            className="w-full rounded-lg border border-input bg-background px-3 py-2
+              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none" />
         </Field>
       </div>
 
       <SectionHeader icon={Mic} label="Voice Mode Design" />
       <div className="space-y-3 pb-2">
-        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 mb-1">
-          <p className="text-xs text-white/60 leading-relaxed">
-            <strong className="text-white/90">Voice button styling.</strong>{" "}
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 mb-1">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-foreground">Voice button styling.</strong>{" "}
             The voice button appears in the input area when voice is enabled for this assistant.
             Enable voice in the AI Settings tab. Design it here.
           </p>
@@ -1877,26 +1877,26 @@ function AdvancedCodePanel({ d, set, kbId }: {
   return (
     <div className="space-y-4">
       {/* Info bar */}
-      <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3">
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <Code2 className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0" />
-            <div className="text-xs text-white/60 leading-relaxed space-y-1">
+            <Code2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
               <div>
-                <strong className="text-white/90">Full design control via code.</strong>{" "}
+                <strong className="text-foreground">Full design control via code.</strong>{" "}
                 Editors are pre-filled from your Visual Controls. All editors support{" "}
-                <strong className="text-indigo-300">TypeScript</strong>,{" "}
-                <strong className="text-cyan-300">Tailwind CSS</strong>, and plain CSS/HTML.
+                <strong className="text-primary">TypeScript</strong>,{" "}
+                <strong className="text-primary">Tailwind CSS</strong>, and plain CSS/HTML.
               </div>
-              <div className="text-white/40">
-                💡 <strong className="text-white/60">widget.html</strong> = full interactive HTML template with Tailwind CDN + JS controller ·{" "}
-                <strong className="text-white/60">widget.ts</strong> = TypeScript API access with full type definitions
+              <div className="text-muted-foreground/70">
+                💡 <strong className="text-foreground/70">widget.html</strong> = full interactive HTML template with Tailwind CDN + JS controller ·{" "}
+                <strong className="text-foreground/70">widget.ts</strong> = TypeScript API access with full type definitions
               </div>
             </div>
           </div>
           <button onClick={resync}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30
-              bg-indigo-600/10 px-3 py-1.5 text-xs text-indigo-300 hover:bg-indigo-600/20 transition-all">
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-primary/30
+              bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20 transition-all">
             <Wand2 className="h-3 w-3" /> Sync from visual
           </button>
         </div>
@@ -1905,12 +1905,12 @@ function AdvancedCodePanel({ d, set, kbId }: {
       {/* Capability badges */}
       <div className="flex flex-wrap gap-2">
         {[
-          { label:"TypeScript", color:"text-blue-300 bg-blue-500/10 border-blue-500/20" },
-          { label:"Tailwind CSS", color:"text-cyan-300 bg-cyan-500/10 border-cyan-500/20" },
-          { label:"CSS Variables", color:"text-purple-300 bg-purple-500/10 border-purple-500/20" },
-          { label:"HTML Templates", color:"text-orange-300 bg-orange-500/10 border-orange-500/20" },
-          { label:"Event Hooks", color:"text-yellow-300 bg-yellow-500/10 border-yellow-500/20" },
-          { label:"Monaco Editor", color:"text-green-300 bg-green-500/10 border-green-500/20" },
+          { label:"TypeScript", color:"text-sky-600 bg-sky-500/10 border-sky-500/20" },
+          { label:"Tailwind CSS", color:"text-primary bg-primary/10 border-primary/20" },
+          { label:"CSS Variables", color:"text-secondary bg-secondary/10 border-secondary/20" },
+          { label:"HTML Templates", color:"text-orange-600 bg-orange-500/10 border-orange-500/20" },
+          { label:"Event Hooks", color:"text-amber-600 bg-amber-500/10 border-amber-500/20" },
+          { label:"Monaco Editor", color:"text-emerald-600 bg-emerald-500/10 border-emerald-500/20" },
         ].map(({ label, color }) => (
           <span key={label} className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${color}`}>
             {label}
@@ -1919,13 +1919,13 @@ function AdvancedCodePanel({ d, set, kbId }: {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-xl bg-[#0b1020] p-1.5">
+        <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-xl bg-muted p-1.5">
           {tabs.map(({ value, label, hint, icon }) => (
             <TabsTrigger key={value} value={value}
               className="flex flex-col items-start rounded-lg bg-transparent px-3 py-2 text-left min-w-0
-                data-[state=active]:bg-indigo-600/20 data-[state=active]:text-indigo-200
-                data-[state=active]:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]
-                text-white/45 hover:text-white transition-all">
+                data-[state=active]:bg-primary/10 data-[state=active]:text-primary
+                data-[state=active]:shadow-[inset_0_0_0_1px_rgba(79,70,229,0.3)]
+                text-muted-foreground hover:text-foreground transition-all">
               <span className="text-xs font-semibold">{icon} {label}</span>
               <span className="text-[10px] opacity-55">{hint}</span>
             </TabsTrigger>
@@ -1940,21 +1940,21 @@ function AdvancedCodePanel({ d, set, kbId }: {
             language="css" value={d.customThemeCss}
             onChange={(v) => set("customThemeCss", v)}
             path={`inmemory://widget/${kbId}/theme.css`} height={500} minimap />
-          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-            <p className="text-[11px] font-semibold text-white/40 mb-2 uppercase tracking-widest">Target these CSS classes</p>
+          <div className="mt-3 rounded-xl border border-border bg-muted/50 p-3">
+            <p className="text-[11px] font-semibold text-muted-foreground/70 mb-2 uppercase tracking-widest">Target these CSS classes</p>
             <div className="grid grid-cols-2 gap-1">
               {[".clara-widget",".clara-header",".clara-header-name",".clara-header-status",".clara-avatar",
                 ".clara-messages",".clara-msg-user",".clara-msg-bot",".clara-timestamp",
                 ".clara-sources",".clara-typing",".clara-typing-dot",
                 ".clara-input-area",".clara-textarea",".clara-send-btn",".clara-send-icon",".clara-branding",
               ].map((cls) => (
-                <span key={cls} className="text-[11px] font-mono text-indigo-300/80 rounded bg-white/[0.04] px-2 py-0.5">{cls}</span>
+                <span key={cls} className="text-[11px] font-mono text-primary/80 rounded bg-muted px-2 py-0.5">{cls}</span>
               ))}
             </div>
-            <p className="text-[11px] font-semibold text-white/40 mt-3 mb-2 uppercase tracking-widest">CSS Variables</p>
+            <p className="text-[11px] font-semibold text-muted-foreground/70 mt-3 mb-2 uppercase tracking-widest">CSS Variables</p>
             <div className="grid grid-cols-2 gap-1">
               {["--clara-primary","--clara-accent","--clara-radius","--clara-font","--clara-header-h","--clara-msg-gap"].map((v) => (
-                <span key={v} className="text-[11px] font-mono text-emerald-300/80 rounded bg-white/[0.04] px-2 py-0.5">{v}</span>
+                <span key={v} className="text-[11px] font-mono text-emerald-600/80 rounded bg-muted px-2 py-0.5">{v}</span>
               ))}
             </div>
           </div>
@@ -1962,16 +1962,16 @@ function AdvancedCodePanel({ d, set, kbId }: {
 
         {/* ── widget.html — full HTML + Tailwind + JS template (LOCAL-ONLY, not saved to DB) ── */}
         <TabsContent value="widget" className="mt-4">
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 mb-3">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 mb-3">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-xs text-cyan-200/80 leading-relaxed">
-                <strong className="text-cyan-200">🌐 Full HTML Widget Template</strong> — generated from your Visual Controls.
-                Includes <strong className="text-cyan-100">Tailwind CDN</strong>, all CSS variables, and a complete JS controller.
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <strong className="text-primary">🌐 Full HTML Widget Template</strong> — generated from your Visual Controls.
+                Includes <strong className="text-primary">Tailwind CDN</strong>, all CSS variables, and a complete JS controller.
                 The live iframe preview on the right shows exactly how it renders with Tailwind classes loaded.
               </p>
               <button onClick={copyWidgetHtml}
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30
-                  bg-cyan-600/10 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-600/20 transition-all">
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-primary/30
+                  bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20 transition-all">
                 {widgetHtmlCopied ? <><Check className="h-3 w-3" /> Copied!</> : <>📋 Copy code</>}
               </button>
             </div>
@@ -1990,15 +1990,15 @@ function AdvancedCodePanel({ d, set, kbId }: {
             {/* Live Tailwind iframe preview */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live HTML Preview</p>
-                <span className="text-[10px] text-cyan-400/70 bg-cyan-500/10 border border-cyan-500/20 rounded px-2 py-0.5">Tailwind loaded ✓</span>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Live HTML Preview</p>
+                <span className="text-[10px] text-primary/80 bg-primary/10 border border-primary/20 rounded px-2 py-0.5">Tailwind loaded ✓</span>
               </div>
-              <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
-                <div className="flex items-center gap-1.5 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="flex items-center gap-1.5 border-b border-border/70 bg-muted/50 px-3 py-2">
                   {["rose-400/70","amber-300/70","emerald-400/70"].map((c) => (
                     <span key={c} className={`h-2 w-2 rounded-full bg-${c}`} />
                   ))}
-                  <span className="ml-2 text-[10px] text-white/30">widget.html — live render</span>
+                  <span className="ml-2 text-[10px] text-muted-foreground/70">widget.html — live render</span>
                 </div>
                 <iframe
                   title="Widget HTML preview"
@@ -2008,27 +2008,27 @@ function AdvancedCodePanel({ d, set, kbId }: {
                   sandbox="allow-scripts allow-same-origin"
                 />
               </div>
-              <p className="text-[11px] text-white/25 text-center">
+              <p className="text-[11px] text-muted-foreground/70 text-center">
                 Renders the actual HTML with Tailwind CDN. Edit the code → see it live.
               </p>
             </div>
           </div>
-          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center gap-2">
-            <span className="text-[11px] text-amber-300/80">💡</span>
-            <span className="text-[11px] text-white/40">
-              This template is <strong className="text-white/60">not saved to the database</strong> — use{" "}
-              <strong className="text-white/60">&quot;Sync from visual&quot;</strong> to regenerate from your Visual Controls at any time.
-              Tailwind classes like <code className="bg-white/10 rounded px-1">rounded-2xl</code>, <code className="bg-white/10 rounded px-1">shadow-xl</code>, <code className="bg-white/10 rounded px-1">bg-indigo-600</code> all work.
+          <div className="mt-3 rounded-xl border border-border bg-muted/50 px-4 py-2.5 flex items-center gap-2">
+            <span className="text-[11px] text-amber-600">💡</span>
+            <span className="text-[11px] text-muted-foreground">
+              This template is <strong className="text-foreground/70">not saved to the database</strong> — use{" "}
+              <strong className="text-foreground/70">&quot;Sync from visual&quot;</strong> to regenerate from your Visual Controls at any time.
+              Tailwind classes like <code className="bg-muted rounded px-1">rounded-2xl</code>, <code className="bg-muted rounded px-1">shadow-xl</code>, <code className="bg-muted rounded px-1">bg-indigo-600</code> all work.
             </span>
           </div>
         </TabsContent>
 
         {/* ── widget.ts — TypeScript API access ── */}
         <TabsContent value="typescript" className="mt-4">
-          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 mb-4">
-            <p className="text-xs text-blue-200/80 leading-relaxed">
-              <strong className="text-blue-200">🔷 TypeScript Widget Controller</strong> — full type definitions are loaded into Monaco.
-              Get autocomplete for <code className="bg-white/10 rounded px-1 text-[11px]">window.ClaraWidget</code>, <code className="bg-white/10 rounded px-1 text-[11px]">window.ClaraHooks</code>, message types, and all widget API methods.
+          <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3 mb-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-sky-600">🔷 TypeScript Widget Controller</strong> — full type definitions are loaded into Monaco.
+              Get autocomplete for <code className="bg-muted rounded px-1 text-[11px]">window.ClaraWidget</code>, <code className="bg-muted rounded px-1 text-[11px]">window.ClaraHooks</code>, message types, and all widget API methods.
             </p>
           </div>
           <LiveCodeEditor
@@ -2038,8 +2038,8 @@ function AdvancedCodePanel({ d, set, kbId }: {
             onChange={(v) => set("customInjectJs", v)}
             path={`inmemory://widget/${kbId}/widget.ts`} height={500} minimap
             typescriptExtraLibs={tsLibs} />
-          <div className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-            <p className="text-[11px] font-semibold text-white/40 mb-2 uppercase tracking-widest">Available TypeScript APIs</p>
+          <div className="mt-3 rounded-xl border border-border bg-muted/50 p-3">
+            <p className="text-[11px] font-semibold text-muted-foreground/70 mb-2 uppercase tracking-widest">Available TypeScript APIs</p>
             <div className="grid grid-cols-2 gap-1">
               {[
                 "window.ClaraWidget.open()",
@@ -2055,7 +2055,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
                 "window.ClaraHooks.onClose",
                 "window.ClaraHooks.onError",
               ].map((api) => (
-                <span key={api} className="text-[11px] font-mono text-blue-300/80 rounded bg-white/[0.04] px-2 py-0.5 truncate">{api}</span>
+                <span key={api} className="text-[11px] font-mono text-sky-600/80 rounded bg-muted px-2 py-0.5 truncate">{api}</span>
               ))}
             </div>
           </div>
@@ -2105,8 +2105,8 @@ function AdvancedCodePanel({ d, set, kbId }: {
             onChange={(v) => set("customInjectJs", v)}
             path={`inmemory://widget/${kbId}/hooks.ts`} height={460} minimap
             typescriptExtraLibs={tsLibs} />
-          <p className="mt-3 text-xs text-amber-300/70 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-            <strong className="text-amber-200">Note:</strong> Hook code runs on the visitor&apos;s page. TypeScript is transpiled at runtime. Errors are silently caught.
+          <p className="mt-3 text-xs text-amber-600 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+            <strong className="text-amber-700">Note:</strong> Hook code runs on the visitor&apos;s page. TypeScript is transpiled at runtime. Errors are silently caught.
           </p>
         </TabsContent>
       </Tabs>
@@ -2339,7 +2339,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
 //                 <p className="text-xs text-white/35 mt-0.5">Reflects every change instantly. Try sending a message!</p>
 //               </div>
 //               <button onClick={() => setSandbox(!sandbox)}
-//                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
+//                 className="inline-flex items-center gap-1.5 rounded-lg border border-input
 //                   bg-white/[0.03] px-3 py-1.5 text-xs text-white/50 hover:text-white hover:bg-white/[0.06]">
 //                 <Monitor className="h-3.5 w-3.5" />
 //                 {sandbox ? "Hide embed preview" : "Show embed preview"}
@@ -2384,7 +2384,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
 //             <div className="space-y-2">
 //               <div className="flex items-center gap-2">
 //                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">React Preview</p>
-//                 <span className="text-[10px] bg-white/[0.05] border border-white/10 rounded px-2 py-0.5 text-white/40">
+//                 <span className="text-[10px] bg-white/[0.05] border border-input rounded px-2 py-0.5 text-white/40">
 //                   Instant · in-page
 //                 </span>
 //               </div>
@@ -2518,13 +2518,13 @@ function Sec({ icon: Icon, label }: { icon: React.ElementType; label: string }) 
   return (
     <div className="flex items-center gap-2.5 pt-4 pb-1">
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md
-        bg-indigo-500/15 border border-indigo-500/20">
-        <Icon className="h-3.5 w-3.5 text-indigo-300" />
+        bg-primary/10 border border-primary/20">
+        <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
-      <div className="flex-1 h-px bg-white/[0.05]" />
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
@@ -2534,11 +2534,11 @@ function Field({ label, hint, example, children }: {
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-medium text-white/70">{label}</label>
+      <label className="block text-xs font-medium text-muted-foreground">{label}</label>
       {children}
-      {hint    && <p className="text-[11px] text-white/35 leading-snug">{hint}</p>}
+      {hint    && <p className="text-[11px] text-muted-foreground/70 leading-snug">{hint}</p>}
       {example && (
-        <p className="text-[11px] text-indigo-300/60 leading-snug">
+        <p className="text-[11px] text-primary/80 leading-snug">
           <span className="font-semibold">Example:</span> {example}
         </p>
       )}
@@ -2555,14 +2555,14 @@ function ColourPicker({ value, onChange, placeholder }: {
       <input type="color"
         value={isHex ? value : "#6366f1"}
         onChange={e => onChange(e.target.value)}
-        className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-white/10
+        className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-input
           bg-transparent p-0.5" />
       <input type="text" value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "e.g. #6366f1"}
-        className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-white/[0.04]
-          px-3 py-1.5 text-sm font-mono text-white/80 placeholder-white/20
-          focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30" />
+        className="flex-1 min-w-0 rounded-lg border border-input bg-background
+          px-3 py-1.5 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60
+          focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30" />
     </div>
   );
 }
@@ -2575,12 +2575,12 @@ function Slider({ value, min, max, step = 1, unit = "", onChange }: {
     <div className="flex items-center gap-3">
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className="flex-1 accent-indigo-500 cursor-pointer" />
+        className="flex-1 accent-primary cursor-pointer" />
       <input type="number" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Math.min(Math.max(Number(e.target.value), min), max))}
-        className="w-16 rounded-lg border border-white/[0.1] bg-white/[0.04] px-2 py-1
-          text-center text-sm font-mono text-white/80 focus:border-indigo-500/50 focus:outline-none" />
-      {unit && <span className="text-xs text-white/40 w-6 shrink-0">{unit}</span>}
+        className="w-16 rounded-lg border border-input bg-background px-2 py-1
+          text-center text-sm font-mono text-foreground/80 focus:border-primary/50 focus:outline-none" />
+      {unit && <span className="text-xs text-muted-foreground w-6 shrink-0">{unit}</span>}
     </div>
   );
 }
@@ -2591,8 +2591,8 @@ function TextBox({ value, onChange, placeholder, mono = false }: {
   return (
     <input type="text" value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-        text-sm text-white/80 placeholder-white/20 focus:border-indigo-500/50
+      className={`w-full rounded-lg border border-input bg-background px-3 py-2
+        text-sm text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50
         focus:outline-none focus:ring-1 focus:ring-indigo-500/30
         ${mono ? "font-mono text-xs" : ""}`} />
   );
@@ -2628,8 +2628,8 @@ function Seg<T extends string>({ value, opts, onChange, sm }: {
           className={`flex-1 rounded-lg border py-2 transition-all
             ${sm ? "text-xs" : "text-sm"}
             ${value === o.v
-              ? "border-indigo-500/50 bg-indigo-600/20 text-indigo-300 font-medium"
-              : "border-white/[0.1] bg-white/[0.03] text-white/45 hover:text-white hover:border-white/20"
+              ? "border-primary/50 bg-primary/10 text-primary font-medium"
+              : "border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:border-primary/30"
             }`}>
           {o.label}
         </button>
@@ -2644,8 +2644,8 @@ function Sel({ value, opts, onChange }: {
 }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
-      className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-        text-sm text-white/80 focus:border-indigo-500/50 focus:outline-none cursor-pointer">
+      className="w-full rounded-lg border border-input bg-background px-3 py-2
+        text-sm text-foreground/80 focus:border-primary/50 focus:outline-none cursor-pointer">
       {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
@@ -2917,11 +2917,11 @@ function FloatingSandbox({ d }: { d: WidgetDesign }) {
   useEffect(() => { post(); }, [post]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
-      <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border/70 bg-muted/50 px-4 py-2.5">
         <div>
-          <p className="text-sm font-semibold text-white">Floating sandbox</p>
-          <p className="text-xs text-white/35">Real clara.js runtime — click the bubble ↘</p>
+          <p className="text-sm font-semibold text-foreground">Floating sandbox</p>
+          <p className="text-xs text-muted-foreground/70">Real clara.js runtime — click the bubble ↘</p>
         </div>
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70"/>
@@ -2994,8 +2994,8 @@ function Controls({ d, set }: {
         <textarea value={d.welcomeMessage} rows={2}
           onChange={e=>set("welcomeMessage",e.target.value)}
           placeholder="Hi! How can I help you today?"
-          className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm
-            text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm
+            text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none resize-none"/>
       </Field>
       <Field label="Avatar image URL" hint="A link to your assistant's profile picture. Leave empty to show the first letter of the name instead." example="https://yoursite.com/bot-avatar.png">
         <TextBox value={d.avatarUrl} onChange={v=>set("avatarUrl",v)} placeholder="https://example.com/avatar.png (leave empty for initials)" mono/>
@@ -3029,8 +3029,8 @@ function Controls({ d, set }: {
         <textarea value={d.customHeaderHtml} rows={2}
           onChange={e=>set("customHeaderHtml",e.target.value)}
           placeholder='Leave empty, or try: <span style="font-size:11px;background:#fff2;padding:2px 8px;border-radius:999px">Beta</span>'
-          className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-            text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+          className="w-full rounded-lg border border-input bg-background px-3 py-2
+            text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none"/>
       </Field>
 
       <Sec icon={MessageSquare} label="User Message Bubble" />
@@ -3177,8 +3177,8 @@ function Controls({ d, set }: {
           <textarea value={d.customFooterHtml} rows={2}
             onChange={e=>set("customFooterHtml",e.target.value)}
             placeholder='Leave empty, or try: <a href="https://yoursite.com" style="color:inherit">Powered by YourBrand</a>'
-            className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-              text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+            className="w-full rounded-lg border border-input bg-background px-3 py-2
+              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none"/>
         </Field>
       </>}
 
@@ -3198,8 +3198,8 @@ function Controls({ d, set }: {
         <textarea value={d.customLauncherSvg} rows={3}
           onChange={e=>set("customLauncherSvg",e.target.value)}
           placeholder={"Leave empty for default chat icon.\nOr paste SVG: <svg viewBox=\"0 0 24 24\" ...>...</svg>"}
-          className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-            text-xs font-mono text-white/80 placeholder-white/20 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+          className="w-full rounded-lg border border-input bg-background px-3 py-2
+            text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none"/>
       </Field>
     </div>
   );
@@ -3234,18 +3234,18 @@ function CodePanel({ d, set, kbId }: {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-3">
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
         <div className="flex items-start gap-3">
-          <Code2 className="h-4 w-4 text-indigo-300 mt-0.5 shrink-0"/>
-          <div className="text-xs text-white/65 leading-relaxed space-y-1">
-            <p><strong className="text-white/90">Developer code editors.</strong> These are pre-filled with working code generated from your visual controls above.</p>
+          <Code2 className="h-4 w-4 text-primary mt-0.5 shrink-0"/>
+          <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+            <p><strong className="text-foreground">Developer code editors.</strong> These are pre-filled with working code generated from your visual controls above.</p>
             <p>Edit any file — the preview updates live. Switch back to Visual Controls and all your colours/sizes stay in sync.</p>
           </div>
         </div>
       </div>
 
       <Tabs defaultValue="theme">
-        <TabsList className="h-auto flex-wrap gap-1 rounded-xl bg-[#0b1020] p-1.5">
+        <TabsList className="h-auto flex-wrap gap-1 rounded-xl bg-muted p-1.5">
           {[
             {v:"theme",   label:"theme.css",    hint:"Full CSS control — auto-synced"},
             {v:"inject",  label:"inject.css",   hint:"Raw shadow-DOM injection"},
@@ -3256,9 +3256,9 @@ function CodePanel({ d, set, kbId }: {
           ].map(({v,label,hint}) => (
             <TabsTrigger key={v} value={v}
               className="flex flex-col items-start rounded-lg bg-transparent px-3 py-2
-                data-[state=active]:bg-indigo-600/20 data-[state=active]:text-indigo-200
-                data-[state=active]:shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]
-                text-white/40 hover:text-white transition-all text-left">
+                data-[state=active]:bg-primary/10 data-[state=active]:text-primary
+                data-[state=active]:shadow-[inset_0_0_0_1px_rgba(79,70,229,0.3)]
+                text-muted-foreground hover:text-foreground transition-all text-left">
               <span className="text-xs font-semibold">{label}</span>
               <span className="text-[10px] opacity-60 hidden sm:block">{hint}</span>
             </TabsTrigger>
@@ -3268,8 +3268,8 @@ function CodePanel({ d, set, kbId }: {
         {/* theme.css — auto-generated + editable */}
         <TabsContent value="theme" className="mt-4 space-y-3">
           <div className="flex items-start gap-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15 px-3 py-2">
-            <Check className="h-3.5 w-3.5 text-emerald-400 mt-0.5 shrink-0"/>
-            <p className="text-[11px] text-emerald-300/80 leading-snug">
+            <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0"/>
+            <p className="text-[11px] text-emerald-600/80 leading-snug">
               This CSS is <strong>auto-generated</strong> from your visual controls and stays in sync. Edit it freely — your changes will be saved when you click Save Design.
             </p>
           </div>
@@ -3284,8 +3284,8 @@ function CodePanel({ d, set, kbId }: {
             minimap
           />
           {/* Quick class reference */}
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-            <p className="text-[11px] font-semibold text-white/40 mb-2 uppercase tracking-wider">
+          <div className="rounded-xl border border-border bg-muted/50 p-3">
+            <p className="text-[11px] font-semibold text-muted-foreground/70 mb-2 uppercase tracking-wider">
               Available CSS class names you can target:
             </p>
             <div className="grid grid-cols-2 gap-1 text-[11px] font-mono">
@@ -3294,7 +3294,7 @@ function CodePanel({ d, set, kbId }: {
                 ".clara-typing",".clara-typing-dot",".clara-input-area",".clara-textarea",
                 ".clara-send-btn",".clara-send-icon",".clara-branding",".clara-sources",
               ].map(cls=>(
-                <span key={cls} className="rounded bg-indigo-500/10 px-2 py-0.5 text-indigo-300/80">{cls}</span>
+                <span key={cls} className="rounded bg-primary/10 px-2 py-0.5 text-primary/80">{cls}</span>
               ))}
             </div>
           </div>
@@ -3351,8 +3351,8 @@ function CodePanel({ d, set, kbId }: {
 
         <TabsContent value="hooks" className="mt-4 space-y-3">
           <div className="flex items-start gap-2 rounded-lg bg-amber-500/5 border border-amber-500/15 px-3 py-2">
-            <Wand2 className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0"/>
-            <p className="text-[11px] text-amber-300/80 leading-snug">
+            <Wand2 className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0"/>
+            <p className="text-[11px] text-amber-600/80 leading-snug">
               These JS hooks run on your visitors&apos; page. Every available hook is pre-filled with a commented example — just uncomment what you need.
             </p>
           </div>
@@ -3485,7 +3485,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
   };
 
   if (loading) return (
-    <div className="flex items-center gap-3 text-white/40 py-8">
+    <div className="flex items-center gap-3 text-muted-foreground py-8">
       <RefreshCw className="w-4 h-4 animate-spin"/> Loading widget design…
     </div>
   );
@@ -3496,16 +3496,16 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
       {/* Top bar */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-base font-semibold text-white">Widget Design</h2>
-          <p className="mt-0.5 text-sm text-white/45">
+          <h2 className="text-base font-semibold text-foreground">Widget Design</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Customise every visual element — no coding needed. Changes are previewed live and saved to your database.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <Button variant="ghost" size="sm" onClick={reset}
-            className="text-white/30 hover:text-white text-xs">Reset defaults</Button>
+            className="text-muted-foreground/70 hover:text-foreground text-xs">Reset defaults</Button>
           <Button size="sm" onClick={save} disabled={saving}
-            className={`text-xs px-5 ${saved?"bg-emerald-600 hover:bg-emerald-500":"bg-indigo-600 hover:bg-indigo-500"} text-white`}>
+            className={`text-xs px-5 ${saved?"bg-emerald-600 hover:bg-emerald-500":"bg-primary hover:bg-primary/90"} text-primary-foreground`}>
             {saving ? (
               <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin"/>Saving…</>
             ) : saved ? (
@@ -3516,13 +3516,13 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
       </div>
 
       {error && (
-        <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           ⚠️ {error}
         </p>
       )}
 
       {/* Main tab switcher */}
-      <div className="flex items-center gap-1 rounded-xl bg-white/[0.03] p-1 border border-white/[0.07] w-fit flex-wrap">
+      <div className="flex items-center gap-1 rounded-xl bg-muted p-1 border border-border w-fit flex-wrap">
         {([
           {id:"visual", label:"🎨 Visual Controls", desc:"For everyone"},
           {id:"code",   label:"</> Code Editor",    desc:"For developers"},
@@ -3531,8 +3531,8 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           <button key={id} onClick={() => setTab(id)}
             className={`rounded-lg px-4 py-2 text-xs font-medium transition-all flex flex-col items-center
               ${tab===id
-                ? "bg-indigo-600/20 text-indigo-200 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.4)]"
-                : "text-white/40 hover:text-white hover:bg-white/[0.04]"}`}>
+                ? "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(79,70,229,0.3)]"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
             <span>{label}</span>
             <span className="text-[10px] opacity-60">{desc}</span>
           </button>
@@ -3543,9 +3543,9 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
       {tab === "visual" && (
         <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] items-start">
           {/* Controls — scrollable */}
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm
             lg:max-h-[calc(100vh-14rem)] lg:overflow-y-auto">
-            <Suspense fallback={<div className="h-10 animate-pulse rounded-xl bg-white/5"/>}>
+            <Suspense fallback={<div className="h-10 animate-pulse rounded-xl bg-muted"/>}>
               <Controls d={design} set={set}/>
             </Suspense>
           </div>
@@ -3553,12 +3553,12 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
           <div className="lg:sticky lg:top-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
-                <p className="text-xs text-white/35 mt-0.5">Updates instantly — no save needed to see changes.</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Live Preview</p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5">Updates instantly — no save needed to see changes.</p>
               </div>
               <button onClick={()=>setSandbox(s=>!s)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.1]
-                  bg-white/[0.03] px-3 py-1.5 text-xs text-white/45 hover:text-white hover:bg-white/[0.06]">
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border
+                  bg-card px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted">
                 <Monitor className="h-3.5 w-3.5"/>
                 {sandbox ? "Hide sandbox" : "Real runtime sandbox"}
               </button>
@@ -3574,7 +3574,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
           <CodePanel d={design} set={set} kbId={kbId}/>
           <div className="lg:sticky lg:top-6 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Live Preview</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Live Preview</p>
             <WidgetPreview design={design}/>
           </div>
         </div>
@@ -3585,15 +3585,15 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2 items-start">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Design Preview</p>
-              <p className="text-[11px] text-white/35">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Design Preview</p>
+              <p className="text-[11px] text-muted-foreground/70">
                 Rendered directly from your design settings. Fully interactive — send a test message!
               </p>
               <WidgetPreview design={design}/>
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Real Runtime Sandbox</p>
-              <p className="text-[11px] text-white/35">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Real Runtime Sandbox</p>
+              <p className="text-[11px] text-muted-foreground/70">
                 The actual clara.js widget in an isolated page. Click the launcher button ↘
               </p>
               <FloatingSandbox d={design}/>
@@ -3602,24 +3602,24 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
 
           {/* Inline embed preview (collapsible) */}
           <Collapsible open={inlineOpen} onOpenChange={setInlineOpen}>
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+            <div className="rounded-2xl border border-border bg-card shadow-sm">
               <div className="flex items-center justify-between gap-4 px-5 py-4">
                 <div>
-                  <p className="text-sm font-semibold text-white">Inline embed preview</p>
-                  <p className="text-xs text-white/35 mt-0.5">
-                    Load the real <code className="bg-white/10 rounded px-1">/embed/widget</code> page in preview mode.
+                  <p className="text-sm font-semibold text-foreground">Inline embed preview</p>
+                  <p className="text-xs text-muted-foreground/70 mt-0.5">
+                    Load the real <code className="bg-muted rounded px-1">/embed/widget</code> page in preview mode.
                   </p>
                 </div>
                 <CollapsibleTrigger asChild>
                   <Button type="button" variant="outline" size="sm"
-                    className="border-white/10 bg-white/[0.03] text-white/55 hover:text-white shrink-0">
+                    className="shrink-0">
                     <ChevronDown className={`mr-1.5 h-4 w-4 transition-transform ${inlineOpen?"rotate-180":""}`}/>
                     {inlineOpen ? "Collapse" : "Show inline embed"}
                   </Button>
                 </CollapsibleTrigger>
               </div>
               <CollapsibleContent>
-                <div className="border-t border-white/[0.06]">
+                <div className="border-t border-border/70">
                   <InlineEmbed d={design} kbId={kbId}/>
                 </div>
               </CollapsibleContent>

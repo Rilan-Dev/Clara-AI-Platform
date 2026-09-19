@@ -26,7 +26,7 @@ loader.config({ paths: { vs: "/monaco/vs" } });
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[420px] items-center justify-center rounded-xl border border-white/10 bg-[#0f1220] text-sm text-white/40">
+    <div className="flex h-[420px] items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm text-slate-400">
       Loading editor…
     </div>
   ),
@@ -152,18 +152,18 @@ export const TemplateCodeEditor = forwardRef<TemplateCodeEditorHandle, Props>(
       <div
         className={
           expanded
-            ? "fixed inset-0 z-[60] flex flex-col bg-[#0b0e1a] p-3 sm:p-4"
+            ? "fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-sm p-3 sm:p-4"
             : "relative flex flex-col"
         }
       >
         {expanded && (
           <div className="mb-2 flex items-center justify-between">
-            <span className="px-1 text-xs font-medium text-white/50">
+            <span className="px-1 text-xs font-medium text-muted-foreground">
               HTML body — focus mode (Esc to exit)
             </span>
           </div>
         )}
-        <div className="overflow-hidden rounded-xl border border-white/10 bg-[#111827]">
+        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
           <MonacoEditor
             path={path}
             theme="vs-dark"
@@ -196,21 +196,21 @@ export const TemplateCodeEditor = forwardRef<TemplateCodeEditorHandle, Props>(
           />
         </div>
         <div className="mt-2 flex items-center justify-between gap-2 px-1">
-          <span className="hidden text-[11px] text-white/30 sm:block">
-            Type <code className="rounded bg-white/10 px-1">{"{{"}</code> to autocomplete variables · Ctrl/Cmd+S saves the draft
+          <span className="hidden text-[11px] text-muted-foreground/70 sm:block">
+            Type <code className="rounded bg-muted px-1">{"{{"}</code> to autocomplete variables · Ctrl/Cmd+S saves the draft
           </span>
           <div className="flex items-center gap-2">
             <Button
               type="button" variant="outline" size="sm"
               onClick={handleFormat}
-              className="h-8 border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.06] hover:text-white"
+              className="h-8"
             >
               <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Format
             </Button>
             <Button
               type="button" variant="outline" size="sm"
               onClick={() => setMinimap((m) => !m)}
-              className={`h-8 border-white/10 bg-white/[0.03] hover:bg-white/[0.06] ${minimap ? "text-indigo-300" : "text-white/70"}`}
+              className={`h-8 ${minimap ? "text-primary" : "text-muted-foreground"}`}
               title="Toggle minimap"
             >
               Map
@@ -218,7 +218,7 @@ export const TemplateCodeEditor = forwardRef<TemplateCodeEditorHandle, Props>(
             <Button
               type="button" variant="outline" size="sm"
               onClick={() => setExpanded((e) => !e)}
-              className="h-8 border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.06] hover:text-white"
+              className="h-8"
             >
               {expanded
                 ? <><Minimize2 className="mr-1.5 h-3.5 w-3.5" /> Exit focus</>
@@ -231,7 +231,7 @@ export const TemplateCodeEditor = forwardRef<TemplateCodeEditorHandle, Props>(
             type="button"
             aria-label="Exit focus mode"
             onClick={() => setExpanded(false)}
-            className="absolute right-4 top-3 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-white/70 hover:bg-white/[0.1]"
+            className="absolute right-4 top-3 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
           >
             Esc
           </button>

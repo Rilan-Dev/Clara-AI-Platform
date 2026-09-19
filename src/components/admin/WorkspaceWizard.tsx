@@ -32,7 +32,7 @@ function StepDot({ active, done }: { active: boolean; done: boolean }) {
   return (
     <div
       className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-        done ? "bg-indigo-500 text-white" : active ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" : "bg-white/[0.06] text-white/30"
+        done ? "bg-primary text-primary-foreground" : active ? "bg-primary/15 text-primary border border-primary/30" : "bg-muted text-muted-foreground/70"
       }`}
     >
       {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -53,17 +53,17 @@ function CopyField({ label, value, mono = true }: { label: string; value: string
   }
   return (
     <div className="space-y-1">
-      <span className="text-xs text-white/40">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <div className="flex items-center gap-2">
-        <code className={`flex-1 truncate rounded-lg border border-white/[0.08] bg-black/20 px-3 py-2 text-sm ${mono ? "font-mono" : ""} text-white/70 select-all`}>
+        <code className={`flex-1 truncate rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm ${mono ? "font-mono" : ""} text-foreground/70 select-all`}>
           {value}
         </code>
         <button
           onClick={handleCopy}
-          className="p-2 rounded-lg hover:bg-white/[0.06] text-white/40 hover:text-white/70 transition-colors shrink-0"
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground/70 transition-colors shrink-0"
           title="Copy"
         >
-          {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+          {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
         </button>
       </div>
     </div>
@@ -129,16 +129,16 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
 
   if (phase === "done" && result) {
     return (
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-6 space-y-5">
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 space-y-5">
         <div className="flex items-center gap-3">
           <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
           </div>
           <div>
-            <h2 className="font-semibold text-white">Workspace created</h2>
-            <p className="text-sm text-white/40 mt-0.5">
+            <h2 className="font-semibold text-foreground">Workspace created</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
               {result.org.name} · <span className="font-mono">/{result.org.slug}</span>
-              {result.markedAsDemo && <span className="ml-2 text-amber-300">· set as public demo</span>}
+              {result.markedAsDemo && <span className="ml-2 text-amber-600">· set as public demo</span>}
             </p>
           </div>
         </div>
@@ -154,9 +154,9 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
           <CopyField label="Plan" value={result.planId} mono={false} />
         </div>
 
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-300" />
-          <p className="text-xs text-amber-200/80">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+          <p className="text-xs text-amber-600">
             The API key and temporary password are shown only once — copy them now. The admin should sign in and change their password.
           </p>
         </div>
@@ -174,74 +174,74 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 space-y-5">
+    <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
-          <Sparkles className="w-5 h-5 text-indigo-300" />
+        <div className="rounded-xl bg-primary/10 border border-primary/20 p-3">
+          <Sparkles className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h2 className="font-semibold text-white">New Workspace</h2>
-          <p className="text-sm text-white/40 mt-0.5">
+          <h2 className="font-semibold text-foreground">New Workspace</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Provisions an organisation, admin user, subscription, agent, knowledge base, and API key in one step.
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2 text-sm text-red-300 flex items-center gap-2">
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-2 text-sm text-destructive flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
         </div>
       )}
 
       {phase === "creating" && (
-        <div className="flex items-center gap-3 rounded-lg border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-3">
+        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
           <StepDot active done={false} />
-          <span className="text-sm text-white/70">Provisioning workspace — this usually takes a few seconds…</span>
+          <span className="text-sm text-foreground/70">Provisioning workspace — this usually takes a few seconds…</span>
         </div>
       )}
 
       <fieldset disabled={loading} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Organisation name</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Organisation name</label>
             <input
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               placeholder="Acme Corp"
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Plan</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Plan</label>
             <select
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary"
             >
               {PLAN_OPTIONS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-[#12152a]">
+                <option key={p.id} value={p.id}>
                   {p.label}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Admin full name</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Admin full name</label>
             <input
               value={adminFullName}
               onChange={(e) => setAdminFullName(e.target.value)}
               placeholder="Jane Doe"
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-white/50 mb-1.5 block">Admin email</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Admin email</label>
             <input
               type="email"
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
               placeholder="jane@acme.com"
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
           </div>
         </div>
@@ -249,52 +249,52 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
         <button
           type="button"
           onClick={() => setShowAdvanced((v) => !v)}
-          className="text-xs text-indigo-300 hover:text-indigo-200"
+          className="text-xs text-primary hover:text-primary/80"
         >
           {showAdvanced ? "Hide" : "Show"} advanced options (agent, KB, API key names)
         </button>
 
         {showAdvanced && (
-          <div className="grid gap-4 md:grid-cols-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className="grid gap-4 md:grid-cols-3 rounded-xl border border-border bg-muted/50 p-4">
             <div>
-              <label className="text-xs font-medium text-white/50 mb-1.5 block">Agent name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Agent name</label>
               <input
                 value={agentName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-white/50 mb-1.5 block">Knowledge base name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Knowledge base name</label>
               <input
                 value={kbName}
                 onChange={(e) => setKbName(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-white/50 mb-1.5 block">API key name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">API key name</label>
               <input
                 value={apiKeyName}
                 onChange={(e) => setApiKeyName(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground"
               />
             </div>
           </div>
         )}
 
-        <label className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 cursor-pointer">
+        <label className="flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-4 cursor-pointer">
           <input
             type="checkbox"
             checked={markAsDemo}
             onChange={(e) => setMarkAsDemo(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.05] text-indigo-500 focus:ring-indigo-500/40"
+            className="mt-0.5 h-4 w-4 rounded border-input bg-background text-primary focus:ring-primary/40"
           />
           <span>
-            <span className="flex items-center gap-1.5 text-sm text-white/80 font-medium">
-              <KeyRound className="w-3.5 h-3.5 text-amber-300" /> Set as public landing-page demo
+            <span className="flex items-center gap-1.5 text-sm text-foreground/80 font-medium">
+              <KeyRound className="w-3.5 h-3.5 text-amber-600" /> Set as public landing-page demo
             </span>
-            <span className="block text-xs text-white/40 mt-0.5">
+            <span className="block text-xs text-muted-foreground mt-0.5">
               Points the landing page chat/voice widget at this workspace&rsquo;s knowledge base and API key. Replaces the current demo configuration.
             </span>
           </span>

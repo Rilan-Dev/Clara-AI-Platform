@@ -13,10 +13,10 @@ type Plan = {
 };
 
 const PLAN_COLOURS: Record<string, string> = {
-  free:       "border-white/[0.08]",
-  starter:    "border-cyan-500/30",
-  pro:        "border-indigo-500/50 bg-indigo-600/10",
-  enterprise: "border-amber-500/30",
+  free:       "border-border bg-card",
+  starter:    "border-cyan-500/30 bg-card",
+  pro:        "border-primary/50 bg-primary/5",
+  enterprise: "border-amber-500/30 bg-card",
 };
 
 function ctaHref(plan: Plan): string {
@@ -53,14 +53,14 @@ export default function PricingPage() {
     <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-3xl sm:text-5xl font-black text-white mb-3 sm:mb-4">
-            Simple, transparent <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">pricing</span>
+          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-3 sm:mb-4">
+            Simple, transparent <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">pricing</span>
           </h1>
-          <p className="text-white/50 text-base sm:text-lg mb-8">Start free, scale as you grow. No hidden fees.</p>
-          <div className="inline-flex items-center border border-white/10 bg-white/[0.04] rounded-xl p-1 gap-1">
+          <p className="text-muted-foreground text-base sm:text-lg mb-8">Start free, scale as you grow. No hidden fees.</p>
+          <div className="inline-flex items-center border border-border bg-muted/50 rounded-xl p-1 gap-1">
             {(["monthly", "annual"] as const).map(c => (
               <button key={c} onClick={() => setBilling(c)}
-                className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${billing === c ? "bg-indigo-600 text-white" : "text-white/50 hover:text-white"}`}>
+                className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${billing === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 {c === "monthly" ? "Monthly" : <><span className="hidden sm:inline">Annual (save 20%)</span><span className="sm:hidden">Annual −20%</span></>}
               </button>
             ))}
@@ -68,44 +68,44 @@ export default function PricingPage() {
         </div>
 
         {loading ? (
-          <div className="text-center text-white/30">Loading plans…</div>
+          <div className="text-center text-muted-foreground/70">Loading plans…</div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map(plan => (
-              <div key={plan.id} className={`relative rounded-2xl p-4 sm:p-6 border flex flex-col ${PLAN_COLOURS[plan.id] ?? "border-white/[0.08]"}`}>
+              <div key={plan.id} className={`relative rounded-2xl p-4 sm:p-6 border flex flex-col ${PLAN_COLOURS[plan.id] ?? "border-border bg-card"}`}>
                 {plan.id === "pro" && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">
                     Most Popular
                   </div>
                 )}
                 <div className="mb-4">
-                  <div className="text-sm font-semibold text-indigo-400 mb-1">{plan.name}</div>
-                  <div className="text-3xl font-black text-white mb-1">{price(plan)}</div>
+                  <div className="text-sm font-semibold text-primary mb-1">{plan.name}</div>
+                  <div className="text-3xl font-black text-foreground mb-1">{price(plan)}</div>
                   {billing === "annual" && plan.price_usd > 0 && (
-                    <div className="text-xs text-emerald-400">Billed ${Math.round(plan.price_usd * 0.8 * 12)}/year</div>
+                    <div className="text-xs text-emerald-600">Billed ${Math.round(plan.price_usd * 0.8 * 12)}/year</div>
                   )}
-                  <div className="text-xs text-white/40 mt-1">{plan.description}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{plan.description}</div>
                 </div>
 
-                <div className="space-y-1 mb-4 border-t border-white/[0.06] pt-4">
-                  <div className="text-xs text-white/50 flex justify-between">
+                <div className="space-y-1 mb-4 border-t border-border pt-4">
+                  <div className="text-xs text-muted-foreground flex justify-between">
                     <span>Knowledge Bases</span>
-                    <span className="font-semibold text-white">{plan.max_kbs === -1 ? "∞" : plan.max_kbs}</span>
+                    <span className="font-semibold text-foreground">{plan.max_kbs === -1 ? "∞" : plan.max_kbs}</span>
                   </div>
-                  <div className="text-xs text-white/50 flex justify-between">
+                  <div className="text-xs text-muted-foreground flex justify-between">
                     <span>Docs per KB</span>
-                    <span className="font-semibold text-white">{plan.max_docs_per_kb === -1 ? "∞" : plan.max_docs_per_kb}</span>
+                    <span className="font-semibold text-foreground">{plan.max_docs_per_kb === -1 ? "∞" : plan.max_docs_per_kb}</span>
                   </div>
-                  <div className="text-xs text-white/50 flex justify-between">
+                  <div className="text-xs text-muted-foreground flex justify-between">
                     <span>Requests/day</span>
-                    <span className="font-semibold text-white">{plan.max_req_day === -1 ? "∞" : plan.max_req_day.toLocaleString()}</span>
+                    <span className="font-semibold text-foreground">{plan.max_req_day === -1 ? "∞" : plan.max_req_day.toLocaleString()}</span>
                   </div>
                 </div>
 
                 <ul className="space-y-2 flex-1 mb-6">
                   {(plan.features as unknown as string[]).map((f: string) => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-white/70">
-                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />{f}
+                    <li key={f} className="flex items-center gap-2 text-xs text-foreground/80">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />{f}
                     </li>
                   ))}
                 </ul>
@@ -114,8 +114,8 @@ export default function PricingPage() {
                 <Link href={ctaHref(plan)}
                   className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all text-center block
                     ${plan.id === "pro"
-                      ? "bg-indigo-600 hover:bg-indigo-500 text-white"
-                      : "border border-white/10 text-white/60 hover:border-white/20 hover:text-white"}`}>
+                      ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                      : "border border-border text-foreground/70 hover:text-foreground hover:border-primary/40 hover:bg-accent"}`}>
                   {ctaLabel(plan)}
                 </Link>
               </div>
@@ -125,7 +125,7 @@ export default function PricingPage() {
 
         {/* FAQ */}
         <div className="mt-10 sm:mt-20 max-w-2xl mx-auto">
-          <h3 className="text-2xl font-bold text-white text-center mb-8">Frequently asked questions</h3>
+          <h3 className="text-2xl font-bold text-foreground text-center mb-8">Frequently asked questions</h3>
           <div className="space-y-4">
             {[
               ["Can I upgrade or downgrade at any time?", "Yes. Plan changes take effect immediately. If upgrading mid-cycle, we prorate the difference."],
@@ -133,9 +133,9 @@ export default function PricingPage() {
               ["Is the data isolated between organisations?", "Absolutely. Each organisation has its own Qdrant collection namespace, its own documents, and its own API keys."],
               ["Do you offer a free trial?", "You can start on the Free plan at no cost, or contact us for a trial extension on a paid plan."],
             ].map(([q, a]) => (
-              <div key={q} className="border border-white/[0.08] bg-white/[0.03] rounded-xl p-5">
-                <div className="font-semibold text-white text-sm mb-2">{q}</div>
-                <div className="text-white/50 text-sm">{a}</div>
+              <div key={q} className="border border-border bg-card rounded-xl p-5">
+                <div className="font-semibold text-foreground text-sm mb-2">{q}</div>
+                <div className="text-muted-foreground text-sm">{a}</div>
               </div>
             ))}
           </div>

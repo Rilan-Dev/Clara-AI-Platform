@@ -128,25 +128,25 @@ export function PlanVersionManager() {
   }
 
   return (
-    <section className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5 space-y-4">
+    <section className="border border-border bg-card rounded-2xl p-5 space-y-4 shadow-sm">
       <div>
-        <h2 className="font-semibold text-white">Plan Versions</h2>
-        <p className="text-xs text-white/35 mt-1">Editions are versioned. Publishing changes future subscriptions; existing customers keep their assigned version.</p>
+        <h2 className="font-semibold text-foreground">Plan Versions</h2>
+        <p className="text-xs text-muted-foreground/70 mt-1">Editions are versioned. Publishing changes future subscriptions; existing customers keep their assigned version.</p>
       </div>
-      {message && <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">{message}</div>}
-      {error && <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</div>}
-      {loading ? <div className="h-24 rounded-xl bg-white/[0.04] animate-pulse" /> : (
+      {message && <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600">{message}</div>}
+      {error && <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>}
+      {loading ? <div className="h-24 rounded-xl bg-muted animate-pulse" /> : (
         <div className="grid gap-3 md:grid-cols-2">
           {plans.map(plan => (
-            <div key={plan.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+            <div key={plan.id} className="rounded-xl border border-border bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-white">{plan.name}</p>
-                  <p className="text-xs text-white/35 mt-1">{plan.price_usd < 0 ? "Custom" : `$${plan.price_usd}/mo`} · published v{plan.published_version ?? 1}</p>
+                  <p className="font-medium text-foreground">{plan.name}</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">{plan.price_usd < 0 ? "Custom" : `$${plan.price_usd}/mo`} · published v{plan.published_version ?? 1}</p>
                 </div>
-                <span className="text-[10px] text-white/30">{plan.version_count ?? 1} versions</span>
+                <span className="text-[10px] text-muted-foreground/70">{plan.version_count ?? 1} versions</span>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-white/45">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <span>{plan.max_kbs === -1 ? "Unlimited" : plan.max_kbs} KBs</span>
                 <span>{plan.max_req_day === -1 ? "Unlimited" : plan.max_req_day.toLocaleString()} req/day</span>
               </div>
@@ -163,13 +163,13 @@ export function PlanVersionManager() {
         </div>
       )}
       {draft && (
-        <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/[0.04] p-4 space-y-3">
-          <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-white">Draft: {draft.name}</h3><button onClick={() => setDraft(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button></div>
+        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+          <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-foreground">Draft: {draft.name}</h3><button onClick={() => setDraft(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button></div>
           <div className="grid gap-3 sm:grid-cols-2">
             {(["name","description","priceUsd","maxKbs","maxDocsPerKb","maxReqDay","maxStorageMb"] as const).map(field => (
-              <label key={field} className="text-xs text-white/45">
+              <label key={field} className="text-xs text-muted-foreground">
                 {field}
-                <input value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })} className="mt-1 w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-white" />
+                <input value={draft[field]} onChange={e => setDraft({ ...draft, [field]: e.target.value })} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground" />
               </label>
             ))}
           </div>

@@ -27,12 +27,12 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 w-[min(92vw,900px)] rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-card)] shadow-xl">
-        <div className="flex items-center justify-between border-b border-[color:var(--color-border)]/60 px-4 py-3">
-          <h3 className="text-sm font-semibold text-[color:var(--color-foreground)]">
+      <div className="relative z-10 w-[min(92vw,900px)] rounded-2xl border border-border bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+          <h3 className="text-sm font-semibold text-foreground">
             {title}
           </h3>
           <Button

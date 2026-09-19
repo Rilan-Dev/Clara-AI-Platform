@@ -165,8 +165,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="h-10 w-10 rounded-full border-2 border-indigo-500/40 border-t-indigo-300 animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
       </div>
     );
   }
@@ -196,25 +196,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const moreActive = moreOpen || onSettingsRoute;
 
   return (
-    <div className="dark min-h-[100dvh] bg-[#0a0a0f] flex">
+    <div className="min-h-[100dvh] bg-background flex">
 
       {/* ── Sidebar (md+ only — phones use the bottom tab bar) ──────────────── */}
       <aside
-        className="hidden md:flex fixed inset-y-0 left-0 z-50 w-60 bg-[#0d0d1a] border-r border-white/[0.06] flex-col"
+        className="hidden md:flex fixed inset-y-0 left-0 z-50 w-60 bg-card border-r border-border flex-col"
       >
         {/* Brand */}
-        <div className="h-16 px-5 flex items-center gap-3 border-b border-white/[0.06]">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+        <div className="h-16 px-5 flex items-center gap-3 border-b border-border">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
             <Brain className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0">
-            <div className="font-bold text-white text-sm truncate">Clara AI</div>
+            <div className="font-bold text-foreground text-sm truncate">Clara AI</div>
             {isAdmin ? (
-              <div className="text-[10px] text-indigo-400 font-medium tracking-wide uppercase">
+              <div className="text-[10px] text-primary font-medium tracking-wide uppercase">
                 Platform Admin
               </div>
             ) : (
-              <div className="text-[10px] text-cyan-400 font-medium tracking-wide uppercase truncate">
+              <div className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase truncate">
                 {user.fullName || "Organisation"}
               </div>
             )}
@@ -226,7 +226,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Org workspace group header — separates the org's own screens
               from the personal Settings group below. */}
           {!isAdmin && primaryOrgId && (
-            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
               My Organisation
             </p>
           )}
@@ -235,7 +235,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {!isAdmin && !primaryOrgId && (
             <Link
               href="/settings/account"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.05] transition-all"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
             >
               <Bot className="w-4 h-4 shrink-0" />
               My Organisation
@@ -250,14 +250,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   active
-                    ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                    : "text-white/50 hover:text-white hover:bg-white/[0.05]"
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
                 }`}
               >
                 <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
                 {active && (
-                  <ChevronRight className="w-3 h-3 ml-auto text-indigo-400" />
+                  <ChevronRight className="w-3 h-3 ml-auto text-primary" />
                 )}
               </Link>
             );
@@ -271,14 +271,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               href={singleSettingsLink.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 onSettingsRoute
-                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                  : "text-white/50 hover:text-white hover:bg-white/[0.05]"
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
               }`}
             >
               <Settings className="w-4 h-4 shrink-0" />
               <span className="flex-1 text-left">Settings</span>
               {onSettingsRoute && (
-                <ChevronRight className="w-3 h-3 text-indigo-400" />
+                <ChevronRight className="w-3 h-3 text-primary" />
               )}
             </Link>
           ) : (
@@ -290,14 +290,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               aria-controls="sidebar-settings-group"
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 onSettingsRoute
-                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                  : "text-white/50 hover:text-white hover:bg-white/[0.05]"
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
               }`}
             >
               <Settings className="w-4 h-4 shrink-0" />
               <span className="flex-1 text-left">Settings</span>
               <ChevronDown
-                className={`w-3.5 h-3.5 shrink-0 text-white/40 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200 ${
                   settingsOpen ? "rotate-180" : ""
                 }`}
               />
@@ -306,7 +306,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {settingsOpen && (
               <ul
                 id="sidebar-settings-group"
-                className="mt-0.5 ml-3 space-y-0.5 border-l border-white/[0.08] pl-3 animate-in fade-in slide-in-from-top-1 duration-200"
+                className="mt-0.5 ml-3 space-y-0.5 border-l border-border pl-3 animate-in fade-in slide-in-from-top-1 duration-200"
               >
                 {settingsNav.map((sub) => {
                   const subActive = pathname === sub.href;
@@ -317,18 +317,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         aria-current={subActive ? "page" : undefined}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${
                           subActive
-                            ? "bg-indigo-500/15 text-indigo-300 font-medium"
-                            : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         }`}
                       >
                         <sub.icon
                           className={`w-3.5 h-3.5 shrink-0 ${
-                            subActive ? "text-indigo-400" : "text-white/30"
+                            subActive ? "text-primary" : "text-muted-foreground/70"
                           }`}
                         />
                         {sub.label}
                         {subActive && (
-                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
                         )}
                       </Link>
                     </li>
@@ -341,16 +341,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-white/[0.06] space-y-0.5">
+        <div className="p-3 border-t border-border space-y-0.5">
           <Link
             href="/"
-            className="flex items-center gap-2 px-3 py-2 text-xs text-white/30 hover:text-white/60 transition-colors rounded-lg hover:bg-white/[0.03]"
+            className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground/70 hover:text-foreground transition-colors rounded-lg hover:bg-muted"
           >
             ← View public site
           </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
           >
             <LogOut className="w-4 h-4" /> Sign out
           </button>
@@ -360,17 +360,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main */}
       <div className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden flex flex-col">
         {/* ── Topbar — page context + profile menu ──────────────────────────── */}
-        <header className="sticky top-0 z-30 h-14 md:h-16 border-b border-white/[0.06] bg-[#0d0d14]/90 backdrop-blur flex items-center justify-between gap-3 px-4 md:pl-6 md:pr-6">
+        <header className="sticky top-0 z-30 h-14 md:h-16 border-b border-border bg-background/85 backdrop-blur-md flex items-center justify-between gap-3 px-4 md:pl-6 md:pr-6">
           {/* Context label */}
           <div className="min-w-0 flex items-center gap-2.5">
-            <span className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+            <span className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
               <Brain className="w-4 h-4 text-white" />
             </span>
             <div className="min-w-0 hidden sm:block">
-              <p className="text-sm font-semibold text-white/90 truncate leading-tight">
+              <p className="text-sm font-semibold text-foreground truncate leading-tight">
                 {isAdmin ? "Platform Console" : user.fullName}
               </p>
-              <p className="text-[11px] text-white/30 truncate leading-tight">
+              <p className="text-[11px] text-muted-foreground truncate leading-tight">
                 {isAdmin ? "Clara AI administration" : "Clara AI workspace"}
               </p>
             </div>
@@ -395,7 +395,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Mobile bottom tab bar — native app navigation ───────────────────── */}
       <nav
         aria-label="Primary"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 no-select border-t border-white/[0.08] bg-[#0d0d14]/95 backdrop-blur-xl"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 no-select border-t border-border bg-background/95 backdrop-blur-xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
@@ -407,11 +407,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] transition-colors ${
-                  active ? "text-indigo-300" : "text-white/40 active:text-white/70"
+                  active ? "text-primary" : "text-muted-foreground active:text-foreground"
                 }`}
               >
-                <item.icon className={`w-[22px] h-[22px] ${active ? "drop-shadow-[0_0_10px_rgba(129,140,248,0.5)]" : ""}`} strokeWidth={active ? 2.2 : 1.8} />
-                <span className={`text-[10px] font-medium leading-none ${active ? "text-indigo-300" : ""}`}>
+                <item.icon className={`w-[22px] h-[22px] ${active ? "drop-shadow-[0_0_10px_rgba(79,70,229,0.35)]" : ""}`} strokeWidth={active ? 2.2 : 1.8} />
+                <span className={`text-[10px] font-medium leading-none ${active ? "text-primary" : ""}`}>
                   {tabLabel(item)}
                 </span>
               </Link>
@@ -425,11 +425,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             aria-label="More options"
             aria-expanded={moreOpen}
             className={`flex flex-col items-center justify-center gap-0.5 min-h-[44px] transition-colors ${
-              moreActive ? "text-indigo-300" : "text-white/40 active:text-white/70"
+              moreActive ? "text-primary" : "text-muted-foreground active:text-foreground"
             }`}
           >
             <MoreHorizontal className="w-[22px] h-[22px]" strokeWidth={moreActive ? 2.2 : 1.8} />
-            <span className={`text-[10px] font-medium leading-none ${moreActive ? "text-indigo-300" : ""}`}>
+            <span className={`text-[10px] font-medium leading-none ${moreActive ? "text-primary" : ""}`}>
               More
             </span>
           </button>
@@ -445,25 +445,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onClick={() => setMoreOpen(false)}
           />
           {/* Sheet */}
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-white/[0.12] bg-[#13131f] shadow-2xl animate-in slide-in-from-bottom duration-300 overscroll-contain-y">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-border bg-card shadow-2xl animate-in slide-in-from-bottom duration-300 overscroll-contain-y">
             {/* Grabber */}
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1.5 rounded-full bg-white/15" />
+              <div className="w-10 h-1.5 rounded-full bg-muted-foreground/25" />
             </div>
             {/* Identity */}
-            <div className="px-5 pt-2 pb-4 border-b border-white/[0.06] flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            <div className="px-5 pt-2 pb-4 border-b border-border flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm">
                 {(user.fullName.split(/\s+/).map((w) => w.charAt(0).toUpperCase()).slice(0, 2).join("")) || "U"}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>
-                <p className="text-xs text-white/35 truncate">{user.email}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{user.fullName}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setMoreOpen(false)}
                 aria-label="Close"
-                className="w-9 h-9 rounded-xl border border-white/10 flex items-center justify-center text-white/50 active:bg-white/10"
+                className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-muted-foreground active:bg-muted"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -471,7 +471,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Links */}
             <div className="px-3 py-3 max-h-[60dvh] overflow-y-auto overscroll-contain-y space-y-0.5">
-              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                 Settings
               </p>
               {(singleSettingsLink ? [singleSettingsLink] : settingsNav).map((s) => {
@@ -480,34 +480,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Link
                     key={s.href}
                     href={s.href}
-                    className={`flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm active:bg-white/[0.07] transition-colors ${
-                      active ? "text-indigo-300 bg-indigo-500/10" : "text-white/70"
+                    className={`flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm active:bg-muted transition-colors ${
+                      active ? "text-primary bg-primary/10" : "text-foreground/80"
                     }`}
                   >
-                    <s.icon className={`w-5 h-5 shrink-0 ${active ? "text-indigo-400" : "text-white/40"}`} />
+                    <s.icon className={`w-5 h-5 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
                     <span className="flex-1">{s.label}</span>
-                    {active && <ChevronRight className="w-4 h-4 text-indigo-400" />}
+                    {active && <ChevronRight className="w-4 h-4 text-primary" />}
                   </Link>
                 );
               })}
 
-              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                 General
               </p>
               <Link
                 href="/"
-                className="flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm text-white/70 active:bg-white/[0.07] transition-colors"
+                className="flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm text-foreground/80 active:bg-muted transition-colors"
               >
-                <Brain className="w-5 h-5 text-white/40 shrink-0" />
+                <Brain className="w-5 h-5 text-muted-foreground shrink-0" />
                 <span className="flex-1">View public site</span>
-                <ChevronRight className="w-4 h-4 text-white/20" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
               </Link>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm text-rose-300 active:bg-rose-500/10 transition-colors"
+                className="w-full flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm text-destructive active:bg-destructive/10 transition-colors"
               >
-                <LogOut className="w-5 h-5 shrink-0 text-rose-400/70" />
+                <LogOut className="w-5 h-5 shrink-0 text-destructive/80" />
                 <span className="flex-1 text-left">Sign out</span>
               </button>
             </div>

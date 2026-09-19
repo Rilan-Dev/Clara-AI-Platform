@@ -127,27 +127,27 @@ export default function FeaturesPage() {
           <div className="absolute top-20 right-1/3 w-64 h-64 bg-violet-600/10 rounded-full blur-[80px]" />
         </div>
         <div className="relative max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.04] rounded-full px-4 py-1.5 text-sm text-indigo-300 mb-6">
+          <div className="inline-flex items-center gap-2 border border-border bg-muted/50 rounded-full px-4 py-1.5 text-sm text-primary mb-6">
             <Brain className="w-3.5 h-3.5" />
             <span>Built for production — not demos</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white mb-5 leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-foreground mb-5 leading-tight">
             Everything you need<br />
-            <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-cyan-600 bg-clip-text text-transparent">
               to deploy AI knowledge
             </span>
           </h1>
-          <p className="text-lg text-white/50 max-w-2xl mx-auto mb-8">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
             Clara handles the infrastructure — embeddings, vector search, streaming, voice, analytics.
             You focus on uploading your knowledge.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <Link href="/pricing"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition-all hover:scale-105">
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl transition-all hover:scale-105">
               View pricing <ChevronRight className="w-4 h-4" />
             </Link>
             <Link href="#comparison"
-              className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white/70 font-medium px-6 py-3 rounded-xl transition-all">
+              className="inline-flex items-center gap-2 border border-border bg-muted/50 hover:bg-accent text-foreground/80 font-medium px-6 py-3 rounded-xl transition-all">
               Compare plans
             </Link>
           </div>
@@ -158,25 +158,25 @@ export default function FeaturesPage() {
       <section className="py-12 sm:py-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8 sm:mb-14">
-            <h2 className="text-3xl font-black text-white mb-3">Core capabilities</h2>
-            <p className="text-white/50">Everything ships out of the box. Nothing to build from scratch.</p>
+            <h2 className="text-3xl font-black text-foreground mb-3">Core capabilities</h2>
+            <p className="text-muted-foreground">Everything ships out of the box. Nothing to build from scratch.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map(f => (
               <div key={f.title}
-                className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6 hover:bg-white/[0.06] transition-all group">
+                className="border border-border bg-card rounded-2xl p-4 sm:p-6 hover:bg-accent/60 transition-all group">
                 <div className="flex items-start justify-between mb-4">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center group-hover:scale-110 transition-transform shrink-0`}>
                     <f.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <span className="text-xs text-white/30 border border-white/10 px-2 py-0.5 rounded-full">{f.badge}</span>
+                  <span className="text-xs text-muted-foreground/70 border border-border px-2 py-0.5 rounded-full">{f.badge}</span>
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
-                <p className="text-white/50 text-sm leading-relaxed mb-4">{f.description}</p>
+                <h3 className="text-base font-bold text-foreground mb-2">{f.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-4">{f.description}</p>
                 <ul className="space-y-1.5">
                   {f.bullets.map(b => (
-                    <li key={b} className="flex items-center gap-2 text-xs text-white/40">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />{b}
+                    <li key={b} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" />{b}
                     </li>
                   ))}
                 </ul>
@@ -187,38 +187,38 @@ export default function FeaturesPage() {
       </section>
 
       {/* Plan comparison table */}
-      <section id="comparison" className="py-12 sm:py-20 px-4 sm:px-6 bg-white/[0.02]">
+      <section id="comparison" className="py-12 sm:py-20 px-4 sm:px-6 bg-surface">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-3xl font-black text-white mb-3">Feature comparison</h2>
-            <p className="text-white/50">See exactly what each plan includes</p>
+            <h2 className="text-3xl font-black text-foreground mb-3">Feature comparison</h2>
+            <p className="text-muted-foreground">See exactly what each plan includes</p>
           </div>
           {/* Comparison matrix — horizontally scrollable on phones */}
-          <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl overflow-hidden">
-            <p className="md:hidden px-4 py-2.5 text-[11px] text-white/35 border-b border-white/[0.06]">
+          <div className="border border-border bg-card rounded-2xl overflow-hidden">
+            <p className="md:hidden px-4 py-2.5 text-[11px] text-muted-foreground/70 border-b border-border">
               Swipe to compare plans →
             </p>
             <div className="overflow-x-auto overscroll-contain-x">
               <div className="min-w-[680px] sm:min-w-[720px]">
-                <div className="grid grid-cols-5 border-b border-white/[0.08]">
-                  <div className="px-5 py-4 text-sm font-medium text-white/40">Feature</div>
+                <div className="grid grid-cols-5 border-b border-border">
+                  <div className="px-5 py-4 text-sm font-medium text-muted-foreground">Feature</div>
                   {["Free", "Starter", "Pro", "Enterprise"].map((p, i) => (
-                    <div key={p} className={`px-5 py-4 text-center ${i === 2 ? "bg-indigo-600/10" : ""}`}>
-                      <div className="text-sm font-bold text-white">{p}</div>
+                    <div key={p} className={`px-5 py-4 text-center ${i === 2 ? "bg-primary/10" : ""}`}>
+                      <div className="text-sm font-bold text-foreground">{p}</div>
                     </div>
                   ))}
                 </div>
                 {COMPARISON.map((row, i) => (
-                  <div key={row.feature} className={`grid grid-cols-5 border-b border-white/[0.04] last:border-0 ${i % 2 === 0 ? "" : "bg-white/[0.01]"}`}>
-                    <div className="px-5 py-3.5 text-sm text-white/70">{row.feature}</div>
+                  <div key={row.feature} className={`grid grid-cols-5 border-b border-border/70 last:border-0 ${i % 2 === 0 ? "" : "bg-muted/40"}`}>
+                    <div className="px-5 py-3.5 text-sm text-foreground/80">{row.feature}</div>
                     {(["free", "starter", "pro", "enterprise"] as const).map((plan, j) => (
-                      <div key={plan} className={`px-5 py-3.5 text-center ${j === 2 ? "bg-indigo-600/5" : ""}`}>
+                      <div key={plan} className={`px-5 py-3.5 text-center ${j === 2 ? "bg-primary/5" : ""}`}>
                         {typeof row[plan] === "boolean" ? (
                           row[plan]
-                            ? <CheckCircle className="w-4 h-4 text-emerald-400 mx-auto" />
-                            : <div className="w-4 h-0.5 bg-white/10 mx-auto" />
+                            ? <CheckCircle className="w-4 h-4 text-emerald-600 mx-auto" />
+                            : <div className="w-4 h-0.5 bg-border mx-auto" />
                         ) : (
-                          <span className="text-sm font-medium text-white/70">{row[plan]}</span>
+                          <span className="text-sm font-medium text-foreground/80">{row[plan]}</span>
                         )}
                       </div>
                     ))}
@@ -229,7 +229,7 @@ export default function FeaturesPage() {
           </div>
           <div className="text-center mt-8">
             <Link href="/pricing"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all hover:scale-105">
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-3 rounded-xl text-sm transition-all hover:scale-105">
               See pricing & get started <ChevronRight className="w-4 h-4" />
             </Link>
           </div>

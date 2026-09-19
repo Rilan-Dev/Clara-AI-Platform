@@ -61,60 +61,60 @@ export default function DocsScreen() {
     <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8 sm:mb-16">
-          <div className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.04] rounded-full px-4 py-1.5 text-sm text-indigo-300 mb-6">
+          <div className="inline-flex items-center gap-2 border border-border bg-muted/50 rounded-full px-4 py-1.5 text-sm text-primary mb-6">
             <BookOpen className="w-3.5 h-3.5" />
             <span>Clara AI Documentation</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white mb-4">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-foreground mb-4">
             Everything you need to{" "}
-            <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">build with Clara</span>
+            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">build with Clara</span>
           </h1>
-          <p className="text-white/50 text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Guides, API references, and SDK docs to help you deploy production AI assistants fast.
           </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-16">
           {SECTIONS.map(sec => (
-            <div key={sec.title} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6 flex flex-col hover:bg-white/[0.06] transition-all group">
+            <div key={sec.title} className="border border-border bg-card rounded-2xl p-4 sm:p-6 flex flex-col hover:bg-accent/60 transition-all group">
               <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${sec.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
                 <sec.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <h2 className="text-lg font-bold text-white mb-2">{sec.title}</h2>
-              <p className="text-white/50 text-sm mb-5 leading-relaxed flex-1">{sec.description}</p>
+              <h2 className="text-lg font-bold text-foreground mb-2">{sec.title}</h2>
+              <p className="text-muted-foreground text-sm mb-5 leading-relaxed flex-1">{sec.description}</p>
               <ul className="space-y-2 mb-5">
                 {sec.links.map(l => (
                   <li key={l.label}>
-                    <Link href={l.href} className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors">
+                    <Link href={l.href} className="text-sm text-primary hover:text-primary/80 flex items-center gap-1.5 transition-colors">
                       <ArrowRight className="w-3 h-3" />
                       {l.label}
                     </Link>
                   </li>
                 ))}
               </ul>
-              <Link href={sec.href} className="mt-auto inline-flex items-center gap-2 border border-white/10 hover:border-white/20 text-white/70 hover:text-white text-sm font-medium px-4 py-2 rounded-lg transition-all">
+              <Link href={sec.href} className="mt-auto inline-flex items-center gap-2 border border-border hover:border-primary/40 text-foreground/80 hover:text-foreground text-sm font-medium px-4 py-2 rounded-lg transition-all">
                 Browse {sec.title} <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           ))}
         </div>
 
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-8">
-          <h2 className="text-xl font-bold text-white mb-6">Popular pages</h2>
+        <div className="border border-border bg-card rounded-2xl p-4 sm:p-8">
+          <h2 className="text-xl font-bold text-foreground mb-6">Popular pages</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {POPULAR.map(p => (
               <Link key={p.label} href={p.href}
-                className="flex items-center gap-3 border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.07] rounded-xl px-4 py-3 text-sm text-white/70 hover:text-white transition-all group">
-                <p.icon className="w-4 h-4 text-indigo-400 shrink-0 group-hover:scale-110 transition-transform" />
+                className="flex items-center gap-3 border border-border/70 bg-muted/50 hover:bg-accent rounded-xl px-4 py-3 text-sm text-foreground/80 hover:text-foreground transition-all group">
+                <p.icon className="w-4 h-4 text-primary shrink-0 group-hover:scale-110 transition-transform" />
                 {p.label}
               </Link>
             ))}
           </div>
         </div>
 
-        <div className="text-center mt-12 text-white/30 text-sm">
+        <div className="text-center mt-12 text-muted-foreground/70 text-sm">
           Something missing?{" "}
-          <Link href="/contact" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+          <Link href="/contact" className="text-primary hover:text-primary/80 transition-colors">
             Contact our team
           </Link>{" "}
           and we&apos;ll help you out.

@@ -26,10 +26,10 @@ type Member = {
 };
 
 const ROLES: { id: string; label: string; desc: string; badge: string }[] = [
-  { id: "org_admin",       label: "Admin",            desc: "Manage members, billing and everything in the organisation", badge: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30" },
-  { id: "project_manager", label: "Project manager",  desc: "Create agents and knowledge bases, manage daily work",       badge: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
-  { id: "kb_editor",       label: "Editor",           desc: "Upload documents and edit knowledge bases",                  badge: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30" },
-  { id: "kb_viewer",       label: "Viewer",           desc: "View knowledge bases and analytics — read only",              badge: "bg-white/10 text-white/60 border-white/15" },
+  { id: "org_admin",       label: "Admin",            desc: "Manage members, billing and everything in the organisation", badge: "bg-primary/10 text-primary border-primary/30" },
+  { id: "project_manager", label: "Project manager",  desc: "Create agents and knowledge bases, manage daily work",       badge: "bg-secondary/10 text-secondary border-secondary/30" },
+  { id: "kb_editor",       label: "Editor",           desc: "Upload documents and edit knowledge bases",                  badge: "bg-sky-500/10 text-sky-600 border-sky-500/30" },
+  { id: "kb_viewer",       label: "Viewer",           desc: "View knowledge bases and analytics — read only",              badge: "bg-muted text-muted-foreground border-border" },
 ];
 
 function formatDate(value: string) {
@@ -148,7 +148,7 @@ export default function OrgMembersScreen() {
 
       {message && (
         <div className={`mb-4 sm:mb-6 rounded-xl border px-4 py-3 text-sm ${
-          message.ok ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300" : "border-rose-500/25 bg-rose-500/10 text-rose-300"
+          message.ok ? "border-emerald-600/25 bg-emerald-500/10 text-emerald-600" : "border-destructive/25 bg-destructive/10 text-destructive"
         }`}>
           {message.text}
         </div>
@@ -156,34 +156,34 @@ export default function OrgMembersScreen() {
 
       {/* Invite form — the primary action, front and center */}
       {canInvite && (
-        <div className="mb-4 sm:mb-6 border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
+        <div className="mb-4 sm:mb-6 border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <UserPlus className="w-4 h-4 text-indigo-400" />
-            <h2 className="font-semibold text-white">Invite a teammate</h2>
+            <UserPlus className="w-4 h-4 text-primary" />
+            <h2 className="font-semibold text-foreground">Invite a teammate</h2>
           </div>
           {/* Mobile: stacked single column with 16px inputs; desktop keeps
               the horizontal email+role+button row. */}
           <form onSubmit={handleInvite} className="grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">Work email</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Work email</label>
               <input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 required
                 placeholder="teammate@company.com"
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">Access level</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Access level</label>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 {ROLES.map((r) => (
-                  <option key={r.id} value={r.id} className="bg-[#13131f]">{r.label}</option>
+                  <option key={r.id} value={r.id} className="bg-popover">{r.label}</option>
                 ))}
               </select>
             </div>
@@ -192,27 +192,27 @@ export default function OrgMembersScreen() {
               {inviting ? "Sending…" : "Send invite"}
             </Button>
           </form>
-          <p className="hidden sm:block text-xs text-white/30 mt-3">
+          <p className="hidden sm:block text-xs text-muted-foreground/70 mt-3">
             {ROLES.find((r) => r.id === inviteRole)?.desc}. New teammates get an email to set their own password.
           </p>
         </div>
       )}
 
       {/* Members list */}
-      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-6">
+      <div className="border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-white flex items-center gap-2">
-            <Shield className="w-4 h-4 text-cyan-400" /> Members
-            <span className="text-xs text-white/30 font-normal">({members.length})</span>
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <Shield className="w-4 h-4 text-primary" /> Members
+            <span className="text-xs text-muted-foreground/70 font-normal">({members.length})</span>
           </h2>
         </div>
 
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-white/[0.04] animate-pulse" />)}
+            {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />)}
           </div>
         ) : members.length === 0 ? (
-          <p className="text-sm text-white/35 py-8 text-center">No members found.</p>
+          <p className="text-sm text-muted-foreground/70 py-8 text-center">No members found.</p>
         ) : (
           <div className="space-y-3">
             {members.map((m) => {
@@ -220,30 +220,30 @@ export default function OrgMembersScreen() {
               const isSelf = m.userId === currentUserId;
               return (
                 <div key={m.userId}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 sm:px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  className="rounded-xl border border-border/70 bg-muted/50 px-4 sm:px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     {m.avatarUrl ? (
-                      <img src={m.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
+                      <img src={m.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-border shrink-0" />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-indigo-600/25 border border-indigo-500/25 flex items-center justify-center text-indigo-300 font-bold shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold shrink-0">
                         {(m.fullName ?? m.email ?? "?").charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white flex items-center gap-2 truncate">
+                      <p className="text-sm font-medium text-foreground flex items-center gap-2 truncate">
                         {m.fullName || m.email}
-                        {isSelf && <span className="text-[10px] text-white/30">(you)</span>}
+                        {isSelf && <span className="text-[10px] text-muted-foreground/70">(you)</span>}
                       </p>
-                      <p className="text-xs text-white/35 truncate">{m.email}</p>
+                      <p className="text-xs text-muted-foreground/70 truncate">{m.email}</p>
                       {/* Joined date — desktop noise, hidden on phones */}
-                      <p className="hidden lg:block text-[11px] text-white/25">Joined {formatDate(m.joinedAt)}</p>
+                      <p className="hidden lg:block text-[11px] text-muted-foreground/50">Joined {formatDate(m.joinedAt)}</p>
                     </div>
                   </div>
 
                   {/* Actions — aligned with the text block on phones (avatar
                       40px + gap 12px), badge left / controls right. */}
                   <div className="flex items-center gap-2 flex-wrap pl-[52px] sm:pl-0 sm:justify-end">
-                    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${role?.badge ?? "bg-white/10 text-white/60 border-white/15"}`}>
+                    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${role?.badge ?? "bg-muted text-muted-foreground border-border"}`}>
                       {role?.label ?? m.roleName}
                     </span>
 
@@ -253,17 +253,17 @@ export default function OrgMembersScreen() {
                         disabled={busyId === m.userId}
                         onChange={(e) => handleRoleChange(m.userId, e.target.value)}
                         aria-label={`Change role for ${m.fullName ?? m.email}`}
-                        className="bg-white/[0.05] border border-white/10 rounded-lg px-2.5 py-2 text-base sm:text-xs text-white/70 focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                        className="bg-muted/50 border border-border rounded-lg px-2.5 py-2 text-base sm:text-xs text-muted-foreground focus:outline-none focus:border-primary disabled:opacity-40"
                       >
                         {ROLES.map((r) => (
-                          <option key={r.id} value={r.id} className="bg-[#13131f]">{r.label}</option>
+                          <option key={r.id} value={r.id} className="bg-popover">{r.label}</option>
                         ))}
                       </select>
                     )}
 
                     {canInvite && !isSelf && (
                       <Button variant="outline" size="sm"
-                        className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10 h-9 w-9 p-0"
+                        className="border-destructive/20 text-destructive hover:bg-destructive/10 h-9 w-9 p-0"
                         aria-label={`Remove ${m.fullName ?? m.email} from organisation`}
                         disabled={busyId === m.userId}
                         onClick={() => handleRemove(m.userId, m.email)}>
@@ -282,11 +282,11 @@ export default function OrgMembersScreen() {
           select labels — the legend is reference noise on a 390px screen) */}
       <div className="mt-6 hidden sm:grid grid-cols-2 xl:grid-cols-4 gap-3">
         {ROLES.map((r) => (
-          <div key={r.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5">
+          <div key={r.id} className="rounded-xl border border-border/70 bg-muted/50 px-4 py-3.5">
             <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border mb-2 ${r.badge}`}>
               {r.label}
             </span>
-            <p className="text-xs text-white/40 leading-relaxed">{r.desc}</p>
+            <p className="text-xs text-muted-foreground/70 leading-relaxed">{r.desc}</p>
           </div>
         ))}
       </div>

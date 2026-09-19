@@ -391,7 +391,7 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
         {readiness && !readiness.ready && (
           <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
             <ShieldAlert className="mt-0.5 h-4 w-4 text-amber-500" />
-            <div className="text-xs text-amber-200/90">{readiness.reason}</div>
+            <div className="text-xs text-amber-600">{readiness.reason}</div>
           </div>
         )}
 

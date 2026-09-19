@@ -69,49 +69,49 @@ export default function DocsGettingStartedScreen() {
   return (
     <div className="min-h-screen px-4 py-10 sm:py-20 sm:px-6">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
-          <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-10">
+          <Link href="/docs" className="hover:text-foreground transition-colors">Docs</Link>
           <span>/</span>
-          <span className="text-white/60">Getting Started</span>
+          <span className="text-muted-foreground">Getting Started</span>
         </div>
 
-        <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
+        <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4">
           Getting{" "}
-          <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Started</span>
+          <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Started</span>
         </h1>
-        <p className="text-white/50 text-[15px] sm:text-lg mb-8 sm:mb-14 leading-relaxed">
+        <p className="text-muted-foreground text-[15px] sm:text-lg mb-8 sm:mb-14 leading-relaxed">
           Deploy a custom AI assistant trained on your documents in under 10 minutes. No ML expertise needed.
         </p>
 
         <div className="space-y-6 sm:space-y-12">
           {STEPS.map((s, idx) => (
-            <div key={s.id} id={s.id} className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-4 sm:p-8 scroll-mt-24">
+            <div key={s.id} id={s.id} className="border border-border bg-card rounded-2xl p-4 sm:p-8 scroll-mt-24">
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
                   <s.icon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white/30 uppercase tracking-widest mb-0.5">Step {s.step}</div>
-                  <h2 className="text-xl font-bold text-white">{s.title}</h2>
+                  <div className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-0.5">Step {s.step}</div>
+                  <h2 className="text-xl font-bold text-foreground">{s.title}</h2>
                 </div>
               </div>
-              <p className="text-white/60 leading-relaxed mb-6 text-sm">{s.body}</p>
+              <p className="text-muted-foreground leading-relaxed mb-6 text-sm">{s.body}</p>
               {s.code && (
-                <pre className="bg-[#0d0d18] border border-white/[0.08] rounded-xl p-5 text-xs text-emerald-300 font-mono overflow-x-auto mb-6 leading-relaxed">
+                <pre className="bg-[#0d0d18] border border-border rounded-xl p-5 text-xs text-emerald-300 font-mono overflow-x-auto mb-6 leading-relaxed">
                   <code>{s.code}</code>
                 </pre>
               )}
               <ul className="space-y-2">
                 {s.checklist.map(item => (
-                  <li key={item} className="flex items-center gap-2 text-sm text-white/60">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     {item}
                   </li>
                 ))}
               </ul>
               {idx < STEPS.length - 1 && (
                 <div className="mt-6 flex justify-end">
-                  <a href={`#${STEPS[idx + 1].id}`} className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <a href={`#${STEPS[idx + 1].id}`} className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors">
                     Next: {STEPS[idx + 1].title} <ArrowRight className="w-3.5 h-3.5" />
                   </a>
                 </div>
@@ -120,11 +120,11 @@ export default function DocsGettingStartedScreen() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between mt-14 border-t border-white/[0.06] pt-8">
-          <Link href="/docs" className="text-sm text-white/40 hover:text-white transition-colors">
+        <div className="flex items-center justify-between mt-14 border-t border-border pt-8">
+          <Link href="/docs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             ← Back to Docs
           </Link>
-          <Link href="/docs/api-reference" className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+          <Link href="/docs/api-reference" className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
             API Reference <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

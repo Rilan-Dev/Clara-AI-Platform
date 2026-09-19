@@ -68,7 +68,7 @@ const REFRESH_INTERVAL_MS = 30_000;
 function StatusPill({ status }: { status: ServiceStatus }) {
   if (status === "up") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-600">
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -79,13 +79,13 @@ function StatusPill({ status }: { status: ServiceStatus }) {
   }
   if (status === "down") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive">
         <CircleX className="w-3 h-3" /> Down
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-white/45">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
       <MinusCircle className="w-3 h-3" /> Not configured
     </span>
   );
@@ -93,7 +93,7 @@ function StatusPill({ status }: { status: ServiceStatus }) {
 
 function LatencyTag({ ms }: { ms?: number }) {
   if (ms === undefined) return null;
-  const tone = ms < 100 ? "text-emerald-300/80" : ms < 500 ? "text-amber-300/80" : "text-red-300/80";
+  const tone = ms < 100 ? "text-emerald-600/80" : ms < 500 ? "text-amber-600/80" : "text-destructive/80";
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] ${tone}`}>
       <Timer className="w-3 h-3" /> {ms} ms
@@ -104,8 +104,8 @@ function LatencyTag({ ms }: { ms?: number }) {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className="shrink-0 text-[11px] text-white/35">{label}</span>
-      <span className="min-w-0 truncate text-right font-mono text-[11px] text-white/65">{value}</span>
+      <span className="shrink-0 text-[11px] text-muted-foreground/70">{label}</span>
+      <span className="min-w-0 truncate text-right font-mono text-[11px] text-muted-foreground">{value}</span>
     </div>
   );
 }
@@ -124,26 +124,26 @@ function ServiceCard({
     <div
       className={`min-w-0 rounded-2xl border p-4 sm:p-5 transition-colors ${
         check.status === "down"
-          ? "border-red-500/25 bg-red-500/[0.04]"
+          ? "border-destructive/25 bg-destructive/5"
           : check.status === "up"
-            ? "border-white/[0.08] bg-white/[0.02]"
-            : "border-white/[0.06] bg-white/[0.01]"
+            ? "border-border bg-card shadow-sm"
+            : "border-border/70 bg-muted/50"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
             check.status === "up"
-              ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-300"
+              ? "border-primary/20 bg-primary/10 text-primary"
               : check.status === "down"
-                ? "border-red-500/20 bg-red-500/10 text-red-300"
-                : "border-white/10 bg-white/[0.03] text-white/30"
+                ? "border-destructive/20 bg-destructive/10 text-destructive"
+                : "border-border bg-muted/50 text-muted-foreground/70"
           }`}>
             {icon}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-white">{name}</h3>
-            <p className="mt-0.5 truncate text-xs text-white/40">{check.detail ?? subtitle}</p>
+            <h3 className="text-sm font-semibold text-foreground">{name}</h3>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground/70">{check.detail ?? subtitle}</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -153,17 +153,17 @@ function ServiceCard({
       </div>
 
       {check.error && (
-        <p className="mt-3 break-words rounded-lg bg-red-500/10 px-3 py-2 text-[11px] leading-relaxed text-red-300/90">
+        <p className="mt-3 break-words rounded-lg bg-destructive/10 px-3 py-2 text-[11px] leading-relaxed text-destructive/90">
           {check.error}
         </p>
       )}
 
       {children && (
-        <div className="mt-3 border-t border-white/[0.06] pt-2">
+        <div className="mt-3 border-t border-border/70 pt-2">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-[11px] font-medium text-white/45 transition-colors hover:text-white/75"
+            className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground/80"
             aria-expanded={open}
           >
             Details
@@ -244,24 +244,24 @@ export function SystemStatusScreen() {
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
-              <Activity className="h-[18px] w-[18px] sm:h-5 sm:w-5 text-indigo-300" />
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-gradient-to-br from-indigo-500/15 to-violet-500/10">
+              <Activity className="h-[18px] w-[18px] sm:h-5 sm:w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-white">System status</h1>
-              <p className="mt-1 text-sm text-white/45">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">System status</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Live health of every service Clara depends on — data stores, queues,
                 message broker and email delivery.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/55">
+            <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="h-3.5 w-3.5 accent-indigo-500"
+                className="h-3.5 w-3.5 accent-primary"
               />
               Auto {autoRefresh ? `(${secondsLeft}s)` : "off"}
             </label>
@@ -278,17 +278,17 @@ export function SystemStatusScreen() {
         </header>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
           </div>
         )}
 
         {loading ? (
           <div className="space-y-4">
-            <div className="h-20 animate-pulse rounded-2xl bg-white/[0.03]" />
+            <div className="h-20 animate-pulse rounded-2xl bg-muted/50" />
             <div className="grid gap-4 sm:grid-cols-2">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-32 animate-pulse rounded-2xl bg-white/[0.03]" />
+                <div key={i} className="h-32 animate-pulse rounded-2xl bg-muted/50" />
               ))}
             </div>
           </div>
@@ -298,29 +298,29 @@ export function SystemStatusScreen() {
             <div
               className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 sm:p-5 ${
                 data.summary.down > 0
-                  ? "border-red-500/25 bg-red-500/[0.06]"
-                  : "border-emerald-500/20 bg-emerald-500/[0.05]"
+                  ? "border-destructive/25 bg-destructive/5"
+                  : "border-emerald-600/20 bg-emerald-500/5"
               }`}
             >
               <div className="flex items-center gap-3">
                 {data.summary.down > 0 ? (
-                  <CircleX className="h-8 w-8 text-red-400" />
+                  <CircleX className="h-8 w-8 text-destructive" />
                 ) : (
-                  <CircleCheck className="h-8 w-8 text-emerald-400" />
+                  <CircleCheck className="h-8 w-8 text-emerald-600" />
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-foreground">
                     {data.summary.down > 0
                       ? `${data.summary.down} service${data.summary.down > 1 ? "s" : ""} need attention`
                       : "All systems operational"}
                   </p>
-                  <p className="mt-0.5 text-xs text-white/45">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {data.summary.up} operational
                     {data.summary.notConfigured > 0 && ` · ${data.summary.notConfigured} not configured`}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-[11px] text-white/35">
+              <div className="flex items-center gap-4 text-[11px] text-muted-foreground/70">
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" /> Checked {checkedAt}
                 </span>
@@ -394,7 +394,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiOpenai.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiOpenai.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiOpenai.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-red-200/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-destructive/80">
                       {data.services.aiOpenai.error ?? "unreachable"}
                     </p>
                   )}
@@ -411,7 +411,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiGemini.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiGemini.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiGemini.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-red-200/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-destructive/80">
                       {data.services.aiGemini.error ?? "unreachable"}
                     </p>
                   )}
@@ -427,13 +427,13 @@ export function SystemStatusScreen() {
                 {data.services.queues.queues && (
                   <div className="space-y-2">
                     {data.services.queues.queues.map((q) => (
-                      <div key={q.name} className="rounded-lg bg-white/[0.03] px-3 py-2">
-                        <p className="font-mono text-[11px] text-white/60">{q.name}</p>
+                      <div key={q.name} className="rounded-lg bg-muted/50 px-3 py-2">
+                        <p className="font-mono text-[11px] text-muted-foreground">{q.name}</p>
                         <div className="mt-1 grid grid-cols-4 gap-1 text-center text-[10px]">
-                          <div><p className="text-white/30">waiting</p><p className="font-mono text-white/70">{q.waiting}</p></div>
-                          <div><p className="text-white/30">active</p><p className="font-mono text-white/70">{q.active}</p></div>
-                          <div><p className="text-white/30">delayed</p><p className="font-mono text-white/70">{q.delayed}</p></div>
-                          <div><p className={q.failed > 0 ? "text-red-300/60" : "text-white/30"}>failed</p><p className={`font-mono ${q.failed > 0 ? "text-red-300" : "text-white/70"}`}>{q.failed}</p></div>
+                          <div><p className="text-muted-foreground/70">waiting</p><p className="font-mono text-muted-foreground">{q.waiting}</p></div>
+                          <div><p className="text-muted-foreground/70">active</p><p className="font-mono text-muted-foreground">{q.active}</p></div>
+                          <div><p className="text-muted-foreground/70">delayed</p><p className="font-mono text-muted-foreground">{q.delayed}</p></div>
+                          <div><p className={q.failed > 0 ? "text-destructive/70" : "text-muted-foreground/70"}>failed</p><p className={`font-mono ${q.failed > 0 ? "text-destructive" : "text-muted-foreground"}`}>{q.failed}</p></div>
                         </div>
                       </div>
                     ))}
@@ -457,7 +457,7 @@ export function SystemStatusScreen() {
               </ServiceCard>
             </div>
 
-            <p className="pb-4 text-center text-[11px] text-white/25">
+            <p className="pb-4 text-center text-[11px] text-muted-foreground/50">
               Status checks are read-only and run on demand — no service is modified.
               Not-configured services are monitored automatically once their
               settings exist.

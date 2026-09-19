@@ -92,17 +92,17 @@ const SECTIONS: { id: string; title: string; endpoints: Endpoint[] }[] = [
 ];
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
-  POST: "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30",
-  DELETE: "bg-rose-500/20 text-rose-300 border border-rose-500/30",
-  PATCH: "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+  GET: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30",
+  POST: "bg-primary/10 text-primary border border-primary/30",
+  DELETE: "bg-destructive/10 text-destructive border border-destructive/30",
+  PATCH: "bg-amber-500/10 text-amber-600 border border-amber-500/30",
 };
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   return (
-    <button onClick={copy} className="text-white/30 hover:text-white/70 transition-colors shrink-0">
+    <button onClick={copy} className="text-slate-400 hover:text-slate-200 transition-colors shrink-0">
       {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
   );
@@ -112,24 +112,24 @@ export default function DocsApiScreen() {
   return (
     <div className="min-h-screen px-4 py-10 sm:py-20 sm:px-6">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-2 text-sm text-white/30 mb-10">
-          <Link href="/docs" className="hover:text-white/60 transition-colors">Docs</Link>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-10">
+          <Link href="/docs" className="hover:text-foreground transition-colors">Docs</Link>
           <span>/</span>
-          <span className="text-white/60">API Reference</span>
+          <span className="text-muted-foreground">API Reference</span>
         </div>
 
-        <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
+        <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4">
           API{" "}
-          <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Reference</span>
+          <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">Reference</span>
         </h1>
-        <p className="text-white/50 text-lg mb-6 leading-relaxed">
+        <p className="text-muted-foreground text-lg mb-6 leading-relaxed">
           REST API for Clara AI. All endpoints require an API key unless marked otherwise.
         </p>
 
-        <div id="auth" className="border border-indigo-500/30 bg-indigo-600/10 rounded-xl p-5 mb-8 sm:mb-14 scroll-mt-24">
-          <div className="text-sm font-bold text-indigo-300 mb-2">Authentication</div>
-          <p className="text-sm text-white/60 mb-3">
-            Pass your API key in the <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded">x-api-key</code> header on every request.
+        <div id="auth" className="border border-primary/20 bg-primary/5 rounded-xl p-5 mb-8 sm:mb-14 scroll-mt-24">
+          <div className="text-sm font-bold text-primary mb-2">Authentication</div>
+          <p className="text-sm text-muted-foreground mb-3">
+            Pass your API key in the <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded">x-api-key</code> header on every request.
           </p>
           <div className="flex flex-col gap-2 bg-[#0d0d18] rounded-lg px-4 py-2.5 font-mono text-xs text-emerald-300 sm:flex-row sm:items-center sm:justify-between">
             <span className="overflow-x-auto">curl -H &quot;x-api-key: YOUR_API_KEY&quot; {BASE}/api/kbs</span>
@@ -139,36 +139,36 @@ export default function DocsApiScreen() {
 
         {SECTIONS.map(sec => (
           <div key={sec.id} id={sec.id} className="mb-8 sm:mb-14 scroll-mt-24">
-            <h2 className="text-xl font-bold text-white mb-6 pb-3 border-b border-white/[0.08]">{sec.title}</h2>
+            <h2 className="text-xl font-bold text-foreground mb-6 pb-3 border-b border-border">{sec.title}</h2>
             <div className="space-y-5">
               {sec.endpoints.map(ep => (
-                <div key={ep.path} className="border border-white/[0.08] bg-white/[0.03] rounded-xl overflow-hidden">
-                  <div className="flex flex-col gap-2 px-5 py-4 border-b border-white/[0.06] sm:flex-row sm:items-center sm:gap-3">
+                <div key={ep.path} className="border border-border bg-card rounded-xl overflow-hidden">
+                  <div className="flex flex-col gap-2 px-5 py-4 border-b border-border sm:flex-row sm:items-center sm:gap-3">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-md font-mono ${METHOD_COLORS[ep.method]}`}>{ep.method}</span>
-                    <code className="text-sm text-white/80 font-mono break-all sm:break-normal">{ep.path}</code>
-                    {ep.auth && <span className="text-xs text-white/30 border border-white/10 rounded px-2 py-0.5 sm:ml-auto">Auth required</span>}
+                    <code className="text-sm text-foreground/80 font-mono break-all sm:break-normal">{ep.path}</code>
+                    {ep.auth && <span className="text-xs text-muted-foreground/70 border border-border rounded px-2 py-0.5 sm:ml-auto">Auth required</span>}
                   </div>
                   <div className="px-5 py-4 space-y-4">
-                    <p className="text-sm text-white/60">{ep.summary}</p>
+                    <p className="text-sm text-muted-foreground">{ep.summary}</p>
                     {ep.body && ep.body.length > 0 && (
                       <div>
-                        <div className="text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Request body</div>
-                        <div className="rounded-lg overflow-hidden border border-white/[0.06]">
+                        <div className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-2">Request body</div>
+                        <div className="rounded-lg overflow-hidden border border-border">
                           {ep.body.map((p, i) => (
-                            <div key={p.name} className={`flex flex-col gap-2 px-4 py-2.5 text-xs sm:flex-row sm:items-start sm:gap-3 ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
-                              <code className="text-indigo-300 font-mono shrink-0 sm:w-28">{p.name}</code>
-                              <span className="text-white/30 shrink-0 sm:w-16">{p.type}</span>
+                            <div key={p.name} className={`flex flex-col gap-2 px-4 py-2.5 text-xs sm:flex-row sm:items-start sm:gap-3 ${i % 2 === 0 ? "bg-muted/40" : ""}`}>
+                              <code className="text-primary font-mono shrink-0 sm:w-28">{p.name}</code>
+                              <span className="text-muted-foreground/70 shrink-0 sm:w-16">{p.type}</span>
                               {p.required
-                                ? <span className="text-rose-400 shrink-0 text-[10px] font-bold uppercase">required</span>
-                                : <span className="text-white/20 shrink-0 text-[10px] uppercase">optional</span>}
-                              <span className="text-white/50 leading-relaxed min-w-0">{p.desc}</span>
+                                ? <span className="text-destructive shrink-0 text-[10px] font-bold uppercase">required</span>
+                                : <span className="text-muted-foreground/50 shrink-0 text-[10px] uppercase">optional</span>}
+                              <span className="text-muted-foreground leading-relaxed min-w-0">{p.desc}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
                     <div>
-                      <div className="text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Response</div>
+                      <div className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-2">Response</div>
                       <div className="flex flex-col gap-2 bg-[#0d0d18] rounded-lg px-4 py-3 font-mono text-xs text-emerald-300 sm:flex-row sm:items-start sm:justify-between">
                         <pre className="overflow-x-auto flex-1 min-w-0">{ep.response}</pre>
                         <CopyButton text={ep.response} />
@@ -181,9 +181,9 @@ export default function DocsApiScreen() {
           </div>
         ))}
 
-        <div className="flex items-center justify-between mt-8 border-t border-white/[0.06] pt-8">
-          <Link href="/docs/getting-started" className="text-sm text-white/40 hover:text-white transition-colors">← Getting Started</Link>
-          <Link href="/docs/sdk" className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+        <div className="flex items-center justify-between mt-8 border-t border-border pt-8">
+          <Link href="/docs/getting-started" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← Getting Started</Link>
+          <Link href="/docs/sdk" className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
             SDK & Integrations <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

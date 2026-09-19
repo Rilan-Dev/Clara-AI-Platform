@@ -16,9 +16,9 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
     { label: "Too short",  color: "bg-rose-500"    },
     { label: "Weak",       color: "bg-rose-500"    },
     { label: "Okay",       color: "bg-amber-500"   },
-    { label: "Good",       color: "bg-yellow-400"  },
+    { label: "Good",       color: "bg-amber-500"   },
     { label: "Strong",     color: "bg-emerald-500" },
-    { label: "Excellent",  color: "bg-emerald-400" },
+    { label: "Excellent",  color: "bg-emerald-500" },
   ];
   return { score, ...map[score] };
 }
@@ -59,14 +59,14 @@ function ResetForm() {
 
   if (!token) {
     return (
-      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 text-center">
-        <p className="text-white font-medium">Reset link missing</p>
-        <p className="text-sm text-white/50 mt-2 mb-4">
+      <div className="border border-border bg-card rounded-2xl p-6 text-center shadow-sm">
+        <p className="text-foreground font-medium">Reset link missing</p>
+        <p className="text-sm text-muted-foreground mt-2 mb-4">
           This page needs a valid reset link from your email.
         </p>
         <Link
           href="/login/forgot"
-          className="inline-block text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="inline-block text-sm text-primary hover:text-primary/80 transition-colors"
         >
           Request a new link →
         </Link>
@@ -76,12 +76,12 @@ function ResetForm() {
 
   if (done) {
     return (
-      <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 text-center space-y-4">
+      <div className="border border-border bg-card rounded-2xl p-6 text-center space-y-4 shadow-sm">
         <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-          <ShieldCheck className="w-6 h-6 text-emerald-400" />
+          <ShieldCheck className="w-6 h-6 text-emerald-600" />
         </div>
-        <p className="text-white font-medium">Password updated</p>
-        <p className="text-sm text-white/50">
+        <p className="text-foreground font-medium">Password updated</p>
+        <p className="text-sm text-muted-foreground">
           For your security, all active sessions were signed out.
         </p>
         <Link
@@ -95,10 +95,10 @@ function ResetForm() {
   }
 
   return (
-    <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5 sm:p-6">
+    <div className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-white/50 mb-1.5">New password</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">New password</label>
           <div className="relative">
             <input
               type={show ? "text" : "password"}
@@ -108,10 +108,10 @@ function ResetForm() {
               autoFocus
               minLength={8}
               placeholder="At least 8 characters"
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
             />
             <button type="button" onClick={() => setShow(!show)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">
               {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
@@ -120,35 +120,35 @@ function ResetForm() {
               <div className="flex-1 flex gap-1">
                 {[0, 1, 2, 3, 4].map((i) => (
                   <div key={i}
-                    className={`h-1 flex-1 rounded-full ${i < strength.score ? strength.color : "bg-white/10"}`} />
+                    className={`h-1 flex-1 rounded-full ${i < strength.score ? strength.color : "bg-muted"}`} />
                 ))}
               </div>
-              <span className="text-[11px] text-white/40 w-16 text-right">{strength.label}</span>
+              <span className="text-[11px] text-muted-foreground w-16 text-right">{strength.label}</span>
             </div>
           )}
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-white/50 mb-1.5">Confirm password</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm password</label>
           <input
             type={show ? "text" : "password"}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
             placeholder="Repeat your new password"
-            className={`w-full bg-white/[0.05] border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none transition-colors ${
+            className={`w-full bg-background border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none transition-colors ${
               confirm && confirm !== password
-                ? "border-rose-500/50"
-                : "border-white/10 focus:border-indigo-500"
+                ? "border-destructive/50"
+                : "border-border focus:border-primary"
             }`}
           />
           {confirm && confirm !== password && (
-            <p className="text-[11px] text-rose-400 mt-1">Passwords don&apos;t match</p>
+            <p className="text-[11px] text-destructive mt-1">Passwords don&apos;t match</p>
           )}
         </div>
 
         {error && (
-          <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
             {error}
           </div>
         )}
@@ -156,7 +156,7 @@ function ResetForm() {
         <button
           type="submit"
           disabled={loading || !valid}
-          className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Updating…" : "Set new password"}
         </button>
@@ -170,23 +170,23 @@ function ResetForm() {
  */
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
             <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Choose a new password</h1>
-          <p className="text-white/40 text-sm mt-1">Make it strong — you only need to remember one.</p>
+          <h1 className="text-2xl font-bold text-foreground">Choose a new password</h1>
+          <p className="text-muted-foreground text-sm mt-1">Make it strong — you only need to remember one.</p>
         </div>
 
-        <Suspense fallback={<div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6 text-white/40 text-sm">Loading…</div>}>
+        <Suspense fallback={<div className="border border-border bg-card rounded-2xl p-6 text-muted-foreground text-sm shadow-sm">Loading…</div>}>
           <ResetForm />
         </Suspense>
 
         <Link
           href="/login"
-          className="mt-6 flex items-center justify-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
+          className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to sign in
         </Link>

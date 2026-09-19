@@ -74,7 +74,7 @@ export function ProfileMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Open profile menu"
-        className="flex items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] pl-1.5 pr-2.5 py-1.5 hover:bg-white/[0.07] hover:border-indigo-500/30 transition-all"
+        className="flex items-center gap-2.5 rounded-xl border border-border bg-card pl-1.5 pr-2.5 py-1.5 hover:bg-muted hover:border-primary/30 transition-all"
       >
         {user.avatarUrl ? (
           <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />
@@ -83,37 +83,37 @@ export function ProfileMenu({
             {initials || "U"}
           </div>
         )}
-        <span className="hidden md:block text-sm font-medium text-white/80 max-w-[140px] truncate">
+        <span className="hidden md:block text-sm font-medium text-foreground/80 max-w-[140px] truncate">
           {user.fullName}
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-white/35 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/70 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {/* Dropdown */}
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-12 w-72 rounded-2xl border border-white/[0.12] bg-[#13131f] shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 top-12 w-72 rounded-2xl border border-border bg-popover text-popover-foreground shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {/* Identity header */}
-          <div className="px-4 py-4 border-b border-white/[0.08] bg-white/[0.02]">
+          <div className="px-4 py-4 border-b border-border bg-muted/50">
             <div className="flex items-center gap-3">
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-white/10" />
+                <img src={user.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-border" />
               ) : (
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold">
                   {initials || "U"}
                 </div>
               )}
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user.fullName}</p>
-                <p className="text-xs text-white/35 truncate">{user.email}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{user.fullName}</p>
+                <p className="text-xs text-muted-foreground/70 truncate">{user.email}</p>
               </div>
             </div>
             <span className={`inline-flex items-center gap-1.5 mt-3 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full border ${
               user.isSuperAdmin
-                ? "bg-indigo-500/15 text-indigo-300 border-indigo-500/30"
-                : "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
+                ? "bg-primary/15 text-primary border-primary/30"
+                : "bg-sky-500/10 text-sky-600 border-sky-500/30"
             }`}>
               <ShieldCheck className="w-3 h-3" />
               {user.isSuperAdmin ? "Platform admin" : "Organisation user"}
@@ -125,18 +125,18 @@ export function ProfileMenu({
             <button
               role="menuitem"
               onClick={() => { setOpen(false); setShowProfile(true); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-indigo-500/10 transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
             >
-              <UserRound className="w-4 h-4 text-white/35" /> Profile & security
+              <UserRound className="w-4 h-4 text-muted-foreground/70" /> Profile & security
             </button>
 
             <Link
               role="menuitem"
               href="/settings/account"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-indigo-500/10 transition-all"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
             >
-              <Settings className="w-4 h-4 text-white/35" /> Account settings
+              <Settings className="w-4 h-4 text-muted-foreground/70" /> Account settings
             </Link>
 
             {billingHref && (
@@ -144,9 +144,9 @@ export function ProfileMenu({
                 role="menuitem"
                 href={billingHref}
                 onClick={() => { setOpen(false); router.prefetch?.(billingHref); }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-indigo-500/10 transition-all"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
               >
-                <CreditCard className="w-4 h-4 text-white/35" /> Billing & plan
+                <CreditCard className="w-4 h-4 text-muted-foreground/70" /> Billing & plan
               </Link>
             )}
 
@@ -155,19 +155,19 @@ export function ProfileMenu({
                 role="menuitem"
                 href="/settings/ai"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-indigo-500/10 transition-all"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all"
               >
-                <KeyRound className="w-4 h-4 text-white/35" /> Platform settings
+                <KeyRound className="w-4 h-4 text-muted-foreground/70" /> Platform settings
               </Link>
             )}
           </div>
 
           {/* Sign out */}
-          <div className="p-1.5 border-t border-white/[0.08]">
+          <div className="p-1.5 border-t border-border">
             <button
               role="menuitem"
               onClick={() => { setOpen(false); onSignOut(); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-rose-300/80 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-all"
             >
               <LogOut className="w-4 h-4" /> Sign out
             </button>

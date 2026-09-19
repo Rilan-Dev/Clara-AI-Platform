@@ -34,32 +34,32 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
             <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Reset your password</h1>
-          <p className="text-white/40 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Reset your password</h1>
+          <p className="text-muted-foreground text-sm mt-1">
             Enter your email — we&apos;ll send a secure one-time link.
           </p>
         </div>
 
-        <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-5 sm:p-6">
+        <div className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm">
           {sent ? (
             <div className="text-center space-y-4">
               <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-                <MailCheck className="w-6 h-6 text-emerald-400" />
+                <MailCheck className="w-6 h-6 text-emerald-600" />
               </div>
-              <p className="text-white font-medium">Check your inbox</p>
-              <p className="text-sm text-white/50 leading-relaxed">
-                If an account exists for <span className="text-white/80 font-medium">{email}</span>,
+              <p className="text-foreground font-medium">Check your inbox</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                If an account exists for <span className="text-foreground/80 font-medium">{email}</span>,
                 a reset link is on its way. The link expires in 1 hour.
               </p>
               <button
                 onClick={() => { setSent(false); setEmail(""); }}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="text-xs text-primary hover:text-primary/80 transition-colors"
               >
                 Didn&apos;t get it? Send another link
               </button>
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Email</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
                 <input
                   type="email"
                   value={email}
@@ -75,18 +75,18 @@ export default function ForgotPasswordPage() {
                   required
                   autoFocus
                   placeholder="you@company.com"
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                   {error}
                 </div>
               )}
               <button
                 type="submit"
                 disabled={loading || !email.trim()}
-                className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Sending link…" : "Send reset link"}
               </button>
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
 
         <Link
           href="/login"
-          className="mt-6 flex items-center justify-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
+          className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to sign in
         </Link>

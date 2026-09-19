@@ -18,7 +18,7 @@ loader.config({
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[220px] items-center justify-center rounded-xl border border-white/10 bg-[#0f1220] text-sm text-white/40">
+    <div className="flex h-[220px] items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-sm text-slate-400">
       Loading editor…
     </div>
   ),
@@ -44,7 +44,7 @@ function markerTone(markers: MonacoEditorNamespace.IMarker[]) {
   if (errors > 0) {
     return {
       label: `${errors} error${errors > 1 ? "s" : ""}${warnings > 0 ? ` · ${warnings} warning${warnings > 1 ? "s" : ""}` : ""}`,
-      className: "border-rose-500/30 bg-rose-500/10 text-rose-300",
+      className: "border-destructive/30 bg-destructive/10 text-destructive",
       icon: AlertTriangle,
     };
   }
@@ -52,14 +52,14 @@ function markerTone(markers: MonacoEditorNamespace.IMarker[]) {
   if (warnings > 0) {
     return {
       label: `${warnings} warning${warnings > 1 ? "s" : ""}`,
-      className: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+      className: "border-amber-500/30 bg-amber-500/10 text-amber-600",
       icon: AlertTriangle,
     };
   }
 
   return {
     label: "No issues",
-    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
     icon: CheckCircle2,
   };
 }
@@ -134,29 +134,29 @@ export function LiveCodeEditor({
   const firstMarker = markers[0];
 
   return (
-    <div className="space-y-2 rounded-2xl border border-white/[0.08] bg-[#0b1020] p-3">
+    <div className="space-y-2 rounded-2xl border border-border bg-card p-3 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="text-sm font-semibold text-white">{title}</div>
-          {description ? <p className="text-xs text-white/45">{description}</p> : null}
+          <div className="text-sm font-semibold text-foreground">{title}</div>
+          {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${tone.className}`}>
             <StatusIcon className="h-3.5 w-3.5" />
             <span>{tone.label}</span>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={handleFormat} className="h-8 border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.06] hover:text-white">
+          <Button type="button" variant="outline" size="sm" onClick={handleFormat} className="h-8">
             <Wand2 className="mr-1.5 h-3.5 w-3.5" />
             Format
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setExpanded((current) => !current)} className="h-8 border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.06] hover:text-white">
+          <Button type="button" variant="outline" size="sm" onClick={() => setExpanded((current) => !current)} className="h-8">
             {expanded ? <Minimize2 className="mr-1.5 h-3.5 w-3.5" /> : <Maximize2 className="mr-1.5 h-3.5 w-3.5" />}
             {expanded ? "Collapse" : "Expand"}
           </Button>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-[#111827]">
+      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
         <MonacoEditor
           path={path}
           theme="vs-dark"
@@ -192,8 +192,8 @@ export function LiveCodeEditor({
       </div>
 
       {firstMarker ? (
-        <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/60">
-          <span className="font-medium text-white/80">Line {firstMarker.startLineNumber}, Col {firstMarker.startColumn}:</span>{" "}
+        <div className="rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/80">Line {firstMarker.startLineNumber}, Col {firstMarker.startColumn}:</span>{" "}
           {firstMarker.message}
         </div>
       ) : null}

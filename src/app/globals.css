@@ -32,8 +32,8 @@
     --secondary-light: 258 90% 66%;  /* violet-400 #A78BFA */
     --secondary-glow: 262 83% 94%;
 
-    --background: "#FCFCFD";       /* #FCFCFD */
-    --foreground: 240 12% 12%;       /* #1B1B23 */
+    --background: 240 20% 99%;        /* #FCFCFD */
+    --foreground: 240 12% 12%;        /* #1B1B23 */
     --surface: 240 20% 97%;
     --surface-elevated: 0 0% 100%;
 

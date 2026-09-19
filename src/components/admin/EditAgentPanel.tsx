@@ -52,10 +52,10 @@ export function EditAgentPanel({
   }
 
   return (
-    <div className="border border-white/[0.08] bg-white/[0.03] rounded-2xl p-6">
+    <div className="border border-border bg-card rounded-2xl p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-white flex items-center gap-2">
-          <Bot className="w-4 h-4 text-cyan-400" /> Agent Details
+        <h2 className="font-semibold text-foreground flex items-center gap-2">
+          <Bot className="w-4 h-4 text-primary" /> Agent Details
         </h2>
         {canEdit && !editing && (
           <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="gap-1.5">
@@ -63,7 +63,7 @@ export function EditAgentPanel({
           </Button>
         )}
         {editing && (
-          <button onClick={resetAndClose} className="text-white/40 hover:text-white transition-colors p-1">
+          <button onClick={resetAndClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <X className="w-4 h-4" />
           </button>
         )}
@@ -72,29 +72,29 @@ export function EditAgentPanel({
       {!editing ? (
         <div className="space-y-3 text-sm">
           <div>
-            <div className="text-xs text-white/40 mb-1">Name</div>
-            <div className="text-white/80">{agent.name}</div>
+            <div className="text-xs text-muted-foreground mb-1">Name</div>
+            <div className="text-foreground/80">{agent.name}</div>
           </div>
           <div>
-            <div className="text-xs text-white/40 mb-1">Description</div>
-            <div className="text-white/60">{agent.description || <span className="text-white/25 italic">No description</span>}</div>
+            <div className="text-xs text-muted-foreground mb-1">Description</div>
+            <div className="text-muted-foreground">{agent.description || <span className="text-muted-foreground/70 italic">No description</span>}</div>
           </div>
-          {saved && <div className="flex items-center gap-1.5 text-emerald-400 text-xs"><Check className="w-3.5 h-3.5" /> Saved successfully</div>}
+          {saved && <div className="flex items-center gap-1.5 text-emerald-600 text-xs"><Check className="w-3.5 h-3.5" /> Saved successfully</div>}
         </div>
       ) : (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-white/50 mb-1.5">Agent name <span className="text-rose-400">*</span></label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Agent name <span className="text-destructive">*</span></label>
             <input value={name} onChange={e => setName(e.target.value)}
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500" />
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-white/50 mb-1.5">Description</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)}
               rows={3} placeholder="Describe this agent…"
-              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500 resize-none" />
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary resize-none" />
           </div>
-          {error && <p className="text-sm text-rose-400 bg-rose-500/10 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">
             <Button onClick={handleSave} disabled={saving || !name.trim()} className="gap-2">
               <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save changes"}

@@ -19,12 +19,15 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a0a0f",
+  themeColor: "#FCFCFD",
 };
 
+// The platform ships a modern light theme by default. The `.dark` token
+// block in globals.css is still maintained for opt-in dark surfaces, but the
+// app chrome no longer forces it onto <html> — light is the product theme.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className="bg-background text-foreground antialiased">
         <AppShell>
           {children}

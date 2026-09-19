@@ -110,21 +110,21 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1120]">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* Hidden audio element for OpenAI WebRTC playback */}
       <audio ref={audioRef} autoPlay playsInline className="hidden" />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-white/[0.06]
-        bg-white/[0.02] px-4 py-3 gap-3 flex-wrap">
+      <div className="flex items-center justify-between border-b border-border/70
+        bg-muted/50 px-4 py-3 gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg"
             style={{ background: `${primaryColour}22`, border: `1px solid ${primaryColour}44` }}>
             <Radio className="h-3.5 w-3.5" style={{ color: primaryColour }} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">Voice Live Preview</p>
-            <p className="text-[11px] text-white/35">
+            <p className="text-sm font-semibold text-foreground">Voice Live Preview</p>
+            <p className="text-[11px] text-muted-foreground/70">
               Real {session.provider === "gemini" ? "Gemini Live" : "OpenAI Realtime"} · {kbName}
             </p>
           </div>
@@ -137,16 +137,16 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
               connected   ? "animate-ping bg-emerald-400/50"
               : connecting? "animate-ping bg-amber-400/50"
               : isError   ? "bg-rose-400/50"
-              : "bg-white/20"
+              : "bg-muted-foreground/30"
             }`}/>
             <span className={`relative inline-flex h-2 w-2 rounded-full ${
               connected   ? "bg-emerald-400"
               : connecting? "bg-amber-400"
               : isError   ? "bg-rose-400"
-              : "bg-white/30"
+              : "bg-muted-foreground/40"
             }`}/>
           </span>
-          <span className="text-xs text-white/50">
+          <span className="text-xs text-muted-foreground">
             {connected ? "Connected" : connecting ? "Connecting…" : isError ? "Error" : "Idle"}
           </span>
         </div>
@@ -159,8 +159,8 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs
                 font-medium transition-all
                 ${isSpeaking
-                  ? "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 cursor-pointer"
-                  : "border-white/10 text-white/25 cursor-not-allowed"
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 cursor-pointer"
+                  : "border-border text-muted-foreground/50 cursor-not-allowed"
                 }`}>
               <Zap className="h-3 w-3"/>Interrupt
             </button>
@@ -170,16 +170,16 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs
               font-medium transition-all border
               ${connected
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
                 : connecting
-                ? "border-white/10 text-white/30 cursor-not-allowed"
-                : "border-indigo-500/40 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-500/30"
+                ? "border-border text-muted-foreground/70 cursor-not-allowed"
+                : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
               }`}
             disabled={connecting}>
             {connected
               ? <><PhoneOff className="h-3 w-3"/>Disconnect</>
               : connecting
-              ? <><span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white/80"/>Connecting…</>
+              ? <><span className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/40 border-t-foreground"/>Connecting…</>
               : <><Mic className="h-3 w-3"/>Connect voice</>
             }
           </button>
@@ -188,8 +188,8 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
 
       {/* ── Error banner ─────────────────────────────────────────────────── */}
       {isError && error && (
-        <div className="mx-4 mt-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
-          <p className="text-xs text-rose-300">{error}</p>
+        <div className="mx-4 mt-4 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3">
+          <p className="text-xs text-destructive">{error}</p>
         </div>
       )}
 
@@ -197,8 +197,8 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
       {autoplayBlocked && (
         <button onClick={handleUnmute}
           className="mx-4 mt-4 flex w-[calc(100%-2rem)] items-center justify-center gap-2
-            rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3
-            text-sm font-medium text-amber-300 hover:bg-amber-400/20 transition-colors">
+            rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3
+            text-sm font-medium text-amber-600 hover:bg-amber-500/20 transition-colors">
           <Volume2 className="h-4 w-4"/>
           Tap to enable audio playback
         </button>
@@ -207,7 +207,7 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
       {/* ── Audio visualizer ─────────────────────────────────────────────── */}
       <div className="px-4 pt-4">
         <div className="flex h-28 w-full items-end justify-center gap-[3px] rounded-xl
-          bg-gradient-to-b from-white/[0.03] to-transparent px-3 py-2">
+          bg-gradient-to-b from-muted/50 to-transparent px-3 py-2">
           {levels.map((v, i) => (
             <div key={i}
               className="flex-1 rounded-t transition-all duration-100"
@@ -216,15 +216,15 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
                 background: isSpeaking
                   ? `linear-gradient(to top, ${primaryColour}cc, ${primaryColour}66)`
                   : connected
-                  ? "linear-gradient(to top, rgba(99,102,241,0.5), rgba(99,102,241,0.2))"
-                  : "rgba(255,255,255,0.06)",
+                  ? "linear-gradient(to top, rgba(79,70,229,0.5), rgba(79,70,229,0.2))"
+                  : "hsl(var(--muted-foreground) / 0.2)",
                 boxShadow: isSpeaking && v > 0.3
                   ? `0 0 8px ${primaryColour}88`
                   : "none",
               }}/>
           ))}
         </div>
-        <p className="mt-2 text-center text-[11px] text-white/30">
+        <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
           {isSpeaking
             ? `🔊 ${assistantName} is speaking…`
             : connected
@@ -238,9 +238,9 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
       {/* ── Conversation history ──────────────────────────────────────────── */}
       <div className="mx-4 mt-3 max-h-60 overflow-y-auto space-y-2 pb-1
         [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full
-        [&::-webkit-scrollbar-thumb]:bg-white/10">
+        [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
         {history.length === 0 ? (
-          <div className="py-6 text-center text-xs text-white/25">
+          <div className="py-6 text-center text-xs text-muted-foreground/70">
             {connected
               ? "Ask a question by speaking or typing below"
               : "Connect to start the voice session"}
@@ -248,35 +248,35 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
         ) : (
           history.map((turn, i) => (
             <div key={turn.id}
-              className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 space-y-2">
+              className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-white/25">Turn {i + 1}</span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Turn {i + 1}</span>
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium
                   ${turn.status === "speaking"
-                    ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                    ? "border-sky-500/30 bg-sky-500/10 text-sky-600"
                     : turn.status === "pending"
-                    ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    ? "border-amber-500/30 bg-amber-500/10 text-amber-600"
+                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
                   }`}>
                   {turn.status === "speaking" ? "Speaking" : turn.status === "pending" ? "Composing" : "Done"}
                 </span>
               </div>
               {turn.question && (
                 <div>
-                  <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">You said</p>
-                  <p className="text-xs text-white/75">{turn.question}</p>
+                  <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-0.5">You said</p>
+                  <p className="text-xs text-foreground/80">{turn.question}</p>
                 </div>
               )}
               {turn.answer && (
                 <div>
-                  <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{assistantName} replied</p>
-                  <p className={`text-xs text-white/80 line-clamp-4 ${turn.status === "speaking" ? "animate-pulse" : ""}`}>
+                  <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-0.5">{assistantName} replied</p>
+                  <p className={`text-xs text-foreground/80 line-clamp-4 ${turn.status === "speaking" ? "animate-pulse" : ""}`}>
                     {turn.answer}
                   </p>
                 </div>
               )}
               {turn.sources.length > 0 && (
-                <p className="text-[10px] text-white/25">{turn.sources.length} source{turn.sources.length !== 1 ? "s" : ""} cited</p>
+                <p className="text-[10px] text-muted-foreground/70">{turn.sources.length} source{turn.sources.length !== 1 ? "s" : ""} cited</p>
               )}
             </div>
           ))
@@ -292,27 +292,27 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
           onChange={e => setTextInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") handleSendText(); }}
           placeholder={connected ? "Or type a message to send via voice…" : "Connect voice to send messages"}
-          className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2
-            text-xs text-white/80 placeholder-white/20 focus:border-indigo-500/40
+          className="flex-1 min-w-0 rounded-lg border border-input bg-background px-3 py-2
+            text-xs text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/40
             focus:outline-none disabled:opacity-40"
         />
         <button onClick={handleSendText} disabled={!connected || !textInput.trim()}
           className="rounded-lg px-3 py-2 text-xs font-medium transition-all
-            border border-white/10 bg-white/[0.04] text-white/50
-            hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-white
+            border border-border bg-muted text-muted-foreground
+            hover:border-primary/40 hover:bg-primary/10 hover:text-foreground
             disabled:opacity-30 disabled:cursor-not-allowed">
           Send
         </button>
       </div>
 
       {/* ── Provider info ─────────────────────────────────────────────────── */}
-      <div className="border-t border-white/[0.05] px-4 py-2.5 flex items-center justify-between">
-        <p className="text-[10px] text-white/20">
+      <div className="border-t border-border/70 px-4 py-2.5 flex items-center justify-between">
+        <p className="text-[10px] text-muted-foreground/50">
           {session.provider === "gemini"
             ? "⚡ Gemini Live — low-latency bidirectional audio"
             : "⚡ OpenAI Realtime — WebRTC audio session"}
         </p>
-        {connected && <MicOff className="h-3 w-3 text-white/20"/>}
+        {connected && <MicOff className="h-3 w-3 text-muted-foreground/50"/>}
       </div>
     </div>
   );

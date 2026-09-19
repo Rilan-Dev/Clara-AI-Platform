@@ -184,9 +184,9 @@ export function EmailDeliveryPanel() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 rounded-xl bg-white/[0.04] animate-pulse" />
-        <div className="h-40 rounded-xl bg-white/[0.04] animate-pulse" />
-        <div className="h-64 rounded-xl bg-white/[0.04] animate-pulse" />
+        <div className="h-10 rounded-xl bg-muted animate-pulse" />
+        <div className="h-40 rounded-xl bg-muted animate-pulse" />
+        <div className="h-64 rounded-xl bg-muted animate-pulse" />
       </div>
     );
   }
@@ -200,10 +200,10 @@ export function EmailDeliveryPanel() {
     return (
       <div key={field.key} className={`space-y-2 ${field.wide ? "sm:col-span-2" : ""}`}>
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-white/80">{field.label}</label>
+          <label className="text-sm font-medium text-foreground/80">{field.label}</label>
           {field.isSecret && <Badge variant="outline" className="text-[10px] py-0">secret</Badge>}
           {isConfigured && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+            <span className="flex items-center gap-1 text-[10px] text-emerald-600">
               <CheckCircle2 className="w-3 h-3" /> configured
             </span>
           )}
@@ -215,13 +215,13 @@ export function EmailDeliveryPanel() {
               value={value}
               onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
               placeholder={field.placeholder}
-              className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 pr-10 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
             />
             {field.isSecret && (
               <button
                 type="button"
                 onClick={() => setVisibility((v) => ({ ...v, [field.key]: !v[field.key] }))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-muted-foreground"
                 aria-label={showPassword ? "Hide" : "Show"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -238,14 +238,14 @@ export function EmailDeliveryPanel() {
             {saving === field.key ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : saved === field.key ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             ) : (
               <Save className="w-4 h-4" />
             )}
             {saved === field.key ? "Saved" : "Save"}
           </Button>
         </div>
-        {field.helpText && <p className="text-xs text-white/35">{field.helpText}</p>}
+        {field.helpText && <p className="text-xs text-muted-foreground/70">{field.helpText}</p>}
       </div>
     );
   };
@@ -261,39 +261,39 @@ export function EmailDeliveryPanel() {
     const isActive = activeProvider === provider;
     return (
       <div
-        className={`rounded-2xl border p-5 sm:p-6 transition-colors ${
+        className={`rounded-2xl border p-5 sm:p-6 transition-colors shadow-sm ${
           isActive
-            ? "border-indigo-500/40 bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04]"
-            : "border-white/[0.08] bg-white/[0.02]"
+            ? "border-primary/40 bg-gradient-to-br from-primary/10 to-secondary/5"
+            : "border-border bg-card"
         }`}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
-              isActive ? "border-indigo-500/30 bg-indigo-500/15 text-indigo-300" : "border-white/10 bg-white/[0.04] text-white/40"
+              isActive ? "border-primary/30 bg-primary/15 text-primary" : "border-border bg-muted text-muted-foreground"
             }`}>
               {icon}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-white">{title}</h3>
+                <h3 className="text-sm font-semibold text-foreground">{title}</h3>
                 {isActive && (
-                  <span className="rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
+                  <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
                     Active
                   </span>
                 )}
                 {!isActive && configured && (
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-white/40">
+                  <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                     Standby
                   </span>
                 )}
                 {!configured && (
-                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300/80">
+                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-600">
                     Not configured
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-white/40">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
             </div>
           </div>
           {!isActive && (
@@ -320,17 +320,17 @@ export function EmailDeliveryPanel() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
       {/* How it works */}
-      <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.04] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">How email delivery works</h2>
-        <p className="mt-2 text-xs leading-relaxed text-white/45">
+      <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-5 sm:p-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-foreground">How email delivery works</h2>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           Clara sends transactional email (invitations, password resets, subscription
-          notices) through exactly <strong className="text-white/70">one provider</strong> —
+          notices) through exactly <strong className="text-foreground/70">one provider</strong> —
           activate a card below to switch. Credentials are stored encrypted in the
           platform settings and take effect on the next send, with no restart needed.
           Use the test tool at the bottom to verify delivery before relying on it.
@@ -339,17 +339,17 @@ export function EmailDeliveryPanel() {
 
       {/* Common sender fields */}
       <section>
-        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Mail className="w-3.5 h-3.5" /> Sender identity
         </h3>
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2">{COMMON_FIELDS.map(renderField)}</div>
         </div>
       </section>
 
       {/* Provider cards */}
       <section className="space-y-4">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Server className="w-3.5 h-3.5" /> Providers — one active at a time
         </h3>
         {providerCard(
@@ -372,12 +372,12 @@ export function EmailDeliveryPanel() {
 
       {/* Test send */}
       <section>
-        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <TestTube2 className="w-3.5 h-3.5" /> Verify with a test email
         </h3>
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
-          <p className="text-xs text-white/40">
-            Sends a real message through the <strong className="text-white/70">{activeProvider === "smtp" ? "SMTP" : "Resend"}</strong> provider
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
+          <p className="text-xs text-muted-foreground">
+            Sends a real message through the <strong className="text-foreground/70">{activeProvider === "smtp" ? "SMTP" : "Resend"}</strong> provider
             {" "}to the address you enter — the same path every system email takes.
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -386,7 +386,7 @@ export function EmailDeliveryPanel() {
               value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
               placeholder="you@example.com"
-              className="flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-indigo-500/50 focus:outline-none"
+              className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
             />
             <Button onClick={() => void sendTest()} disabled={testing || !testTo.trim()} className="shrink-0">
               {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -397,8 +397,8 @@ export function EmailDeliveryPanel() {
           {testResult && (
             <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
               testResult.ok
-                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
-                : "border-red-500/25 bg-red-500/10 text-red-300"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
+                : "border-destructive/25 bg-destructive/10 text-destructive"
             }`}>
               <div className="flex items-start gap-2">
                 {testResult.ok ? (

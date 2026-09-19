@@ -3,7 +3,7 @@ import VoiceScreen from "@/features/embed/screens/voice-screen";
 
 function VoiceLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#05050d] text-white/60">
+    <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
       Loading voice assistant…
     </div>
   );

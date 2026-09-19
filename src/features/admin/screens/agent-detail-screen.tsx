@@ -88,28 +88,28 @@ export default function AgentDetailPage() {
 
         {/* Agent details — read-only for platform admins */}
         {agent && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3">
-                <Bot className="w-5 h-5 text-indigo-300" />
+              <div className="rounded-xl bg-primary/10 border border-primary/20 p-3">
+                <Bot className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-semibold text-white">Agent Details</h2>
-                <p className="text-sm text-white/40 mt-1">
+                <h2 className="font-semibold text-foreground">Agent Details</h2>
+                <p className="text-sm text-muted-foreground/70 mt-1">
                   Platform admins can view agent details but cannot edit them.
                 </p>
               </div>
             </div>
 
             <div className="mt-6">
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
+              <div className="rounded-xl border border-border/70 bg-muted/50 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="font-medium text-white">{agent.name}</p>
+                    <p className="font-medium text-foreground">{agent.name}</p>
                     {agent.description && (
-                      <p className="text-sm text-white/40 mt-1">{agent.description}</p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">{agent.description}</p>
                     )}
-                    <p className="text-xs text-white/30 mt-1">
+                    <p className="text-xs text-muted-foreground/70 mt-1">
                       Created {formatDate(agent.createdAt)}
                     </p>
                   </div>
@@ -122,32 +122,32 @@ export default function AgentDetailPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2].map((item) => (
-              <div key={item} className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />
+              <div key={item} className="h-24 rounded-2xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : kbs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-10 sm:px-6 sm:py-14 text-center">
-            <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
+          <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-10 sm:px-6 sm:py-14 text-center">
+            <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
+              <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
             </div>
-            <p className="font-medium text-white">No knowledge bases available</p>
-            <p className="text-sm text-white/40 mt-1">
+            <p className="font-medium text-foreground">No knowledge bases available</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">
               Platform admins can view knowledge bases but cannot manage them.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {kbs.map((kb) => (
-              <div key={kb.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div key={kb.id} className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <p className="font-medium text-white">{kb.name}</p>
+                    <p className="font-medium text-foreground">{kb.name}</p>
                     <StatusBadge status={kb.status} />
                   </div>
                   {kb.description && (
-                    <p className="text-sm text-white/40 mt-1">{kb.description}</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">{kb.description}</p>
                   )}
-                  <p className="text-xs text-white/30 mt-1">
+                  <p className="text-xs text-muted-foreground/70 mt-1">
                     Created {formatDate(kb.createdAt)} · <span className="font-mono">{kb.qdrantCollection}</span>
                   </p>
                 </div>
@@ -208,24 +208,24 @@ export default function AgentDetailPage() {
       )}
 
       {showForm && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-6">
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
           <form onSubmit={handleCreate} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">KB name</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">KB name</label>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="HR Handbook"
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 md:py-2.5 text-base md:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 md:py-2.5 text-base md:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">Description</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
               <input
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Optional context"
-                className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 md:py-2.5 text-base md:text-sm text-white placeholder-white/20 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 md:py-2.5 text-base md:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
               />
             </div>
             <div className="flex gap-2">
@@ -237,35 +237,35 @@ export default function AgentDetailPage() {
               </Button>
             </div>
           </form>
-          {formError && <p className="mt-3 text-sm text-rose-400">{formError}</p>}
+          {formError && <p className="mt-3 text-sm text-destructive">{formError}</p>}
         </div>
       )}
 
       {loading ? (
         <div className="space-y-3">
           {[1, 2].map((item) => (
-            <div key={item} className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />
+            <div key={item} className="h-24 rounded-2xl bg-muted animate-pulse" />
           ))}
         </div>
       ) : kbs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-10 sm:px-6 sm:py-14 text-center">
-          <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
+        <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-10 sm:px-6 sm:py-14 text-center">
+          <div className="mx-auto mb-4 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
           </div>
-          <p className="font-medium text-white">No knowledge bases yet</p>
-          <p className="text-sm text-white/40 mt-1">Create a KB to upload documents and tune your assistant. AI models and providers are set by the platform admin.</p>
+          <p className="font-medium text-foreground">No knowledge bases yet</p>
+          <p className="text-sm text-muted-foreground/70 mt-1">Create a KB to upload documents and tune your assistant. AI models and providers are set by the platform admin.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {kbs.map((kb) => (
-            <div key={kb.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 sm:px-5 py-4 flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between">
+            <div key={kb.id} className="rounded-2xl border border-border bg-card px-4 sm:px-5 py-4 shadow-sm flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <p className="font-medium text-white">{kb.name}</p>
+                  <p className="font-medium text-foreground">{kb.name}</p>
                   <StatusBadge status={kb.status} />
                 </div>
-                {kb.description && <p className="text-sm text-white/40 mt-1">{kb.description}</p>}
-                <p className="text-xs text-white/30 mt-1">
+                {kb.description && <p className="text-sm text-muted-foreground/70 mt-1">{kb.description}</p>}
+                <p className="text-xs text-muted-foreground/70 mt-1">
                   Created {formatDate(kb.createdAt)}<span className="hidden md:inline"> · <span className="font-mono">{kb.qdrantCollection}</span></span>
                 </p>
               </div>
@@ -276,7 +276,7 @@ export default function AgentDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-rose-500/20 text-rose-300 hover:bg-rose-500/10 px-2.5 md:px-3"
+                  className="border-destructive/20 text-destructive hover:bg-destructive/10 px-2.5 md:px-3"
                   aria-label={`Delete knowledge base ${kb.name}`}
                   onClick={() => handleDelete(kb.id)}
                   disabled={deletingId === kb.id}

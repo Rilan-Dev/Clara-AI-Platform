@@ -281,7 +281,7 @@ export function KBAIOverridesEditor({
         </div>
 
         {pendingChanges.length > 0 && (
-          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-4">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-4">
             <div className="mb-3">
               <p className="text-sm font-semibold text-foreground">Pending runtime changes</p>
               <p className="text-xs text-muted-foreground">
@@ -292,12 +292,12 @@ export function KBAIOverridesEditor({
               {pendingChanges.map((change) => (
                 <div
                   key={change.label}
-                  className="flex flex-col gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col gap-1 rounded-lg border border-border bg-card px-3 py-2 text-sm md:flex-row md:items-center md:justify-between"
                 >
                   <span className="font-medium text-foreground">{change.label}</span>
                   <span className="text-muted-foreground">
-                    <span className="text-white/60">{change.from}</span>
-                    <span className="mx-2 text-indigo-300">-&gt;</span>
+                    <span className="text-muted-foreground/60">{change.from}</span>
+                    <span className="mx-2 text-primary">-&gt;</span>
                     <span className="text-foreground">{change.to}</span>
                   </span>
                 </div>
@@ -408,7 +408,7 @@ export function KBAIOverridesEditor({
         </div>
 
         {needsReprocess && (
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-700 dark:text-cyan-300">
+          <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3 text-sm text-sky-700 dark:text-cyan-300">
             Embedding routing changed. Reprocess the KB&apos;s documents before depending on updated retrieval quality.
           </div>
         )}
@@ -417,7 +417,7 @@ export function KBAIOverridesEditor({
           <div className="text-sm">
             {error && <span className="text-destructive">{error}</span>}
             {saved && <span className="text-success">Saved KB runtime overrides.</span>}
-            {!error && reprocessMessage && <span className="text-cyan-600 dark:text-cyan-300">{reprocessMessage}</span>}
+            {!error && reprocessMessage && <span className="text-sky-600 dark:text-cyan-300">{reprocessMessage}</span>}
             {!error && !saved && !reprocessMessage && (
               <span className="text-muted-foreground">Save to update routing for future chat, RAG, voice, and embed requests.</span>
             )}

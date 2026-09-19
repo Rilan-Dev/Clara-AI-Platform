@@ -78,21 +78,21 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col md:flex-row">
-      <div className="md:hidden sticky top-16 z-30 border-b border-white/[0.06] bg-[#0a0a0f]/90 backdrop-blur">
+      <div className="md:hidden sticky top-16 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="text-xs font-semibold text-white/70">Documentation</div>
+          <div className="text-xs font-semibold text-foreground/80">Documentation</div>
           <Sheet>
             <SheetTrigger asChild>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70">
+              <button className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <Menu className="h-4 w-4" />
                 Browse
               </button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] bg-[#0a0a0f] border-white/[0.08] p-5">
+            <SheetContent side="left" className="w-[280px] bg-background border-border p-5">
               <div className="space-y-6">
                 {NAV.map((section) => (
                   <div key={section.title}>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/30 mb-2 px-1">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2 px-1">
                       {section.title}
                     </div>
                     <ul className="space-y-1">
@@ -105,15 +105,15 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                 href={item.href}
                                 className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all ${
                                   active
-                                    ? "bg-indigo-500/15 text-indigo-300 font-medium"
-                                    : "text-white/60 hover:text-white/90 hover:bg-white/[0.04]"
+                                    ? "bg-primary/10 text-primary font-medium"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                 }`}
                               >
                                 {item.icon && (
-                                  <item.icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-indigo-400" : "text-white/40"}`} />
+                                  <item.icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground/70"}`} />
                                 )}
                                 {!item.icon && (
-                                  <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-indigo-400" : "text-white/20"}`} />
+                                  <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-primary" : "text-muted-foreground/40"}`} />
                                 )}
                                 <span className="leading-tight">{item.label}</span>
                               </Link>
@@ -130,10 +130,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <aside className="hidden md:flex flex-col w-64 shrink-0 border-r border-white/[0.06] sticky top-16 h-[calc(100vh-64px)] overflow-y-auto pt-8 pb-12 px-5">
+      <aside className="hidden md:flex flex-col w-64 shrink-0 border-r border-border/70 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto pt-8 pb-12 px-5">
         {NAV.map((section) => (
           <div key={section.title} className="mb-7">
-            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/25 mb-2.5 px-2">
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2.5 px-2">
               {section.title}
             </div>
             <ul className="space-y-0.5">
@@ -145,15 +145,15 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                       href={item.href}
                       className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-all group ${
                         active
-                          ? "bg-indigo-500/15 text-indigo-300 font-medium"
-                          : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
                       {item.icon && (
-                        <item.icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-indigo-400" : "text-white/30 group-hover:text-white/50"}`} />
+                        <item.icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/70"}`} />
                       )}
                       {!item.icon && (
-                        <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-indigo-400" : "text-white/20"}`} />
+                        <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-primary" : "text-muted-foreground/40"}`} />
                       )}
                       <span className="leading-tight">{item.label}</span>
                     </Link>
@@ -165,12 +165,12 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         ))}
 
         {/* Bottom: link to admin */}
-        <div className="mt-auto border-t border-white/[0.06] pt-5">
+        <div className="mt-auto border-t border-border/70 pt-5">
           <Link
             href="/workspace"
-            className="flex items-center gap-2 text-xs text-white/30 hover:text-indigo-300 transition-colors px-2"
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors px-2"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Open Admin Dashboard
           </Link>
         </div>
