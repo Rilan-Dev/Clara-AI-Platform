@@ -79,6 +79,15 @@ export async function embedVoiceGuard(
   request: NextRequest,
   kbId: string,
 ): Promise<NextResponse | null> {
+  // Only clr_ embed-key requests are validated here. Platform JWT / anonymous
+  // requests keep the routes' historical behaviour (resolution + rate limits
+  // + planGuard) — the documented contract in the file header. Without this
+  // early return, resolveEmbedVoiceKey() returning null for a JWT would 403
+  // EVERY logged-in Mode A session (session/tts/transcribe) — a regression
+  // introduced when the guard was wired into the routes.
+  const authHeader = request.headers.get("authorization") ?? "";
+  if (!authHeader.startsWith("Bearer clr_")) return null;
+
   const key = await resolveEmbedVoiceKey(request);
   if (!key) {
     return NextResponse.json(
