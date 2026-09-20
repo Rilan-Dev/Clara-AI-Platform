@@ -543,6 +543,23 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       case "error": {
         const message = String(event.message ?? "Realtime error");
         if (event.fatal) {
+          // Deterministic recovery (plan Phase 9): invalidate the active
+          // generation, close the provider sockets, clear playback, surface
+          // the recoverable error. Reconnect starts clean generation state.
+          // (Capture teardown is inlined — stopRealtimeCapture is declared
+          // later in the hook; refs keep this order-independent.)
+          coordinatorRef.current?.cancelCurrent("error");
+          if (realtimeFlushTimerRef.current) {
+            clearInterval(realtimeFlushTimerRef.current);
+            realtimeFlushTimerRef.current = null;
+          }
+          realtimeCaptureRef.current?.stop();
+          realtimeCaptureRef.current = null;
+          realtimePcmBufferRef.current = [];
+          try { realtimeWsRef.current?.close(); } catch {}
+          realtimeWsRef.current = null;
+          closeRealtimeTts();
+          playbackRef.current?.stop();
           setError(message);
           setStatus("error");
         } else {
@@ -554,7 +571,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       default:
         break; // unknown upstream envelopes are ignored client-side
     }
-  }, [interruptPlayback, runAssistantTurn]);
+  }, [closeRealtimeTts, interruptPlayback, runAssistantTurn]);
 
   const startRealtimeCapture = useCallback(async (mic: MediaStream) => {
     const session = sessionRef.current;

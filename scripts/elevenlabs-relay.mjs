@@ -371,6 +371,21 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
   let ttsChars = 0; // per-generation character metering (once per generation)
   const pending = [];
   const sampleRate = Number(cfg.tts.sampleRate ?? 16_000) || 16_000;
+  // Bounded reconnect (plan Phase 9 — NO infinite reconnect loops): five
+  // attempts with linear backoff, then a fatal error so the browser can
+  // recover deterministically. A successful reconnect resets the budget.
+  // Mirrors src/modules/voice-core/realtime/reconnect-policy.ts (plain JS —
+  // relay scripts cannot import TS).
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 5;
+  const reconnect = {
+    succeeded() { reconnectAttempts = 0; },
+    nextDelayMs() {
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return null;
+      reconnectAttempts += 1;
+      return 250 * reconnectAttempts;
+    },
+  };
 
   const meterTts = (characters) => {
     if (!characters || characters <= 0 || !cfg.orgId) return;
@@ -415,6 +430,7 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
     });
     upstream = socket;
     socket.on("open", () => {
+      reconnect.succeeded(); // vendor is healthy again — reset the budget
       socket.send(ttsBosMessage());
       send(browserWs, { type: "status", value: "connected", model, sampleRate });
       for (const msg of pending.splice(0)) { try { socket.send(msg); } catch {} }
@@ -453,9 +469,17 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
     socket.on("close", () => {
       if (upstream === socket) upstream = null;
       if (!closed) {
+        const delay = reconnect.nextDelayMs();
+        if (delay === null) {
+          // Reconnect budget exhausted — surface a FATAL error so the browser
+          // recovers deterministically instead of churning forever.
+          send(browserWs, { type: "error", message: "TTS connection lost after repeated retries", fatal: true });
+          closeBoth(1011, "Reconnect budget exhausted");
+          return;
+        }
         send(browserWs, { type: "status", value: "reconnecting" });
         clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(openUpstream, 250);
+        reconnectTimer = setTimeout(openUpstream, delay);
       }
     });
   };

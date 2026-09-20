@@ -402,6 +402,14 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       case "error": {
         const message = String(event.message ?? "Realtime error");
         if (event.fatal) {
+          // Deterministic recovery (plan Phase 9): invalidate the active
+          // generation, close the provider sockets, clear playback, surface
+          // the recoverable error. Reconnect starts clean generation state.
+          coordinatorRef.current?.cancelCurrent("error");
+          try { sttWsRef.current?.close(); } catch {}
+          sttWsRef.current = null;
+          closeRealtimeTts();
+          playbackRef.current?.stop();
           setError(message);
           setStatus("error");
         } else {
@@ -413,7 +421,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       default:
         break; // unknown upstream envelopes are ignored client-side
     }
-  }, [interruptPlayback, runAssistantTurn]);
+  }, [closeRealtimeTts, interruptPlayback, runAssistantTurn]);
 
   // ─── Session lifecycle ─────────────────────────────────────────────────────
 
