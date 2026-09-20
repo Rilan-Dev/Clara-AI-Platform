@@ -272,7 +272,13 @@ async function postChatKb(
   const realtimeVoice = body?.realtimeVoice === true && resolved.provider === "sarvam";
   const providerConfig = {
     ...toProviderConfig(resolved),
-    ...(realtimeVoice ? { chatModel: getPlatformDefaultSarvamRealtimeLlmModel() } : {}),
+    ...(realtimeVoice
+      ? {
+          chatModel:
+            resolved.realtimeModel ??
+            getPlatformDefaultSarvamRealtimeLlmModel(),
+        }
+      : {}),
   };
   const embeddingConfig = toProviderConfig(resolved, "embedding");
   let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
