@@ -266,10 +266,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             controller.close();
             // Persist the AI-generated answer + metering for the platform
             // audit trail and the usage-event spine.
+            console.info("[realtime-latency] stream complete", {
+              realtimeVoice,
+              ms: Date.now() - llmStart,
+              totalMs: Date.now() - t0,
+              chars: answerBuffer.length,
+            });
             void finalizeQueryEvent(eventId, {
               answerText: answerBuffer,
               status: streamError ? "error" : "ok",
-              console.info("[realtime-latency] stream complete", { realtimeVoice, ms: Date.now() - llmStart, totalMs: Date.now() - t0, chars: answerBuffer.length });
               metering:
                 model: resolved.chatModel ?? provider.getModelName("chat"),
                 provider: resolved.provider,
