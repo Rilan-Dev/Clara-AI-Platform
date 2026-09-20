@@ -33,7 +33,7 @@ import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
 import { connectPcm16Capture, connectWorkletPcm16Capture } from "../voice/pcm-capture";
 import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
-import { GenerationCoordinator, mintSessionId, mintTurnId } from "@/modules/voice-core/realtime";
+import { GenerationCoordinator, LatencyTracker, mintSessionId, mintTurnId } from "@/modules/voice-core/realtime";
 import { GenerationPlaybackQueue } from "../voice/generation-playback";
 
 // ─── VAD tuning (utterance mode — mirrors useElevenLabsVoice) ──────────────
@@ -61,6 +61,7 @@ type SessionPayload = {
       sampleRate: number;
       encoding: string;
       vadSilenceMs: number;
+      model?: string;
     };
   };
   tts: {
@@ -143,6 +144,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const playbackRef = useRef<GenerationPlaybackQueue | null>(null);
   /** Session-scoped generation coordinator (plan Task 2.2). */
   const coordinatorRef = useRef<GenerationCoordinator | null>(null);
+  /** Latency telemetry (plan Phase 10 — timings only, never transcripts). */
+  const latencyRef = useRef<LatencyTracker | null>(null);
   /** generationId of the turn currently being spoken (TTS tagging). */
   const turnGenerationRef = useRef<string | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
@@ -157,10 +160,21 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       // Unattributed audio is stale by definition (plan: every queued item
       // must carry generationId); the queue itself discards stale ids.
       if (!queue || !generationId) return;
-      queue.enqueue(pcm16, sourceSampleRate, generationId);
+      const queued = queue.enqueue(pcm16, sourceSampleRate, generationId);
+      if (queued) latencyRef.current?.mark("tts.first_audio");
     },
     [],
   );
+
+  /** Emit the per-turn latency record (safe: timings only — plan §11). */
+  const emitLatencyTelemetry = useCallback(() => {
+    const event = latencyRef.current?.telemetry();
+    if (!event) return;
+    console.debug("[sarvam-voice] latency", event);
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
+    }
+  }, []);
 
   const decodeBase64Pcm16 = useCallback((encoded: string) => {
     if (!encoded || typeof window === "undefined") return null;
@@ -232,6 +246,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     const realtime = sessionRef.current?.stt.realtime;
     const cleanText = sanitizeTtsText(text);
     if (!realtime || !cleanText) return false;
+    latencyRef.current?.mark("tts.start");
 
     // Bulbul v3 buffers text server-side. Every conversational chunk must be
     // explicitly flushed so short greetings / short sentences do not sit in
@@ -333,6 +348,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     realtimeTtsGenerationRef.current = generationId;
     realtimeTtsTurnStartRef.current = Date.now();
     realtimeTtsFirstAudioGenerationRef.current = null;
+    // Phase 10 telemetry: per-turn tracker record (timings only).
+    latencyRef.current?.beginGenerationTurn(generation, "sarvam", session.stt.realtime?.model ?? null);
+    latencyRef.current?.mark("llm.start");
 
     const turn: VoiceTurn = {
       id: generateTurnId(),
@@ -360,12 +378,14 @@ export function useSarvamVoice(options: VoiceClientOptions) {
             console.error("[sarvam-voice] chat stream error", message);
             throw new Error(message);
           } else if (event.type === "sources") {
+            latencyRef.current?.mark("rag.end"); // sources arrive post-retrieval
             turn.sources = event.payload as Source[];
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, sources: turn.sources } : t)));
           } else if (event.type === "token") {
             // Stale-generation guard (plan §1.3): a late token from a replaced
             // generation must never append text or start TTS.
             if (!coordinator.isCurrentGeneration(generationId)) return;
+            latencyRef.current?.mark("llm.first_token");
             turn.answer += event.payload;
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, answer: t.answer + event.payload } : t)));
             const { sentences, rest } = splitSentences(answerBufferRef.current + event.payload);
@@ -409,6 +429,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       // Normal completion: the generation stays current so its already queued
       // audio can finish, but no further resource registration is accepted.
       coordinator.completeGeneration();
+      latencyRef.current?.mark("turn.complete");
+      emitLatencyTelemetry();
 
       const unspoken = answerBufferRef.current.trim();
       if (unspoken && !controller.signal.aborted) {
@@ -427,7 +449,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done", answer: turn.answer } : t)));
     }
-  }, [options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence]);
+  }, [emitLatencyTelemetry, options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence]);
 
   // ─── Playback interruption (barge-in) ─────────────────────────────────────────
 
@@ -484,6 +506,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       case "transcript_partial": {
         const text = String(event.text ?? "");
         if (!text) return;
+        latencyRef.current?.mark("stt.first_partial");
         // EARLY barge-in: first recognizable partial during playback stops
         // TTS immediately — faster than any RMS-based heuristic.
         if (playbackRef.current?.speaking) interruptPlayback();
@@ -510,6 +533,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
       case "transcript_final": {
         const text = String(event.text ?? "").trim();
+        latencyRef.current?.mark("stt.final");
         console.info("[sarvam-voice] STT final", { text });
         partialQuestionRef.current = "";
         // Duplicate-commit protection (plan §1.4 / Task 6.2): relays and
@@ -857,11 +881,18 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       // generation-aware playback queue per connected browser session.
       const coordinator = new GenerationCoordinator(mintSessionId());
       coordinatorRef.current = coordinator;
+      latencyRef.current = new LatencyTracker();
+      latencyRef.current.mark("session.start");
       playbackRef.current = new GenerationPlaybackQueue({
         ctx: playbackCtxRef.current,
         coordinator,
         destination: playbackAnalyser,
-        events: { onSpeakingChange: (speaking) => setIsSpeaking(speaking) },
+        events: {
+          onSpeakingChange: (speaking) => {
+            setIsSpeaking(speaking);
+            if (speaking) latencyRef.current?.mark("browser.first_audio");
+          },
+        },
       });
 
       if (realtimeMode) {

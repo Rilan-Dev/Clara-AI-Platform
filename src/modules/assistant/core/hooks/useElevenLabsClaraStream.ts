@@ -36,6 +36,7 @@ import { sanitizeTtsText, isNonSpeechTranscript } from "@/modules/voice-core/tts
 import { connectPcm16Capture, connectWorkletPcm16Capture } from "../voice/pcm-capture";
 import {
   GenerationCoordinator,
+  LatencyTracker,
   mintSessionId,
   mintTurnId,
 } from "@/modules/voice-core/realtime";
@@ -127,6 +128,8 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
   const playbackAnalyserRef = useRef<AnalyserNode | null>(null);
   const playbackRef = useRef<GenerationPlaybackQueue | null>(null);
   const coordinatorRef = useRef<GenerationCoordinator | null>(null);
+  /** Latency telemetry (plan Phase 10 — timings only, never transcripts). */
+  const latencyRef = useRef<LatencyTracker | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
   const answerBufferRef = useRef("");
 
@@ -147,10 +150,21 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     (pcm16: Int16Array, sourceSampleRate: number, generationId: string | null) => {
       const queue = playbackRef.current;
       if (!queue || !generationId) return; // unattributed audio is stale by definition
-      queue.enqueue(pcm16, sourceSampleRate, generationId);
+      const queued = queue.enqueue(pcm16, sourceSampleRate, generationId);
+      if (queued) latencyRef.current?.mark("tts.first_audio");
     },
     [],
   );
+
+  /** Emit the per-turn latency record (safe: timings only — plan §11). */
+  const emitLatencyTelemetry = useCallback(() => {
+    const event = latencyRef.current?.telemetry();
+    if (!event) return;
+    console.debug("[elevenlabs-clara] latency", event);
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
+    }
+  }, []);
 
   // ─── Streaming TTS leg (one warm WS per session — plan Task 6.3) ───────────
 
@@ -214,6 +228,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       const realtime = sessionRef.current?.stt.realtime;
       const cleanText = sanitizeTtsText(text);
       if (!realtime || !cleanText || !generationId) return false;
+      latencyRef.current?.mark("tts.start");
 
       const payload = JSON.stringify({ type: "text", generationId, text: cleanText });
       const ws = ttsWsRef.current;
@@ -256,6 +271,9 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     if (!generation) return; // duplicate committed transcript
     const generationId = generation.generationId;
     turnGenerationRef.current = generationId;
+    // Phase 10 telemetry: per-turn tracker record (timings only).
+    latencyRef.current?.beginGenerationTurn(generation, "elevenlabs", session.stt.realtime?.model ?? null);
+    latencyRef.current?.mark("llm.start");
 
     const turn: VoiceTurn = {
       id: generateTurnId(),
@@ -282,11 +300,13 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
             console.error("[elevenlabs-clara] chat stream error", message);
             throw new Error(message);
           } else if (event.type === "sources") {
+            latencyRef.current?.mark("rag.end"); // sources arrive post-retrieval
             turn.sources = event.payload as Source[];
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, sources: turn.sources } : t)));
           } else if (event.type === "token") {
             // Stale-generation guard (plan §1.3): late tokens never append or speak.
             if (!coordinator.isCurrentGeneration(generationId)) return;
+            latencyRef.current?.mark("llm.first_token");
             turn.answer += event.payload;
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, answer: t.answer + event.payload } : t)));
             // Stream the delta straight into the TTS WebSocket — the vendor's
@@ -309,6 +329,8 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       // Flush whatever the vendor still buffers so short answers speak.
       flushRealtimeTts(generationId);
       coordinator.completeGeneration();
+      latencyRef.current?.mark("turn.complete");
+      emitLatencyTelemetry();
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done" } : t)));
     } catch (err) {
       if ((err as Error).name === "AbortError") {
@@ -320,7 +342,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done", answer: turn.answer } : t)));
     }
-  }, [flushRealtimeTts, options.embedApiKey, options.language?.assistant, options.language?.customer, sendRealtimeTts]);
+  }, [emitLatencyTelemetry, flushRealtimeTts, options.embedApiKey, options.language?.assistant, options.language?.customer, sendRealtimeTts]);
 
   // ─── Barge-in / interrupt ───────────────────────────────────────────────────
 
@@ -357,6 +379,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       case "transcript_partial": {
         const text = String(event.text ?? "");
         if (!text) return;
+        latencyRef.current?.mark("stt.first_partial");
         // EARLY barge-in: first recognizable partial during playback stops
         // TTS immediately (Scribe has no vad.speech_start event — partials
         // are the earliest user-speech signal on this protocol).
@@ -380,6 +403,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
 
       case "transcript_final": {
         const text = String(event.text ?? "").trim();
+        latencyRef.current?.mark("stt.final");
         console.info("[elevenlabs-clara] STT committed", { text });
         // Duplicate-commit protection: the vendor repeats the committed text
         // in its _with_timestamps/_entities variants — same text within 2 s
@@ -503,11 +527,18 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       // 3. Realtime session foundation (plan Phase 2).
       const coordinator = new GenerationCoordinator(mintSessionId());
       coordinatorRef.current = coordinator;
+      latencyRef.current = new LatencyTracker();
+      latencyRef.current.mark("session.start");
       playbackRef.current = new GenerationPlaybackQueue({
         ctx: playbackCtxRef.current,
         coordinator,
         destination: playbackAnalyser,
-        events: { onSpeakingChange: (speaking) => setIsSpeaking(speaking) },
+        events: {
+          onSpeakingChange: (speaking) => {
+            setIsSpeaking(speaking);
+            if (speaking) latencyRef.current?.mark("browser.first_audio");
+          },
+        },
       });
 
       // 4. STT relay socket.
