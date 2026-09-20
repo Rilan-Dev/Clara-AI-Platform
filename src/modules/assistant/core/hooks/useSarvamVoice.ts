@@ -391,6 +391,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           embedApiKey: options.embedApiKey,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
+          realtimeVoice: Boolean(session.stt.realtime),
         },
       );
 
