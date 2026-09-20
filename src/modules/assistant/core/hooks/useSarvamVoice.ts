@@ -33,6 +33,8 @@ import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
 import { connectPcm16Capture, type Pcm16Capture } from "../voice/pcm-capture";
 import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
+import { GenerationCoordinator, mintSessionId, mintTurnId } from "@/modules/voice-core/realtime";
+import { GenerationPlaybackQueue } from "../voice/generation-playback";
 
 // ─── VAD tuning (utterance mode — mirrors useElevenLabsVoice) ──────────────
 const VAD_THRESHOLD = 0.02;
@@ -132,55 +134,33 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const realtimeTtsGenerationRef = useRef<string | null>(null);
   const realtimeTtsTurnStartRef = useRef<number>(0);
   const realtimeTtsFirstAudioGenerationRef = useRef<string | null>(null);
+  /** Duplicate-commit guard for final transcripts (same text within 2 s). */
+  const lastFinalRef = useRef<{ text: string; at: number } | null>(null);
 
-  // Playback chain (both modes)
+  // Playback chain (both modes) — generation-aware queue (plan Task 2.3).
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const playbackAnalyserRef = useRef<AnalyserNode | null>(null);
-  const playbackQueueRef = useRef<{ buffer: AudioBuffer; source: AudioBufferSourceNode }[]>([]);
-  const playingRef = useRef(false);
+  const playbackRef = useRef<GenerationPlaybackQueue | null>(null);
+  /** Session-scoped generation coordinator (plan Task 2.2). */
+  const coordinatorRef = useRef<GenerationCoordinator | null>(null);
+  /** generationId of the turn currently being spoken (TTS tagging). */
+  const turnGenerationRef = useRef<string | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
   const answerBufferRef = useRef("");
 
-  // ─── Playback queue (sequential AudioBufferSourceNodes) ─────────────────────
+  // ─── Playback (generation-aware queue — plan Task 2.3) ─────────────────────
 
-  const playNext = useCallback(() => {
-    if (playingRef.current) return;
-    const next = playbackQueueRef.current.shift();
-    const ctx = playbackCtxRef.current;
-    if (!next || !ctx) {
-      playingRef.current = false;
-      setIsSpeaking(false);
-      return;
-    }
-    playingRef.current = true;
-    setIsSpeaking(true);
-    next.source.onended = () => {
-      playingRef.current = false;
-      playNext();
-    };
-    next.source.start();
-  }, []);
-
-  const enqueueAudio = useCallback((pcm16: Int16Array, sourceSampleRate = 16_000) => {
-    const ctx = playbackCtxRef.current;
-    if (!ctx) return;
-    const floats = new Float32Array(pcm16.length);
-    for (let i = 0; i < pcm16.length; i++) floats[i] = pcm16[i] / 32768;
-    // PCM16 is already sampled at Sarvam's declared TTS rate. Using
-    // ctx.sampleRate here silently changes the playback speed/pitch on
-    // browsers that run AudioContext at 48 kHz.
-    const rate = Number.isFinite(sourceSampleRate) && sourceSampleRate > 0
-      ? sourceSampleRate
-      : 16_000;
-    const buffer = ctx.createBuffer(1, floats.length, rate);
-    buffer.copyToChannel(floats, 0);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(playbackAnalyserRef.current ?? ctx.destination);
-    playbackQueueRef.current.push({ buffer, source });
-    playNext();
-  }, [playNext]);
+  const enqueueAudio = useCallback(
+    (pcm16: Int16Array, sourceSampleRate = 16_000, generationId: string | null) => {
+      const queue = playbackRef.current;
+      // Unattributed audio is stale by definition (plan: every queued item
+      // must carry generationId); the queue itself discards stale ids.
+      if (!queue || !generationId) return;
+      queue.enqueue(pcm16, sourceSampleRate, generationId);
+    },
+    [],
+  );
 
   const decodeBase64Pcm16 = useCallback((encoded: string) => {
     if (!encoded || typeof window === "undefined") return null;
@@ -224,8 +204,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           fatal?: boolean;
         };
         if (event.type === "audio" && event.audio) {
-          if (event.generationId && realtimeTtsGenerationRef.current &&
-              event.generationId !== realtimeTtsGenerationRef.current) return;
+          // Generation gating lives in the playback queue: enqueue checks
+          // isCurrentGeneration(generationId) — stale or unattributed (null)
+          // frames are discarded there, never queued, never heard.
           if (realtimeTtsGenerationRef.current && realtimeTtsFirstAudioGenerationRef.current !== realtimeTtsGenerationRef.current) {
             realtimeTtsFirstAudioGenerationRef.current = realtimeTtsGenerationRef.current;
             console.info("[sarvam-realtime-tts] first audio", {
@@ -234,7 +215,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
             });
           }
           const pcm = decodeBase64Pcm16(event.audio);
-          if (pcm) enqueueAudio(pcm, Number(event.sampleRate) || 24_000);
+          if (pcm) enqueueAudio(pcm, Number(event.sampleRate) || 24_000, event.generationId ?? null);
         } else if (event.type === "error" && event.fatal) {
           console.warn("[sarvam-realtime-tts]", event.message);
         }
@@ -325,7 +306,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         return;
       }
       const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, pcmByteLength / 2);
-      enqueueAudio(pcm16, sourceSampleRate);
+      enqueueAudio(pcm16, sourceSampleRate, turnGenerationRef.current);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.warn("[sarvam] tts failed:", (err as Error).message);
@@ -337,12 +318,21 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
   const runAssistantTurn = useCallback(async (question: string) => {
     console.info("[sarvam-voice] assistant turn start", { question: question.slice(0, 160) });
-    const generationId = generateTurnId();
+    const session = sessionRef.current;
+    if (!session || !session.kbId) return;
+    const coordinator = coordinatorRef.current;
+    if (!coordinator) return;
+
+    // One committed user turn → exactly one assistant generation (plan §1.4).
+    // beginTurn returns null on a duplicate committed turn; the previous
+    // generation is invalidated + aborted inside (plan §1.3).
+    const generation = coordinator.beginTurn(mintTurnId());
+    if (!generation) return;
+    const generationId = generation.generationId;
+    turnGenerationRef.current = generationId;
     realtimeTtsGenerationRef.current = generationId;
     realtimeTtsTurnStartRef.current = Date.now();
     realtimeTtsFirstAudioGenerationRef.current = null;
-    const session = sessionRef.current;
-    if (!session || !session.kbId) return;
 
     const turn: VoiceTurn = {
       id: generateTurnId(),
@@ -356,6 +346,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
     const controller = new AbortController();
     chatAbortRef.current = controller;
+    // Coordinator-owned cancellation: interrupt / next turn aborts chat here.
+    coordinator.registerAbort(() => controller.abort());
     answerBufferRef.current = "";
 
     try {
@@ -371,6 +363,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
             turn.sources = event.payload as Source[];
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, sources: turn.sources } : t)));
           } else if (event.type === "token") {
+            // Stale-generation guard (plan §1.3): a late token from a replaced
+            // generation must never append text or start TTS.
+            if (!coordinator.isCurrentGeneration(generationId)) return;
             turn.answer += event.payload;
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, answer: t.answer + event.payload } : t)));
             const { sentences, rest } = splitSentences(answerBufferRef.current + event.payload);
@@ -411,6 +406,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         },
       );
 
+      // Normal completion: the generation stays current so its already queued
+      // audio can finish, but no further resource registration is accepted.
+      coordinator.completeGeneration();
+
       const unspoken = answerBufferRef.current.trim();
       if (unspoken && !controller.signal.aborted) {
         answerBufferRef.current = "";
@@ -435,12 +434,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const interruptPlayback = useCallback(() => {
     ttsAbortRef.current?.abort();
     ttsAbortRef.current = null;
-    for (const item of playbackQueueRef.current) {
-      try { item.source.stop(); } catch {}
-    }
-    playbackQueueRef.current = [];
-    playingRef.current = false;
-    setIsSpeaking(false);
+    // Queue-level interrupt (plan Task 2.3): clears queued audio, stops the
+    // playing source, invalidates the generation (chat abort fires via the
+    // coordinator's registered aborts), resets speaking.
+    playbackRef.current?.interrupt();
     realtimeTtsGenerationRef.current = null;
     closeRealtimeTts();
   }, [closeRealtimeTts]);
@@ -467,7 +464,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         if (!text) return;
         // EARLY barge-in: first recognizable partial during playback stops
         // TTS immediately — faster than any RMS-based heuristic.
-        if (playingRef.current) interruptPlayback();
+        if (playbackRef.current?.speaking) interruptPlayback();
         partialQuestionRef.current = text;
         // Live captions: upsert a caption turn carrying the growing question.
         if (!partialTurnRef.current) {
@@ -493,6 +490,15 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         const text = String(event.text ?? "").trim();
         console.info("[sarvam-voice] STT final", { text });
         partialQuestionRef.current = "";
+        // Duplicate-commit protection (plan §1.4 / Task 6.2): relays and
+        // vendor retries can re-emit the same final transcript. Same text
+        // within a short window is treated as the SAME committed turn.
+        const now = Date.now();
+        const lastFinal = lastFinalRef.current;
+        if (lastFinal && lastFinal.text === text && now - lastFinal.at < 2_000) {
+          return;
+        }
+        lastFinalRef.current = { text, at: now };
         if (!text || isNonSpeechTranscript(text)) {
           // Drop the live-caption turn — nothing speakable landed.
           const caption = partialTurnRef.current;
@@ -731,6 +737,12 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     stopRealtimeCapture();
     closeRealtimeTts();
     interruptPlayback();
+    // Session teardown: flush playback without coordinator semantics.
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    coordinatorRef.current = null;
+    turnGenerationRef.current = null;
+    lastFinalRef.current = null;
     chatAbortRef.current?.abort();
     chatAbortRef.current = null;
     try { recorderRef.current?.stop(); } catch {}
@@ -747,6 +759,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     utteranceActiveRef.current = false;
     speakingUserRef.current = false;
     bargeInArmedRef.current = false;
+    setIsSpeaking(false);
   }, [closeRealtimeTts, interruptPlayback, stopRealtimeCapture]);
 
   const connect = useCallback(async () => {
@@ -793,6 +806,17 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       playbackAnalyserRef.current = playbackAnalyser;
       setOutputAnalyserNode(playbackAnalyser);
 
+      // Realtime session foundation (plan Phase 2): one coordinator + one
+      // generation-aware playback queue per connected browser session.
+      const coordinator = new GenerationCoordinator(mintSessionId());
+      coordinatorRef.current = coordinator;
+      playbackRef.current = new GenerationPlaybackQueue({
+        ctx: playbackCtxRef.current,
+        coordinator,
+        destination: playbackAnalyser,
+        events: { onSpeakingChange: (speaking) => setIsSpeaking(speaking) },
+      });
+
       if (realtimeMode) {
         // 4a. Realtime relay capture (partial transcripts + early barge-in).
         const started = startRealtimeCapture(mic);
@@ -820,6 +844,11 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       if (options.voiceGreeting) {
         const greeting = sanitizeTtsText(options.voiceGreeting);
         if (greeting) {
+          // The greeting is a system generation: it owns playback until the
+          // first committed user turn replaces it (barge-in safe).
+          const greetingGeneration = coordinator.beginSystemGeneration();
+          turnGenerationRef.current = greetingGeneration.generationId;
+          realtimeTtsGenerationRef.current = greetingGeneration.generationId;
           setHistory((prev) => [
             ...prev,
             {

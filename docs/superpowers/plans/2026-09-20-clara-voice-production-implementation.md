@@ -106,13 +106,13 @@ Do not slow down or rewrite the current OpenAI realtime implementation merely to
 
 **Steps:**
 
-- [ ] Confirm branch is `Vite-Converted`.
-- [ ] Confirm working tree status before edits.
-- [ ] Run the current test suite.
-- [ ] Run TypeScript validation.
-- [ ] Run lint.
-- [ ] Record failures that already exist before implementation.
-- [ ] Do not classify baseline failures as regressions.
+- [x] Confirm branch is `Vite-Converted`.
+- [x] Confirm working tree status before edits.
+- [x] Run the current test suite.
+- [x] Run TypeScript validation.
+- [x] Run lint.
+- [x] Record failures that already exist before implementation.
+- [x] Do not classify baseline failures as regressions.
 
 **Acceptance:**
 
