@@ -378,7 +378,10 @@ async function postChatKb(
         try {
           const completionStream = provider.chatStream(chatMessages, {
             temperature: resolved.temperature ?? config.temperature,
-            maxTokens: resolved.maxTokens ?? config.maxTokens,
+            maxTokens: realtimeVoice
+              ? Math.min(resolved.maxTokens ?? config.maxTokens ?? 350, 350)
+              : (resolved.maxTokens ?? config.maxTokens),
+            reasoningEffort: realtimeVoice ? null : undefined,
             onUsage: (u) => { usageRef.value = u; },
           });
           for await (const delta of completionStream) {
