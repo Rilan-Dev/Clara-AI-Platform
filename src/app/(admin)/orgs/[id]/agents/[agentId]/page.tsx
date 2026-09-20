@@ -1,2 +1,1 @@
-export { default } from "@/features/admin/screens/agent-detail-screen";
-
+export { default } from "@/features/admin/screens/agent-workspace/overview-screen";

@@ -312,8 +312,8 @@ ON CONFLICT (provider_id, capability) DO NOTHING;
 
 -- Model catalogue (seeded from the shipped code catalogues; admin-managed
 -- afterwards). Defaults honour current platform_env_settings where set.
-INSERT INTO platform_ai_provider_models (provider_id, capability, kind, model_id, display_name, is_default, metadata)
-SELECT m.provider_id, m.capability, m.kind, m.model_id, m.display_name, m.is_default, m.metadata::jsonb
+INSERT INTO platform_ai_provider_models (provider_id, capability, kind, model_id, display_name, is_default)
+SELECT m.provider_id, m.capability, m.kind, m.model_id, m.display_name, m.is_default
 FROM (VALUES
   -- OpenAI chat
   ('openai', 'chat', 'chat', 'gpt-5.6-luna',            'GPT 5.6 Luna',   FALSE),

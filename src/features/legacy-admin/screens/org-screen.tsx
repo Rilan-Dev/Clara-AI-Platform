@@ -5,22 +5,14 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useOrg, useOrgAISettings, useAgents } from "@/modules/admin-ui/hooks";
-import { OrgAISettingsEditor } from "@/components/admin/OrgAISettingsEditor";
+import { useOrg, useAgents } from "@/modules/admin-ui/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function OrgPage() {
   const { orgId = "" } = useParams<{ orgId: string }>();
-  const { data: org, loading: orgLoading } = useOrg(orgId);
-  const {
-    settings,
-    loading: settingsLoading,
-    error: settingsError,
-    save: saveAISettings,
-  } = useOrgAISettings(orgId);
-  const { agents, loading, create, remove } = useAgents(orgId);
+  const { data: org, loading: orgLoading } = useOrg(orgId);  const { agents, loading, create, remove } = useAgents(orgId);
   const [name, setName]           = useState("");
   const [description, setDescription] = useState("");
   const [showForm, setShowForm]   = useState(false);
@@ -65,7 +57,7 @@ export default function OrgPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Agents</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage agent structure and the organisation-level AI policy in one place.
+            Manage agent structure for this organisation.
           </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
@@ -73,22 +65,12 @@ export default function OrgPage() {
         </Button>
       </div>
 
-      <div className="mb-8">
-        {settingsLoading ? (
-          <div className="space-y-3">
-            <div className="h-12 rounded-xl bg-muted/40 animate-pulse" />
-            <div className="h-80 rounded-xl bg-muted/40 animate-pulse" />
-          </div>
-        ) : (
-          <OrgAISettingsEditor
-            orgName={org?.name ?? "this organisation"}
-            settings={settings}
-            onSave={saveAISettings}
-          />
-        )}
-        {settingsError && (
-          <p className="mt-3 text-sm text-destructive">{settingsError}</p>
-        )}
+      {/* Legacy organisation-level AI settings editor removed with the AI
+          configuration migration: provider infrastructure moved to the
+          platform AI Platform workspace; agents own their AI selection. */}
+      <div className="mb-8 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+        Organisation-level AI provider configuration has been migrated. Manage providers in
+        Settings &rarr; AI Platform (platform admin) and agent AI selection inside each agent.
       </div>
 
       <div className="mb-6 flex items-center justify-between">

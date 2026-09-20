@@ -156,24 +156,10 @@ export function useAgent(agentId?: string | null) {
   });
 }
 
-export function useOrgAISettings(orgId?: string | null) {
-  const { data: settings, loading, error, refetch } = useAsync(
-    () => api.fetchOrgAISettings(orgId!),
-    `org-ai-settings:${orgId ?? "none"}`,
-    { enabled: Boolean(orgId) },
-  );
-
-  const save = useCallback(
-    async (data: Partial<Omit<OrgAISettings, "id" | "orgId" | "createdAt" | "updatedAt">>) => {
-      const updated = await api.patchOrgAISettings(orgId!, data);
-      refetch();
-      return updated;
-    },
-    [orgId, refetch],
-  );
-
-  return { settings, loading, error, save, refetch };
-}
+// useOrgAISettings was REMOVED with the AI configuration migration:
+// organisation-level AI provider configuration no longer exists. Provider
+// infrastructure is platform-owned (Settings → AI Platform); agents own their
+// AI selection. The server keeps a read-only compat GET + frozen PATCH.
 
 // ── Platform assistant defaults ───────────────────────────────────────────────
 // Super-admin only (Settings -> AI Configuration). Seeded onto newly created
@@ -287,16 +273,10 @@ export function useKBAIOverrides(kbId: string) {
 
 // ── Config Snapshots ──────────────────────────────────────────────────────────
 
-export function useSnapshots(agentId: string) {
-  const { data, loading, error, refetch } = useAsync(
-    () => api.fetchSnapshots(agentId),
-    `agent-snapshots:${agentId}`,
-  );
-  const snapshots = data ?? [];
-  const saveSnapshot = useCallback(async (label?: string) => { const s = await api.createSnapshot(agentId, label); refetch(); return s; }, [agentId, refetch]);
-  const restore = useCallback(async (snapshotId: string) => { const r = await api.restoreSnapshot(agentId, snapshotId); refetch(); return r; }, [agentId, refetch]);
-  return { snapshots, loading, error, saveSnapshot, restore, refetch };
-}
+// useSnapshots was REMOVED with the agent version-control migration — the
+// Versions workspace (agent_versions / agent_drafts) replaces config
+// snapshots. The server-side snapshot API remains for rollback compat.
+
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 

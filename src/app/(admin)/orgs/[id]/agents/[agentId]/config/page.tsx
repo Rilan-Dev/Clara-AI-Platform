@@ -1,1 +1,1 @@
-export { default } from "@/features/admin/screens/agent-config-screen";
+export { default } from "@/features/admin/screens/agent-workspace/assistant-ai-screen";

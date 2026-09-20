@@ -45,6 +45,9 @@ function versioningErrorResponse(err: unknown): NextResponse {
           : 400;
     return NextResponse.json({ error: err.message, code: err.code }, { status });
   }
+  // Auth/permission failures (NextResponse thrown by the rbac layer) must
+  // keep their original status — never be masked as a 500.
+  if (err instanceof NextResponse) return err;
   console.error("[agent-versioning]", err);
   return NextResponse.json({ error: (err as Error).message || "Versioning operation failed" }, { status: 500 });
 }

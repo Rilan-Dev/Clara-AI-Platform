@@ -114,7 +114,7 @@ export async function getPlatformAssistantDefaultVersion(
 ): Promise<PlatformAssistantDefaultVersion | null> {
   if (ref === "current") {
     const row = await queryOne<Row>(
-      `SELECT v.*, u.name AS created_by_name
+      `SELECT v.*, u.full_name AS created_by_name
          FROM platform_assistant_defaults d
          JOIN platform_assistant_default_versions v ON v.version_number = d.current_version
          LEFT JOIN users u ON u.id = v.created_by
@@ -124,7 +124,7 @@ export async function getPlatformAssistantDefaultVersion(
     return row ? toVersion(row) : null;
   }
   const row = await queryOne<Row>(
-    `SELECT v.*, u.name AS created_by_name
+    `SELECT v.*, u.full_name AS created_by_name
        FROM platform_assistant_default_versions v
        LEFT JOIN users u ON u.id = v.created_by
       WHERE v.version_number = $1`,
@@ -135,7 +135,7 @@ export async function getPlatformAssistantDefaultVersion(
 
 export async function listPlatformAssistantDefaultVersions(limit = 50): Promise<PlatformAssistantDefaultVersion[]> {
   const rows = await query<Row>(
-    `SELECT v.*, u.name AS created_by_name
+    `SELECT v.*, u.full_name AS created_by_name
        FROM platform_assistant_default_versions v
        LEFT JOIN users u ON u.id = v.created_by
       ORDER BY v.version_number DESC

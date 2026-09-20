@@ -162,7 +162,10 @@ export async function resolveAvailableAIOptions(
         ? ["chat"]
         : capability === "voice_chat"
           ? ["tts", "stt"]
-          : ["realtime", "stt", "transcription"];
+          : // Realtime tab: native realtime models, realtime STT, transcription
+            // and conversational TTS (ElevenLabs Mode B serves realtime via its
+            // conversational TTS models).
+            ["realtime", "stt", "transcription", "tts"];
     const voiceKinds: ResolvedAIModelOption["kind"][] = capability === "chat" ? [] : ["voice"];
 
     const modelOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, modelKinds);

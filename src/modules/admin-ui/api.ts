@@ -187,17 +187,8 @@ export async function createWorkspace(
 export async function fetchOrgAISettings(id: string): Promise<OrgAISettings> {
   return apiFetch<OrgAISettings>(`/api/orgs/${id}/ai-settings`);
 }
-export async function patchOrgAISettings(
-  id: string,
-  data: Partial<
-    Omit<OrgAISettings, "id" | "orgId" | "createdAt" | "updatedAt">
-  >,
-): Promise<OrgAISettings> {
-  return apiFetch<OrgAISettings>(`/api/orgs/${id}/ai-settings`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
+// patchOrgAISettings was REMOVED with the AI configuration migration — the
+// server endpoint now returns an explicit 410 migration response.
 
 // ── Platform assistant defaults (Identity / Behaviour / Language / Voice) ────
 // Super-admin only. Seeded onto newly created projects / KBs / agents;

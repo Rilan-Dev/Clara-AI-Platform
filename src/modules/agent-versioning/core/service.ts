@@ -499,8 +499,14 @@ export async function executeMergeToMain(
   const oursVersion = await getLatestVersion(agentId, main.id);
   const oursDraft = await getDraft(agentId, main.id);
 
-  const theirs = theirsDraft?.configuration ?? theirsVersion?.configuration!;
-  const ours = oursVersion?.configuration ?? oursDraft?.configuration!;
+  if (!theirsVersion && !theirsDraft) {
+    throw new AgentVersioningError("Source branch has no configuration to merge.", "MERGE_EMPTY_SOURCE");
+  }
+  if (!oursVersion && !oursDraft) {
+    throw new AgentVersioningError("Main has no configuration to merge into.", "MERGE_EMPTY_TARGET");
+  }
+  const theirs = theirsDraft?.configuration ?? theirsVersion?.configuration ?? ({} as AgentVersionConfig);
+  const ours = oursVersion?.configuration ?? oursDraft?.configuration ?? ({} as AgentVersionConfig);
   let base: AgentVersionConfig;
   if (source.forkedFromVersionId) {
     const baseVersion = await getVersion(agentId, source.forkedFromVersionId);

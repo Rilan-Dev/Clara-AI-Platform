@@ -69,7 +69,10 @@ export interface PlatformAIProvider {
   providerId: GovernanceProviderId;
   displayName: string;
   description: string | null;
+  /** EFFECTIVE enablement (admin switch AND operational kill-switch). */
   enabled: boolean;
+  /** "kill_switch" when the admin switch is on but an env kill-switch is off. */
+  disabledReason: "kill_switch" | null;
   configured: boolean;
   capabilities: Array<{ capability: AICapability; supported: boolean }>;
   health: ProviderHealthRecord | null;

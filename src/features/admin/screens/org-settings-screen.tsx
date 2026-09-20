@@ -14,10 +14,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Building2, Settings2, Info } from "lucide-react";
-import { useAuth, useOrg, useOrgAISettings } from "@/modules/admin-ui/hooks";
+import { useAuth, useOrg } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { EditOrgPanel } from "@/components/admin/EditOrgPanel";
-import { OrgAIConfigEditor } from "@/components/admin/OrgAIConfigEditor";
 import { OrgElevenLabsAgentsPanel } from "@/components/admin/OrgElevenLabsAgentsPanel";
 
 export default function OrgSettingsScreen() {
@@ -25,7 +24,6 @@ export default function OrgSettingsScreen() {
   const { user }    = useAuth();
   const isAdmin     = user?.isSuperAdmin ?? false;
   const { data: org } = useOrg(id);
-  const { settings: aiSettings, loading: aiLoading, save: saveAISettings } = useOrgAISettings(id);
 
   const [editedOrg, setEditedOrg] = useState<{ name: string; slug: string; logoUrl?: string | null } | null>(null);
 
@@ -50,23 +48,23 @@ export default function OrgSettingsScreen() {
         onSaved={(updated) => setEditedOrg(updated)}
       />
 
-      {/* AI providers & models — provider switching, model defaults, voice
-          provider (incl. ElevenLabs hybrid), limits and feature flags. */}
-      <div className="mt-4 sm:mt-6">
-        {aiLoading && !aiSettings ? (
-          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
-            Loading AI configuration…
-          </div>
-        ) : aiSettings ? (
-          <OrgAIConfigEditor orgId={id} settings={aiSettings} onSave={saveAISettings} />
-        ) : (
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">AI configuration not initialised for this organisation yet.</p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              It is created automatically when the first agent or knowledge base is added.
-            </p>
-          </div>
-        )}
+      {/* AI Providers & Models was REMOVED with the AI configuration migration:
+          provider infrastructure is owned by the platform admin (Settings →
+          AI Platform → Providers & Models) and agent-level AI selection lives
+          inside each agent's workspace (Assistant & AI). Organisations no
+          longer own provider infrastructure configuration. */}
+      <div className="mt-4 sm:mt-6 rounded-2xl border border-dashed border-border bg-muted/20 p-5">
+        <h2 className="text-sm font-semibold text-foreground">Where AI settings live now</h2>
+        <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+          <li>
+            Providers, models and API keys are managed platform-wide in{" "}
+            <Link href="/settings/ai" className="text-primary hover:underline">Settings → AI Platform</Link>.
+          </li>
+          <li>
+            Each agent’s model and voice choices are configured inside the agent —{" "}
+            Agents → open an agent → Assistant &amp; AI.
+          </li>
+        </ul>
       </div>
 
       {/* Conversational AI (Mode B) — opt-in realtime ElevenLabs agents,

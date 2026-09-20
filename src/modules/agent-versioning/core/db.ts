@@ -36,7 +36,7 @@ export function parseVersionConfig(value: unknown): AgentVersionConfig {
 
 const BRANCH_SELECT = `
   SELECT b.*, b2.version_number AS forked_from_version_number,
-         u.name AS created_by_name,
+         u.full_name AS created_by_name,
          lv.version_number AS latest_version_number,
          d.updated_at AS draft_updated_at
     FROM agent_branches b
@@ -160,7 +160,7 @@ export async function setBranchArchived(agentId: string, branchId: string, archi
 // ─── Versions (immutable) ─────────────────────────────────────────────────────
 
 const VERSION_SELECT = `
-  SELECT v.*, b.name AS branch_name, u.name AS created_by_name
+  SELECT v.*, b.name AS branch_name, u.full_name AS created_by_name
     FROM agent_versions v
     JOIN agent_branches b ON b.id = v.branch_id
     LEFT JOIN users u ON u.id = v.created_by
@@ -330,7 +330,7 @@ export async function putDraft(input: {
 // ─── Deployments ──────────────────────────────────────────────────────────────
 
 const DEPLOYMENT_SELECT = `
-  SELECT dep.*, b.name AS branch_name, v.version_number, v.change_summary, u.name AS published_by_name
+  SELECT dep.*, b.name AS branch_name, v.version_number, v.change_summary, u.full_name AS published_by_name
     FROM agent_deployments dep
     JOIN agent_branches b ON b.id = dep.branch_id
     JOIN agent_versions v ON v.id = dep.version_id

@@ -67,10 +67,10 @@ function log(...args) {
 
 async function preflight() {
   const { rows } = await client.query(
-    "SELECT filename FROM schema_migrations ORDER BY filename DESC LIMIT 3"
+    "SELECT filename FROM schema_migrations"
   );
   const applied = new Set(rows.map((r) => r.filename));
-  if (![...applied].some((f) => f.startsWith("040_"))) {
+  if (![...applied].some((f) => f.startsWith("040_") || f.includes("ai_governance_and_agent_versioning"))) {
     throw new Error(
       "Migration 040 (ai governance + agent versioning schema) is not applied yet. Boot the app once (ensureMigrated) or apply the SQL manually, then re-run."
     );
@@ -124,6 +124,35 @@ async function stageProviderRegistry(platformEnv) {
   }
   report.stages.providerRegistry = results;
   log("Stage B/C — provider registry:", results.map((r) => `${r.provider}:${r.configured ? "configured" : "unconfigured"}/${r.enabledNow ? "enabled" : "disabled"}`).join("  "));
+
+  // ── Stage B repair: stale legacy allow-lists ──────────────────────────────
+  // Historical org rows can pre-date provider additions (e.g. allow-lists
+  // pinned to [openai, gemini] while the platform default is sarvam), which
+  // blocks the org's runtime resolution entirely. ADD the platform default
+  // provider to any allow-list that lacks it (additive — nothing is removed;
+  // org allow-lists are legacy compat only in the new architecture).
+  const platformProvider = (platformEnv.AI_PROVIDER ?? "openai").trim().toLowerCase();
+  if (["openai", "gemini", "sarvam"].includes(platformProvider)) {
+    const stale = await client.query(
+      `SELECT org_id, allowed_providers FROM org_ai_settings
+        WHERE NOT ($1 = ANY(allowed_providers))`,
+      [platformProvider]
+    );
+    if (stale.rows.length > 0) {
+      report.warnings.push(
+        `${stale.rows.length} organisation allow-list(s) lacked the platform default provider "${platformProvider}" — repaired additively.`
+      );
+      if (APPLY) {
+        await client.query(
+          `UPDATE org_ai_settings
+              SET allowed_providers = array_append(allowed_providers, $1), updated_at = now()
+            WHERE NOT ($1 = ANY(allowed_providers))`,
+          [platformProvider]
+        );
+      }
+      log(`Stage B — repaired ${stale.rows.length} stale allow-list(s) to include "${platformProvider}".`);
+    }
+  }
 }
 
 // ── Stage D: entitlement audit (report only) ─────────────────────────────────
@@ -138,8 +167,8 @@ async function stageEntitlementAudit() {
        JOIN organisations o ON o.id = os.org_id
        JOIN subscription_plans sp ON sp.id = os.plan_id
        LEFT JOIN LATERAL (
-         SELECT max(CASE WHEN capability = 'chat' THEN enabled END) AS chat,
-                max(CASE WHEN capability = 'voice_chat' THEN enabled END) AS voice_chat
+         SELECT bool_or(CASE WHEN capability = 'chat' THEN enabled END) AS chat,
+                bool_or(CASE WHEN capability = 'voice_chat' THEN enabled END) AS voice_chat
            FROM plan_ai_capabilities WHERE plan_id = sp.id
        ) pac ON TRUE
        LEFT JOIN LATERAL (

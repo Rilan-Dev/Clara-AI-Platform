@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,11 +18,9 @@ import { EmailDeliveryPanel } from "@/components/admin/EmailDeliveryPanel";
 import { EmailTemplatesPanel } from "@/components/admin/EmailTemplatesPanel";
 import { PaymentGatewayPanel } from "@/components/admin/PaymentGatewayPanel";
 import { PlatformAppearancePanel } from "@/components/admin/PlatformAppearancePanel";
-import { PlatformAssistantDefaultsEditor } from "@/components/admin/PlatformAssistantDefaultsEditor";
 import { PlatformEnvPanel } from "@/components/admin/PlatformEnvPanel";
-import { apiUrl } from "@/lib/runtime";
-import { withAuthHeaders } from "@/lib/client-auth";
-import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks";
+import { AIPlatformSection } from "@/components/admin/ai-platform/AIPlatformSection";
+import { useAuth } from "@/modules/admin-ui/hooks";
 
 // ── Section model ────────────────────────────────────────────────────────────
 // Each entry pairs the sidebar label (what users see in the left rail) with a
@@ -39,7 +37,7 @@ import { useAuth, usePlatformAssistantDefaults } from "@/modules/admin-ui/hooks"
 //     Voice are NOT org-level settings any more — orgs tune their own
 //     agents and knowledge bases.
 
-export type SettingsSection = "account" | "appearance" | "ai" | "embed" | "payments" | "email" | "templates";
+export type SettingsSection = "account" | "appearance" | "ai" | "environment" | "embed" | "payments" | "email" | "templates";
 
 type SectionDef = {
   id: SettingsSection;
@@ -78,10 +76,20 @@ export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
     id: "ai",
     href: "/settings/ai",
     icon: Bot,
-    label: "AI Configuration",
-    title: "Default assistant setup",
+    label: "AI Platform",
+    title: "AI Platform",
     description:
-      "Set the identity, behaviour, languages and voice that every new agent starts with. Existing ones are never changed.",
+      "Govern the AI providers behind every conversation — connections, model catalogues, health and usage — plus the Default Assistant every new agent starts from.",
+    audience: "Platform admin",
+  },
+  {
+    id: "environment",
+    href: "/settings/environment",
+    icon: KeyRound,
+    label: "Environment",
+    title: "Platform environment",
+    description:
+      "Operational switches beyond provider credentials — AI runtime flags, billing, phone and platform keys.",
     audience: "Platform admin",
   },
   {
@@ -247,7 +255,13 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
           </div>
         )}
 
-        {section === "ai" && <PlatformAIDefaultsSection />}
+        {section === "ai" && <AIPlatformSection />}
+
+        {section === "environment" && (
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
+            <PlatformEnvPanel />
+          </div>
+        )}
 
         {section === "payments" && (
           <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
@@ -271,204 +285,12 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   );
 }
 
-// ── Platform-default assistant configuration ─────────────────────────────────
-
-function PlatformAIDefaultsSection() {
-  const { defaults, loading, error, save } = usePlatformAssistantDefaults();
-
-  return (
-    <div className="space-y-6">
-      {loading ? (
-        <div className="space-y-3">
-          <div className="h-12 rounded-2xl bg-muted animate-pulse" />
-          <div className="h-[28rem] rounded-2xl bg-muted animate-pulse" />
-        </div>
-      ) : (
-        <PlatformAssistantDefaultsEditor defaults={defaults} onSave={save} />
-      )}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {/* Platform AI provider keys & default models — OpenAI / Gemini /
-          ElevenLabs. The missing provider-switching + API-key surface the
-          admin console lost in the redesign, restored here. */}
-      <PlatformAIProvidersPanel />
-    </div>
-  );
-}
-
-// ── Platform AI providers: API keys, models, ElevenLabs status ────────────────
-
-function PlatformAIProvidersPanel() {
-  const [orgs, setOrgs] = useState<{ id: string; name: string; slug: string }[]>([]);
-
-  useEffect(() => {
-    fetch(apiUrl("/api/platform/orgs?perPage=100"), { headers: withAuthHeaders() })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const data = (await res.json()) as { orgs?: { id: string; name: string; slug: string }[] };
-        setOrgs(data.orgs ?? []);
-      })
-      .catch(() => {});
-  }, []);
-
-  return (
-    <div className="space-y-6">
-      {/* ElevenLabs connection health — complements the settings editor. */}
-      <ElevenLabsStatusCard />
-
-      {/* AI providers, keys, default models, voice, limits — the same design
-          language as Organisation → Settings → AI Providers & Models. */}
-      <PlatformEnvPanel />
-
-      {/* Per-organisation AI configuration — the operator's jump list. */}
-      {orgs.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-foreground">Organisation AI configuration</h3>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            Switch providers, models and voices for a specific organisation.
-          </p>
-          <div className="mt-4 grid sm:grid-cols-2 gap-3">
-            {orgs.map((org) => (
-              <Link
-                key={org.id}
-                href={`/orgs/${org.id}/settings`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3.5 hover:bg-muted/50 hover:border-primary/25 transition-all group"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{org.name}</p>
-                  <p className="text-xs text-muted-foreground/70 font-mono truncate">/{org.slug}</p>
-                </div>
-                <span className="text-xs text-primary shrink-0 group-hover:text-primary/80">Configure →</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── ElevenLabs connection status (operator health card) ──────────────────────
-
-function ElevenLabsStatusCard() {
-  const [status, setStatus] = useState<{
-    connected: boolean;
-    reason?: string;
-    tier?: string;
-    characterCount?: number;
-    characterLimit?: number;
-    characterUsagePercent?: number | null;
-    voiceLimit?: number;
-    canUseInstantCloning?: boolean;
-    enabled?: boolean;
-    conversationalAI?: boolean;
-    voiceCloning?: boolean;
-    voiceDesign?: boolean;
-    creditAlert?: { thresholdPct: number; usagePercent: number | null; crossed: boolean; alerted: boolean };
-    defaultTtsModel?: string;
-    defaultSttModel?: string;
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [checking, setChecking] = useState(false);
-
-  const load = useCallback(async () => {
-    setChecking(true);
-    try {
-      const res = await fetch(apiUrl("/api/admin/elevenlabs/status"), {
-        headers: withAuthHeaders(),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) setStatus(data);
-    } catch {
-      setStatus({ connected: false, reason: "Status request failed." });
-    } finally {
-      setLoading(false);
-      setChecking(false);
-    }
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
-
-  return (
-    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className={`h-2.5 w-2.5 rounded-full ${status?.connected ? "bg-emerald-500" : "bg-rose-500"}`} />
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">ElevenLabs connection</h3>
-            <p className="text-xs text-muted-foreground/70">
-              {loading ? "Checking…" : status?.connected ? `Tier: ${status.tier ?? "unknown"}` : status?.reason}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={load}
-          disabled={checking || loading}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
-        >
-          {checking ? "Testing…" : "Test connection"}
-        </button>
-      </div>
-      {status?.connected && (
-        <div className="mt-4 grid sm:grid-cols-3 gap-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Credits used</p>
-            <p className="mt-1 text-sm text-foreground/80">
-              {(status.characterCount ?? 0).toLocaleString()}
-              {status.characterLimit ? ` / ${status.characterLimit.toLocaleString()}` : ""}
-            </p>
-            {status.characterUsagePercent != null && (
-              <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    status.creditAlert?.crossed || status.characterUsagePercent > 80 ? "bg-amber-500" : "bg-primary"
-                  }`}
-                  style={{ width: `${Math.min(100, status.characterUsagePercent)}%` }}
-                />
-              </div>
-            )}
-            {/* V6 credit-burn alerting — one-line operator signal. */}
-            {status.creditAlert?.crossed && (
-              <p className="mt-1.5 text-[11px] text-amber-600">
-                Burn alert: {status.creditAlert.usagePercent}% consumed (threshold {status.creditAlert.thresholdPct}%)
-                {status.creditAlert.alerted ? " — super admins notified." : ""}
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Workspace voices</p>
-            <p className="mt-1 text-sm text-foreground/80">{status.voiceLimit ?? "—"}</p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Defaults</p>
-            <p className="mt-1 text-sm text-foreground/80 font-mono text-xs">
-              {status.defaultTtsModel} · {status.defaultSttModel}
-            </p>
-          </div>
-        </div>
-      )}
-      {/* Feature flags — always visible so operators see the Mode B / studio
-          kill-switch states even before a key is configured. */}
-      {status && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
-          <span className={status.connected ? "rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2.5 py-0.5 text-emerald-600" : "rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-destructive"}>
-            {status.connected ? "Voice enabled" : "Voice off"}
-          </span>
-          <span className={status.conversationalAI ? "rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary" : "rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-muted-foreground/70"}>
-            Conversational AI (Mode B): {status.conversationalAI ? "on" : "off"}
-          </span>
-          <span className={status.voiceCloning ? "rounded-full border border-secondary/30 bg-secondary/10 px-2.5 py-0.5 text-secondary" : "rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-muted-foreground/70"}>
-            Cloning: {status.voiceCloning ? "on" : "off"}
-          </span>
-          <span className={status.voiceDesign ? "rounded-full border border-sky-600/30 bg-sky-500/10 px-2.5 py-0.5 text-sky-600" : "rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-muted-foreground/70"}>
-            Voice Design: {status.voiceDesign ? "on" : "off"}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
+// ── Platform AI section is now AIPlatformSection (Providers & Models + Default
+// Assistant workspace). The legacy per-organisation AI configuration jump list
+// and the standalone ElevenLabs status card were removed with the AI
+// configuration migration (Stage K): organisation-level AI configuration no
+// longer exists, and provider health/usage live inside each provider's
+// workspace drawer.
 
 // ── Shared pieces ────────────────────────────────────────────────────────────
 

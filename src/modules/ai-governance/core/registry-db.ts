@@ -83,6 +83,20 @@ function toModelRow(row: Row): ProviderModelRow {
   };
 }
 
+/** Operational kill-switches (platform_env_settings → process.env). These
+ *  stay authoritative alongside the admin enable switch — the resolver gate
+ *  and the runtime degrade logic share them, so UI and runtime can never
+ *  disagree about availability. */
+function providerKillSwitchOn(providerId: GovernanceProviderId): boolean {
+  if (providerId === "elevenlabs") {
+    return (process.env.ELEVENLABS_ENABLED ?? "false").toLowerCase() === "true";
+  }
+  if (providerId === "sarvam") {
+    return (process.env.SARVAM_ENABLED ?? "false").toLowerCase() === "true";
+  }
+  return true; // openai / gemini have no kill-switch
+}
+
 /** Read the full platform provider registry (providers, capabilities, credential slots, health, model counts, defaults). */
 export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
   const hit = registryCache;
@@ -137,11 +151,17 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
       if (String(mc.provider_id) !== providerId) continue;
       modelCounts[String(mc.capability) as AICapability] = Number(mc.model_count);
     }
+    const rowEnabled = Boolean(p.enabled);
+    const killSwitchOn = providerKillSwitchOn(providerId);
     return {
       providerId,
       displayName: String(p.display_name),
       description: typeof p.description === "string" ? p.description : null,
-      enabled: Boolean(p.enabled),
+      // EFFECTIVE enablement: admin switch AND operational kill-switch — the
+      // resolver gate and runtime degrade share these switches, so UI and
+      // runtime can never disagree about availability.
+      enabled: rowEnabled && killSwitchOn,
+      disabledReason: rowEnabled && !killSwitchOn ? "kill_switch" : null,
       configured,
       capabilities: capabilityRows
         .filter((c) => String(c.provider_id) === providerId)
