@@ -19,11 +19,15 @@ Updated as tasks complete. Commits are on `Vite-Converted`.
 - [x] Task 2.1 — Realtime session & generation identity (`voice-core/realtime/identity.ts`, 8 tests)
 - [x] Task 2.2 — Generation coordinator (`voice-core/realtime/generation-coordinator.ts`, 19 tests)
 - [x] Task 2.3 — Generation-aware playback (`assistant/core/voice/generation-playback.ts`, 11 tests incl. plan acceptance test; wired into `useSarvamVoice`)
-- [ ] Task 3.1 — Authenticated provider-neutral grounding entry point
-- [ ] Task 3.2 — Identical knowledge binding test across providers
-- [ ] Task 4.1 — OpenAI regression lock
-- [ ] Task 4.2 — OpenAI TTFA baseline
-- [ ] Task 5.1–5.5 — Sarvam realtime completion
+- [x] Task 3.1 — Authenticated provider-neutral grounding entry point (`src/modules/rag/grounding.ts`; `/api/rag/search` + ElevenLabs Mode-B webhook route through it)
+- [x] Task 3.2 — Identical knowledge binding test across providers (`grounding.test.ts`, 10 tests: five provider turn paths resolve identical tenant/agent/kb/document/ragMode)
+- [x] Task 4.1 — OpenAI regression lock (`openai-realtime.test.ts` + `realtime.test.ts`, 21 tests: session shape, VAD create_response:false, rag_search tool schema, guards 402/409/429/404/400/500)
+- [x] Task 4.2 — OpenAI TTFA baseline (`latency-tracker.ts` + 11 tests; protocol + record table in `2026-09-20-openai-realtime-ttfa-baseline.md`; device numbers land in Phase 11)
+- [x] Task 5.1 — Sarvam STT config separation validated against current docs (`2026-09-20-sarvam-realtime-protocol-validation.md`)
+- [x] Task 5.2 — Realtime STT wire protocol aligned (relay forwards vad.speech_start/speech_end + session.end; od-IN→or-IN; sample-rate clamp; `realtime-wire.test.ts` 10 tests; hook barge-in on vad_speech_start)
+- [x] Task 5.3 — Persistent Bulbul WS TTS (existing relay + per-generation metering: `createGenerationMeter` + tts branch of realtime-meter route + `tts-relay-meter.test.ts` 6 tests)
+- [x] Task 5.4 — AudioWorklet capture (`connectWorkletPcm16Capture` reusing the shared worklet; ScriptProcessor fallback; 5 tests)
+- [x] Task 5.5 — Sarvam generation cancellation (`sarvam-realtime-generation.test.ts` — the exact 7-step plan scenario + single-generation invariant + metering-under-interrupt + greeting barge-in)
 - [ ] Task 6.1–6.5 — ElevenLabs realtime completion
 - [ ] Task 7.1–7.2 — Provider switching
 - [ ] Task 8.1–8.2 — UX/state correctness
