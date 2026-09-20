@@ -28,6 +28,8 @@ export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   stop?: string[];
+  /** Sarvam reasoning effort; null disables reasoning for latency-sensitive voice turns. */
+  reasoningEffort?: "low" | "medium" | "high" | null;
   /**
    * Called exactly once when the provider reports final usage for the
    * stream. Usage-event metering hangs off this — never off guesswork.
