@@ -10,23 +10,37 @@
  * model secrets.
  *
  * The elevenlabs branch additionally reports WHICH mode applies:
- *   • mode "pipeline"        — Mode A hybrid (default): STT + platform chat
+ *   • mode "pipeline"         — Mode A hybrid (default): STT + platform chat
  *                              + streaming TTS through platform endpoints.
- *   • mode "conversational"  — Mode B: an elevenlabs_agents binding exists
+ *   • mode "conversational"   — Mode B: an elevenlabs_agents binding exists
  *                              for the KB's agent, is enabled AND the org
  *                              has acknowledged the disclosed data flow.
  *                              Sessions are still minted separately by
  *                              /api/voice/elevenlabs/agent-session, which
  *                              re-applies every gate.
+ *   • mode "clara-stream"     — Mode C: Clara-controlled realtime — Scribe
+ *                              realtime STT relay → Clara turn (RAG+LLM) →
+ *                              streaming TTS WebSocket relay, all behind
+ *                              ELEVENLABS_REALTIME_ENABLED (plan Phase 6/13).
+ *
+ * Precedence: an existing Mode-B binding always wins (no behavior change for
+ * deployed orgs); Mode C activates only when the realtime flag is on and no
+ * binding exists; otherwise Mode A — which is unchanged.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
-import { isConversationalAIEnabled, isElevenLabsEnabled } from "../model-catalog";
+import {
+  isConversationalAIEnabled,
+  isElevenLabsEnabled,
+  isElevenLabsRealtimeEnabled,
+} from "../model-catalog";
 import { resolveVoiceConfig } from "../resolve";
 import { query as dbQuery } from "@/lib/db";
+
+export type ElevenLabsMode = "pipeline" | "conversational" | "clara-stream";
 
 /** Mode-B binding lookup for the routing response (never a mint). */
 async function resolveConversationalMode(
@@ -47,6 +61,21 @@ async function resolveConversationalMode(
     // Table not migrated yet — Mode A is the only possible mode.
     return "pipeline";
   }
+}
+
+/**
+ * The tri-mode selector (plan Task 6.1): existing Mode-B binding wins,
+ * then the flag-gated Clara realtime path, else the unchanged Mode A.
+ */
+async function resolveElevenLabsMode(
+  orgId: string | null,
+  agentId: string | null,
+): Promise<ElevenLabsMode> {
+  if ((await resolveConversationalMode(orgId, agentId)) === "conversational") {
+    return "conversational";
+  }
+  if (isElevenLabsRealtimeEnabled()) return "clara-stream";
+  return "pipeline";
 }
 
 export async function postVoiceProvider(request: NextRequest): Promise<NextResponse> {
@@ -81,9 +110,9 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
     // on the REALTIME purpose axis. That axis inherits the voice-chat axis
     // (which inherits the brain provider) when no explicit override exists —
     // so a single provider pick keeps every surface native to it.
-    const mode =
+    const mode: ElevenLabsMode =
       resolved.realtimeProvider === "elevenlabs"
-        ? await resolveConversationalMode(resolved.brain.orgId, resolved.brain.agentId ?? kb.agentId)
+        ? await resolveElevenLabsMode(resolved.brain.orgId, resolved.brain.agentId ?? kb.agentId)
         : "pipeline";
 
     return NextResponse.json({
@@ -95,7 +124,8 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
       // Voice-chat purpose (chat-window voice-chat / Mode A) — same value as
       // voiceProvider unless the admin pinned a realtime override.
       voiceChatProvider: resolved.voiceProvider,
-      // ElevenLabs mode split: pipeline (Mode A) vs conversational (Mode B).
+      // ElevenLabs mode split (plan Task 6.1): pipeline (Mode A) vs
+      // conversational (Mode B) vs clara-stream (Mode C, flag-gated).
       mode,
       flags: {
         voiceEnabled: resolved.brain.flags.voiceEnabled,

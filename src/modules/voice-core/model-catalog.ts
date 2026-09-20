@@ -108,6 +108,25 @@ export function isConversationalAIEnabled(): boolean {
   return (process.env.ELEVENLABS_CONVERSATIONAL_AI_ENABLED ?? "false").toLowerCase() === "true";
 }
 
+/**
+ * Mode C (Clara-controlled realtime: Scribe realtime STT → Clara turn →
+ * streaming TTS WebSocket) — flag-gated, DARK by default per plan Phase 13
+ * (`ELEVENLABS_REALTIME_ENABLED=false`). Requires the base provider gate.
+ */
+export function isElevenLabsRealtimeEnabled(): boolean {
+  return isElevenLabsEnabled()
+    && (process.env.ELEVENLABS_REALTIME_ENABLED ?? "false").toLowerCase() === "true";
+}
+
+/**
+ * Scribe realtime model id for the /v1/speech-to-text/realtime WebSocket.
+ * Validated against the current docs (client-side streaming guide): the
+ * realtime endpoint takes `scribe_v2_realtime` (NOT the batch `scribe_v1`).
+ */
+export function getElevenLabsRealtimeSttModel(): string {
+  return process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim() || "scribe_v2_realtime";
+}
+
 export function isVoiceCloningEnabled(): boolean {
   return (process.env.ELEVENLABS_VOICE_CLONING_ENABLED ?? "false").toLowerCase() === "true";
 }
