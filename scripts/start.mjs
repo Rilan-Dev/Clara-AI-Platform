@@ -9,6 +9,7 @@ import { WebSocketServer } from "ws";
 import { handleVoiceConnection } from "./voice-relay.mjs";
 import { handleTwilioStream, handleVonageStream } from "./phone-stream.mjs";
 import { handleSarvamRealtimeConnection } from "./sarvam-relay.mjs";
+import { handleSarvamTtsRealtimeConnection } from "./sarvam-tts-relay.mjs";
 
 const _orig = http.createServer.bind(http);
 
@@ -18,6 +19,7 @@ http.createServer = (...args) => {
   const wssTwilio = new WebSocketServer({ noServer: true });
   const wssVonage = new WebSocketServer({ noServer: true });
   const wssSarvam = new WebSocketServer({ noServer: true });
+  const wssSarvamTts = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (req, socket, head) => {
       try {
@@ -49,7 +51,7 @@ http.createServer = (...args) => {
 
   wss.on("connection", (ws, req) => handleVoiceConnection(ws, req));
 
-  wssSarvam.on("connection", (ws, req) => {
+  wssSarvamTts.on("connection", (ws, req) => {\n    Promise.resolve(handleSarvamTtsRealtimeConnection(ws, req)).catch(err => {\n      console.error("[sarvam-tts-relay] fatal:", err && err.message);\n      try { ws.close(1011); } catch (_) {}\n    });\n  });\n\n  wssSarvam.on("connection", (ws, req) => {
     Promise.resolve(handleSarvamRealtimeConnection(ws, req)).catch(err => {
       console.error("[sarvam-relay] fatal:", err && err.message);
       try { ws.close(1011); } catch (_) {}
