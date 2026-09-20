@@ -92,15 +92,15 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
       orgId: resolved.brain.orgId ?? body.orgId ?? null,
       agentId: resolved.brain.agentId,
       tts: {
-        model: resolved.sarvam.ttsModel,
-        speaker: resolved.sarvam.speaker,
+        model: resolved.sarvam.realtimeTtsModel,
+        speaker: resolved.sarvam.realtimeSpeaker,
         language: resolved.sarvam.language,
         enabled: resolved.sarvam.realtimeTtsEnabled ?? isSarvamRealtimeTtsEnabled(),
       },
       realtime: {
         sttModel: resolved.sarvam.realtimeSttModel || getPlatformDefaultSarvamRealtimeSttModel(),
         llmModel: resolved.sarvam.realtimeLlmModel || getPlatformDefaultSarvamRealtimeLlmModel(),
-        ttsModel: resolved.sarvam.ttsModel,
+        ttsModel: resolved.sarvam.realtimeTtsModel,
       },
     });
   } catch (error) {
