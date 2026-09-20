@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       orgId: resolved.brain.orgId ?? ctx.orgId,
       authorization: auth,
       surface: "embed",
-      baseUrl: req.nextUrl.origin,
+      baseUrl: process.env.CLARA_INTERNAL_API_URL ?? req.nextUrl.origin,
     }));
 
     return NextResponse.json(
