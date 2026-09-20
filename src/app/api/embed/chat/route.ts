@@ -94,8 +94,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ...toProviderConfig(resolved),
       ...(realtimeVoice ? { chatModel: getPlatformDefaultSarvamRealtimeLlmModel() } : {}),
     };
-    // Retrieval embedding runs on the embedding backbone (V1 split — a Sarvam
-    // brain keeps its Qdrant collections on OpenAI/Gemini embeddings).
     const embeddingConfig = toProviderConfig(resolved, "embedding");
     if (!providerConfig.apiKey) {
       const envName =
@@ -107,11 +105,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 503, headers: corsHeaders },
       );
     }
-
-    // ── WS-1.2: atomic quota admission (org-wide, rolling 24h) ────────────
-    // Advisory-locked check-and-insert: concurrent embed requests cannot race
-    // past the limit, and quota state cannot diverge from the audit trail.
-    // Enforced before retrieval/LLM work so over-limit orgs cost nothing.
 
     const allowedLanguages = resolved.allowedLanguages;
     const maxTokens = resolved.maxTokens ?? config.maxTokens;
@@ -134,10 +127,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const t0 = Date.now();
     const retrievalStart = t0;
 
-    // Audit trail + daily quota, atomically admitted (status='pending') so
-    // the prompt is audited, the quota counts even when retrieval later
-    // fails, and a crossing of 80% of the daily limit carries a warning the
-    // widget can surface as a dismissible banner.
     const admission = await admitQueryEvent({
       kbId: ctx.kbId,
       queryText: query,
@@ -195,8 +184,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ? sources.map((result, index) => `[S${index + 1}] ${result.snippet}`).join("\n\n")
       : "No relevant information was found in the knowledge base for this query.";
 
-    // WS-1.1: provider-reported token usage for the usage-event spine.
-    // (Ref object — TS narrows a closure-written `let` to null at read time.)
     const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
     const completion = provider.chatStream(
       [
@@ -217,9 +204,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     );
 
-    // Voice flows that surface sources to the customer are already covered by
-    // the request-time insert above — the stream finalises the answer.
-
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -239,7 +223,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           });
         }
 
-        // WS-1.2: 80% soft warning — the widget renders a dismissible banner.
         if (quotaWarning) {
           write({ type: "quota_warning", payload: quotaWarning });
         }
@@ -264,8 +247,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           } finally {
             write({ type: "done" });
             controller.close();
-            // Persist the AI-generated answer + metering for the platform
-            // audit trail and the usage-event spine.
             console.info("[realtime-latency] stream complete", {
               realtimeVoice,
               ms: Date.now() - llmStart,
@@ -275,13 +256,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             void finalizeQueryEvent(eventId, {
               answerText: answerBuffer,
               status: streamError ? "error" : "ok",
-              metering:
+              metering: {
                 model: resolved.chatModel ?? provider.getModelName("chat"),
                 provider: resolved.provider,
                 promptTokens: usageRef.value?.promptTokens ?? 0,
                 completionTokens: usageRef.value?.completionTokens ?? 0,
               },
-              // WS-1.5: user stopped the stream — partial answer, cancelled flag.
               cancelled: req.signal.aborted,
             });
           }
