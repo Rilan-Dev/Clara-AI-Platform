@@ -126,9 +126,7 @@ export function realtimeOptions(provider: "openai" | "gemini" | "sarvam") {
     return [
       { value: "sarvam-105b-conversations", label: "Sarvam 105B Conversations (realtime voice)" },
       { value: "sarvam-105b", label: "Sarvam 105B" },
-      { value: "gemma4", label: "Gemma 4 31B (beta)" },
-      { value: "deepseekv4-flash", label: "DeepSeek V4 Flash (beta)" },
-      { value: "glm5.3", label: "GLM 5.3 (beta)" },
+
     ];
   }
   const ids = provider === "gemini" ? GEMINI_REALTIME_MODELS : OPENAI_REALTIME_MODELS;
@@ -136,8 +134,19 @@ export function realtimeOptions(provider: "openai" | "gemini" | "sarvam") {
 }
 
 export function transcriptionOptions(provider: "openai" | "gemini" | "sarvam") {
+  if (provider === "sarvam") {
+    return ["saaras:v3", "saaras:v4"].map((id) => ({ value: id, label: id }));
+  }
   const ids = provider === "gemini" ? GEMINI_TRANSCRIPTION_MODELS : OPENAI_TRANSCRIPTION_MODELS;
   return ids.map((id) => ({ value: id, label: id }));
+}
+
+export function sarvamRealtimeSttOptions() {
+  return ["saaras:v3-realtime", "saaras:v4"].map((id) => ({ value: id, label: id }));
+}
+
+export function sarvamRealtimeTtsOptions() {
+  return sarvamTtsOptions().filter((option) => option.value === "bulbul:v3");
 }
 
 export function voiceOptions(provider: "openai" | "gemini") {
