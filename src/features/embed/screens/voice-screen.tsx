@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Mic, PhoneOff, Sparkles, Volume2 } from "lucide-react";
+import { Loader2, Mic, MicOff, PhoneOff, Sparkles, Volume2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { apiUrl } from "@/lib/runtime";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
@@ -60,9 +60,11 @@ function VoiceActive({ config, apiKey, onEnd }: {
       className="w-full h-full min-h-[620px] flex flex-col items-center justify-center relative z-10 py-10 px-6 text-foreground"
     >
       <div className="absolute top-5 right-5 flex items-center gap-2 bg-muted/50 rounded-full px-4 py-1.5 border border-border/70">
-        <div className={`w-2 h-2 rounded-full ${session.status === "connected" ? "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" : "bg-amber-500 animate-pulse"}`} />
+        <div className={`w-2 h-2 rounded-full ${session.micMuted ? "bg-amber-500" : session.status === "connected" ? "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" : "bg-amber-500 animate-pulse"}`} />
         <span className="text-xs text-muted-foreground font-medium tracking-wide">
-          {session.status === "connected" ? "LIVE" : "CONNECTING"}
+          {session.micMuted
+            ? "MUTED"
+            : session.status === "connected" ? "LIVE" : "CONNECTING"}
         </span>
       </div>
 
@@ -137,7 +139,25 @@ function VoiceActive({ config, apiKey, onEnd }: {
         </AnimatePresence>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 flex items-center justify-center gap-4">
+        {/* Mic pause/resume — session stays connected; only the mic goes silent. */}
+        <button
+          onClick={() => session.setMicMuted(!session.micMuted)}
+          className={`group relative flex items-center justify-center w-16 h-16 rounded-full border transition-all overflow-hidden ${
+            session.micMuted
+              ? "bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40"
+              : "bg-muted/60 hover:bg-muted border-border"
+          }`}
+          title={session.micMuted ? "Resume microphone — your voice is sent again" : "Pause microphone — the session stays live but Clara stops hearing you"}
+          aria-label={session.micMuted ? "Resume microphone" : "Pause microphone"}
+          aria-pressed={session.micMuted}
+        >
+          {session.micMuted ? (
+            <MicOff className="w-6 h-6 text-amber-500 relative z-10" />
+          ) : (
+            <Mic className="w-6 h-6 text-foreground/70 group-hover:text-foreground relative z-10" />
+          )}
+        </button>
         <button
           onClick={() => { session.disconnect(); onEnd(); }}
           className="group relative flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10 hover:bg-destructive/20 border border-destructive/30 transition-all overflow-hidden"

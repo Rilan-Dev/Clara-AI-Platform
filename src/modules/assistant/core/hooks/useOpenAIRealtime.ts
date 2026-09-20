@@ -9,6 +9,7 @@ import {
 } from "../config";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { setMicStreamMuted } from "../voice/mic-mute";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -181,6 +182,16 @@ export function useOpenAIRealtime(opts?: Options) {
   const pcRef                 = useRef<RTCPeerConnection | null>(null);
   const dcRef                 = useRef<RTCDataChannel | null>(null);
   const micStreamRef          = useRef<MediaStream | null>(null);
+  // ── Microphone mute ("pause") ────────────────────────────────────────────
+  // track.enabled=false keeps the WebRTC session alive while sending digital
+  // silence — server VAD stops firing, no real audio leaves the browser.
+  const [micMuted, setMicMutedState] = useState(false);
+  const micMutedRef = useRef(false);
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+    setMicStreamMuted(micStreamRef.current, muted);
+  }, []);
   const remoteAudioStreamRef  = useRef<MediaStream | null>(null);
   const connectTokenRef       = useRef(0);
   const sendQueueRef          = useRef<string[]>([]);
@@ -982,6 +993,9 @@ export function useOpenAIRealtime(opts?: Options) {
         return;
       }
       micStreamRef.current = mic;
+      // Honour a sticky mute across reconnects (privacy-first: a muted
+      // visitor must never become live again without an explicit unmute).
+      setMicStreamMuted(mic, micMutedRef.current);
       const audioTrack = mic.getAudioTracks()[0];
       if (!audioTrack) throw new Error("No audio track available from microphone");
       if (pc.signalingState === "closed")
@@ -1281,6 +1295,8 @@ export function useOpenAIRealtime(opts?: Options) {
     error: lastError,
     isSpeaking,
     history,
+    micMuted,
+    setMicMuted,
     connect,
     disconnect,
     interrupt,

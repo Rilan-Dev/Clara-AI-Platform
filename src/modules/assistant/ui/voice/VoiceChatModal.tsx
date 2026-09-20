@@ -40,6 +40,9 @@ type VoiceSessionState = {
   disconnect: () => void;
   interrupt: () => void;
   sendText: (text: string) => void;
+  /** Mic pause/resume — true while the microphone emits digital silence. */
+  micMuted: boolean;
+  setMicMuted: (muted: boolean) => void;
   remoteAudioStream: MediaStream | null;
   outputAnalyserNode: AnalyserNode | null;
 };
@@ -86,7 +89,7 @@ function VoiceModalShell({
   onClose,
   session,
 }: ShellProps) {
-  const { status, error, isSpeaking, history, connect, disconnect, interrupt, sendText, remoteAudioStream, outputAnalyserNode } = session;
+  const { status, error, isSpeaking, history, connect, disconnect, interrupt, sendText, remoteAudioStream, outputAnalyserNode, micMuted, setMicMuted } = session;
 
   // ── Stable refs for connect / disconnect ─────────────────────────────────
   const connectRef = useRef(connect);
@@ -306,6 +309,16 @@ function VoiceModalShell({
                   >
                     {connected ? "Disconnect" : "Connect"}
                   </Button>
+                  {connected && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setMicMuted(!micMuted)}
+                      title={micMuted ? "Unmute microphone — resume sending your voice" : "Mute microphone — pause sending your voice (session stays live)"}
+                    >
+                      {micMuted ? "Unmute mic" : "Mute mic"}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -542,21 +555,35 @@ function VoiceModalShell({
                 )}
               </div>
 
-              <div className="mt-4 flex items-center justify-between text-xs text-[color:var(--color-muted-foreground)]">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[color:var(--color-muted-foreground)]">
                 <p>
                   {connected
-                    ? "Speak to add a new turn. Clara cites sources from the active knowledge base."
+                    ? micMuted
+                      ? "Microphone paused — unmute to speak again. The session stays live."
+                      : "Speak to add a new turn. Clara cites sources from the active knowledge base."
                     : "Connect to begin."}
                 </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={interrupt}
-                  disabled={!isSpeaking}
-                  title="Interrupt speaking"
-                >
-                  Interrupt
-                </Button>
+                <div className="flex items-center gap-2">
+                  {connected && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMicMuted(!micMuted)}
+                      title={micMuted ? "Unmute microphone — resume sending your voice" : "Mute microphone — pause sending your voice (session stays live)"}
+                    >
+                      {micMuted ? "Unmute mic" : "Mute mic"}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={interrupt}
+                    disabled={!isSpeaking}
+                    title="Interrupt speaking"
+                  >
+                    Interrupt
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

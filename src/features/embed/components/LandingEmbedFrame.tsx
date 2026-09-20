@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, PhoneOff, Sparkles, Volume2 } from "lucide-react";
+import { Loader2, Mic, MicOff, PhoneOff, Sparkles, Volume2 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
+import { setMicStreamMuted } from "@/modules/assistant/core/voice/mic-mute";
 import DemoWebsiteFrame from "@/features/embed/components/DemoWebsiteFrame";
 
 type Config = {
@@ -20,19 +21,35 @@ type Config = {
 
 type VoiceState = "idle" | "connecting" | "listening" | "speaking" | "error";
 
-type VoiceRuntime = { state: VoiceState; error: string | null; start: () => Promise<void>; stop: () => void };
+type VoiceRuntime = {
+  state: VoiceState;
+  error: string | null;
+  micMuted: boolean;
+  start: () => Promise<void>;
+  stop: () => void;
+  /** Pause/resume the microphone — session stays live, mic sends silence. */
+  setMicMuted: (muted: boolean) => void;
+};
 
 function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) => void, onAssistant: (delta: string) => void): VoiceRuntime {
   const [state, setState] = useState<VoiceState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [micMuted, setMicMutedState] = useState(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const micRef = useRef<MediaStream | null>(null);
+  const micMutedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const remoteRef = useRef<MediaStream | null>(null);
   const stoppedRef = useRef(false);
   const transcriptRef = useRef("");
   const lastTranscriptRef = useRef("");
+
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+    setMicStreamMuted(micRef.current, muted);
+  }, []);
 
   const send = useCallback((payload: unknown) => {
     const dc = dcRef.current;
@@ -58,6 +75,8 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
     try {
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
       micRef.current = mic;
+      // Sticky mute across restarts — a muted visitor stays muted.
+      setMicStreamMuted(mic, micMutedRef.current);
       const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
       pcRef.current = pc;
       const remote = new MediaStream(); remoteRef.current = remote;
@@ -143,7 +162,7 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
   }, [apiKey, cleanup, config, onAssistant, onUser, send, state]);
 
   useEffect(() => () => cleanup(), [cleanup]);
-  return { state, error, start, stop };
+  return { state, error, micMuted, start, stop, setMicMuted };
 }
 
 function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config }) {
@@ -181,10 +200,22 @@ function VoiceExperience({ apiKey, config }: { apiKey: string; config: Config })
             </motion.div>
           ) : (
             <motion.div key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full flex flex-col items-center justify-center relative z-10 py-12">
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-muted/50 rounded-full px-4 py-1.5 border border-border/70"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /><span className="text-xs text-muted-foreground font-medium tracking-wide">{voice.state === "speaking" ? "SPEAKING" : voice.state === "connecting" ? "CONNECTING" : "LIVE"}</span></div>
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-muted/50 rounded-full px-4 py-1.5 border border-border/70"><div className={`w-2 h-2 rounded-full ${voice.micMuted ? "bg-amber-500" : "bg-emerald-500 animate-pulse"}`} /><span className="text-xs text-muted-foreground font-medium tracking-wide">{voice.micMuted ? "MUTED" : voice.state === "speaking" ? "SPEAKING" : voice.state === "connecting" ? "CONNECTING" : "LIVE"}</span></div>
               {voice.state === "connecting" ? <div className="flex flex-col items-center"><Loader2 className="w-12 h-12 text-primary animate-spin mb-6" /><p className="text-sm text-primary animate-pulse font-medium">Establishing secure connection...</p></div> : <div className="flex gap-3 items-center justify-center z-10 h-32">{levels.map((level, index) => <motion.div key={index} animate={{ height: Math.max(16, level * 120) }} transition={{ duration: .08 }} className="w-4 rounded-full opacity-90" style={{ backgroundColor: wave }} />)}</div>}
               <div className="h-28 w-full max-w-2xl flex flex-col justify-center text-center px-4 mt-8">{question && <><p className="text-xs text-muted-foreground/70 uppercase tracking-wider mb-1 font-semibold">You said</p><p className="text-lg text-foreground/80 line-clamp-1">{question}</p></>}{answer && <><p className="text-xs text-primary uppercase tracking-wider mb-1 mt-3 font-semibold">{config.assistantName}</p><p className="text-lg text-foreground line-clamp-2 leading-snug">{answer}</p></>}</div>
-              <button onClick={voice.stop} className="mt-8 flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10 hover:bg-destructive/20 border border-destructive/30" title="End Session"><PhoneOff className="w-6 h-6 text-destructive" /></button>
+              <div className="mt-8 flex items-center justify-center gap-4">
+                {/* Mic pause/resume — session stays connected; only the mic goes silent. */}
+                <button
+                  onClick={() => voice.setMicMuted(!voice.micMuted)}
+                  className={`flex items-center justify-center w-16 h-16 rounded-full border transition-colors ${voice.micMuted ? "bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40" : "bg-muted/60 hover:bg-muted border-border"}`}
+                  title={voice.micMuted ? "Resume microphone — your voice is sent again" : "Pause microphone — the session stays live but Clara stops hearing you"}
+                  aria-label={voice.micMuted ? "Resume microphone" : "Pause microphone"}
+                  aria-pressed={voice.micMuted}
+                >
+                  {voice.micMuted ? <MicOff className="w-6 h-6 text-amber-500" /> : <Mic className="w-6 h-6 text-foreground/70" />}
+                </button>
+                <button onClick={voice.stop} className="flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10 hover:bg-destructive/20 border border-destructive/30" title="End Session"><PhoneOff className="w-6 h-6 text-destructive" /></button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

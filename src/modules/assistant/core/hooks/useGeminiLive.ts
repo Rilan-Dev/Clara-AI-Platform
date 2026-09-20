@@ -9,6 +9,7 @@ import {
 } from "../config";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { setMicStreamMuted } from "../voice/mic-mute";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -222,6 +223,16 @@ export function useGeminiLive(opts?: Options) {
   // ── Refs ──────────────────────────────────────────────────────────────────
   const wsRef               = useRef<WebSocket | null>(null);
   const micStreamRef        = useRef<MediaStream | null>(null);
+  // ── Microphone mute ("pause") ────────────────────────────────────────────
+  // track.enabled=false silences the capture graph feeding the Gemini Live
+  // socket while keeping the session alive (no renegotiation needed).
+  const [micMuted, setMicMutedState] = useState(false);
+  const micMutedRef = useRef(false);
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+    setMicStreamMuted(micStreamRef.current, muted);
+  }, []);
   const captureCtxRef       = useRef<AudioContext | null>(null);
   const playbackCtxRef      = useRef<AudioContext | null>(null);
   const playbackAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -846,6 +857,8 @@ export function useGeminiLive(opts?: Options) {
         return;
       }
       micStreamRef.current = mic;
+      // Sticky mute across reconnects — a muted visitor stays muted.
+      setMicStreamMuted(mic, micMutedRef.current);
 
       // ── 3. Create AudioContexts inside user-gesture scope ────────────────
       //
@@ -1200,6 +1213,8 @@ export function useGeminiLive(opts?: Options) {
     error:    lastError,
     isSpeaking,
     history,
+    micMuted,
+    setMicMuted,
     connect,
     disconnect,
     interrupt,
