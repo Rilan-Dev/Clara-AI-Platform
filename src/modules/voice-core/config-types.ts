@@ -36,18 +36,24 @@ export interface ElevenLabsResolvedConfig {
 
 /** Sarvam specifics resolved when either voice purpose selects "sarvam". */
 export interface SarvamResolvedConfig {
-  /** TTS model id (bulbul:v3 | bulbul:v2 legacy). */
+  /** Voice Chat TTS model id (bulbul:v3 | bulbul:v2 legacy). */
   ttsModel: string;
+  voiceChatTtsModel: string;
   /** STT model id (saaras:v3 | saaras:v4). */
   sttModel: string;
-  /** Bulbul speaker id — static catalogue, validated by isSupportedSarvamSpeaker. */
+  /** Voice Chat speaker id. */
   speaker: string;
+  voiceChatSpeaker: string;
   /** BCP-47-ish language hint derived from the agent language chain (hi-IN, ta-IN, …). */
   language: string;
   /** Playback sample rate for the shared PCM queue (16000 default). */
   sampleRate: number;
   /** Exact Sarvam realtime WebSocket STT model. */
   realtimeSttModel: string;
+  /** Exact realtime Bulbul TTS model. */
+  realtimeTtsModel: string;
+  /** Exact realtime speaker. */
+  realtimeSpeaker: string;
   /** Exact LLM model used by the realtime voice-agent phone path. */
   realtimeLlmModel: string;
   /** Whether streaming Bulbul WebSocket TTS is enabled. */
