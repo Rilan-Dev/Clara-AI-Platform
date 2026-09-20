@@ -240,17 +240,24 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
   const sendRealtimeTts = useCallback((text: string) => {
     const realtime = sessionRef.current?.stt.realtime;
-    if (!realtime || !text.trim()) return false;
-    const message = JSON.stringify({
-      type: "text",
-      generationId: realtimeTtsGenerationRef.current,
-      text,
-    });
+    const cleanText = sanitizeTtsText(text);
+    if (!realtime || !cleanText) return false;
+
+    // Bulbul v3 buffers text server-side. Every conversational chunk must be
+    // explicitly flushed so short greetings / short sentences do not sit in
+    // the 20-character buffer waiting for another turn.
+    const generationId = realtimeTtsGenerationRef.current;
+    const textMessage = JSON.stringify({ type: "text", generationId, text: cleanText });
+    const flushMessage = JSON.stringify({ type: "flush", generationId });
     const ws = realtimeTtsWsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
-      try { ws.send(message); return true; } catch {}
+      try {
+        ws.send(textMessage);
+        ws.send(flushMessage);
+        return true;
+      } catch {}
     }
-    realtimeTtsQueueRef.current.push(message);
+    realtimeTtsQueueRef.current.push(textMessage, flushMessage);
     connectRealtimeTts();
     return true;
   }, [connectRealtimeTts]);
