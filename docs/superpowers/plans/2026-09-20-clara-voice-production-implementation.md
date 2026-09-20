@@ -10,6 +10,31 @@
 
 ---
 
+# Execution status
+
+Updated as tasks complete. Commits are on `Vite-Converted`.
+
+- [x] Task 1.1 — Baseline report (e56805a) — 399/399 tests, tsc 0, lint 0 errors/69 pre-existing warnings
+- [x] Task 1.2 — Executable provider map (ae21c4b) — `docs/superpowers/reports/2026-09-20-voice-provider-map.md`
+- [x] Task 2.1 — Realtime session & generation identity (`voice-core/realtime/identity.ts`, 8 tests)
+- [x] Task 2.2 — Generation coordinator (`voice-core/realtime/generation-coordinator.ts`, 19 tests)
+- [x] Task 2.3 — Generation-aware playback (`assistant/core/voice/generation-playback.ts`, 11 tests incl. plan acceptance test; wired into `useSarvamVoice`)
+- [ ] Task 3.1 — Authenticated provider-neutral grounding entry point
+- [ ] Task 3.2 — Identical knowledge binding test across providers
+- [ ] Task 4.1 — OpenAI regression lock
+- [ ] Task 4.2 — OpenAI TTFA baseline
+- [ ] Task 5.1–5.5 — Sarvam realtime completion
+- [ ] Task 6.1–6.5 — ElevenLabs realtime completion
+- [ ] Task 7.1–7.2 — Provider switching
+- [ ] Task 8.1–8.2 — UX/state correctness
+- [ ] Phase 9 — Failure recovery
+- [ ] Phase 10 — Telemetry
+- [ ] Phase 11 — Real-device benchmarks
+- [ ] Phase 12 — Security validation
+- [ ] Phase 13 — Staged rollout
+
+---
+
 # 0. Source-of-truth plans
 
 Existing plans that remain authoritative:
