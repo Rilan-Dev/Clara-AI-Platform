@@ -131,7 +131,7 @@ export async function postSarvamTts(request: NextRequest): Promise<NextResponse 
 
     const model = typeof body.model === "string" && isSupportedSarvamTTSModel(body.model)
       ? body.model
-      : resolved.sarvam.ttsModel;
+      : resolved.sarvam.voiceChatTtsModel;
     const speaker = typeof body.speaker === "string" && isSupportedSarvamSpeaker(body.speaker)
       ? body.speaker.trim().toLowerCase()
       : resolved.sarvam.speaker;
