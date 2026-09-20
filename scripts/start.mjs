@@ -14,6 +14,7 @@ import {
   handleElevenLabsRealtimeStt,
   handleElevenLabsRealtimeTts,
 } from "./elevenlabs-relay.mjs";
+import { handleGeminiRealtimeConnection } from "./gemini-relay.mjs";
 
 const _orig = http.createServer.bind(http);
 
@@ -26,6 +27,7 @@ http.createServer = (...args) => {
   const wssSarvamTts = new WebSocketServer({ noServer: true });
   const wssElevenLabsStt = new WebSocketServer({ noServer: true });
   const wssElevenLabsTts = new WebSocketServer({ noServer: true });
+  const wssGemini = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (req, socket, head) => {
       try {
@@ -44,6 +46,8 @@ http.createServer = (...args) => {
           wssElevenLabsStt.handleUpgrade(req, socket, head, ws => wssElevenLabsStt.emit("connection", ws, req));
         } else if (pathname === "/api/voice/elevenlabs/tts-realtime") {
           wssElevenLabsTts.handleUpgrade(req, socket, head, ws => wssElevenLabsTts.emit("connection", ws, req));
+        } else if (pathname === "/api/voice/gemini/realtime") {
+          wssGemini.handleUpgrade(req, socket, head, ws => wssGemini.emit("connection", ws, req));
         } else {
           socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
           socket.destroy();
@@ -61,6 +65,7 @@ http.createServer = (...args) => {
     console.log("[clara-relay]    /api/voice/sarvam/realtime — Saaras realtime STT relay");
     console.log("[clara-relay]    /api/voice/elevenlabs/realtime — Scribe realtime STT relay");
     console.log("[clara-relay]    /api/voice/elevenlabs/tts-realtime — ElevenLabs streaming TTS relay");
+    console.log("[clara-relay]    /api/voice/gemini/realtime — Gemini Live passthrough relay");
   });
 
   wss.on("connection", (ws, req) => handleVoiceConnection(ws, req));
@@ -89,6 +94,13 @@ http.createServer = (...args) => {
   wssElevenLabsTts.on("connection", (ws, req) => {
     Promise.resolve(handleElevenLabsRealtimeTts(ws, req)).catch(err => {
       console.error("[elevenlabs-relay] tts fatal:", err && err.message);
+      try { ws.close(1011); } catch (_) {}
+    });
+  });
+
+  wssGemini.on("connection", (ws, req) => {
+    Promise.resolve(handleGeminiRealtimeConnection(ws, req)).catch(err => {
+      console.error("[gemini-relay] fatal:", err && err.message);
       try { ws.close(1011); } catch (_) {}
     });
   });
