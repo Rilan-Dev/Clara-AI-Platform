@@ -562,7 +562,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     }, REALTIME_FLUSH_MS);
 
     return true;
-  }, [handleRealtimeEvent]);
+  }, [connectRealtimeTts, handleRealtimeEvent]);
 
   const stopRealtimeCapture = useCallback(() => {
     if (realtimeFlushTimerRef.current) {
@@ -696,7 +696,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     utteranceActiveRef.current = false;
     speakingUserRef.current = false;
     bargeInArmedRef.current = false;
-  }, [interruptPlayback, stopRealtimeCapture]);
+  }, [closeRealtimeTts, interruptPlayback, stopRealtimeCapture]);
 
   const connect = useCallback(async () => {
     const myToken = ++connectTokenRef.current;
