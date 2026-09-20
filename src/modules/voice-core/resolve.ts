@@ -34,6 +34,7 @@ import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import { resolveAIConfig } from "@/modules/ai-core/resolve";
+import { findChatModel } from "@/modules/ai-core/model-catalog";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
 import {
   getPlatformDefaultSTTModel,
@@ -397,7 +398,14 @@ export async function resolveVoiceConfig(
       ttsModel: sarvamTtsModel,
       sttModel: sarvamSttModel,
       realtimeSttModel: getPlatformDefaultSarvamRealtimeSttModel(),
-      realtimeLlmModel: getPlatformDefaultSarvamRealtimeLlmModel(),
+      // Honour the same organisation-level realtime model setting used by
+      // the other providers when it contains a Sarvam chat model; otherwise
+      // fall back to the dedicated platform realtime default.
+      realtimeLlmModel:
+        (orgSettings?.defaultRealtimeModel &&
+          findChatModel(orgSettings.defaultRealtimeModel)?.provider === "sarvam"
+          ? orgSettings.defaultRealtimeModel
+          : getPlatformDefaultSarvamRealtimeLlmModel()),
       realtimeTtsEnabled: isSarvamRealtimeTtsEnabled(),
       speaker,
       language: toSarvamLanguageCode(
