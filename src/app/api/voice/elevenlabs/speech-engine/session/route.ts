@@ -7,7 +7,17 @@ import {
 } from "@/modules/embed/core/validate-embed";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { resolveVoiceConfig, VoiceConfigResolutionError } from "@/modules/voice-core/resolve";
-import { registerElevenLabsSpeechEngineConversation } from "../../../../../../../../scripts/elevenlabs-speech-engine.mjs";
+import Redis from "ioredis";
+
+const SPEECH_ENGINE_CONTEXT_PREFIX = "clara:elevenlabs:speech-engine:";
+const SPEECH_ENGINE_CONTEXT_TTL = 15 * 60;
+
+const redis = new Redis({
+  host: process.env.REDIS_HOST ?? "redis",
+  port: Number(process.env.REDIS_PORT ?? 6379),
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
 
 export async function OPTIONS(req: NextRequest) {
   return handlePreflight(req);
@@ -71,13 +81,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await registerElevenLabsSpeechEngineConversation(tokenBody.conversation_id, {
+    await redis.setex(SPEECH_ENGINE_CONTEXT_PREFIX + tokenBody.conversation_id, SPEECH_ENGINE_CONTEXT_TTL, JSON.stringify({
       kbId: ctx.kbId,
       orgId: resolved.brain.orgId ?? ctx.orgId,
       authorization: auth,
       surface: "embed",
       baseUrl: req.nextUrl.origin,
-    });
+    }));
 
     return NextResponse.json(
       {
