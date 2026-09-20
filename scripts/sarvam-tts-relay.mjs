@@ -73,7 +73,12 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     return;
   }
 
-  const model = cfg.tts?.model || "bulbul:v3";
+  if (cfg.tts?.enabled === false) {
+    send(browserWs, { type: "error", message: "Sarvam realtime TTS is disabled in platform settings.", fatal: true });
+    browserWs.close(1008, "Realtime TTS disabled");
+    return;
+  }
+  const model = cfg.realtime?.ttsModel || cfg.tts?.model || "bulbul:v3";
   const speaker = cfg.tts?.speaker || "shubh";
   const language = cfg.tts?.language || "en-IN";
   const upstreamUrl =
@@ -102,7 +107,12 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
         output_audio_codec: "linear16",
       },
     }));
-    send(browserWs, { type: "status", value: "connected", sampleRate: 24000 });
+    send(browserWs, {
+      type: "status",
+      value: "connected",
+      model,
+      sampleRate: 24000,
+    });
   });
 
   upstream.on("message", (data) => {
