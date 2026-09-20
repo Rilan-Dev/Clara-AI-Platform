@@ -15,10 +15,39 @@ Schema migration `040_ai_governance_and_agent_versioning.sql` applies
 automatically on boot (`ensureMigrated`). It is **purely additive** — no legacy
 column or table is dropped.
 
+## 1b. Take a pre-migration backup (Phase 0 procedure)
+
+Before running the data migration, snapshot the AI configuration state and the
+full database (migration plan § "Before migration" + § Rollback):
+
+```bash
+# Logical export of every AI-configuration table (read-only, secrets redacted):
+node scripts/backup-ai-configuration.mjs
+
+# Full physical backup (needs pg_dump + gzip on PATH; password never in argv):
+node scripts/backup-ai-configuration.mjs --pg-dump
+
+# Both artifacts land in backups/ (gitignored):
+#   backups/ai-configuration-<timestamp>.json   — logical, auditable, redacted
+#   backups/clara-full-<timestamp>.sql.gz       — physical, complete, secret-bearing
+```
+
+Notes:
+
+- The script is **read-only** — it never writes to the database.
+- `--include-secrets` includes `platform_env_settings` secret values in the
+  JSON export; only use it when the backup target is access-controlled.
+- Works before AND after migration 040 (missing tables are recorded as
+  `TABLE_MISSING`), so the same command produces the pre-migration safety
+  snapshot and the post-migration verification snapshot.
+- Restore path for the physical dump:
+  `gunzip -c clara-full-<timestamp>.sql.gz | psql <database>`.
+- Copy artifacts off-host — `backups/` is gitignored on purpose.
+
 ## 2. Run the data migration (once, after the release is up)
 
 ```bash
-# Dry-run first — report only, no writes:
+# Backup first (see § 1b), then dry-run — report only, no writes:
 node scripts/migrate-ai-configuration.mjs
 
 # Apply (idempotent — safe to re-run):

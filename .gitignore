@@ -56,6 +56,12 @@ old_hook.txt
 VoiceChatModal_before_patch.txt
 *.tar.gz
 
+# ─── AI configuration backup artifacts (scripts/backup-ai-configuration.mjs) ──
+# Logical exports contain organisation/agent configuration; physical dumps
+# contain secrets. Never commit — copy off-host instead.
+backups/ai-configuration-*.json
+backups/clara-full-*.sql.gz
+
 # ─── IDE & tools ───────────────────────────────────────────
 .antigravityignore
 .trunk
