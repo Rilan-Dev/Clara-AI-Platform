@@ -45,6 +45,9 @@ import {
   getPlatformDefaultSarvamSttModel,
   getPlatformDefaultSarvamSpeaker,
   getPlatformDefaultSarvamTTSModel,
+  getPlatformDefaultSarvamRealtimeSttModel,
+  getPlatformDefaultSarvamRealtimeLlmModel,
+  isSarvamRealtimeTtsEnabled,
   isSarvamEnabled,
   isSupportedSarvamSpeaker,
   isSupportedSarvamTTSModel,
@@ -393,6 +396,9 @@ export async function resolveVoiceConfig(
     sarvam = {
       ttsModel: sarvamTtsModel,
       sttModel: sarvamSttModel,
+      realtimeSttModel: getPlatformDefaultSarvamRealtimeSttModel(),
+      realtimeLlmModel: getPlatformDefaultSarvamRealtimeLlmModel(),
+      realtimeTtsEnabled: isSarvamRealtimeTtsEnabled(),
       speaker,
       language: toSarvamLanguageCode(
         brain.defaultLanguage ?? brain.assistantConfig?.alwaysRespondIn ?? "en",
