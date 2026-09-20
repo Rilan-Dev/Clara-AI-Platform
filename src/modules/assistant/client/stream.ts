@@ -22,6 +22,8 @@ export type StreamChatOptions = {
    * An explicit `endpoint` still wins.
    */
   embedApiKey?: string;
+  /** Realtime voice path: selects the configured Sarvam conversational model and latency settings. */
+  realtimeVoice?: boolean;
 };
 
 const DEFAULT_CHAT_ENDPOINT = apiUrl("/api/chat");
@@ -41,6 +43,7 @@ export async function streamChatCompletion(
         sessionId: options?.sessionId,
         assistantLanguage: options?.assistantLanguage,
         customerLanguages: options?.customerLanguages,
+        realtimeVoice: options?.realtimeVoice === true,
       }
     : {
         // Legacy document mode
