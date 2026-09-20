@@ -14,7 +14,7 @@
  * admins get the same read-only view as before.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
@@ -461,7 +461,7 @@ function SelectField({ label, value, options, onChange }: {
   );
 }
 
-function InfoBox({ title, children }: { title: string; children: React.ReactNode }) {
+function InfoBox({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-xs text-muted-foreground/80">
       <p className="font-medium text-foreground/90">{title}</p>
@@ -478,6 +478,13 @@ function emptyAI() {
     realtimeModel: null,
     transcriptionModel: null,
     voiceProvider: null,
+    voiceChatSttModel: null,
+    voiceChatTtsModel: null,
+    voiceChatVoiceId: null,
     realtimeVoiceProvider: null,
+    realtimeLlmModel: null,
+    realtimeSttModel: null,
+    realtimeTtsModel: null,
+    realtimeVoiceId: null,
   };
 }
