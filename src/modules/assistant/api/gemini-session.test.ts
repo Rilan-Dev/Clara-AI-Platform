@@ -103,7 +103,11 @@ describe("POST /api/gemini/session — credential security (gap-closure Phase D)
     expect(res.status).toBe(200);
 
     const bodyText = JSON.stringify(await res.json());
-    const body = JSON.parse(bodyText) as Record<string, unknown>;
+    const body = JSON.parse(bodyText) as {
+      provider?: string;
+      wsUrl?: string;
+      realtime?: { endpoint?: string; token?: string };
+    };
 
     // (1) The long-lived key is nowhere in the response.
     expect(bodyText).not.toContain(GEMINI_KEY_VALUE);
@@ -118,7 +122,8 @@ describe("POST /api/gemini/session — credential security (gap-closure Phase D)
     expect(typeof body.realtime?.token).toBe("string");
 
     // (5) The token is a valid HMAC capability token bound to kb + org.
-    const claims = verifyGeminiRealtimeToken(body.realtime.token);
+    const token = body.realtime?.token ?? "";
+    const claims = verifyGeminiRealtimeToken(token);
     expect(claims).toMatchObject({ kbId: KB_ID, orgId: ORG_ID });
   });
 
