@@ -398,22 +398,28 @@ export async function resolveVoiceConfig(
       orgSettings?.sarvamSttModel ??
       getPlatformDefaultSarvamSttModel();
 
-    const speaker = resolveSarvamSpeaker({
-      assistantVoiceId:
-        (realtimeProvider === "sarvam" ? versionRealtimeVoiceId : versionVoiceChatVoiceId) ??
-        brain.assistantConfig?.voiceId ??
-        null,
-      orgDefaultSpeaker: orgSettings?.defaultSarvamSpeaker ?? null,
-    });
-
     sarvam = {
-      ttsModel:
-        (realtimeProvider === "sarvam" ? versionRealtimeTtsModel : null) ??
-        sarvamTtsModel,
+      ttsModel: sarvamTtsModel,
+      voiceChatTtsModel: sarvamTtsModel,
       sttModel: sarvamSttModel,
+      voiceChatSpeaker: resolveSarvamSpeaker({
+        assistantVoiceId: versionVoiceChatVoiceId ?? brain.assistantConfig?.voiceId ?? null,
+        orgDefaultSpeaker: orgSettings?.defaultSarvamSpeaker ?? null,
+      }),
+      speaker: resolveSarvamSpeaker({
+        assistantVoiceId: versionVoiceChatVoiceId ?? brain.assistantConfig?.voiceId ?? null,
+        orgDefaultSpeaker: orgSettings?.defaultSarvamSpeaker ?? null,
+      }),
       realtimeSttModel:
         versionRealtimeSttModel ??
         getPlatformDefaultSarvamRealtimeSttModel(),
+      realtimeTtsModel:
+        versionRealtimeTtsModel ??
+        sarvamTtsModel,
+      realtimeSpeaker: resolveSarvamSpeaker({
+        assistantVoiceId: versionRealtimeVoiceId ?? brain.assistantConfig?.voiceId ?? null,
+        orgDefaultSpeaker: orgSettings?.defaultSarvamSpeaker ?? null,
+      }),
       realtimeLlmModel:
         versionRealtimeLlmModel ??
         (orgSettings?.defaultRealtimeModel &&
