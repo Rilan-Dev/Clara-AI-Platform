@@ -26,12 +26,6 @@ type ElevenMessage = {
   message?: string;
 };
 
-function statusFromSdk(status: string): VoiceStatus {
-  if (status === "connecting") return "connecting";
-  if (status === "connected") return "listening";
-  return "idle";
-}
-
 export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [error, setError] = useState<string | null>(null);
