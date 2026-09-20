@@ -29,10 +29,17 @@ export type AgentAISelection = {
   embeddingModel: string | null;
   realtimeModel: string | null;
   transcriptionModel: string | null;
-  /** Voice-chat axis (NULL = inherit the brain provider). */
+  /** Voice-chat axis. Model/voice slots are independent from Chat. */
   voiceProvider: VoiceProvider | null;
-  /** Realtime voice axis (NULL = inherit the voice-chat provider). */
+  voiceChatSttModel: string | null;
+  voiceChatTtsModel: string | null;
+  voiceChatVoiceId: string | null;
+  /** Realtime voice axis. Nothing here is inherited from Voice Chat. */
   realtimeVoiceProvider: VoiceProvider | null;
+  realtimeLlmModel: string | null;
+  realtimeSttModel: string | null;
+  realtimeTtsModel: string | null;
+  realtimeVoiceId: string | null;
 };
 
 export type AgentRuntimeSettings = {
