@@ -6,6 +6,7 @@ import { useGeminiLive } from "./useGeminiLive";
 import { useElevenLabsVoice } from "./useElevenLabsVoice";
 import { useElevenLabsConvAI } from "./useElevenLabsConvAI";
 import { useElevenLabsClaraStream } from "./useElevenLabsClaraStream";
+import { useElevenLabsSpeechEngine } from "./useElevenLabsSpeechEngine";
 import { useSarvamVoice } from "./useSarvamVoice";
 import type { VoiceClientOptions } from "../voice/types";
 import { withAuthHeaders } from "@/lib/client-auth";
@@ -27,7 +28,7 @@ type VoiceProviderResponse = {
   provider: RuntimeProvider;
   voiceProvider?: RuntimeProvider;
   /** ElevenLabs mode split: "pipeline" (A) | "conversational" (B) | "clara-stream" (C). */
-  mode?: "pipeline" | "conversational" | "clara-stream";
+  mode?: "pipeline" | "conversational" | "clara-stream" | "speech-engine";
   flags?: {
     voiceEnabled?: boolean;
     realtimeEnabled?: boolean;
@@ -65,7 +66,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
     ACTIVE_PROVIDER === "gemini" ? "gemini" : "openai",
   );
   const [elevenlabsMode, setElevenlabsMode] = useState<
-    "pipeline" | "conversational" | "clara-stream"
+    "pipeline" | "conversational" | "clara-stream" | "speech-engine"
   >("pipeline");
 
   const sharedOpts = {
@@ -83,6 +84,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
   const elevenlabs  = useElevenLabsVoice(sharedOpts);
   const elevenlabsConvAI = useElevenLabsConvAI(sharedOpts);
   const elevenlabsClaraStream = useElevenLabsClaraStream(sharedOpts);
+  const elevenlabsSpeechEngine = useElevenLabsSpeechEngine(sharedOpts);
   const sarvam      = useSarvamVoice(sharedOpts);
 
   const active =
@@ -91,14 +93,16 @@ export function useVoiceClient(options: VoiceClientOptions) {
         ? elevenlabsConvAI
         : elevenlabsMode === "clara-stream"
           ? elevenlabsClaraStream
-          : elevenlabs
+          : elevenlabsMode === "speech-engine"
+            ? elevenlabsSpeechEngine
+            : elevenlabs
       : provider === "sarvam"
         ? sarvam
         : provider === "gemini" ? gemini : openai;
 
   const resolveProvider = useCallback(async (): Promise<{
     provider: RuntimeProvider;
-    mode: "pipeline" | "conversational" | "clara-stream";
+    mode: "pipeline" | "conversational" | "clara-stream" | "speech-engine";
   }> => {
     if (!options.kbId) {
       return {
@@ -134,17 +138,14 @@ export function useVoiceClient(options: VoiceClientOptions) {
     // second.
     const resolved = payload.voiceProvider ?? payload.provider;
     if (resolved === "elevenlabs") {
-      // Tri-mode split (plan Task 6.1): Mode B realtime only for platform
-      // sessions — embed API keys never resolve a conversational mode (the
-      // server refuses them too); Mode C (clara-stream) is flag-gated
-      // server-side and allowed for embed sessions (the relay token is
-      // capability-scoped, never a vendor credential).
-      const mode: "pipeline" | "conversational" | "clara-stream" =
-        payload.mode === "conversational" && !options.embedApiKey
-          ? "conversational"
-          : payload.mode === "clara-stream"
-            ? "clara-stream"
-            : "pipeline";
+      const mode: "pipeline" | "conversational" | "clara-stream" | "speech-engine" =
+        payload.mode === "speech-engine"
+          ? "speech-engine"
+          : payload.mode === "conversational" && !options.embedApiKey
+            ? "conversational"
+            : payload.mode === "clara-stream"
+              ? "clara-stream"
+              : "pipeline";
       setElevenlabsMode(mode);
       return { provider: "elevenlabs" as const, mode };
     }
@@ -176,6 +177,15 @@ export function useVoiceClient(options: VoiceClientOptions) {
       }
       // Mode C Clara realtime; falls back to the Mode A pipeline when the
       // session bootstrap refuses (flag raced off / no realtime descriptor).
+      if (next.mode === "speech-engine") {
+        try {
+          await elevenlabsSpeechEngine.connect();
+          return;
+        } catch (err) {
+          console.warn("[voice] ElevenLabs Speech Engine session refused; falling back to the existing pipeline:", (err as Error).message);
+          setElevenlabsMode("pipeline");
+        }
+      }
       if (next.mode === "clara-stream") {
         try {
           await elevenlabsClaraStream.connect();
@@ -197,12 +207,13 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     await openai.connect();
-  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, gemini, openai, resolveProvider, sarvam]);
+  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsSpeechEngine, gemini, openai, resolveProvider, sarvam]);
 
   const disconnect = useCallback(() => {
     if (provider === "elevenlabs") {
       if (elevenlabsMode === "conversational") elevenlabsConvAI.disconnect();
       else if (elevenlabsMode === "clara-stream") elevenlabsClaraStream.disconnect();
+      else if (elevenlabsMode === "speech-engine") elevenlabsSpeechEngine.disconnect();
       else elevenlabs.disconnect();
       return;
     }
@@ -215,12 +226,13 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.disconnect();
-  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
+  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, elevenlabsSpeechEngine, gemini, openai, provider, sarvam]);
 
   const interrupt = useCallback(() => {
     if (provider === "elevenlabs") {
       if (elevenlabsMode === "conversational") elevenlabsConvAI.interrupt();
       else if (elevenlabsMode === "clara-stream") elevenlabsClaraStream.interrupt();
+      else if (elevenlabsMode === "speech-engine") elevenlabsSpeechEngine.interrupt();
       else elevenlabs.interrupt();
       return;
     }
@@ -233,7 +245,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.interrupt();
-  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
+  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, elevenlabsSpeechEngine, gemini, openai, provider, sarvam]);
 
   // ── Microphone mute ("pause/resume") ────────────────────────────────────
   // Provider-routed exactly like interrupt(): toggles track.enabled on the
@@ -243,6 +255,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
     if (provider === "elevenlabs") {
       if (elevenlabsMode === "conversational") elevenlabsConvAI.setMicMuted(muted);
       else if (elevenlabsMode === "clara-stream") elevenlabsClaraStream.setMicMuted(muted);
+      else if (elevenlabsMode === "speech-engine") elevenlabsSpeechEngine.setMicMuted(muted);
       else elevenlabs.setMicMuted(muted);
       return;
     }
@@ -255,12 +268,13 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.setMicMuted(muted);
-  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
+  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, elevenlabsSpeechEngine, gemini, openai, provider, sarvam]);
 
   const sendText = useCallback((text: string) => {
     if (provider === "elevenlabs") {
       if (elevenlabsMode === "conversational") elevenlabsConvAI.sendText(text);
       else if (elevenlabsMode === "clara-stream") elevenlabsClaraStream.sendText(text);
+      else if (elevenlabsMode === "speech-engine") elevenlabsSpeechEngine.sendText(text);
       else elevenlabs.sendText(text);
       return;
     }
@@ -273,7 +287,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
       return;
     }
     openai.sendText(text);
-  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
+  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, elevenlabsSpeechEngine, gemini, openai, provider, sarvam]);
 
   return {
     provider,

@@ -120,3 +120,16 @@ E2E scripts: `e2e-elevenlabs{,-modeb}.js`, `e2e-sarvam.js`, `visitor-tests/03-06
 | ElevenLabs Mode A | **working** (sentence-HTTP TTS, no generation identity) |
 | ElevenLabs Mode B | **partially working** (flag/binding-gated; local-only interrupt) |
 | Sarvam realtime | **working — live-verified end-to-end 2026-09-21** (real browser + live Saaras/105B/Bulbul: TTFA p50/p95 845/1186 short, 877/1244 KB, 842/1203 long ms; AudioWorklet capture primary — standalone-build 404 fixed in `c9f178a`; generation coordinator wired) |
+
+## 2026-09-21 implementation update — ElevenLabs Speech Engine
+
+The ElevenLabs realtime embed path now has a dedicated Speech Engine mode. When ELEVENLABS_SPEECH_ENGINE_ENABLED=true and a valid ELEVENLABS_SPEECH_ENGINE_ID is configured, /api/embed/session returns mode: "speech-engine" and the browser obtains a short-lived WebRTC conversation token from the Clara server.
+
+Runtime flow:
+
+Browser WebRTC → ElevenLabs Speech Engine → Clara Speech Engine WebSocket → /api/embed/chat → Clara KB/RAG + configured brain → streamed text → ElevenLabs TTS → Browser
+
+The legacy Scribe/batch STT + /api/embed/chat + separate TTS pipeline remains available as compatibility mode. The Speech Engine mode is the intended realtime ElevenLabs path because ElevenLabs owns realtime STT, turn-taking, interruption and TTS while Clara retains the LLM/RAG/tenant runtime.
+
+Real browser/device validation and measured latency are still pending and must not be inferred from implementation alone.
+>>>>>>> origin/Vite-Converted

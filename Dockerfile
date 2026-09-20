@@ -30,6 +30,17 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
     cp scripts/sarvam-relay.mjs .next/standalone/scripts/sarvam-relay.mjs && \
     cp -r node_modules/ws .next/standalone/node_modules/ws
 
+# The ElevenLabs Speech Engine is imported by the custom server entry point,
+# which is outside Next.js's standalone dependency tracing graph. Install the
+# SDK into the standalone runtime so scripts/elevenlabs-speech-engine.mjs can
+# resolve it (and its transitive runtime dependencies) in production.
+RUN npm install \
+    --prefix .next/standalone \
+    --no-save \
+    --no-package-lock \
+    --ignore-scripts \
+    @elevenlabs/elevenlabs-js@2.68.0
+
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production

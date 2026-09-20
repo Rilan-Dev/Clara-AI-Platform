@@ -360,6 +360,55 @@ Security test fails if any long-lived Gemini vendor credential appears in a brow
 
 # 6. Phase E — Finish ElevenLabs Clara Realtime validation
 
+## Task E0 — Replace the realtime ElevenLabs transport with Speech Engine
+
+Implementation update:
+
+The realtime ElevenLabs path now has a dedicated Speech Engine mode. This is intentionally separate from the legacy Mode A batch pipeline and the previous Clara Stream/Scribe + TTS relay.
+
+Target runtime:
+
+```
+Browser WebRTC
+  ↓
+ElevenLabs Speech Engine
+  ├─ realtime STT
+  ├─ VAD / turn taking
+  ├─ interruption
+  └─ realtime TTS
+       ↓
+Clara Speech Engine WebSocket
+       ↓
+/api/embed/chat
+       ↓
+Clara KB/RAG + configured brain
+```
+
+Implemented code:
+
+- `scripts/elevenlabs-speech-engine.mjs`
+- `src/app/api/voice/elevenlabs/speech-engine/session/route.ts`
+- `src/modules/assistant/core/hooks/useElevenLabsSpeechEngine.ts`
+- `useVoiceClient.ts` routing for `mode: "speech-engine"`
+- `/api/embed/session` Speech Engine negotiation
+- custom-server Speech Engine attachment in `scripts/start.mjs`
+- server-only ElevenLabs SDK dependencies
+- `.env.example` Speech Engine configuration
+
+Security:
+
+- browser receives only a short-lived ElevenLabs conversation token;
+- ElevenLabs API key remains server-side;
+- Speech Engine upstream connections retain SDK JWT verification;
+- Clara tenant/KB authorization is stored server-side against the ElevenLabs conversation ID;
+- no vendor API key is placed in the browser session payload.
+
+Important:
+
+Task E0 is implementation-complete only. Real browser/device validation, latency measurements, and production rollout remain pending until the deployed environment has `ELEVENLABS_SPEECH_ENGINE_ID` and the public Speech Engine WebSocket URL configured in the ElevenLabs resource.
+
+---
+
 ## Task E1 — Verify the complete production pipeline
 
 Required path:
