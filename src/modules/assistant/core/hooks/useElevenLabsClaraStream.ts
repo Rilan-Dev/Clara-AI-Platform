@@ -148,6 +148,11 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
    *  barge-in opens a new interim record mid-stream (the in-flight chat
    *  bleed bug). Null between turns / during the greeting. */
   const turnLatencyRef = useRef<TurnLatencyHandle | null>(null);
+  /** A completed turn whose playback is still speaking — its telemetry
+   *  emits when the queue goes quiet, so tts.first_audio /
+   *  browser.first_audio (which can trail the chat stream on short
+   *  answers) land on the record before the event snapshot is taken. */
+  const pendingTurnLatencyRef = useRef<TurnLatencyHandle | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
   const answerBufferRef = useRef("");
 
@@ -292,6 +297,13 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     const coordinator = coordinatorRef.current;
     if (!coordinator) return;
 
+    // A previous turn may still be pending its playback-drain emit — its
+    // marks are complete by now; emit it before this turn replaces it.
+    if (pendingTurnLatencyRef.current) {
+      emitLatencyTelemetry();
+      pendingTurnLatencyRef.current = null;
+    }
+
     // One committed user turn → exactly one assistant generation (plan §1.4).
     const generation = coordinator.beginTurn(mintTurnId());
     if (!generation) return; // duplicate committed transcript
@@ -361,10 +373,15 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       flushRealtimeTts(generationId);
       coordinator.completeGeneration();
       turnLatency?.mark("turn.complete");
-      emitLatencyTelemetry();
-      // The record has been emitted; a later utterance's interim record must
-      // not receive this turn's marks through the fallback path.
-      turnLatencyRef.current = null;
+      if (playbackRef.current?.speaking) {
+        // Short answers can finish the chat BEFORE their first audio chunk
+        // arrives — defer the emit until the playback queue drains so
+        // tts.first_audio / browser.first_audio land on the record.
+        pendingTurnLatencyRef.current = turnLatency ?? null;
+      } else {
+        emitLatencyTelemetry();
+        turnLatencyRef.current = null;
+      }
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done" } : t)));
     } catch (err) {
       if ((err as Error).name === "AbortError") {
@@ -500,6 +517,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     playbackRef.current = null;
     coordinatorRef.current = null;
     turnLatencyRef.current = null;
+    pendingTurnLatencyRef.current = null;
     turnGenerationRef.current = null;
     lastFinalRef.current = null;
     partialTurnRef.current = null;
@@ -569,6 +587,14 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       const coordinator = new GenerationCoordinator(mintSessionId());
       coordinatorRef.current = coordinator;
       latencyRef.current = new LatencyTracker();
+      // Boot record: marks are no-ops without a record — session.start (and
+      // every interim STT mark before the first committed turn) must land on
+      // a real record or TTFA loses its stt.final base.
+      latencyRef.current.beginTurn({
+        sessionId: coordinator.sessionId,
+        provider: "elevenlabs",
+        model: sessionRef.current?.stt.realtime?.model ?? null,
+      });
       latencyRef.current.mark("session.start");
       playbackRef.current = new GenerationPlaybackQueue({
         ctx: playbackCtxRef.current,
@@ -578,6 +604,13 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           onSpeakingChange: (speaking) => {
             setIsSpeaking(speaking);
             if (speaking) markTurn("browser.first_audio");
+            if (!speaking && pendingTurnLatencyRef.current) {
+              // The completed turn's playback just drained — its record now
+              // carries every stage (including trailing first-audio marks).
+              emitLatencyTelemetry();
+              pendingTurnLatencyRef.current = null;
+              turnLatencyRef.current = null;
+            }
           },
         },
       });
@@ -668,7 +701,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, connectRealtimeTts, flushRealtimeTts, handleRealtimeEvent, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, sendRealtimeTts]);
+  }, [cleanup, connectRealtimeTts, emitLatencyTelemetry, flushRealtimeTts, handleRealtimeEvent, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, sendRealtimeTts]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;
@@ -683,8 +716,14 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     interruptPlayback();
     chatAbortRef.current?.abort();
     chatAbortRef.current = null;
+    // Emit the interrupted turn's record now (its marks are complete — the
+    // queue was just cleared, trailing audio will never arrive).
+    if (turnLatencyRef.current || pendingTurnLatencyRef.current) {
+      emitLatencyTelemetry();
+    }
+    pendingTurnLatencyRef.current = null;
     turnLatencyRef.current = null;
-  }, [interruptPlayback, markTurn]);
+  }, [emitLatencyTelemetry, interruptPlayback, markTurn]);
 
   const sendText = useCallback((text: string) => {
     if (!text.trim()) return;
