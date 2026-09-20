@@ -66,7 +66,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
     ACTIVE_PROVIDER === "gemini" ? "gemini" : "openai",
   );
   const [elevenlabsMode, setElevenlabsMode] = useState<
-    "pipeline" | "conversational" | "clara-stream"
+    "pipeline" | "conversational" | "clara-stream" | "speech-engine"
   >("pipeline");
 
   const sharedOpts = {
@@ -102,7 +102,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
 
   const resolveProvider = useCallback(async (): Promise<{
     provider: RuntimeProvider;
-    mode: "pipeline" | "conversational" | "clara-stream";
+    mode: "pipeline" | "conversational" | "clara-stream" | "speech-engine";
   }> => {
     if (!options.kbId) {
       return {
