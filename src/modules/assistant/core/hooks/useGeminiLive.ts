@@ -11,6 +11,7 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
 import { buildSameOriginRelayWsUrl } from "@/modules/voice-core/realtime/relay-url";
+import { GeminiTurnTelemetry } from "@/modules/voice-core/realtime/gemini-telemetry";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -255,6 +256,22 @@ export function useGeminiLive(opts?: Options) {
   // Accumulates the latest user speech transcript across inputTranscription
   // events so that modelTurn (which has no question reference) can look it up.
   const userQueryRef        = useRef("");
+  // ── Latency telemetry (gap-closure Phase J — timings only, never transcripts) ──
+  // Gemini is a vendor-native VAD lifecycle (no coordinator), so the measurement
+  // rules live in the pure GeminiTurnTelemetry module (utterance boundary +
+  // retroactive stt.final). Same stage names + `clara:voice:latency` window-event
+  // contract as every other provider, so the benchmark harness measures Gemini
+  // identically. Additive-only: the realtime flow below is untouched.
+  const latencyTelRef        = useRef<GeminiTurnTelemetry | null>(null);
+
+  const emitLatencyTelemetry = useCallback(() => {
+    const event = latencyTelRef.current?.telemetry();
+    if (!event) return;
+    console.debug("[gemini-live] latency", event);
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
+    }
+  }, []);
 
   useEffect(() => {
     historyRef.current = history;
@@ -440,6 +457,8 @@ export function useGeminiLive(opts?: Options) {
     pendingAudioRef.current = [];
     userQueryRef.current    = "";
     activeTurnIdRef.current = null;
+    // Telemetry lives for the session lifetime; the next connect() re-creates it.
+    latencyTelRef.current   = null;
 
     setHistory([]);
     historyRef.current = [];
@@ -477,6 +496,9 @@ export function useGeminiLive(opts?: Options) {
           const id = generateTurnId();
           activeTurnIdRef.current = id;
           addTurn({ id, question: "Welcome message", answer: "", sources: [], status: "pending" });
+          // Greeting is a system generation (mirrors the OpenAI baseline):
+          // its latency record is replaced by the first committed user turn.
+          latencyTelRef.current?.greetingTurn();
           sendWS({
             clientContent: {
               turns: [{ role: "user", parts: [{ text: greeting }] }],
@@ -503,6 +525,10 @@ export function useGeminiLive(opts?: Options) {
 
         for (const fc of calls) {
           if (fc.name !== "rag_search") continue;
+
+          // The toolCall itself is the model's first output evidence — the
+          // telemetry module commits the retroactive stt.final here too.
+          latencyTelRef.current?.ragStart();
 
           const q     = String(fc.args?.query      || "").trim();
           const kbIdValue = String(kbId || "").trim();
@@ -541,6 +567,7 @@ export function useGeminiLive(opts?: Options) {
               });
               if (!res.ok) throw new Error(`RAG search HTTP ${res.status}`);
               const payload = await res.json();
+              latencyTelRef.current?.ragEnd();
               const sources: Source[] = Array.isArray(payload?.sources)
                 ? payload.sources : [];
 
@@ -605,6 +632,9 @@ export function useGeminiLive(opts?: Options) {
 
           if (transcript) {
             userQueryRef.current = transcript;
+            // Every inputTranscription carrying text feeds the utterance
+            // tracker (first event of a new utterance begins a fresh record).
+            latencyTelRef.current?.userTranscript();
 
             let turnId = activeTurnIdRef.current;
             if (!turnId) {
@@ -644,11 +674,15 @@ export function useGeminiLive(opts?: Options) {
               const int16 = base64ToInt16(
                 (part.inlineData as Record<string, unknown>).data as string
               );
+              // First audio chunk = provider's first synthesized audio, queued
+              // for immediate gapless playback (browser.first_audio instant).
+              latencyTelRef.current?.modelAudio();
               playPCM16(int16);
             }
 
             // Inline text (present only when TEXT modality is enabled)
             if (typeof part.text === "string" && part.text) {
+              latencyTelRef.current?.modelText();
               if (!activeTurnIdRef.current) {
                 const id = generateTurnId();
                 activeTurnIdRef.current = id;
@@ -690,6 +724,8 @@ export function useGeminiLive(opts?: Options) {
           ).trim();
 
           if (oText) {
+            // Model's spoken-text stream — the LLM first-token instant.
+            latencyTelRef.current?.modelText();
             // Create a turn if none is active (e.g. greeting response before
             // any inputTranscription has arrived).
             if (!activeTurnIdRef.current) {
@@ -730,6 +766,9 @@ export function useGeminiLive(opts?: Options) {
           if (activeTurnIdRef.current) {
             patchTurn(activeTurnIdRef.current, { status: "done" });
           }
+          // Turn closed — emit the per-turn latency record (timings only).
+          latencyTelRef.current?.turnComplete();
+          emitLatencyTelemetry();
           activeTurnIdRef.current = null;
           userQueryRef.current    = "";
           // No scheduleRag() — see FIX G3 above.
@@ -737,6 +776,9 @@ export function useGeminiLive(opts?: Options) {
 
         // ── interrupted — Gemini's VAD stopped model generation ──────────
         if (sc.interrupted) {
+          // Vendor barge-in: close the utterance so the next user transcript
+          // opens a fresh latency record (interrupt mark lands on the dying one).
+          latencyTelRef.current?.interrupted();
           stopPlayback();
           if (activeTurnIdRef.current) {
             patchTurn(activeTurnIdRef.current, { status: "done" });
@@ -758,6 +800,7 @@ export function useGeminiLive(opts?: Options) {
     sendWS,
     stopPlayback,
     voiceGreeting,
+    emitLatencyTelemetry,
     // scheduleRag / performRagAndInject intentionally absent (FIX G3/G7)
   ]);
 
@@ -810,13 +853,17 @@ export function useGeminiLive(opts?: Options) {
       });
       if (!sessRes.ok) throw new Error(await sessRes.text());
       const session = await sessRes.json();
-
+      // Per-session latency telemetry (gap-closure Phase J) — created after the
+      // session descriptor arrives; the greeting/first committed user turn
+      // replaces the boot record inside the module. Additive-only wiring.
       const { realtime, model, voice, instructions } = session as {
         realtime: { endpoint: string; token: string };
         model: string;
         voice: string;
         instructions?: string | null;
       };
+      latencyTelRef.current = new GeminiTurnTelemetry();
+      latencyTelRef.current.sessionReady(typeof model === "string" ? model : null);
       // Gap-closure Phase D: the WS URL is built CLIENT-SIDE from the relay
       // descriptor — same origin, HMAC capability token as the only query
       // parameter. The long-lived GEMINI_API_KEY never appears in any URL the
