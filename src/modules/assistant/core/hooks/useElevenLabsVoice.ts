@@ -29,6 +29,8 @@ import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
 import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
+import { GenerationCoordinator, mintSessionId, mintTurnId } from "@/modules/voice-core/realtime";
+import { GenerationPlaybackQueue } from "../voice/generation-playback";
 
 // ─── VAD tuning ───────────────────────────────────────────────────────────────
 // Turn-taking budget: silence-to-submit used to be 800 ms of client VAD on
@@ -87,54 +89,39 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
   const speakingUserRef = useRef(false);
   const utteranceActiveRef = useRef(false);
 
-  // Playback chain
+  // Playback chain — generation-aware queue (plan Task 6.5: the P0
+  // overlapping-answers fix — at most ONE assistant generation may speak).
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const playbackAnalyserRef = useRef<AnalyserNode | null>(null);
-  const playbackQueueRef = useRef<{ buffer: AudioBuffer; source: AudioBufferSourceNode }[]>([]);
-  const playingRef = useRef(false);
+  const playbackRef = useRef<GenerationPlaybackQueue | null>(null);
+  const coordinatorRef = useRef<GenerationCoordinator | null>(null);
+  /** generationId of the turn currently being spoken (TTS tagging). */
+  const turnGenerationRef = useRef<string | null>(null);
+  /** Duplicate-commit guard for committed transcripts (same text within 2 s). */
+  const lastFinalRef = useRef<{ text: string; at: number } | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
   const answerBufferRef = useRef("");
   const currentTurnRef = useRef<VoiceTurn | null>(null);
 
-  // ─── Playback queue (sequential AudioBufferSourceNodes) ─────────────────────
+  // ─── Playback (generation-aware queue — plan Phase 2 / Task 6.5) ───────────
 
-  const playNext = useCallback(() => {
-    if (playingRef.current) return;
-    const next = playbackQueueRef.current.shift();
-    const ctx = playbackCtxRef.current;
-    if (!next || !ctx) {
-      playingRef.current = false;
-      setIsSpeaking(false);
-      return;
-    }
-    playingRef.current = true;
-    setIsSpeaking(true);
-    next.source.onended = () => {
-      playingRef.current = false;
-      playNext();
-    };
-    next.source.start();
+  const enqueueAudio = useCallback((pcm16: Int16Array, generationId: string | null) => {
+    const queue = playbackRef.current;
+    // Unattributed audio is stale by definition; the queue itself discards
+    // stale ids at enqueue AND play time.
+    if (!queue || !generationId) return;
+    // Mode A TTS outputFormat is pcm_16000 — honour the declared rate so
+    // browsers running AudioContext at 48 kHz do not resample-speed it.
+    const rate = Number(String(sessionRef.current?.tts.outputFormat ?? "").replace(/[^0-9]/g, "")) || 16_000;
+    queue.enqueue(pcm16, rate, generationId);
   }, []);
-
-  const enqueueAudio = useCallback((pcm16: Int16Array) => {
-    const ctx = playbackCtxRef.current;
-    if (!ctx) return;
-    const floats = new Float32Array(pcm16.length);
-    for (let i = 0; i < pcm16.length; i++) floats[i] = pcm16[i] / 32768;
-    const buffer = ctx.createBuffer(1, floats.length, ctx.sampleRate);
-    buffer.copyToChannel(floats, 0);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(playbackAnalyserRef.current ?? ctx.destination);
-    playbackQueueRef.current.push({ buffer, source });
-    playNext();
-  }, [playNext]);
 
   // ─── TTS: speak one sentence ────────────────────────────────────────────────
 
   const speakSentence = useCallback(async (rawText: string) => {
     const session = sessionRef.current;
+    const coordinator = coordinatorRef.current;
     if (!session) return;
     // Strip citation tags + markdown before dispatching — a trailing
     // "[S2]" fragment must never become its own TTS call (HAR 2026-09-18).
@@ -142,6 +129,10 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     // is never even fired for non-speakable fragments.
     const text = sanitizeTtsText(rawText);
     if (!text) return;
+    const generationId = turnGenerationRef.current;
+    // Stale-generation guard: never dispatch TTS for a replaced/interrupted
+    // generation (plan Task 6.5 — the multiple-answers bug).
+    if (!generationId || !coordinator?.isCurrentGeneration(generationId)) return;
     const controller = new AbortController();
     ttsAbortRef.current = controller;
     try {
@@ -175,7 +166,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       let offset = 0;
       for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
       const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(totalBytes / 2));
-      enqueueAudio(pcm16);
+      enqueueAudio(pcm16, generationId);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         // TTS hiccups must not kill the text answer.
@@ -189,6 +180,22 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
   const runAssistantTurn = useCallback(async (question: string) => {
     const session = sessionRef.current;
     if (!session || !session.kbId) return;
+    const coordinator = coordinatorRef.current;
+    if (!coordinator) return;
+
+    // Duplicate committed transcripts (double-fired VAD close, replayed
+    // utterance) are the SAME turn — plan Task 6.5's P0 guard.
+    const now = Date.now();
+    const lastFinal = lastFinalRef.current;
+    if (lastFinal && lastFinal.text === question && now - lastFinal.at < 2_000) return;
+    lastFinalRef.current = { text: question, at: now };
+
+    // One committed user turn → exactly one assistant generation (plan §1.4);
+    // beginTurn invalidates + aborts the previous generation inside (§1.3).
+    const generation = coordinator.beginTurn(mintTurnId());
+    if (!generation) return;
+    const generationId = generation.generationId;
+    turnGenerationRef.current = generationId;
 
     const turn: VoiceTurn = {
       id: generateTurnId(),
@@ -202,6 +209,8 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
 
     const controller = new AbortController();
     chatAbortRef.current = controller;
+    // Coordinator-owned cancellation: interrupt / next turn aborts chat here.
+    coordinator.registerAbort(() => controller.abort());
     answerBufferRef.current = "";
 
     try {
@@ -213,6 +222,9 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
             turn.sources = event.payload as Source[];
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, sources: turn.sources } : t)));
           } else if (event.type === "token") {
+            // Stale-generation guard (plan §1.3): a late token from a replaced
+            // generation must never append text or start TTS.
+            if (!coordinator.isCurrentGeneration(generationId)) return;
             turn.answer += event.payload;
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, answer: t.answer + event.payload } : t)));
             // Sentence-chunked streaming TTS: speak complete sentences while
@@ -248,6 +260,9 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         void speakSentence(unspoken);
       }
 
+      // Normal completion: the generation stays current so its queued audio
+      // can finish, but no further resource registration is accepted.
+      coordinator.completeGeneration();
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done" } : t)));
     } catch (err) {
       if ((err as Error).name === "AbortError") {
@@ -296,12 +311,11 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
   const interruptPlayback = useCallback(() => {
     ttsAbortRef.current?.abort();
     ttsAbortRef.current = null;
-    for (const item of playbackQueueRef.current) {
-      try { item.source.stop(); } catch {}
-    }
-    playbackQueueRef.current = [];
-    playingRef.current = false;
-    setIsSpeaking(false);
+    // Queue-level interrupt (plan Task 6.5): clears queued audio, stops the
+    // playing source, invalidates the generation (chat abort fires via the
+    // coordinator's registered aborts), resets speaking.
+    playbackRef.current?.interrupt();
+    turnGenerationRef.current = null;
   }, []);
 
   // ─── Utterance lifecycle (VAD-driven) ───────────────────────────────────────
@@ -378,6 +392,12 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
   const cleanup = useCallback(() => {
     if (vadTimerRef.current) { clearTimeout(vadTimerRef.current); vadTimerRef.current = null; }
     interruptPlayback();
+    // Session teardown: flush playback without coordinator semantics.
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    coordinatorRef.current = null;
+    turnGenerationRef.current = null;
+    lastFinalRef.current = null;
     chatAbortRef.current?.abort();
     chatAbortRef.current = null;
     try { recorderRef.current?.stop(); } catch {}
@@ -393,6 +413,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     sessionRef.current = null;
     utteranceActiveRef.current = false;
     speakingUserRef.current = false;
+    setIsSpeaking(false);
   }, [interruptPlayback]);
 
   const connect = useCallback(async () => {
@@ -438,6 +459,18 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       playbackAnalyserRef.current = playbackAnalyser;
       setOutputAnalyserNode(playbackAnalyser);
 
+      // Realtime session foundation (plan Phase 2): one coordinator + one
+      // generation-aware playback queue per connected session — the P0
+      // fix for overlapping multiple answers (plan Task 6.5).
+      const coordinator = new GenerationCoordinator(mintSessionId());
+      coordinatorRef.current = coordinator;
+      playbackRef.current = new GenerationPlaybackQueue({
+        ctx: playbackCtxRef.current,
+        coordinator,
+        destination: playbackAnalyser,
+        events: { onSpeakingChange: (speaking) => setIsSpeaking(speaking) },
+      });
+
       // 4. Recorder (utterance capture → webm/opus blobs for Scribe).
       const recorder = new MediaRecorder(mic, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -460,6 +493,10 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       if (options.voiceGreeting) {
         const greeting = sanitizeTtsText(options.voiceGreeting);
         if (greeting) {
+          // The greeting is a system generation: it owns playback until the
+          // first committed user turn replaces it (barge-in safe).
+          const greetingGeneration = coordinator.beginSystemGeneration();
+          turnGenerationRef.current = greetingGeneration.generationId;
           setHistory((prev) => [
             ...prev,
             {
