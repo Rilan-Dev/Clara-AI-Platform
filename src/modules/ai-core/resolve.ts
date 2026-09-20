@@ -343,7 +343,12 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const embeddingCandidate =
     kbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
   const realtimeCandidate =
-    kbOverrides?.realtimeModel ?? versionAI?.realtimeModel ?? agentSettings?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
+    kbOverrides?.realtimeModel ??
+    versionAI?.realtimeLlmModel ??
+    versionAI?.realtimeModel ??
+    agentSettings?.realtimeModel ??
+    orgSettings?.defaultRealtimeModel ??
+    defaultRealtime;
   const transcriptionCandidate =
     kbOverrides?.transcriptionModel ??
     versionAI?.transcriptionModel ??
