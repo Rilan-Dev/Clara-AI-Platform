@@ -1,4 +1,271 @@
-    const realtime = sessionRef.current?.stt.realtime;\n    if (realtime) {\n      sendRealtimeTts(sanitizeTtsText(rawText));\n      return;\n    }\n    const session = sessionRef.current;\n    if (!session) return;\    const generationId = generateTurnId();\n    realtimeTtsGenerationRef.current = generationId;\nn    const text = sanitizeTtsText(rawText);
+"use client";
+
+/**
+ * src/modules/assistant/core/hooks/useSarvamVoice.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Sarvam Indic voice pipeline (Mode A) — Saaras STT + platform RAG/chat +
+ * Bulbul TTS, with the V5 REALTIME STT upgrade.
+ *
+ *   REALTIME mode (session.stt.realtime present — SARVAM_REALTIME_STT_ENABLED):
+ *     mic ──(PCM16 frames, base64)──► /api/voice/sarvam/realtime  (platform relay)
+ *          relay ⇄ Saaras realtime WS
+ *          transcript_partial ──► live captions + EARLY barge-in
+ *          transcript_final  ──► chat turn
+ *     answer tokens ──(sentence-chunked)──► /api/voice/sarvam/tts (Bulbul PCM16)
+ *     PCM16 audio ──► queued AudioBufferSourceNodes ──► speakers
+ *
+ *   UTTERANCE mode (fallback — identical shape to useElevenLabsVoice):
+ *     mic ──(webm/opus utterances)──► /api/voice/sarvam/transcribe (Saaras REST)
+ *     text ▼ /api/chat ▼ sentence-chunked TTS ▼ playback queue
+ *
+ * Data boundary: only user audio (STT) and answer text (TTS) cross to Sarvam
+ * — through platform endpoints only. The vendor key never reaches the
+ * browser (the relay holds it server-side). Documents/KBs never leave.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Source } from "../models";
+import type { VoiceStatus, VoiceTurn } from "../voice/types";
+import type { VoiceClientOptions } from "../voice/types";
+import { withAuthHeaders } from "@/lib/client-auth";
+import { apiUrl } from "@/lib/runtime";
+import { streamChatCompletion } from "../../client/stream";
+import { splitSentences } from "../voice/sentence-split";
+import { connectPcm16Capture, type Pcm16Capture } from "../voice/pcm-capture";
+import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
+
+// ─── VAD tuning (utterance mode — mirrors useElevenLabsVoice) ──────────────
+const VAD_THRESHOLD = 0.02;
+const VAD_START_FRAMES = 6;
+const VAD_SILENCE_MS = 700;
+
+// ─── Realtime mode tuning ────────────────────────────────────────────────────
+/** How often captured PCM frames are flushed upstream (~100 ms batches). */
+const REALTIME_FLUSH_MS = 100;
+/** Sarvam fast realtime STT rejects a single audio frame above 16000 bytes. */
+const REALTIME_MAX_FRAME_BYTES = 16_000;
+
+type SessionPayload = {
+  mode: "pipeline";
+  stt: {
+    endpoint: string;
+    model: string;
+    language: string;
+    sampleRate: number;
+    maxAudioSeconds: number;
+    realtime?: {
+      endpoint: string;
+      token: string;
+      sampleRate: number;
+      encoding: string;
+      vadSilenceMs: number;
+    };
+  };
+  tts: {
+    endpoint: string;
+    model: string;
+    speaker: string;
+    outputFormat: string;
+    language: string;
+  };
+  chat: { endpoint: string; kbId: string | null; ragMode: string };
+  kbId: string | null;
+};
+
+function generateTurnId(): string {
+  return `turn_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Build a ws:// / wss:// URL on the CURRENT origin (CSP: connect-src 'self'
+ *  wss: is already allowed — the vendor host never appears in the browser). */
+function realtimeWsUrl(endpoint: string, token: string): string {
+  const apiBase = apiUrl(endpoint); // absolute or same-origin path
+  const url = new URL(apiBase, typeof window === "undefined" ? "http://localhost" : window.location.origin);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+export function useSarvamVoice(options: VoiceClientOptions) {
+  const [status, setStatus] = useState<VoiceStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [history, setHistory] = useState<VoiceTurn[]>([]);
+  const [outputAnalyserNode, setOutputAnalyserNode] = useState<AnalyserNode | null>(null);
+
+  // Auth: platform JWT or the clr_ embed key (public /embed/voice + widget).
+  const pipelineHeaders = useCallback(
+    (extra: Record<string, string> = {}): HeadersInit =>
+      options.embedApiKey
+        ? { ...extra, Authorization: `Bearer ${options.embedApiKey}` }
+        : withAuthHeaders(extra),
+    [options.embedApiKey],
+  );
+
+  const sessionRef = useRef<SessionPayload | null>(null);
+  const connectTokenRef = useRef(0);
+
+  // Capture chain (both modes)
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const captureChunksRef = useRef<Blob[]>([]);
+  const captureCtxRef = useRef<AudioContext | null>(null);
+  const vadAnalyserRef = useRef<AnalyserNode | null>(null);
+  const vadTimerRef = useRef<number | null>(null);
+  const speechFramesRef = useRef(0);
+  const lastVoiceMsRef = useRef(0);
+  const speakingUserRef = useRef(false);
+  const utteranceActiveRef = useRef(false);
+
+  // Realtime mode state
+  const realtimeWsRef = useRef<WebSocket | null>(null);
+  const realtimeCaptureRef = useRef<Pcm16Capture | null>(null);
+  const realtimePcmBufferRef = useRef<Int16Array[]>([]);
+  const realtimeFlushTimerRef = useRef<number | null>(null);
+  const realtimeSilenceWarnedRef = useRef(false);
+  const partialQuestionRef = useRef("");
+  const partialTurnRef = useRef<VoiceTurn | null>(null);
+  const bargeInArmedRef = useRef(false);
+  const realtimeTtsWsRef = useRef<WebSocket | null>(null);
+  const realtimeTtsQueueRef = useRef<string[]>([]);
+  const realtimeTtsConnectingRef = useRef(false);
+  const realtimeTtsGenerationRef = useRef<string | null>(null);
+
+  // Playback chain (both modes)
+  const playbackCtxRef = useRef<AudioContext | null>(null);
+  const playbackAnalyserRef = useRef<AnalyserNode | null>(null);
+  const playbackQueueRef = useRef<{ buffer: AudioBuffer; source: AudioBufferSourceNode }[]>([]);
+  const playingRef = useRef(false);
+  const ttsAbortRef = useRef<AbortController | null>(null);
+  const chatAbortRef = useRef<AbortController | null>(null);
+  const answerBufferRef = useRef("");
+
+  // ─── Playback queue (sequential AudioBufferSourceNodes) ─────────────────────
+
+  const playNext = useCallback(() => {
+    if (playingRef.current) return;
+    const next = playbackQueueRef.current.shift();
+    const ctx = playbackCtxRef.current;
+    if (!next || !ctx) {
+      playingRef.current = false;
+      setIsSpeaking(false);
+      return;
+    }
+    playingRef.current = true;
+    setIsSpeaking(true);
+    next.source.onended = () => {
+      playingRef.current = false;
+      playNext();
+    };
+    next.source.start();
+  }, []);
+
+  const enqueueAudio = useCallback((pcm16: Int16Array, sourceSampleRate = 16_000) => {
+    const ctx = playbackCtxRef.current;
+    if (!ctx) return;
+    const floats = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) floats[i] = pcm16[i] / 32768;
+    // PCM16 is already sampled at Sarvam's declared TTS rate. Using
+    // ctx.sampleRate here silently changes the playback speed/pitch on
+    // browsers that run AudioContext at 48 kHz.
+    const rate = Number.isFinite(sourceSampleRate) && sourceSampleRate > 0
+      ? sourceSampleRate
+      : 16_000;
+    const buffer = ctx.createBuffer(1, floats.length, rate);
+    buffer.copyToChannel(floats, 0);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(playbackAnalyserRef.current ?? ctx.destination);
+    playbackQueueRef.current.push({ buffer, source });
+    playNext();
+  }, [playNext]);
+
+  const decodeBase64Pcm16 = useCallback((encoded: string) => {
+    if (!encoded || typeof window === "undefined") return null;
+    const binary = window.atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const even = bytes.byteLength - (bytes.byteLength % 2);
+    if (!even) return null;
+    const aligned = bytes.byteOffset % 2 === 0 ? bytes : bytes.slice(0, even);
+    return new Int16Array(aligned.buffer, aligned.byteOffset, Math.floor(even / 2));
+  }, []);
+
+  const closeRealtimeTts = useCallback(() => {
+    const ws = realtimeTtsWsRef.current;
+    realtimeTtsWsRef.current = null;
+    realtimeTtsQueueRef.current = [];
+    realtimeTtsConnectingRef.current = false;
+    if (ws) { try { ws.close(1000, "session closed"); } catch {} }
+  }, []);
+
+  const connectRealtimeTts = useCallback(() => {
+    const realtime = sessionRef.current?.stt.realtime;
+    if (!realtime || realtimeTtsWsRef.current || realtimeTtsConnectingRef.current) return;
+    realtimeTtsConnectingRef.current = true;
+    const ws = new WebSocket(realtimeWsUrl("/api/voice/sarvam/tts-realtime", realtime.token));
+    realtimeTtsWsRef.current = ws;
+    ws.onopen = () => {
+      realtimeTtsConnectingRef.current = false;
+      for (const message of realtimeTtsQueueRef.current.splice(0)) {
+        try { ws.send(message); } catch {}
+      }
+    };
+    ws.onmessage = (message) => {
+      try {
+        const event = JSON.parse(message.data as string) as {
+          type?: string;
+          audio?: string;
+          sampleRate?: number;
+          generationId?: string | null;
+          message?: string;
+          fatal?: boolean;
+        };
+        if (event.type === "audio" && event.audio) {
+          if (event.generationId && realtimeTtsGenerationRef.current &&
+              event.generationId !== realtimeTtsGenerationRef.current) return;
+          const pcm = decodeBase64Pcm16(event.audio);
+          if (pcm) enqueueAudio(pcm, Number(event.sampleRate) || 24_000);
+        } else if (event.type === "error" && event.fatal) {
+          console.warn("[sarvam-realtime-tts]", event.message);
+        }
+      } catch {}
+    };
+    ws.onerror = () => { realtimeTtsConnectingRef.current = false; };
+    ws.onclose = () => {
+      if (realtimeTtsWsRef.current === ws) realtimeTtsWsRef.current = null;
+      realtimeTtsConnectingRef.current = false;
+    };
+  }, [decodeBase64Pcm16, enqueueAudio]);
+
+  const sendRealtimeTts = useCallback((text: string) => {
+    const realtime = sessionRef.current?.stt.realtime;
+    if (!realtime || !text.trim()) return false;
+    const message = JSON.stringify({
+      type: "text",
+      generationId: realtimeTtsGenerationRef.current,
+      text,
+    });
+    const ws = realtimeTtsWsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      try { ws.send(message); return true; } catch {}
+    }
+    realtimeTtsQueueRef.current.push(message);
+    connectRealtimeTts();
+    return true;
+  }, [connectRealtimeTts]);
+
+  // ─── TTS: speak one sentence (Bulbul via the platform route) ────────────────
+
+  const speakSentence = useCallback(async (rawText: string) => {
+    const realtime = sessionRef.current?.stt.realtime;
+    if (realtime) {
+      sendRealtimeTts(sanitizeTtsText(rawText));
+      return;
+    }
+    const session = sessionRef.current;
+    if (!session) return;
+    const text = sanitizeTtsText(rawText);
     if (!text) return;
     const controller = new AbortController();
     ttsAbortRef.current = controller;
@@ -53,6 +320,8 @@
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
   const runAssistantTurn = useCallback(async (question: string) => {
+    const generationId = generateTurnId();
+    realtimeTtsGenerationRef.current = generationId;
     const session = sessionRef.current;
     if (!session || !session.kbId) return;
 
@@ -133,7 +402,9 @@
     playbackQueueRef.current = [];
     playingRef.current = false;
     setIsSpeaking(false);
-  }, []);
+    realtimeTtsGenerationRef.current = null;
+    closeRealtimeTts();
+  }, [closeRealtimeTts]);
 
   // ─── REALTIME mode: Saaras relay wiring ─────────────────────────────────────
 
@@ -224,7 +495,8 @@
 
     // 1. Upstream socket (same-origin relay; vendor host never in the browser).
     const ws = new WebSocket(realtimeWsUrl(realtime.endpoint, realtime.token));
-    realtimeWsRef.current = ws;\n    connectRealtimeTts();
+    realtimeWsRef.current = ws;
+    connectRealtimeTts();
     ws.onmessage = (message) => {
       try {
         handleRealtimeEvent(JSON.parse(message.data as string));
@@ -417,6 +689,7 @@
   const cleanup = useCallback(() => {
     if (vadTimerRef.current) { clearTimeout(vadTimerRef.current); vadTimerRef.current = null; }
     stopRealtimeCapture();
+    closeRealtimeTts();
     interruptPlayback();
     chatAbortRef.current?.abort();
     chatAbortRef.current = null;
