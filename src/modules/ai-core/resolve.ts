@@ -249,6 +249,20 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       ? chatDefault.providerId
       : null;
 
+  // Per-slot default models from the governance catalogue (the is_default row
+  // for each (provider, capability, kind), enabled). These keep the platform
+  // default affecting EVERY AI feature: when a tenant pins nothing and the
+  // env var is unset, the registry default model serves the slot instead of
+  // the resolution failing.
+  const registryDefaultModel = (
+    providerId: AIProvider,
+    capability: "chat" | "voice_chat" | "realtime_voice",
+    kind: "chat" | "embedding" | "realtime" | "transcription" | "voice",
+  ): string | null =>
+    (registry.defaultModels ?? []).find(
+      (m) => m.providerId === providerId && m.capability === capability && m.kind === kind,
+    )?.modelId ?? null;
+
   let provider: AIProvider =
     versionAI?.provider ??
     agentSettings?.provider ??
@@ -310,13 +324,19 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // Platform default chat model (when it belongs to the resolved provider).
   const platformDefaultChatModel =
     chatDefault?.modelId && chatDefault.providerId === provider ? chatDefault.modelId : null;
-  const defaultChat = platformDefaultChatModel ?? defaults.models[provider].chat;
+  const defaultChat = platformDefaultChatModel ?? registryDefaultModel(provider, "chat", "chat") ?? defaults.models[provider].chat;
   // Embedding defaults ALWAYS come from the backbone record — for openai/gemini
-  // brains this is identical to the previous behaviour.
-  const defaultEmbedding = defaults.models[embeddingProvider].embedding;
-  const defaultRealtime = defaults.models[provider].realtime;
-  const defaultTranscription = defaults.models[provider].transcription;
-  const defaultVoice = defaults.models[provider].defaultVoice;
+  // brains this is identical to the previous behaviour. The registry's default
+  // embedding model (catalogued under the chat capability) is consulted before
+  // the env var so the platform catalogue governs when env is unset.
+  const defaultEmbedding =
+    registryDefaultModel(embeddingProvider, "chat", "embedding") ?? defaults.models[embeddingProvider].embedding;
+  const defaultRealtime =
+    registryDefaultModel(provider, "realtime_voice", "realtime") ?? defaults.models[provider].realtime;
+  const defaultTranscription =
+    registryDefaultModel(provider, "realtime_voice", "transcription") ?? defaults.models[provider].transcription;
+  const defaultVoice =
+    registryDefaultModel(provider, "realtime_voice", "voice") ?? defaults.models[provider].defaultVoice;
 
   const chatCandidate =
     kbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;

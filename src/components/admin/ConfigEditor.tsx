@@ -152,9 +152,11 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 rounded-lg bg-muted/50 p-1 border border-border">
+      {/* Responsive tab grid — wraps to 3+2 rows on narrow screens so the
+          last tab is never clipped (same posture as WorkspaceTabs). */}
+      <div className="grid auto-rows-fr grid-cols-3 gap-1 rounded-lg border border-border bg-muted/50 p-1 sm:grid-cols-5">
         {TABS.map((t) => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${activeTab === t.id ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
+          <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex min-w-0 items-center justify-center rounded-md px-2 py-1.5 text-center text-xs font-medium leading-tight transition-all sm:px-3 sm:text-sm ${activeTab === t.id ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
             {t.label}
           </button>
         ))}

@@ -86,15 +86,27 @@ function toModelRow(row: Row): ProviderModelRow {
 /** Operational kill-switches (platform_env_settings → process.env). These
  *  stay authoritative alongside the admin enable switch — the resolver gate
  *  and the runtime degrade logic share them, so UI and runtime can never
- *  disagree about availability. */
-function providerKillSwitchOn(providerId: GovernanceProviderId): boolean {
-  if (providerId === "elevenlabs") {
-    return (process.env.ELEVENLABS_ENABLED ?? "false").toLowerCase() === "true";
-  }
-  if (providerId === "sarvam") {
-    return (process.env.SARVAM_ENABLED ?? "false").toLowerCase() === "true";
-  }
-  return true; // openai / gemini have no kill-switch
+ *  disagree about availability.
+ *
+ *  Default semantics: an UNSET flag means ON — a kill-switch is an explicit
+ *  operator opt-OUT ("force this provider off during an incident"), never an
+ *  opt-in. Previously an unset flag silently force-disabled the provider and
+ *  the admin enable toggle could never take effect ("Disabled — operational
+ *  flag off" loop). */
+const PROVIDER_KILL_SWITCH_ENV: Partial<Record<GovernanceProviderId, string>> = {
+  elevenlabs: "ELEVENLABS_ENABLED",
+  sarvam: "SARVAM_ENABLED",
+};
+
+export function providerKillSwitchEnvKey(providerId: GovernanceProviderId): string | null {
+  return PROVIDER_KILL_SWITCH_ENV[providerId] ?? null;
+}
+
+export function providerKillSwitchOn(providerId: GovernanceProviderId): boolean {
+  const envKey = PROVIDER_KILL_SWITCH_ENV[providerId];
+  if (!envKey) return true; // openai / gemini have no kill-switch
+  const raw = process.env[envKey]?.trim().toLowerCase();
+  return raw == null || raw === "" ? true : raw === "true" || raw === "1" || raw === "on";
 }
 
 /** Read the full platform provider registry (providers, capabilities, credential slots, health, model counts, defaults). */
@@ -102,7 +114,7 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
   const hit = registryCache;
   if (hit && hit.expiresAt > Date.now()) return hit.value;
 
-  const [providerRows, capabilityRows, credentialRows, healthRows, modelCountRows, defaultRows] =
+  const [providerRows, capabilityRows, credentialRows, healthRows, modelCountRows, defaultRows, defaultModelRows] =
     await Promise.all([
       query<Row>("SELECT * FROM platform_ai_providers ORDER BY display_name"),
       query<Row>("SELECT provider_id, capability, supported FROM platform_ai_provider_capabilities"),
@@ -122,6 +134,11 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
           GROUP BY provider_id, capability`,
       ),
       query<Row>("SELECT capability, provider_id, model_id FROM platform_ai_defaults"),
+      query<Row>(
+        `SELECT provider_id, capability, kind, model_id
+           FROM platform_ai_provider_models
+          WHERE enabled AND is_default`,
+      ),
     ]);
 
   // Credential "configured" is resolved LIVE from process.env so the registry
@@ -185,6 +202,12 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
       providerId: d.provider_id == null ? null : String(d.provider_id),
       modelId: d.model_id == null ? null : String(d.model_id),
     })),
+    defaultModels: defaultModelRows.map((m) => ({
+      providerId: String(m.provider_id) as GovernanceProviderId,
+      capability: String(m.capability) as AICapability,
+      kind: String(m.kind) as AIModelKind,
+      modelId: String(m.model_id),
+    })),
   };
 
   registryCache = { expiresAt: Date.now() + REGISTRY_TTL_MS, value: registry };
@@ -230,7 +253,19 @@ export async function listProviderModels(
 export async function setProviderEnabled(
   providerId: GovernanceProviderId,
   enabled: boolean,
+  updatedBy?: string | null,
 ): Promise<void> {
+  // Enabling a provider whose OPERATIONAL kill-switch is currently off must
+  // also flip that flag on — otherwise the admin toggle silently never takes
+  // effect (enabled stays false with disabledReason "kill_switch", the exact
+  // "refreshed and still off" loop). Disabling leaves the ops flag untouched:
+  // the admin switch alone is enough to turn the provider off.
+  if (enabled && !providerKillSwitchOn(providerId)) {
+    const envKey = providerKillSwitchEnvKey(providerId);
+    if (envKey) {
+      await setPlatformEnvSetting(envKey, "true", updatedBy ?? undefined);
+    }
+  }
   await execute(
     "UPDATE platform_ai_providers SET enabled = $2, updated_at = now() WHERE provider_id = $1",
     [providerId, enabled],

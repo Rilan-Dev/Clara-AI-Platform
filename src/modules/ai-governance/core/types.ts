@@ -85,6 +85,15 @@ export interface PlatformAIProvider {
 export interface PlatformAIRegistry {
   providers: PlatformAIProvider[];
   defaults: Array<{ capability: AICapability; providerId: string | null; modelId: string | null }>;
+  /** Enabled models marked is_default per (provider, capability, kind) — the
+   *  per-slot fallbacks the runtime uses when a tenant pinned nothing and the
+   *  capability default carries no explicit model. */
+  defaultModels: Array<{
+    providerId: GovernanceProviderId;
+    capability: AICapability;
+    kind: AIModelKind;
+    modelId: string;
+  }>;
 }
 
 /** Plan-level AI entitlement state for one organisation. */

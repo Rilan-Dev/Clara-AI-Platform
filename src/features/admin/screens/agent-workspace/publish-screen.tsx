@@ -19,10 +19,12 @@ import {
   fetchAgentDeployments,
   fetchAgentVersions,
   fetchPublishReview,
+  generateAgentExploreLink,
   publishAgentVersion,
   rollbackAgent,
   saveAgentVersion,
   type AgentDeploymentDTO,
+  type AgentExploreLinkDTO,
   type AgentVersionDTO,
   type PublishReviewDTO,
 } from "@/modules/admin-ui/ai-platform-api";
@@ -46,6 +48,10 @@ export default function AgentPublishScreen() {
   const [error, setError] = useState<string | null>(null);
   const [publishedMessage, setPublishedMessage] = useState<string | null>(null);
   const [diffOpen, setDiffOpen] = useState(false);
+  const [exploreLink, setExploreLink] = useState<AgentExploreLinkDTO | null>(null);
+  const [exploreBusy, setExploreBusy] = useState(false);
+  const [exploreError, setExploreError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,6 +134,31 @@ export default function AgentPublishScreen() {
       setBusy(false);
     }
   }, [agentId, load, refetchCtx]);
+
+  const activeDeployment = deployments.find((d) => d.status === "active") ?? null;
+
+  const generateLink = useCallback(async () => {
+    setExploreBusy(true);
+    setExploreError(null);
+    try {
+      setExploreLink(await generateAgentExploreLink(agentId));
+    } catch (err) {
+      setExploreError((err as Error).message);
+    } finally {
+      setExploreBusy(false);
+    }
+  }, [agentId]);
+
+  const copyUrl = useCallback(async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(url);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      // clipboard unavailable (permissions / insecure context) — the URL is
+      // still selectable text, so failing silently is fine.
+    }
+  }, []);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -294,6 +325,83 @@ export default function AgentPublishScreen() {
             </div>
           )}
         </section>
+
+        {/* ── Access the published agent (explore link) ─────────────────────── */}
+        <aside className="h-fit rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-foreground">Access the published agent</h2>
+          <p className="mt-1 text-xs text-muted-foreground/70">
+            Generate a shareable URL to explore the live published agent.
+          </p>
+
+          {!activeDeployment ? (
+            <p className="mt-3 rounded-xl border border-dashed border-border px-3.5 py-4 text-xs text-muted-foreground/70">
+              Publish a version first — the explore link only serves published versions.
+            </p>
+          ) : activeDeployment.publicAccess ? (
+            <div className="mt-3 space-y-3">
+              {!exploreLink ? (
+                <WorkspaceButton variant="primary" onClick={generateLink} disabled={exploreBusy || isAdmin}>
+                  {exploreBusy ? "Generating…" : "Generate explore link"}
+                </WorkspaceButton>
+              ) : (
+                <div className="space-y-2.5">
+                  {(
+                    [
+                      { label: "Chat widget", url: exploreLink.widgetUrl },
+                      { label: "Voice page", url: exploreLink.voiceUrl },
+                    ] as const
+                  ).map(({ label, url }) => (
+                    <div key={label} className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">{label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <WorkspaceButton variant="ghost" onClick={() => void copyUrl(url)}>
+                            {copied === url ? "Copied" : "Copy"}
+                          </WorkspaceButton>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50"
+                          >
+                            Open
+                          </a>
+                        </div>
+                      </div>
+                      <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{url}</p>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-muted-foreground/60">
+                    Serving knowledge base “{exploreLink.kbName}”. The raw key is shown once — regenerate to rotate it
+                    (the previous explore key is revoked automatically).
+                  </p>
+                  <WorkspaceButton onClick={generateLink} disabled={exploreBusy || isAdmin}>
+                    {exploreBusy ? "Regenerating…" : "Regenerate link"}
+                  </WorkspaceButton>
+                </div>
+              )}
+              {exploreError && (
+                <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-xs text-destructive">
+                  {exploreError}
+                </p>
+              )}
+              {isAdmin && (
+                <p className="text-[11px] text-muted-foreground/60">
+                  Platform admins can view but not generate links — ask the organisation admin.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="mt-3 space-y-2">
+              <p className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700">
+                The published version is PRIVATE — visitors are blocked until you publish with public access ON.
+              </p>
+              <p className="text-[11px] text-muted-foreground/60">
+                Organisation members can still explore it from the workspace preview.
+              </p>
+            </div>
+          )}
+        </aside>
 
         {/* ── Deployment history + rollback ──────────────────────────────────── */}
         <aside className="h-fit rounded-2xl border border-border bg-card p-5 shadow-sm">

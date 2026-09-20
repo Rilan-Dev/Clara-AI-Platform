@@ -183,7 +183,8 @@ async function seedFromPlatformDefault(): Promise<AgentVersionConfig> {
     voiceWaveColor: null,
   };
   // The platform default carries PERSONA only — widget/generation fields keep
-  // the safe template above.
+  // the safe template above (persona fields win when the version carries
+  // them — migration 042 extended the persona with generation/branding).
   const persona = version?.configuration.assistant;
   const assistant: AssistantConfigData = persona
     ? {
@@ -194,11 +195,18 @@ async function seedFromPlatformDefault(): Promise<AgentVersionConfig> {
         welcomeMessage: persona.welcomeMessage,
         outOfScopeReply: persona.outOfScopeReply,
         rules: persona.rules,
+        temperature: persona.temperature ?? FALLBACK_ASSISTANT.temperature,
+        maxTokens: persona.maxTokens ?? FALLBACK_ASSISTANT.maxTokens,
+        citeSources: persona.citeSources ?? FALLBACK_ASSISTANT.citeSources,
+        strictMode: persona.strictMode ?? FALLBACK_ASSISTANT.strictMode,
         defaultLanguage: persona.defaultLanguage,
         allowedLanguages: persona.allowedLanguages,
         alwaysRespondIn: persona.alwaysRespondIn,
         voiceId: persona.voiceId ?? FALLBACK_ASSISTANT.voiceId,
         speed: persona.voiceSpeed ?? FALLBACK_ASSISTANT.speed,
+        primaryColour: persona.primaryColour ?? FALLBACK_ASSISTANT.primaryColour,
+        accentColour: persona.accentColour ?? FALLBACK_ASSISTANT.accentColour,
+        launcherColour: persona.launcherColour ?? FALLBACK_ASSISTANT.launcherColour,
       }
     : FALLBACK_ASSISTANT;
   return {
@@ -765,11 +773,18 @@ export async function applyPlatformDefaultUpdate(
       welcomeMessage: persona.welcomeMessage,
       outOfScopeReply: persona.outOfScopeReply,
       rules: persona.rules,
+      temperature: persona.temperature ?? draft.configuration.assistant.temperature,
+      maxTokens: persona.maxTokens ?? draft.configuration.assistant.maxTokens,
+      citeSources: persona.citeSources ?? draft.configuration.assistant.citeSources,
+      strictMode: persona.strictMode ?? draft.configuration.assistant.strictMode,
       defaultLanguage: persona.defaultLanguage,
       allowedLanguages: persona.allowedLanguages,
       alwaysRespondIn: persona.alwaysRespondIn,
       voiceId: persona.voiceId ?? draft.configuration.assistant.voiceId,
       speed: persona.voiceSpeed ?? draft.configuration.assistant.speed,
+      primaryColour: persona.primaryColour ?? draft.configuration.assistant.primaryColour,
+      accentColour: persona.accentColour ?? draft.configuration.assistant.accentColour,
+      launcherColour: persona.launcherColour ?? draft.configuration.assistant.launcherColour,
     },
   };
   const saved = await saveAgentDraft(agentId, main.id, merged, userId);

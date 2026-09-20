@@ -149,11 +149,20 @@ export type DefaultAssistantPersona = {
   welcomeMessage: string;
   outOfScopeReply: string;
   rules: string[];
+  // Generation (migration 042) — optional so pre-042 versions keep parsing.
+  temperature?: number;
+  maxTokens?: number;
+  citeSources?: boolean;
+  strictMode?: boolean;
   defaultLanguage: string;
   allowedLanguages: string[];
   alwaysRespondIn: string | null;
   voiceId: string | null;
   voiceSpeed: number | null;
+  // Branding (migration 042)
+  primaryColour?: string;
+  accentColour?: string;
+  launcherColour?: string | null;
 };
 
 export type DefaultAssistantVersionDTO = {
@@ -423,6 +432,21 @@ export async function publishAgentVersion(agentId: string, versionId: string, pu
 
 export async function rollbackAgent(agentId: string, versionId: string): Promise<{ deployment: AgentDeploymentDTO }> {
   return apiFetch(`/api/agents/${agentId}/publish`, { method: "PUT", body: JSON.stringify({ versionId }) });
+}
+
+// ─── Published agent explore link ─────────────────────────────────────────────
+
+export type AgentExploreLinkDTO = {
+  kbId: string;
+  kbName: string;
+  key: string;
+  widgetUrl: string;
+  voiceUrl: string;
+};
+
+/** Mint (or re-mint) an embed key + public URL pair for exploring a published agent. */
+export async function generateAgentExploreLink(agentId: string): Promise<AgentExploreLinkDTO> {
+  return apiFetch(`/api/agents/${agentId}/explore-link`, { method: "POST" });
 }
 
 export async function checkAgentDefaultUpdate(agentId: string): Promise<{

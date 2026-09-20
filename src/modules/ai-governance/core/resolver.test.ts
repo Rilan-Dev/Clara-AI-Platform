@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const registryState = {
   providers: [] as Array<Record<string, unknown>>,
   defaults: [] as Array<Record<string, unknown>>,
+  defaultModels: [] as Array<Record<string, unknown>>,
 };
 
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({

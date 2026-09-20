@@ -111,7 +111,7 @@ export async function patchProviderHandler(req: NextRequest, providerId: string)
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
     if (typeof body.enabled === "boolean") {
-      await setProviderEnabled(providerId, body.enabled);
+      await setProviderEnabled(providerId, body.enabled, auth.user.id);
     }
     if (body.monthlyBudgetUsd !== undefined || body.warningThresholdPct !== undefined) {
       const monthlyBudgetUsd =

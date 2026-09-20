@@ -14,11 +14,18 @@ function personaToVersionConfig(persona: {
   welcomeMessage: string;
   outOfScopeReply: string;
   rules: string[];
+  temperature?: number;
+  maxTokens?: number;
+  citeSources?: boolean;
+  strictMode?: boolean;
   defaultLanguage: string;
   allowedLanguages: string[];
   alwaysRespondIn: string | null;
   voiceId: string | null;
   voiceSpeed: number | null;
+  primaryColour?: string;
+  accentColour?: string;
+  launcherColour?: string | null;
 }): AgentVersionConfig {
   return {
     assistant: {
@@ -28,11 +35,18 @@ function personaToVersionConfig(persona: {
       welcomeMessage: persona.welcomeMessage,
       outOfScopeReply: persona.outOfScopeReply,
       rules: persona.rules,
+      temperature: persona.temperature ?? 0.7,
+      maxTokens: persona.maxTokens ?? 500,
+      citeSources: persona.citeSources ?? true,
+      strictMode: persona.strictMode ?? true,
       defaultLanguage: persona.defaultLanguage,
       allowedLanguages: persona.allowedLanguages,
       alwaysRespondIn: persona.alwaysRespondIn,
       voiceId: persona.voiceId ?? "alloy",
       speed: persona.voiceSpeed ?? 1,
+      primaryColour: persona.primaryColour ?? "#6366f1",
+      accentColour: persona.accentColour ?? "#a5b4fc",
+      launcherColour: persona.launcherColour ?? null,
     } as AgentVersionConfig["assistant"],
     ai: {
       provider: null,

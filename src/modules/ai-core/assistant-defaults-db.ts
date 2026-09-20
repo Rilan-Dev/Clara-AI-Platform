@@ -51,6 +51,11 @@ function toModel(row: Row): PlatformAssistantDefaults {
     outOfScopeReply:
       typeof row.out_of_scope_reply === "string" ? row.out_of_scope_reply : "",
     rules: stringList(row.rules, []),
+    // Generation (migration 042 — mirrors assistant_configs defaults)
+    temperature: row.temperature == null ? 0.7 : Number(row.temperature),
+    maxTokens: row.max_tokens == null ? 500 : Number(row.max_tokens),
+    citeSources: row.cite_sources == null ? true : Boolean(row.cite_sources),
+    strictMode: row.strict_mode == null ? true : Boolean(row.strict_mode),
     // Language
     defaultLanguage:
       typeof row.default_language === "string" && row.default_language.trim()
@@ -67,6 +72,16 @@ function toModel(row: Row): PlatformAssistantDefaults {
         : typeof row.voice_speed === "number"
           ? row.voice_speed
           : Number(row.voice_speed),
+    // Branding
+    primaryColour:
+      typeof row.primary_colour === "string" && row.primary_colour.trim()
+        ? row.primary_colour
+        : "#6366f1",
+    accentColour:
+      typeof row.accent_colour === "string" && row.accent_colour.trim()
+        ? row.accent_colour
+        : "#a5b4fc",
+    launcherColour: typeof row.launcher_colour === "string" ? row.launcher_colour : null,
     updatedAt: String(row.updated_at),
   };
 }
@@ -109,6 +124,16 @@ function normalizeStringOrNull(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeColour(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return /^#[0-9a-fA-F]{3,8}$/.test(trimmed) ? trimmed : fallback;
+}
+
 /** Update the singleton defaults row (platform admin only, enforced at API layer). */
 export async function updatePlatformAssistantDefaults(
   input: PatchPlatformAssistantDefaultsInput,
@@ -128,6 +153,18 @@ export async function updatePlatformAssistantDefaults(
     welcomeMessage: input.welcomeMessage?.trim() || current.welcomeMessage,
     outOfScopeReply: input.outOfScopeReply?.trim() || current.outOfScopeReply,
     rules: input.rules !== undefined ? stringList(input.rules, []) : current.rules,
+    // Generation — inputs are clamped to the same ranges the agent configs
+    // enforce, so the platform default can never seed an invalid agent row.
+    temperature:
+      input.temperature != null
+        ? clampNumber(input.temperature, 0, 1)
+        : current.temperature,
+    maxTokens:
+      input.maxTokens != null
+        ? clampNumber(Math.round(input.maxTokens), 50, 4000)
+        : current.maxTokens,
+    citeSources: input.citeSources != null ? input.citeSources : current.citeSources,
+    strictMode: input.strictMode != null ? input.strictMode : current.strictMode,
     defaultLanguage:
       input.defaultLanguage?.trim().toLowerCase() || current.defaultLanguage,
     allowedLanguages:
@@ -145,6 +182,16 @@ export async function updatePlatformAssistantDefaults(
       input.voiceId !== undefined ? normalizeStringOrNull(input.voiceId) : current.voiceId,
     voiceSpeed:
       input.voiceSpeed !== undefined ? input.voiceSpeed : current.voiceSpeed,
+    primaryColour: input.primaryColour !== undefined
+      ? normalizeColour(input.primaryColour, current.primaryColour)
+      : current.primaryColour,
+    accentColour: input.accentColour !== undefined
+      ? normalizeColour(input.accentColour, current.accentColour)
+      : current.accentColour,
+    launcherColour:
+      input.launcherColour !== undefined
+        ? normalizeStringOrNull(input.launcherColour)
+        : current.launcherColour,
   };
 
   if (!next.assistantName) {
@@ -168,12 +215,19 @@ export async function updatePlatformAssistantDefaults(
        welcome_message = $5,
        out_of_scope_reply = $6,
        rules = $7::jsonb,
-       default_language = $8,
-       allowed_languages = $9,
-       always_respond_in = $10,
-       voice_id = $11,
-       voice_speed = $12,
-       updated_by = $13,
+       temperature = $8,
+       max_tokens = $9,
+       cite_sources = $10,
+       strict_mode = $11,
+       default_language = $12,
+       allowed_languages = $13,
+       always_respond_in = $14,
+       voice_id = $15,
+       voice_speed = $16,
+       primary_colour = $17,
+       accent_colour = $18,
+       launcher_colour = $19,
+       updated_by = $20,
        updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -185,11 +239,18 @@ export async function updatePlatformAssistantDefaults(
       next.welcomeMessage,
       next.outOfScopeReply,
       JSON.stringify(next.rules),
+      next.temperature,
+      next.maxTokens,
+      next.citeSources,
+      next.strictMode,
       next.defaultLanguage,
       next.allowedLanguages,
       next.alwaysRespondIn,
       next.voiceId,
       next.voiceSpeed,
+      next.primaryColour,
+      next.accentColour,
+      next.launcherColour,
       updatedBy ?? null,
     ],
   );

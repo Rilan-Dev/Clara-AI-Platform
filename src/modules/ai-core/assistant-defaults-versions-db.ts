@@ -22,11 +22,21 @@ export type PlatformAssistantDefaultsConfig = {
     welcomeMessage: string;
     outOfScopeReply: string;
     rules: string[];
+    // Generation (migration 042) — optional so pre-042 versions keep parsing;
+    // consumers fall back to the assistant_configs SQL defaults when absent.
+    temperature?: number;
+    maxTokens?: number;
+    citeSources?: boolean;
+    strictMode?: boolean;
     defaultLanguage: string;
     allowedLanguages: string[];
     alwaysRespondIn: string | null;
     voiceId: string | null;
     voiceSpeed: number | null;
+    // Branding (migration 042)
+    primaryColour?: string;
+    accentColour?: string;
+    launcherColour?: string | null;
   };
 };
 
@@ -74,11 +84,18 @@ function configFromDefaults(defaults: PlatformAssistantDefaults): PlatformAssist
       welcomeMessage: defaults.welcomeMessage,
       outOfScopeReply: defaults.outOfScopeReply,
       rules: defaults.rules,
+      temperature: defaults.temperature,
+      maxTokens: defaults.maxTokens,
+      citeSources: defaults.citeSources,
+      strictMode: defaults.strictMode,
       defaultLanguage: defaults.defaultLanguage,
       allowedLanguages: defaults.allowedLanguages,
       alwaysRespondIn: defaults.alwaysRespondIn,
       voiceId: defaults.voiceId,
       voiceSpeed: defaults.voiceSpeed,
+      primaryColour: defaults.primaryColour,
+      accentColour: defaults.accentColour,
+      launcherColour: defaults.launcherColour,
     },
   };
 }
@@ -188,9 +205,12 @@ export async function savePlatformAssistantDefaultsVersion(
     `UPDATE platform_assistant_defaults SET
         current_version = $2,
         assistant_name = $3, avatar_url = $4, system_prompt = $5, welcome_message = $6,
-        out_of_scope_reply = $7, rules = $8::jsonb, default_language = $9,
-        allowed_languages = $10, always_respond_in = $11, voice_id = $12, voice_speed = $13,
-        updated_by = $14, updated_at = now()
+        out_of_scope_reply = $7, rules = $8::jsonb,
+        temperature = $9, max_tokens = $10, cite_sources = $11, strict_mode = $12,
+        default_language = $13,
+        allowed_languages = $14, always_respond_in = $15, voice_id = $16, voice_speed = $17,
+        primary_colour = $18, accent_colour = $19, launcher_colour = $20,
+        updated_by = $21, updated_at = now()
       WHERE id = $1`,
     [
       SINGLETON_ID,
@@ -201,11 +221,20 @@ export async function savePlatformAssistantDefaultsVersion(
       a.welcomeMessage,
       a.outOfScopeReply,
       JSON.stringify(a.rules),
+      // Pre-042 versions carry no generation/branding fields — keep the
+      // current singleton values instead of resetting to SQL defaults.
+      a.temperature ?? state.defaults.temperature,
+      a.maxTokens ?? state.defaults.maxTokens,
+      a.citeSources ?? state.defaults.citeSources,
+      a.strictMode ?? state.defaults.strictMode,
       a.defaultLanguage,
       a.allowedLanguages,
       a.alwaysRespondIn,
       a.voiceId,
       a.voiceSpeed,
+      a.primaryColour ?? state.defaults.primaryColour,
+      a.accentColour ?? state.defaults.accentColour,
+      a.launcherColour ?? state.defaults.launcherColour,
       userId,
     ],
   );

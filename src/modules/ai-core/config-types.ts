@@ -51,6 +51,11 @@ export interface PlatformAssistantDefaults {
   welcomeMessage: string;
   outOfScopeReply: string;
   rules: string[];
+  // Generation (migration 042 — same semantics as assistant_configs)
+  temperature: number;
+  maxTokens: number;
+  citeSources: boolean;
+  strictMode: boolean;
   // Language
   defaultLanguage: string;
   allowedLanguages: string[];
@@ -58,6 +63,10 @@ export interface PlatformAssistantDefaults {
   // Voice
   voiceId: string | null;
   voiceSpeed: number | null;
+  // Branding
+  primaryColour: string;
+  accentColour: string;
+  launcherColour: string | null;
   updatedAt: string;
 }
 
@@ -68,11 +77,18 @@ export interface PatchPlatformAssistantDefaultsInput {
   welcomeMessage?: string;
   outOfScopeReply?: string;
   rules?: string[];
+  temperature?: number;
+  maxTokens?: number;
+  citeSources?: boolean;
+  strictMode?: boolean;
   defaultLanguage?: string;
   allowedLanguages?: string[];
   alwaysRespondIn?: string | null;
   voiceId?: string | null;
   voiceSpeed?: number | null;
+  primaryColour?: string;
+  accentColour?: string;
+  launcherColour?: string | null;
 }
 
 export interface OrgAISettings {

@@ -30,6 +30,12 @@ function parseOptionalNumber(value: unknown): number | null | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function parseOptionalBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "boolean") return value;
+  return undefined;
+}
+
 function parseOptionalStringArray(value: unknown): string[] | null | undefined {
   if (value === undefined) return undefined;
   if (value === null) return null;
@@ -85,6 +91,15 @@ export async function PATCH(req: NextRequest) {
       return badRequest("voiceSpeed must be between 0.25 and 4.0");
     }
 
+    const temperature = parseOptionalNumber(body.temperature);
+    if (temperature != null && (temperature < 0 || temperature > 1)) {
+      return badRequest("temperature must be between 0 and 1");
+    }
+    const maxTokens = parseOptionalNumber(body.maxTokens);
+    if (maxTokens != null && (maxTokens < 50 || maxTokens > 4000)) {
+      return badRequest("maxTokens must be between 50 and 4000");
+    }
+
     const rules = parseOptionalStringArray(body.rules);
     if (rules === null) return badRequest("rules cannot be null — use an empty list");
 
@@ -101,6 +116,13 @@ export async function PATCH(req: NextRequest) {
         alwaysRespondIn: parseOptionalString(body.alwaysRespondIn),
         voiceId: parseOptionalString(body.voiceId),
         voiceSpeed: voiceSpeed === undefined ? undefined : voiceSpeed,
+        temperature: temperature == null ? undefined : temperature,
+        maxTokens: maxTokens == null ? undefined : maxTokens,
+        citeSources: parseOptionalBoolean(body.citeSources),
+        strictMode: parseOptionalBoolean(body.strictMode),
+        primaryColour: parseOptionalString(body.primaryColour) ?? undefined,
+        accentColour: parseOptionalString(body.accentColour) ?? undefined,
+        launcherColour: parseOptionalString(body.launcherColour),
       },
       auth.user.id,
     );

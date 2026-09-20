@@ -242,10 +242,11 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
     await client.query(
       `INSERT INTO assistant_configs (
          agent_id, assistant_name, avatar_url, system_prompt, welcome_message,
-         out_of_scope_reply, rules, default_language, allowed_languages,
-         always_respond_in, voice_id, speed
+         out_of_scope_reply, rules, temperature, max_tokens, cite_sources, strict_mode,
+         default_language, allowed_languages,
+         always_respond_in, voice_id, speed, primary_colour, accent_colour, launcher_colour
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::text[],$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13::text[],$14,$15,$16,$17,$18,$19)`,
       [
         agent.id,
         defaults.assistantName,
@@ -254,11 +255,18 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
         defaults.welcomeMessage,
         defaults.outOfScopeReply,
         JSON.stringify(defaults.rules),
+        defaults.temperature,
+        defaults.maxTokens,
+        defaults.citeSources,
+        defaults.strictMode,
         defaults.defaultLanguage,
         defaults.allowedLanguages,
         defaults.alwaysRespondIn,
         defaults.voiceId ?? "alloy",
         defaults.voiceSpeed ?? 1.0,
+        defaults.primaryColour,
+        defaults.accentColour,
+        defaults.launcherColour ?? "#6366f1",
       ],
     );
 
