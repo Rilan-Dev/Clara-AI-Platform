@@ -258,6 +258,7 @@ function AISelectionCard({
 }) {
   const [ai, setAi] = useState(draft?.configuration.ai ?? null);
   const [runtime, setRuntime] = useState(draft?.configuration.runtime ?? null);
+  const [surface, setSurface] = useState<AICapability>("chat");
 
   useEffect(() => {
     setAi(draft?.configuration.ai ?? null);
@@ -265,10 +266,8 @@ function AISelectionCard({
   }, [draft?.configuration.ai, draft?.configuration.runtime]);
 
   const chat = options.chat;
+  const voiceChat = options.voice_chat;
   const realtime = options.realtime_voice;
-
-  const chatProviders = chat?.available ?? [];
-  const realtimeProviders = realtime?.available ?? [];
 
   const pickProvider = (providerId: string | null, capability: AICapability) => {
     const next = { ...(ai ?? emptyAI()) };
@@ -277,115 +276,141 @@ function AISelectionCard({
       next.chatModel = null;
     } else if (capability === "voice_chat") {
       next.voiceProvider = providerId as never;
+      next.voiceChatSttModel = null;
+      next.voiceChatTtsModel = null;
+      next.voiceChatVoiceId = null;
     } else {
       next.realtimeVoiceProvider = providerId as never;
+      next.realtimeLlmModel = null;
+      next.realtimeSttModel = null;
+      next.realtimeTtsModel = null;
+      next.realtimeVoiceId = null;
     }
     setAi(next);
   };
 
+  const selectedProvider = surface === "chat"
+    ? ai?.provider
+    : surface === "voice_chat"
+      ? ai?.voiceProvider
+      : ai?.realtimeVoiceProvider;
+
+  const selectedOptions =
+    surface === "chat" ? chat :
+    surface === "voice_chat" ? voiceChat :
+    realtime;
+
+  const selectedProviderOptions =
+    selectedOptions?.available.find((p) => p.providerId === selectedProvider) ??
+    selectedOptions?.available[0] ??
+    null;
+
+  const models = selectedProviderOptions?.models ?? [];
+  const voices = selectedProviderOptions?.voices ?? [];
+  const setAI = (patch: Partial<NonNullable<AgentDraftDTO["configuration"]["ai"]>>) =>
+    setAi({ ...(ai ?? emptyAI()), ...patch });
+
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">AI models</h3>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            Only providers your plan and this platform currently allow are shown — no API keys, no provider health.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px]">
-          {chat?.entitlement.planName && (
-            <VersionBadge tone={chat.entitlement.capabilityEnabled ? "success" : "warning"}>
-              Plan: {chat.entitlement.planName} {chat.entitlement.capabilityEnabled ? "✓ included" : "· chat not included"}
-            </VersionBadge>
-          )}
-        </div>
+      <header>
+        <h3 className="text-sm font-semibold text-foreground">AI runtime configuration</h3>
+        <p className="mt-1 text-xs text-muted-foreground/70">
+          Chat, Voice Chat and Realtime Voice are independent capability slots. Changing one does not change the others.
+        </p>
       </header>
 
-      <div className="mt-5 grid gap-5 md:grid-cols-2">
-        {/* Chat provider + model */}
+      <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted/30 p-1">
+        {([
+          ["chat", "Chat", "LLM + RAG"],
+          ["voice_chat", "Voice Chat", "STT → LLM → TTS"],
+          ["realtime_voice", "Realtime Voice", "Realtime STT → LLM → TTS"],
+        ] as const).map(([id, label, hint]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSurface(id)}
+            className={`rounded-lg px-3 py-2 text-left transition-colors ${surface === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <span className="block text-xs font-semibold">{label}</span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground/70">{hint}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 space-y-5">
         <div>
-          <p className="text-xs font-medium text-foreground/90">Chat provider</p>
+          <p className="text-xs font-medium text-foreground/90">Provider</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {chatProviders.length === 0 && (
-              <p className="text-xs text-muted-foreground/70">No chat providers currently available.</p>
-            )}
-            {chatProviders.map((p) => (
+            {(selectedOptions?.available ?? []).map((p) => (
               <button
                 key={p.providerId}
                 type="button"
-                onClick={() => pickProvider(p.providerId, "chat")}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  (ai?.provider ?? null) === p.providerId
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:border-primary/25"
-                }`}
+                onClick={() => pickProvider(p.providerId, surface)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${selectedProvider === p.providerId ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/25"}`}
               >
-                {p.displayName} ✓
+                {p.displayName}
               </button>
             ))}
+            {(selectedOptions?.available ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground/70">No providers currently available.</p>
+            )}
           </div>
-          {chat && (
-            <label className="mt-3 block">
-              <span className="text-xs font-medium text-foreground/90">Chat model</span>
-              <select
-                value={ai?.chatModel ?? ""}
-                onChange={(e) => setAi({ ...(ai ?? emptyAI()), chatModel: e.target.value || null })}
-                className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-              >
-                <option value="">Platform default</option>
-                {(chatProviders.find((p) => p.providerId === (ai?.provider ?? chatProviders[0]?.providerId))?.models ?? []).map((m) => (
-                  <option key={m.modelId} value={m.modelId}>
-                    {m.displayName}
-                    {m.isDefault ? " (default)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
         </div>
 
-        {/* Realtime voice provider (§25 — resolved availability, zero cross-checking) */}
-        <div>
-          <p className="text-xs font-medium text-foreground/90">Realtime voice</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {realtimeProviders.length === 0 && (
-              <p className="text-xs text-muted-foreground/70">
-                Realtime voice is not currently available{realtime?.entitlement.planName ? ` on the ${realtime.entitlement.planName} plan` : ""}.
-              </p>
-            )}
-            {realtimeProviders.map((p) => (
-              <button
-                key={p.providerId}
-                type="button"
-                onClick={() => pickProvider(p.providerId, "realtime_voice")}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  (ai?.realtimeVoiceProvider ?? ai?.voiceProvider ?? null) === p.providerId
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:border-primary/25"
-                }`}
-              >
-                {p.displayName} ✓
-              </button>
-            ))}
-            {realtimeProviders.length > 0 && (
-              <button
-                type="button"
-                onClick={() => pickProvider(null, "realtime_voice")}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  (ai?.realtimeVoiceProvider ?? null) === null
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:border-primary/25"
-                }`}
-              >
-                Follow voice-chat
-              </button>
-            )}
+        {surface === "chat" && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <ModelField label="Chat model" value={ai?.chatModel ?? ""}
+              options={models.filter((m) => m.kind === "chat")}
+              onChange={(value) => setAI({ chatModel: value || null })} />
+            <InfoBox title="Chat only">
+              This model is used by text chat and does not alter Voice Chat or Realtime Voice.
+            </InfoBox>
           </div>
-          <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground/70">
-            {realtime?.entitlement.capabilityEnabled
-              ? `✓ Ready for this agent${previewKbId ? " — test it in Preview" : ""}`
-              : `Reason: not included in the ${realtime?.entitlement.planName ?? "current"} plan`}
+        )}
+
+        {surface === "voice_chat" && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <ModelField label="Voice Chat STT" value={ai?.voiceChatSttModel ?? ""}
+              options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
+              onChange={(value) => setAI({ voiceChatSttModel: value || null })} />
+            <ModelField label="Voice Chat TTS" value={ai?.voiceChatTtsModel ?? ""}
+              options={models.filter((m) => m.kind === "tts")}
+              onChange={(value) => setAI({ voiceChatTtsModel: value || null })} />
+            <SelectField label="Voice Chat speaker" value={ai?.voiceChatVoiceId ?? ""}
+              options={models.filter((m) => m.kind === "voice")}
+              onChange={(value) => setAI({ voiceChatVoiceId: value || null })} />
+            <InfoBox title="Turn-based voice">
+              STT, TTS and speaker are stored separately from Realtime Voice.
+            </InfoBox>
           </div>
+        )}
+
+        {surface === "realtime_voice" && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <ModelField label="Realtime LLM" value={ai?.realtimeLlmModel ?? ai?.realtimeModel ?? ""}
+              options={models.filter((m) => m.kind === "realtime" || (selectedProviderOptions?.providerId === "sarvam" && m.kind === "chat"))}
+              onChange={(value) => setAI({ realtimeLlmModel: value || null, realtimeModel: value || null })} />
+            <ModelField label="Realtime STT" value={ai?.realtimeSttModel ?? ""}
+              options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
+              onChange={(value) => setAI({ realtimeSttModel: value || null })} />
+            <ModelField label="Realtime TTS" value={ai?.realtimeTtsModel ?? ""}
+              options={models.filter((m) => m.kind === "tts")}
+              onChange={(value) => setAI({ realtimeTtsModel: value || null })} />
+            <SelectField label="Realtime speaker" value={ai?.realtimeVoiceId ?? ""}
+              options={models.filter((m) => m.kind === "voice")}
+              onChange={(value) => setAI({ realtimeVoiceId: value || null })} />
+            <div className="md:col-span-2 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs text-muted-foreground/80">
+              <p className="font-medium text-foreground/90">Independent realtime pipeline</p>
+              <p className="mt-1">Realtime LLM, STT, TTS and speaker are persisted as their own slots. For Sarvam this maps to Saaras realtime + Sarvam conversational LLM + Bulbul.</p>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-[11px] text-muted-foreground/70">
+          {selectedOptions?.entitlement.capabilityEnabled
+            ? `✓ ${selectedOptions.entitlement.planName ? `Available on ${selectedOptions.entitlement.planName}` : "Capability available"}`
+            : `Capability is not included in ${selectedOptions?.entitlement.planName ?? "the current plan"}`}
+          {previewKbId ? " · Preview is available after publishing." : ""}
         </div>
       </div>
 
@@ -395,6 +420,53 @@ function AISelectionCard({
         </WorkspaceButton>
       </div>
     </section>
+  );
+}
+
+function ModelField({
+  label, value, options, onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ modelId: string; displayName: string; kind: string; isDefault: boolean }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-foreground/90">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
+        <option value="">Platform default</option>
+        {options.map((m) => <option key={m.modelId} value={m.modelId}>{m.displayName}{m.isDefault ? " (default)" : ""}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function SelectField({ label, value, options, onChange }: {
+  label: string;
+  value: string;
+  options: Array<{ modelId: string; displayName: string; kind: string; isDefault: boolean }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-foreground/90">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
+        <option value="">Platform default</option>
+        {options.map((m) => <option key={m.modelId} value={m.modelId}>{m.displayName}{m.isDefault ? " (default)" : ""}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function InfoBox({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-xs text-muted-foreground/80">
+      <p className="font-medium text-foreground/90">{title}</p>
+      <p className="mt-1">{children}</p>
+    </div>
   );
 }
 
