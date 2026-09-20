@@ -11,6 +11,7 @@ import {
   getProductionVersionConfigCached,
 } from "@/modules/agent-versioning/core/db";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
+import { getPlatformAIRegistry } from "@/modules/ai-governance/core/registry-db";
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
 import type { AgentVersionConfig } from "@/modules/agent-versioning/core/types";
 import type {
@@ -238,8 +239,22 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     noteLegacyResolutionFallback(agent.id);
   }
 
+  // Platform capability default (Settings → AI Platform → Providers & Models):
+  // consulted when neither the version config, agent settings nor the legacy
+  // org default selected a provider — BEFORE the env fallback.
+  const registry = await getPlatformAIRegistry();
+  const chatDefault = registry.defaults.find((d) => d.capability === "chat") ?? null;
+  const platformDefaultProvider =
+    chatDefault?.providerId === "openai" || chatDefault?.providerId === "gemini" || chatDefault?.providerId === "sarvam"
+      ? chatDefault.providerId
+      : null;
+
   let provider: AIProvider =
-    versionAI?.provider ?? agentSettings?.provider ?? orgSettings?.defaultProvider ?? defaults.provider;
+    versionAI?.provider ??
+    agentSettings?.provider ??
+    orgSettings?.defaultProvider ??
+    platformDefaultProvider ??
+    defaults.provider;
   let providerSource: ResolvedAIConfig["sources"]["provider"] = kbOverrides?.provider
     ? "kb_override"
     : versionAI?.provider
@@ -292,7 +307,10 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const embeddingProvider: AIProvider =
     provider === "sarvam" ? parseSarvamEmbeddingFallbackProvider() : provider;
 
-  const defaultChat = defaults.models[provider].chat;
+  // Platform default chat model (when it belongs to the resolved provider).
+  const platformDefaultChatModel =
+    chatDefault?.modelId && chatDefault.providerId === provider ? chatDefault.modelId : null;
+  const defaultChat = platformDefaultChatModel ?? defaults.models[provider].chat;
   // Embedding defaults ALWAYS come from the backbone record — for openai/gemini
   // brains this is identical to the previous behaviour.
   const defaultEmbedding = defaults.models[embeddingProvider].embedding;

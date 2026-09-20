@@ -187,7 +187,19 @@ export async function resolveVoiceConfig(
             : "env";
 
   if (!voiceProvider) {
-    voiceProvider = brain.provider; // inherit — default for existing tenants
+    // Platform capability default (Settings → AI Platform) applies before the
+    // brain-inherit default; NULL default = inherit (existing behaviour).
+    const { getPlatformAIRegistry } = await import("@/modules/ai-governance/core/registry-db");
+    const registryDefaults = (await getPlatformAIRegistry()).defaults;
+    const platformVoiceChatDefault = registryDefaults.find((d) => d.capability === "voice_chat") ?? null;
+    const platformProvider =
+      platformVoiceChatDefault?.providerId === "elevenlabs" ||
+      platformVoiceChatDefault?.providerId === "sarvam" ||
+      platformVoiceChatDefault?.providerId === "openai" ||
+      platformVoiceChatDefault?.providerId === "gemini"
+        ? platformVoiceChatDefault.providerId
+        : null;
+    voiceProvider = platformProvider ?? brain.provider; // inherit — default for existing tenants
     source = "env";
   }
 
@@ -210,7 +222,19 @@ export async function resolveVoiceConfig(
             : "voice_chat";
 
   if (!realtimeProvider) {
-    realtimeProvider = voiceProvider;
+    // Platform capability default for realtime applies before the
+    // voice-chat-inherit default; NULL default = inherit (existing behaviour).
+    const { getPlatformAIRegistry } = await import("@/modules/ai-governance/core/registry-db");
+    const registryDefaults = (await getPlatformAIRegistry()).defaults;
+    const platformRealtimeDefault = registryDefaults.find((d) => d.capability === "realtime_voice") ?? null;
+    const platformProvider =
+      platformRealtimeDefault?.providerId === "elevenlabs" ||
+      platformRealtimeDefault?.providerId === "sarvam" ||
+      platformRealtimeDefault?.providerId === "openai" ||
+      platformRealtimeDefault?.providerId === "gemini"
+        ? platformRealtimeDefault.providerId
+        : null;
+    realtimeProvider = platformProvider ?? voiceProvider;
     realtimeSource = "voice_chat";
   }
 
