@@ -10,6 +10,10 @@ import { handleVoiceConnection } from "./voice-relay.mjs";
 import { handleTwilioStream, handleVonageStream } from "./phone-stream.mjs";
 import { handleSarvamRealtimeConnection } from "./sarvam-relay.mjs";
 import { handleSarvamTtsRealtimeConnection } from "./sarvam-tts-relay.mjs";
+import {
+  handleElevenLabsRealtimeStt,
+  handleElevenLabsRealtimeTts,
+} from "./elevenlabs-relay.mjs";
 
 const _orig = http.createServer.bind(http);
 
@@ -20,6 +24,8 @@ http.createServer = (...args) => {
   const wssVonage = new WebSocketServer({ noServer: true });
   const wssSarvam = new WebSocketServer({ noServer: true });
   const wssSarvamTts = new WebSocketServer({ noServer: true });
+  const wssElevenLabsStt = new WebSocketServer({ noServer: true });
+  const wssElevenLabsTts = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (req, socket, head) => {
       try {
@@ -34,6 +40,10 @@ http.createServer = (...args) => {
           wssSarvam.handleUpgrade(req, socket, head, ws => wssSarvam.emit("connection", ws, req));
         } else if (pathname === "/api/voice/sarvam/tts-realtime") {
           wssSarvamTts.handleUpgrade(req, socket, head, ws => wssSarvamTts.emit("connection", ws, req));
+        } else if (pathname === "/api/voice/elevenlabs/realtime") {
+          wssElevenLabsStt.handleUpgrade(req, socket, head, ws => wssElevenLabsStt.emit("connection", ws, req));
+        } else if (pathname === "/api/voice/elevenlabs/tts-realtime") {
+          wssElevenLabsTts.handleUpgrade(req, socket, head, ws => wssElevenLabsTts.emit("connection", ws, req));
         } else {
           socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
           socket.destroy();
@@ -49,6 +59,8 @@ http.createServer = (...args) => {
     console.log("[clara-relay]    /api/phone/twilio/stream — Twilio phone");
     console.log("[clara-relay]    /api/phone/vonage/stream — Vonage phone");
     console.log("[clara-relay]    /api/voice/sarvam/realtime — Saaras realtime STT relay");
+    console.log("[clara-relay]    /api/voice/elevenlabs/realtime — Scribe realtime STT relay");
+    console.log("[clara-relay]    /api/voice/elevenlabs/tts-realtime — ElevenLabs streaming TTS relay");
   });
 
   wss.on("connection", (ws, req) => handleVoiceConnection(ws, req));
@@ -63,6 +75,20 @@ http.createServer = (...args) => {
   wssSarvam.on("connection", (ws, req) => {
     Promise.resolve(handleSarvamRealtimeConnection(ws, req)).catch(err => {
       console.error("[sarvam-relay] fatal:", err && err.message);
+      try { ws.close(1011); } catch (_) {}
+    });
+  });
+
+  wssElevenLabsStt.on("connection", (ws, req) => {
+    Promise.resolve(handleElevenLabsRealtimeStt(ws, req)).catch(err => {
+      console.error("[elevenlabs-relay] stt fatal:", err && err.message);
+      try { ws.close(1011); } catch (_) {}
+    });
+  });
+
+  wssElevenLabsTts.on("connection", (ws, req) => {
+    Promise.resolve(handleElevenLabsRealtimeTts(ws, req)).catch(err => {
+      console.error("[elevenlabs-relay] tts fatal:", err && err.message);
       try { ws.close(1011); } catch (_) {}
     });
   });

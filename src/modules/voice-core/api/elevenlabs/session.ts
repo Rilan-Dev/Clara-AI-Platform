@@ -25,9 +25,16 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit";
-import { STT_MAX_AUDIO_SECONDS, TTS_OUTPUT_FORMAT, isValidUuid } from "../../model-catalog";
+import {
+  STT_MAX_AUDIO_SECONDS,
+  TTS_OUTPUT_FORMAT,
+  getElevenLabsRealtimeSttModel,
+  isElevenLabsRealtimeEnabled,
+  isValidUuid,
+} from "../../model-catalog";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
+import { mintElevenLabsRealtimeToken } from "./realtime-auth";
 import { embedVoiceGuard } from "./embed-auth";
 import type { ElevenLabsSessionPayload } from "../../config-types";
 
@@ -115,6 +122,22 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         language: resolved.elevenlabs.language,
         sampleRate: 16_000,
         maxAudioSeconds: STT_MAX_AUDIO_SECONDS,
+        // Mode C (Clara realtime, plan Task 6.2): the Scribe realtime relay
+        // descriptor — same HMAC token discipline as the Sarvam V5 relay.
+        // Embed sessions get it too: the token is capability-scoped (kb+org),
+        // never a vendor credential.
+        ...(isElevenLabsRealtimeEnabled() && orgId
+          ? {
+              realtime: {
+                endpoint: "/api/voice/elevenlabs/realtime",
+                token: mintElevenLabsRealtimeToken({ kbId, orgId }),
+                ttsEndpoint: "/api/voice/elevenlabs/tts-realtime",
+                sampleRate: 16_000,
+                encoding: "linear16",
+                model: getElevenLabsRealtimeSttModel(),
+              },
+            }
+          : {}),
       },
       tts: {
         endpoint: "/api/voice/elevenlabs/tts",

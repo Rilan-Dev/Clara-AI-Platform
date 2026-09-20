@@ -103,6 +103,22 @@ export interface ElevenLabsSessionPayload {
     language: string;
     sampleRate: number;
     maxAudioSeconds: number;
+    /**
+     * Mode C (Clara realtime, plan Task 6.2): Scribe realtime relay —
+     * present when ELEVENLABS_REALTIME_ENABLED is on for the platform.
+     * Its presence tells useElevenLabsClaraStream to run the realtime path
+     * instead of the Mode A utterance pipeline.
+     */
+    realtime?: {
+      endpoint: string;
+      /** Session-minted HMAC token (?token= on both WS upgrades). */
+      token: string;
+      /** Also the TTS relay endpoint (same token). */
+      ttsEndpoint: string;
+      sampleRate: number;
+      encoding: string;
+      model: string;
+    };
   };
   tts: {
     endpoint: string;

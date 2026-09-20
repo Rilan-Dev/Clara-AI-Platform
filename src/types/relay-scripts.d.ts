@@ -46,3 +46,38 @@ declare module "*/scripts/sarvam-tts-relay.mjs" {
     settle(): void;
   };
 }
+
+declare module "*/scripts/elevenlabs-relay.mjs" {
+  export function handleElevenLabsRealtimeStt(browserWs: unknown, req: unknown): Promise<void>;
+  export function handleElevenLabsRealtimeTts(browserWs: unknown, req: unknown): Promise<void>;
+
+  /** Verify a session-minted browser token (mirrors realtime-auth.ts). */
+  export function verifyToken(token: string | null | undefined): {
+    kbId: string;
+    orgId: string;
+  } | null;
+
+  /** BCP-47 language code for the Scribe realtime query (blank → null). */
+  export function scribeLanguageCode(language: string | null | undefined): string | null;
+
+  /** Map a vendor Scribe realtime event to the browser frame contract. */
+  export function translateScribeEvent(
+    event: Record<string, unknown>,
+  ): { type: string; [key: string]: unknown } | null;
+
+  /** Build the upstream Scribe realtime URL with documented query params. */
+  export function scribeRealtimeUrl(cfg: {
+    baseUrl?: string;
+    sttModel?: string;
+    languageCode?: string | null;
+  }): string;
+
+  /** Build the upstream TTS stream-input URL (voice pinned in the path). */
+  export function ttsStreamInputUrl(cfg: {
+    baseUrl?: string;
+    tts?: { model?: string; voiceId?: string };
+  }): string;
+
+  /** The BOS message for the TTS leg (space + voice settings + schedule). */
+  export function ttsBosMessage(): string;
+}
