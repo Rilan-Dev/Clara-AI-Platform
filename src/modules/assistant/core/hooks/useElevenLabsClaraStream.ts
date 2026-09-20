@@ -316,6 +316,9 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     const turnLatency = latencyRef.current?.beginGenerationTurn(generation, "elevenlabs", session.stt.realtime?.model ?? null);
     turnLatencyRef.current = turnLatency ?? null;
     latencyRef.current?.carrySttMarks(carriedStt ?? {});
+    // The chat call starts retrieval AND generation together on this
+    // pipeline (RAG runs inside /api/chat) — both stages anchor here.
+    turnLatency?.mark("rag.start");
     turnLatency?.mark("llm.start");
 
     const turn: VoiceTurn = {
@@ -373,10 +376,16 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       flushRealtimeTts(generationId);
       coordinator.completeGeneration();
       turnLatency?.mark("turn.complete");
-      if (playbackRef.current?.speaking) {
-        // Short answers can finish the chat BEFORE their first audio chunk
-        // arrives — defer the emit until the playback queue drains so
-        // tts.first_audio / browser.first_audio land on the record.
+      // Short answers can finish the chat BEFORE their first audio chunk
+      // arrives. Defer the emit while the queue is speaking OR synthesis
+      // audio is still in flight (tts.start marked, first audio not yet
+      // arrived) so tts.first_audio / browser.first_audio land on the record.
+      const marks = turnLatency?.record?.marks;
+      const audioInFlight =
+        marks?.["tts.start"] !== undefined &&
+        marks?.["tts.first_audio"] === undefined &&
+        !controller.signal.aborted;
+      if (playbackRef.current?.speaking || audioInFlight) {
         pendingTurnLatencyRef.current = turnLatency ?? null;
       } else {
         emitLatencyTelemetry();
