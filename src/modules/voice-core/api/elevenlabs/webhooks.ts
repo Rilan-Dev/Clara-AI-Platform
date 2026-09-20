@@ -30,10 +30,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { redactText } from "@/lib/redact";
-import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
-import { searchKbEmbedded } from "@/modules/embed/core/search";
-import { logQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { groundClaraContext } from "@/modules/rag/grounding";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { appUrl } from "@/lib/stripe";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
@@ -143,35 +140,32 @@ export async function postElevenLabsToolRagSearch(request: NextRequest): Promise
       return NextResponse.json({ error: "Knowledge base not found for this organisation." }, { status: 404 });
     }
 
-    // ── Retrieval: same resolver + same search the chat pipeline uses ───────
-    const resolved = await resolveAIConfig({ kbId, surface: "chat" });
-    const providerConfig = toProviderConfig(resolved);
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) {
-      return NextResponse.json({ error: "Knowledge base not found." }, { status: 404 });
-    }
-
-    let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
-    try {
-      results = await searchKbEmbedded(kb.qdrantCollection, query, topK, { providerConfig });
-    } catch (searchErr) {
-      console.error("[elevenlabs-tool] retrieval failed:", searchErr);
+    // ── Retrieval: the ONE provider-neutral Clara grounding entry point ────
+    // (plan Task 3.1). Audit-only admission — Mode B meters its quota at
+    // post-call (chat.ts modeBAdmission); admitting here would double-bill.
+    // The binding checks above (org + KB-org match) remain the vendor-side
+    // authorization boundary; the service re-resolves the tenant from the
+    // KB server-side, so a provider can never select another tenant/KB.
+    const outcome = await groundClaraContext({
+      kbId,
+      query,
+      topK,
+      surface: "voice",
+      admission: "audit-only",
+    });
+    if (!outcome.ok) {
+      if (outcome.status === 404 || outcome.status === 400) {
+        return NextResponse.json(
+          { error: "Knowledge base not found for this organisation." },
+          { status: 404 },
+        );
+      }
       return NextResponse.json(
         { error: "Knowledge base search is temporarily unavailable." },
         { status: 502 },
       );
     }
-
-    // ── Audit: query text + snippet count, never snippet bodies (§11.10) ────
-    await logQueryEvent({
-      kbId,
-      orgId,
-      queryText: query,
-      sourceCount: results.length,
-      surface: "voice",
-      status: "ok",
-      answerText: null,
-    });
+    const results = outcome.result.sources;
 
     // Opportunistic nonce sweep (best-effort, never blocks the tool call).
     void sweepExpiredNonces();

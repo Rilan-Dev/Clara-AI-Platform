@@ -1,0 +1,428 @@
+/**
+ * src/modules/rag/grounding.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE authenticated Clara grounding entry point (plan Task 3.1).
+ *
+ * One service that every provider-controlled turn calls to obtain grounded
+ * context. It ultimately resolves:
+ *
+ *     tenantId (org)  ← KB → agent → org, resolved SERVER-SIDE
+ *     kbId            ← the requested KB, validated active
+ *     documentId      ← optional Qdrant filter
+ *     ragMode         ← runtime RAG policy (classic/hybrid/agentic + graph)
+ *     query           ← the user question
+ *   and returns grounded context + sources.
+ *
+ * Authorization properties (plan §3.1 acceptance):
+ *   • the caller cannot select another tenant — orgId is derived from the KB
+ *     row server-side, never accepted from the request;
+ *   • the caller cannot select another KB — the kbId must resolve to an
+ *     ACTIVE knowledge base owned by that tenant;
+ *   • the caller cannot bypass authorization — quota admission (atomic
+ *     check-and-insert) runs BEFORE any retrieval spend;
+ *   • the provider cannot create vendor KB state — this module performs zero
+ *     KB/collection writes; Qdrant stays Clara-owned and read-only here.
+ *
+ * Provider = how Clara talks. Clara KB = what Clara knows. This service is
+ * the only "what Clara knows" door for realtime voice turns.
+ *
+ * Transport-neutral: returns a plain outcome object (no NextResponse), so
+ * HTTP routes, provider webhooks, relays and future server-side turn
+ * pipelines all share the exact same grounding path.
+ */
+
+import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import {
+  finalizeQueryEvent,
+  logQueryEvent,
+} from "@/modules/knowledge-bases/core/analytics-db";
+import { admitQueryEvent, type AdmissionDenied, type QuotaWarning } from "@/lib/quota-admission";
+import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { query as dbQuery } from "@/lib/db";
+import type { ProviderConfig } from "@/modules/ai-core/types";
+import { getQdrantClient } from "@/modules/admin/core/vector-store";
+import { ProviderFactory } from "@/modules/ai-core/factory";
+import { getRagRuntimeConfig } from "@/modules/rag/config";
+import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
+import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
+import type { QuerySurface } from "@/modules/knowledge-bases/core/analytics-db";
+
+const SCORE_THRESHOLD = 0.25;
+const DEFAULT_TOP_K = 6;
+const MAX_TOP_K = 20;
+
+export type GroundingRagMode = "classic" | "hybrid" | "agentic";
+
+export interface GroundingRequest {
+  /** The Clara KB to ground against. Must be active and tenant-bound. */
+  kbId: string;
+  /** The user question. */
+  query: string;
+  /** Optional document scope INSIDE the KB (Qdrant filter). */
+  documentId?: string | null;
+  /** Requested RAG mode; runtime policy decides the effective mode. */
+  ragMode?: GroundingRagMode | string | null;
+  /** Retrieval width. */
+  topK?: number;
+  /** Audit/metering surface (search | voice | embed | workspace). */
+  surface?: QuerySurface;
+  /** Correlation with realtime voice sessions (plan Phase 2 identity). */
+  sessionId?: string | null;
+  /** Acting user when known (audit only, never used for tenant resolution). */
+  userId?: string | null;
+  /**
+   * "quota" (default): atomic quota admission before retrieval — standard for
+   * Clara-controlled turns. "audit-only": log the query event without quota
+   * admission — for surfaces whose quota is metered elsewhere (ElevenLabs
+   * Mode B admits its quota at post-call, admitting here would double-bill).
+   */
+  admission?: "quota" | "audit-only";
+  /**
+   * Embedding provider override — ONLY for internal flows (public demo) that
+   * must pin the embedding backbone. Selects the EMBEDDING transport, never
+   * the tenant/KB/knowledge.
+   */
+  embeddingOverride?: ProviderConfig;
+}
+
+export interface GroundedSource {
+  index: number;
+  id: string;
+  title: string;
+  originalFilename?: string;
+  documentId?: string;
+  score: number;
+  snippet: string;
+  sourceType: "vector";
+}
+
+export interface GraphSource {
+  index: number;
+  id: string;
+  title: string;
+  score: number;
+  snippet: string;
+  sourceType: "graph";
+  relations: unknown;
+}
+
+/** Server-resolved knowledge binding — the plan §3.2 assertion target. */
+export interface KnowledgeBinding {
+  tenantId: string | null;
+  agentId: string | null;
+  kbId: string;
+  documentId: string | null;
+  ragMode: string;
+}
+
+export interface GroundedContext {
+  /** Assembled grounded context string ([S1]…/[G1]… blocks). */
+  context: string;
+  sources: GroundedSource[];
+  graphSources: GraphSource[];
+  mode: string;
+  kb: { id: string; name: string; collection: string };
+  /** Server-resolved binding — identical across providers for the same KB. */
+  binding: KnowledgeBinding;
+  latencyMs: number;
+}
+
+export type GroundingOutcome =
+  | { ok: true; result: GroundedContext; warning: QuotaWarning | null }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      detail?: string;
+      /** Present when status is 402 — the plan_limit_exceeded contract. */
+      denied?: AdmissionDenied;
+    };
+
+/** Resolve the tenant (org) + agent that own a KB — server-side only. */
+async function resolveKbTenant(
+  kbId: string,
+): Promise<{ orgId: string | null; agentId: string | null }> {
+  const rows = await dbQuery<{ org_id: string; agent_id: string }>(
+    `SELECT a.org_id, a.id AS agent_id FROM agents a JOIN knowledge_bases kbx ON kbx.agent_id = a.id WHERE kbx.id = $1`,
+    [kbId],
+  );
+  const orgId = rows[0]?.org_id ?? null;
+  const agentId = rows[0]?.agent_id ?? null;
+  return { orgId, agentId };
+}
+
+type SearchHit = {
+  id: string;
+  snippet: string;
+  score: number;
+  payload?: Record<string, unknown>;
+};
+
+async function searchKbCollection(
+  collectionName: string,
+  query: string,
+  topK: number,
+  filter?: Record<string, unknown>,
+  providerConfig?: ProviderConfig,
+): Promise<SearchHit[]> {
+  const client = getQdrantClient();
+  const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
+
+  // Fetch a wider candidate pool so a document-scoped filter isn't required
+  // just to keep a smaller document's chunks from being crowded out by a
+  // larger one in the same KB collection.
+  const fetchLimit = filter ? topK : candidatePoolSize(topK);
+
+  const searchParams: Record<string, unknown> = {
+    vector: embedding,
+    limit: fetchLimit,
+    with_payload: true,
+    score_threshold: SCORE_THRESHOLD,
+    ...(filter ? { filter } : {}),
+  };
+
+  let results;
+  try {
+    results = await client.search(
+      collectionName,
+      searchParams as Parameters<typeof client.search>[1],
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/not found/i.test(msg)) {
+      throw new Error(
+        `Qdrant collection "${collectionName}" does not exist. Documents may still be processing — check the ingest worker status at /api/worker/ingest or re-upload your documents.`,
+      );
+    }
+    throw err;
+  }
+
+  if (!Array.isArray(results) || results.length === 0) {
+    const fallbackParams = { ...searchParams };
+    delete fallbackParams.score_threshold;
+    results = await client.search(
+      collectionName,
+      fallbackParams as Parameters<typeof client.search>[1],
+    );
+  }
+
+  const mapped = (
+    results as Array<{ id: string | number; score?: number; payload?: Record<string, unknown> }>
+  )
+    .map((r) => ({
+      id: String(r.id),
+      snippet: r.payload?.chunk ? String(r.payload.chunk) : "",
+      score: r.score ?? 0,
+      payload: r.payload as Record<string, unknown>,
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  if (filter) return mapped;
+
+  return diversifyByDocument(mapped, {
+    getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
+    getScore: (r) => r.score,
+    topK,
+  });
+}
+
+/**
+ * The one authenticated Clara grounding entry point.
+ *
+ * Deterministic binding: for the same kbId (+ optional documentId), the
+ * resolved tenantId/agentId/kbId/documentId/ragMode are IDENTICAL regardless
+ * of which voice provider initiated the turn — that invariance is what plan
+ * Task 3.2 asserts.
+ */
+export async function groundClaraContext(request: GroundingRequest): Promise<GroundingOutcome> {
+  const query = (request.query ?? "").trim();
+  if (!query) {
+    return { ok: false, status: 400, error: "Missing query" };
+  }
+  const topK = Math.min(Number(request.topK ?? DEFAULT_TOP_K), MAX_TOP_K);
+
+  const t0 = Date.now();
+  const kb = await getKnowledgeBaseById(request.kbId);
+  if (!kb) {
+    return { ok: false, status: 404, error: "Knowledge base not found" };
+  }
+  if (kb.status !== "active") {
+    return { ok: false, status: 400, error: "Knowledge base is archived" };
+  }
+
+  // ── Tenant binding: derived server-side from the KB row, never from input.
+  const { orgId, agentId } = await resolveKbTenant(kb.id);
+
+  // ── Atomic quota admission (org-wide, rolling 24h) BEFORE retrieval spend.
+  // Audit-only surfaces log the event AFTER retrieval instead (their quota
+  // is metered at a different point in the turn lifecycle).
+  const admissionMode = request.admission ?? "quota";
+  let admission: Awaited<ReturnType<typeof admitQueryEvent>> | null = null;
+  if (admissionMode === "quota") {
+    admission = await admitQueryEvent({
+      orgId,
+      kbId: kb.id,
+      queryText: query,
+      surface: request.surface ?? "search",
+      ...(request.sessionId ? { sessionId: request.sessionId } : {}),
+      ...(request.userId !== undefined ? { userId: request.userId } : {}),
+    });
+    if (!admission.admitted) {
+      return { ok: false, status: 402, error: "plan_limit_exceeded", denied: admission };
+    }
+  }
+
+  // ── Embedding config: resolved from KB AI policy; the override only pins
+  // the embedding transport (public demo), never the knowledge.
+  const resolved = request.embeddingOverride
+    ? null
+    : await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
+  const providerConfig =
+    request.embeddingOverride ?? toProviderConfig(resolved!, "embedding");
+
+  const runtime = getRagRuntimeConfig({
+    requestedMode: (request.ragMode ?? undefined) as string | undefined,
+  });
+
+  const filter = request.documentId
+    ? { must: [{ key: "documentId", match: { value: request.documentId } }] }
+    : undefined;
+
+  let vectorResults: SearchHit[];
+  try {
+    vectorResults = await searchKbCollection(
+      kb.qdrantCollection,
+      query,
+      topK,
+      filter,
+      providerConfig,
+    );
+  } catch (searchErr) {
+    const msg = (searchErr as Error).message;
+    if (msg.includes("does not exist")) {
+      return {
+        ok: false,
+        status: 503,
+        error:
+          "This knowledge base has no indexed content yet. Please upload documents and wait for them to finish processing.",
+        detail: msg,
+      };
+    }
+    throw searchErr;
+  }
+
+  const graphHits = runtime.enableGraphRag
+    ? await retrieveGraphContext({
+        kbId: kb.id,
+        query,
+        topK: Math.min(topK, 4),
+        documentId: request.documentId ?? undefined,
+      })
+    : [];
+
+  const graphContext = graphHits
+    .map((hit, index) => {
+      const relations = hit.relations
+        .slice(0, 3)
+        .map((relation) => `${relation.source} -[${relation.type}]-> ${relation.target}`)
+        .join("; ");
+      const evidence = hit.supportingChunks
+        .slice(0, 2)
+        .map((chunk) => chunk.text)
+        .filter(Boolean)
+        .join("\n");
+
+      return [
+        `[G${index + 1}] ${hit.label}`,
+        `Type: ${hit.type}`,
+        relations ? `Relations: ${relations}` : "",
+        evidence ? `Evidence: ${evidence}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  if (admissionMode === "quota") {
+    void finalizeQueryEvent(admission && admission.admitted ? admission.eventId : null, {
+      answerText: "",
+      sourceCount: vectorResults.length + graphHits.length,
+      latencyMs: Date.now() - t0,
+      status: "ok",
+    });
+  } else {
+    // Audit-only: same audit row shape, no quota semantics (§11.10 — query
+    // text + snippet count, never snippet bodies).
+    await logQueryEvent({
+      kbId: kb.id,
+      orgId,
+      queryText: query,
+      sourceCount: vectorResults.length + graphHits.length,
+      surface: request.surface ?? "voice",
+      status: "ok",
+      answerText: null,
+    });
+  }
+
+  const contextParts = [
+    vectorResults
+      .map((r, i) => {
+        const title = r.payload?.title ? String(r.payload.title) : "Document";
+        const filename = r.payload?.originalFilename ? String(r.payload.originalFilename) : "";
+        const label = filename && filename !== title ? `${title} (${filename})` : title;
+        return `[S${i + 1}] ${label}\n${r.snippet}`.trim();
+      })
+      .join("\n\n"),
+  ];
+
+  if (graphContext) {
+    contextParts.push(`Graph context\n${graphContext}`);
+  }
+
+  const context = contextParts.filter(Boolean).join("\n\n");
+
+  const sources: GroundedSource[] = vectorResults.map((r, i) => ({
+    index: i + 1,
+    id: r.id,
+    title: r.payload?.title ? String(r.payload.title) : "Document",
+    originalFilename: r.payload?.originalFilename ? String(r.payload.originalFilename) : undefined,
+    documentId: r.payload?.documentId ? String(r.payload.documentId) : undefined,
+    score: r.score,
+    snippet: r.snippet,
+    sourceType: "vector",
+  }));
+
+  const graphSources: GraphSource[] = graphHits.map((hit, index) => ({
+    index: index + 1,
+    id: hit.id,
+    title: hit.label,
+    score: hit.score,
+    snippet: hit.supportingChunks
+      .map((chunk) => chunk.text)
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 500),
+    sourceType: "graph",
+    relations: hit.relations,
+  }));
+
+  return {
+    ok: true,
+    warning: admission && admission.admitted ? admission.warning : null,
+    result: {
+      context,
+      sources,
+      graphSources,
+      mode: runtime.ragMode,
+      kb: { id: kb.id, name: kb.name, collection: kb.qdrantCollection },
+      binding: {
+        tenantId: orgId,
+        agentId,
+        kbId: kb.id,
+        documentId: request.documentId ?? null,
+        ragMode: runtime.ragMode,
+      },
+      latencyMs: Date.now() - t0,
+    },
+  };
+}
