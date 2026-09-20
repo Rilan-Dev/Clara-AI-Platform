@@ -126,6 +126,7 @@ export class SarvamProvider implements LLMProvider {
     if (options?.maxTokens != null) body.max_tokens = options.maxTokens;
     if (options?.temperature != null) body.temperature = options.temperature;
     if (options?.stop?.length) body.stop = options.stop;
+    if (options?.reasoningEffort !== undefined) body.reasoning_effort = options.reasoningEffort;
 
     const response = await this.sarvamFetch(
       path,
