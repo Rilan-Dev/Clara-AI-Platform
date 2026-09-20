@@ -269,7 +269,11 @@ async function postChatKb(
   // on the embedding backbone (V1 split — a Sarvam brain keeps its Qdrant
   // collections on OpenAI/Gemini embeddings); the answer stream runs on the
   // brain provider below.
-  const providerConfig = toProviderConfig(resolved);
+  const realtimeVoice = body?.realtimeVoice === true && resolved.provider === "sarvam";
+  const providerConfig = {
+    ...toProviderConfig(resolved),
+    ...(realtimeVoice ? { chatModel: getPlatformDefaultSarvamRealtimeLlmModel() } : {}),
+  };
   const embeddingConfig = toProviderConfig(resolved, "embedding");
   let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
   try {
