@@ -73,7 +73,7 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
       if (last && last.status === "pending") {
         return previous.map((turn, index) =>
           index === previous.length - 1
-            ? { ...turn, answer: turn.answer ? `${turn.answer}${content}` : content, status: "complete" }
+            ? { ...turn, answer: turn.answer ? `${turn.answer}${content}` : content, status: "done" }
             : turn,
         );
       }
@@ -85,7 +85,7 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
           question: "",
           answer: content,
           sources: [],
-          status: "complete",
+          status: "done",
         },
       ];
     });
@@ -120,7 +120,7 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
         connectionType: "webrtc",
         onConnect: () => {
           if (!mountedRef.current) return;
-          setStatus("listening");
+          setStatus("connected");
         },
         onDisconnect: () => {
           if (!mountedRef.current) return;
@@ -142,7 +142,7 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
           if (!mountedRef.current) return;
           const speaking = mode === "speaking";
           setIsSpeaking(speaking);
-          setStatus(speaking ? "speaking" : "listening");
+          setStatus("connected");
         },
       });
 
