@@ -106,7 +106,7 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     upstream = socket;
     socket.on("open", () => {
       socket.send(JSON.stringify({ type: "config", data: {
-        speaker, language_code: language, min_buffer_size: 20, max_chunk_length: 150, output_audio_codec: "linear16",
+        speaker, language_code: language, min_buffer_size: 30, max_chunk_length: 150, output_audio_codec: "linear16",
       }}));
       send(browserWs, { type: "status", value: "connected", model, sampleRate: 24000 });
       for (const msg of pending.splice(0)) { try { socket.send(msg); } catch {} }
