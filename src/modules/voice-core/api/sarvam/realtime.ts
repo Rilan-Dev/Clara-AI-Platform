@@ -27,7 +27,7 @@ import {
   getPlatformDefaultSarvamRealtimeLlmModel,
   isSarvamRealtimeTtsEnabled,
 } from "../../model-catalog";
-import { logSttUsage } from "../../metering";
+import { logSttUsage, logTtsUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { isSarvamRelayRequest } from "./realtime-auth";
 
@@ -129,11 +129,37 @@ export async function postSarvamRealtimeMeter(request: NextRequest): Promise<Nex
       model?: string;
       audioSeconds?: number;
       languageCode?: string | null;
+      /** "stt" (default) meters audio seconds; "tts" meters characters once per generation. */
+      kind?: "stt" | "tts";
+      characters?: number;
     };
 
     const orgId = typeof body.orgId === "string" ? body.orgId : null;
     const kbId = typeof body.kbId === "string" ? body.kbId : null;
     const agentId = typeof body.agentId === "string" ? body.agentId : null;
+
+    if (body.kind === "tts") {
+      // Realtime Bulbul TTS metering — called once per assistant generation
+      // by the TTS relay (plan Task 5.3: "meter usage once", never per sentence).
+      const characters = Number(body.characters);
+      const model = typeof body.model === "string" && body.model ? body.model : "bulbul:v3";
+      if (!orgId || !Number.isFinite(characters) || characters <= 0) {
+        return NextResponse.json(
+          { error: "orgId and characters are required for tts metering." },
+          { status: 400 },
+        );
+      }
+      await logTtsUsage({
+        orgId,
+        kbId,
+        agentId,
+        model,
+        characters: Math.round(characters),
+        provider: "sarvam",
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     const model = typeof body.model === "string" && body.model ? body.model : "saaras:v3-realtime";
     const audioSeconds = Number(body.audioSeconds);
 

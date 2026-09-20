@@ -39,6 +39,43 @@ function send(ws, value) {
 }
 function relayHeaderValue() { return hmacHex(RELAY_HEADER_PAYLOAD); }
 
+/**
+ * Per-generation character metering (plan Task 5.3: "meter usage once").
+ *
+ * The hook streams MANY text frames per assistant generation (sentence
+ * chunks, each with its own flush). Metering per frame would recreate the
+ * sentence-by-sentence billing the plan forbids. This helper accumulates
+ * characters per generationId and emits EXACTLY ONE meter callback per
+ * generation — flushed when the next generation starts or the connection
+ * settles. Exported for relay tests.
+ */
+export function createGenerationMeter(meter) {
+  let generationId = null;
+  let characters = 0;
+
+  const settle = () => {
+    if (characters > 0) {
+      meter({ generationId, characters });
+      characters = 0;
+    }
+    generationId = null;
+  };
+
+  return {
+    /** Accumulate text for a generation; switching generation settles the old one. */
+    add(nextGenerationId, text) {
+      const id = nextGenerationId == null ? null : String(nextGenerationId);
+      if (id !== generationId) {
+        settle();
+        generationId = id;
+      }
+      characters += typeof text === "string" ? text.trim().length : 0;
+    },
+    /** Meter the trailing generation (connection close). */
+    settle,
+  };
+}
+
 export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
   const url = new URL(req.url, BASE);
   const claims = verifyToken(url.searchParams.get("token"));
@@ -91,9 +128,30 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
   let pingTimer = null;
   const pending = [];
 
+  // One meter event per assistant generation — never per sentence frame.
+  const generationMeter = createGenerationMeter(({ characters }) => {
+    if (!cfg.orgId) return;
+    fetch(`${BASE}/api/internal/sarvam/realtime-meter`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-sarvam-relay": relayHeaderValue(),
+      },
+      body: JSON.stringify({
+        kind: "tts",
+        orgId: cfg.orgId,
+        kbId: claims.kbId,
+        agentId: cfg.agentId ?? null,
+        model,
+        characters,
+      }),
+    }).catch((e) => console.warn("[sarvam-tts-relay] tts metering failed:", e.message));
+  });
+
   const closeBoth = (code = 1000, reason = "closed") => {
     if (closed) return;
     closed = true;
+    generationMeter.settle(); // meter the trailing generation exactly once
     if (reconnectTimer) clearTimeout(reconnectTimer);
     if (pingTimer) clearInterval(pingTimer);
     try { upstream?.close(code, reason); } catch {}
@@ -181,6 +239,8 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     if (type === "text") {
       if (typeof message.text !== "string" || !message.text.trim()) return;
       if (message.generationId != null) generationId = String(message.generationId);
+      // Meter once per generation: accumulate chars, settle on switch/close.
+      generationMeter.add(message.generationId, message.text);
       const payload = JSON.stringify({ type: "text", data: { text: message.text } });
       if (upstream?.readyState === WebSocket.OPEN) { try { upstream.send(payload); } catch { pending.push(payload); } }
       else { pending.push(payload); openUpstream(); }

@@ -27,3 +27,22 @@ declare module "*/scripts/sarvam-relay.mjs" {
     event: Record<string, unknown>,
   ): { type: string; [key: string]: unknown } | null;
 }
+
+declare module "*/scripts/sarvam-tts-relay.mjs" {
+  export function handleSarvamTtsRealtimeConnection(
+    browserWs: unknown,
+    req: unknown,
+  ): Promise<void>;
+
+  /**
+   * Per-generation character metering — emits exactly one meter callback per
+   * generationId (accumulates chars; settles on generation switch or end).
+   */
+  export function createGenerationMeter(meter: (entry: {
+    generationId: string | null;
+    characters: number;
+  }) => void): {
+    add(nextGenerationId: string | null | undefined, text: string): void;
+    settle(): void;
+  };
+}
