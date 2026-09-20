@@ -134,10 +134,10 @@ export async function postSarvamVoicePreview(request: NextRequest): Promise<Next
 
     const model = typeof body.model === "string" && isSupportedSarvamTTSModel(body.model)
       ? body.model
-      : resolved.sarvam.ttsModel;
+      : resolved.sarvam.voiceChatTtsModel;
     const speaker = typeof body.speaker === "string" && isSupportedSarvamSpeaker(body.speaker)
       ? body.speaker.trim().toLowerCase()
-      : resolved.sarvam.speaker;
+      : resolved.sarvam.voiceChatSpeaker;
     const language =
       typeof body.language === "string" && body.language ? body.language : resolved.sarvam.language;
 
