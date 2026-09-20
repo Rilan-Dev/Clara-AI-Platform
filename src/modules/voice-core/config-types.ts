@@ -46,6 +46,12 @@ export interface SarvamResolvedConfig {
   language: string;
   /** Playback sample rate for the shared PCM queue (16000 default). */
   sampleRate: number;
+  /** Exact Sarvam realtime WebSocket STT model. */
+  realtimeSttModel: string;
+  /** Exact LLM model used by the realtime voice-agent phone path. */
+  realtimeLlmModel: string;
+  /** Whether streaming Bulbul WebSocket TTS is enabled. */
+  realtimeTtsEnabled: boolean;
   /** True when the realtime STT relay is available (V5 — capability flag). */
   realtimeSttEnabled: boolean;
 }
@@ -130,6 +136,8 @@ export interface SarvamSessionPayload {
       sampleRate: number;
       encoding: string;
       vadSilenceMs: number;
+      /** Exact vendor realtime STT model. */
+      model: string;
     };
   };
   tts: {
@@ -148,4 +156,10 @@ export interface SarvamSessionPayload {
   kbId: string | null;
   ragMode: string;
   languages: string[];
+  /** Explicit realtime model identities for observability/config UIs. */
+  realtime: {
+    sttModel: string;
+    llmModel: string;
+    ttsModel: string;
+  };
 }
