@@ -132,8 +132,8 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       },
       tts: {
         endpoint: "/api/voice/sarvam/tts",
-        model: resolved.sarvam.ttsModel,
-        speaker: resolved.sarvam.speaker,
+        model: resolved.sarvam.voiceChatTtsModel,
+        speaker: resolved.sarvam.voiceChatSpeaker,
         outputFormat: `pcm_${SARVAM_TTS_SAMPLE_RATE_HZ}`,
         language: resolved.sarvam.language,
       },
@@ -150,7 +150,7 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       realtime: {
         sttModel: resolved.sarvam.realtimeSttModel,
         llmModel: resolved.sarvam.realtimeLlmModel,
-        ttsModel: resolved.sarvam.ttsModel,
+        ttsModel: resolved.sarvam.realtimeTtsModel,
         ttsEnabled: resolved.sarvam.realtimeTtsEnabled,
       },
     };
