@@ -82,40 +82,37 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
   const speaker = cfg.tts?.speaker || "shubh";
   const language = cfg.tts?.language || "en-IN";
   const upstreamUrl =
-    `${String(cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "")}/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
-  const upstream = new WebSocket(upstreamUrl, {
-    headers: { "api-subscription-key": cfg.apiKey },
-  });
+    `${String(cfg.baseUrl || "https://api.sarvam.ai").replace(/\\/+$/, "")}/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
 
   let closed = false;
   let generationId = null;
+  let upstream = null;
+  let reconnectTimer = null;
+  let pingTimer = null;
+  const pending = [];
+
   const closeBoth = (code = 1000, reason = "closed") => {
     if (closed) return;
     closed = true;
-    try { upstream.close(code, reason); } catch {}
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (pingTimer) clearInterval(pingTimer);
+    try { upstream?.close(code, reason); } catch {}
     try { browserWs.close(code, reason); } catch {}
   };
 
-  upstream.on("open", () => {
-    upstream.send(JSON.stringify({
-      type: "config",
-      data: {
-        speaker,
-        language_code: language,
-        min_buffer_size: 50,
-        max_chunk_length: 200,
-        output_audio_codec: "linear16",
-      },
-    }));
-    send(browserWs, {
-      type: "status",
-      value: "connected",
-      model,
-      sampleRate: 24000,
+  const openUpstream = () => {
+    if (closed || upstream?.readyState === WebSocket.OPEN || upstream?.readyState === WebSocket.CONNECTING) return;
+    const socket = new WebSocket(upstreamUrl, { headers: { "api-subscription-key": cfg.apiKey } });
+    upstream = socket;
+    socket.on("open", () => {
+      socket.send(JSON.stringify({ type: "config", data: {
+        speaker, language_code: language, min_buffer_size: 20, max_chunk_length: 150, output_audio_codec: "linear16",
+      }}));
+      send(browserWs, { type: "status", value: "connected", model, sampleRate: 24000 });
+      for (const msg of pending.splice(0)) { try { socket.send(msg); } catch {} }
     });
-  });
 
-  upstream.on("message", (data) => {
+    socket.on("message", (data) => {
     let event;
     try { event = JSON.parse(data.toString()); } catch { return; }
     const type = String(event.type ?? event.event ?? "");
@@ -140,28 +137,36 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
 
     if (type === "error") {
       const payload = event.data ?? event;
-      send(browserWs, {
-        type: "error",
-        generationId,
-        message: String(payload.message ?? "Sarvam TTS error"),
-        fatal: true,
-      });
+      send(browserWs, { type: "error", generationId, message: String(payload.message ?? "Sarvam TTS error"), fatal: false });
       return;
     }
 
     send(browserWs, { type: "upstream", event });
   });
 
-  upstream.on("error", (error) => {
-    console.error("[sarvam-tts-relay] upstream error:", error.message);
-    send(browserWs, { type: "error", message: "Sarvam TTS connection error", fatal: true });
-    closeBoth(1011, "Upstream error");
-  });
+    socket.on("error", (error) => {
+      console.error("[sarvam-tts-relay] upstream error:", error.message);
+      send(browserWs, { type: "error", message: "Sarvam TTS connection error", fatal: false });
+    });
 
-  upstream.on("close", () => {
-    send(browserWs, { type: "status", value: "closed" });
-    if (browserWs.readyState === WebSocket.OPEN) browserWs.close(1000, "TTS upstream closed");
-  });
+    socket.on("close", () => {
+      if (upstream === socket) upstream = null;
+      if (!closed) {
+        send(browserWs, { type: "status", value: "reconnecting" });
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(openUpstream, 250);
+      }
+    });
+  };
+
+  openUpstream();
+  pingTimer = setInterval(() => {
+    if (upstream?.readyState === WebSocket.OPEN) {
+      try { upstream.send(JSON.stringify({ type: "ping", data: {} })); } catch {}
+    } else {
+      openUpstream();
+    }
+  }, 20_000);
 
   browserWs.on("message", (data) => {
     let message;
@@ -174,35 +179,32 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
       return;
     }
 
-    if (type === "text") {
-      if (typeof message.text !== "string" || !message.text.trim()) return;
-      if (message.generationId != null) generationId = String(message.generationId);
-      if (upstream.readyState === WebSocket.OPEN) {
-        upstream.send(JSON.stringify({ type: "text", data: { text: message.text } }));
-      }
+      const payload = JSON.stringify({ type: "text", data: { text: message.text } });
+      if (upstream?.readyState === WebSocket.OPEN) { try { upstream.send(payload); } catch { pending.push(payload); } }
+      else { pending.push(payload); openUpstream(); }
       return;
     }
 
     if (type === "flush") {
       if (message.generationId != null) generationId = String(message.generationId);
-      if (upstream.readyState === WebSocket.OPEN) {
-        upstream.send(JSON.stringify({ type: "flush", data: {} }));
-      }
+      const payload = JSON.stringify({ type: "flush", data: {} });
+      if (upstream?.readyState === WebSocket.OPEN) { try { upstream.send(payload); } catch { pending.push(payload); } }
+      else { pending.push(payload); openUpstream(); }
       return;
     }
 
     if (type === "interrupt") {
-      // The public Bulbul WS protocol has no generation-scoped cancel command.
-      // Drop queued browser audio immediately and recreate the vendor context.
-      // The next generation will be accepted on a fresh upstream socket.
-      try { upstream.close(1000, "generation interrupted"); } catch {}
+      pending.length = 0;
+      try { upstream?.close(1000, "generation interrupted"); } catch {}
+      upstream = null;
+      openUpstream();
       return;
     }
 
     if (type === "ping") {
-      if (upstream.readyState === WebSocket.OPEN) {
-        upstream.send(JSON.stringify({ type: "ping", data: {} }));
-      }
+      if (upstream?.readyState === WebSocket.OPEN) { try { upstream.send(JSON.stringify({ type: "ping", data: {} })); } catch {} }
+      else openUpstream();
+    }
     }
   });
 
