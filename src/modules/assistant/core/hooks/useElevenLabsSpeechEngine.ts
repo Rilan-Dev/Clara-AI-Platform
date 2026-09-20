@@ -128,17 +128,17 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
           setIsSpeaking(false);
           setStatus("idle");
         },
-        onError: (sessionError) => {
+        onError: (sessionError: unknown) => {
           if (!mountedRef.current) return;
           const message = sessionError instanceof Error ? sessionError.message : String(sessionError);
           setError(message);
           setStatus("error");
         },
-        onMessage: (message) => {
+        onMessage: (message: ElevenMessage) => {
           if (!mountedRef.current) return;
-          pushMessage(message as ElevenMessage);
+          pushMessage(message);
         },
-        onModeChange: ({ mode }) => {
+        onModeChange: ({ mode }: { mode: string }) => {
           if (!mountedRef.current) return;
           const speaking = mode === "speaking";
           setIsSpeaking(speaking);
@@ -149,7 +149,7 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
       conversationRef.current = conversation;
       if (mountedRef.current) {
         setMicMutedState(false);
-        setStatus("listening");
+        setStatus("connected");
       }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
