@@ -114,3 +114,129 @@ describe("connectPcm16Capture", () => {
     expect(() => capture.stop()).not.toThrow(); // second stop is a no-op
   });
 });
+
+// ─── connectWorkletPcm16Capture (plan Task 5.4) ──────────────────────────────
+
+import { connectWorkletPcm16Capture } from "./pcm-capture";
+
+class MockAudioWorkletNode {
+  port: { onmessage: ((event: { data: Int16Array }) => void) | null; postMessage: ReturnType<typeof vi.fn> };
+  connect: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+  constructor(
+    _ctx: unknown,
+    public name: string,
+  ) {
+    this.port = { onmessage: null, postMessage: vi.fn() };
+    this.connect = vi.fn();
+    this.disconnect = vi.fn();
+  }
+}
+
+function mockWorkletGraph(addModuleImpl?: () => Promise<void>) {
+  const node = new MockAudioWorkletNode({}, "audio-recorder-worklet");
+  const savedCtor = (globalThis as { AudioWorkletNode?: unknown }).AudioWorkletNode;
+  (globalThis as unknown as { AudioWorkletNode: unknown }).AudioWorkletNode = MockAudioWorkletNode;
+  const ctx = {
+    audioWorklet: { addModule: vi.fn(addModuleImpl ?? (async () => {})) },
+  };
+  const source = { connect: vi.fn(), disconnect: vi.fn() };
+  return {
+    ctx,
+    source,
+    node,
+    restore: () => {
+      if (savedCtor === undefined) {
+        delete (globalThis as unknown as { AudioWorkletNode?: unknown }).AudioWorkletNode;
+      } else {
+        (globalThis as unknown as { AudioWorkletNode: unknown }).AudioWorkletNode = savedCtor;
+      }
+    },
+  };
+}
+
+describe("connectWorkletPcm16Capture", () => {
+  it("loads the shared worklet module and wires mic → worklet node", async () => {
+    const { ctx, source, restore } = mockWorkletGraph();
+    try {
+      const handle = await connectWorkletPcm16Capture(
+        ctx as unknown as AudioContext,
+        source as unknown as AudioNode,
+        () => {},
+      );
+      expect(ctx.audioWorklet.addModule).toHaveBeenCalledWith("/worklets/audio-recorder-worklet.js");
+      expect(source.connect).toHaveBeenCalledWith(handle.node);
+      // No destination tap needed — the worklet lives on its MessagePort.
+      expect(handle.node.connect).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  it("forwards posted PCM16 frames to the caller", async () => {
+    const { ctx, source, restore } = mockWorkletGraph();
+    try {
+      const seen: Int16Array[] = [];
+      const handle = await connectWorkletPcm16Capture(
+        ctx as unknown as AudioContext,
+        source as unknown as AudioNode,
+        (pcm16) => seen.push(pcm16),
+      );
+      const frame = new Int16Array([100, -200, 300]);
+      handle.node.port.onmessage?.({ data: frame } as MessageEvent<Int16Array>);
+      expect(seen).toEqual([frame]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("stop() detaches the message handler and disconnects idempotently", async () => {
+    const { ctx, source, restore } = mockWorkletGraph();
+    try {
+      const handle = await connectWorkletPcm16Capture(
+        ctx as unknown as AudioContext,
+        source as unknown as AudioNode,
+        () => {},
+      );
+      handle.stop();
+      expect(handle.node.port.onmessage).toBeNull();
+      expect(handle.node.disconnect).toHaveBeenCalledTimes(1);
+      expect(() => handle.stop()).not.toThrow();
+    } finally {
+      restore();
+    }
+  });
+
+  it("propagates addModule failures so the caller can fall back to ScriptProcessor", async () => {
+    const { ctx, source, restore } = mockWorkletGraph(async () => {
+      throw new Error("no AudioWorklet in this engine");
+    });
+    try {
+      await expect(
+        connectWorkletPcm16Capture(
+          ctx as unknown as AudioContext,
+          source as unknown as AudioNode,
+          () => {},
+        ),
+      ).rejects.toThrow("no AudioWorklet in this engine");
+      expect(source.connect).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  it("accepts an explicit module URL (embed-served worklet)", async () => {
+    const { ctx, source, restore } = mockWorkletGraph();
+    try {
+      await connectWorkletPcm16Capture(
+        ctx as unknown as AudioContext,
+        source as unknown as AudioNode,
+        () => {},
+        "/api/embed/worklet",
+      );
+      expect(ctx.audioWorklet.addModule).toHaveBeenCalledWith("/api/embed/worklet");
+    } finally {
+      restore();
+    }
+  });
+});

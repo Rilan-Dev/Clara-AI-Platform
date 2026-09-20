@@ -31,7 +31,7 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
-import { connectPcm16Capture, type Pcm16Capture } from "../voice/pcm-capture";
+import { connectPcm16Capture, connectWorkletPcm16Capture } from "../voice/pcm-capture";
 import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
 import { GenerationCoordinator, mintSessionId, mintTurnId } from "@/modules/voice-core/realtime";
 import { GenerationPlaybackQueue } from "../voice/generation-playback";
@@ -121,7 +121,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
   // Realtime mode state
   const realtimeWsRef = useRef<WebSocket | null>(null);
-  const realtimeCaptureRef = useRef<Pcm16Capture | null>(null);
+  const realtimeCaptureRef = useRef<{ stop: () => void } | null>(null);
   const realtimePcmBufferRef = useRef<Int16Array[]>([]);
   const realtimeFlushTimerRef = useRef<number | null>(null);
   const realtimeSilenceWarnedRef = useRef(false);
@@ -556,7 +556,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     }
   }, [interruptPlayback, runAssistantTurn]);
 
-  const startRealtimeCapture = useCallback((mic: MediaStream) => {
+  const startRealtimeCapture = useCallback(async (mic: MediaStream) => {
     const session = sessionRef.current;
     const realtime = session?.stt.realtime;
     if (!session || !realtime || !captureCtxRef.current) return false;
@@ -577,15 +577,23 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       if (realtimeWsRef.current === ws) realtimeWsRef.current = null;
     };
 
-    // 2. PCM16 capture: mic → capture ctx (16 kHz) → ScriptProcessor.
-    //    connectPcm16Capture wires the zero-gain pull-through to the
-    //    destination — WITHOUT it the render thread never pulls the node and
-    //    onaudioprocess never fires (mic "on" but zero frames sent).
+    // 2. PCM16 capture (plan Task 5.4): the shared AudioWorklet — same
+    //    module the Gemini Live path loads — converting Float32 mic frames
+    //    to PCM16 on the audio render thread. ScriptProcessorNode remains
+    //    only as the fallback for engines without AudioWorklet support.
     const source = captureCtxRef.current.createMediaStreamSource(mic);
-    const capture = connectPcm16Capture(captureCtxRef.current, source, (pcm16) => {
+    const onPcmFrame = (pcm16: Int16Array) => {
       if (realtimeWsRef.current?.readyState !== WebSocket.OPEN) return;
       realtimePcmBufferRef.current.push(pcm16);
-    });
+    };
+    let capture: { stop: () => void };
+    try {
+      capture = await connectWorkletPcm16Capture(captureCtxRef.current, source, onPcmFrame);
+    } catch {
+      // AudioWorklet unavailable (module load failure / legacy engine) —
+      // the zero-gain pull-through ScriptProcessor keeps the path alive.
+      capture = connectPcm16Capture(captureCtxRef.current, source, onPcmFrame);
+    }
     realtimeCaptureRef.current = capture;
 
     // 3. Flush captured PCM upstream in ~100 ms base64 batches.
@@ -841,7 +849,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
       if (realtimeMode) {
         // 4a. Realtime relay capture (partial transcripts + early barge-in).
-        const started = startRealtimeCapture(mic);
+        const started = await startRealtimeCapture(mic);
         if (!started) throw new Error("Could not start the realtime speech stream.");
       } else {
         // 4b. Utterance fallback: recorder + mic VAD analyser.

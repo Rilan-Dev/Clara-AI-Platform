@@ -68,3 +68,54 @@ export function connectPcm16Capture(
     },
   };
 }
+
+// ─── AudioWorklet capture (plan Task 5.4) ────────────────────────────────────
+
+/** Shared worklet module: Float32 mic frames → Int16 posted messages. */
+const PCM16_WORKLET_MODULE = "/worklets/audio-recorder-worklet.js";
+const PCM16_WORKLET_PROCESSOR = "audio-recorder-worklet";
+
+export interface WorkletPcm16Capture {
+  /** The AudioWorkletNode (kept so callers can tear it down). */
+  node: AudioWorkletNode;
+  /** Detach the message handler and disconnect the node. Idempotent. */
+  stop: () => void;
+}
+
+/**
+ * Preferred realtime capture path: the shared AudioWorklet
+ * (public/worklets/audio-recorder-worklet.js — the same module the Gemini
+ * Live path loads). The worklet converts Float32 mic frames to PCM16 on the
+ * audio render thread and posts them through its MessagePort, which:
+ *   • removes the realtime path's dependency on ScriptProcessorNode;
+ *   • runs off the main thread (no onaudioprocess main-thread jank);
+ *   • delivers stable 128-frame render quanta instead of variable
+ *     ScriptProcessor callbacks.
+ *
+ * The node's output is intentionally NOT connected anywhere — its sole
+ * purpose is port.postMessage (same wiring as useGeminiLive; AudioWorklet
+ * nodes with an active input keep processing without a destination tap).
+ *
+ * Falls back to connectPcm16Capture in the CALLER when addModule or the
+ * AudioWorkletNode constructor is unavailable (engines without AudioWorklet).
+ */
+export async function connectWorkletPcm16Capture(
+  ctx: AudioContext,
+  source: AudioNode,
+  onPcmFrame: (pcm16: Int16Array) => void,
+  moduleUrl: string = PCM16_WORKLET_MODULE,
+): Promise<WorkletPcm16Capture> {
+  await ctx.audioWorklet.addModule(moduleUrl);
+  const node = new AudioWorkletNode(ctx, PCM16_WORKLET_PROCESSOR);
+  node.port.onmessage = (event: MessageEvent<Int16Array>) => {
+    onPcmFrame(event.data);
+  };
+  source.connect(node);
+  return {
+    node,
+    stop: () => {
+      node.port.onmessage = null;
+      try { node.disconnect(); } catch { /* already disconnected */ }
+    },
+  };
+}
