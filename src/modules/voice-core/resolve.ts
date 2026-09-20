@@ -427,7 +427,6 @@ export async function resolveVoiceConfig(
           ? orgSettings.defaultRealtimeModel
           : getPlatformDefaultSarvamRealtimeLlmModel()),
       realtimeTtsEnabled: isSarvamRealtimeTtsEnabled(),
-      speaker,
       language: toSarvamLanguageCode(
         brain.defaultLanguage ?? brain.assistantConfig?.alwaysRespondIn ?? "en",
       ),
