@@ -24,13 +24,14 @@ Mode-B connect failure falls back to Mode A.
 | TTS | Native realtime audio (`output_modalities:["audio"]`). |
 | Playback | WebRTC `MediaStream` → hidden `<audio>` element. No client queue. |
 | Interrupt | `response.cancel` + isSpeaking reset. VAD barge-in is passive (speech_started only resets turn refs; embed session sets `interrupt_response:false`). |
-| Identity | Client-only turnId (`activeTurnIdRef`/`latestTurnIdRef`). No sessionId/generationId. |
+| Identity | Client-only turnId (`activeTurnIdRef`/`latestTurnIdRef`). No sessionId/generationId in the realtime protocol; per-turn latency telemetry added 2026-09-21 (gap-closure) — `LatencyTracker` + `clara:voice:latency` events, timings only. |
 
 ## 2. Gemini Live — WORKING
 
 | Stage | Implementation |
 |---|---|
-| Browser hook | `useGeminiLive.ts` — session via `/api/gemini/session` → `{wsUrl, model, voice, instructions}` → direct browser→Google WebSocket; mic via **AudioWorklet** (`/worklets/audio-recorder-worklet.js`), PCM16 flushed every 100 ms. |
+| Browser hook | `useGeminiLive.ts` — session via `/api/gemini/session` (or `/api/embed/session`) → `{ realtime: { endpoint, token }, model, voice, instructions }` → browser builds `wss://<self>/api/voice/gemini/realtime?token=<hmac>` (gap-closure Phase D, 2026-09-21); mic via **AudioWorklet** (`/worklets/audio-recorder-worklet.js`), PCM16 flushed every 100 ms. |
+| Relay | `scripts/gemini-relay.mjs` — transparent passthrough (mounted by `start.mjs`): verifies the session-minted HMAC token in-process, holds `GEMINI_API_KEY` server-side, pipes BidiGenerateContent frames verbatim both directions. The long-lived vendor key never reaches the browser. |
 | STT | Native `inputAudioTranscription` → `serverContent.inputTranscription`. |
 | Clara turn | Tool-call-only ("FIX G3/G7"): Gemini autonomously calls `rag_search` → hook POSTs `/api/rag/search` → `toolResponse.functionResponses[]` → Gemini resumes generation. |
 | RAG | Same `/api/rag/search` endpoint as OpenAI. |
@@ -38,7 +39,7 @@ Mode-B connect failure falls back to Mode A.
 | TTS | Native model audio: `modelTurn.parts[].inlineData` base64 PCM16 @24 kHz. |
 | Playback | WebAudio gapless scheduler (`nextPlayTimeRef` + `playQueueRef`, dedicated 24 kHz AudioContext); `stopPlayback()` on `serverContent.interrupted`. |
 | Interrupt | `stopPlayback()` + `activityStart`. |
-| Identity | Client-only turnId. **Long-lived API key embedded in `wsUrl`** (known gap). |
+| Identity | Client-only turnId. Session route requires platform auth + shared realtime rate bucket + plan guard; relay token is kb+org scoped, 60-minute TTL (`voice-core/api/gemini/realtime-auth.ts`). |
 
 ## 3. ElevenLabs Mode A (pipeline) — WORKING
 
@@ -78,12 +79,12 @@ Mode-B connect failure falls back to Mode A.
 | TTS (realtime) | **Persistent Bulbul WebSocket relay** `/api/voice/sarvam/tts-realtime` (`scripts/sarvam-tts-relay.mjs`) — `{type:"text"|"flush", generationId}` in, generation-tagged `audio` frames out; interrupt closes upstream and reopens. **The only generation-aware audio path in the codebase.** |
 | TTS (utterance) | Sentence-by-sentence HTTP `/api/voice/sarvam/tts` (Bulbul PCM16). |
 | Playback | WebAudio FIFO queue @16 kHz; `interruptPlayback()` aborts TTS, stops sources, closes realtime TTS WS, nulls generation. |
-| Capture | `connectPcm16Capture` = **ScriptProcessorNode** (Task 5.4 target: AudioWorklet). |
-| Identity | `realtimeTtsGenerationRef` (TTS only). No session/turn identity to `/api/chat`. Known issue: no `vad.speech_start`-style events upstream; barge-in relies on partial transcripts. |
+| Capture | **AudioWorklet primary** (`connectWorkletPcm16Capture` — the shared worklet, 16 kHz capture context) with a narrowly scoped, observable ScriptProcessor fallback (gap-closure Phase B, 2026-09-21; duplicate-capture guarded). |
+| Identity | `realtimeTtsGenerationRef` + session `GenerationCoordinator` + `GenerationPlaybackQueue` (2026-09-21 gap-closure: duplicate-session guard in `startRealtimeCapture`). No `vad.speech_start`-style events upstream historically — relay now forwards `vad_speech_start`/`vad_speech_end`; barge-in also rides early partials. |
 
 ## Relays & process wiring
 
-- `scripts/start.mjs` hosts: `/api/embed/voice` (OpenAI+Gemini relay for `clara.js`), `/api/voice/sarvam/realtime` (STT relay), `/api/voice/sarvam/tts-realtime` (TTS relay), phone streams.
+- `scripts/start.mjs` hosts: `/api/embed/voice` (OpenAI+Gemini relay for `clara.js`), `/api/voice/sarvam/realtime` (STT relay), `/api/voice/sarvam/tts-realtime` (TTS relay), `/api/voice/gemini/realtime` (Gemini Live passthrough relay — Phase D, 2026-09-21), phone streams.
 - `scripts/dev-relay.mjs` runs the OpenAI/Gemini relay standalone in dev (port 3001).
 - `scripts/sarvam-relay.mjs`: 60-min lifetime cap, 120-s idle timeout, 20-s ping keep-alive, HMAC-guarded `realtime-init` + `realtime-meter` calls, metering per `transcript.final`.
 - `scripts/sarvam-tts-relay.mjs`: warm Bulbul connection, reconnect-on-close (250 ms), `generation_start`/`text`/`flush`/`interrupt`/`ping` frames, `min_buffer_size:30`, `max_chunk_length:150`, linear16 @24 kHz.
@@ -118,4 +119,4 @@ E2E scripts: `e2e-elevenlabs{,-modeb}.js`, `e2e-sarvam.js`, `visitor-tests/03-06
 | Gemini Live | **working** |
 | ElevenLabs Mode A | **working** (sentence-HTTP TTS, no generation identity) |
 | ElevenLabs Mode B | **partially working** (flag/binding-gated; local-only interrupt) |
-| Sarvam realtime | **partially working** (realtime STT/TTS shipped; ScriptProcessor capture; no Clara-side generation coordinator) |
+| Sarvam realtime | **working** (realtime STT/TTS shipped; AudioWorklet capture primary with observable fallback; Clara-side generation coordinator wired) |
