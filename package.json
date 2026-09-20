@@ -109,7 +109,8 @@
     "xlsx": "^0.18.5",
     "zod": "^3.25.76",
     "@elevenlabs/react": "^1.0.3",
-    "@elevenlabs/client": "^1.1.2"
+    "@elevenlabs/client": "^1.1.2",
+    "@elevenlabs/elevenlabs-js": "^2.42.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
