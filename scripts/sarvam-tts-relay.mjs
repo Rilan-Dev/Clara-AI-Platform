@@ -82,7 +82,7 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
   const speaker = cfg.tts?.speaker || "shubh";
   const language = cfg.tts?.language || "en-IN";
   const upstreamUrl =
-    `${String(cfg.baseUrl || "https://api.sarvam.ai").replace(/\\/+$/, "")}/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
+    `${String(cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "")}/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
 
   let closed = false;
   let generationId = null;
@@ -170,8 +170,7 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
 
   browserWs.on("message", (data) => {
     let message;
-    try { message = JSON.parse(data.toString()); }
-    catch { return; }
+    try { message = JSON.parse(data.toString()); } catch { return; }
 
     const type = String(message.type ?? "");
     if (type === "generation_start") {
@@ -179,6 +178,9 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
       return;
     }
 
+    if (type === "text") {
+      if (typeof message.text !== "string" || !message.text.trim()) return;
+      if (message.generationId != null) generationId = String(message.generationId);
       const payload = JSON.stringify({ type: "text", data: { text: message.text } });
       if (upstream?.readyState === WebSocket.OPEN) { try { upstream.send(payload); } catch { pending.push(payload); } }
       else { pending.push(payload); openUpstream(); }
@@ -197,14 +199,13 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
       pending.length = 0;
       try { upstream?.close(1000, "generation interrupted"); } catch {}
       upstream = null;
-      openUpstream();
+      setTimeout(openUpstream, 0);
       return;
     }
 
     if (type === "ping") {
       if (upstream?.readyState === WebSocket.OPEN) { try { upstream.send(JSON.stringify({ type: "ping", data: {} })); } catch {} }
       else openUpstream();
-    }
     }
   });
 
