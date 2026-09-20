@@ -96,6 +96,47 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (voiceResolution.realtimeProvider === "elevenlabs" && voiceResolution.elevenlabs) {
       const el = voiceResolution.elevenlabs;
+      const speechEngineReady =
+        process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED === "true" &&
+        Boolean(process.env.ELEVENLABS_SPEECH_ENGINE_ID) &&
+        Boolean(process.env.ELEVENLABS_API_KEY);
+
+      if (speechEngineReady) {
+        return NextResponse.json(
+          {
+            provider: voiceResolution.brain.provider,
+            voiceProvider: "elevenlabs",
+            mode: "speech-engine",
+            kbId: ctx.kbId,
+            orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+            projectId: voiceResolution.brain.agentId,
+            realtime: {
+              endpoint: "/api/voice/elevenlabs/speech-engine/session",
+            },
+            chat: {
+              endpoint: "/api/embed/chat",
+              kbId: ctx.kbId,
+            },
+            welcomeMessage: config.welcomeMessage ?? "",
+            config: {
+              orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+              projectId: voiceResolution.brain.agentId,
+              provider: voiceResolution.brain.provider,
+              voiceProvider: "elevenlabs",
+              realtimeModel: "elevenlabs-speech-engine",
+              voiceId: el.voiceId,
+              transcriptionModel: el.sttModel,
+              allowedLanguages: resolved.allowedLanguages,
+              defaultLanguage: resolved.defaultLanguage,
+              maxTokens: resolved.maxTokens ?? config.maxTokens,
+              temperature: resolved.temperature ?? config.temperature,
+              sources: resolved.sources,
+              flags: resolved.flags,
+            },
+          },
+          { headers: corsHeaders },
+        );
+      }
       return NextResponse.json(
         {
           provider: voiceResolution.brain.provider,
