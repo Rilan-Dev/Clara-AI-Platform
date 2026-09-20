@@ -82,19 +82,86 @@ function send(ws, obj) {
 }
 
 /** Extract the transcript text from an upstream event (tolerant of the
- *  vendor's event envelope variants). */
-function transcriptText(event) {
+ *  vendor's event envelope variants). Exported for relay tests. */
+export function transcriptText(event) {
   return String(event.transcript ?? event.text ?? event.partial ?? "");
 }
 
 /** Map a resolved Saaras STT id to the vendor realtime-WS model id.
  *  realtime-init already translates, but the relay is the LAST line of
  *  defense: the vendor rejects anything but 'saaras:v3-realtime' and
- *  'saaras:v4' with a fatal "Invalid model" error on connect. Idempotent. */
-function toRealtimeModel(model) {
+ *  'saaras:v4' with a fatal "Invalid model" error on connect. Idempotent.
+ *  Validated against docs.sarvam.ai (August 2026 realtime guide): this
+ *  endpoint accepts exactly saaras:v3-realtime (default) and saaras:v4. */
+export function toRealtimeModel(model) {
   const id = String(model ?? "").trim();
   if (id === "saaras:v4" || id === "saaras:v3-realtime") return id;
   return "saaras:v3-realtime"; // saaras:v3 (batch) + anything unknown
+}
+
+/** Normalize the language code for THIS endpoint. Validated against the
+ *  current docs: 24 codes accepted; Odia's code changed from the legacy
+ *  `od-IN` to `or-IN` here, and blank falls back to en-IN. */
+export function normalizeRealtimeLanguage(code) {
+  const id = String(code ?? "").trim();
+  if (id === "od-IN") return "or-IN";
+  return id || "en-IN";
+}
+
+/**
+ * Map an upstream vendor event to the browser frame contract.
+ * Exported for relay tests (plan Task 5.2 — aligned with the documented
+ * server→client event set: session.begin, vad.speech_start/vad.speech_end,
+ * transcript.partial, transcript.final, config.updated, pong, session.end,
+ * error).
+ *
+ * Notable decisions:
+ *   • vad.speech_start / vad.speech_end ARE forwarded first-class — the
+ *     vendor docs explicitly recommend driving barge-in off
+ *     vad.speech_start rather than waiting for transcript.final;
+ *   • session.begin is skipped (the relay already signals status=connected
+ *     when the upstream socket opens);
+ *   • pong is keepalive noise and is not forwarded;
+ *   • session.end carries audio_duration_s — the server-authoritative
+ *     billed audio the docs tell clients to reconcile billing against.
+ */
+export function translateUpstreamEvent(event) {
+  const type = String(event.type ?? event.event ?? "");
+  switch (type) {
+    case "transcript.partial":
+    case "transcript_partial":
+      return { type: "transcript_partial", text: transcriptText(event) };
+    case "transcript.final":
+    case "transcript_final":
+    case "transcript":
+      return { type: "transcript_final", text: transcriptText(event) };
+    case "vad.speech_start":
+      return { type: "vad_speech_start" };
+    case "vad.speech_end":
+      return { type: "vad_speech_end" };
+    case "session.begin":
+      return null;
+    case "session.end": {
+      const seconds = Number(event.audio_duration_s ?? event.audioDurationS ?? NaN);
+      return {
+        type: "session_end",
+        audioDurationS: Number.isFinite(seconds) && seconds > 0 ? seconds : null,
+      };
+    }
+    case "config.updated":
+      return { type: "config_updated" };
+    case "pong":
+      return null;
+    case "error": {
+      const message = String(event.message ?? "Upstream error");
+      const fatal = Boolean(event.is_fatal ?? event.fatal ?? false);
+      return { type: "error", message, fatal };
+    }
+    default:
+      // Unknown vendor events pass through with their envelope intact so the
+      // client can evolve without a relay change.
+      return { type: "upstream", event };
+  }
 }
 
 // ── Entry point called from start.mjs ────────────────────────────────────────
@@ -141,10 +208,17 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
   // Batch REST ids (saaras:v3) are invalid here — the vendor only accepts
   // 'saaras:v3-realtime' and 'saaras:v4'. One canonical realtime model id
   // feeds BOTH the upstream URL and the metering events below.
+  // Wire parameters validated against docs.sarvam.ai (August 2026 realtime
+  // guide): endpoint /speech-to-text-realtime/ws; query params language_code
+  // (required), model, stream_type (fast|balanced|simulated — fast is the
+  // documented choice for conversational agents), encoding linear16,
+  // sample_rate 8000|16000 (else close 4000), endpointing vad, plus the
+  // millisecond VAD trio threshold/silence_duration_ms/min_speech_duration_ms
+  // — all matching the documented defaults below.
   const realtimeModel = toRealtimeModel(cfg.sttModel);
   const model = encodeURIComponent(realtimeModel);
-  const language = encodeURIComponent(cfg.languageCode ?? "en-IN");
-  const sampleRate = Number(cfg.sampleRate ?? 16000);
+  const language = encodeURIComponent(normalizeRealtimeLanguage(cfg.languageCode));
+  const sampleRate = Number(cfg.sampleRate ?? 16000) === 8000 ? 8000 : 16000;
   const upstreamUrl =
     `${cfg.baseUrl}/speech-to-text-realtime/ws` +
     `?language_code=${language}` +
@@ -247,38 +321,32 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
       return; // tolerate keep-alives / non-JSON frames
     }
 
-    const type = String(event.type ?? event.event ?? "");
+    const frame = translateUpstreamEvent(event);
+    if (!frame) return; // session.begin / pong — intentionally not forwarded
 
-    if (type === "transcript.partial" || type === "transcript_partial") {
-      send(browserWs, { type: "transcript_partial", text: transcriptText(event) });
-      return;
-    }
-
-    if (type === "transcript.final" || type === "transcript_final" || type === "transcript") {
-      const text = transcriptText(event);
+    if (frame.type === "transcript_final") {
       // Metering: audio actually streamed = bytesSent / (sampleRate * 2 bytes).
+      // (session_end carries the vendor-authoritative audio_duration_s; the
+      // browser surfaces it, per-turn billing stays here to mirror the
+      // utterance-mode metering contract.)
       const audioSeconds = Math.max(
         1,
         Math.round(state.bytesSent / (sampleRate * 2)),
       );
       state.finals++;
       state.bytesSent = 0; // per-turn accounting, mirrors utterance metering
-      send(browserWs, { type: "transcript_final", text, audioSeconds });
+      send(browserWs, { ...frame, audioSeconds });
       meterFinal(audioSeconds, event.language_code ?? null);
       return;
     }
 
-    if (type === "error") {
-      const message = String(event.message ?? "Upstream error");
-      const fatal = Boolean(event.is_fatal ?? event.fatal ?? false);
-      send(browserWs, { type: "error", message, fatal });
-      if (fatal) closeBoth(1011, "Upstream fatal error");
+    if (frame.type === "error" && frame.fatal) {
+      send(browserWs, frame);
+      closeBoth(1011, "Upstream fatal error");
       return;
     }
 
-    // Unknown vendor events pass through with their envelope intact so the
-    // client can evolve without a relay change.
-    send(browserWs, { type: "upstream", event });
+    send(browserWs, frame);
   });
 
   upstream.on("close", (code, reason) => {

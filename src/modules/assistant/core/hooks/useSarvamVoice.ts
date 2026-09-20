@@ -451,6 +451,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       text?: string;
       message?: string;
       fatal?: boolean;
+      audioDurationS?: number | null;
     };
     if (!event || typeof event.type !== "string") return;
 
@@ -458,6 +459,27 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       case "status":
         if (event.value === "connected") setStatus("connected");
         break;
+
+      case "vad_speech_start": {
+        // Vendor VAD says the user started speaking — the documented
+        // barge-in trigger (docs.sarvam.ai: "Drive barge-in off
+        // vad.speech_start or early partials, not transcript.final").
+        // Faster than any RMS heuristic and faster than the first partial.
+        if (playbackRef.current?.speaking) interruptPlayback();
+        break;
+      }
+
+      case "vad_speech_end":
+        // Turn boundary telemetry only — endpointing stays vendor-side.
+        break;
+
+      case "session_end": {
+        // Vendor-authoritative billed audio for the connection.
+        console.info("[sarvam-voice] upstream session ended", {
+          audioDurationS: event.audioDurationS ?? null,
+        });
+        break;
+      }
 
       case "transcript_partial": {
         const text = String(event.text ?? "");
