@@ -212,7 +212,19 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   SARVAM_REALTIME_STT_ENABLED: {
     label: "Realtime STT relay",
-    hint: "Stream partial transcripts and fire early barge-in via the saaras realtime WebSocket relay. Requires the custom server (npm run start).",
+    hint: "Enable the low-latency Saaras realtime WebSocket transport for browser and phone voice sessions.",
+  },
+  SARVAM_REALTIME_STT_MODEL: {
+    label: "Realtime STT model",
+    hint: "Exact Sarvam realtime WebSocket model. Default: saaras:v3-realtime; alternative: saaras:v4.",
+  },
+  SARVAM_REALTIME_LLM_MODEL: {
+    label: "Realtime voice-agent LLM",
+    hint: "Dialogue model for realtime phone sessions. Default: sarvam-105b-conversations.",
+  },
+  SARVAM_REALTIME_TTS_ENABLED: {
+    label: "Realtime streaming TTS",
+    hint: "Enable Bulbul v3 WebSocket streaming for low-latency spoken responses.",
   },
 
   // ── Payments ──────────────────────────────────────────────────────
@@ -322,7 +334,7 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
     "SARVAM_ENABLED", "SARVAM_TIMEOUT_MS",
     "SARVAM_BETA_MODELS_ENABLED",
     "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
-    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED",
+    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
   ],
   payments: [
