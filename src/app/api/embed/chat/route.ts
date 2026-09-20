@@ -9,6 +9,7 @@ import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db"
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ChatMessage } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
   buildConversationAwareSearchQuery,
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = (await req.json()) as {
       messages?: Array<{ role: string; content: string }>;
       sessionId?: string;
+      realtimeVoice?: boolean;
     };
     const messages = (body.messages ?? []).filter(
       (message) => message.role && message.content && typeof message.content === "string",
@@ -87,7 +89,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const providerConfig = toProviderConfig(resolved);
+    const realtimeVoice = body.realtimeVoice === true && resolved.provider === "sarvam";
+    const providerConfig = {
+      ...toProviderConfig(resolved),
+      ...(realtimeVoice ? { chatModel: getPlatformDefaultSarvamRealtimeLlmModel() } : {}),
+    };
     // Retrieval embedding runs on the embedding backbone (V1 split — a Sarvam
     // brain keeps its Qdrant collections on OpenAI/Gemini embeddings).
     const embeddingConfig = toProviderConfig(resolved, "embedding");
@@ -122,6 +128,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       defaultLanguage: resolved.defaultLanguage,
       apiKeyConfigured: Boolean(providerConfig.apiKey),
       sources: resolved.sources,
+      realtimeVoice,
     });
 
     const t0 = Date.now();
@@ -197,7 +204,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         })),
         { role: "system", content: `Knowledge base context:\n${context}` },
       ],
-      { maxTokens, temperature, onUsage: (u) => { usageRef.value = u; } },
+      {
+        maxTokens: realtimeVoice
+          ? Math.min(maxTokens ?? 350, 350)
+          : maxTokens,
+        temperature,
+        reasoningEffort: realtimeVoice ? null : undefined,
+        onUsage: (u) => { usageRef.value = u; },
+      },
     );
 
     // Voice flows that surface sources to the customer are already covered by
