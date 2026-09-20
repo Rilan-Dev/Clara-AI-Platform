@@ -126,12 +126,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             endpoint: "/api/embed/chat",
             kbId: ctx.kbId,
           },
-          realtime: {
-            sttModel: sv.realtimeSttModel,
-            llmModel: sv.realtimeLlmModel,
-            ttsModel: sv.ttsModel,
-            ttsEnabled: sv.realtimeTtsEnabled,
-          },
           welcomeMessage: config.welcomeMessage ?? "",
           config: {
             orgId: voiceResolution.brain.orgId ?? ctx.orgId,
