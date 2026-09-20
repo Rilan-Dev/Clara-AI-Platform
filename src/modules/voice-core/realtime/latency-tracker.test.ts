@@ -266,6 +266,58 @@ describe("percentile + summarizeLatency", () => {
     expect(t.current?.marks["stt.final"]).toBe(1_500);
   });
 
+  it("turn handles are immune to record replacement — the in-flight chat bleed bug", () => {
+    // Exact live scenario from the first real benchmark run: the looping
+    // question WAV opened a SECOND utterance while turn 1's chat was still
+    // streaming. tracker-level mark() bled turn 1's rag/llm/complete marks
+    // onto the new interim record; turn 1's own record never emitted.
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "sarvam" });
+    t.mark("stt.first_partial", 1_000);
+    t.mark("stt.final", 1_500);
+
+    // Turn 1 commits: handle-bound marks.
+    const carried = t.sttMarks();
+    const turn1 = t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_1", turnId: "vrt_1", provider: "sarvam" });
+    t.carrySttMarks(carried);
+    turn1.mark("llm.start", 1_600);
+
+    // Second utterance opens MID-STREAM (barge-in / looping input):
+    t.prepareForUtterance(); // fresh interim record
+    t.mark("stt.first_partial", 2_000);
+
+    // Turn 1's stream keeps marking THROUGH ITS HANDLE:
+    turn1.mark("rag.end", 2_100);
+    turn1.mark("llm.first_token", 2_200);
+    turn1.mark("tts.first_audio", 2_400);
+    turn1.mark("browser.first_audio", 2_420);
+    turn1.mark("turn.complete", 3_000);
+
+    const ev1 = turn1.telemetry()!;
+    expect(ev1.generationId).toBe("vrg_1");
+    expect(ev1.marks["stt.final"]).toBe(1_500);       // carried, not bled
+    expect(ev1.marks["stt.first_partial"]).toBe(1_000);
+    expect(ev1.latencies.ttfaMs).toBe(920);           // 2420 - 1500
+    expect(ev1.latencies.llmMs).toBe(600);            // 2200 - 1600
+
+    // The interim record for utterance 2 is untouched by turn 1's marks:
+    const cur = t.current!;
+    expect(cur.generationId).toBeNull();
+    expect(cur.marks["rag.end"]).toBeUndefined();
+    expect(cur.marks["turn.complete"]).toBeUndefined();
+    expect(cur.marks["stt.first_partial"]).toBe(2_000);
+  });
+
+  it("handle.mark is first-wins and handle telemetry is timings-only", () => {
+    const t = new LatencyTracker();
+    const h = t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_1", provider: "openai" });
+    h.mark("llm.start", 1_000);
+    h.mark("llm.start", 9_999); // late duplicate
+    const ev = h.telemetry()!;
+    expect(ev.marks["llm.start"]).toBe(1_000);
+    expect(Object.keys(ev)).toEqual(expect.arrayContaining(["sessionId", "generationId", "turnId", "provider", "model", "marks", "latencies"]));
+  });
+
   it("handles records with missing stages", () => {
     const turns: TurnLatencyRecord[] = [
       {

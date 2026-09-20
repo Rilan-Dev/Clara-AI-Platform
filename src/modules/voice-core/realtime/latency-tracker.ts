@@ -79,12 +79,33 @@ function now(): number {
   return Date.now();
 }
 
+/**
+ * A mark-scoped view of ONE turn record.
+ *
+ * Why handles exist: turn-scoped marks (rag/llm/tts/playback/complete) must
+ * land on the record of the turn that produced them. A new user utterance
+ * can open a fresh interim record WHILE an assistant turn is still streaming
+ * (barge-in / looping input) — tracker-level mark() would then bleed the
+ * in-flight turn's marks onto the wrong record. A handle keeps marking the
+ * record it was created for, immune to later beginTurn replacements.
+ */
+export interface TurnLatencyHandle {
+  /** Mark a stage on THIS handle's record (first-wins, same as tracker.mark). */
+  mark(stage: LatencyStage, at?: number): void;
+  /** Safe telemetry event for THIS handle's record (timings only). */
+  telemetry(): (TurnLatencyRecord & { latencies: TurnStageLatencies }) | null;
+  /** The wrapped record (read-only view). */
+  readonly record: Readonly<TurnLatencyRecord>;
+}
+
 export class LatencyTracker {
   private record: TurnLatencyRecord | null = null;
 
-  /** Start tracking a new turn (replaces any previous record). */
-  beginTurn(init: TurnLatencyInit): TurnLatencyRecord {
-    this.record = {
+  /** Start tracking a new turn (replaces any previous record).
+   *  The returned handle keeps marking THIS turn's record even after later
+   *  beginTurn calls replace the tracker's current record. */
+  beginTurn(init: TurnLatencyInit): TurnLatencyHandle {
+    const record: TurnLatencyRecord = {
       sessionId: init.sessionId,
       generationId: init.generationId ?? null,
       turnId: init.turnId ?? null,
@@ -92,11 +113,21 @@ export class LatencyTracker {
       model: init.model ?? null,
       marks: { "turn.start": init.startedAt ?? now() },
     };
-    return this.record;
+    this.record = record;
+    return {
+      mark: (stage, at) => {
+        if (record.marks[stage] === undefined) record.marks[stage] = at ?? now();
+      },
+      telemetry: () => {
+        const latencies = latenciesFor(record);
+        return latencies ? { ...record, latencies } : null;
+      },
+      record,
+    };
   }
 
   /** Convenience: begin a turn from a coordinator generation. */
-  beginGenerationTurn(generation: ActiveGeneration, provider: string, model?: string | null): TurnLatencyRecord {
+  beginGenerationTurn(generation: ActiveGeneration, provider: string, model?: string | null): TurnLatencyHandle {
     return this.beginTurn({
       sessionId: generation.sessionId,
       generationId: generation.generationId,
@@ -179,31 +210,36 @@ export class LatencyTracker {
   latencies(): TurnStageLatencies | null {
     const record = this.record;
     if (!record) return null;
-    const m = record.marks;
-    const delta = (a: LatencyStage, b: LatencyStage): number | null => {
-      const av = m[a];
-      const bv = m[b];
-      if (av === undefined || bv === undefined) return null;
-      return Math.max(0, av - bv);
-    };
-    const sttBase = m["stt.first_partial"] !== undefined ? "stt.first_partial" : "turn.start";
-    return {
-      sttMs: delta("stt.final", sttBase),
-      ragMs: delta("rag.end", "rag.start"),
-      llmMs: delta("llm.first_token", "llm.start"),
-      ttsMs: delta("tts.first_audio", "tts.start"),
-      playbackMs: delta("browser.first_audio", "tts.first_audio"),
-      ttfaMs: delta("browser.first_audio", "stt.final"),
-    };
+    return latenciesFor(record);
   }
 
   /** Emit a safe telemetry event (timings only — no transcripts, no secrets). */
   telemetry(): (TurnLatencyRecord & { latencies: TurnStageLatencies }) | null {
     const record = this.record;
-    const latencies = this.latencies();
-    if (!record || !latencies) return null;
-    return { ...record, latencies };
+    if (!record) return null;
+    const latencies = latenciesFor(record);
+    return latencies ? { ...record, latencies } : null;
   }
+}
+
+/** Shared latency derivation for tracker-level and handle-level reads. */
+function latenciesFor(record: TurnLatencyRecord): TurnStageLatencies | null {
+  const m = record.marks;
+  const delta = (a: LatencyStage, b: LatencyStage): number | null => {
+    const av = m[a];
+    const bv = m[b];
+    if (av === undefined || bv === undefined) return null;
+    return Math.max(0, av - bv);
+  };
+  const sttBase = m["stt.first_partial"] !== undefined ? "stt.first_partial" : "turn.start";
+  return {
+    sttMs: delta("stt.final", sttBase),
+    ragMs: delta("rag.end", "rag.start"),
+    llmMs: delta("llm.first_token", "llm.start"),
+    ttsMs: delta("tts.first_audio", "tts.start"),
+    playbackMs: delta("browser.first_audio", "tts.first_audio"),
+    ttfaMs: delta("browser.first_audio", "stt.final"),
+  };
 }
 
 // ── Aggregation (p50/p95 across runs) ───────────────────────────────────────
