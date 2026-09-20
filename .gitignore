@@ -3,6 +3,9 @@
 # dependencies
 # (unanchored: also covers nested installs like services/rabbitmq-bridge/node_modules)
 node_modules/
+# (bare form: also covers the node_modules SYMLINK used by git worktrees,
+# which node_modules/ — a directory-only pattern — does not match)
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -37,6 +40,16 @@ yarn-error.log*
 # .env.production
 # .env.development
 # !.env.example
+
+# local benchmark/backup env files — contain LIVE vendor keys, never commit
+.env.bench
+.env.orig-backup
+.env.*.local
+
+# voice benchmark artifacts: question WAVs are large and regenerable via
+# scripts/bench-gen-wavs.mjs; the small JSON evidence files ARE committed
+# (tool-results/voice-bench/*.json)
+tool-results/voice-bench/questions/
 
 # vercel
 .vercel
