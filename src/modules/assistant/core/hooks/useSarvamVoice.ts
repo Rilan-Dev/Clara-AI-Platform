@@ -130,6 +130,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const realtimeTtsQueueRef = useRef<string[]>([]);
   const realtimeTtsConnectingRef = useRef(false);
   const realtimeTtsGenerationRef = useRef<string | null>(null);
+  const realtimeTtsTurnStartRef = useRef<number>(0);
+  const realtimeTtsFirstAudioGenerationRef = useRef<string | null>(null);
 
   // Playback chain (both modes)
   const playbackCtxRef = useRef<AudioContext | null>(null);
@@ -224,6 +226,13 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         if (event.type === "audio" && event.audio) {
           if (event.generationId && realtimeTtsGenerationRef.current &&
               event.generationId !== realtimeTtsGenerationRef.current) return;
+          if (realtimeTtsGenerationRef.current && realtimeTtsFirstAudioGenerationRef.current !== realtimeTtsGenerationRef.current) {
+            realtimeTtsFirstAudioGenerationRef.current = realtimeTtsGenerationRef.current;
+            console.info("[sarvam-realtime-tts] first audio", {
+              generationId: realtimeTtsGenerationRef.current,
+              ms: realtimeTtsTurnStartRef.current ? Date.now() - realtimeTtsTurnStartRef.current : null,
+            });
+          }
           const pcm = decodeBase64Pcm16(event.audio);
           if (pcm) enqueueAudio(pcm, Number(event.sampleRate) || 24_000);
         } else if (event.type === "error" && event.fatal) {
@@ -330,6 +339,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     console.info("[sarvam-voice] assistant turn start", { question: question.slice(0, 160) });
     const generationId = generateTurnId();
     realtimeTtsGenerationRef.current = generationId;
+    realtimeTtsTurnStartRef.current = Date.now();
+    realtimeTtsFirstAudioGenerationRef.current = null;
     const session = sessionRef.current;
     if (!session || !session.kbId) return;
 
@@ -376,9 +387,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
               // If the LLM is streaming a long sentence, release a natural
               // word-boundary chunk early so Bulbul can start speaking while
               // the rest of the answer is still being generated.
-              if (answerBufferRef.current.length >= 48) {
+              if (answerBufferRef.current.length >= 30) {
                 const cut = answerBufferRef.current.lastIndexOf(" ");
-                if (cut >= 24) {
+                if (cut >= 18) {
                   const earlyChunk = answerBufferRef.current.slice(0, cut).trim();
                   answerBufferRef.current = answerBufferRef.current.slice(cut + 1);
                   if (earlyChunk && !controller.signal.aborted) {
