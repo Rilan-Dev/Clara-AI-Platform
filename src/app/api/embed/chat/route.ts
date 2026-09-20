@@ -132,6 +132,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     const t0 = Date.now();
+    const retrievalStart = t0;
 
     // Audit trail + daily quota, atomically admitted (status='pending') so
     // the prompt is audited, the quota counts even when retrieval later
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const searchPromise = searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 8, { providerConfig: embeddingConfig });
       const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
+      console.info("[realtime-latency] retrieval complete", { realtimeVoice, ms: Date.now() - retrievalStart, sourceCount: searchResults.length });
       void finalizeQueryEvent(eventId, { answerText: "", status: "pending", latencyMs: Date.now() - t0, sourceCount: searchResults.length });
     } catch (searchErr) {
       if ((searchErr as Error).message !== "search_timeout") {
@@ -177,6 +179,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }).slice(0, 6);
 
     const provider = ProviderFactory.getProvider(providerConfig);
+    const llmStart = Date.now();
     const baseSystemPrompt = buildSystemPrompt(config, {
       kbName: kb.name,
       surface: "embed",
@@ -247,6 +250,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           try {
             for await (const chunk of completion) {
               if (chunk) {
+                if (answerBuffer.length === 0) {
+                  console.info("[realtime-latency] first LLM token", { realtimeVoice, ms: Date.now() - llmStart });
+                }
                 answerBuffer += chunk;
                 write({ type: "token", payload: chunk });
               }
@@ -263,7 +269,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             void finalizeQueryEvent(eventId, {
               answerText: answerBuffer,
               status: streamError ? "error" : "ok",
-              metering: {
+              console.info("[realtime-latency] stream complete", { realtimeVoice, ms: Date.now() - llmStart, totalMs: Date.now() - t0, chars: answerBuffer.length });
+              metering:
                 model: resolved.chatModel ?? provider.getModelName("chat"),
                 provider: resolved.provider,
                 promptTokens: usageRef.value?.promptTokens ?? 0,
