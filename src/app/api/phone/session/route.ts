@@ -59,6 +59,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const voiceResolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
     const sarvamSelected = voiceResolved.realtimeProvider === "sarvam" || voiceResolved.voiceProvider === "sarvam";
 
+    if (sarvamSelected && voiceResolved.sarvam) {
+      const sarvamApiKey = getSarvamApiKey();
+      if (!sarvamApiKey) {
+        return NextResponse.json({ error: "SARVAM_API_KEY not configured for Sarvam phone calls" }, { status: 500 });
+      }
+      const languageCode = /^[a-z]{2}(?:[-_][A-Z]{2})?$/i.test(language)
+        ? `${language.toLowerCase().slice(0, 2)}-IN`
+        : (language || "en-IN");
+      return NextResponse.json({
+        provider: "sarvam",
+        sarvam: {
+          apiKey: sarvamApiKey,
+          baseUrl: getSarvamBaseUrl(),
+          sttModel: toSarvamRealtimeSttModel(voiceResolved.sarvam.sttModel),
+          ttsModel: voiceResolved.sarvam.ttsModel,
+          speaker: voiceResolved.sarvam.speaker,
+          language: languageCode,
+          greetingMessage: activeConfig?.greetingMessage ?? assistantConfig.welcomeMessage ?? "Hello! How can I help you today?",
+          maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
+          kbName: kb.name,
+          kbId,
+        },
+      });
+    }
+
+
     // Build phone-optimised system prompt
     const basePrompt   = buildSystemPrompt(assistantConfig, { kbName: kb.name });
     const instructions = `${basePrompt}\n\nYou are answering a live phone call. Be concise, natural, and conversational. Keep responses under 3 sentences. Do not use markdown, bullet points, or formatting of any kind.`;
@@ -111,31 +137,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const ephemeral = extractOpenAIRealtimeClientSecret(sessionResult.data);
     if (!ephemeral) return NextResponse.json({ error: "No ephemeral key" }, { status: 500 });
-
-    if (sarvamSelected && voiceResolved.sarvam) {
-      const sarvamApiKey = getSarvamApiKey();
-      if (!sarvamApiKey) {
-        return NextResponse.json({ error: "SARVAM_API_KEY not configured for Sarvam phone calls" }, { status: 500 });
-      }
-      const languageCode = /^[a-z]{2}(?:[-_][A-Z]{2})?$/i.test(language)
-        ? `${language.toLowerCase().slice(0, 2)}-IN`
-        : (language || "en-IN");
-      return NextResponse.json({
-        provider: "sarvam",
-        sarvam: {
-          apiKey: sarvamApiKey,
-          baseUrl: getSarvamBaseUrl(),
-          sttModel: toSarvamRealtimeSttModel(voiceResolved.sarvam.sttModel),
-          ttsModel: voiceResolved.sarvam.ttsModel,
-          speaker: voiceResolved.sarvam.speaker,
-          language: languageCode,
-          greetingMessage: activeConfig?.greetingMessage ?? assistantConfig.welcomeMessage ?? "Hello! How can I help you today?",
-          maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
-          kbName: kb.name,
-          kbId,
-        },
-      });
-    }
 
     return NextResponse.json({
       ephemeralKey:       ephemeral,
