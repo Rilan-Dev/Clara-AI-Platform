@@ -92,7 +92,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const realtimeVoice = body.realtimeVoice === true && resolved.provider === "sarvam";
     const providerConfig = {
       ...toProviderConfig(resolved),
-      ...(realtimeVoice ? { chatModel: getPlatformDefaultSarvamRealtimeLlmModel() } : {}),
+      ...(realtimeVoice
+        ? {
+            chatModel:
+              resolved.realtimeModel ??
+              getPlatformDefaultSarvamRealtimeLlmModel(),
+          }
+        : {}),
     };
     const embeddingConfig = toProviderConfig(resolved, "embedding");
     if (!providerConfig.apiKey) {
