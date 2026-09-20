@@ -169,6 +169,13 @@ export async function resolveVoiceConfig(
       ).getProductionVersionConfigCached(agent.id)
     : null;
   const versionAIPreferences = productionVersionConfig?.configuration?.ai ?? null;
+  const versionVoiceChatSttModel = versionAIPreferences?.voiceChatSttModel ?? null;
+  const versionVoiceChatTtsModel = versionAIPreferences?.voiceChatTtsModel ?? null;
+  const versionVoiceChatVoiceId = versionAIPreferences?.voiceChatVoiceId ?? null;
+  const versionRealtimeLlmModel = versionAIPreferences?.realtimeLlmModel ?? null;
+  const versionRealtimeSttModel = versionAIPreferences?.realtimeSttModel ?? null;
+  const versionRealtimeTtsModel = versionAIPreferences?.realtimeTtsModel ?? null;
+  const versionRealtimeVoiceId = versionAIPreferences?.realtimeVoiceId ?? null;
 
   const [orgSettings, agentSettings, kbOverrides] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
@@ -377,6 +384,7 @@ export async function resolveVoiceConfig(
   let sarvam: SarvamResolvedConfig | null = null;
   if (voiceProvider === "sarvam" || realtimeProvider === "sarvam") {
     const sarvamTtsModel =
+      (voiceProvider === "sarvam" ? versionVoiceChatTtsModel : null) ??
       orgSettings?.sarvamTtsModel ??
       getPlatformDefaultSarvamTTSModel();
     if (!isSupportedSarvamTTSModel(sarvamTtsModel)) {
@@ -386,24 +394,30 @@ export async function resolveVoiceConfig(
     }
 
     const sarvamSttModel =
+      (voiceProvider === "sarvam" ? versionVoiceChatSttModel : null) ??
       orgSettings?.sarvamSttModel ??
       getPlatformDefaultSarvamSttModel();
 
     const speaker = resolveSarvamSpeaker({
-      assistantVoiceId: brain.assistantConfig?.voiceId ?? null,
+      assistantVoiceId:
+        (realtimeProvider === "sarvam" ? versionRealtimeVoiceId : versionVoiceChatVoiceId) ??
+        brain.assistantConfig?.voiceId ??
+        null,
       orgDefaultSpeaker: orgSettings?.defaultSarvamSpeaker ?? null,
     });
 
     sarvam = {
-      ttsModel: sarvamTtsModel,
+      ttsModel:
+        (realtimeProvider === "sarvam" ? versionRealtimeTtsModel : null) ??
+        sarvamTtsModel,
       sttModel: sarvamSttModel,
-      realtimeSttModel: getPlatformDefaultSarvamRealtimeSttModel(),
-      // Honour the same organisation-level realtime model setting used by
-      // the other providers when it contains a Sarvam chat model; otherwise
-      // fall back to the dedicated platform realtime default.
+      realtimeSttModel:
+        versionRealtimeSttModel ??
+        getPlatformDefaultSarvamRealtimeSttModel(),
       realtimeLlmModel:
+        versionRealtimeLlmModel ??
         (orgSettings?.defaultRealtimeModel &&
-          findChatModel(orgSettings.defaultRealtimeModel)?.provider === "sarvam"
+        findChatModel(orgSettings.defaultRealtimeModel)?.provider === "sarvam"
           ? orgSettings.defaultRealtimeModel
           : getPlatformDefaultSarvamRealtimeLlmModel()),
       realtimeTtsEnabled: isSarvamRealtimeTtsEnabled(),
