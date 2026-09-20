@@ -66,6 +66,9 @@ All optional; managed via the admin settings page (source of truth) or process e
 | `SARVAM_BETA_MODELS_ENABLED` | `false` | Expose `/v2` beta models in pickers |
 | `SARVAM_TTS_MODEL` | `bulbul:v3` | Platform default TTS model |
 | `SARVAM_STT_MODEL` | `saaras:v3` | Platform default STT model |
+| `SARVAM_REALTIME_STT_MODEL` | `saaras:v3-realtime` | Exact realtime WebSocket STT model |
+| `SARVAM_REALTIME_LLM_MODEL` | `sarvam-105b-conversations` | Realtime phone voice-agent dialogue model |
+| `SARVAM_REALTIME_TTS_ENABLED` | `true` | Enable streaming Bulbul WebSocket TTS |
 | `SARVAM_DEFAULT_SPEAKER` | `shubh` | Platform default Bulbul speaker |
 | `SARVAM_EMBEDDING_FALLBACK_PROVIDER` | `openai` | Embedding backbone when brain = sarvam (openai \| gemini) |
 | `SARVAM_TRANSLATION_ENABLED` | `false` | Language-services kill switch |
