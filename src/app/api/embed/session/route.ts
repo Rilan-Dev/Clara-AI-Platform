@@ -190,7 +190,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             projectId: voiceResolution.brain.agentId,
             provider: voiceResolution.brain.provider,
             voiceProvider: "sarvam",
-            realtimeModel: sv.realtimeSttModel,
+            realtimeModel: null,
             voiceId: sv.speaker,
             transcriptionModel: sv.sttModel,
             allowedLanguages: resolved.allowedLanguages,
