@@ -118,8 +118,19 @@ export function geminiEmbeddingOptions() {
 }
 
 export function realtimeOptions(provider: "openai" | "gemini" | "sarvam") {
-  // Sarvam has no native realtime model — the VOICE axis serves realtime
-  // surfaces (Sarvam pipeline or ElevenLabs); the brain picker is moot.
+  if (provider === "sarvam") {
+    // Sarvam realtime is a composed pipeline, not a single vendor "live" model.
+    // The realtime brain selector therefore exposes the conversational/chat
+    // models that can drive the pipeline. Saaras realtime STT is selected in
+    // the dedicated Sarvam voice/STT controls.
+    return [
+      { value: "sarvam-105b-conversations", label: "Sarvam 105B Conversations (realtime voice)" },
+      { value: "sarvam-105b", label: "Sarvam 105B" },
+      { value: "gemma4", label: "Gemma 4 31B (beta)" },
+      { value: "deepseekv4-flash", label: "DeepSeek V4 Flash (beta)" },
+      { value: "glm5.3", label: "GLM 5.3 (beta)" },
+    ];
+  }
   const ids = provider === "gemini" ? GEMINI_REALTIME_MODELS : OPENAI_REALTIME_MODELS;
   return ids.map((id) => ({ value: id, label: id }));
 }
