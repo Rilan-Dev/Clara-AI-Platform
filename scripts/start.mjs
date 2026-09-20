@@ -32,6 +32,8 @@ http.createServer = (...args) => {
           wssVonage.handleUpgrade(req, socket, head, ws => wssVonage.emit("connection", ws, req));
         } else if (pathname === "/api/voice/sarvam/realtime") {
           wssSarvam.handleUpgrade(req, socket, head, ws => wssSarvam.emit("connection", ws, req));
+        } else if (pathname === "/api/voice/sarvam/tts-realtime") {
+          wssSarvamTts.handleUpgrade(req, socket, head, ws => wssSarvamTts.emit("connection", ws, req));
         } else {
           socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
           socket.destroy();
