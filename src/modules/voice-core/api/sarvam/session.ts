@@ -125,6 +125,7 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
                 sampleRate: SARVAM_TTS_SAMPLE_RATE_HZ,
                 encoding: "linear16",
                 vadSilenceMs: 500,
+                model: resolved.sarvam.realtimeSttModel,
               },
             }
           : {}),
@@ -146,6 +147,11 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       kbId,
       ragMode,
       languages: resolved.brain.allowedLanguages,
+      realtime: {
+        sttModel: resolved.sarvam.realtimeSttModel,
+        llmModel: resolved.sarvam.realtimeLlmModel,
+        ttsModel: resolved.sarvam.ttsModel,
+      },
     };
 
     return NextResponse.json(payload);
