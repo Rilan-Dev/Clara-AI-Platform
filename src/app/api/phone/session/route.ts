@@ -64,9 +64,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       if (!sarvamApiKey) {
         return NextResponse.json({ error: "SARVAM_API_KEY not configured for Sarvam phone calls" }, { status: 500 });
       }
-      const languageCode = /^[a-z]{2}(?:[-_][A-Z]{2})?$/i.test(language)
-        ? `${language.toLowerCase().slice(0, 2)}-IN`
-        : (language || "en-IN");
+      const callLanguage = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
+      const languageCode = /^[a-z]{2}(?:[-_][A-Z]{2})?$/i.test(callLanguage)
+        ? `${callLanguage.toLowerCase().slice(0, 2)}-IN`
+        : (callLanguage || "en-IN");
       return NextResponse.json({
         provider: "sarvam",
         sarvam: {
