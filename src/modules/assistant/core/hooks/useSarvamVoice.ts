@@ -327,6 +327,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
   const runAssistantTurn = useCallback(async (question: string) => {
+    console.info("[sarvam-voice] assistant turn start", { question: question.slice(0, 160) });
     const generationId = generateTurnId();
     realtimeTtsGenerationRef.current = generationId;
     const session = sessionRef.current;
@@ -351,7 +352,11 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         session.kbId,
         [{ role: "user", content: question }],
         (event) => {
-          if (event.type === "sources") {
+          if (event.type === "error") {
+            const message = String(event.payload ?? "The realtime assistant could not generate a response.");
+            console.error("[sarvam-voice] chat stream error", message);
+            throw new Error(message);
+          } else if (event.type === "sources") {
             turn.sources = event.payload as Source[];
             setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, sources: turn.sources } : t)));
           } else if (event.type === "token") {
@@ -475,6 +480,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
       case "transcript_final": {
         const text = String(event.text ?? "").trim();
+        console.info("[sarvam-voice] STT final", { text });
         partialQuestionRef.current = "";
         if (!text || isNonSpeechTranscript(text)) {
           // Drop the live-caption turn — nothing speakable landed.
