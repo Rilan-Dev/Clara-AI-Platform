@@ -34,7 +34,7 @@ TTFA/stage arithmetic and the p50/p95 aggregation).
 
 | Provider | Emits `clara:voice:latency` | Commit |
 |---|---|---|
-| OpenAI Realtime (baseline) | ✅ `useOpenAIRealtime.ts` (commit `fe4c5f2`) — `browser.first_audio` anchored on the first `response.audio.delta`; greeting tracked as a system generation | previously missing — this was the gap |
+| OpenAI Realtime (baseline) | ✅ `useOpenAIRealtime.ts` (commit `71af6c4`) — `browser.first_audio` anchored on the first `response.audio.delta`; greeting tracked as a system generation | previously missing — this was the gap |
 | Sarvam realtime | ✅ `useSarvamVoice.ts` | earlier voice-plan commits |
 | ElevenLabs Clara Realtime | ✅ `useElevenLabsClaraStream.ts` | earlier voice-plan commits |
 | Gemini Live | ❌ not wired (out of gap-closure scope; Gemini marks live in the relay passthrough if ever needed) | — |
