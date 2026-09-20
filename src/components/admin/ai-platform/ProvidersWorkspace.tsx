@@ -5,10 +5,16 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Platform Admin → AI Platform → Providers & Models.
  *
- * Top level: capability tabs (Chat / Voice Chat / Realtime Voice — §3.1).
- * Provider cards show health, configuration state, capability summary and
- * model counts (§3.2). Opening a provider launches the half-canvas detail
- * workspace with Connection / Capabilities / Models / Health / Usage (§3.3).
+ * Top level: capability tabs (Chat / Voice Chat / Realtime Voice — §3.1). Each
+ * tab lists ONLY the providers that actually implement that capability (e.g.
+ * ElevenLabs never shows under Chat). Platform-default switching lives right
+ * on the listing cards so providers can be switched without opening a drawer.
+ *
+ * Opening a provider launches the half-canvas detail workspace with
+ * Connection / Capabilities / Models / Voices (speech tabs only) / Health /
+ * Usage (§3.3). Models and voices are never mixed: each capability lists only
+ * its applicable model kinds, and voices get their own section which only
+ * exists in the Voice Chat and Realtime Voice tabs.
  *
  * Credentials are WRITE-ONLY: the drawer shows a masked hint and never
  * receives a usable secret. Connection tests run server-side.
@@ -58,6 +64,25 @@ const CAPABILITY_META: Record<AICapability, { label: string; blurb: string }> = 
 
 const CAPABILITIES: AICapability[] = ["chat", "voice_chat", "realtime_voice"];
 
+// Applicable functional kinds per capability tab (mirrors the resolver's
+// modelKinds). Voices live in their own drawer section, so they are excluded
+// from the Models list and never mixed in.
+const APPLICABLE_MODEL_KINDS: Record<AICapability, string[]> = {
+  chat: ["chat", "embedding"],
+  voice_chat: ["tts", "stt", "transcription"],
+  realtime_voice: ["realtime", "stt", "tts", "transcription"],
+};
+
+const KIND_LABELS: Record<string, string> = {
+  chat: "Chat",
+  embedding: "Embedding",
+  realtime: "Realtime",
+  transcription: "Transcription",
+  tts: "Text-to-speech",
+  stt: "Speech-to-text",
+  voice: "Voice",
+};
+
 export function ProvidersWorkspace() {
   const [capability, setCapability] = useState<AICapability>("chat");
   const [providers, setProviders] = useState<PlatformAIProviderDTO[]>([]);
@@ -66,6 +91,7 @@ export function ProvidersWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openProvider, setOpenProvider] = useState<string | null>(null);
+  const [defaultBusy, setDefaultBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,19 +112,36 @@ export function ProvidersWorkspace() {
     void load();
   }, [load]);
 
+  // Only providers that actually implement the selected capability are
+  // listed (§3.1) — e.g. ElevenLabs never appears in the Chat tab. The full
+  // capability matrix stays visible inside each provider drawer.
+  const capabilityDefault = defaults.find((d) => d.capability === capability) ?? null;
+
   const visible = useMemo(
     () =>
       providers
-        .map((p) => ({
-          provider: p,
-          supported: p.capabilities.find((c) => c.capability === capability)?.supported ?? false,
-        }))
-        // Each tab shows providers configured+enabled for that capability;
-        // unsupported providers are surfaced collapsed with their state so the
-        // admin still sees the full infrastructure picture (§3.1).
-        .sort((a, b) => Number(b.supported) - Number(a.supported)),
-    [providers, capability],
+        .filter((p) => p.capabilities.find((c) => c.capability === capability)?.supported ?? false)
+        .sort((a, b) => {
+          const aDefault = capabilityDefault?.providerId === a.providerId ? 0 : 1;
+          const bDefault = capabilityDefault?.providerId === b.providerId ? 0 : 1;
+          if (aDefault !== bDefault) return aDefault - bDefault;
+          return a.displayName.localeCompare(b.displayName);
+        }),
+    [providers, capability, capabilityDefault],
   );
+
+  const setPlatformDefault = async (providerId: string) => {
+    setDefaultBusy(providerId);
+    setError(null);
+    try {
+      const result = await putCapabilityDefault(capability, providerId, null);
+      setDefaults(result.defaults);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDefaultBusy(null);
+    }
+  };
 
   const detail = openProvider
     ? providers.find((p) => p.providerId === openProvider) ?? null
@@ -127,23 +170,19 @@ export function ProvidersWorkspace() {
 
       {!loading && !error && (
         <div className="grid gap-4 md:grid-cols-2">
-          {visible.map(({ provider, supported }) => {
-            const capabilityDefault = defaults.find((d) => d.capability === capability);
+          {visible.map((provider) => {
             const isDefault = capabilityDefault?.providerId === provider.providerId;
             const usageReport = usage.find((u) => u.providerId === provider.providerId);
             return (
               <article
                 key={provider.providerId}
-                className={cn(
-                  "rounded-2xl border bg-card p-5 shadow-sm transition-colors",
-                  supported ? "border-border hover:border-primary/25" : "border-dashed border-border/70 opacity-80",
-                )}
+                className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/25"
               >
                 <header className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm font-semibold text-foreground">{provider.displayName}</h3>
-                      {isDefault && supported && <VersionBadge tone="primary">Platform default</VersionBadge>}
+                      {isDefault && <VersionBadge tone="primary">Platform default</VersionBadge>}
                       {!provider.enabled && (
                         <VersionBadge tone="warning">
                           {provider.disabledReason === "kill_switch" ? "Disabled — operational flag off" : "Disabled"}
@@ -183,19 +222,37 @@ export function ProvidersWorkspace() {
                   )}
                 </dl>
 
-                <div className="mt-4 flex items-center justify-between">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                   <span className="text-[11px] text-muted-foreground/60">
                     {provider.credential?.configured
                       ? `Key ${provider.credential.maskedHint ?? "••••••"}`
                       : "No API key"}
                   </span>
-                  <WorkspaceButton onClick={() => setOpenProvider(provider.providerId)} variant={supported ? "secondary" : "ghost"}>
-                    {supported ? "Open provider" : "Configure"}
-                  </WorkspaceButton>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Platform-default switching lives on the listing (not in
+                        the drawer) so providers can be switched quickly. */}
+                    {!isDefault && (
+                      <WorkspaceButton
+                        variant="ghost"
+                        onClick={() => void setPlatformDefault(provider.providerId)}
+                        disabled={defaultBusy != null}
+                      >
+                        {defaultBusy === provider.providerId ? "Setting…" : `Set as ${CAPABILITY_META[capability].label.toLowerCase()} default`}
+                      </WorkspaceButton>
+                    )}
+                    <WorkspaceButton onClick={() => setOpenProvider(provider.providerId)}>
+                      Open provider
+                    </WorkspaceButton>
+                  </div>
                 </div>
               </article>
             );
           })}
+          {visible.length === 0 && (
+            <p className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground/70 md:col-span-2">
+              No providers support {CAPABILITY_META[capability].label} — the platform deploys no adapter for this capability yet.
+            </p>
+          )}
         </div>
       )}
 
@@ -208,19 +265,15 @@ export function ProvidersWorkspace() {
             void load();
           }}
           defaults={defaults}
-          onDefaultChange={async (capabilityId, providerId, modelId) => {
-            const result = await putCapabilityDefault(capabilityId, providerId, modelId);
-            setDefaults(result.defaults);
-          }}
         />
       )}
     </div>
   );
 }
 
-// ─── Provider detail drawer (Connection / Capabilities / Models / Health / Usage) ──
+// ─── Provider detail drawer (Connection / Capabilities / Models / Voices / Health / Usage) ──
 
-type DrawerSection = "connection" | "capabilities" | "models" | "health" | "usage";
+type DrawerSection = "connection" | "capabilities" | "models" | "voices" | "health" | "usage";
 
 function ProviderDetailDrawer({
   provider,
@@ -228,14 +281,12 @@ function ProviderDetailDrawer({
   onClose,
   onChanged,
   defaults,
-  onDefaultChange,
 }: {
   provider: PlatformAIProviderDTO;
   capability: AICapability;
   onClose: () => void;
   onChanged: () => void;
   defaults: CapabilityDefaultDTO[];
-  onDefaultChange: (capability: AICapability, providerId: string | null, modelId: string | null) => Promise<void>;
 }) {
   const [section, setSection] = useState<DrawerSection>("connection");
   const [models, setModels] = useState<ProviderModelDTO[]>([]);
@@ -254,6 +305,12 @@ function ProviderDetailDrawer({
     setBudget(provider.monthlyBudgetUsd?.toString() ?? "");
   }, [provider]);
 
+  // A different provider opens a fresh drawer — always land on Connection
+  // (also guards a stale "voices" section when the capability changes).
+  useEffect(() => {
+    setSection("connection");
+  }, [provider.providerId]);
+
   const loadDetail = useCallback(async () => {
     try {
       const workspace = await fetchProviderWorkspace(provider.providerId);
@@ -269,7 +326,38 @@ function ProviderDetailDrawer({
     void loadDetail();
   }, [loadDetail]);
 
-  const capabilityModels = models.filter((m) => m.capability === capability);
+  // Applicable models for the active capability only (voices separated into
+  // their own section — never mixed into the model list).
+  const capabilityModels = useMemo(
+    () =>
+      models
+        .filter(
+          (m) =>
+            m.capability === capability &&
+            m.kind !== "voice" &&
+            APPLICABLE_MODEL_KINDS[capability].includes(m.kind),
+        )
+        .sort(
+          (a, b) =>
+            Number(b.isDefault) - Number(a.isDefault) ||
+            a.kind.localeCompare(b.kind) ||
+            a.displayName.localeCompare(b.displayName),
+        ),
+    [models, capability],
+  );
+  const voiceModels = useMemo(
+    () =>
+      models
+        .filter((m) => m.capability === capability && m.kind === "voice")
+        .sort(
+          (a, b) =>
+            Number(b.isDefault) - Number(a.isDefault) || a.displayName.localeCompare(b.displayName),
+        ),
+    [models, capability],
+  );
+  // Voices only exist for the speech capabilities and only surface in those
+  // tabs' half-canvas (never in Chat).
+  const showVoices = capability !== "chat";
 
   const saveCredential = async () => {
     setBusy(true);
@@ -373,19 +461,16 @@ function ProviderDetailDrawer({
     }
   };
 
-  const makePlatformDefault = async () => {
-    setBusy(true);
-    try {
-      await onDefaultChange(capability, provider.providerId, null);
-      setMessage(`Platform default for ${CAPABILITY_META[capability].label} set to ${provider.displayName}.`);
-    } catch (err) {
-      setMessage((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const isPlatformDefault = defaults.find((d) => d.capability === capability)?.providerId === provider.providerId;
+
+  const drawerSections: Array<{ id: DrawerSection; label: string; count?: number }> = [
+    { id: "connection", label: "Connection" },
+    { id: "capabilities", label: "Capabilities" },
+    { id: "models", label: "Models", count: capabilityModels.length },
+    ...(showVoices ? [{ id: "voices" as const, label: "Voices", count: voiceModels.length }] : []),
+    { id: "health", label: "Health" },
+    { id: "usage", label: "Usage" },
+  ];
 
   return (
     <ContextDrawer
@@ -393,8 +478,9 @@ function ProviderDetailDrawer({
       onClose={onClose}
       width="sm:w-[32rem]"
       title={
-        <span className="flex items-center gap-2.5">
+        <span className="flex flex-wrap items-center gap-2.5">
           {provider.displayName}
+          {isPlatformDefault && <VersionBadge tone="primary">Platform default</VersionBadge>}
           <HealthDot status={provider.health?.status ?? "unknown"} />
           <span className="text-xs font-normal text-muted-foreground">{healthLabel(provider.health?.status ?? "unknown")}</span>
         </span>
@@ -405,25 +491,15 @@ function ProviderDetailDrawer({
           : "Run a connection test to record health."
       }
       footer={
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <WorkspaceButton variant={enabled ? "danger" : "primary"} onClick={toggleEnabled} disabled={busy}>
             {enabled ? "Disable provider" : "Enable provider"}
           </WorkspaceButton>
-          {message && <p className="flex-1 truncate text-xs text-muted-foreground" title={message}>{message}</p>}
+          {message && <p className="min-w-0 flex-1 basis-full truncate text-xs text-muted-foreground sm:basis-auto" title={message}>{message}</p>}
         </div>
       }
     >
-      <WorkspaceTabs
-        tabs={[
-          { id: "connection" as const, label: "Connection" },
-          { id: "capabilities" as const, label: "Capabilities" },
-          { id: "models" as const, label: "Models", count: capabilityModels.length },
-          { id: "health" as const, label: "Health" },
-          { id: "usage" as const, label: "Usage" },
-        ]}
-        active={section}
-        onChange={setSection}
-      />
+      <WorkspaceTabs tabs={drawerSections} active={section} onChange={setSection} />
 
       <div className="mt-5 space-y-4">
         {section === "connection" && (
@@ -496,54 +572,55 @@ function ProviderDetailDrawer({
 
         {section === "models" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                {capabilityModels.length} models for {CAPABILITY_META[capability].label}
-              </p>
-              {!isPlatformDefault && (
-                <WorkspaceButton variant="ghost" onClick={makePlatformDefault} disabled={busy}>
-                  Make platform default
-                </WorkspaceButton>
-              )}
-              {isPlatformDefault && <VersionBadge tone="primary">Platform default</VersionBadge>}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {capabilityModels.length} applicable {capabilityModels.length === 1 ? "model" : "models"} for {CAPABILITY_META[capability].label}
+              {voiceModels.length > 0 && ` — voices are listed separately`}
+            </p>
             {capabilityModels.length === 0 && (
               <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground/70">
-                No models for this capability — the provider does not implement it.
+                No applicable models for this capability.
               </p>
             )}
-            <ul className="divide-y divide-border/60 rounded-xl border border-border bg-card">
-              {capabilityModels.map((model) => (
-                <li key={model.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground/90">
-                      {model.displayName}
-                      {model.isDefault && <VersionBadge tone="primary" >Default</VersionBadge>}
-                    </p>
-                    <p className="truncate font-mono text-[11px] text-muted-foreground/60">
-                      {model.kind} · {model.modelId}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <WorkspaceButton variant="ghost" onClick={() => void setModelDefault(model)} disabled={busy || model.isDefault}>
-                      Set default
-                    </WorkspaceButton>
-                    <button
-                      type="button"
-                      onClick={() => void toggleModel(model)}
-                      disabled={busy}
-                      aria-label={model.enabled ? "Disable model" : "Enable model"}
-                      className={cn(
-                        "relative h-5 w-9 rounded-full transition-colors disabled:opacity-50",
-                        model.enabled ? "bg-primary" : "bg-muted",
-                      )}
-                    >
-                      <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", model.enabled ? "left-[1.15rem]" : "left-0.5")} />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {capabilityModels.length > 0 && (
+              <ul className="divide-y divide-border/60 rounded-xl border border-border bg-card">
+                {capabilityModels.map((model) => (
+                  <CatalogueRow
+                    key={model.id}
+                    model={model}
+                    busy={busy}
+                    onToggle={toggleModel}
+                    onSetDefault={setModelDefault}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {section === "voices" && showVoices && (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {voiceModels.length} {voiceModels.length === 1 ? "voice" : "voices"} for {CAPABILITY_META[capability].label} — the default
+              voice is used when an agent doesn’t pin one.
+            </p>
+            {voiceModels.length === 0 && (
+              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground/70">
+                No voices catalogued for this capability — this provider manages voice selection through its own settings.
+              </p>
+            )}
+            {voiceModels.length > 0 && (
+              <ul className="divide-y divide-border/60 rounded-xl border border-border bg-card">
+                {voiceModels.map((model) => (
+                  <CatalogueRow
+                    key={model.id}
+                    model={model}
+                    busy={busy}
+                    onToggle={toggleModel}
+                    onSetDefault={setModelDefault}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -630,5 +707,52 @@ function ProviderDetailDrawer({
         )}
       </div>
     </ContextDrawer>
+  );
+}
+
+// ─── Catalogue row (models + voices) ──────────────────────────────────────────
+// Full names are always visible: no truncation, the kind/model ids wrap, and
+// the row stacks vertically on narrow (mobile) widths instead of squeezing.
+
+function CatalogueRow({
+  model,
+  busy,
+  onToggle,
+  onSetDefault,
+}: {
+  model: ProviderModelDTO;
+  busy: boolean;
+  onToggle: (model: ProviderModelDTO) => void;
+  onSetDefault: (model: ProviderModelDTO) => void;
+}) {
+  return (
+    <li className="flex flex-col gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="min-w-0 sm:flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="break-words text-sm font-medium text-foreground/90">{model.displayName}</span>
+          {model.isDefault && <VersionBadge tone="primary">Default</VersionBadge>}
+        </div>
+        <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/60">
+          {KIND_LABELS[model.kind] ?? model.kind} · {model.modelId}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+        <WorkspaceButton variant="ghost" onClick={() => void onSetDefault(model)} disabled={busy || model.isDefault}>
+          Set default
+        </WorkspaceButton>
+        <button
+          type="button"
+          onClick={() => void onToggle(model)}
+          disabled={busy}
+          aria-label={model.enabled ? "Disable" : "Enable"}
+          className={cn(
+            "relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50",
+            model.enabled ? "bg-primary" : "bg-muted",
+          )}
+        >
+          <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", model.enabled ? "left-[1.15rem]" : "left-0.5")} />
+        </button>
+      </div>
+    </li>
   );
 }

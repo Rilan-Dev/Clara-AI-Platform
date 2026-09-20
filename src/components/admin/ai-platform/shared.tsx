@@ -81,7 +81,9 @@ export function ContextDrawer({
 }) {
   return (
     <Sheet open={open} onOpenChange={(next) => (next ? undefined : onClose())}>
-      <SheetContent side="right" className={cn("flex w-full flex-col gap-0 p-0", width)}>
+      {/* sm:max-w-none lifts the sheet variant's 384px cap so the requested
+          half-canvas width is honoured; w-full keeps it edge-to-edge on mobile. */}
+      <SheetContent side="right" className={cn("flex w-full flex-col gap-0 p-0 sm:max-w-none", width)}>
         <SheetHeader className="border-b border-border bg-card/60 px-5 py-4 text-left">
           <SheetTitle className="text-base font-semibold text-foreground">{title}</SheetTitle>
           {subtitle && <p className="text-xs leading-relaxed text-muted-foreground/80">{subtitle}</p>}
@@ -216,6 +218,18 @@ export function WorkspaceButton({
   );
 }
 
+// Full-width tab grids: every tab takes an equal share of the row and the
+// grid wraps onto extra rows on narrow screens (mobile / half-canvas), so the
+// last tab is always reachable — no horizontal scroll, no clipped tabs.
+const TAB_GRID_CLASS: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-4",
+  5: "grid-cols-2 sm:grid-cols-3",
+  6: "grid-cols-2 sm:grid-cols-3",
+};
+
 export function WorkspaceTabs<T extends string>({
   tabs,
   active,
@@ -225,8 +239,15 @@ export function WorkspaceTabs<T extends string>({
   active: T;
   onChange: (id: T) => void;
 }) {
+  const compact = tabs.length > 3;
   return (
-    <div role="tablist" className="flex items-center gap-1 overflow-x-auto rounded-xl border border-border bg-muted/40 p-1 scrollbar-none">
+    <div
+      role="tablist"
+      className={cn(
+        "grid auto-rows-fr gap-1 rounded-xl border border-border bg-muted/40 p-1",
+        TAB_GRID_CLASS[tabs.length] ?? "grid-cols-2 sm:grid-cols-3",
+      )}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -234,13 +255,14 @@ export function WorkspaceTabs<T extends string>({
           aria-selected={active === tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+            "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center font-medium leading-tight transition-colors",
+            compact ? "text-xs sm:text-sm" : "text-sm",
             active === tab.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {tab.label}
+          <span className="min-w-0 break-words">{tab.label}</span>
           {tab.count != null && (
-            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold", active === tab.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/70")}>
+            <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold", active === tab.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/70")}>
               {tab.count}
             </span>
           )}

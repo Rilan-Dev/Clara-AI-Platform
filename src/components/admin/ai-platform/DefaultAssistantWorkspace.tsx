@@ -34,7 +34,6 @@ import {
   DiffViewer,
   VersionBadge,
   WorkspaceButton,
-  WorkspaceTabs,
   timeAgo,
 } from "./shared";
 
