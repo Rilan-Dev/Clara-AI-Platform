@@ -40,7 +40,12 @@ function percentile(values, p) {
 function parseArgs(argv) {
   const args = { url: null, input: null, provider: null, out: "tool-results/voice-bench.json" };
   for (const arg of argv.slice(2)) {
-    const [key, value] = arg.replace(/^--/, "").split("=");
+    // split on the FIRST "=" only — URLs carry query strings (?key=clr_…)
+    // and split("=") chopped everything after the second "=" (the embed key
+    // silently vanished, so the page rendered its keyless error state).
+    const raw = arg.replace(/^--/, "");
+    const eq = raw.indexOf("=");
+    const [key, value] = eq === -1 ? [raw, ""] : [raw.slice(0, eq), raw.slice(eq + 1)];
     if (key === "url") args.url = value;
     if (key === "input") args.input = value;
     if (key === "provider") args.provider = value;
@@ -100,11 +105,15 @@ async function main() {
   await page.goto(args.url, { waitUntil: "networkidle", timeout: 60_000 });
 
   // Connect the voice session (the mic permission is auto-granted).
+  // waitFor (not an instant count) — the embed surfaces are client-rendered,
+  // so the connect button may appear a beat after networkidle; an instant
+  // count() raced hydration and silently skipped the click.
   const connectButton = page.locator("button:has-text('Connect'), button:has-text('Start'), button[aria-label*='connect' i]").first();
-  if (await connectButton.count()) {
+  try {
+    await connectButton.waitFor({ state: "visible", timeout: 15_000 });
     await connectButton.click();
     console.log("[bench] voice session connect clicked");
-  } else {
+  } catch {
     console.log("[bench] NOTE | no connect button found — assuming auto-connecting surface");
   }
 

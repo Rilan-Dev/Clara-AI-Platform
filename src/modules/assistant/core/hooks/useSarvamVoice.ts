@@ -361,7 +361,13 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     realtimeTtsTurnStartRef.current = Date.now();
     realtimeTtsFirstAudioGenerationRef.current = null;
     // Phase 10 telemetry: per-turn tracker record (timings only).
+    // The user's stt.first_partial/stt.final were marked on the INTERIM
+    // record; beginGenerationTurn replaces it, so carry the STT timestamps
+    // over — otherwise TTFA (= browser.first_audio - stt.final) is null on
+    // every real session (the committed-turn carry bug).
+    const carriedStt = latencyRef.current?.sttMarks();
     latencyRef.current?.beginGenerationTurn(generation, "sarvam", session.stt.realtime?.model ?? null);
+    latencyRef.current?.carrySttMarks(carriedStt ?? {});
     latencyRef.current?.mark("llm.start");
 
     const turn: VoiceTurn = {
@@ -518,6 +524,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       case "transcript_partial": {
         const text = String(event.text ?? "");
         if (!text) return;
+        // Utterance boundary for telemetry: a record that belongs to a
+        // completed/committed turn cannot take this utterance's first-wins
+        // STT marks — open a fresh interim record when needed.
+        latencyRef.current?.prepareForUtterance();
         latencyRef.current?.mark("stt.first_partial");
         // EARLY barge-in: first recognizable partial during playback stops
         // TTS immediately — faster than any RMS-based heuristic.

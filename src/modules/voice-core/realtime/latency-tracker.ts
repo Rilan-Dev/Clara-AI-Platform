@@ -117,6 +117,60 @@ export class LatencyTracker {
     }
   }
 
+  /**
+   * Snapshot the STT stage marks of the CURRENT record.
+   *
+   * Why this exists: in every Clara-owned realtime hook the committed user
+   * turn begins only AFTER the vendor finalized the user transcript
+   * (stt.final was already marked on the interim record). beginTurn /
+   * beginGenerationTurn then REPLACES the record, which silently dropped the
+   * STT timestamps and made TTFA (= browser.first_audio - stt.final) null on
+   * every real session. The hook snapshots sttMarks() before the replacement
+   * and re-applies them with carrySttMarks() on the fresh record — the
+   * original timestamps are preserved, first-wins still applies.
+   */
+  sttMarks(): { firstPartial?: number; final?: number } {
+    const m = this.record?.marks;
+    if (!m) return {};
+    return {
+      ...(m["stt.first_partial"] !== undefined ? { firstPartial: m["stt.first_partial"] } : {}),
+      ...(m["stt.final"] !== undefined ? { final: m["stt.final"] } : {}),
+    };
+  }
+
+  /** Re-apply marks captured via sttMarks() onto the CURRENT record. */
+  carrySttMarks(marks: { firstPartial?: number; final?: number }): void {
+    if (marks.firstPartial !== undefined) this.mark("stt.first_partial", marks.firstPartial);
+    if (marks.final !== undefined) this.mark("stt.final", marks.final);
+  }
+
+  /**
+   * Ensure the current record can receive a NEW user utterance's STT marks.
+   *
+   * A record that belongs to a committed turn (generationId set) or has
+   * completed (turn.complete marked) cannot take fresh first-wins STT
+   * marks — the previous turn's timestamps would win and corrupt the next
+   * turn's TTFA. Start a fresh interim record with the same session
+   * identity instead. No-op for a genuinely interim record (the very record
+   * the live utterance is supposed to mark).
+   *
+   * `interrupt` deliberately does NOT count as closed: a barge-in can land
+   * an interrupt mark on the interim record of the utterance that is still
+   * being spoken — resetting there would discard that utterance's own
+   * partials. An interrupted GENERATION record is still caught by the
+   * generationId condition.
+   *
+   * Hooks call this in their transcript-partial handler before marking
+   * stt.first_partial — it is the utterance boundary for telemetry.
+   */
+  prepareForUtterance(): void {
+    const r = this.record;
+    if (!r) return;
+    if (r.generationId !== null || r.marks["turn.complete"] !== undefined) {
+      this.beginTurn({ sessionId: r.sessionId, provider: r.provider, model: r.model });
+    }
+  }
+
   get current(): Readonly<TurnLatencyRecord> | null {
     return this.record;
   }

@@ -166,6 +166,106 @@ describe("percentile + summarizeLatency", () => {
     expect(summary.playback.p95).toBe(500);
   });
 
+  it("sttMarks/carrySttMarks preserve STT timestamps across a record replacement (the committed-turn bug)", () => {
+    // Exact sequence of every Clara-owned realtime hook:
+    //   stt.first_partial + stt.final are marked on the INTERIM record,
+    //   then beginGenerationTurn REPLACES the record for the committed user
+    //   turn. Before the carry API this dropped the STT marks and TTFA was
+    //   null on every real session.
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "sarvam" });
+    t.mark("stt.first_partial", 1_000);
+    t.mark("stt.final", 1_500);
+
+    const carried = t.sttMarks();
+    expect(carried).toEqual({ firstPartial: 1_000, final: 1_500 });
+
+    // The replacement (simulates beginGenerationTurn for the committed turn).
+    t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_1", turnId: "vrt_1", provider: "sarvam" });
+    expect(t.current?.marks["stt.final"]).toBeUndefined();
+
+    t.carrySttMarks(carried);
+    t.mark("rag.start", 1_600);
+    t.mark("rag.end", 1_800);
+    t.mark("tts.first_audio", 2_100);
+    t.mark("browser.first_audio", 2_120);
+
+    const lat = t.latencies()!;
+    expect(lat.sttMs).toBe(500);      // 1500 - 1000 — preserved
+    expect(lat.ttfaMs).toBe(620);     // 2120 - 1500 — no longer null
+  });
+
+  it("sttMarks on a tracker without STT marks carries nothing (greeting/system generation)", () => {
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "openai" });
+    const carried = t.sttMarks();
+    expect(carried).toEqual({});
+    t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_1", provider: "openai" });
+    t.carrySttMarks(carried);
+    expect(t.current?.marks["stt.first_partial"]).toBeUndefined();
+    expect(t.current?.marks["stt.final"]).toBeUndefined();
+  });
+
+  it("carrySttMarks is first-wins: later vendor STT events cannot rewrite the carried values", () => {
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "sarvam" });
+    t.mark("stt.final", 1_500);
+    const carried = t.sttMarks();
+    t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_1", provider: "sarvam" });
+    t.carrySttMarks(carried);
+    // A late duplicate final arriving after the replacement:
+    t.mark("stt.final", 9_999);
+    expect(t.current?.marks["stt.final"]).toBe(1_500);
+  });
+
+  it("prepareForUtterance resets for a new utterance after a completed turn (multi-turn TTFA correctness)", () => {
+    // Turn 1 completes; turn 2's partials must NOT collide with turn 1's
+    // first-wins stt marks — the tracker opens a fresh interim record.
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "sarvam" });
+    t.mark("stt.first_partial", 1_000);
+    t.mark("stt.final", 1_500);
+    t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_1", turnId: "vrt_1", provider: "sarvam" });
+    t.carrySttMarks(t.sttMarks());
+    t.mark("browser.first_audio", 2_100);
+    t.mark("turn.complete", 5_000);
+
+    // Turn 2 begins speaking:
+    t.prepareForUtterance();
+    t.mark("stt.first_partial", 6_000);
+    t.mark("stt.final", 6_400);
+    const carried = t.sttMarks();
+    t.beginTurn({ sessionId: "vrs_1", generationId: "vrg_2", turnId: "vrt_2", provider: "sarvam" });
+    t.carrySttMarks(carried);
+    t.mark("browser.first_audio", 7_000);
+    t.mark("turn.complete", 9_000);
+
+    const lat = t.latencies()!;
+    expect(lat.sttMs).toBe(400);   // 6400 - 6000 — turn 2's OWN partials
+    expect(lat.ttfaMs).toBe(600);  // 7000 - 6400 — not turn 1's 1500
+  });
+
+  it("prepareForUtterance is a no-op on a live interim record", () => {
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "sarvam" });
+    t.mark("stt.first_partial", 1_000);
+    t.prepareForUtterance();
+    t.mark("stt.first_partial", 1_200); // first-wins still applies
+    expect(t.current?.marks["stt.first_partial"]).toBe(1_000);
+    expect(t.current?.marks["turn.start"]).toBeTypeOf("number");
+  });
+
+  it("prepareForUtterance does not reset an interim record that carries a barge-in interrupt mark", () => {
+    const t = new LatencyTracker();
+    t.beginTurn({ sessionId: "vrs_1", provider: "sarvam" });
+    t.mark("stt.first_partial", 1_000);
+    t.mark("interrupt", 1_100); // barge-in landed on the live interim
+    t.prepareForUtterance();
+    t.mark("stt.final", 1_500);
+    expect(t.current?.marks["stt.first_partial"]).toBe(1_000); // same record
+    expect(t.current?.marks["stt.final"]).toBe(1_500);
+  });
+
   it("handles records with missing stages", () => {
     const turns: TurnLatencyRecord[] = [
       {

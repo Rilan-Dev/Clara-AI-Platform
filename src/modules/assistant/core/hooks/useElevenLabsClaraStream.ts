@@ -283,7 +283,11 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     const generationId = generation.generationId;
     turnGenerationRef.current = generationId;
     // Phase 10 telemetry: per-turn tracker record (timings only).
+    // Carry the STT timestamps from the interim record — see the tracker's
+    // carrySttMarks docs (the committed-turn carry bug).
+    const carriedStt = latencyRef.current?.sttMarks();
     latencyRef.current?.beginGenerationTurn(generation, "elevenlabs", session.stt.realtime?.model ?? null);
+    latencyRef.current?.carrySttMarks(carriedStt ?? {});
     latencyRef.current?.mark("llm.start");
 
     const turn: VoiceTurn = {
@@ -390,6 +394,10 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       case "transcript_partial": {
         const text = String(event.text ?? "");
         if (!text) return;
+        // Utterance boundary for telemetry: a record belonging to a
+        // completed/committed turn cannot take this utterance's first-wins
+        // STT marks — open a fresh interim record when needed.
+        latencyRef.current?.prepareForUtterance();
         latencyRef.current?.mark("stt.first_partial");
         // EARLY barge-in: first recognizable partial during playback stops
         // TTS immediately (Scribe has no vad.speech_start event — partials

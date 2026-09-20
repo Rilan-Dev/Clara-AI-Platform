@@ -150,7 +150,16 @@ const assetSyncs = [
   [resolve(__dir, "..", "public"), resolve(standaloneDir, "public")],
 ];
 for (const [src, dst] of assetSyncs) {
-  if (existsSync(src) && !existsSync(dst)) {
+  // Sync whenever the SOURCE is present — do not skip when dst already
+  // exists. `next build` (output: standalone) creates a PARTIAL public/ dir
+  // (only the assets referenced by the build manifest); the old
+  // !existsSync(dst) guard then skipped the sync entirely, so
+  // /worklets/audio-recorder-worklet.js 404'd on every `npm start`
+  // deployment and the Sarvam/Gemini capture path silently fell back to the
+  // deprecated ScriptProcessorNode. cpSync is an additive recursive copy:
+  // it overwrites same-name files and never deletes extras, so re-syncing
+  // an already-complete dst is a no-op.
+  if (existsSync(src)) {
     try {
       cpSync(src, dst, { recursive: true });
       console.log("[clara-relay] synced", src, "→", dst);

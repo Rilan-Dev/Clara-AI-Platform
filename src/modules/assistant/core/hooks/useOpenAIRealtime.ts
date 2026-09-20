@@ -331,12 +331,17 @@ export function useOpenAIRealtime(opts?: Options) {
     activeTurnIdRef.current = newId;
     latestTurnIdRef.current = newId;
     // Per-turn latency record (plan Phase 10): timings only, never transcripts.
+    // stt.first_partial/stt.final were marked on the interim record before
+    // this replacement — carry them over so TTFA stays measurable on real
+    // sessions (the committed-turn carry bug, same fix as the other hooks).
+    const carriedStt = latencyRef.current?.sttMarks();
     latencyRef.current?.beginTurn({
       sessionId: latencySessionIdRef.current,
       turnId: newId,
       provider: "openai",
       model: latencyModelRef.current,
     });
+    latencyRef.current?.carrySttMarks(carriedStt ?? {});
     latencyRef.current?.mark("rag.start");
     setHistory((prev) => [
       ...prev,
@@ -823,6 +828,10 @@ export function useOpenAIRealtime(opts?: Options) {
             const delta = typeof msg.delta === "string" ? msg.delta : "";
             if (delta) {
               userQueryRef.current += delta;
+              // Utterance boundary for telemetry: a record belonging to a
+              // completed/committed turn cannot take this utterance's
+              // first-wins STT marks — open a fresh interim when needed.
+              latencyRef.current?.prepareForUtterance();
               latencyRef.current?.mark("stt.first_partial");
             }
           }
