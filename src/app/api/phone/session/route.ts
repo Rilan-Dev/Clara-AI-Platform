@@ -17,7 +17,12 @@ import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config
 import { resolveAIConfig }           from "@/modules/ai-core/resolve";
 import { getPhoneConfigsByKb }       from "@/modules/phone/core/db";
 import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
-import { getSarvamApiKey, getSarvamBaseUrl, toSarvamRealtimeSttModel } from "@/modules/voice-core/model-catalog";
+import {
+  getSarvamApiKey,
+  getSarvamBaseUrl,
+  toSarvamRealtimeSttModel,
+  getPlatformDefaultSarvamRealtimeLlmModel,
+} from "@/modules/voice-core/model-catalog";
 import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
@@ -73,7 +78,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         sarvam: {
           apiKey: sarvamApiKey,
           baseUrl: getSarvamBaseUrl(),
-          sttModel: toSarvamRealtimeSttModel(voiceResolved.sarvam.sttModel),
+          sttModel: voiceResolved.sarvam.realtimeSttModel || toSarvamRealtimeSttModel(voiceResolved.sarvam.sttModel),
+          realtimeSttModel: voiceResolved.sarvam.realtimeSttModel,
+          realtimeLlmModel: voiceResolved.sarvam.realtimeLlmModel || getPlatformDefaultSarvamRealtimeLlmModel(),
+          realtimeTtsEnabled: voiceResolved.sarvam.realtimeTtsEnabled,
           ttsModel: voiceResolved.sarvam.ttsModel,
           speaker: voiceResolved.sarvam.speaker,
           language: languageCode,
