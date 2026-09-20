@@ -241,7 +241,14 @@ export type AgentVersionConfigDTO = {
     realtimeModel: string | null;
     transcriptionModel: string | null;
     voiceProvider: string | null;
+    voiceChatSttModel: string | null;
+    voiceChatTtsModel: string | null;
+    voiceChatVoiceId: string | null;
     realtimeVoiceProvider: string | null;
+    realtimeLlmModel: string | null;
+    realtimeSttModel: string | null;
+    realtimeTtsModel: string | null;
+    realtimeVoiceId: string | null;
   } | null;
   runtime: { enableVoice: boolean; enableRealtime: boolean; enablePublicEmbed: boolean } | null;
   knowledge?: { kbIds: string[] };
