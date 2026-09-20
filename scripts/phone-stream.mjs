@@ -500,7 +500,7 @@ class SarvamCallBridge {
   }
 
   openTts() {
-    if (this.ended) return;
+    if (this.ended || this.cfg.realtimeTtsEnabled === false) return;
     const isTwilio = this.transport === "twilio";
     const codec = isTwilio ? "mulaw" : "linear16";
     const sampleRate = isTwilio ? 8000 : 16000;
@@ -601,7 +601,7 @@ class SarvamCallBridge {
       },
       signal,
       body: JSON.stringify({
-        model: "sarvam-105b-conversations",
+        model: this.cfg.realtimeLlmModel || "sarvam-105b-conversations",
         stream: true,
         temperature: 0.4,
         max_tokens: 180,
