@@ -151,6 +151,7 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
         sttModel: resolved.sarvam.realtimeSttModel,
         llmModel: resolved.sarvam.realtimeLlmModel,
         ttsModel: resolved.sarvam.ttsModel,
+        ttsEnabled: resolved.sarvam.realtimeTtsEnabled,
       },
     };
 
