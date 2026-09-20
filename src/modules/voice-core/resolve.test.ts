@@ -51,6 +51,16 @@ vi.mock("@/modules/ai-core/resolve", () => ({
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => []),
 }));
+// Agent-versioning dual-read: no production deployment → legacy chain (the
+// contract this suite pins).
+vi.mock("@/modules/agent-versioning/core/db", () => ({
+  getProductionVersionConfigCached: vi.fn(async () => null),
+  getActiveDeploymentCached: vi.fn(async () => null),
+}));
+// Governance gate: platform allows everything in this suite's scenarios.
+vi.mock("@/modules/ai-governance/core/resolver", () => ({
+  validateAgentAISelection: vi.fn(async () => ({ ok: true })),
+}));
 vi.mock("./model-catalog", () => ({
   getPlatformDefaultSTTModel: () => "scribe_v1",
   getPlatformDefaultTTSModel: () => "eleven_flash_v2_5",

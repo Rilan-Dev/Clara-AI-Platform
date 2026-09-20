@@ -34,6 +34,7 @@ import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import { resolveAIConfig } from "@/modules/ai-core/resolve";
+import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
 import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
@@ -157,48 +158,56 @@ export async function resolveVoiceConfig(
   const agent = kb ? await getAgentById(kb.agentId) : null;
   const orgId = input.orgId ?? agent?.orgId ?? null;
 
+  // Production immutable version preferences (dual-read: new-first).
+  const productionVersionConfig = agent?.id
+    ? await (
+        await import("@/modules/agent-versioning/core/db")
+      ).getProductionVersionConfigCached(agent.id)
+    : null;
+  const versionAIPreferences = productionVersionConfig?.configuration?.ai ?? null;
+
   const [orgSettings, agentSettings, kbOverrides] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
     agent?.id ? getAgentAISettings(agent.id) : Promise.resolve(null),
     input.kbId ? getKbAIOverrides(input.kbId) : Promise.resolve(null),
   ]);
 
-  // ── Precedence: kb → agent → org → inherit brain ────────────────────────
+  // ── Precedence: kb → version config → agent → org → inherit brain ───────
   let voiceProvider: VoiceProvider | null =
-    kbOverrides?.voiceProvider ?? agentSettings?.voiceProvider ?? orgSettings?.voiceProvider ?? null;
+    kbOverrides?.voiceProvider ?? versionAIPreferences?.voiceProvider ?? agentSettings?.voiceProvider ?? orgSettings?.voiceProvider ?? null;
   let source: VoiceResolution["source"] =
     kbOverrides?.voiceProvider != null
       ? "kb_override"
-      : agentSettings?.voiceProvider != null
-        ? "agent_settings"
-        : orgSettings?.voiceProvider != null
-          ? "org"
-          : "env";
+      : versionAIPreferences?.voiceProvider != null
+        ? "agent"
+        : agentSettings?.voiceProvider != null
+          ? "agent_settings"
+          : orgSettings?.voiceProvider != null
+            ? "org"
+            : "env";
 
   if (!voiceProvider) {
     voiceProvider = brain.provider; // inherit — default for existing tenants
     source = "env";
   }
 
-  // ── Realtime purpose: kb → agent → org → inherit voice-chat ──────────────
-  // NULL at every level means "follow the voice-chat provider", which itself
-  // follows the brain provider — so picking ONE provider keeps chat, voice
-  // chat AND the realtime voice assistant native to it. An explicit override
-  // pins the realtime assistant (e.g. chat + voice-chat on OpenAI while the
-  // real-time voice assistant runs on ElevenLabs Agents).
+  // ── Realtime purpose: kb → version config → agent → org → inherit voice-chat ─
   let realtimeProvider: VoiceProvider | null =
     kbOverrides?.realtimeVoiceProvider ??
+    versionAIPreferences?.realtimeVoiceProvider ??
     agentSettings?.realtimeVoiceProvider ??
     orgSettings?.realtimeVoiceProvider ??
     null;
   let realtimeSource: VoiceResolution["realtimeSource"] =
     kbOverrides?.realtimeVoiceProvider != null
       ? "kb_override"
-      : agentSettings?.realtimeVoiceProvider != null
-        ? "agent_settings"
-        : orgSettings?.realtimeVoiceProvider != null
-          ? "org"
-          : "voice_chat";
+      : versionAIPreferences?.realtimeVoiceProvider != null
+        ? "agent"
+        : agentSettings?.realtimeVoiceProvider != null
+          ? "agent_settings"
+          : orgSettings?.realtimeVoiceProvider != null
+            ? "org"
+            : "voice_chat";
 
   if (!realtimeProvider) {
     realtimeProvider = voiceProvider;
@@ -224,10 +233,11 @@ export async function resolveVoiceConfig(
     );
   }
 
-  // ── Platform availability: kill-switch FALLBACK (not a hard error) ────────
+  // ── Platform availability: kill-switch + REGISTRY FALLBACK (not a hard error) ──
   // An org may have explicitly selected a voice provider (e.g. ElevenLabs)
   // that the platform operator has since disabled platform-wide
-  // (ELEVENLABS_ENABLED=false / key cleared — same posture for Sarvam). Hard-
+  // (ELEVENLABS_ENABLED=false / key cleared — same posture for Sarvam; the
+  // provider registry adds the admin enable/disable switch on top). Hard-
   // failing every voice surface for that org makes the whole platform look
   // broken, which is exactly what happens when an operator retires a vendor:
   // embeds, the floating assistant, and the realtime modal all 400. Instead
@@ -235,9 +245,22 @@ export async function resolveVoiceConfig(
   // pre-voice-axis tenant already uses) and the event is logged loudly for
   // the operator. The org-level selection stays in the DB untouched, so
   // re-enabling the provider restores the org's choice instantly.
-  const platformUnavailable = (p: VoiceProvider): boolean =>
-    (p === "elevenlabs" && !isElevenLabsEnabled()) ||
-    (p === "sarvam" && !isSarvamEnabled());
+  const platformUnavailable = async (p: VoiceProvider): Promise<boolean> => {
+    if (p === "elevenlabs" && !isElevenLabsEnabled()) return true;
+    if (p === "sarvam" && !isSarvamEnabled()) return true;
+    // Registry + entitlement gate (same resolver the UI uses). ElevenLabs and
+    // Sarvam serve VOICE-CHAT (batch STT/TTS adapters); OpenAI/Gemini serve
+    // voice surfaces through their native REALTIME capability — gate each
+    // provider on the capability its adapter actually implements.
+    const capability: "voice_chat" | "realtime_voice" =
+      p === "elevenlabs" || p === "sarvam" ? "voice_chat" : "realtime_voice";
+    const gate = await validateAgentAISelection({
+      organizationId: orgId,
+      provider: p,
+      capability,
+    });
+    return !gate.ok;
+  };
 
   const unavailableError = (p: VoiceProvider): VoiceConfigResolutionError =>
     new VoiceConfigResolutionError(
@@ -251,8 +274,8 @@ export async function resolveVoiceConfig(
   // provider (a Sarvam brain before the operator enables Sarvam), the
   // terminal fallback is OpenAI, matching the platform's default-provider
   // posture.
-  if (platformUnavailable(voiceProvider)) {
-    const fallback: VoiceProvider = platformUnavailable(brain.provider)
+  if (await platformUnavailable(voiceProvider)) {
+    const fallback: VoiceProvider = (await platformUnavailable(brain.provider))
       ? "openai"
       : brain.provider;
     if (!allowedVoiceProviders.includes(fallback)) {
@@ -270,7 +293,7 @@ export async function resolveVoiceConfig(
 
   // Realtime purpose — degrades to the (possibly already degraded)
   // voice-chat provider, mirroring the null-inherit semantics above.
-  if (platformUnavailable(realtimeProvider)) {
+  if (await platformUnavailable(realtimeProvider)) {
     if (!allowedVoiceProviders.includes(voiceProvider)) {
       throw unavailableError(realtimeProvider);
     }

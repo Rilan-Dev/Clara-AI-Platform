@@ -6,6 +6,13 @@ import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
 import { isSarvamEnabled } from "@/modules/voice-core/model-catalog";
+import {
+  getActiveDeploymentCached,
+  getProductionVersionConfigCached,
+} from "@/modules/agent-versioning/core/db";
+import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
+import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
+import type { AgentVersionConfig } from "@/modules/agent-versioning/core/types";
 import type {
   AIProvider,
   AISurface,
@@ -150,6 +157,20 @@ function normalizeRealtimeVoice(
   return "alloy";
 }
 
+// ── Dual-read instrumentation (migration plan Stage H) ──────────────────────
+// Counts resolutions that still fall back to the LEGACY chain (no production
+// deployment / version config). Target after the data migration: 0.
+let legacyResolutionCount = 0;
+function noteLegacyResolutionFallback(agentId: string | null): void {
+  legacyResolutionCount++;
+  if (legacyResolutionCount === 1 || legacyResolutionCount % 200 === 0) {
+    console.warn(
+      `[ai-config] legacy resolution fallback used (count=${legacyResolutionCount}, last agent=${agentId ?? "n/a"}) — ` +
+      `publish the agent or run the AI configuration data migration to converge on immutable versions.`,
+    );
+  }
+}
+
 function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags"]): void {
   if (surface === "realtime" || surface === "embed") {
     if (!flags.voiceEnabled) throw new AIConfigResolutionError("Voice is disabled for this knowledge base.");
@@ -161,10 +182,16 @@ function assertSurfaceEnabled(surface: AISurface, flags: ResolvedAIConfig["flags
 }
 
 /**
- * Resolve tenant AI settings with agent_ai_settings (the agent's infra
- * configuration) -> org -> platform precedence for provider/model
- * infrastructure, and the AGENT's assistant config (1:1, agent-owned) for
- * user-facing persona, language and voice preferences.
+ * Resolve tenant AI settings.
+ *
+ * NEW architecture (migration plan Stage H/L dual-read):
+ *   1. production deployment → immutable agent version → configuration
+ *      (assistant persona + AI model selections + runtime toggles)
+ *   2. platform provider registry + entitlement gate (ai-governance resolver)
+ *   3. LEGACY fallback (kb overrides → agent_ai_settings → org_ai_settings →
+ *      env) for agents that have no deployment yet — every fallback is
+ *      counted (noteLegacyResolutionFallback) and the target after the data
+ *      migration is zero.
  *
  * Knowledge bases never carry assistant configuration — a kbId input is
  * resolved through its owning agent.
@@ -175,7 +202,14 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const agent = kb ? await getAgentById(kb.agentId) : null;
   const orgId = input.orgId ?? agent?.orgId ?? null;
 
-  const [orgSettings, agentSettings, kbOverrides, assistantConfig] = await Promise.all([
+  // ── Production immutable version (Stage H: new-first dual-read) ──────────
+  const productionVersion = agent?.id ? await getProductionVersionConfigCached(agent.id) : null;
+  const deployment = agent?.id ? await getActiveDeploymentCached(agent.id) : null;
+  const versionConfig: AgentVersionConfig | null = productionVersion?.configuration ?? null;
+  const versionAI = versionConfig?.ai ?? null;
+  const versionRuntime = versionConfig?.runtime ?? null;
+
+  const [orgSettings, agentSettings, kbOverrides, liveAssistantConfig] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
     agent?.id ? getAgentAISettings(agent.id) : Promise.resolve(null),
     input.kbId ? getKbAIOverrides(input.kbId) : Promise.resolve(null),
@@ -186,12 +220,35 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     throw new AIConfigResolutionError("Agent AI configuration belongs to another organisation.");
   }
 
-  let provider: AIProvider = agentSettings?.provider ?? orgSettings?.defaultProvider ?? defaults.provider;
-  let providerSource: ResolvedAIConfig["sources"]["provider"] = agentSettings?.provider
-    ? "agent_settings"
-    : orgSettings?.defaultProvider
-      ? "org"
-      : "env";
+  // The effective persona comes from the deployed immutable version when one
+  // exists; unpublished agents keep reading their live config (legacy path).
+  const assistantConfig: AssistantConfig | null = versionConfig && agent
+    ? {
+        ...versionConfig.assistant,
+        id: `version:${productionVersion!.id}`,
+        agentId: agent.id,
+        createdAt: productionVersion!.createdAt,
+        updatedAt: productionVersion!.createdAt,
+      }
+    : liveAssistantConfig;
+
+  if (versionConfig) {
+    // Served from the immutable version — nothing legacy below the overrides.
+  } else if (agent?.id) {
+    noteLegacyResolutionFallback(agent.id);
+  }
+
+  let provider: AIProvider =
+    versionAI?.provider ?? agentSettings?.provider ?? orgSettings?.defaultProvider ?? defaults.provider;
+  let providerSource: ResolvedAIConfig["sources"]["provider"] = kbOverrides?.provider
+    ? "kb_override"
+    : versionAI?.provider
+      ? "agent"
+      : agentSettings?.provider
+        ? "agent_settings"
+        : orgSettings?.defaultProvider
+          ? "org"
+          : "env";
 
   if (kbOverrides?.provider) {
     provider = kbOverrides.provider;
@@ -204,6 +261,19 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   if (!allowedProviders.includes(provider)) {
     throw new AIConfigResolutionError(`Agent provider ${provider} is not enabled for this organisation.`);
+  }
+
+  // ── Platform governance gate (registry + entitlement, §4 resolver) ────────
+  // The SAME gate the agent workspace UI uses — UI and runtime can never
+  // disagree about provider availability.
+  const governanceGate = await validateAgentAISelection({
+    organizationId: orgId,
+    provider,
+    capability: "chat",
+    modelId: null,
+  });
+  if (!governanceGate.ok) {
+    throw new AIConfigResolutionError(governanceGate.reason);
   }
 
   // ── Sarvam kill switch (same posture as the ElevenLabs voice axis) ──────
@@ -231,13 +301,14 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const defaultVoice = defaults.models[provider].defaultVoice;
 
   const chatCandidate =
-    kbOverrides?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
+    kbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
   const embeddingCandidate =
-    kbOverrides?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
+    kbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
   const realtimeCandidate =
-    kbOverrides?.realtimeModel ?? agentSettings?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
+    kbOverrides?.realtimeModel ?? versionAI?.realtimeModel ?? agentSettings?.realtimeModel ?? orgSettings?.defaultRealtimeModel ?? defaultRealtime;
   const transcriptionCandidate =
     kbOverrides?.transcriptionModel ??
+    versionAI?.transcriptionModel ??
     agentSettings?.transcriptionModel ??
     orgSettings?.defaultTranscriptionModel ??
     defaultTranscription;
@@ -392,10 +463,13 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   }
 
   const flags = {
-    voiceEnabled: (orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
-    realtimeEnabled: orgSettings?.enableRealtime ?? true,
-    publicEmbedEnabled:
-      (orgSettings?.enablePublicEmbed ?? true) && !(kbOverrides?.disablePublicEmbed ?? false),
+    // Version runtime toggles are agent-owned (new architecture); org-level
+    // toggles remain the legacy fallback during the compat window.
+    voiceEnabled: (versionRuntime?.enableVoice ?? orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
+    realtimeEnabled: versionRuntime?.enableRealtime ?? orgSettings?.enableRealtime ?? true,
+    publicEmbedEnabled: deployment
+      ? deployment.publicAccess && !(kbOverrides?.disablePublicEmbed ?? false)
+      : (orgSettings?.enablePublicEmbed ?? true) && !(kbOverrides?.disablePublicEmbed ?? false),
   };
   assertSurfaceEnabled(input.surface, flags);
 
@@ -440,6 +514,16 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       orgSettings?.translationMode === "query" || orgSettings?.translationMode === "query+answer"
         ? orgSettings.translationMode
         : "off",
+    // Production provenance — which immutable version (if any) served this
+    // resolution. Public surfaces resolve deployments, never drafts.
+    production: productionVersion
+      ? {
+          versionId: productionVersion.id,
+          versionNumber: productionVersion.versionNumber,
+          branchName: productionVersion.branchName,
+          publicAccess: deployment?.publicAccess ?? false,
+        }
+      : null,
     temperature,
     maxTokens,
     assistantConfig,
@@ -453,35 +537,43 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       chatModel:
         kbOverrides?.chatModel != null
           ? "kb_override"
-          : agentSettings?.chatModel != null
-            ? "agent_settings"
-            : orgSettings?.defaultChatModel != null
-              ? "org"
-              : "env",
+          : versionAI?.chatModel != null
+            ? "agent"
+            : agentSettings?.chatModel != null
+              ? "agent_settings"
+              : orgSettings?.defaultChatModel != null
+                ? "org"
+                : "env",
       embeddingModel:
         kbOverrides?.embeddingModel != null
           ? "kb_override"
-          : agentSettings?.embeddingModel != null
-            ? "agent_settings"
-            : orgSettings?.defaultEmbeddingModel != null
-              ? "org"
-              : "env",
+          : versionAI?.embeddingModel != null
+            ? "agent"
+            : agentSettings?.embeddingModel != null
+              ? "agent_settings"
+              : orgSettings?.defaultEmbeddingModel != null
+                ? "org"
+                : "env",
       realtimeModel:
         kbOverrides?.realtimeModel != null
           ? "kb_override"
-          : agentSettings?.realtimeModel != null
-            ? "agent_settings"
-            : orgSettings?.defaultRealtimeModel != null
-              ? "org"
-              : "env",
+          : versionAI?.realtimeModel != null
+            ? "agent"
+            : agentSettings?.realtimeModel != null
+              ? "agent_settings"
+              : orgSettings?.defaultRealtimeModel != null
+                ? "org"
+                : "env",
       transcriptionModel:
         kbOverrides?.transcriptionModel != null
           ? "kb_override"
-          : agentSettings?.transcriptionModel != null
-            ? "agent_settings"
-            : orgSettings?.defaultTranscriptionModel != null
-              ? "org"
-              : "env",
+          : versionAI?.transcriptionModel != null
+            ? "agent"
+            : agentSettings?.transcriptionModel != null
+              ? "agent_settings"
+              : orgSettings?.defaultTranscriptionModel != null
+                ? "org"
+                : "env",
       voiceId:
         assistantConfig?.voiceId
           ? "assistant_config"

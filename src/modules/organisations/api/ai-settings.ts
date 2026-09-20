@@ -4,7 +4,6 @@ import { requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { getOrganisationById } from "@/modules/organisations/core/db";
 import {
   getOrgAISettings,
-  upsertOrgAISettings,
 } from "@/modules/organisations/core/ai-settings-db";
 import { isVoiceProvider, type VoiceProvider } from "@/modules/voice-core/types";
 import {
@@ -260,18 +259,27 @@ export async function patchOrgAISettingsHandler(
       return NextResponse.json({ error: "Organisation not found" }, { status: 404 });
     }
 
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    // Organisations own their AI model / provider / limit configuration.
-    // Identity, Behaviour, Language and Voice are platform-level defaults
-    // now — the org PATCH intentionally ignores those fields.
-    let input: PatchOrgAISettingsInput;
-    try {
-      input = buildPatchInput(body);
-    } catch (validationError) {
-      return NextResponse.json({ error: (validationError as Error).message }, { status: 400 });
-    }
-    const settings = await upsertOrgAISettings(orgId, input);
-    return NextResponse.json(settings);
+    // ── STAGE J: legacy organisation AI settings writes are FROZEN ─────────
+    // Provider infrastructure (API keys, enable/disable, health, model
+    // catalogue) is owned by the Platform Admin in Settings → AI Platform →
+    // Providers & Models. Agent-level AI selection is owned inside each
+    // agent's workspace (Assistant & AI). This endpoint no longer accepts
+    // mutations — the explicit migration response below directs callers to
+    // the right surface instead of silently ignoring their writes.
+    void buildPatchInput; // parser retained for the GET contract & rollforward
+    return NextResponse.json(
+      {
+        error:
+          "Organisation-level AI provider configuration has been migrated. Provider infrastructure is managed by the platform admin (Settings → AI Platform → Providers & Models); agent AI selection is configured inside each agent (Assistant & AI).",
+        code: "AI_SETTINGS_MIGRATED",
+        migratedAt: "2026-09-20",
+        redirectTo: [
+          "/settings/ai — platform AI Providers & Models and Default Assistant (platform admin)",
+          "/orgs/<orgId>/agents/<agentId> — agent Assistant & AI workspace (organisation)",
+        ],
+      },
+      { status: 410 },
+    );
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[org-ai-settings] patch:", err);

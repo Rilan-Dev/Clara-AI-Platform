@@ -277,6 +277,23 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
     return { org, userRow, agent, kb, apiKeyRow, rawKey };
   });
 
+  // ── Agent version-control bootstrap (migration Stage E/F) ──────────────────
+  // Permanent Main branch + draft seeded from the current platform default
+  // version, with the source default version recorded (best-effort, idempotent
+  // and self-healing on first workspace visit).
+  try {
+    const { ensureAgentVersioning, recordDefaultAssistantProvenanceIfMissing } = await import(
+      "@/modules/agent-versioning/core/service"
+    );
+    await ensureAgentVersioning(result.agent.id as string, input.createdBy);
+    await recordDefaultAssistantProvenanceIfMissing(result.agent.id as string);
+  } catch (versioningErr) {
+    console.warn(
+      `[workspace] version-control bootstrap deferred for agent ${result.agent.id}:`,
+      (versioningErr as Error).message,
+    );
+  }
+
   // ── Optional: point the public landing-page demo at this new workspace ─────
   if (input.markAsDemo) {
     const { setPlatformEnvSetting } = await import("@/modules/phone/core/db");

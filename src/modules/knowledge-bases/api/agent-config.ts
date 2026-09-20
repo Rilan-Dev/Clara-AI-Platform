@@ -246,6 +246,15 @@ export async function patchAgentConfigHandler(req: NextRequest, agentId: string)
     if (body.voiceWaveColor!==undefined)       input.voiceWaveColor       = s(body.voiceWaveColor);
 
     const config = await patchAssistantConfig(agentId, input);
+    // Compatibility projection (migration Stage I): mirror the legacy write
+    // into the Main-branch draft so the new versioned stores and the legacy
+    // editor can never diverge during the rollout window.
+    try {
+      const { syncDraftFromLegacyPatch } = await import("@/modules/agent-versioning/core/projection");
+      await syncDraftFromLegacyPatch(agentId);
+    } catch (projectionErr) {
+      console.warn("[agent-config] draft sync failed:", (projectionErr as Error).message);
+    }
     if (!config) return NextResponse.json({error:"AssistantConfig not found"},{status:404});
     return NextResponse.json(config);
   } catch (err) {

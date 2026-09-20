@@ -250,6 +250,17 @@ export interface ResolvedAIConfig {
     realtimeEnabled: boolean;
     publicEmbedEnabled: boolean;
   };
+  /**
+   * Production provenance (agent-versioning migration): which immutable
+   * version served this resolution. Public surfaces resolve deployments,
+   * never drafts. Null = legacy live configuration (dual-read fallback).
+   */
+  production: {
+    versionId: string;
+    versionNumber: number;
+    branchName: string;
+    publicAccess: boolean;
+  } | null;
   sources: {
     provider: ResolutionSource;
     embeddingProvider: ResolutionSource;

@@ -176,6 +176,27 @@ export async function createAgent(orgId: string, input: CreateAgentInput): Promi
 
     await client.query(`INSERT INTO agent_ai_settings (agent_id, org_id) VALUES ($1, $2) ON CONFLICT (agent_id) DO NOTHING`, [agent.id, orgId]);
     return agent;
+  }).then(async (agent) => {
+  // ── Agent version-control bootstrap (migration Stage E/F) ────────────────
+  // Every new agent enters the versioned world immediately: permanent Main
+  // branch + draft seeded from the CURRENT platform default assistant
+  // version, with the source default version recorded for provenance (agents
+  // are never silently mutated by later default changes). Best-effort:
+  // ensureAgentVersioning is idempotent and self-heals on the first
+  // workspace visit, so a failure here never blocks agent creation.
+  try {
+    const { ensureAgentVersioning, recordDefaultAssistantProvenanceIfMissing } = await import(
+      "@/modules/agent-versioning/core/service"
+    );
+    await ensureAgentVersioning(agent.id, input.createdBy ?? null);
+    await recordDefaultAssistantProvenanceIfMissing(agent.id);
+  } catch (versioningErr) {
+    console.warn(
+      `[agents] version-control bootstrap deferred for agent ${agent.id}:`,
+      (versioningErr as Error).message,
+    );
+  }
+  return agent;
   });
 }
 

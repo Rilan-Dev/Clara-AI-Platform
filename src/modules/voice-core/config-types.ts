@@ -65,10 +65,10 @@ export interface SarvamResolvedConfig {
  */
 export interface VoiceResolution {
   voiceProvider: VoiceProvider;
-  source: "kb_override" | "agent_settings" | "org" | "env";
+  source: "kb_override" | "agent_settings" | "agent" | "org" | "env";
   /** Realtime-assistant purpose (inherits voiceProvider when unset everywhere). */
   realtimeProvider: VoiceProvider;
-  realtimeSource: "kb_override" | "agent_settings" | "org" | "voice_chat";
+  realtimeSource: "kb_override" | "agent_settings" | "agent" | "org" | "voice_chat";
   /** Brain config resolved via the existing resolveAIConfig() — unchanged. */
   brain: ResolvedAIConfig;
   elevenlabs: ElevenLabsResolvedConfig | null;
