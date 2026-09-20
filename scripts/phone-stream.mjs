@@ -67,7 +67,9 @@ export async function handleTwilioStream(phoneWs, req) {
       const cfg = await fetchPhoneSession(kbId, "twilio");
       if (!cfg) { phoneWs.close(1011, "Session failed"); return; }
 
-      bridge = cfg.provider === "sarvam"\n        ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "twilio", streamSid)\n        : new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
+      bridge = cfg.provider === "sarvam"
+        ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "twilio", streamSid)
+        : new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
       await bridge.start();
 
       // Replay buffered media
@@ -119,7 +121,9 @@ export async function handleVonageStream(phoneWs, req) {
         const cfg = await fetchPhoneSession(kbId, "vonage");
         if (!cfg) { phoneWs.close(1011, "Session failed"); return; }
 
-        bridge = cfg.provider === "sarvam"\n          ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "vonage")\n          : new VonageCallBridge(phoneWs, callSid, kbId, cfg);
+        bridge = cfg.provider === "sarvam"
+          ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "vonage")
+          : new VonageCallBridge(phoneWs, callSid, kbId, cfg);
         await bridge.start();
 
         for (const buf of audioBuffer) bridge.handleAudio(buf);

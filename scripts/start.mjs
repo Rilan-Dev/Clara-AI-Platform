@@ -51,7 +51,14 @@ http.createServer = (...args) => {
 
   wss.on("connection", (ws, req) => handleVoiceConnection(ws, req));
 
-  wssSarvamTts.on("connection", (ws, req) => {\n    Promise.resolve(handleSarvamTtsRealtimeConnection(ws, req)).catch(err => {\n      console.error("[sarvam-tts-relay] fatal:", err && err.message);\n      try { ws.close(1011); } catch (_) {}\n    });\n  });\n\n  wssSarvam.on("connection", (ws, req) => {
+  wssSarvamTts.on("connection", (ws, req) => {
+    Promise.resolve(handleSarvamTtsRealtimeConnection(ws, req)).catch(err => {
+      console.error("[sarvam-tts-relay] fatal:", err && err.message);
+      try { ws.close(1011); } catch (_) {}
+    });
+  });
+
+  wssSarvam.on("connection", (ws, req) => {
     Promise.resolve(handleSarvamRealtimeConnection(ws, req)).catch(err => {
       console.error("[sarvam-relay] fatal:", err && err.message);
       try { ws.close(1011); } catch (_) {}
