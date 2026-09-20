@@ -235,6 +235,28 @@ export function useVoiceClient(options: VoiceClientOptions) {
     openai.interrupt();
   }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
 
+  // ── Microphone mute ("pause/resume") ────────────────────────────────────
+  // Provider-routed exactly like interrupt(): toggles track.enabled on the
+  // ACTIVE hook's mic stream. The session stays connected — digital silence
+  // is all that leaves the browser while muted.
+  const setMicMuted = useCallback((muted: boolean) => {
+    if (provider === "elevenlabs") {
+      if (elevenlabsMode === "conversational") elevenlabsConvAI.setMicMuted(muted);
+      else if (elevenlabsMode === "clara-stream") elevenlabsClaraStream.setMicMuted(muted);
+      else elevenlabs.setMicMuted(muted);
+      return;
+    }
+    if (provider === "sarvam") {
+      sarvam.setMicMuted(muted);
+      return;
+    }
+    if (provider === "gemini") {
+      gemini.setMicMuted(muted);
+      return;
+    }
+    openai.setMicMuted(muted);
+  }, [elevenlabs, elevenlabsClaraStream, elevenlabsConvAI, elevenlabsMode, gemini, openai, provider, sarvam]);
+
   const sendText = useCallback((text: string) => {
     if (provider === "elevenlabs") {
       if (elevenlabsMode === "conversational") elevenlabsConvAI.sendText(text);
@@ -269,6 +291,9 @@ export function useVoiceClient(options: VoiceClientOptions) {
     disconnect,
     interrupt,
     sendText,
+    /** Mic pause/resume — true while the local microphone emits silence. */
+    micMuted:           active.micMuted,
+    setMicMuted,
     // Playback AnalyserNode — real output levels for useAudioVisualizer.
     outputAnalyserNode: active.outputAnalyserNode,
   } as const;

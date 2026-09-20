@@ -43,6 +43,7 @@ import type { VoiceStatus, VoiceTurn } from "../voice/types";
 import type { VoiceClientOptions } from "../voice/types";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { setMicStreamMuted } from "../voice/mic-mute";
 
 // ─── Tuning ──────────────────────────────────────────────────────────────────
 
@@ -163,6 +164,16 @@ export function useElevenLabsConvAI(options: VoiceClientOptions) {
 
   // Capture chain (shared worklet — same as the Gemini Live path).
   const micStreamRef = useRef<MediaStream | null>(null);
+  // ── Microphone mute ("pause") ────────────────────────────────────────────
+  // track.enabled=false feeds the ElevenLabs Conversational-AI capture chain
+  // digital silence while the session stays connected.
+  const [micMuted, setMicMutedState] = useState(false);
+  const micMutedRef = useRef(false);
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+    setMicStreamMuted(micStreamRef.current, muted);
+  }, []);
   const captureCtxRef = useRef<AudioContext | null>(null);
   const workletRef = useRef<AudioWorkletNode | null>(null);
   const pendingAudioRef = useRef<Int16Array[]>([]);
@@ -429,6 +440,8 @@ export function useElevenLabsConvAI(options: VoiceClientOptions) {
       });
       if (myToken !== connectTokenRef.current) { mic.getTracks().forEach((t) => t.stop()); return; }
       micStreamRef.current = mic;
+      // Sticky mute across reconnects — a muted visitor stays muted.
+      setMicStreamMuted(mic, micMutedRef.current);
 
       // 3. Audio contexts inside the user-gesture scope.
       const AudioCtxClass = window.AudioContext
@@ -527,6 +540,8 @@ export function useElevenLabsConvAI(options: VoiceClientOptions) {
     error,
     isSpeaking,
     history,
+    micMuted,
+    setMicMuted,
     connect,
     disconnect,
     interrupt,

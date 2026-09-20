@@ -348,7 +348,9 @@ function WidgetContent() {
   const avatarLetter = config?.assistantName?.charAt(0)?.toUpperCase() ?? "A";
   // "connected" never renders as a label by itself: once the session is up it
   // is either listening (mic open) or speaking (assistant audio playing).
-  const vsLabel = voiceState === "connecting" ? "Connecting…" :
+  // A paused mic replaces both — the visitor explicitly held the microphone.
+  const vsLabel = voiceSession.micMuted ? "Mic paused" :
+    voiceState === "connecting" ? "Connecting…" :
     voiceState === "listening" ? "Listening…" :
     voiceState === "speaking"  ? "Speaking…"  : "";
 
@@ -508,7 +510,7 @@ function WidgetContent() {
           {showVoice && (
             <button
               onClick={() => isVoiceActive ? stopVoice() : startVoice()}
-              title={isVoiceActive ? `Voice: ${voiceState} — click to stop` : "Start voice"}
+              title={isVoiceActive ? (voiceSession.micMuted ? `Voice: ${voiceState} · mic paused` : `Voice: ${voiceState} — click to stop`) : "Start voice"}
               className="clara-voice-btn"
               style={{
                 flexShrink:0,width:vBtnSz,height:vBtnSz,borderRadius:vBtnR,
@@ -534,6 +536,51 @@ function WidgetContent() {
                       <line x1="8" y1="23" x2="16" y2="23"/>
                     </>
                 }
+              </svg>
+            </button>
+          )}
+
+          {/* Mic pause/resume — only while a voice session is active.
+              Muting keeps the session connected; the mic sends digital
+              silence until the visitor resumes it. */}
+          {showVoice && isVoiceActive && (
+            <button
+              onClick={() => voiceSession.setMicMuted(!voiceSession.micMuted)}
+              title={voiceSession.micMuted
+                ? "Resume microphone — Clara hears you again"
+                : "Pause microphone — the session stays live but Clara stops hearing you"}
+              aria-label={voiceSession.micMuted ? "Resume microphone" : "Pause microphone"}
+              aria-pressed={voiceSession.micMuted}
+              className="clara-mic-mute-btn"
+              style={{
+                flexShrink:0,width:vBtnSz,height:vBtnSz,borderRadius:vBtnR,
+                background: voiceSession.micMuted ? "#f59e0b" : (dark?"#2a2a40":"#e5e7eb"),
+                color: voiceSession.micMuted ? "#fff" : (dark?"#9ca3af":"#6b7280"),
+                border: voiceSession.micMuted ? "1px solid #f59e0b66" : "none",
+                cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                transition:"background 0.18s, transform 0.12s",
+                transform: voiceSession.micMuted ? "scale(1.05)" : "scale(1)",
+              }}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {voiceSession.micMuted ? (
+                  <>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M9 9v3a3 3 0 0 0 5.12 2.12"/>
+                    <path d="M15 9.34V5a3 3 0 0 0-5.94-.6"/>
+                    <path d="M17 16.95A7 7 0 0 1 5 12v-2"/>
+                    <path d="M12 19v4"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </>
+                ) : (
+                  <>
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </>
+                )}
               </svg>
             </button>
           )}

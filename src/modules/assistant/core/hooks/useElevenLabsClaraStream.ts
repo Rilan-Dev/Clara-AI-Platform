@@ -34,6 +34,7 @@ import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
 import { sanitizeTtsText, isNonSpeechTranscript } from "@/modules/voice-core/tts-text";
 import { connectPcm16Capture, connectWorkletPcm16Capture } from "../voice/pcm-capture";
+import { setMicStreamMuted } from "../voice/mic-mute";
 import {
   GenerationCoordinator,
   LatencyTracker,
@@ -109,6 +110,16 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
 
   // Capture chain
   const micStreamRef = useRef<MediaStream | null>(null);
+  // ── Microphone mute ("pause") ────────────────────────────────────────────
+  // track.enabled=false makes the Scribe STT capture chain emit digital
+  // silence — no committed transcript, no turn — while both sockets stay up.
+  const [micMuted, setMicMutedState] = useState(false);
+  const micMutedRef = useRef(false);
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+    setMicStreamMuted(micStreamRef.current, muted);
+  }, []);
   const captureCtxRef = useRef<AudioContext | null>(null);
   const captureRef = useRef<{ stop: () => void } | null>(null);
   const pcmBufferRef = useRef<Int16Array[]>([]);
@@ -509,6 +520,8 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       });
       if (myToken !== connectTokenRef.current) { mic.getTracks().forEach((t) => t.stop()); return; }
       micStreamRef.current = mic;
+      // Sticky mute across reconnects — a muted visitor stays muted.
+      setMicStreamMuted(mic, micMutedRef.current);
 
       const AudioCtxClass = window.AudioContext
         || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
@@ -656,6 +669,8 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     error,
     isSpeaking,
     history,
+    micMuted,
+    setMicMuted,
     connect,
     disconnect,
     interrupt,

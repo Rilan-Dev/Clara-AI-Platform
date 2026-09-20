@@ -32,6 +32,7 @@ import { apiUrl } from "@/lib/runtime";
 import { streamChatCompletion } from "../../client/stream";
 import { splitSentences } from "../voice/sentence-split";
 import { connectPcm16Capture, connectWorkletPcm16Capture } from "../voice/pcm-capture";
+import { setMicStreamMuted } from "../voice/mic-mute";
 import { isNonSpeechTranscript, sanitizeTtsText } from "@/modules/voice-core/tts-text";
 import { GenerationCoordinator, LatencyTracker, mintSessionId, mintTurnId } from "@/modules/voice-core/realtime";
 import { GenerationPlaybackQueue } from "../voice/generation-playback";
@@ -110,6 +111,17 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
   // Capture chain (both modes)
   const micStreamRef = useRef<MediaStream | null>(null);
+  // ── Microphone mute ("pause") ────────────────────────────────────────────
+  // track.enabled=false makes every capture path (AudioWorklet +
+  // ScriptProcessor fallback, MediaRecorder utterances for Mode-A STT) emit
+  // digital silence while the realtime WS session stays connected.
+  const [micMuted, setMicMutedState] = useState(false);
+  const micMutedRef = useRef(false);
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+    setMicStreamMuted(micStreamRef.current, muted);
+  }, []);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const captureChunksRef = useRef<Blob[]>([]);
   const captureCtxRef = useRef<AudioContext | null>(null);
@@ -860,6 +872,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       });
       if (myToken !== connectTokenRef.current) { mic.getTracks().forEach((t) => t.stop()); return; }
       micStreamRef.current = mic;
+      // Sticky mute across reconnects — a muted visitor stays muted.
+      setMicStreamMuted(mic, micMutedRef.current);
 
       // 3. Audio contexts inside the user-gesture scope.
       const AudioCtxClass = window.AudioContext
@@ -979,6 +993,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     error,
     isSpeaking,
     history,
+    micMuted,
+    setMicMuted,
     connect,
     disconnect,
     interrupt,
