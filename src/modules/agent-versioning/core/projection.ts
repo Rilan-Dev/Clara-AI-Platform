@@ -197,7 +197,14 @@ export async function projectDraftToLegacyStores(
         realtimeModel: config.ai.realtimeModel ?? null,
         transcriptionModel: config.ai.transcriptionModel ?? null,
         voiceProvider: config.ai.voiceProvider ?? null,
+        voiceChatSttModel: config.ai.voiceChatSttModel ?? null,
+        voiceChatTtsModel: config.ai.voiceChatTtsModel ?? null,
+        voiceChatVoiceId: config.ai.voiceChatVoiceId ?? null,
         realtimeVoiceProvider: config.ai.realtimeVoiceProvider ?? null,
+        realtimeLlmModel: config.ai.realtimeLlmModel ?? null,
+        realtimeSttModel: config.ai.realtimeSttModel ?? null,
+        realtimeTtsModel: config.ai.realtimeTtsModel ?? null,
+        realtimeVoiceId: config.ai.realtimeVoiceId ?? null,
       });
     }
   } catch (err) {
