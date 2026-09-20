@@ -89,6 +89,20 @@ vi.mock("@/modules/voice-core/api/elevenlabs/embed-auth", () => ({
   embedVoiceGuard: vi.fn(async () => null), // platform JWT path — no clr_ key
 }));
 
+// Gap-closure Phase D: the Gemini session route now requires a platform
+// session (P0 credential-security fix). Mock requireAuth the way the real
+// one behaves: authenticated callers pass, anonymous callers get 401.
+vi.mock("@/modules/auth/core/rbac", () => ({
+  requireAuth: vi.fn(async (req: Request) => {
+    const auth = req.headers.get("authorization");
+    if (!auth || !auth.startsWith("Bearer ")) {
+      const { NextResponse } = await import("next/server");
+      throw NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+    return { user: { id: "user-switch-1" }, session: { id: "sess-switch-1" } };
+  }),
+}));
+
 const createClientSecretMock = vi.fn();
 vi.mock("@/modules/assistant/api/openai-realtime", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/modules/assistant/api/openai-realtime")>();
@@ -179,6 +193,9 @@ function sarvamResolved() {
 function sessionPost(body: Record<string, unknown>): NextRequest {
   return new NextRequest("http://localhost/session", {
     method: "POST",
+    // Authenticated platform caller — the contract every realtime session
+    // route now shares (the browser hook sends the platform JWT).
+    headers: { "Content-Type": "application/json", Authorization: "Bearer platform-session-token" },
     body: JSON.stringify(body),
   });
 }
@@ -260,11 +277,14 @@ describe("Task 7.1 — resolve tenant context before provider connection", () =>
     expect(openai.status).toBe(402);
     expect(createClientSecretMock).not.toHaveBeenCalled();
 
-    // Gemini: the vendor wsUrl (which embeds the key) is NEVER returned.
+    // Gemini: the relay capability token (the only credential artifact this
+    // route can mint) is NEVER minted on a 402 — and no wsUrl ever exists.
     geminiResolved();
     const gemini = await postGeminiSession(sessionPost({ kbId: KB_ID }));
     expect(gemini.status).toBe(402);
-    expect((await gemini.json()).wsUrl).toBeUndefined();
+    const geminiBody = await gemini.json();
+    expect(geminiBody.wsUrl).toBeUndefined();
+    expect(geminiBody.realtime).toBeUndefined();
 
     // ElevenLabs / Sarvam: descriptors + relay tokens are NEVER minted.
     elevenlabsResolved();
