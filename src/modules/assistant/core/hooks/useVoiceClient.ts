@@ -10,6 +10,7 @@ import { useSarvamVoice } from "./useSarvamVoice";
 import type { VoiceClientOptions } from "../voice/types";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { deriveRealtimeUiState } from "@/modules/voice-core/realtime/ui-state-machine";
 
 // ─── Provider routing ─────────────────────────────────────────────────────────
 //
@@ -255,6 +256,11 @@ export function useVoiceClient(options: VoiceClientOptions) {
   return {
     provider,
     status:             active.status,
+    /** Plan Task 8.1 derived lifecycle: idle|connecting|listening|thinking|speaking|error. */
+    uiState:            deriveRealtimeUiState({
+      status: String(active.status),
+      isSpeaking: active.isSpeaking,
+    }),
     error:              active.error,
     isSpeaking:         active.isSpeaking,
     history:            active.history,
