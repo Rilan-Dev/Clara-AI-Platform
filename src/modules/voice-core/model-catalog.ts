@@ -403,6 +403,25 @@ export const SARVAM_REALTIME_STT_MODEL_IDS: string[] = ["saaras:v3-realtime", "s
 
 /** Safe fallback when a config carries an unknown/blank STT model. */
 export const SARVAM_REALTIME_STT_MODEL_FALLBACK = "saaras:v3-realtime";
+/** Explicit realtime voice-agent defaults, separate from batch STT settings. */
+export const DEFAULT_SARVAM_REALTIME_STT_MODEL = "saaras:v3-realtime";
+export const DEFAULT_SARVAM_REALTIME_LLM_MODEL = "sarvam-105b-conversations";
+
+export function getPlatformDefaultSarvamRealtimeSttModel(): string {
+  const configured = process.env.SARVAM_REALTIME_STT_MODEL?.trim();
+  return configured && SARVAM_REALTIME_STT_MODEL_IDS.includes(configured)
+    ? configured
+    : DEFAULT_SARVAM_REALTIME_STT_MODEL;
+}
+
+export function getPlatformDefaultSarvamRealtimeLlmModel(): string {
+  return process.env.SARVAM_REALTIME_LLM_MODEL?.trim() || DEFAULT_SARVAM_REALTIME_LLM_MODEL;
+}
+
+export function isSarvamRealtimeTtsEnabled(): boolean {
+  return (process.env.SARVAM_REALTIME_TTS_ENABLED ?? "true").toLowerCase() === "true";
+}
+
 
 /**
  * Map a catalogued Saaras STT id to the vendor realtime-WebSocket model id.
