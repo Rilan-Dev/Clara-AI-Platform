@@ -77,7 +77,7 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
   const speaker = cfg.tts?.speaker || "shubh";
   const language = cfg.tts?.language || "en-IN";
   const upstreamUrl =
-    `https://api.sarvam.ai/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
+    `${String(cfg.baseUrl || "https://api.sarvam.ai").replace(/\\/+$/, "")}/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
   const upstream = new WebSocket(upstreamUrl, {
     headers: { "api-subscription-key": cfg.apiKey },
   });
