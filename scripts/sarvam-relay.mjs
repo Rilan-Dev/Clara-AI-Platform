@@ -186,11 +186,19 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
     }
   }, 5_000);
 
+  // Sarvam realtime STT closes idle sessions with 1008. Keep a long-lived
+  // voice session alive even when the caller pauses for a while.
+  const keepAliveTimer = setInterval(() => {
+    if (state.closed || !state.upstreamReady) return;
+    try { upstream.send(JSON.stringify({ event: "ping" })); } catch {}
+  }, 20_000);
+
   function closeBoth(code, reason) {
     if (state.closed) return;
     state.closed = true;
     clearTimeout(lifetimeTimer);
     clearInterval(idleTimer);
+    clearInterval(keepAliveTimer);
     try { upstream.close(code, reason); } catch (_) {}
     try { browserWs.close(code, reason); } catch (_) {}
   }
