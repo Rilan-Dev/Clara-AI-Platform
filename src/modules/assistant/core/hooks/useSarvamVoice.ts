@@ -614,6 +614,19 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     const realtime = session?.stt.realtime;
     if (!session || !realtime || !captureCtxRef.current) return false;
 
+    // Duplicate-session guard (gap-closure Phase B): a second start must
+    // never stack a second flush timer / capture graph / relay socket on top
+    // of a live one — tear the previous remnants down first (idempotent).
+    if (realtimeFlushTimerRef.current) {
+      clearInterval(realtimeFlushTimerRef.current);
+      realtimeFlushTimerRef.current = null;
+    }
+    realtimeCaptureRef.current?.stop();
+    realtimeCaptureRef.current = null;
+    realtimePcmBufferRef.current = [];
+    try { realtimeWsRef.current?.close(); } catch {}
+    realtimeWsRef.current = null;
+
     // 1. Upstream socket (same-origin relay; vendor host never in the browser).
     const ws = new WebSocket(realtimeWsUrl(realtime.endpoint, realtime.token));
     realtimeWsRef.current = ws;
@@ -642,9 +655,15 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     let capture: { stop: () => void };
     try {
       capture = await connectWorkletPcm16Capture(captureCtxRef.current, source, onPcmFrame);
-    } catch {
+    } catch (err) {
       // AudioWorklet unavailable (module load failure / legacy engine) —
       // the zero-gain pull-through ScriptProcessor keeps the path alive.
+      // Observable, never silent: ops must see when the deprecated path runs.
+      console.warn(
+        "[sarvam-realtime] AudioWorklet capture unavailable — falling back to " +
+          "ScriptProcessorNode (deprecated path):",
+        (err as Error)?.message ?? err,
+      );
       capture = connectPcm16Capture(captureCtxRef.current, source, onPcmFrame);
     }
     realtimeCaptureRef.current = capture;
