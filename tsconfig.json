@@ -53,6 +53,11 @@
     "vite.config.ts",
     "scripts/**",
     "**/*_DELETE_ME.ts",
-    "**/*_DELETE_ME.tsx"
+    "**/*_DELETE_ME.tsx",
+    "skills",
+    "_archive",
+    "download",
+    "upload",
+    "tool-results"
   ]
 }
