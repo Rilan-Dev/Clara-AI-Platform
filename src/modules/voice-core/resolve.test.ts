@@ -82,7 +82,7 @@ import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import { isElevenLabsEnabled } from "./model-catalog";
-import { resolveVoiceConfig } from "./resolve";
+import { isSarvamRealtimeSttEnabled, resolveVoiceConfig } from "./resolve";
 import type { VoiceResolution } from "./config-types";
 
 const orgSettingsMock = vi.mocked(getOrgAISettings);
@@ -218,5 +218,18 @@ describe("voice resolution — guards", () => {
     } as never);
     isElevenLabsEnabledMock.mockReturnValue(false);
     await expect(resolve()).rejects.toThrow(/ElevenLabs voice is not available on this platform/);
+  });
+});
+
+describe("Phase 13 rollout gate — SARVAM_REALTIME_STT_ENABLED stays DARK by default", () => {
+  it("defaults OFF (unset env)", () => {
+    delete process.env.SARVAM_REALTIME_STT_ENABLED;
+    expect(isSarvamRealtimeSttEnabled()).toBe(false);
+  });
+
+  it("opt-in requires an explicit true", () => {
+    process.env.SARVAM_REALTIME_STT_ENABLED = "true";
+    expect(isSarvamRealtimeSttEnabled()).toBe(true);
+    delete process.env.SARVAM_REALTIME_STT_ENABLED;
   });
 });

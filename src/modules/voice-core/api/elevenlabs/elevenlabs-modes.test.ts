@@ -157,3 +157,11 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
     expect(getElevenLabsRealtimeSttModel()).toBe("scribe_v2_realtime");
   });
 });
+
+describe("Phase 13 rollout gates — realtime flags stay DARK by default", () => {
+  it("ELEVENLABS_REALTIME_ENABLED defaults OFF (rollback is configuration-only)", () => {
+    setEnv("ELEVENLABS_REALTIME_ENABLED", undefined);
+    setEnv("ELEVENLABS_ENABLED", "true");
+    expect(isElevenLabsRealtimeEnabled()).toBe(false);
+  });
+});
