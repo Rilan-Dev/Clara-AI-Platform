@@ -34,6 +34,7 @@ import {
   createOpenAIRealtimeClientSecret,
 } from "@/modules/assistant/api/openai-realtime";
 import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
+import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
 import {
   VoiceConfigResolutionError,
   resolveVoiceConfig,
@@ -43,8 +44,6 @@ import {
   TTS_OUTPUT_FORMAT,
 } from "@/modules/voice-core/model-catalog";
 
-const GEMINI_LIVE_WSS_URL =
-  "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
 
@@ -263,7 +262,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           kbId: ctx.kbId,
           orgId: resolved.orgId ?? ctx.orgId,
           projectId: resolved.agentId,
-          wsUrl: `${GEMINI_LIVE_WSS_URL}?key=${apiKey}`,
+          // Gap-closure Phase D: the long-lived GEMINI_API_KEY never crosses
+          // this response. The browser gets a same-origin relay descriptor +
+          // short-lived HMAC capability token; the relay
+          // (scripts/gemini-relay.mjs) holds the vendor key server-side.
+          realtime: {
+            endpoint: "/api/voice/gemini/realtime",
+            token: mintGeminiRealtimeToken({
+              kbId: ctx.kbId,
+              orgId: resolved.orgId ?? ctx.orgId,
+            }),
+          },
           model,
           voice: voiceId,
           instructions,

@@ -10,6 +10,7 @@ import {
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
+import { buildSameOriginRelayWsUrl } from "@/modules/voice-core/realtime/relay-url";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -131,10 +132,14 @@ function extractTranscriptionText(obj: Record<string, unknown>): string {
  *
  * ── Architecture (message flow) ──────────────────────────────────────────────
  *
- *   Browser (this hook)                      Gemini Live v1alpha
+ *   Browser (this hook)                      Gemini Live v1alpha (via relay)
  *   ──────────────────                       ──────────────────
- *   POST /api/gemini/session  ─────────────► returns { wsUrl, model, voice }
- *   WebSocket(wsUrl)          ─────────────► BidiGenerateContent stream
+ *   POST /api/gemini/session  ─────────────► returns { realtime: { endpoint,
+ *                                              token }, model, voice } — the
+ *                                              long-lived GEMINI_API_KEY
+ *                                              never leaves the server.
+ *   WebSocket(wss://<self>/api/voice/gemini/realtime?token=<hmac>)
+ *                             ── relay ──►  BidiGenerateContent stream
  *   { setup: { … } }          ─────────────► Gemini initialises session
  *                             ◄─────────────  setupComplete
  *   realtimeInput (PCM-16)    ─────────────► user speech, batched @ 100 ms
@@ -806,13 +811,24 @@ export function useGeminiLive(opts?: Options) {
       if (!sessRes.ok) throw new Error(await sessRes.text());
       const session = await sessRes.json();
 
-      const { wsUrl, model, voice, instructions } = session as {
-        wsUrl: string;
+      const { realtime, model, voice, instructions } = session as {
+        realtime: { endpoint: string; token: string };
         model: string;
         voice: string;
         instructions?: string | null;
       };
-      if (!wsUrl) throw new Error("Missing WebSocket URL in Gemini session response.");
+      // Gap-closure Phase D: the WS URL is built CLIENT-SIDE from the relay
+      // descriptor — same origin, HMAC capability token as the only query
+      // parameter. The long-lived GEMINI_API_KEY never appears in any URL the
+      // browser constructs or receives (scripts/gemini-relay.mjs holds it
+      // server-side and pipes the BidiGenerateContent protocol verbatim).
+      if (!realtime?.endpoint || !realtime?.token) {
+        throw new Error("Missing relay descriptor in Gemini session response.");
+      }
+      const wsUrl = buildSameOriginRelayWsUrl({
+        endpoint: apiUrl(realtime.endpoint),
+        token: realtime.token,
+      });
       if (myToken !== connectTokenRef.current) { clearTimeoutGuard(); return; }
 
       // ── 2. Acquire microphone ────────────────────────────────────────────

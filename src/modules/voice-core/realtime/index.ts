@@ -5,3 +5,4 @@
 export * from "./identity";
 export * from "./generation-coordinator";
 export * from "./latency-tracker";
+export * from "./relay-url";
