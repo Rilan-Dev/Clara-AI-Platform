@@ -161,5 +161,6 @@ export interface SarvamSessionPayload {
     sttModel: string;
     llmModel: string;
     ttsModel: string;
+    ttsEnabled: boolean;
   };
 }
