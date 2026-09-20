@@ -366,6 +366,21 @@ export function useSarvamVoice(options: VoiceClientOptions) {
               }
             } else {
               answerBufferRef.current += event.payload;
+
+              // Realtime voice should not wait for a full grammatical sentence.
+              // If the LLM is streaming a long sentence, release a natural
+              // word-boundary chunk early so Bulbul can start speaking while
+              // the rest of the answer is still being generated.
+              if (answerBufferRef.current.length >= 48) {
+                const cut = answerBufferRef.current.lastIndexOf(" ");
+                if (cut >= 24) {
+                  const earlyChunk = answerBufferRef.current.slice(0, cut).trim();
+                  answerBufferRef.current = answerBufferRef.current.slice(cut + 1);
+                  if (earlyChunk && !controller.signal.aborted) {
+                    void speakSentence(earlyChunk);
+                  }
+                }
+              }
             }
           }
         },
