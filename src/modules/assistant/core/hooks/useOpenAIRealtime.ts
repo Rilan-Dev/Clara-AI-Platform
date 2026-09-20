@@ -10,6 +10,7 @@ import {
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
+import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
 import type { Source } from "../models";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
@@ -147,6 +148,9 @@ const RT_EVENTS = {
   // Function / tool call
   FUNCTION_ARGS_DELTA: "response.function_call_arguments.delta",
   FUNCTION_ARGS_DONE:  "response.function_call_arguments.done",
+
+  // Streaming model audio (WebRTC media track mirrors these deltas)
+  AUDIO_DELTA: "response.audio.delta",
 } as const;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -202,6 +206,22 @@ export function useOpenAIRealtime(opts?: Options) {
   const latestTurnIdRef       = useRef<string | null>(null);
   const toolCallBufferRef     = useRef<Record<string, string>>({});
   const isSpeakingRef         = useRef(false);
+  // ── Latency telemetry (plan Phase 10 — timings only, never transcripts) ──
+  // Same tracker + window-event discipline as the Sarvam / ElevenLabs hooks
+  // so the benchmark harness (scripts/voice-benchmark/run.mjs) can measure the
+  // OpenAI baseline TTFA with the SAME stage names and event contract.
+  const latencyRef            = useRef<LatencyTracker | null>(null);
+  const latencySessionIdRef   = useRef<string>("");
+  const latencyModelRef       = useRef<string | null>(null);
+
+  const emitLatencyTelemetry = useCallback(() => {
+    const event = latencyRef.current?.telemetry();
+    if (!event) return;
+    console.debug("[openai-realtime] latency", event);
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
+    }
+  }, []);
   // ragBusyRef removed — replaced by AbortController (ragAbortRef). See
   // performRagAndRespond for the explanation.
   // pendingFollowUpRef removed — FIX V3: see comment on PendingFollowUp type.
@@ -310,6 +330,14 @@ export function useOpenAIRealtime(opts?: Options) {
     const newId = generateTurnId();
     activeTurnIdRef.current = newId;
     latestTurnIdRef.current = newId;
+    // Per-turn latency record (plan Phase 10): timings only, never transcripts.
+    latencyRef.current?.beginTurn({
+      sessionId: latencySessionIdRef.current,
+      turnId: newId,
+      provider: "openai",
+      model: latencyModelRef.current,
+    });
+    latencyRef.current?.mark("rag.start");
     setHistory((prev) => [
       ...prev,
       { id: newId, question: query, answer: "", sources: [], status: "pending" },
@@ -339,6 +367,7 @@ export function useOpenAIRealtime(opts?: Options) {
         signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
       });
       const payload = await res.json();
+      latencyRef.current?.mark("rag.end");
       const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
       const ragContext =
         typeof payload?.context === "string" ? payload.context.trim() : "";
@@ -396,6 +425,10 @@ export function useOpenAIRealtime(opts?: Options) {
       // and a second response.create — the root cause of the duplicate answer.
       // FIX V2: Exactly one response.create per user turn means activeTurnIdRef
       // is never null between competing responses; all deltas reach the turn.
+      // For native realtime audio the response IS the audio generation, so
+      // llm.start and tts.start are the same instant on this provider.
+      latencyRef.current?.mark("llm.start");
+      latencyRef.current?.mark("tts.start");
       sendJSON({
         type: "response.create",
         response: {
@@ -506,6 +539,7 @@ export function useOpenAIRealtime(opts?: Options) {
 
   const interrupt = useCallback(() => {
     try {
+      latencyRef.current?.mark("interrupt");
       sendJSON({ type: "response.cancel" });
       setIsSpeaking(false);
       isSpeakingRef.current = false;
@@ -701,6 +735,19 @@ export function useOpenAIRealtime(opts?: Options) {
       });
       if (!sessRes.ok) throw new Error(await sessRes.text());
       const session = await sessRes.json();
+      // Per-session latency tracker (plan Phase 10) — same stage names and
+      // window-event contract as the Sarvam / ElevenLabs Clara hooks, so the
+      // benchmark harness measures every provider identically.
+      latencySessionIdRef.current = mintSessionId();
+      latencyModelRef.current =
+        typeof session?.model === "string" ? session.model : null;
+      latencyRef.current = new LatencyTracker();
+      latencyRef.current.beginTurn({
+        sessionId: latencySessionIdRef.current,
+        provider: "openai",
+        model: latencyModelRef.current,
+      });
+      latencyRef.current.mark("session.start");
       const ephemeralKey =
         session?.client_secret?.value ||
         session?.client_secret ||
@@ -774,7 +821,10 @@ export function useOpenAIRealtime(opts?: Options) {
           // Accumulate partial transcript as speech-to-text streams in.
           if (type === RT_EVENTS.TRANSCRIPTION_DELTA) {
             const delta = typeof msg.delta === "string" ? msg.delta : "";
-            if (delta) userQueryRef.current += delta;
+            if (delta) {
+              userQueryRef.current += delta;
+              latencyRef.current?.mark("stt.first_partial");
+            }
           }
 
           // ── User transcript complete ───────────────────────────────────
@@ -788,6 +838,7 @@ export function useOpenAIRealtime(opts?: Options) {
             if (finalTranscript.trim()) {
               userQueryRef.current = finalTranscript;
             }
+            latencyRef.current?.mark("stt.final");
             scheduleRag();
           }
 
@@ -802,6 +853,7 @@ export function useOpenAIRealtime(opts?: Options) {
           ) {
             const delta = typeof msg.delta === "string" ? msg.delta : "";
             if (delta) {
+              latencyRef.current?.mark("llm.first_token");
               setHistory((prev) => {
                 const targetId = resolveTurnId(prev);
                 if (!targetId) return prev;
@@ -813,6 +865,15 @@ export function useOpenAIRealtime(opts?: Options) {
                 );
               });
             }
+          }
+
+          // ── Streaming model audio (WebRTC mirrors it on the media track) ─
+          // The first audio delta is the provider's first synthesized audio;
+          // the browser's WebRTC track starts playing the same frame — the
+          // closest observable browser.first_audio instant on this transport.
+          if (type === RT_EVENTS.AUDIO_DELTA) {
+            latencyRef.current?.mark("tts.first_audio");
+            latencyRef.current?.mark("browser.first_audio");
           }
 
           // ── Response started ───────────────────────────────────────────
@@ -844,6 +905,8 @@ export function useOpenAIRealtime(opts?: Options) {
           // single-path design, RESPONSE_DONE only needs to mark the turn
           // done and reset speaking state — nothing more.
           if (type === RT_EVENTS.RESPONSE_DONE) {
+            latencyRef.current?.mark("turn.complete");
+            emitLatencyTelemetry();
             isSpeakingRef.current = false;
             let resolvedId: string | null = null;
             setHistory((prev) => {
@@ -1166,6 +1229,17 @@ export function useOpenAIRealtime(opts?: Options) {
         const introTurnId = generateTurnId();
         activeTurnIdRef.current = introTurnId;
         latestTurnIdRef.current = introTurnId;
+        // The greeting is a system generation: its latency record is replaced
+        // by the first committed user turn (telemetry only — the playback flow
+        // is untouched).
+        latencyRef.current?.beginTurn({
+          sessionId: latencySessionIdRef.current,
+          turnId: introTurnId,
+          provider: "openai",
+          model: latencyModelRef.current,
+        });
+        latencyRef.current?.mark("llm.start");
+        latencyRef.current?.mark("tts.start");
         setHistory((prev) => [
           ...prev,
           {
@@ -1195,6 +1269,7 @@ export function useOpenAIRealtime(opts?: Options) {
     }
   }, [
     cleanup,
+    emitLatencyTelemetry,
     handleToolCall,
     kbId,
     languageGuidance.session,
