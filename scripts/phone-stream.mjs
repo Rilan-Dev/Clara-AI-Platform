@@ -67,7 +67,7 @@ export async function handleTwilioStream(phoneWs, req) {
       const cfg = await fetchPhoneSession(kbId, "twilio");
       if (!cfg) { phoneWs.close(1011, "Session failed"); return; }
 
-      bridge = cfg.provider === "sarvam"\n        ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "twilio")\n        : new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
+      bridge = cfg.provider === "sarvam"\n        ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "twilio", streamSid)\n        : new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
       await bridge.start();
 
       // Replay buffered media
@@ -441,7 +441,7 @@ class CallBridge {
 // Vonage Linear16/16 kHz. Saaras realtime accepts both directly, so no
 // 8k→24k→8k resampling is inserted into the Sarvam path.
 class SarvamCallBridge {
-  constructor(phoneWs, callSid, kbId, cfg, transport) {
+  constructor(phoneWs, callSid, kbId, cfg, transport, streamSid = callSid) {
     this.phoneWs = phoneWs;
     this.callSid = callSid;
     this.kbId = kbId;
