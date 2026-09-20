@@ -16,6 +16,8 @@ import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledg
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
 import { resolveAIConfig }           from "@/modules/ai-core/resolve";
 import { getPhoneConfigsByKb }       from "@/modules/phone/core/db";
+import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
+import { getSarvamApiKey, getSarvamBaseUrl, toSarvamRealtimeSttModel } from "@/modules/voice-core/model-catalog";
 import {
   buildOpenAIRealtimeSession,
   createOpenAIRealtimeClientSecret,
@@ -54,6 +56,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const activeConfig = configs.find(c => c.enabled) ?? configs[0];
     const resolved     = await resolveAIConfig({ kbId, surface: "embed" });
+    const voiceResolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+    const sarvamSelected = voiceResolved.realtimeProvider === "sarvam" || voiceResolved.voiceProvider === "sarvam";
+
+    if (sarvamSelected && voiceResolved.sarvam) {
+      const sarvamApiKey = getSarvamApiKey();
+      if (!sarvamApiKey) {
+        return NextResponse.json({ error: "SARVAM_API_KEY not configured for Sarvam phone calls" }, { status: 500 });
+      }
+      const callLanguage = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
+      const languageCode = /^[a-z]{2}(?:[-_][A-Z]{2})?$/i.test(callLanguage)
+        ? `${callLanguage.toLowerCase().slice(0, 2)}-IN`
+        : (callLanguage || "en-IN");
+      return NextResponse.json({
+        provider: "sarvam",
+        sarvam: {
+          apiKey: sarvamApiKey,
+          baseUrl: getSarvamBaseUrl(),
+          sttModel: toSarvamRealtimeSttModel(voiceResolved.sarvam.sttModel),
+          ttsModel: voiceResolved.sarvam.ttsModel,
+          speaker: voiceResolved.sarvam.speaker,
+          language: languageCode,
+          greetingMessage: activeConfig?.greetingMessage ?? assistantConfig.welcomeMessage ?? "Hello! How can I help you today?",
+          maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
+          kbName: kb.name,
+          kbId,
+        },
+      });
+    }
+
 
     // Build phone-optimised system prompt
     const basePrompt   = buildSystemPrompt(assistantConfig, { kbName: kb.name });

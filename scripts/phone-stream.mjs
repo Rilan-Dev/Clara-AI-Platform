@@ -67,7 +67,7 @@ export async function handleTwilioStream(phoneWs, req) {
       const cfg = await fetchPhoneSession(kbId, "twilio");
       if (!cfg) { phoneWs.close(1011, "Session failed"); return; }
 
-      bridge = new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
+      bridge = cfg.provider === "sarvam"\n        ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "twilio", streamSid)\n        : new TwilioCallBridge(phoneWs, callSid, streamSid, kbId, cfg);
       await bridge.start();
 
       // Replay buffered media
@@ -119,7 +119,7 @@ export async function handleVonageStream(phoneWs, req) {
         const cfg = await fetchPhoneSession(kbId, "vonage");
         if (!cfg) { phoneWs.close(1011, "Session failed"); return; }
 
-        bridge = new VonageCallBridge(phoneWs, callSid, kbId, cfg);
+        bridge = cfg.provider === "sarvam"\n          ? new SarvamCallBridge(phoneWs, callSid, kbId, cfg.sarvam, "vonage")\n          : new VonageCallBridge(phoneWs, callSid, kbId, cfg);
         await bridge.start();
 
         for (const buf of audioBuffer) bridge.handleAudio(buf);
@@ -434,6 +434,277 @@ class CallBridge {
 
   // Override in subclasses
   sendAudioToPhone(_pcm24k) { /* subclass */ }
+}
+
+// ── Sarvam realtime phone bridge ──────────────────────────────────────────────
+// Phone media stays in its native telephony codec: Twilio mu-law/8 kHz and
+// Vonage Linear16/16 kHz. Saaras realtime accepts both directly, so no
+// 8k→24k→8k resampling is inserted into the Sarvam path.
+class SarvamCallBridge {
+  constructor(phoneWs, callSid, kbId, cfg, transport, streamSid = callSid) {
+    this.phoneWs = phoneWs;
+    this.callSid = callSid;
+    this.kbId = kbId;
+    this.cfg = cfg;
+    this.transport = transport;
+    this.sttWs = null;
+    this.ttsWs = null;
+    this.ragAbort = null;
+    this.generation = 0;
+    this.userQuery = "";
+    this.transcript = [];
+    this.startedAt = new Date();
+    this.turnCount = 0;
+    this.ended = false;
+    this.ttsQueue = [];
+  }
+
+  async start() {
+    await this.openStt();
+    this.openTts();
+    if (this.cfg.greetingMessage) {
+      await this.speak(this.cfg.greetingMessage);
+    }
+    this.callTimer = setTimeout(() => this.end("max duration"), this.cfg.maxCallDurationSec * 1000);
+  }
+
+  openStt() {
+    return new Promise((resolve, reject) => {
+      const isTwilio = this.transport === "twilio";
+      const encoding = isTwilio ? "mulaw" : "linear16";
+      const sampleRate = isTwilio ? 8000 : 16000;
+      const base = String(this.cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "");
+      const url =
+        `${base}/speech-to-text-realtime/ws?language_code=${encodeURIComponent(this.cfg.language)}` +
+        `&model=${encodeURIComponent(this.cfg.sttModel || "saaras:v3-realtime")}` +
+        `&stream_type=fast&mode=transcribe&endpointing=vad&encoding=${encoding}&sample_rate=${sampleRate}` +
+        `&threshold=0.3&silence_duration_ms=500&min_speech_duration_ms=250`;
+      const ws = new WebSocket(url, { headers: { "api-subscription-key": this.cfg.apiKey } });
+      this.sttWs = ws;
+      ws.once("open", () => resolve());
+      ws.on("message", data => this.handleSttEvent(data));
+      ws.on("error", err => {
+        console.error("[phone/sarvam-stt]", err.message);
+        if (this.sttWs === ws) reject(err);
+      });
+      ws.on("close", () => {
+        if (!this.ended && this.sttWs === ws) {
+          setTimeout(() => { if (!this.ended) this.openStt().catch(() => this.end("sarvam stt reconnect failed")); }, 500);
+        }
+      });
+    });
+  }
+
+  openTts() {
+    if (this.ended) return;
+    const isTwilio = this.transport === "twilio";
+    const codec = isTwilio ? "mulaw" : "linear16";
+    const sampleRate = isTwilio ? 8000 : 16000;
+    const base = String(this.cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "");
+    const url = `${base}/text-to-speech/ws?model=${encodeURIComponent(this.cfg.ttsModel || "bulbul:v3")}&send_completion_event=true`;
+    const ws = new WebSocket(url, { headers: { "api-subscription-key": this.cfg.apiKey } });
+    this.ttsWs = ws;
+    ws.on("open", () => {
+      ws.send(JSON.stringify({
+        type: "config",
+        data: {
+          speaker: this.cfg.speaker || "shubh",
+          language_code: this.cfg.language || "en-IN",
+          min_buffer_size: 50,
+          max_chunk_length: 200,
+          output_audio_codec: codec,
+          speech_sample_rate: sampleRate,
+        },
+      }));
+      for (const text of this.ttsQueue.splice(0)) {
+        ws.send(JSON.stringify({ type: "text", data: { text } }));
+      }
+    });
+    ws.on("message", data => {
+      let event;
+      try { event = JSON.parse(data.toString()); } catch { return; }
+      if (event.type === "audio") {
+        const audio = event.data?.audio;
+        if (audio) this.sendTtsAudio(Buffer.from(audio, "base64"));
+      } else if (event.type === "error") {
+        console.error("[phone/sarvam-tts]", event.data?.message || event.message || "TTS error");
+      }
+    });
+    ws.on("close", () => {
+      if (!this.ended && this.ttsWs === ws) this.ttsWs = null;
+    });
+    ws.on("error", err => console.error("[phone/sarvam-tts]", err.message));
+  }
+
+  handleSttEvent(data) {
+    let event;
+    try { event = JSON.parse(data.toString()); } catch { return; }
+    const type = String(event.event || event.type || "");
+    if (type === "vad.speech_start") {
+      this.generation++;
+      this.ragAbort?.abort();
+      this.userQuery = "";
+      this.clearPhonePlayback();
+      try { this.ttsWs?.close(1000, "barge-in"); } catch {}
+      this.ttsWs = null;
+      return;
+    }
+    if (type === "transcript.partial") {
+      this.userQuery = String(event.text ?? event.transcript ?? this.userQuery);
+      return;
+    }
+    if (type === "transcript.final") {
+      const final = String(event.text ?? event.transcript ?? this.userQuery).trim();
+      this.userQuery = "";
+      if (!final) return;
+      const generation = ++this.generation;
+      this.turnCount++;
+      this.transcript.push({ speaker: "user", text: final, ts: new Date().toISOString() });
+      void this.respond(final, generation);
+    }
+    if (type === "error" && event.is_fatal) this.end("sarvam stt fatal");
+  }
+
+  handlePhoneAudio(buf) {
+    if (this.sttWs?.readyState !== WebSocket.OPEN) return;
+    this.sttWs.send(JSON.stringify({ event: "audio_input", audio: buf.toString("base64") }));
+  }
+
+  async respond(query, generation) {
+    this.ragAbort?.abort();
+    const ctrl = new AbortController();
+    this.ragAbort = ctrl;
+    try {
+      const context = await fetchRagContext(this.kbId, query);
+      if (ctrl.signal.aborted || generation !== this.generation || this.ended) return;
+      this.openTts();
+      await this.streamSarvamAnswer(query, context, generation, ctrl.signal);
+      if (this.ttsWs?.readyState === WebSocket.OPEN && generation === this.generation) {
+        this.ttsWs.send(JSON.stringify({ type: "flush", data: {} }));
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") console.error("[phone/sarvam] response:", error.message);
+    }
+  }
+
+  async streamSarvamAnswer(query, context, generation, signal) {
+    const base = String(this.cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "");
+    const response = await fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-subscription-key": this.cfg.apiKey,
+      },
+      signal,
+      body: JSON.stringify({
+        model: "sarvam-105b-conversations",
+        stream: true,
+        temperature: 0.4,
+        max_tokens: 180,
+        reasoning_effort: null,
+        messages: [
+          {
+            role: "system",
+            content:
+              `You are Clara on a live phone call. Answer naturally and concisely in the caller's language. Never use markdown. Keep the response under three short sentences.\n\nKnowledge base context:\n${context || "(no matching KB context)"}`,
+          },
+          { role: "user", content: query },
+        ],
+      }),
+    });
+    if (!response.ok || !response.body) throw new Error(`Sarvam chat HTTP ${response.status}`);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let pendingText = "";
+    let assistantText = "";
+    while (!signal.aborted) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const raw = line.slice(5).trim();
+        if (!raw || raw === "[DONE]") continue;
+        let chunk;
+        try { chunk = JSON.parse(raw); } catch { continue; }
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (!delta || generation !== this.generation || this.ended) continue;
+        assistantText += delta;
+        pendingText += delta;
+        if (/[.!?।॥]\s*$/.test(pendingText) || pendingText.length >= 80) {
+          this.sendTtsText(pendingText);
+          pendingText = "";
+        }
+      }
+    }
+    if (pendingText && generation === this.generation && !this.ended) this.sendTtsText(pendingText);
+    if (assistantText && generation === this.generation) {
+      this.transcript.push({ speaker: "assistant", text: assistantText, ts: new Date().toISOString() });
+    }
+  }
+
+  sendTtsText(text) {
+    if (!text.trim() || this.ended) return;
+    if (!this.ttsWs || this.ttsWs.readyState !== WebSocket.OPEN) {
+      this.ttsQueue.push(text);
+      this.openTts();
+      return;
+    }
+    this.ttsWs.send(JSON.stringify({ type: "text", data: { text } }));
+  }
+
+  speak(text) {
+    return new Promise(resolve => {
+      const done = () => {
+        this.ttsWs?.removeListener("message", onMessage);
+        resolve();
+      };
+      const onMessage = data => {
+        try {
+          const event = JSON.parse(data.toString());
+          if (event.type === "event" && event.data?.event_type === "final") done();
+        } catch {}
+      };
+      this.ttsWs?.on("message", onMessage);
+      this.sendTtsText(text);
+      this.ttsWs?.send(JSON.stringify({ type: "flush", data: {} }));
+      setTimeout(done, 5000);
+    });
+  }
+
+  sendTtsAudio(audio) {
+    if (this.transport === "twilio") {
+      if (this.phoneWs.readyState !== WebSocket.OPEN) return;
+      const streamSid = this.streamSid;
+      this.phoneWs.send(JSON.stringify({
+        event: "media",
+        streamSid,
+        media: { payload: audio.toString("base64") },
+      }));
+    } else if (this.phoneWs.readyState === WebSocket.OPEN) {
+      this.phoneWs.send(audio);
+    }
+  }
+
+  clearPhonePlayback() {
+    if (this.transport === "twilio" && this.phoneWs.readyState === WebSocket.OPEN) {
+      this.phoneWs.send(JSON.stringify({ event: "clear", streamSid: this.streamSid }));
+    }
+  }
+
+  end(reason) {
+    if (this.ended) return;
+    this.ended = true;
+    if (this.callTimer) clearTimeout(this.callTimer);
+    this.ragAbort?.abort();
+    try { this.sttWs?.close(1000); } catch {}
+    try { this.ttsWs?.close(1000); } catch {}
+    const duration = Math.round((Date.now() - this.startedAt.getTime()) / 1000);
+    console.log(`[phone/sarvam] ended reason=${reason} callSid=${this.callSid} duration=${duration}s turns=${this.turnCount}`);
+  }
 }
 
 // ── Twilio bridge ─────────────────────────────────────────────────────────────

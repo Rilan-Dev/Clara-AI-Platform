@@ -126,6 +126,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const partialQuestionRef = useRef("");
   const partialTurnRef = useRef<VoiceTurn | null>(null);
   const bargeInArmedRef = useRef(false);
+  const realtimeTtsWsRef = useRef<WebSocket | null>(null);
+  const realtimeTtsQueueRef = useRef<string[]>([]);
+  const realtimeTtsConnectingRef = useRef(false);
+  const realtimeTtsGenerationRef = useRef<string | null>(null);
 
   // Playback chain (both modes)
   const playbackCtxRef = useRef<AudioContext | null>(null);
@@ -176,9 +180,89 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     playNext();
   }, [playNext]);
 
+  const decodeBase64Pcm16 = useCallback((encoded: string) => {
+    if (!encoded || typeof window === "undefined") return null;
+    const binary = window.atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const even = bytes.byteLength - (bytes.byteLength % 2);
+    if (!even) return null;
+    const aligned = bytes.byteOffset % 2 === 0 ? bytes : bytes.slice(0, even);
+    return new Int16Array(aligned.buffer, aligned.byteOffset, Math.floor(even / 2));
+  }, []);
+
+  const closeRealtimeTts = useCallback(() => {
+    const ws = realtimeTtsWsRef.current;
+    realtimeTtsWsRef.current = null;
+    realtimeTtsQueueRef.current = [];
+    realtimeTtsConnectingRef.current = false;
+    if (ws) { try { ws.close(1000, "session closed"); } catch {} }
+  }, []);
+
+  const connectRealtimeTts = useCallback(() => {
+    const realtime = sessionRef.current?.stt.realtime;
+    if (!realtime || realtimeTtsWsRef.current || realtimeTtsConnectingRef.current) return;
+    realtimeTtsConnectingRef.current = true;
+    const ws = new WebSocket(realtimeWsUrl("/api/voice/sarvam/tts-realtime", realtime.token));
+    realtimeTtsWsRef.current = ws;
+    ws.onopen = () => {
+      realtimeTtsConnectingRef.current = false;
+      for (const message of realtimeTtsQueueRef.current.splice(0)) {
+        try { ws.send(message); } catch {}
+      }
+    };
+    ws.onmessage = (message) => {
+      try {
+        const event = JSON.parse(message.data as string) as {
+          type?: string;
+          audio?: string;
+          sampleRate?: number;
+          generationId?: string | null;
+          message?: string;
+          fatal?: boolean;
+        };
+        if (event.type === "audio" && event.audio) {
+          if (event.generationId && realtimeTtsGenerationRef.current &&
+              event.generationId !== realtimeTtsGenerationRef.current) return;
+          const pcm = decodeBase64Pcm16(event.audio);
+          if (pcm) enqueueAudio(pcm, Number(event.sampleRate) || 24_000);
+        } else if (event.type === "error" && event.fatal) {
+          console.warn("[sarvam-realtime-tts]", event.message);
+        }
+      } catch {}
+    };
+    ws.onerror = () => { realtimeTtsConnectingRef.current = false; };
+    ws.onclose = () => {
+      if (realtimeTtsWsRef.current === ws) realtimeTtsWsRef.current = null;
+      realtimeTtsConnectingRef.current = false;
+    };
+  }, [decodeBase64Pcm16, enqueueAudio]);
+
+  const sendRealtimeTts = useCallback((text: string) => {
+    const realtime = sessionRef.current?.stt.realtime;
+    if (!realtime || !text.trim()) return false;
+    const message = JSON.stringify({
+      type: "text",
+      generationId: realtimeTtsGenerationRef.current,
+      text,
+    });
+    const ws = realtimeTtsWsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      try { ws.send(message); return true; } catch {}
+    }
+    realtimeTtsQueueRef.current.push(message);
+    connectRealtimeTts();
+    return true;
+  }, [connectRealtimeTts]);
+
   // ─── TTS: speak one sentence (Bulbul via the platform route) ────────────────
 
   const speakSentence = useCallback(async (rawText: string) => {
+    const realtime = sessionRef.current?.stt.realtime;
+    if (realtime) {
+      sendRealtimeTts(sanitizeTtsText(rawText));
+      return;
+    }
     const session = sessionRef.current;
     if (!session) return;
     const text = sanitizeTtsText(rawText);
@@ -231,11 +315,13 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         console.warn("[sarvam] tts failed:", (err as Error).message);
       }
     }
-  }, [enqueueAudio, pipelineHeaders]);
+  }, [enqueueAudio, pipelineHeaders, sendRealtimeTts]);
 
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
   const runAssistantTurn = useCallback(async (question: string) => {
+    const generationId = generateTurnId();
+    realtimeTtsGenerationRef.current = generationId;
     const session = sessionRef.current;
     if (!session || !session.kbId) return;
 
@@ -316,7 +402,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     playbackQueueRef.current = [];
     playingRef.current = false;
     setIsSpeaking(false);
-  }, []);
+    realtimeTtsGenerationRef.current = null;
+    closeRealtimeTts();
+  }, [closeRealtimeTts]);
 
   // ─── REALTIME mode: Saaras relay wiring ─────────────────────────────────────
 
@@ -408,6 +496,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     // 1. Upstream socket (same-origin relay; vendor host never in the browser).
     const ws = new WebSocket(realtimeWsUrl(realtime.endpoint, realtime.token));
     realtimeWsRef.current = ws;
+    connectRealtimeTts();
     ws.onmessage = (message) => {
       try {
         handleRealtimeEvent(JSON.parse(message.data as string));
@@ -483,7 +572,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     }, REALTIME_FLUSH_MS);
 
     return true;
-  }, [handleRealtimeEvent]);
+  }, [connectRealtimeTts, handleRealtimeEvent]);
 
   const stopRealtimeCapture = useCallback(() => {
     if (realtimeFlushTimerRef.current) {
@@ -600,6 +689,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const cleanup = useCallback(() => {
     if (vadTimerRef.current) { clearTimeout(vadTimerRef.current); vadTimerRef.current = null; }
     stopRealtimeCapture();
+    closeRealtimeTts();
     interruptPlayback();
     chatAbortRef.current?.abort();
     chatAbortRef.current = null;
@@ -617,7 +707,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     utteranceActiveRef.current = false;
     speakingUserRef.current = false;
     bargeInArmedRef.current = false;
-  }, [interruptPlayback, stopRealtimeCapture]);
+  }, [closeRealtimeTts, interruptPlayback, stopRealtimeCapture]);
 
   const connect = useCallback(async () => {
     const myToken = ++connectTokenRef.current;

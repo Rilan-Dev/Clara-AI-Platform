@@ -84,6 +84,11 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
       sampleRate: resolved.sarvam.sampleRate,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,
       agentId: resolved.brain.agentId,
+      tts: {
+        model: resolved.sarvam.ttsModel,
+        speaker: resolved.sarvam.speaker,
+        language: resolved.sarvam.language,
+      },
     });
   } catch (error) {
     console.error("[sarvam-realtime-init] post:", error);
