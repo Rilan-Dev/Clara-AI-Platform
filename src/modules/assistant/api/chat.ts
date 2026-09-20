@@ -19,6 +19,7 @@ import { getKnowledgeBaseById, getAssistantConfigByKb } from "@/modules/knowledg
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
 import { ensureMigrated } from "@/lib/db/migrate";
