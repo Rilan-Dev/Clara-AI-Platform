@@ -15,6 +15,7 @@ import {
   handleElevenLabsRealtimeTts,
 } from "./elevenlabs-relay.mjs";
 import { handleGeminiRealtimeConnection } from "./gemini-relay.mjs";
+import { attachElevenLabsSpeechEngine } from "./elevenlabs-speech-engine.mjs";
 
 const _orig = http.createServer.bind(http);
 
@@ -32,7 +33,11 @@ http.createServer = (...args) => {
     server.on("upgrade", (req, socket, head) => {
       try {
         const { pathname } = new URL(req.url, "http://x");
-        if (pathname === "/api/embed/voice") {
+        if (pathname === "/api/voice/elevenlabs/speech-engine") {
+          // Speech Engine registers its own authenticated upgrade listener.
+          // Leave this upgrade untouched so the SDK can accept it.
+          return;
+        } else if (pathname === "/api/embed/voice") {
           wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
         } else if (pathname === "/api/phone/twilio/stream") {
           wssTwilio.handleUpgrade(req, socket, head, ws => wssTwilio.emit("connection", ws, req));
@@ -54,6 +59,10 @@ http.createServer = (...args) => {
         }
       } catch { socket.destroy(); }
     });
+
+  void attachElevenLabsSpeechEngine(server).catch((error) => {
+    console.error("[elevenlabs-speech-engine] failed to attach:", error?.message ?? error);
+  });
 
   server.once("listening", () => {
     const addr = server.address();
