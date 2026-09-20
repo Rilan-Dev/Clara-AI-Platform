@@ -19,7 +19,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { planGuard } from "@/lib/plan-guard";
-import { getSarvamApiKey, getSarvamBaseUrl, toSarvamRealtimeSttModel } from "../../model-catalog";
+import {
+  getSarvamApiKey,
+  getSarvamBaseUrl,
+  toSarvamRealtimeSttModel,
+  getPlatformDefaultSarvamRealtimeSttModel,
+  getPlatformDefaultSarvamRealtimeLlmModel,
+  isSarvamRealtimeTtsEnabled,
+} from "../../model-catalog";
 import { logSttUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { isSarvamRelayRequest } from "./realtime-auth";
@@ -79,7 +86,7 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
     return NextResponse.json({
       apiKey,
       baseUrl: getSarvamBaseUrl(),
-      sttModel: toSarvamRealtimeSttModel(resolved.sarvam.sttModel),
+      sttModel: resolved.sarvam.realtimeSttModel || getPlatformDefaultSarvamRealtimeSttModel() || toSarvamRealtimeSttModel(resolved.sarvam.sttModel),
       languageCode: resolved.sarvam.language,
       sampleRate: resolved.sarvam.sampleRate,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,
@@ -88,6 +95,12 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
         model: resolved.sarvam.ttsModel,
         speaker: resolved.sarvam.speaker,
         language: resolved.sarvam.language,
+        enabled: resolved.sarvam.realtimeTtsEnabled ?? isSarvamRealtimeTtsEnabled(),
+      },
+      realtime: {
+        sttModel: resolved.sarvam.realtimeSttModel || getPlatformDefaultSarvamRealtimeSttModel(),
+        llmModel: resolved.sarvam.realtimeLlmModel || getPlatformDefaultSarvamRealtimeLlmModel(),
+        ttsModel: resolved.sarvam.ttsModel,
       },
     });
   } catch (error) {
