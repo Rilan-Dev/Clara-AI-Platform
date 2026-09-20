@@ -27,6 +27,9 @@ import {
   getSarvamTimeoutMs,
   getPlatformDefaultSarvamTTSModel,
   getPlatformDefaultSarvamSttModel,
+  getPlatformDefaultSarvamRealtimeSttModel,
+  getPlatformDefaultSarvamRealtimeLlmModel,
+  isSarvamRealtimeTtsEnabled,
   getPlatformDefaultSarvamSpeaker,
   getSarvamInrToUsd,
   SARVAM_TTS_MODELS,
@@ -314,6 +317,9 @@ describe("Sarvam connection settings and defaults (V0)", () => {
     expect(getSarvamTimeoutMs()).toBe(30_000);
     expect(getPlatformDefaultSarvamTTSModel()).toBe("bulbul:v3");
     expect(getPlatformDefaultSarvamSttModel()).toBe("saaras:v3");
+    expect(getPlatformDefaultSarvamRealtimeSttModel()).toBe("saaras:v3-realtime");
+    expect(getPlatformDefaultSarvamRealtimeLlmModel()).toBe("sarvam-105b-conversations");
+    expect(isSarvamRealtimeTtsEnabled()).toBe(true);
     expect(getPlatformDefaultSarvamSpeaker()).toBe("shubh");
     expect(getSarvamInrToUsd()).toBe(0.012);
   });
