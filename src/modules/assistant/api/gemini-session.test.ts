@@ -89,10 +89,6 @@ function geminiSessionRequest(body: Record<string, unknown>, authenticated = tru
   });
 }
 
-function jsonResponse(res: NextResponse): Record<string, unknown> {
-  return res.body ? (JSON.parse(res.body as unknown as string) as Record<string, unknown>) : {};
-}
-
 describe("POST /api/gemini/session — credential security (gap-closure Phase D)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,7 +103,7 @@ describe("POST /api/gemini/session — credential security (gap-closure Phase D)
     expect(res.status).toBe(200);
 
     const bodyText = JSON.stringify(await res.json());
-    const body = JSON.parse(bodyText) as Record<string, any>;
+    const body = JSON.parse(bodyText) as Record<string, unknown>;
 
     // (1) The long-lived key is nowhere in the response.
     expect(bodyText).not.toContain(GEMINI_KEY_VALUE);
@@ -166,7 +162,7 @@ describe("POST /api/gemini/session — credential security (gap-closure Phase D)
 
     const res = await postGeminiSession(geminiSessionRequest({ kbId: KB_ID }));
     expect(res.status).toBe(402);
-    const body = (await res.json()) as Record<string, any>;
+    const body = (await res.json()) as Record<string, unknown>;
     expect(body.code).toBe("voice_not_enabled");
     // No relay capability token was minted for the denied org.
     expect(body.realtime).toBeUndefined();
@@ -183,7 +179,7 @@ describe("POST /api/gemini/session — credential security (gap-closure Phase D)
 
     const res = await postGeminiSession(geminiSessionRequest({ kbId: KB_ID }));
     expect(res.status).toBe(429);
-    const body = (await res.json()) as Record<string, any>;
+    const body = (await res.json()) as Record<string, unknown>;
     expect(body.realtime).toBeUndefined();
     // The shared bucket key (org-scoped) — provider switching does not
     // multiply budgets.
@@ -203,7 +199,7 @@ describe("POST /api/gemini/session — credential security (gap-closure Phase D)
 
     const res = await postGeminiSession(geminiSessionRequest({ kbId: KB_ID }));
     expect(res.status).toBe(409);
-    const body = (await res.json()) as Record<string, any>;
+    const body = (await res.json()) as Record<string, unknown>;
     expect(body.realtime).toBeUndefined();
   });
 });
