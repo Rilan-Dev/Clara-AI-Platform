@@ -115,8 +115,8 @@ E2E scripts: `e2e-elevenlabs{,-modeb}.js`, `e2e-sarvam.js`, `visitor-tests/03-06
 
 | Path | Status |
 |---|---|
-| OpenAI Realtime | **working** — protected baseline (invariant 1.5) |
-| Gemini Live | **working** |
+| OpenAI Realtime | **working** — protected baseline (invariant 1.5); telemetry live-capable but vendor-region-blocked from the 2026-09-21 benchmark environment |
+| Gemini Live | **working** — Phase D relay + HMAC tokens live-verified to the upstream connect step; Google rejects sessions from the benchmark container's region (WS 1007) |
 | ElevenLabs Mode A | **working** (sentence-HTTP TTS, no generation identity) |
 | ElevenLabs Mode B | **partially working** (flag/binding-gated; local-only interrupt) |
-| Sarvam realtime | **working** (realtime STT/TTS shipped; AudioWorklet capture primary with observable fallback; Clara-side generation coordinator wired) |
+| Sarvam realtime | **working — live-verified end-to-end 2026-09-21** (real browser + live Saaras/105B/Bulbul: TTFA p50/p95 845/1186 short, 877/1244 KB, 842/1203 long ms; AudioWorklet capture primary — standalone-build 404 fixed in `c9f178a`; generation coordinator wired) |

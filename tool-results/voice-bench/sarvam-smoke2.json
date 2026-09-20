@@ -1,0 +1,57 @@
+{
+  "capturedAt": "2026-09-20T21:10:39.137Z",
+  "provider": "sarvam",
+  "input": "wav:tool-results/voice-bench/questions/short/short-02.wav",
+  "turns": 1,
+  "ttfa": {
+    "p50": null,
+    "p95": null
+  },
+  "stages": {
+    "sttMs": {
+      "p50": null,
+      "p95": null
+    },
+    "ragMs": {
+      "p50": null,
+      "p95": null
+    },
+    "llmMs": {
+      "p50": null,
+      "p95": null
+    },
+    "ttsMs": {
+      "p50": null,
+      "p95": null
+    },
+    "playbackMs": {
+      "p50": null,
+      "p95": null
+    }
+  },
+  "raw": [
+    {
+      "sessionId": "vrs_67ad7756-df3b-44ba-a79c-1484fd0f6732",
+      "generationId": null,
+      "turnId": null,
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789938629224,
+        "stt.first_partial": 1789938629224,
+        "rag.end": 1789938629303,
+        "llm.first_token": 1789938629724,
+        "tts.start": 1789938629738,
+        "turn.complete": 1789938629926
+      },
+      "latencies": {
+        "sttMs": null,
+        "ragMs": null,
+        "llmMs": null,
+        "ttsMs": null,
+        "playbackMs": null,
+        "ttfaMs": null
+      }
+    }
+  ]
+}

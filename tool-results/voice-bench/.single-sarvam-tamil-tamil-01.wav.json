@@ -1,0 +1,62 @@
+{
+  "capturedAt": "2026-09-20T22:04:47.286Z",
+  "provider": "sarvam",
+  "input": "wav:/home/z/my-project/.worktrees/vc/tool-results/voice-bench/questions/tamil/tamil-01.wav",
+  "turns": 1,
+  "ttfa": {
+    "p50": 6157,
+    "p95": 6157
+  },
+  "stages": {
+    "sttMs": {
+      "p50": 3799,
+      "p95": 3799
+    },
+    "ragMs": {
+      "p50": 155,
+      "p95": 155
+    },
+    "llmMs": {
+      "p50": 5775,
+      "p95": 5775
+    },
+    "ttsMs": {
+      "p50": 371,
+      "p95": 371
+    },
+    "playbackMs": {
+      "p50": 0,
+      "p95": 0
+    }
+  },
+  "raw": [
+    {
+      "sessionId": "vrs_be2b5371-fe85-4863-9ff7-f9be35c4c501",
+      "generationId": "vrg_d0efb8a8-c1c6-4924-81bb-69183a9e9b86",
+      "turnId": "vrt_261a0ce6-e5f0-4d19-964f-8dea39583d2f",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941858648,
+        "stt.first_partial": 1789941854846,
+        "stt.final": 1789941858645,
+        "rag.start": 1789941858648,
+        "llm.start": 1789941858648,
+        "rag.end": 1789941858803,
+        "llm.first_token": 1789941864423,
+        "tts.start": 1789941864431,
+        "browser.first_audio": 1789941864802,
+        "tts.first_audio": 1789941864802,
+        "turn.complete": 1789941864844
+      },
+      "latencies": {
+        "sttMs": 3799,
+        "ragMs": 155,
+        "llmMs": 5775,
+        "ttsMs": 371,
+        "playbackMs": 0,
+        "ttfaMs": 6157
+      }
+    }
+  ]
+}

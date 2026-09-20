@@ -1,0 +1,62 @@
+{
+  "capturedAt": "2026-09-20T21:40:00.657Z",
+  "provider": "sarvam",
+  "input": "wav:/home/z/my-project/.worktrees/vc/tool-results/voice-bench/questions/short/short-04.wav",
+  "turns": 1,
+  "ttfa": {
+    "p50": 818,
+    "p95": 818
+  },
+  "stages": {
+    "sttMs": {
+      "p50": 1957,
+      "p95": 1957
+    },
+    "ragMs": {
+      "p50": 47,
+      "p95": 47
+    },
+    "llmMs": {
+      "p50": 458,
+      "p95": 458
+    },
+    "ttsMs": {
+      "p50": 353,
+      "p95": 353
+    },
+    "playbackMs": {
+      "p50": 0,
+      "p95": 0
+    }
+  },
+  "raw": [
+    {
+      "sessionId": "vrs_05a505ee-a913-4fe7-abf0-27b3c8829193",
+      "generationId": "vrg_313cf2a7-afa3-4b9d-bc89-3a7e453b5a6d",
+      "turnId": "vrt_cee2d0bb-a853-4f0f-8801-32958af66e9c",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789940370029,
+        "stt.first_partial": 1789940368070,
+        "stt.final": 1789940370027,
+        "rag.start": 1789940370029,
+        "llm.start": 1789940370029,
+        "rag.end": 1789940370076,
+        "llm.first_token": 1789940370487,
+        "tts.start": 1789940370492,
+        "turn.complete": 1789940370676,
+        "browser.first_audio": 1789940370845,
+        "tts.first_audio": 1789940370845
+      },
+      "latencies": {
+        "sttMs": 1957,
+        "ragMs": 47,
+        "llmMs": 458,
+        "ttsMs": 353,
+        "playbackMs": 0,
+        "ttfaMs": 818
+      }
+    }
+  ]
+}

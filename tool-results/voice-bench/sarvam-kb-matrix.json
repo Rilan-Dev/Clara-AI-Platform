@@ -1,0 +1,317 @@
+{
+  "capturedAt": "2026-09-20T21:57:54.149Z",
+  "provider": "sarvam",
+  "questionClass": "kb",
+  "environment": "headless Chromium 141 (container) + file-mixed fake microphone; Sarvam STT/LLM/TTS live; RAG embedding = local MiniLM stand-in (OpenAI/Gemini region-blocked)",
+  "questions": 10,
+  "turns": 10,
+  "failures": [],
+  "ttfa": {
+    "p50": 877,
+    "p95": 1244
+  },
+  "stages": {
+    "sttMs": {
+      "p50": 2603,
+      "p95": 3906
+    },
+    "ragMs": {
+      "p50": 57,
+      "p95": 146
+    },
+    "llmMs": {
+      "p50": 505,
+      "p95": 662
+    },
+    "ttsMs": {
+      "p50": 353,
+      "p95": 773
+    },
+    "playbackMs": {
+      "p50": 0,
+      "p95": 0
+    }
+  },
+  "raw": [
+    {
+      "sessionId": "vrs_435d330c-cc39-4404-8b4f-319b67ac576f",
+      "generationId": "vrg_a9024a94-2eb9-45f1-b4c0-56831bea81e7",
+      "turnId": "vrt_c17d5702-26b6-4b30-8401-8bb1a0d8be99",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941122034,
+        "stt.first_partial": 1789941119764,
+        "stt.final": 1789941122030,
+        "rag.start": 1789941122034,
+        "llm.start": 1789941122034,
+        "rag.end": 1789941122179,
+        "llm.first_token": 1789941122592,
+        "tts.start": 1789941122595,
+        "browser.first_audio": 1789941122949,
+        "tts.first_audio": 1789941122949,
+        "turn.complete": 1789941123264
+      },
+      "latencies": {
+        "sttMs": 2266,
+        "ragMs": 145,
+        "llmMs": 558,
+        "ttsMs": 354,
+        "playbackMs": 0,
+        "ttfaMs": 919
+      }
+    },
+    {
+      "sessionId": "vrs_ef6efcf7-00d0-4d8c-a896-cec68aa233ce",
+      "generationId": "vrg_7c508252-8f8a-4448-8c14-95a40497170e",
+      "turnId": "vrt_a5f4b378-3fab-4fab-a29d-0dadc552fa28",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941158769,
+        "stt.first_partial": 1789941155121,
+        "stt.final": 1789941158768,
+        "rag.start": 1789941158769,
+        "llm.start": 1789941158769,
+        "rag.end": 1789941158827,
+        "llm.first_token": 1789941159280,
+        "tts.start": 1789941159281,
+        "turn.complete": 1789941159488,
+        "browser.first_audio": 1789941159645,
+        "tts.first_audio": 1789941159645
+      },
+      "latencies": {
+        "sttMs": 3647,
+        "ragMs": 58,
+        "llmMs": 511,
+        "ttsMs": 364,
+        "playbackMs": 0,
+        "ttfaMs": 877
+      }
+    },
+    {
+      "sessionId": "vrs_ad76a7de-8853-459b-b849-0a1d715c118b",
+      "generationId": "vrg_7de46866-d049-47a2-b1fb-236f58eb30f2",
+      "turnId": "vrt_d2a4d6a5-8916-4da5-b51d-3c173ea867bc",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941193338,
+        "stt.first_partial": 1789941190733,
+        "stt.final": 1789941193336,
+        "rag.start": 1789941193338,
+        "llm.start": 1789941193338,
+        "rag.end": 1789941193400,
+        "llm.first_token": 1789941193843,
+        "tts.start": 1789941193846,
+        "turn.complete": 1789941194173,
+        "browser.first_audio": 1789941194199,
+        "tts.first_audio": 1789941194199
+      },
+      "latencies": {
+        "sttMs": 2603,
+        "ragMs": 62,
+        "llmMs": 505,
+        "ttsMs": 353,
+        "playbackMs": 0,
+        "ttfaMs": 863
+      }
+    },
+    {
+      "sessionId": "vrs_63215b0e-c7de-4fa8-82f5-a71ad9a86095",
+      "generationId": "vrg_9129aad6-1971-4169-9047-7e1c7869dc6d",
+      "turnId": "vrt_fde5a5ab-729c-4b25-88a4-0d3fe94e2487",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941229026,
+        "stt.first_partial": 1789941225538,
+        "stt.final": 1789941229022,
+        "rag.start": 1789941229026,
+        "llm.start": 1789941229026,
+        "rag.end": 1789941229076,
+        "llm.first_token": 1789941229491,
+        "tts.start": 1789941229493,
+        "turn.complete": 1789941229661,
+        "browser.first_audio": 1789941230266,
+        "tts.first_audio": 1789941230266
+      },
+      "latencies": {
+        "sttMs": 3484,
+        "ragMs": 50,
+        "llmMs": 465,
+        "ttsMs": 773,
+        "playbackMs": 0,
+        "ttfaMs": 1244
+      }
+    },
+    {
+      "sessionId": "vrs_5279a314-3ea3-402f-b0c5-87330bbdea6a",
+      "generationId": "vrg_1a4e5259-6acb-4c00-ba43-1368a086ddf6",
+      "turnId": "vrt_19711b00-9f51-4859-a9c8-c58cdcfe0016",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941263237,
+        "stt.first_partial": 1789941261349,
+        "stt.final": 1789941263233,
+        "rag.start": 1789941263237,
+        "llm.start": 1789941263237,
+        "rag.end": 1789941263294,
+        "llm.first_token": 1789941263729,
+        "tts.start": 1789941263738,
+        "turn.complete": 1789941264040,
+        "browser.first_audio": 1789941264083,
+        "tts.first_audio": 1789941264083
+      },
+      "latencies": {
+        "sttMs": 1884,
+        "ragMs": 57,
+        "llmMs": 492,
+        "ttsMs": 345,
+        "playbackMs": 0,
+        "ttfaMs": 850
+      }
+    },
+    {
+      "sessionId": "vrs_12ddea14-d894-4b69-8a02-2bde3d332cad",
+      "generationId": "vrg_eabb3903-db47-4a46-9b3f-fffb3bf8e855",
+      "turnId": "vrt_66dfec00-4bab-4790-b0f8-970f393fd939",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941298240,
+        "stt.first_partial": 1789941296747,
+        "stt.final": 1789941298232,
+        "rag.start": 1789941298240,
+        "llm.start": 1789941298240,
+        "rag.end": 1789941298293,
+        "llm.first_token": 1789941298736,
+        "tts.start": 1789941298736,
+        "turn.complete": 1789941298978,
+        "browser.first_audio": 1789941299072,
+        "tts.first_audio": 1789941299072
+      },
+      "latencies": {
+        "sttMs": 1485,
+        "ragMs": 53,
+        "llmMs": 496,
+        "ttsMs": 336,
+        "playbackMs": 0,
+        "ttfaMs": 840
+      }
+    },
+    {
+      "sessionId": "vrs_60a24cb3-a9fe-47aa-baf5-de873ec17dac",
+      "generationId": "vrg_26542a8d-3e06-47c3-bf0e-ad6976863bfd",
+      "turnId": "vrt_afdda247-1e7d-4a03-9e50-33a0b2b01bcd",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941335247,
+        "stt.first_partial": 1789941332038,
+        "stt.final": 1789941335240,
+        "rag.start": 1789941335247,
+        "llm.start": 1789941335247,
+        "rag.end": 1789941335282,
+        "llm.first_token": 1789941335697,
+        "tts.start": 1789941335712,
+        "turn.complete": 1789941335863,
+        "browser.first_audio": 1789941336089,
+        "tts.first_audio": 1789941336089
+      },
+      "latencies": {
+        "sttMs": 3202,
+        "ragMs": 35,
+        "llmMs": 450,
+        "ttsMs": 377,
+        "playbackMs": 0,
+        "ttfaMs": 849
+      }
+    },
+    {
+      "sessionId": "vrs_40c635f4-cd6a-4651-bcea-19006570d379",
+      "generationId": "vrg_ba56791b-338f-44cd-887c-47c7f5078b94",
+      "turnId": "vrt_02c73838-6dbe-4282-838d-cb0ef5afaaed",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941371130,
+        "stt.first_partial": 1789941367221,
+        "stt.final": 1789941371127,
+        "rag.start": 1789941371130,
+        "llm.start": 1789941371130,
+        "rag.end": 1789941371169,
+        "llm.first_token": 1789941371792,
+        "tts.start": 1789941371792,
+        "turn.complete": 1789941371973,
+        "browser.first_audio": 1789941372136,
+        "tts.first_audio": 1789941372136
+      },
+      "latencies": {
+        "sttMs": 3906,
+        "ragMs": 39,
+        "llmMs": 662,
+        "ttsMs": 344,
+        "playbackMs": 0,
+        "ttfaMs": 1009
+      }
+    },
+    {
+      "sessionId": "vrs_7c5ac651-f187-4414-8b77-2a68c878caa8",
+      "generationId": "vrg_166d8a77-88f3-4e9c-a261-cf5fe18acc63",
+      "turnId": "vrt_78175159-3f2b-4a87-ab8d-8d05fe85c6b4",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941404663,
+        "stt.first_partial": 1789941402478,
+        "stt.final": 1789941404660,
+        "rag.start": 1789941404663,
+        "llm.start": 1789941404663,
+        "rag.end": 1789941404789,
+        "llm.first_token": 1789941405225,
+        "tts.start": 1789941405240,
+        "turn.complete": 1789941405470,
+        "browser.first_audio": 1789941405608,
+        "tts.first_audio": 1789941405608
+      },
+      "latencies": {
+        "sttMs": 2182,
+        "ragMs": 126,
+        "llmMs": 562,
+        "ttsMs": 368,
+        "playbackMs": 0,
+        "ttfaMs": 948
+      }
+    },
+    {
+      "sessionId": "vrs_08f646ad-cfd9-4d30-a9cd-1924a3da4c06",
+      "generationId": "vrg_41e11870-feca-4400-9c05-a656cb2e5ced",
+      "turnId": "vrt_99da3052-bfdc-4c16-9b4f-1cc38b6516dd",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789941443990,
+        "stt.first_partial": 1789941441120,
+        "stt.final": 1789941443988,
+        "rag.start": 1789941443990,
+        "llm.start": 1789941443990,
+        "rag.end": 1789941444136,
+        "llm.first_token": 1789941444568,
+        "tts.start": 1789941444576,
+        "turn.complete": 1789941444894,
+        "browser.first_audio": 1789941444925,
+        "tts.first_audio": 1789941444925
+      },
+      "latencies": {
+        "sttMs": 2868,
+        "ragMs": 146,
+        "llmMs": 578,
+        "ttsMs": 349,
+        "playbackMs": 0,
+        "ttfaMs": 937
+      }
+    }
+  ]
+}

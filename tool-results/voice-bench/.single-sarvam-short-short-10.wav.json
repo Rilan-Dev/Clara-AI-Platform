@@ -1,0 +1,33 @@
+{
+  "capturedAt": "2026-09-20T21:43:32.480Z",
+  "provider": "sarvam",
+  "input": "wav:/home/z/my-project/.worktrees/vc/tool-results/voice-bench/questions/short/short-10.wav",
+  "turns": 0,
+  "ttfa": {
+    "p50": null,
+    "p95": null
+  },
+  "stages": {
+    "sttMs": {
+      "p50": null,
+      "p95": null
+    },
+    "ragMs": {
+      "p50": null,
+      "p95": null
+    },
+    "llmMs": {
+      "p50": null,
+      "p95": null
+    },
+    "ttsMs": {
+      "p50": null,
+      "p95": null
+    },
+    "playbackMs": {
+      "p50": null,
+      "p95": null
+    }
+  },
+  "raw": []
+}

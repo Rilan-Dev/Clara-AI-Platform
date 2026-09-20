@@ -1,11 +1,11 @@
 # OpenAI Realtime — TTFA Performance Baseline (Task 4.2)
 
-**Status:** instrumentation shipped on ALL realtime providers (2026-09-21
-gap-closure: the OpenAI baseline hook itself is now wired — see below);
-device measurements remain **unmeasured in this environment** and must be
-recorded on the first real-device run (plan Phase 11 mandates the same
-device/network conditions for cross-provider comparison, so numbers are only
-valid from that harness).
+**Status:** instrumentation shipped on ALL FOUR realtime providers (2026-09-21
+gap-closure: OpenAI `71af6c4`, Gemini `033cd80`) and **exercised end-to-end
+live** by the 2026-09-21 in-container benchmark (Sarvam provider — see the
+measured section). OpenAI/Gemini live numbers remain **blocked by vendor
+region restrictions from this environment** and must be recorded on the first
+device/deployment run in a supported region.
 
 ## Instrumentation
 
@@ -27,17 +27,44 @@ user speech end → stt.final
   measurements. No transcripts, no secrets — timings only.
 - `summarizeLatency()` aggregates runs into nearest-rank p50/p95.
 
-Unit-locked in `latency-tracker.test.ts` (11 tests, including the exact
-TTFA/stage arithmetic and the p50/p95 aggregation).
+Unit-locked in `latency-tracker.test.ts` (19 tests, including the exact
+TTFA/stage arithmetic, the p50/p95 aggregation, and the 2026-09-21 live-run
+bug regressions: STT carry across turn commits, multi-turn utterance
+boundaries, turn-handle mark binding).
 
 ### Provider wiring status (2026-09-21 gap-closure)
 
 | Provider | Emits `clara:voice:latency` | Commit |
 |---|---|---|
 | OpenAI Realtime (baseline) | ✅ `useOpenAIRealtime.ts` (commit `71af6c4`) — `browser.first_audio` anchored on the first `response.audio.delta`; greeting tracked as a system generation | previously missing — this was the gap |
-| Sarvam realtime | ✅ `useSarvamVoice.ts` | earlier voice-plan commits |
-| ElevenLabs Clara Realtime | ✅ `useElevenLabsClaraStream.ts` | earlier voice-plan commits |
-| Gemini Live | ❌ not wired (out of gap-closure scope; Gemini marks live in the relay passthrough if ever needed) | — |
+| Sarvam realtime | ✅ `useSarvamVoice.ts` — **live-verified 2026-09-21: 33 measured turns** (below) | earlier voice-plan commits + `c9f178a`/`d301dc4`/`21cfcdc`/`fb48470` (telemetry correctness fixes found by the live run) |
+| ElevenLabs Clara Realtime | ✅ `useElevenLabsClaraStream.ts` | earlier voice-plan commits + same telemetry correctness fixes |
+| Gemini Live | ✅ `useGeminiLive.ts` via the pure `GeminiTurnTelemetry` module (commit `033cd80`) — utterance-boundary + retroactive `stt.final` semantics for the vendor-native VAD lifecycle | wired this session |
+
+### Telemetry correctness fixes found by the FIRST live run (2026-09-21)
+
+The harness had never actually run against a live session before — the first
+run exposed five measurement-destroying defects, all fixed and regression-
+locked:
+
+1. **Committed-turn carry** (`c9f178a`): `stt.final` was marked on the interim
+   record, then the turn-commit `beginTurn` replaced the record — TTFA was
+   structurally null on every real session for all three Clara-owned hooks.
+2. **Multi-turn boundary** (`c9f178a`): turn N+1's partials collided with turn
+   N's first-wins marks after completion.
+3. **Turn-handle binding** (`d301dc4`): an in-flight chat's marks bled onto a
+   barge-in's fresh interim record (observed live: emitted record had
+   `generationId=null`, no `stt.final`, all latencies null).
+4. **Boot record** (`21cfcdc`): Sarvam/ElevenLabs never began a record — every
+   pre-turn mark (including `session.start`) was a silent no-op.
+5. **Emit timing** (`21cfcdc`/`fb48470`): short answers finish the chat before
+   the first audio chunk arrives — the emit now defers while synthesis audio
+   is in flight; `rag.start` anchors at the chat call.
+
+Plus one **deployment bug**: standalone builds served a partial `public/` dir,
+so `/worklets/audio-recorder-worklet.js` 404'd and the AudioWorklet primary
+capture silently fell back to ScriptProcessorNode (`c9f178a` — `start.mjs`
+now always syncs assets).
 
 ## Measurement protocol (Phase 11 device harness)
 
@@ -63,6 +90,11 @@ node scripts/voice-benchmark/run.mjs \
   --input=wav:questions/en/short-01.wav \
   --provider=openai \
   --out=tool-results/voice-bench-openai.json
+
+# Full class matrices (question set + aggregation, 2026-09-21 tooling):
+node scripts/bench-run-matrix.mjs --provider=openai --class=short
+node scripts/bench-run-matrix.mjs --provider=openai --class=kb
+node scripts/bench-run-matrix.mjs --provider=openai --class=long
 ```
 
 The harness listens for the `clara:voice:latency` window events; with the
@@ -70,13 +102,44 @@ OpenAI wiring above, Test A now produces records with
 `sessionId/generationId/turnId/provider/model` + stage marks. Record the
 JSON aggregates into the table below on the first real-device run.
 
-## Baseline record (fill from the device run)
+## Measured record — Sarvam realtime, in-container live run (2026-09-21)
 
-**Environment limitation (2026-09-21 gap-closure session):** this session ran
-in a headless container — no physical device, no browser microphone, no
-production-like network — so the real-device benchmark could NOT be executed.
-Per the no-fabrication rule, all values below stay **_to record_** until the
-device run happens. Nothing below was invented.
+**Method (all real, no fabricated numbers):** headless Chromium 141 (container)
++ `--use-file-for-fake-audio-capture` question WAVs (genuine Bulbul-synthesised
+speech), live Saaras `saaras:v3-realtime` STT relay, live
+`sarvam-105b-conversations` LLM, live Bulbul `bulbul:v3` streaming TTS, real
+WebAudio generation-aware playback, real local Postgres+Qdrant RAG. One turn
+per run (WAVs carry 30 s trailing silence). Aggregates from
+`tool-results/voice-bench/sarvam-*-matrix.json` (nearest-rank p50/p95).
+
+**Environment disclosure:** OpenAI AND Google REST/Live APIs are region-blocked
+from this container's egress IP (403 `unsupported_country_region_territory` /
+WS close 1007 `User location is not supported`) — the OpenAI baseline could not
+be measured here. The RAG retrieval embedding runs on a LOCAL MiniLM stand-in
+(`/home/z/embedsrv/server.mjs`, OpenAI-compatible) because both embedding
+backbones are region-blocked: **RAG stage numbers are local-only and NOT
+representative of production; STT/LLM/TTS/playback/TTFA are genuine live-vendor
+measurements through the full real pipeline.**
+
+| Metric (Sarvam realtime) | short (9 turns) | KB (10 turns) | long (10 turns) |
+|---|---|---|---|
+| TTFA p50 / p95 | **845 / 1186 ms** | **877 / 1244 ms** | **842 / 1203 ms** |
+| STT p50 / p95 (speech→final) | 2052 / 2872 ms | 2603 / 3906 ms | 7450 / 8565 ms |
+| RAG p50 / p95 (local stand-in) | 50 / 131 ms | 57 / 146 ms | 51 / 174 ms |
+| LLM first-token p50 / p95 | 486 / 568 ms | 505 / 662 ms | 476 / 590 ms |
+| TTS first-audio p50 / p95 | 343 / 695 ms | 353 / 773 ms | 347 / 719 ms |
+| Playback p50 / p95 | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms |
+
+Language matrix (Sarvam): Tamil 3/3 turns (TTFA p50 906 ms; one LLM outlier
+6157 ms first-token), EN/Tamil mixed 1/1 (TTFA 908 ms).
+
+Live behaviour spot-checks (same session tooling): sequential two-question
+barge-in WAV → two cleanly separated generations (fresh per-turn STT marks, no
+mark bleed, both answers spoke, TTFA 938 ms / 1221 ms); 33 successful session
+boots across 4 server restarts (bounded reconnect by construction — the
+in-memory rate limiter was cleared per batch, `REALTIME_SESSION_RATE` 10/h/org).
+
+## OpenAI baseline record (blocked in this environment — fill on first supported-region run)
 
 | Metric | p50 | p95 | Notes |
 |---|---|---|---|
