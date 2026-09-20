@@ -28,7 +28,11 @@ Updated as tasks complete. Commits are on `Vite-Converted`.
 - [x] Task 5.3 — Persistent Bulbul WS TTS (existing relay + per-generation metering: `createGenerationMeter` + tts branch of realtime-meter route + `tts-relay-meter.test.ts` 6 tests)
 - [x] Task 5.4 — AudioWorklet capture (`connectWorkletPcm16Capture` reusing the shared worklet; ScriptProcessor fallback; 5 tests)
 - [x] Task 5.5 — Sarvam generation cancellation (`sarvam-realtime-generation.test.ts` — the exact 7-step plan scenario + single-generation invariant + metering-under-interrupt + greeting barge-in)
-- [ ] Task 6.1–6.5 — ElevenLabs realtime completion
+- [x] Task 6.1 — Tri-mode selector + preservation tests (`elevenlabs-modes.test.ts`, 8 tests; Mode-B binding wins over the Mode-C flag; Mode A unchanged)
+- [x] Task 6.2 — Scribe realtime STT adapter (`realtime-auth.ts` + `realtime-init.ts` + `scripts/elevenlabs-relay.mjs` STT leg on `/api/voice/elevenlabs/realtime`; `elevenlabs-realtime-wire.test.ts`; session `stt.realtime` descriptor)
+- [x] Task 6.3 — Streaming TTS adapter (`elevenlabs-relay.mjs` TTS leg on `/tts-realtime`: pcm_16000 output, BOS+chunk schedule, generation-tagged frames, meter-once; flush never sends empty text)
+- [x] Task 6.4 — Scribe → Clara → TTS pipeline (`useElevenLabsClaraStream.ts` + useVoiceClient routing with Mode A fallback; committed-transcript-only turns)
+- [x] Task 6.5 — Overlap fix P0 (`elevenlabs-overlap.test.ts`, 7 tests: rapid speech, duplicate finals, interrupt during TTS/LLM, delayed audio/completion, single-speaker acceptance; Mode A wired to coordinator + generation-aware queue)
 - [ ] Task 7.1–7.2 — Provider switching
 - [ ] Task 8.1–8.2 — UX/state correctness
 - [ ] Phase 9 — Failure recovery
