@@ -236,6 +236,8 @@ export interface ResolvedAIConfig {
   orgId: string | null;
   agentId: string | null;
   kbId: string | null;
+  /** Immutable Qdrant collection for the active published deployment, when available. */
+  knowledgeCollection: string | null;
   provider: AIProvider;
   /**
    * Embedding capability split (V1): the provider that ACTUALLY executes
