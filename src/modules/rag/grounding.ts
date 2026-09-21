@@ -197,14 +197,9 @@ async function searchKbCollection(
     throw err;
   }
 
-  if (!Array.isArray(results) || results.length === 0) {
-    const fallbackParams = { ...searchParams };
-    delete fallbackParams.score_threshold;
-    results = await client.search(
-      collectionName,
-      fallbackParams as Parameters<typeof client.search>[1],
-    );
-  }
+  // A zero-hit result is intentionally treated as "no grounded answer".
+  // Never remove the score threshold as a fallback: weak semantic matches
+  // must not become context for an out-of-scope question.
 
   const mapped = (
     results as Array<{ id: string | number; score?: number; payload?: Record<string, unknown> }>
@@ -309,14 +304,17 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     throw searchErr;
   }
 
-  const graphHits = runtime.enableGraphRag
-    ? await retrieveGraphContext({
+  // Vector and graph retrieval are independent; run them concurrently so
+  // voice turns do not pay both remote retrieval latencies serially.
+  const graphPromise = runtime.enableGraphRag
+    ? retrieveGraphContext({
         kbId: kb.id,
         query,
         topK: Math.min(topK, 4),
         documentId: request.documentId ?? undefined,
       })
-    : [];
+    : Promise.resolve([]);
+  const graphHits = await graphPromise;
 
   const graphContext = graphHits
     .map((hit, index) => {
@@ -412,6 +410,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       sources,
       graphSources,
       mode: runtime.ragMode,
+      grounded: sources.length > 0 || graphSources.length > 0,
+      outOfScopeReply:
+        resolved.assistantConfig?.outOfScopeReply ??
+        "I can only answer questions about the topics I have been set up for.",
       kb: { id: kb.id, name: kb.name, collection: kb.qdrantCollection },
       binding: {
         tenantId: orgId,
