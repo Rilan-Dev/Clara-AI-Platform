@@ -178,6 +178,8 @@ export async function resolveVoiceConfig(
   const versionRealtimeSttModel = versionAIPreferences?.realtimeSttModel ?? null;
   const versionRealtimeTtsModel = versionAIPreferences?.realtimeTtsModel ?? null;
   const versionRealtimeVoiceId = versionAIPreferences?.realtimeVoiceId ?? null;
+  // Published versions own their voice configuration; mutable KB overrides are draft-only.
+  const effectiveKbOverrides = productionVersionConfig ? null : kbOverrides;
 
   const [orgSettings, agentSettings, kbOverrides] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
@@ -187,9 +189,9 @@ export async function resolveVoiceConfig(
 
   // ── Precedence: kb → version config → agent → org → inherit brain ───────
   let voiceProvider: VoiceProvider | null =
-    kbOverrides?.voiceProvider ?? versionAIPreferences?.voiceProvider ?? agentSettings?.voiceProvider ?? orgSettings?.voiceProvider ?? null;
+    effectiveKbOverrides?.voiceProvider ?? versionAIPreferences?.voiceProvider ?? agentSettings?.voiceProvider ?? orgSettings?.voiceProvider ?? null;
   let source: VoiceResolution["source"] =
-    kbOverrides?.voiceProvider != null
+    effectiveKbOverrides?.voiceProvider != null
       ? "kb_override"
       : versionAIPreferences?.voiceProvider != null
         ? "agent"
@@ -218,13 +220,13 @@ export async function resolveVoiceConfig(
 
   // ── Realtime purpose: kb → version config → agent → org → inherit voice-chat ─
   let realtimeProvider: VoiceProvider | null =
-    kbOverrides?.realtimeVoiceProvider ??
+    effectiveKbOverrides?.realtimeVoiceProvider ??
     versionAIPreferences?.realtimeVoiceProvider ??
     agentSettings?.realtimeVoiceProvider ??
     orgSettings?.realtimeVoiceProvider ??
     null;
   let realtimeSource: VoiceResolution["realtimeSource"] =
-    kbOverrides?.realtimeVoiceProvider != null
+    effectiveKbOverrides?.realtimeVoiceProvider != null
       ? "kb_override"
       : versionAIPreferences?.realtimeVoiceProvider != null
         ? "agent"
