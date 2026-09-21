@@ -10,7 +10,7 @@
  * when the vendor no longer advertises them.
  */
 
-import { execute, query } from "@/lib/db";
+import { execute } from "@/lib/db";
 
 type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs";
 type Capability = "chat" | "voice_chat" | "realtime_voice";
