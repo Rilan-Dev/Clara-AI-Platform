@@ -96,7 +96,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (voiceResolution.realtimeProvider === "elevenlabs" && voiceResolution.elevenlabs) {
       const el = voiceResolution.elevenlabs;
       const speechEngineReady =
-        process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED === "true" &&
+        process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED !== "false" &&
         Boolean(process.env.ELEVENLABS_SPEECH_ENGINE_ID) &&
         Boolean(process.env.ELEVENLABS_API_KEY);
 
