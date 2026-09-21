@@ -438,8 +438,7 @@ ${graphContext}`);
     snippet: hit.supportingChunks
       .map((chunk) => chunk.text)
       .filter(Boolean)
-      .join("
-")
+      .join(" ")
       .slice(0, 500),
     sourceType: "graph",
     relations: hit.relations,
