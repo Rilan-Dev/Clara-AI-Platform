@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { query, queryOne, execute } from "@/lib/db";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
+import { syncLiveProviderCatalog } from "./live-catalog";
 import type {
   AICapability,
   AIModelKind,

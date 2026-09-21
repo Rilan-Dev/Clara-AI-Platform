@@ -615,7 +615,7 @@ function ProviderDetailDrawer({
         {section === "voices" && showVoices && (
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              {voiceModels.length} {voiceModels.length === 1 ? "voice" : "voices"} for {CAPABILITY_META[capability].label} — the default
+              {voiceModels.length} {voiceModels.length === 1 ? "voice" : "voices"} for {CAPABILITY_META[capability].label} — live vendor voices are synced when the provider exposes a voice catalogue; otherwise the provider contract catalogue is used. The default
               voice is used when an agent doesn’t pin one.
             </p>
             {voiceModels.length === 0 && (
@@ -745,7 +745,7 @@ function CatalogueRow({
       <div className="min-w-0 sm:flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="break-words text-sm font-medium text-foreground/90">{model.displayName}</span>
-          {model.isDefault && <VersionBadge tone="primary">Default</VersionBadge>}
+          {model.isDefault && <VersionBadge tone="primary">Default</VersionBadge>}\n          {model.metadata?.catalogSource === "vendor_live" && <VersionBadge tone="success">Live</VersionBadge>}\n          {model.metadata?.catalogSource !== "vendor_live" && <VersionBadge tone="muted">Vendor catalog</VersionBadge>}
         </div>
         <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/60">
           {KIND_LABELS[model.kind] ?? model.kind} · {model.modelId}
