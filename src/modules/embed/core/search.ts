@@ -27,10 +27,14 @@ export async function searchKbEmbedded(
   options?: {
     providerConfig?: ProviderConfig;
     filter?: Record<string, unknown>;
+    /** Realtime voice fast path: avoid the wider candidate pool/diversification. */
+    realtimeVoice?: boolean;
   },
 ): Promise<EmbedSearchResult[]> {
   const client = getQdrantClient();
+  const embeddingStart = Date.now();
   const embedding = await ProviderFactory.getProvider(options?.providerConfig).embedText(query);
+  const embeddingMs = Date.now() - embeddingStart;
 
   // Fetch a larger candidate pool than topK so that when a KB has multiple
   // documents, a smaller/less-chunky document still has a chance to surface
@@ -38,7 +42,7 @@ export async function searchKbEmbedded(
   // chunks (e.g. a 71-chunk FAQ PDF vs a 27-chunk project DOCX). The pool is
   // narrowed back down to topK below via diversifyByDocument, unless an
   // explicit documentId filter is already scoping the search to one document.
-  const fetchLimit = options?.filter ? topK : candidatePoolSize(topK);
+  const fetchLimit = options?.filter || options?.realtimeVoice ? topK : candidatePoolSize(topK);
 
   const searchParams = {
     vector: embedding,
@@ -50,7 +54,14 @@ export async function searchKbEmbedded(
 
   let results: unknown[] = [];
   try {
+    const qdrantStart = Date.now();
     results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
+    console.info("[realtime-latency] vector search stages", {
+      realtimeVoice: options?.realtimeVoice === true,
+      embeddingMs,
+      qdrantMs: Date.now() - qdrantStart,
+      fetchLimit,
+    });
 
     // Zero results means there is no sufficiently relevant KB evidence.
     // Do not retry without the threshold; weak matches must not become
@@ -78,7 +89,7 @@ export async function searchKbEmbedded(
     }))
     .sort((a, b) => b.score - a.score);
 
-  if (options?.filter) return mapped;
+  if (options?.filter || options?.realtimeVoice) return mapped.slice(0, topK);
 
   return diversifyByDocument(mapped, {
     getDocId: (r) => r.documentId,
