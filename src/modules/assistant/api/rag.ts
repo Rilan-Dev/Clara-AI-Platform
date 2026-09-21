@@ -60,6 +60,8 @@ export async function postRagSearch(
         context: outcome.result.context,
         sources: outcome.result.sources,
         graphSources: outcome.result.graphSources,
+        grounded: outcome.result.grounded,
+        outOfScopeReply: outcome.result.outOfScopeReply,
         mode: outcome.result.mode,
         kb: outcome.result.kb,
       });
