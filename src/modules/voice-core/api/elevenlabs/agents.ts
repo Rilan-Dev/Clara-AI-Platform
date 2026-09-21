@@ -138,7 +138,7 @@ export async function getElevenLabsAgents(request: NextRequest): Promise<NextRes
         )
       : await dbQuery<AgentBindingDbRow>(`SELECT * FROM elevenlabs_agents ORDER BY created_at DESC`);
 
-    const readiness = await modeBReadiness();
+    const readiness = modeBReadiness();
     return NextResponse.json({
       agents: rows.map(mapBindingRow),
       readiness: readiness.ready
@@ -185,7 +185,7 @@ export async function postElevenLabsAgents(request: NextRequest): Promise<NextRe
       );
     }
 
-    const readiness = await modeBReadiness();
+    const readiness = modeBReadiness();
     if (!readiness.ready) {
       return NextResponse.json({ error: readiness.reason }, { status: readiness.status });
     }
@@ -378,7 +378,7 @@ export async function patchElevenLabsAgentById(
     const vendorKeys = ["name", "voiceId", "systemPrompt", "firstMessage", "language", "twilio"];
     const hasVendorUpdate = vendorKeys.some((key) => body[key] !== undefined);
     if (hasVendorUpdate) {
-      const readiness = await modeBReadiness();
+      const readiness = modeBReadiness();
       if (!readiness.ready) {
         return NextResponse.json({ error: readiness.reason }, { status: readiness.status });
       }
