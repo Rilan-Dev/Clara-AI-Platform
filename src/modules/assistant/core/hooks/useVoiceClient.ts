@@ -178,13 +178,11 @@ export function useVoiceClient(options: VoiceClientOptions) {
       // Mode C Clara realtime; falls back to the Mode A pipeline when the
       // session bootstrap refuses (flag raced off / no realtime descriptor).
       if (next.mode === "speech-engine") {
-        try {
-          await elevenlabsSpeechEngine.connect();
-          return;
-        } catch (err) {
-          console.warn("[voice] ElevenLabs Speech Engine session refused; falling back to the existing pipeline:", (err as Error).message);
-          setElevenlabsMode("pipeline");
-        }
+        // An explicit ElevenLabs realtime selection is a hard transport
+        // choice. Do not fall back to batch STT/chat/TTS, otherwise the UI
+        // reports ElevenLabs realtime while running a different transport.
+        await elevenlabsSpeechEngine.connect();
+        return;
       }
       if (next.mode === "clara-stream") {
         try {
