@@ -11,8 +11,5 @@ export const POST = handleCallback(
     if (result.status === "error") {
       throw new Error(result.error);
     }
-  },
-  {
-    visibilityTimeoutSeconds: 60,
-  },
+  }
 );
