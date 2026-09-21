@@ -137,7 +137,7 @@ export default function AgentAssistantAIScreen() {
     try {
       await saveAgentVersion(agentId, versionSummary.trim() || null);
       setVersionSummary("");
-      setMessage(`Version created — review it in Versions, then publish.`);
+      setMessage(`Version created — review it in History, then publish.`);
       void refetchCtx();
     } catch (err) {
       setError((err as Error).message);
@@ -145,6 +145,21 @@ export default function AgentAssistantAIScreen() {
       setSaving(false);
     }
   }, [agentId, versionSummary, refetchCtx]);
+
+  /** LLM summary for the right-column card (agent variant ConfigEditor). */
+  const llmSummary = useMemo(() => {
+    const ai = draft?.configuration.ai;
+    if (!ai) return null;
+    const parts: string[] = [];
+    if (ai.provider) parts.push(String(ai.provider));
+    if (ai.chatModel) parts.push(String(ai.chatModel));
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [draft?.configuration.ai]);
+
+  /** Scroll from the LLM card to the full AI runtime configuration below. */
+  const openAISettings = useCallback(() => {
+    document.getElementById("ai-runtime-config")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   if (ctxLoading || loading) {
     return (
@@ -198,14 +213,43 @@ export default function AgentAssistantAIScreen() {
       )}
 
       <div className="space-y-6">
-        {/* AI model selection — capability resolver, no API keys, no provider health. */}
+        {/* Agent editor first (ElevenLabs "Agent" page): system prompt +
+            first message on the left, settings cards on the right. */}
+        {configValue ? (
+          isAdmin ? (
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
+              <p className="mb-4 text-sm text-muted-foreground">
+                Platform admins can view assistant behavior but cannot edit it.
+              </p>
+              <ConfigEditor config={configValue} contextName={context?.agent.name ?? "this agent"} onSave={async () => configValue} />
+            </div>
+          ) : (
+            <ConfigEditor
+              config={configValue}
+              contextName={context?.agent.name ?? "this agent"}
+              onSave={saveDraft}
+              variant="agent"
+              llmSummary={llmSummary ?? undefined}
+              onOpenAISettings={openAISettings}
+            />
+          )
+        ) : (
+          <p className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-6 text-center text-sm text-destructive">
+            Draft could not be loaded for this agent.
+          </p>
+        )}
+
+        {/* AI model selection — capability resolver, no API keys, no provider
+            health. Reached from the right-column LLM card. */}
         {!isAdmin && (
-          <AISelectionCard
-            draft={draft}
-            options={options}
-            onSave={saveAISelection}
-            previewKbId={previewKb?.id}
-          />
+          <div id="ai-runtime-config" className="scroll-mt-24">
+            <AISelectionCard
+              draft={draft}
+              options={options}
+              onSave={saveAISelection}
+              previewKbId={previewKb?.id}
+            />
+          </div>
         )}
         {isAdmin && draft && (
           <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
@@ -218,23 +262,6 @@ export default function AgentAssistantAIScreen() {
               {draft.configuration.ai?.realtimeVoiceProvider ? ` · Realtime: ${draft.configuration.ai.realtimeVoiceProvider}` : ""}
             </p>
           </div>
-        )}
-
-        {configValue ? (
-          isAdmin ? (
-            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
-              <p className="mb-4 text-sm text-muted-foreground">
-                Platform admins can view assistant behavior but cannot edit it.
-              </p>
-              <ConfigEditor config={configValue} contextName={context?.agent.name ?? "this agent"} onSave={async () => configValue} />
-            </div>
-          ) : (
-            <ConfigEditor config={configValue} contextName={context?.agent.name ?? "this agent"} onSave={saveDraft} />
-          )
-        ) : (
-          <p className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-6 text-center text-sm text-destructive">
-            Draft could not be loaded for this agent.
-          </p>
         )}
       </div>
     </div>
