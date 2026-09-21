@@ -717,6 +717,9 @@ export async function publishVersion(
   const kbSnapshots: Array<{ kbId: string; collectionName: string }> = [];
   for (const kb of kbRows) {
     if (!kb) continue;
+    if ("agentId" in kb && kb.agentId !== agentId) {
+      throw new AgentVersioningError("Published version references a knowledge base owned by another agent.", "PUBLISH_KB_OWNERSHIP");
+    }
     const sourceCollection = "qdrantCollection" in kb ? kb.qdrantCollection : kb.qdrant_collection;
     const collectionName = `pub_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
     await cloneKbCollection(sourceCollection, collectionName);
