@@ -58,9 +58,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       {
         kbId: kb.id,
         kbName: kb.name,
-        assistantName: config.assistantName,
-        avatarUrl: config.avatarUrl,
-        welcomeMessage: config.welcomeMessage,
+        assistantName: effectiveConfig.assistantName,
+        avatarUrl: effectiveConfig.avatarUrl,
+        welcomeMessage: effectiveConfig.welcomeMessage,
         defaultLanguage: config.defaultLanguage,
 
         voiceEnabled: resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
@@ -81,8 +81,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           flags: resolved.flags,
         },
 
-        primaryColour: config.primaryColour,
-        accentColour: config.accentColour,
+        primaryColour: effectiveConfig.primaryColour,
+        accentColour: effectiveConfig.accentColour,
         launcherColour: config.launcherColour,
         widgetTheme: config.widgetTheme,
         widgetPosition: config.widgetPosition,
