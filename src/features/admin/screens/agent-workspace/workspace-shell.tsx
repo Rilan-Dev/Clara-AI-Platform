@@ -3,25 +3,22 @@
 /**
  * src/features/admin/screens/agent-workspace/workspace-shell.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * ElevenLabs-style agents workspace shell for /orgs/[id]/agents/*.
+ * Agents workspace shell for /orgs/[id]/agents/* (ElevenLabs layout).
  *
- *   ┌──────────────┬──────────────────────────────────────────────┐
- *   │  Sidebar     │  Navbar: agent · version · [Versions][Publish]│
- *   │              ├──────────────────────────────────────────────┤
- *   │  (no agent)  │  content (children)                          │
- *   │  AGENTS  [+] │                                              │
- *   │  · agent     │                                              │
- *   │  KNOWLEDGE   │                                              │
- *   │  · kb        │  (agent selected)                            │
- *   │              │  ← Back to agents                            │
- *   │              │  [context card: agent · Main · v#]           │
- *   │              │  OVERVIEW / CONFIGURE / DEPLOY groups        │
- *   └──────────────┴──────────────────────────────────────────────┘
+ *   ┌─ org sidebar ─┬───────────────────────────────────────────────┐
+ *   │  (admin-shell │  Navbar: agent · version ·                    │
+ *   │   owns this)  │  [Preview][History][Publish] (agent selected)  │
+ *   ├───────────────┼───────────────────────────────────────────────┤
+ *   │  Agents list  │  content (children)                           │
+ *   │  / identity + │                                               │
+ *   │  agent tabs   │  + Branch History canvas (?history=1)         │
+ *   └───────────────┴───────────────────────────────────────────────┘
  *
- * · No agent selected  → sidebar lists the org's agents and knowledge
- *   bases; navbar shows the Agents title (no publish controls).
- * · Agent selected     → sidebar switches to that agent's workspace
- *   tabs; the navbar exposes Versions/Publish (only in this state).
+ * · Navigation lives in the EXISTING organisation sidebar (admin-shell):
+ *   agents list on the index, agent identity + tab groups when an agent
+ *   is open. This shell adds no second rail — content keeps full width.
+ * · The navbar carries Preview / History / Publish only once an agent is
+ *   selected; History opens the branch-history canvas over the current tab.
  *
  * All data is shared through AgentsWorkspaceProvider so the screens
  * underneath consume a single fetch instead of re-querying.
@@ -39,11 +36,11 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Bot,
   GitBranch,
   History,
   Plus,
   Rocket,
+  RotateCcw,
   Trash2,
   X,
 } from "lucide-react";
@@ -51,14 +48,18 @@ import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { fetchKbs, type Agent, type KnowledgeBase } from "@/modules/admin-ui/api";
 import {
   checkAgentDefaultUpdate,
-  fetchAgentWorkspaceContext,
   fetchAgentBranches,
+  fetchAgentDiff,
   fetchAgentVersions,
-  type AgentBranchDTO,
+  fetchAgentWorkspaceContext,
+  generateAgentExploreLink,
+  restoreAgentVersion,
   type AgentVersionDTO,
   type AgentWorkspaceContextDTO,
+  type SemanticDiffDTO,
 } from "@/modules/admin-ui/ai-platform-api";
-import { VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
+import { fetchAgentWorkspaceContextCached } from "@/features/admin/screens/agent-workspace/context-cache";
+import { DiffViewer, VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
 
@@ -251,8 +252,27 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
       setContextLoading(false);
       return;
     }
-    refetchContext();
-  }, [agentId, refetchContext]);
+    // Initial load goes through the shared cache (the organisation sidebar's
+    // identity block reads the same entry); explicit refetches below bypass it.
+    let cancelled = false;
+    setContextLoading(true);
+    setContextError(null);
+    fetchAgentWorkspaceContextCached(agentId)
+      .then((data) => !cancelled && setContext(data))
+      .catch((e: Error) => !cancelled && setContextError(e.message))
+      .finally(() => !cancelled && setContextLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [agentId]);
+
+  // Event bridge — the organisation sidebar's agents-list "+" opens the same
+  // create-agent dialog this provider owns (single source of truth).
+  useEffect(() => {
+    const open = () => setCreateOpen(true);
+    window.addEventListener("clara:open-create-agent", open);
+    return () => window.removeEventListener("clara:open-create-agent", open);
+  }, []);
 
   const value = useMemo<AgentsWorkspaceValue>(
     () => ({
@@ -325,12 +345,40 @@ function AgentNavbar({ context, loading }: {
 }) {
   const { agentId, agents, orgId, remove } = useAgentsWorkspace();
   const router = useRouter();
+  const pathname = usePathname();
   const [deleting, setDeleting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
   const [defaultUpdate, setDefaultUpdate] = useState<{
     agentDefaultVersion: number | null;
     currentPlatformVersion: number | null;
   } | null>(null);
   const [dismissing, setDismissing] = useState(false);
+
+  useEffect(() => {
+    setPreviewUrl(null);
+  }, [agentId]);
+
+  /** Opens the unified chat + voice preview of the published agent. */
+  async function openPreview() {
+    if (!agentId) return;
+    if (previewUrl) {
+      window.open(previewUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setPreviewBusy(true);
+    try {
+      const link = await generateAgentExploreLink(agentId);
+      setPreviewUrl(link.previewUrl);
+      window.open(link.previewUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      // The publish screen carries the full preview/deploy surface — fall
+      // back to it when an explore link cannot be minted right now.
+      router.push(`/orgs/${orgId}/agents/${agentId}/publish`);
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!context?.defaultAssistantUpdate?.updateAvailable) {
@@ -400,12 +448,17 @@ function AgentNavbar({ context, loading }: {
           )}
         </div>
 
-        {/* History opens the branch/version history as a half-canvas,
-            matching the version-control interaction used by ElevenLabs. */}
+        {/* Preview opens the unified chat + voice screen. History opens the
+            branch-history canvas OVER the current tab (ElevenLabs keeps you in
+            context); Versions/Publishing live here, only once an agent is
+            selected. */}
         <div className="flex shrink-0 items-center gap-2">
+          <WorkspaceButton variant="secondary" onClick={() => void openPreview()} disabled={previewBusy}>
+            {previewBusy ? "…" : "Preview"}
+          </WorkspaceButton>
           <WorkspaceButton
             variant="secondary"
-            onClick={() => agentId && router.push(`/orgs/${orgId}/agents/${agentId}/versions?history=1`)}
+            onClick={() => agentId && router.push(`${pathname}?history=1`, { scroll: false })}
           >
             <History className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">History</span>
@@ -547,11 +600,16 @@ function CreateAgentDialog({ onClose }: { onClose: () => void }) {
 // ── Shell frame ──────────────────────────────────────────────────────────────
 
 function ShellFrame({ children }: { children: ReactNode }) {
-  const { agentId, orgId } = useAgentsWorkspace();
+  const { agentId, orgId, context, refetchContext } = useAgentsWorkspace();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const historyOpen = searchParams.get("history") === "1";
+  // Branch context for the history canvas: the branches table's per-row
+  // history icon targets a specific branch; anywhere else defaults to Main.
+  const historyBranchId = searchParams.get("branch");
+  const historyBranchName =
+    (historyBranchId && context?.branches.find((b) => b.id === historyBranchId)?.name) || null;
 
   return (
     <div className="min-h-[calc(100dvh-3.5rem)]">
@@ -568,7 +626,10 @@ function ShellFrame({ children }: { children: ReactNode }) {
           agentId={agentId}
           open={historyOpen}
           onClose={() => router.replace(pathname)}
+          branchId={historyBranchId}
+          branchName={historyBranchName}
           versionsHref={`/orgs/${orgId}/agents/${agentId}/versions`}
+          onRestored={() => refetchContext()}
         />
       )}
     </div>
@@ -579,67 +640,152 @@ function AgentHistoryDrawer({
   agentId,
   open,
   onClose,
+  branchId,
+  branchName,
   versionsHref,
+  onRestored,
 }: {
   agentId: string;
   open: boolean;
   onClose: () => void;
+  /** Explicit branch target (from the branches table row); null → Main. */
+  branchId: string | null;
+  branchName: string | null;
   versionsHref: string;
+  onRestored: () => void;
 }) {
-  const [branches, setBranches] = useState<AgentBranchDTO[]>([]);
+  const [resolvedBranchId, setResolvedBranchId] = useState<string | null>(branchId);
+  const [resolvedBranchName, setResolvedBranchName] = useState<string | null>(branchName);
+  const [agentName, setAgentName] = useState<string | null>(null);
   const [versions, setVersions] = useState<AgentVersionDTO[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [versionsLoading, setVersionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Per-row interaction state.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [diffs, setDiffs] = useState<Record<string, SemanticDiffDTO | null>>({});
+  const [restoreTarget, setRestoreTarget] = useState<AgentVersionDTO | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Branch context: explicit target wins; otherwise resolve Main once.
   useEffect(() => {
     if (!open) return;
+    setResolvedBranchId(branchId);
+    setResolvedBranchName(branchName);
+    setExpandedId(null);
+    setDiffs({});
+    setRestoreTarget(null);
+    if (branchId) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     fetchAgentBranches(agentId)
       .then((result) => {
         if (cancelled) return;
-        setBranches(result.branches);
-        const main = result.branches.find((branch) => branch.isMain) ?? result.branches[0] ?? null;
-        setSelectedBranchId((current) => current ?? main?.id ?? null);
+        const main = result.branches.find((b) => b.id === branchId) ?? result.branches.find((b) => b.isMain) ?? result.branches[0] ?? null;
+        setResolvedBranchId(main?.id ?? null);
+        setResolvedBranchName(main?.name ?? null);
       })
-      .catch((err) => !cancelled && setError((err as Error).message))
-      .finally(() => !cancelled && setLoading(false));
-    return () => { cancelled = true; };
-  }, [agentId, open]);
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, agentId, branchId, branchName]);
 
+  // Agent display name for the drawer subtitle.
   useEffect(() => {
-    if (!open || !selectedBranchId) return;
+    if (!open) return;
     let cancelled = false;
-    setVersionsLoading(true);
-    fetchAgentVersions(agentId, selectedBranchId)
+    fetchAgentWorkspaceContextCached(agentId)
+      .then((context) => !cancelled && setAgentName(context.agent.name))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, agentId]);
+
+  // Branch history — newest first, tags included.
+  useEffect(() => {
+    if (!open || !resolvedBranchId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchAgentVersions(agentId, resolvedBranchId)
       .then((result) => !cancelled && setVersions(result.versions))
       .catch((err) => !cancelled && setError((err as Error).message))
-      .finally(() => !cancelled && setVersionsLoading(false));
-    return () => { cancelled = true; };
-  }, [agentId, open, selectedBranchId]);
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, agentId, resolvedBranchId]);
 
   if (!open) return null;
 
-  const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) ?? null;
+  const shownBranchName = resolvedBranchName ?? branchName ?? "Main";
+
+  /** Eye icon — expand the row into its semantic diff against the parent. */
+  async function toggleExpand(version: AgentVersionDTO) {
+    if (expandedId === version.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(version.id);
+    if (diffs[version.id] !== undefined) return;
+    setDiffs((d) => ({ ...d, [version.id]: null }));
+    try {
+      if (!version.parentVersionId) {
+        setDiffs((d) => ({ ...d, [version.id]: null }));
+        return;
+      }
+      const diff = await fetchAgentDiff(agentId, version.parentVersionId, version.id);
+      setDiffs((d) => ({ ...d, [version.id]: diff }));
+    } catch {
+      setDiffs((d) => {
+        const next = { ...d };
+        delete next[version.id];
+        return next;
+      });
+    }
+  }
+
+  async function confirmRestore() {
+    if (!restoreTarget) return;
+    setBusy(true);
+    try {
+      await restoreAgentVersion(agentId, restoreTarget.id);
+      setRestoreTarget(null);
+      onRestored();
+      const refreshed = await fetchAgentVersions(agentId, resolvedBranchId ?? undefined);
+      setVersions(refreshed.versions);
+      setExpandedId(null);
+      setDiffs({});
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Agent history">
+    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Branch history">
       <button
         type="button"
-        aria-label="Close history"
+        aria-label="Close branch history"
         className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      <aside className="absolute inset-y-0 right-0 flex w-full max-w-[760px] flex-col border-l border-border bg-background shadow-2xl sm:w-[50vw]">
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
-              Agent versioning
+      <aside className="absolute inset-y-0 right-0 flex w-full flex-col border-l border-border bg-background shadow-2xl sm:w-[540px]">
+        {/* Header — history icon, agent + branch context, close. */}
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 shrink-0 text-primary" />
+              <h2 className="truncate text-base font-semibold text-foreground">Branch History</h2>
+            </div>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="truncate">{agentName ?? "Agent"}</span>
+              <span aria-hidden>·</span>
+              <GitBranch className="h-3 w-3 shrink-0" />
+              <span className="font-medium text-foreground/80">{shownBranchName}</span>
             </p>
-            <h2 className="text-base font-semibold text-foreground">History</h2>
           </div>
           <button
             type="button"
@@ -651,119 +797,134 @@ function AgentHistoryDrawer({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1">
-          {/* Branch rail — deliberately compact, matching a source-control
-              browser rather than adding another permanent sidebar. */}
-          <div className="w-[38%] min-w-[190px] shrink-0 overflow-y-auto border-r border-border bg-muted/10 p-3">
-            <div className="mb-3 flex items-center justify-between px-2">
-              <div>
-                <p className="text-xs font-semibold text-foreground">Branches</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground/60">Lines of development</p>
-              </div>
-              <GitBranch className="h-3.5 w-3.5 text-muted-foreground/60" />
+        {/* Version entries — compact rows, newest first. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {error && (
+            <p className="m-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {error}
+            </p>
+          )}
+
+          {loading ? (
+            <div className="space-y-3 p-5">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/50" />
+              ))}
             </div>
-
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-muted/60" />)}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {branches.map((branch) => {
-                  const active = branch.id === selectedBranchId;
-                  return (
-                    <button
-                      key={branch.id}
-                      type="button"
-                      onClick={() => setSelectedBranchId(branch.id)}
-                      className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                        active
-                          ? "border-primary/25 bg-primary/10"
-                          : "border-transparent hover:border-border hover:bg-card"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`h-1.5 w-1.5 rounded-full ${branch.isMain ? "bg-primary" : "bg-muted-foreground/50"}`} />
-                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{branch.name}</span>
-                        {branch.isMain && <VersionBadge tone="primary">Main</VersionBadge>}
+          ) : (
+            <ol className="divide-y divide-border/60">
+              {versions.map((version) => {
+                const live = version.publishedAt != null;
+                const tags = version.changeTags ?? [];
+                const expanded = expandedId === version.id;
+                return (
+                  <li key={version.id} className="px-5 py-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                          <span className="truncate">
+                            {version.changeSummary || `v${version.versionNumber} configuration`}
+                          </span>
+                          {live && <VersionBadge tone="success">Live</VersionBadge>}
+                          {version.source === "restore" && <VersionBadge tone="muted">Restore</VersionBadge>}
+                          {version.source === "merge" && <VersionBadge tone="muted">Merge</VersionBadge>}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground/80">
+                          <span className="font-medium text-foreground/70">v{version.versionNumber}</span>
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          <span aria-hidden>·</span>
+                          <span>{formatHistoryDate(version.createdAt)}</span>
+                          {version.createdByName && (
+                            <>
+                              <span aria-hidden>·</span>
+                              <span className="truncate">{version.createdByName}</span>
+                            </>
+                          )}
+                        </p>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/60">
-                        <span>v{branch.latestVersionNumber ?? 1}</span>
-                        {branch.draftUpdatedAt && <span>Draft</span>}
-                        {branch.isArchived && <span>Archived</span>}
+
+                      {/* Row actions — view (diff) + restore. */}
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void toggleExpand(version)}
+                          aria-label={expanded ? "Hide changes" : `View v${version.versionNumber} changes`}
+                          title={expanded ? "Hide changes" : "View changes"}
+                          className={`rounded-lg border p-1.5 transition-colors ${
+                            expanded
+                              ? "border-primary/30 bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5" aria-hidden>
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRestoreTarget(version)}
+                          aria-label={`Restore v${version.versionNumber}`}
+                          title="Restore this version"
+                          className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    </button>
-                  );
-                })}
-                {branches.length === 0 && !error && (
-                  <p className="px-2 py-6 text-xs text-muted-foreground/70">No branches yet.</p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Branch history */}
-          <div className="min-w-0 flex-1 overflow-y-auto">
-            <div className="border-b border-border px-5 py-4">
-              <div className="flex items-center gap-2">
-                <h3 className="truncate text-sm font-semibold text-foreground">
-                  {selectedBranch?.name ?? "Branch"}
-                </h3>
-                {selectedBranch?.isMain && <VersionBadge tone="primary">Main</VersionBadge>}
-                {selectedBranch?.isArchived && <VersionBadge tone="muted">Archived</VersionBadge>}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground/70">
-                {selectedBranch?.description || "Immutable configuration history for this branch."}
-              </p>
-            </div>
-
-            {error && (
-              <p className="m-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </p>
-            )}
-
-            {versionsLoading ? (
-              <div className="space-y-2 p-5">
-                {[1, 2, 3, 4].map((item) => <div key={item} className="h-16 animate-pulse rounded-lg bg-muted/50" />)}
-              </div>
-            ) : (
-              <ol className="relative p-5">
-                {versions.map((version, index) => (
-                  <li key={version.id} className="relative pl-7 pb-5 last:pb-0">
-                    {index < versions.length - 1 && (
-                      <span className="absolute left-[7px] top-3 h-full w-px bg-border" aria-hidden />
-                    )}
-                    <span className="absolute left-0 top-1.5 h-4 w-4 rounded-full border-2 border-background bg-primary ring-1 ring-border" aria-hidden />
-                    <div className="rounded-xl border border-border/70 bg-card px-3.5 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-semibold text-foreground">v{version.versionNumber}</span>
-                        {version.publishedAt && <VersionBadge tone="success">Published</VersionBadge>}
-                        {version.source === "restore" && <VersionBadge tone="muted">Restore</VersionBadge>}
-                        {version.source === "merge" && <VersionBadge tone="muted">Merge</VersionBadge>}
-                      </div>
-                      <p className="mt-1 text-xs text-foreground/80">
-                        {version.changeSummary || "Configuration updated"}
-                      </p>
-                      <p className="mt-1 text-[10px] text-muted-foreground/60">
-                        {version.createdByName || "System"} · {timeAgo(version.createdAt)}
-                      </p>
                     </div>
+
+                    {/* Expanded — semantic diff against the parent version. */}
+                    {expanded && (
+                      <div className="mt-3 rounded-xl border border-border/70 bg-muted/20 p-3">
+                        {!version.parentVersionId ? (
+                          <p className="py-2 text-center text-xs text-muted-foreground/70">
+                            Initial version — no parent to compare against.
+                          </p>
+                        ) : (
+                          <DiffViewer diff={diffs[version.id] ?? null} emptyLabel="No changes against the parent version." />
+                        )}
+                      </div>
+                    )}
                   </li>
-                ))}
-                {versions.length === 0 && (
-                  <li className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground/70">
-                    No committed versions on this branch yet.
-                  </li>
-                )}
-              </ol>
-            )}
-          </div>
+                );
+              })}
+              {versions.length === 0 && !error && (
+                <li className="px-5 py-12 text-center text-sm text-muted-foreground/70">
+                  No versions on this branch yet — save a version from the Agent tab.
+                </li>
+              )}
+            </ol>
+          )}
         </div>
+
+        {/* Restore confirmation — inline footer while a target is selected. */}
+        {restoreTarget && (
+          <div className="shrink-0 border-t border-border bg-muted/30 px-5 py-3.5">
+            <p className="text-xs text-muted-foreground">
+              Restore <span className="font-semibold text-foreground">v{restoreTarget.versionNumber}</span>? A new
+              version will be created with its configuration — history is never deleted.
+            </p>
+            <div className="mt-2.5 flex items-center justify-end gap-2">
+              <WorkspaceButton variant="secondary" onClick={() => setRestoreTarget(null)} disabled={busy}>
+                Cancel
+              </WorkspaceButton>
+              <WorkspaceButton variant="primary" onClick={() => void confirmRestore()} disabled={busy}>
+                {busy ? "Restoring…" : "Restore as new version"}
+              </WorkspaceButton>
+            </div>
+          </div>
+        )}
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-3">
           <p className="text-[10px] text-muted-foreground/60">
-            Drafts stay separate from immutable versions until you save a version.
+            Immutable history — restoring always creates a new version.
           </p>
           <Link
             href={versionsHref}
@@ -776,6 +937,16 @@ function AgentHistoryDrawer({
       </aside>
     </div>
   );
+}
+
+/** "Sep 13, 7:49 PM" style dates for history rows. */
+function formatHistoryDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 // ── Public shell ─────────────────────────────────────────────────────────────
