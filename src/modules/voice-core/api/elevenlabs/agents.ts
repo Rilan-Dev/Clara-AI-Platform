@@ -83,7 +83,7 @@ function mapBindingRow(row: AgentBindingDbRow): ElevenLabsAgentBindingRow {
 }
 
 /** Mode B availability gate shared by the mutating handlers + status UIs. */
-export async function modeBReadiness(): Promise<{ ready: true } | { ready: false; reason: string; status: number } {
+export async function modeBReadiness(): Promise<{ ready: true } | { ready: false; reason: string; status: number }> {
   if (!(await isElevenLabsEnabled())) {
     return {
       ready: false,
