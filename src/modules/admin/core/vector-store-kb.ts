@@ -14,6 +14,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getQdrantClient, ensureCollectionExists } from "./vector-store";
+import type { PointStruct } from "@qdrant/js-client-rest";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
@@ -283,14 +284,13 @@ export async function cloneKbCollection(sourceCollection: string, targetCollecti
     const points = page.points;
     if (points.length > 0) {
       // Keep the SDK's own upsert point type so named/multi-vectors remain supported.
-      type UpsertPoint = Parameters<typeof client.upsert>[1]["points"][number];
-      const dense = points
+      const dense: PointStruct[] = points
         .filter((point) => point.vector != null)
         .map((point) => ({
           id: point.id,
-          vector: point.vector,
+          vector: point.vector!,
           payload: point.payload ?? undefined,
-        }) as unknown as UpsertPoint);
+        }));
       await client.upsert(targetCollection, {
         wait: true,
         points: dense,
