@@ -173,6 +173,40 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return true;
     }).slice(0, 6);
 
+    // Strict grounding boundary: no sufficiently relevant evidence means the
+    // provider must not be asked to answer from general knowledge.
+    if (sources.length === 0 && config.strictMode !== false) {
+      const reply =
+        config.outOfScopeReply?.trim() ||
+        "I can only answer questions about the topics I have been set up for.";
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const write = (event: { type: string; payload?: unknown }) =>
+            controller.enqueue(encoder.encode(encodeNDJSONEvent(event)));
+          if (quotaWarning) write({ type: "quota_warning", payload: quotaWarning });
+          write({ type: "token", payload: reply });
+          write({ type: "done" });
+          controller.close();
+        },
+      });
+      void finalizeQueryEvent(eventId, {
+        answerText: reply,
+        status: "ok",
+        latencyMs: Date.now() - t0,
+        sourceCount: 0,
+      });
+      return new NextResponse(stream, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/x-ndjson; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
     const provider = ProviderFactory.getProvider(providerConfig);
     const llmStart = Date.now();
     const baseSystemPrompt = buildSystemPrompt(config, {
