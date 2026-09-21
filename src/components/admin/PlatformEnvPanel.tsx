@@ -163,10 +163,6 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
 
   // ── Sarvam (Indic brain + voice + language services) ──────────────
-  SARVAM_ENABLED: {
-    label: "Enable Sarvam",
-    hint: "Master switch for the Sarvam provider (brain, voice and language services). The API key must also be set.",
-  },
   SARVAM_API_KEY: {
     label: "Sarvam API key",
     hint: "API subscription key from dashboard.sarvam.ai — sent as the api-subscription-key header.",
@@ -339,7 +335,7 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
     "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
     "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
     "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
-    "SARVAM_ENABLED", "SARVAM_TIMEOUT_MS",
+    "SARVAM_TIMEOUT_MS",
     "SARVAM_BETA_MODELS_ENABLED",
     "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
     "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
@@ -657,7 +653,6 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
     display("AI_PROVIDER") === "gemini" ? "gemini"
     : display("AI_PROVIDER") === "sarvam" ? "sarvam"
     : "openai";
-  const svEnabled = display("SARVAM_ENABLED") === "true";
   const svTranslationEnabled = display("SARVAM_TRANSLATION_ENABLED") === "true";
   const svRealtimeEnabled = display("SARVAM_REALTIME_STT_ENABLED") === "true";
   const openaiKeySet = Boolean(isSet?.("OPENAI_API_KEY"));
@@ -869,19 +864,11 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
         <StatusPills
           items={[
             svKeySet ? { text: "Sarvam key set", tone: "ok" } : { text: "Sarvam key missing", tone: "bad" },
-            svEnabled ? { text: "Enabled", tone: "ok" } : { text: "Disabled", tone: "neutral" },
             svTranslationEnabled ? { text: "Language services on", tone: "ok" } : { text: "Language services off", tone: "neutral" },
             svRealtimeEnabled ? { text: "Realtime STT relay on", tone: "ok" } : { text: "Realtime STT relay off", tone: "neutral" },
           ]}
         />
         <div className="grid gap-3 lg:grid-cols-2">
-          <FeatureToggle
-            icon={<Volume2 />}
-            label="Enable Sarvam"
-            description="Master switch for the Sarvam provider (brain + voice + language services). The API key must also be set."
-            checked={svEnabled}
-            onChange={(checked) => boolToggle("SARVAM_ENABLED", checked)}
-          />
           <FeatureToggle
             icon={<Languages />}
             label="Language services (cross-lingual RAG)"
