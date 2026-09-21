@@ -12,7 +12,7 @@
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "migrate": "tsx src/lib/db/migrate.ts --prod",
+    "db:migrate": "tsx src/lib/db/migrate.ts --prod",
     "seed": "tsx scripts/seed.ts --prod",
     "seed:prod": "tsx scripts/seed.ts --prod",
     "seed:dev": "tsx scripts/seed-demo.ts",
