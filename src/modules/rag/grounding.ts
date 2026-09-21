@@ -409,9 +409,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         return `[S${i + 1}] ${label}
 ${r.snippet}`.trim();
       })
-      .join("
-
-"),
+      .join("\n\n"),
   ];
 
   if (graphContext) {
