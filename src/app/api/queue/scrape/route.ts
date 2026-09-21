@@ -45,7 +45,7 @@ export const POST = handleCallback(async (message: Message) => {
 
   const result = await runScrapeSession(message.sessionId, {
     concurrency: 2,
-    maxUrls: 10,
+    maxUrls: 2,
   });
 
   if (result.hasMore) {
