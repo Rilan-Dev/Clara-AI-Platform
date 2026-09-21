@@ -9,7 +9,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit";
-import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
@@ -80,7 +80,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         }
       }
 
-      const config = await getAssistantConfigByKb(kbId);
+      const [config, documentTitles] = await Promise.all([\n        getAssistantConfigByKb(kbId),\n        getKnowledgeBaseDocumentTitles(kbId),\n      ]);
       if (!config) return NextResponse.json({ error: "AssistantConfig not found for this knowledge base" }, { status: 500 });
 
       const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
@@ -100,7 +100,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         }, { status: 409 });
       }
 
-      instructions = buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, surface: "realtime" });
+      instructions = buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "realtime" });
       voice = voiceResolved.openai?.voiceId ?? DEFAULT_REALTIME_VOICE;
       if (!isSupportedOpenAIRealtimeVoice(voice)) {
         return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400 });
