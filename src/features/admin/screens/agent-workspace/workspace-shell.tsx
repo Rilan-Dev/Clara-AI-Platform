@@ -547,7 +547,7 @@ function CreateAgentDialog({ onClose }: { onClose: () => void }) {
 // ── Shell frame ──────────────────────────────────────────────────────────────
 
 function ShellFrame({ children }: { children: ReactNode }) {
-  const { agentId } = useAgentsWorkspace();
+  const { agentId, orgId } = useAgentsWorkspace();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -568,6 +568,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
           agentId={agentId}
           open={historyOpen}
           onClose={() => router.replace(pathname)}
+          versionsHref={`/orgs/${orgId}/agents/${agentId}/versions`}
         />
       )}
     </div>
@@ -578,10 +579,12 @@ function AgentHistoryDrawer({
   agentId,
   open,
   onClose,
+  versionsHref,
 }: {
   agentId: string;
   open: boolean;
   onClose: () => void;
+  versionsHref: string;
 }) {
   const [branches, setBranches] = useState<AgentBranchDTO[]>([]);
   const [versions, setVersions] = useState<AgentVersionDTO[]>([]);
@@ -762,13 +765,13 @@ function AgentHistoryDrawer({
           <p className="text-[10px] text-muted-foreground/60">
             Drafts stay separate from immutable versions until you save a version.
           </p>
-          <button
-            type="button"
+          <Link
+            href={versionsHref}
             onClick={onClose}
             className="shrink-0 text-xs font-medium text-primary hover:underline"
           >
-            Close
-          </button>
+            Manage branches
+          </Link>
         </div>
       </aside>
     </div>
