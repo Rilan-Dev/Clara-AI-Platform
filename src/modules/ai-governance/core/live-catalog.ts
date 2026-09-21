@@ -201,7 +201,7 @@ async function syncSarvam(): Promise<void> {
 async function syncElevenLabs(): Promise<void> {
   const apiKey = key("ELEVENLABS_API_KEY");
   if (!apiKey) return;
-  const base = (key("ELEVENLABS_API_BASE_URL") || "https://api.elevenlabs.io").replace(/\/+$/, "");
+  const base = (key("ELEVENLABS_API_BASE_URL") || key("ELEVENLABS_BASE_URL") || "https://api.elevenlabs.io").replace(/\/+$/, "");
   const headers = { "xi-api-key": apiKey };
 
   const models = (await jsonFetch(`${base}/v1/models`, { headers })) as Array<{
