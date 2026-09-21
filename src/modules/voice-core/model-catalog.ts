@@ -124,7 +124,7 @@ export async function isElevenLabsRealtimeEnabled(): Promise<boolean> {
  * Validated against the current docs (client-side streaming guide): the
  * realtime endpoint takes scribe_v2_realtime (NOT the batch scribe_v1).
  */
-(): string {
+export function getElevenLabsRealtimeSttModel(): string {
   return process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim() || "scribe_v2_realtime";
 }
 
