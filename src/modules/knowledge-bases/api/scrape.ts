@@ -49,7 +49,7 @@ import {
   findActiveSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
 import { getScrapeUrlRetryContext } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
-import { getCrawlQueue } from "@/modules/queue";
+import { enqueueCrawlJob } from "@/modules/cloud-jobs/queue";
 import { runScrapeSession } from "@/modules/knowledge-bases/worker/scrape-worker";
 import { scheduleImmediateRetryForUrl } from "@/modules/knowledge-bases/worker/retry-scheduler";
 import type Redis from "ioredis";
@@ -165,16 +165,23 @@ export async function discoverHandler(req: NextRequest, kbId: string): Promise<N
 
     const session = await createSession({ kbId, rootUrl: url.trim(), maxDepth, createdBy: auth.user.id });
 
-    const job = await getCrawlQueue().add("discover", {
-      sessionId: session.id, kbId, url: url.trim(),
-      maxDepth, maxUrls, requestDelayMs, scopeToInputPath: Boolean(scopeToInputPath),
+    const queueResult = await enqueueCrawlJob(session.id, {
+      sessionId: session.id,
+      kbId,
+      url: url.trim(),
+      maxDepth,
+      maxUrls,
+      requestDelayMs,
+      scopeToInputPath: Boolean(scopeToInputPath),
     });
 
-    await setSessionJobId(session.id, job.id!);
+    if (queueResult.messageId) {
+      await setSessionJobId(session.id, queueResult.messageId);
+    }
 
-    console.log(`[scrape] Enqueued crawl job ${job.id} for session ${session.id} (${url.trim()})`);
+    console.log(`[scrape] Enqueued cloud crawl job ${queueResult.messageId ?? "deferred"} for session ${session.id} (${url.trim()})`);
 
-    return NextResponse.json({ ...session, jobId: job.id }, { status: 202 });
+    return NextResponse.json({ ...session, jobId: queueResult.messageId }, { status: 202 });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[scrape] discover:", err);
