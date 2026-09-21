@@ -100,7 +100,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         }, { status: 409 });
       }
 
-      instructions = buildSystemPrompt(config, { kbName: kb.name });
+      instructions = buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, surface: "realtime" });
       voice = voiceResolved.openai?.voiceId ?? DEFAULT_REALTIME_VOICE;
       if (!isSupportedOpenAIRealtimeVoice(voice)) {
         return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400 });
