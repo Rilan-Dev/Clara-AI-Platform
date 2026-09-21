@@ -148,7 +148,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
     try {
-      const searchPromise = searchKbEmbedded(resolved.knowledgeCollection ?? kb.qdrantCollection, retrievalQuery, 8, { providerConfig: embeddingConfig });
+      const searchPromise = searchKbEmbedded(
+        resolved.knowledgeCollection ?? kb.qdrantCollection,
+        retrievalQuery,
+        realtimeVoice ? 4 : 8,
+        { providerConfig: embeddingConfig, realtimeVoice },
+      );
       const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
       searchResults = await Promise.race([searchPromise, timeoutPromise]);
       console.info("[realtime-latency] retrieval complete", { realtimeVoice, ms: Date.now() - retrievalStart, sourceCount: searchResults.length });
