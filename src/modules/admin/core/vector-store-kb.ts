@@ -282,16 +282,18 @@ export async function cloneKbCollection(sourceCollection: string, targetCollecti
     });
     const points = page.points;
     if (points.length > 0) {
-      // Scroll results carry optional/null vector+payload shapes; upsert
-      // requires the dense form — normalise each point before writing.
-      const dense = points.map((p) => ({
-        id: p.id,
-        vector: p.vector!,
-        payload: p.payload ?? undefined,
-      }));
+      // Keep the SDK's own upsert point type so named/multi-vectors remain supported.
+      type UpsertPoint = Parameters<typeof client.upsert>[1]["points"][number];
+      const dense = points
+        .filter((point) => point.vector != null)
+        .map((point) => ({
+          id: point.id,
+          vector: point.vector,
+          payload: point.payload ?? undefined,
+        }) as unknown as UpsertPoint);
       await client.upsert(targetCollection, {
         wait: true,
-        points: dense as unknown as { id: string | number; vector: number[]; payload?: Record<string, unknown> }[],
+        points: dense,
       });
     }
     offset =
