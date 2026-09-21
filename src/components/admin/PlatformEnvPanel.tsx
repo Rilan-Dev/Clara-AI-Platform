@@ -336,7 +336,7 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
   // surfaces is the "duplicated provider information" anti-pattern the
   // migration removes.
   ai: [
-    "ELEVENLABS_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
+    "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
     "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
     "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
     "SARVAM_ENABLED", "SARVAM_TIMEOUT_MS",
@@ -657,7 +657,6 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
     display("AI_PROVIDER") === "gemini" ? "gemini"
     : display("AI_PROVIDER") === "sarvam" ? "sarvam"
     : "openai";
-  const elEnabled = display("ELEVENLABS_ENABLED") === "true";
   const svEnabled = display("SARVAM_ENABLED") === "true";
   const svTranslationEnabled = display("SARVAM_TRANSLATION_ENABLED") === "true";
   const svRealtimeEnabled = display("SARVAM_REALTIME_STT_ENABLED") === "true";
@@ -976,17 +975,9 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
         <StatusPills
           items={[
             elKeySet ? { text: "ElevenLabs key set", tone: "ok" } : { text: "ElevenLabs key missing", tone: "bad" },
-            elEnabled ? { text: "Enabled", tone: "ok" } : { text: "Disabled", tone: "neutral" },
           ]}
         />
         <div className="grid gap-3 lg:grid-cols-2">
-          <FeatureToggle
-            icon={<Volume2 />}
-            label="Enable ElevenLabs"
-            description="Master switch for the ElevenLabs voice provider. The API key must also be set."
-            checked={elEnabled}
-            onChange={(checked) => boolToggle("ELEVENLABS_ENABLED", checked)}
-          />
           <FeatureToggle
             icon={<AudioLines />}
             label="Conversational AI (Mode B)"
