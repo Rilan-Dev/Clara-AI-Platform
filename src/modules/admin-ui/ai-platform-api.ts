@@ -277,6 +277,8 @@ export type AgentVersionDTO = {
   parentVersionId: string | null;
   changeSummary: string | null;
   source: string;
+  /** Short change-area pills for branch-history rows ("System prompt", "Voice"…). */
+  changeTags?: string[];
   createdByName: string | null;
   createdAt: string;
   publishedAt: string | null;
