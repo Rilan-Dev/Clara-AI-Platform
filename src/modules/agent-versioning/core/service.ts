@@ -45,6 +45,7 @@ import type {
   SemanticDiff,
 } from "./types";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
+import { randomUUID } from "node:crypto";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { cloneKbCollection } from "@/modules/admin/core/vector-store-kb";
 
@@ -717,7 +718,7 @@ export async function publishVersion(
   for (const kb of kbRows) {
     if (!kb) continue;
     const sourceCollection = "qdrantCollection" in kb ? kb.qdrantCollection : kb.qdrant_collection;
-    const collectionName = `pub_${version.id.replace(/-/g, "").slice(0, 12)}_${kb.id.replace(/-/g, "").slice(0, 12)}`;
+    const collectionName = `pub_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
     await cloneKbCollection(sourceCollection, collectionName);
     kbSnapshots.push({ kbId: kb.id, collectionName });
   }
