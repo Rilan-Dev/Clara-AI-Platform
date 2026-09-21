@@ -385,6 +385,7 @@ export async function insertDeployment(input: {
   versionId: string;
   publicAccess: boolean;
   publishedBy: string | null;
+  kbSnapshots?: Array<{ kbId: string; collectionName: string }>;
 }): Promise<AgentDeployment> {
   const id = randomUUID();
   await withTransaction(async (client) => {
@@ -398,6 +399,13 @@ export async function insertDeployment(input: {
        VALUES ($1, $2, $3, $4, $5, 'production', 'active', $6, $7)`,
       [id, input.agentId, input.orgId, input.branchId, input.versionId, input.publicAccess, input.publishedBy],
     );
+    for (const snapshot of input.kbSnapshots ?? []) {
+      await client.query(
+        `INSERT INTO agent_deployment_kb_snapshots (deployment_id, agent_id, kb_id, collection_name)
+         VALUES ($1, $2, $3, $4)`,
+        [id, input.agentId, snapshot.kbId, snapshot.collectionName],
+      );
+    }
     await client.query(
       `UPDATE agent_versions SET published_at = now() WHERE id = $1 AND published_at IS NULL`,
       [input.versionId],
@@ -413,6 +421,17 @@ export async function insertDeployment(input: {
   );
   if (!row) throw new AgentVersioningError("Failed to create deployment.", "DEPLOYMENT_CREATE_FAILED");
   return toDeployment(row);
+}
+
+/** Return the immutable KB collection captured by the active production deployment. */
+export async function getActiveDeploymentKbCollection(agentId: string, kbId: string): Promise<string | null> {
+  const row = await queryOne<{ collection_name: string }>(
+    "SELECT s.collection_name FROM agent_deployment_kb_snapshots s " +
+      "JOIN agent_deployments d ON d.id = s.deployment_id " +
+      "WHERE d.agent_id = $1 AND d.environment = 'production' AND d.status = 'active' AND s.kb_id = $2 LIMIT 1",
+    [agentId, kbId],
+  );
+  return row?.collection_name ?? null;
 }
 
 // ─── Production resolution (runtime) ──────────────────────────────────────────
