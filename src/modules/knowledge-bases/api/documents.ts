@@ -28,10 +28,8 @@ import {
   getDocumentJobStatus,
 } from "@/modules/knowledge-bases/core/documents-db";
 import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
-import {
-  kickIngestQueue,
-  INGEST_STALE_JOB_MS,
-} from "@/modules/knowledge-bases/worker/ingest-worker";
+import { INGEST_STALE_JOB_MS } from "@/modules/knowledge-bases/worker/ingest-worker";
+import { enqueueIngestJob } from "@/modules/cloud-jobs/queue";
 
 /**
  * Job started_at staleness check shared by the reprocess endpoints.
@@ -211,7 +209,9 @@ export async function uploadDocumentsHandler(
       }
     }
 
-    if (results.length > 0) kickIngestQueue();
+    if (results.length > 0) {
+      await Promise.all(results.map((result) => enqueueIngestJob(result.jobId)));
+    }
 
     // WS-1.4: mutation audit — every accepted upload is on record.
     if (results.length > 0) {
@@ -355,7 +355,7 @@ export async function reprocessDocumentHandler(
     // A fresh pending job already exists — the background poller will pick it
     // up; kick the queue so it happens immediately.
     if (latestJob.status === "pending") {
-      kickIngestQueue();
+      await enqueueIngestJob(latestJob.id);
       return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: latestJob.id });
     }
 
@@ -367,7 +367,7 @@ export async function reprocessDocumentHandler(
 
     await updateDocumentStatus(docId, "pending");
     const newJob = await createIngestJob(docId, kbId, latestJob.filePayload!);
-    kickIngestQueue();
+    await enqueueIngestJob(newJob.id);
     return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: newJob.id });
   } catch (err) {
     if (err instanceof NextResponse) return err;
@@ -458,7 +458,16 @@ export async function reprocessAllDocumentsHandler(
     }
 
     if (queued > 0) {
-      kickIngestQueue();
+      const pendingJobs = await Promise.all(
+        docs
+          .filter((doc) => doc.status === "failed" || doc.status === "ready")
+          .map(async (doc) => getDocumentJobStatus(doc.id))
+      );
+      await Promise.all(
+        pendingJobs
+          .filter((job): job is NonNullable<typeof job> => Boolean(job?.id) && job.status === "pending")
+          .map((job) => enqueueIngestJob(job.id))
+      );
     }
 
     return NextResponse.json({
