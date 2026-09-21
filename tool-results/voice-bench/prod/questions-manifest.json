@@ -1,0 +1,31 @@
+{
+  "sampleRate": 24000,
+  "questions": [
+    {
+      "name": "q1-services",
+      "durationMs": 3346,
+      "gapAfterMs": 25000
+    },
+    {
+      "name": "q2-price",
+      "durationMs": 4684,
+      "gapAfterMs": 25000
+    },
+    {
+      "name": "q3-duration",
+      "durationMs": 2275,
+      "gapAfterMs": 25000
+    },
+    {
+      "name": "q4-interview",
+      "durationMs": 4617,
+      "gapAfterMs": 25000
+    },
+    {
+      "name": "q5-internship",
+      "durationMs": 5554,
+      "gapAfterMs": 0
+    }
+  ],
+  "trailingSilenceMs": 80000
+}
