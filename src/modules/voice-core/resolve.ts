@@ -49,7 +49,6 @@ import {
   getPlatformDefaultSarvamRealtimeSttModel,
   getPlatformDefaultSarvamRealtimeLlmModel,
   isSarvamRealtimeTtsEnabled,
-  isSarvamEnabled,
   isSupportedSarvamSpeaker,
   isSupportedSarvamTTSModel,
   SARVAM_TTS_LANGUAGES,
@@ -272,11 +271,10 @@ export async function resolveVoiceConfig(
     );
   }
 
-  // ── Platform availability: kill-switch + REGISTRY FALLBACK (not a hard error) ──
+  // ── Platform availability: registry gate + fallback (not a hard error) ──
   // An org may have explicitly selected a voice provider (e.g. ElevenLabs)
   // that the platform operator has since disabled platform-wide
-  // (ELEVENLABS_ENABLED=false / key cleared — same posture for Sarvam; the
-  // provider registry adds the admin enable/disable switch on top). Hard-
+  // the provider registry can disable it platform-wide). Hard-
   // failing every voice surface for that org makes the whole platform look
   // broken, which is exactly what happens when an operator retires a vendor:
   // embeds, the floating assistant, and the realtime modal all 400. Instead
@@ -302,8 +300,8 @@ export async function resolveVoiceConfig(
   const unavailableError = (p: VoiceProvider): VoiceConfigResolutionError =>
     new VoiceConfigResolutionError(
       p === "elevenlabs"
-        ? "ElevenLabs voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured), and no fallback voice provider is enabled for this organisation."
-        : "Sarvam voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured), and no fallback voice provider is enabled for this organisation.",
+        ? "ElevenLabs voice is not available on this platform (disabled, not configured, or unavailable), and no fallback voice provider is enabled for this organisation."
+        : "Sarvam voice is not available on this platform (disabled, not configured, or unavailable), and no fallback voice provider is enabled for this organisation.",
     );
 
   // Voice-chat purpose. The brain provider is the natural fallback — the

@@ -478,16 +478,14 @@ export const SARVAM_PREVIEW_MAX_CHARS = 300;
  *  container is stripped server-side to raw PCM for the shared queue. */
 export const SARVAM_TTS_SAMPLE_RATE_HZ = 16_000;
 
-// ─── Sarvam kill switches / connection settings ─────────────────────────────
+// ─── Sarvam connection settings ────────────────────────────────────────────
 
 /**
- * Platform-level availability gate for the Sarvam provider (brain + voice).
- * Requires BOTH the explicit opt-in flag and a usable API key — the same
- * posture as isElevenLabsEnabled(). Dark until an operator turns it on.
+ * Credential availability only. Platform-wide provider activation is owned by
+ * the AI provider registry and must be changed from Platform Admin → AI Platform.
  */
 export function isSarvamEnabled(): boolean {
-  return (process.env.SARVAM_ENABLED ?? "false").toLowerCase() === "true"
-    && Boolean(getSarvamApiKey());
+  return Boolean(getSarvamApiKey());
 }
 
 export function getSarvamApiKey(): string | undefined {

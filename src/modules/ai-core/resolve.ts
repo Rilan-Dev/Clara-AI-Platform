@@ -5,7 +5,6 @@ import { getAssistantConfigByAgent, getKnowledgeBaseById } from "@/modules/knowl
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
-import { isSarvamEnabled } from "@/modules/voice-core/model-catalog";
 import {
   getActiveDeploymentCached,
   getProductionVersionConfigCached,
@@ -308,15 +307,6 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   });
   if (!governanceGate.ok) {
     throw new AIConfigResolutionError(governanceGate.reason);
-  }
-
-  // ── Sarvam kill switch (same posture as the ElevenLabs voice axis) ──────
-  // A clean 400 at resolution instead of a 500 from the adapter constructor
-  // when the platform has not enabled the provider yet.
-  if (provider === "sarvam" && !isSarvamEnabled()) {
-    throw new AIConfigResolutionError(
-      "Sarvam is not available on this platform (SARVAM_ENABLED is off or the API key is not configured).",
-    );
   }
 
   // ── Embedding capability split (V1) ──────────────────────────────────
