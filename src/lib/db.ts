@@ -25,8 +25,11 @@ if (!DATABASE_URL) {
 
 const PG_CONFIG = {
   connectionString: DATABASE_URL,
-  // Keep pool small: Next.js can have many concurrent edge/serverless invocations.
-  max: Number(process.env.PG_POOL_MAX ?? "10"),
+  // Vercel/Next.js serverless instances are short-lived and can scale horizontally.
+  // Supabase recommends a small application-side pool for serverless workloads;
+  // use the Session Pooler URL (port 5432) in DATABASE_URL for IPv4-only hosts.
+  max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? "1" : "10")),
+
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
 } as const;
