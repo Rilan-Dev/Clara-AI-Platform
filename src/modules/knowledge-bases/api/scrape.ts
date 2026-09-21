@@ -49,23 +49,11 @@ import {
   findActiveSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
 import { getScrapeUrlRetryContext } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
-import { enqueueCrawlJob } from "@/modules/cloud-jobs/queue";
-import { runScrapeSession } from "@/modules/knowledge-bases/worker/scrape-worker";
+import { enqueueCrawlJob, enqueueScrapeJob } from "@/modules/cloud-jobs/queue";
 import { scheduleImmediateRetryForUrl } from "@/modules/knowledge-bases/worker/retry-scheduler";
 import type Redis from "ioredis";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function triggerScrapeWorker(sessionId: string): void {
-  queueMicrotask(() => {
-    void runScrapeSession(sessionId, { concurrency: 2 }).catch(async (e) => {
-      const message = (e as Error).message;
-      console.error(`[scrape] background worker failed for session ${sessionId}:`, message);
-      await markSessionFailed(sessionId, `Scrape failed: ${message}`).catch(() => null);
-      await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    });
-  });
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -291,8 +279,11 @@ export async function startScrapeHandler(
       );
     await markSessionScraping(sessionId);
     await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    triggerScrapeWorker(sessionId);
-    return NextResponse.json({ started: true, sessionId });
+    const queueResult = await enqueueScrapeJob(
+      `${sessionId}:run:${Date.now()}`,
+      { sessionId, action: "run" },
+    );
+    return NextResponse.json({ started: true, sessionId, jobId: queueResult.messageId });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
