@@ -15,7 +15,7 @@ import {
   buildLanguageGuidance,
   resolveLanguagePreferences,
 } from "@/modules/assistant/core/config";
-import { getKnowledgeBaseById, getAssistantConfigByKb } from "@/modules/knowledge-bases/core/db";
+import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
@@ -303,7 +303,7 @@ async function postChatKb(
     .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
     .join("\n\n");
 
-  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, surface: "chat" }));
+  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "chat" }));
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
