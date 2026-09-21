@@ -48,7 +48,7 @@ async function resolveConversationalMode(
   agentId: string | null,
 ): Promise<"pipeline" | "conversational"> {
   if (!orgId || !agentId) return "pipeline";
-  if (!isElevenLabsEnabled() || !isConversationalAIEnabled()) return "pipeline";
+  if (!(await isElevenLabsEnabled()) || !isConversationalAIEnabled()) return "pipeline";
   try {
     const rows = await dbQuery<{ id: string }>(
       `SELECT id FROM elevenlabs_agents
@@ -74,7 +74,7 @@ async function resolveElevenLabsMode(
   if ((await resolveConversationalMode(orgId, agentId)) === "conversational") {
     return "conversational";
   }
-  if (isElevenLabsRealtimeEnabled()) return "clara-stream";
+  if (await isElevenLabsRealtimeEnabled()) return "clara-stream";
   return "pipeline";
 }
 
