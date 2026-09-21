@@ -66,8 +66,6 @@ const LOCAL_DB_HOSTS = new Set([
 export function resolveDemoDbHost(
   env: Record<string, string | undefined> = process.env,
 ): string {
-  const direct = env.POSTGRES_HOST?.trim();
-  if (direct) return direct.toLowerCase();
   const url = env.DATABASE_URL?.trim();
   if (url) {
     try {

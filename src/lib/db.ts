@@ -7,8 +7,7 @@
  *   npm install pg @types/pg
  *
  * Connection details are read exclusively from DATABASE_URL.
- * The same variable is used by the app, migrations, seed scripts, and tooling.
- *
+ * The same variable is used by the app, migrations, seed scripts, and tooling.\n *
  * The pool is lazy-initialised on first use and cached on the global object
  * in development so Next.js hot-reload does not create a new pool per module
  * re-evaluation (which would exhaust PostgreSQL's max_connections quickly).
@@ -26,6 +25,7 @@ if (!DATABASE_URL) {
 
 const PG_CONFIG = {
   connectionString: DATABASE_URL,
+  // Keep pool small: Next.js can have many concurrent edge/serverless invocations.
   max: Number(process.env.PG_POOL_MAX ?? "10"),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,

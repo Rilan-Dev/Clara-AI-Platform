@@ -35,11 +35,10 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-# .env
-# .env.local
-# .env.production
-# .env.development
-# !.env.example
+.env
+.env.*
+!.env.example
+!.env.example.*
 
 # local benchmark/backup env files — contain LIVE vendor keys, never commit
 .env.bench

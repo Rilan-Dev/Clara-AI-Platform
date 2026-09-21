@@ -37,11 +37,7 @@ let pg = null;
 async function dbQuery(sql, params) {
   if (!pg) {
     const mod = require("pg");
-    pg = new mod.Pool({
-      host: process.env.POSTGRES_HOST, port: Number(process.env.POSTGRES_PORT || 5432),
-      user: process.env.POSTGRES_USER, password: process.env.POSTGRES_PASSWORD,
-      database: process.env.POSTGRES_DB,
-    });
+    pg = new mod.Pool({ connectionString: process.env.DATABASE_URL });
   }
   const res = await pg.query(sql, params);
   return res.rows;

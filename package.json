@@ -12,6 +12,7 @@
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest",
     "test:watch": "vitest --watch",
+    "db:migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts --prod",
     "seed:prod": "tsx scripts/seed.ts --prod",
     "seed:dev": "tsx scripts/seed-demo.ts",
@@ -80,7 +81,7 @@
     "lucide-react": "^0.462.0",
     "mammoth": "^1.11.0",
     "monaco-editor": "^0.55.1",
-    "next": "15.5.12",
+    "next": "15.5.24",
     "nodemailer": "^10.0.9",
     "openai": "^6.5.0",
     "pdf-parse": "^1.1.1",
@@ -102,6 +103,7 @@
     "sonner": "^1.7.4",
     "stripe": "^17.7.0",
     "tailwind-merge": "^2.6.0",
+    "typescript": "^5",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.160.1",
     "vaul": "^0.9.9",
@@ -121,12 +123,11 @@
     "autoprefixer": "^10.4.21",
     "baseline-browser-mapping": "^2.10.0",
     "eslint": "^9",
-    "eslint-config-next": "15.5.12",
+    "eslint-config-next": "15.5.24",
     "pdf-lib": "^1.17.1",
     "postcss": "^8.5.6",
     "tailwindcss": "3.4",
     "tsx": "^4.20.6",
-    "typescript": "^5",
     "vitest": "^2.1.5"
   },
   "allowScripts": {
@@ -136,5 +137,8 @@
     "msgpackr-extract@3.0.3": true,
     "protobufjs@7.5.4": true,
     "unrs-resolver@1.11.1": true
+  },
+  "overrides": {
+    "three-mesh-bvh": "0.8.3"
   }
 }

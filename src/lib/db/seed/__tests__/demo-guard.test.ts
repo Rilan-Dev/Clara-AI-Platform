@@ -33,10 +33,6 @@ afterEach(() => {
 });
 
 describe("resolveDemoDbHost", () => {
-  it("prefers POSTGRES_HOST over DATABASE_URL", () => {
-    expect(resolveDemoDbHost({ POSTGRES_HOST: "Clara-Postgres", DATABASE_URL: "postgresql://u:p@remote.example.com/db" })).toBe("clara-postgres");
-  });
-
   it("falls back to the DATABASE_URL hostname", () => {
     expect(resolveDemoDbHost({ DATABASE_URL: "postgresql://u:p@180.188.231.138:1234/clara_platform" })).toBe("180.188.231.138");
   });
@@ -95,7 +91,6 @@ describe("checkDemoSeedAllowed", () => {
   });
 
   it("reads env defaults when no input is given (unset NODE_ENV refuses)", () => {
-    process.env.POSTGRES_HOST = "db.internal.example.com";
     const check = checkDemoSeedAllowed();
     expect(check.allowed).toBe(false);
     if (!check.allowed) expect(check.reason).toBe("node_env_unset");
