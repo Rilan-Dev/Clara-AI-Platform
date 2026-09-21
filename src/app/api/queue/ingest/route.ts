@@ -1,7 +1,7 @@
 import { handleCallback } from "@vercel/queue";
 import { processJobById } from "@/modules/knowledge-bases/worker/ingest-worker";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export const POST = handleCallback(
   async (message: { jobId?: string }) => {
@@ -13,6 +13,6 @@ export const POST = handleCallback(
     }
   },
   {
-    visibilityTimeoutSeconds: 300,
+    visibilityTimeoutSeconds: 60,
   },
 );
