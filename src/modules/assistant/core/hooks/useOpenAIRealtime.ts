@@ -392,10 +392,19 @@ export function useOpenAIRealtime(opts?: Options) {
       const ragContext =
         typeof payload?.context === "string" ? payload.context.trim() : "";
       const grounded = payload?.grounded === true || payloadSources.length > 0;
+      const intent = payload?.intent === "capability" ? "capability" : grounded ? "knowledge" : "out_of_scope";
       const outOfScopeReply =
         typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
           ? payload.outOfScopeReply.trim()
           : "I can only answer questions about the topics I have been set up for.";
+      const dynamicScope = payload?.scope && typeof payload.scope === "object" ? payload.scope as {
+        assistantName?: string;
+        welcomeMessage?: string;
+        knowledgeBaseName?: string;
+        knowledgeBaseDescription?: string | null;
+        documentCount?: number;
+        documentTitles?: string[];
+      } : null;
 
       // Update sources on the turn now that RAG has returned.
       setHistory((prev) =>
@@ -409,7 +418,19 @@ export function useOpenAIRealtime(opts?: Options) {
       const redirectLine = assistantPrompts.voice.outOfScopeRedirect?.trim();
 
       const contextSegments: string[] = [];
-      if (!grounded) {
+      if (intent === "capability") {
+        const capabilityParts = [
+          dynamicScope?.welcomeMessage?.trim(),
+          dynamicScope?.knowledgeBaseDescription?.trim(),
+          Array.isArray(dynamicScope?.documentTitles) && dynamicScope.documentTitles.length > 0
+            ? `Current knowledge sources: ${dynamicScope.documentTitles.join(", ")}.`
+            : "",
+        ].filter(Boolean);
+        contextSegments.push(
+          "CAPABILITY/ONBOARDING REQUEST: Answer the visitor's question about what this assistant can help with using the dynamically configured scope below. Do not refuse merely because the question did not match a document.",
+          capabilityParts.join("\n\n"),
+        );
+      } else if (!grounded) {
         contextSegments.push(
           `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base.
 Do not answer the customer's question from general knowledge. Say exactly: "${outOfScopeReply}"`,
