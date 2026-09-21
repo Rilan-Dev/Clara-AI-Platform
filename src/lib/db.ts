@@ -6,7 +6,8 @@
  * Uses the `pg` package (node-postgres). If pg is not yet installed run:
  *   npm install pg @types/pg
  *
- * Connection details are read exclusively from DATABASE_URL.\n * The same variable is used by the app, migrations, seed scripts, and tooling.\n *
+ * Connection details are read exclusively from DATABASE_URL.
+ * The same variable is used by the app, migrations, seed scripts, and tooling.\n *
  * The pool is lazy-initialised on first use and cached on the global object
  * in development so Next.js hot-reload does not create a new pool per module
  * re-evaluation (which would exhaust PostgreSQL's max_connections quickly).
