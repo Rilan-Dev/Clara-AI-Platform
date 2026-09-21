@@ -1016,6 +1016,21 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             <h4 className="text-sm font-semibold text-foreground">ElevenLabs settings</h4>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
+            <FeatureToggle
+              icon={<Waves />}
+              label={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ENABLED.label}
+              description={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ENABLED.hint}
+              checked={display("ELEVENLABS_SPEECH_ENGINE_ENABLED") === "true"}
+              onChange={(checked) => boolToggle("ELEVENLABS_SPEECH_ENGINE_ENABLED", checked)}
+            />
+            <TextField
+              label={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ID.label}
+              hint={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ID.hint}
+              value={display("ELEVENLABS_SPEECH_ENGINE_ID")}
+              onChange={(value) => setDraftValue("ELEVENLABS_SPEECH_ENGINE_ID", value)}
+              placeholder="seng_..."
+              mono
+            />
             <ModelSelect
               label="Default TTS model (speaking)"
               hint="Flash = lowest latency."
