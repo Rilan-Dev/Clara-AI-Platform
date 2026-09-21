@@ -282,9 +282,22 @@ export async function cloneKbCollection(sourceCollection: string, targetCollecti
     });
     const points = page.points;
     if (points.length > 0) {
-      await client.upsert(targetCollection, { wait: true, points });
+      // Scroll results carry optional/null vector+payload shapes; upsert
+      // requires the dense form — normalise each point before writing.
+      const dense = points.map((p) => ({
+        id: p.id,
+        vector: p.vector!,
+        payload: p.payload ?? undefined,
+      }));
+      await client.upsert(targetCollection, {
+        wait: true,
+        points: dense as unknown as { id: string | number; vector: number[]; payload?: Record<string, unknown> }[],
+      });
     }
-    offset = page.next_page_offset ?? undefined;
+    offset =
+      typeof page.next_page_offset === "string" || typeof page.next_page_offset === "number"
+        ? page.next_page_offset
+        : undefined;
   } while (offset != null);
 }
 
