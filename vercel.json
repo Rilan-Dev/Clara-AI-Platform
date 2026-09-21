@@ -27,6 +27,15 @@
     },
     "api/voice-realtime.mjs": {
       "maxDuration": 300
+    },
+    "src/app/api/queue/scrape/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "clara-scrape"
+        }
+      ],
+      "maxDuration": 300
     }
   },
   "rewrites": [
