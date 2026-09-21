@@ -391,6 +391,11 @@ export function useOpenAIRealtime(opts?: Options) {
       const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
       const ragContext =
         typeof payload?.context === "string" ? payload.context.trim() : "";
+      const grounded = payload?.grounded === true || payloadSources.length > 0;
+      const outOfScopeReply =
+        typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
+          ? payload.outOfScopeReply.trim()
+          : "I can only answer questions about the topics I have been set up for.";
 
       // Update sources on the turn now that RAG has returned.
       setHistory((prev) =>
@@ -404,7 +409,13 @@ export function useOpenAIRealtime(opts?: Options) {
       const redirectLine = assistantPrompts.voice.outOfScopeRedirect?.trim();
 
       const contextSegments: string[] = [];
-      if (overviewSummary) {
+      if (!grounded) {
+        contextSegments.push(
+          `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base.
+Do not answer the customer's question from general knowledge. Say exactly: "${outOfScopeReply}"`,
+        );
+      }
+      if (overviewSummary && grounded) {
         contextSegments.push(
           `${assistantPrompts.voice.quickResponseContextLabel}\n${overviewSummary}`
         );
