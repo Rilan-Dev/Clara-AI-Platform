@@ -83,7 +83,7 @@
   `npx vitest run src/modules/cloud-jobs/queue.test.ts`
   Expected: FAIL because the cloud queue module does not yet exist.
 
-- [ ] **Step 3: Add `@vercel/queue` and implement the thin adapter**
+- [ ] **Step 3: Add `@vercel/queue@^0.1.3` and implement the thin adapter**
   The adapter must contain Vercel-specific code only. Business processors must consume `CloudJobEnvelope`, not Vercel SDK types.
 
 - [ ] **Step 4: Run targeted tests and verify GREEN**

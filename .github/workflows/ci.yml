@@ -2,33 +2,55 @@ name: Cloud CI — Lint, Type Check & Tests
 
 on:
   push:
-    branches: [main, Vite-Converted, Vercel-Prod, feat/cloud-only-free-runtime]
+    branches: [main, Vite-Converted, Vercel-Prod, ci/cloud-runtime-verification]
   pull_request:
     branches: [main, Vite-Converted, Vercel-Prod]
 
-env:
-  REGISTRY: docker.io
-  IMAGE_NAME: riluraafu/clara-ai-rag
-
 jobs:
   lint:
-    name: Lint & Type Check
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-      - name: Lint
-        run: npm run lint
-      - name: Type check
-        run: npx tsc --noEmit
-      - name: Test
-        run: npm run test -- --run
-      - name: Validate model configuration (WS-0.4)
-        run: npm run validate:model-config
+      - run: npm install --legacy-peer-deps
+      - run: npm run lint
 
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --legacy-peer-deps
+      - run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --legacy-peer-deps
+      - run: npm run test -- --run
+
+  model-config:
+    name: Validate Model Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --legacy-peer-deps
+      - run: npm run validate:model-config
