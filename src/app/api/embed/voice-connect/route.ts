@@ -9,6 +9,7 @@ import { validateEmbedRequest, requireVoiceAccess, buildCorsHeaders, handlePrefl
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, getProviderApiKey, resolveAIConfig } from "@/modules/ai-core/resolve";
+import { resolveVoiceConfig, VoiceConfigResolutionError } from "@/modules/voice-core/resolve";
 import { buildOpenAIRealtimeSession, exchangeOpenAIRealtimeSdp } from "@/modules/assistant/api/openai-realtime";
 import { isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
 
@@ -46,17 +47,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // DEMO_MODE branch here: provider/model/voice/language are resolved through
     // project -> organisation -> platform defaults.
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "realtime" });
-    const provider = resolved.provider;
+    const voiceResolved = await resolveVoiceConfig({ kbId: ctx.kbId, surface: "realtime" });
+    const provider = voiceResolved.realtimeProvider;
+
     if (provider !== "openai") {
       return NextResponse.json(
-        { error: `Public WebRTC voice currently requires OpenAI. The configured provider is ${provider}.` },
-        { status: 503, headers: corsHeaders },
+        {
+          error: `Public WebRTC voice currently requires OpenAI as the realtime transport. The configured realtime provider is ${provider}.`,
+          provider,
+        },
+        { status: 409, headers: corsHeaders },
       );
     }
 
-    const model = resolved.realtimeModel;
-    const voice = resolved.voiceId;
-    const transcriptionModel = resolved.transcriptionModel;
+    const model = voiceResolved.openai?.realtimeModel ?? null;
+    const voice = voiceResolved.openai?.voiceId ?? null;
+    const transcriptionModel =
+      voiceResolved.openai?.transcriptionModel ?? null;
     const allowedLanguages = resolved.allowedLanguages;
     const language = resolved.defaultLanguage;
     const maxTokens = resolved.maxTokens ?? config.maxTokens ?? 1024;
@@ -163,6 +170,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { headers: corsHeaders },
     );
   } catch (err) {
+    if (err instanceof VoiceConfigResolutionError) {
+      return NextResponse.json({ error: err.message }, { status: 400, headers: corsHeaders });
+    }
     if (err instanceof AIConfigResolutionError) {
       return NextResponse.json({ error: err.message }, { status: 400, headers: corsHeaders });
     }
