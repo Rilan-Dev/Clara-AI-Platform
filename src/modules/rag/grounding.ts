@@ -209,11 +209,11 @@ function isCapabilityQuery(query: string): boolean {
   // and mixed/romanized Tamil formulations so these turns do not depend on
   // semantic retrieval finding a matching FAQ passage.
   const patterns = [
-    /\\bwhat (can|do) you (do|help|answer)\\b/,
-    /\\bhow can you help\\b/,
-    /\\bwhat can i ask\\b/,
-    /\\bwhat (topics|questions) (do you|can you) (cover|answer)\\b/,
-    /\\bhow do you help\\b/,
+    /\bwhat (can|do) you (do|help|answer)\\b/,
+    /\bhow can you help\\b/,
+    /\bwhat can i ask\\b/,
+    /\bwhat (topics|questions) (do you|can you) (cover|answer)\\b/,
+    /\bhow do you help\\b/,
     /என்ன மாதிரி .*help/,
     /எந்தந்த .*help/,
     /எப்படி .*help/,
