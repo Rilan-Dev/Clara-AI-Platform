@@ -417,9 +417,7 @@ ${r.snippet}`.trim();
 ${graphContext}`);
   }
 
-  const context = contextParts.filter(Boolean).join("
-
-");
+  const context = contextParts.filter(Boolean).join("\n\n");
 
   const sources: GroundedSource[] = vectorResults.map((r, i) => ({
     index: i + 1,
