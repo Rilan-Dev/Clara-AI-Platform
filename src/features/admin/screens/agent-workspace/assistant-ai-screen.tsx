@@ -387,9 +387,20 @@ function AISelectionCard({
 
         {surface === "realtime_voice" && (
           <div className="grid gap-4 md:grid-cols-2">
-            <ModelField label="Realtime LLM" value={ai?.realtimeLlmModel ?? ai?.realtimeModel ?? ""}
-              options={models.filter((m) => m.kind === "realtime" || (selectedProviderOptions?.providerId === "sarvam" && m.kind === "chat"))}
-              onChange={(value) => setAI({ realtimeLlmModel: value || null, realtimeModel: value || null })} />
+            <ModelField
+              label={selectedProviderOptions?.providerId === "elevenlabs" ? "Realtime engine" : "Realtime LLM"}
+              value={ai?.realtimeModel ?? ai?.realtimeLlmModel ?? ""}
+              options={models.filter((m) =>
+                selectedProviderOptions?.providerId === "elevenlabs"
+                  ? m.kind === "realtime"
+                  : m.kind === "realtime" || (selectedProviderOptions?.providerId === "sarvam" && m.kind === "chat"),
+              )}
+              onChange={(value) =>
+                selectedProviderOptions?.providerId === "elevenlabs"
+                  ? setAI({ realtimeModel: value || null, realtimeLlmModel: null })
+                  : setAI({ realtimeLlmModel: value || null, realtimeModel: value || null })
+              }
+            />
             <ModelField label="Realtime STT" value={ai?.realtimeSttModel ?? ""}
               options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
               onChange={(value) => setAI({ realtimeSttModel: value || null })} />
@@ -400,8 +411,12 @@ function AISelectionCard({
               options={models.filter((m) => m.kind === "voice")}
               onChange={(value) => setAI({ realtimeVoiceId: value || null })} />
             <div className="md:col-span-2 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs text-muted-foreground/80">
-              <p className="font-medium text-foreground/90">Independent realtime pipeline</p>
-              <p className="mt-1">Realtime LLM, STT, TTS and speaker are persisted as their own slots. For Sarvam this maps to Saaras realtime + Sarvam conversational LLM + Bulbul.</p>
+              <p className="font-medium text-foreground/90">Realtime transport</p>
+              <p className="mt-1">
+                {selectedProviderOptions?.providerId === "elevenlabs"
+                  ? "ElevenLabs Speech Engine owns realtime STT, turn-taking and TTS; Clara keeps the selected Chat provider as the LLM/RAG brain and streams response text to ElevenLabs over its authenticated Speech Engine WebSocket."
+                  : "Realtime LLM, STT, TTS and speaker are persisted as their own slots. For Sarvam this maps to Saaras realtime + Sarvam conversational LLM + Bulbul."}
+              </p>
             </div>
           </div>
         )}
