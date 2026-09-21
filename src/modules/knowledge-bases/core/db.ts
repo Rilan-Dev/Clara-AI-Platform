@@ -153,6 +153,16 @@ export async function listKnowledgeBases(agentId: string): Promise<KnowledgeBase
   return rows.map(toKb);
 }
 
+/** Return ready document titles for dynamic assistant scope/onboarding. */
+export async function getKnowledgeBaseDocumentTitles(kbId: string, limit = 12): Promise<string[]> {
+  const safeLimit = Math.max(1, Math.min(Math.floor(limit), 50));
+  const rows = await query<{ title: string }>(
+    "SELECT title FROM documents WHERE kb_id=$1 AND status='ready' ORDER BY updated_at DESC LIMIT $2",
+    [kbId, safeLimit],
+  );
+  return rows.map((row) => row.title).filter(Boolean);
+}
+
 export async function getKnowledgeBaseById(id: string): Promise<KnowledgeBase|null> {
   const row = await queryOne<Record<string,unknown>>("SELECT * FROM knowledge_bases WHERE id=$1",[id]);
   return row?toKb(row):null;
