@@ -168,3 +168,39 @@ timing in the browser console (`clara:voice:latency` events).
 
 **Raw data:** `tool-results/voice-bench/prod/{sarvam,elevenlabs}.json`
 (per-turn event chains + telemetry events), `questions-manifest.json`.
+
+---
+
+## 4. Post-report addendum — production API outage found & fixed (2026-09-21 ~07:30 UTC)
+
+While verifying the OpenAI fix on the freshly deployed build, EVERY API route
+(login, chat, embed session) started returning 500 `Internal error`. Root
+cause: the deploy contained **two migrations numbered 044**
+(`044_agent_ai_capability_slots.sql` + the new
+`044_elevenlabs_realtime_speech_engine.sql`), and the migration runner's
+duplicate-number guard correctly refuses the whole set — so `ensureMigrated()`
+threw on every request. A second duplicate (`043_agent_deployment_kb_snapshots`)
+arrived in a follow-up push, plus three CI-blocking code defects (a literal
+`\n` embedded mid-line in the explore-link route, a missing `previewUrl` DTO
+field, a `kbOverrides` null-deref, and qdrant scroll→upsert point typing).
+
+All fixed and pushed (through `4b22366`):
+
+| Commit | Fix |
+|---|---|
+| `a4a7dd8`/`c7c69f4` | renumber duplicate migrations → `046_`/`047_` (never applied anywhere — safe rename) |
+| `f5259db` | explore-link literal `\n`, `previewUrl` DTO field, `kbOverrides` null-safety |
+| `4b22366` | qdrant KB-snapshot clone typing |
+
+**GitHub Actions cannot deploy these fixes: every workflow run fails with
+"recent account payments have failed or your spending limit needs to be
+increased"** (billing). The 500-outage deploy itself was manual/Jenkins.
+**Action required: redeploy `Vite-Converted @ 4b22366` via the Jenkins
+pipeline (or a manual VPS rebuild) to restore production**, then re-verify:
+
+```bash
+curl -s -X POST https://clara.ai.amazetechclans.com/api/embed/session \
+  -H "Authorization: Bearer <clr_ key>" -H "Content-Type: application/json" \
+  -d '{"kbId":"197fbb70-8565-4216-a5ed-a78489dcc9d4"}'
+# with realtime provider = openai: expect 200 + client_secret (the incident fix)
+```
