@@ -271,11 +271,10 @@ export async function resolveVoiceConfig(
     );
   }
 
-  // ── Platform availability: kill-switch + REGISTRY FALLBACK (not a hard error) ──
+  // ── Platform availability: registry gate + fallback (not a hard error) ──
   // An org may have explicitly selected a voice provider (e.g. ElevenLabs)
   // that the platform operator has since disabled platform-wide
-  // (ELEVENLABS_ENABLED=false / key cleared — same posture for Sarvam; the
-  // provider registry adds the admin enable/disable switch on top). Hard-
+  // the provider registry can disable it platform-wide). Hard-
   // failing every voice surface for that org makes the whole platform look
   // broken, which is exactly what happens when an operator retires a vendor:
   // embeds, the floating assistant, and the realtime modal all 400. Instead
