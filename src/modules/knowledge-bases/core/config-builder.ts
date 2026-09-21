@@ -1,7 +1,7 @@
 import type { AssistantConfig } from "./models";
 import { buildLanguageGuidance, describeLanguage, resolveLanguagePreferences } from "@/modules/assistant/core/config";
 
-export type SessionPromptContext = { kbName: string; kbDescription?: string | null; orgName?: string; documentCount?: number; documentTitles?: string[]; surface?: "embed" | "realtime" | "voice" | "chat"; allowedLanguages?: string[] };
+export type SessionPromptContext = { kbName: string; kbDescription?: string | null; orgName?: string; documentCount?: number; documentTitles?: string[]; surface?: "embed" | "realtime" | "voice" | "chat"; allowedLanguages?: string[]; responseLanguage?: string | null };
 
 export function buildSystemPrompt(config: AssistantConfig, ctx: SessionPromptContext): string {
   const parts: string[] = [];
@@ -19,14 +19,14 @@ ${config.welcomeMessage.trim()}`);
         ctx.documentTitles.map((title, index) => `  ${index + 1}. ${title}`).join("\n"),
     );
   }
-  if (ctx.surface !== "embed") parts.push("IMPORTANT: You MUST call the rag_search function before answering ANY user question. Do not answer from general knowledge. Always call rag_search first, wait for the result, then answer based only on what was returned. Never fabricate information that is not present in the retrieved context.");
+  if (ctx.surface !== "embed") parts.push("IMPORTANT: Grounding is performed by the Clara runtime before the response. Answer factual questions only from the retrieved knowledge-base context supplied to you. Do not invent facts or claim access to information that was not supplied.");
   else parts.push("IMPORTANT: You MUST answer using the retrieved knowledge-base context provided above. Do not answer factual policy questions from general knowledge. Treat a broad or naturally worded question as in-scope when the retrieved passages contain related facts. Synthesize the relevant passages instead of refusing merely because there is no exact phrase match. For broad questions that match multiple products or coverage areas, ALWAYS give a useful summary of the relevant retrieved facts FIRST. Do not ask the user to choose a policy type before answering. A follow-up question may be offered only AFTER the answer if it would help narrow the discussion. Never fabricate information that is not present in the retrieved context.");
   if (config.rules.length > 0) { parts.push("Behaviour rules — follow these strictly:"); config.rules.forEach((rule, index) => parts.push(`  ${index + 1}. ${rule}`)); }
 
   const projectLanguages = [...new Set((ctx.allowedLanguages ?? []).map((language) => language.trim().toLowerCase()).filter(Boolean))];
   const hasProjectBoundary = projectLanguages.length > 0;
   const customerLanguages = hasProjectBoundary ? projectLanguages : config.allowedLanguages;
-  const requestedAssistantLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
+  const requestedAssistantLanguage = config.alwaysRespondIn ?? ctx.responseLanguage ?? config.defaultLanguage;
   const assistantLanguageIsAllowed = !hasProjectBoundary || (!!requestedAssistantLanguage && projectLanguages.includes(requestedAssistantLanguage.trim().toLowerCase()));
   const effectiveAssistantLanguage = assistantLanguageIsAllowed ? requestedAssistantLanguage : projectLanguages[0] ?? "en";
   const languagePreferences = resolveLanguagePreferences({ assistant: effectiveAssistantLanguage, customer: customerLanguages });
