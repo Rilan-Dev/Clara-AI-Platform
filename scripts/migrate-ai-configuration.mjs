@@ -97,7 +97,6 @@ async function stageProviderRegistry(platformEnv) {
   const results = [];
   for (const p of providers) {
     const secret = (platformEnv[p.envKey] ?? envVars[p.envKey] ?? process.env[p.envKey] ?? "").trim();
-    const killSwitchOn = true;
     const configured = Boolean(secret);
 
     const masked = secret ? `••••••••${secret.slice(-3)}` : null;
@@ -110,7 +109,7 @@ async function stageProviderRegistry(platformEnv) {
     // Enable only after configured (Stage C §8: enable only after configured;
     // a provider previously disabled by an admin is left disabled).
     const nextEnabled = alreadyEnabled || configured;
-    results.push({ provider: p.id, configured, killSwitchOn, enabledNow: nextEnabled, wasEnabled: alreadyEnabled });
+    results.push({ provider: p.id, configured, enabledNow: nextEnabled, wasEnabled: alreadyEnabled });
 
     if (APPLY) {
       await client.query("UPDATE platform_ai_providers SET enabled = $2, updated_at = now() WHERE provider_id = $1", [p.id, nextEnabled]);
