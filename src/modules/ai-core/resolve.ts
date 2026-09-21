@@ -212,15 +212,15 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const versionConfig: AgentVersionConfig | null = productionVersion?.configuration ?? null;
   const versionAI = versionConfig?.ai ?? null;
   const versionRuntime = versionConfig?.runtime ?? null;
-  // Published versions are immutable: mutable KB overrides cannot leak into runtime resolution.
-  const effectiveKbOverrides = versionConfig ? null : kbOverrides;
-
   const [orgSettings, agentSettings, kbOverrides, liveAssistantConfig] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
     agent?.id ? getAgentAISettings(agent.id) : Promise.resolve(null),
     input.kbId ? getKbAIOverrides(input.kbId) : Promise.resolve(null),
     agent?.id ? getAssistantConfigByAgent(agent.id) : Promise.resolve(null),
   ]);
+
+  // Published versions are immutable: mutable KB overrides cannot leak into runtime resolution.
+  const effectiveKbOverrides = versionConfig ? null : kbOverrides;
 
   if (agentSettings && agent && agentSettings.orgId !== agent.orgId) {
     throw new AIConfigResolutionError("Agent AI configuration belongs to another organisation.");
