@@ -72,7 +72,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
       kbName: kb.name,
       key: created.rawKey,
       widgetUrl: `${origin}/embed/widget?key=${encodeURIComponent(created.rawKey)}`,
-      voiceUrl: `${origin}/embed/voice?key=${encodeURIComponent(created.rawKey)}`,\n      previewUrl: `${origin}/embed/preview?key=${encodeURIComponent(created.rawKey)}`,
+      voiceUrl: `${origin}/embed/voice?key=${encodeURIComponent(created.rawKey)}`,
+      previewUrl: `${origin}/embed/preview?key=${encodeURIComponent(created.rawKey)}`,
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;

@@ -285,7 +285,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
           : "env";
 
   if (effectiveKbOverrides?.provider) {
-    provider = kbOverrides.provider;
+    provider = effectiveKbOverrides.provider;
     providerSource = "kb_override";
   }
 

@@ -449,6 +449,7 @@ export type AgentExploreLinkDTO = {
   key: string;
   widgetUrl: string;
   voiceUrl: string;
+  previewUrl: string;
 };
 
 /** Mint (or re-mint) an embed key + public URL pair for exploring a published agent. */
