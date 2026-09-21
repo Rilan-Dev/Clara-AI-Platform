@@ -23,6 +23,7 @@ import {
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { evaluateCreditBurn } from "../../credit-alerts";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 export async function getElevenLabsStatus(request: NextRequest): Promise<NextResponse> {
   try {
@@ -34,8 +35,55 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
 
     // Kill-switch states are always reported so the admin panel can render
     // the full control surface even before a key is configured.
+    const speechEngineId = process.env.ELEVENLABS_SPEECH_ENGINE_ID?.trim() || null;
+    const speechEngineEnabled = (process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED ?? "false").toLowerCase() === "true";
+    let speechEngine: {
+      enabled: boolean;
+      configured: boolean;
+      engineId: string | null;
+      wsUrl: string | null;
+      ttsModel: string | null;
+      voiceId: string | null;
+      ready: boolean;
+      reason?: string;
+    } = {
+      enabled: speechEngineEnabled,
+      configured: Boolean(speechEngineId && process.env.ELEVENLABS_API_KEY),
+      engineId: speechEngineId,
+      wsUrl: null,
+      ttsModel: null,
+      voiceId: null,
+      ready: false,
+    };
+
+    if (speechEngineId && process.env.ELEVENLABS_API_KEY) {
+      try {
+        const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+        const engine = await client.speechEngine.get(speechEngineId);
+        speechEngine = {
+          ...speechEngine,
+          wsUrl: engine.speechEngine?.wsUrl ?? null,
+          ttsModel: engine.tts?.modelId ?? null,
+          voiceId: engine.tts?.voiceId ?? null,
+          ready:
+            speechEngineEnabled &&
+            typeof engine.speechEngine?.wsUrl === "string" &&
+            engine.speechEngine.wsUrl.length > 0,
+          reason:
+            speechEngineEnabled && typeof engine.speechEngine?.wsUrl === "string"
+              ? undefined
+              : "Speech Engine is disabled or its ElevenLabs upstream WebSocket URL is not configured.",
+        };
+      } catch (error) {
+        speechEngine.reason = error instanceof Error ? error.message : "Speech Engine lookup failed";
+      }
+    } else {
+      speechEngine.reason = "Set ELEVENLABS_SPEECH_ENGINE_ID and ELEVENLABS_API_KEY.";
+    }
+
     const flags = {
       enabled,
+      speechEngine,
       conversationalAI: isConversationalAIEnabled(),
       voiceCloning: isVoiceCloningEnabled(),
       voiceDesign: isVoiceDesignEnabled(),
