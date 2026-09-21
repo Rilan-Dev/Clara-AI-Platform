@@ -291,7 +291,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
-      kb.qdrantCollection,
+      resolved.knowledgeCollection ?? kb.qdrantCollection,
       query,
       topK,
       filter,
