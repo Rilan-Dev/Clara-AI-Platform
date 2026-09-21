@@ -366,8 +366,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         .slice(0, 2)
         .map((chunk) => chunk.text)
         .filter(Boolean)
-        .join("
-");
+        .join("\n");
 
       return [
         `[G${index + 1}] ${hit.label}`,
