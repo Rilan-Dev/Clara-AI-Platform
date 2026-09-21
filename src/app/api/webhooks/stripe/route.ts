@@ -8,7 +8,8 @@
  *   customer.subscription.updated   → sync plan changes / status changes
  *   customer.subscription.deleted   → mark subscription as canceled
  *   invoice.payment_succeeded        → log paid billing event
- *   invoice.payment_failed           → mark subscription past_due
+ *   invoice.payment_failed           → mark subscription past_due + email the
+ *                                       org owner (payment_failed template)
  *
  * IMPORTANT: This route must be excluded from CSRF / body-parsing middleware.
  * Next.js App Router reads the raw body via req.text() — Stripe needs the raw
@@ -26,6 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, queryOne } from "@/lib/db";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 import type Stripe from "stripe";
 
 // Disable default body parsing — Stripe needs raw bytes
@@ -220,10 +222,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         break;
       }
 
-      // ── Invoice payment failed → mark past_due ───────────────────────────
+      // ── Invoice payment failed → past_due + owner email ───────────────────
       case "invoice.payment_failed": {
         const inv = event.data.object as Stripe.Invoice;
         const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+
+        // Resolve the org behind the failed payment so the owner can be
+        // notified (falls back to "unknown" for unmatched customers).
+        const subRow = customerId
+          ? await queryOne<{ org_id: string; org_name: string; plan_name: string }>(
+              `SELECT os.org_id, o.name AS org_name, sp.name AS plan_name
+                 FROM org_subscriptions os
+                 JOIN organisations o ON o.id = os.org_id
+                 JOIN subscription_plans sp ON sp.id = os.plan_id
+                WHERE os.stripe_customer_id = $1`,
+              [customerId]
+            )
+          : null;
 
         if (customerId) {
           await query(
@@ -238,13 +253,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
              amount_cents, currency, status, metadata)
            VALUES ($1,'stripe',$2,$3,$4,'usd','failed',$5)`,
           [
-            "unknown",
+            subRow?.org_id ?? "unknown",
             event.type,
             event.id,
             inv.amount_due ?? 0,
             JSON.stringify({ invoiceId: inv.id, customerId }),
           ]
         );
+
+        // Notify the org owner via the editable payment_failed template.
+        // Wrapped so an email failure never fails the webhook (a 500 would
+        // make Stripe retry the whole event — but billing_events above
+        // already recorded it, so the retry would be deduped and skip this
+        // notification).
+        if (subRow) {
+          try {
+            const ownerEmail = await getOrgOwnerEmail(subRow.org_id);
+            if (ownerEmail) {
+              await queueNotification({
+                orgId: subRow.org_id,
+                orgName: subRow.org_name,
+                recipientEmail: ownerEmail,
+                type: "payment_failed",
+                data: { orgName: subRow.org_name, planName: subRow.plan_name },
+              });
+            }
+          } catch (mailErr) {
+            console.error("[stripe-webhook] payment_failed notification failed:", (mailErr as Error).message);
+          }
+        }
         break;
       }
 

@@ -56,21 +56,43 @@ function templateKeyFor(type: NotificationType): EmailTemplateKey {
 
 async function buildTemplate(type: NotificationType, data: Record<string, string | number | boolean>): Promise<{
   subject: string; bodyHtml: string; bodyText: string;
-}> {
+} | null> {
   const rendered = await renderEmailTemplate(templateKeyFor(type), {
     ...data,
     renewUrl: appUrl("/login"),
   });
+  // null → a platform admin deactivated this template (Settings → Email
+  // Templates). The business event still happened, so the caller records a
+  // 'suppressed' queue row for auditability instead of sending.
+  if (!rendered) return null;
   return { subject: rendered.subject, bodyHtml: rendered.html, bodyText: rendered.text };
 }
 
 // ── Queue a notification ──────────────────────────────────────────────────────
 
 export async function queueNotification(payload: NotificationPayload): Promise<string> {
-  const { subject, bodyHtml, bodyText } = await buildTemplate(payload.type, {
+  const built = await buildTemplate(payload.type, {
     orgName: payload.orgName,
     ...payload.data,
   });
+
+  // Template deactivated by a platform admin → keep an auditable trace that
+  // the event occurred but no email was delivered (status 'suppressed' is
+  // part of the queue schema and rendered in the admin UI).
+  if (!built) {
+    const rows = await query<{ id: string }>(`
+      INSERT INTO subscription_notifications
+        (org_id, recipient_email, notification_type, subject, body_html, body_text, status, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, 'suppressed', $7)
+      RETURNING id
+    `, [payload.orgId, payload.recipientEmail, payload.type,
+         `${payload.type} (template deactivated)`, "", "",
+         JSON.stringify({ ...payload.data, suppressed: true })]);
+    console.log(`[notifications] ${payload.type} for org ${payload.orgId} suppressed — template deactivated`);
+    return rows[0]?.id ?? "";
+  }
+
+  const { subject, bodyHtml, bodyText } = built;
 
   const rows = await query<{ id: string }>(`
     INSERT INTO subscription_notifications
@@ -112,6 +134,25 @@ async function sendEmail(opts: {
       `UPDATE subscription_notifications SET status='failed', error_message=$1, attempts=attempts+1 WHERE id=$2`,
       [result.error ?? "unknown error", opts.notifId]
     );
+  }
+}
+
+// ── Org owner resolution ──────────────────────────────────────────────────────
+
+/** First org_admin's email — the recipient for all subscription lifecycle mail. */
+export async function getOrgOwnerEmail(orgId: string): Promise<string | null> {
+  try {
+    const rows = await query<{ email: string }>(
+      `SELECT u.email FROM users u
+         JOIN org_members om ON om.user_id = u.id
+         JOIN roles r ON r.id = om.role_id
+        WHERE om.org_id = $1 AND r.name = 'org_admin'
+        ORDER BY om.joined_at ASC LIMIT 1`,
+      [orgId]
+    );
+    return rows[0]?.email ?? null;
+  } catch {
+    return null;
   }
 }
 

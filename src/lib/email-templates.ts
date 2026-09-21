@@ -10,8 +10,17 @@
  *     use (ON CONFLICT DO NOTHING — admin edits are never overwritten).
  *   - Platform admins edit subject/HTML in Settings → Email Templates;
  *     edits are audited into `email_template_audit`.
- *   - `renderEmailTemplate(key, vars)` interpolates `{{placeholders}}` and
- *     falls back to the code default if the row is missing or inactive.
+ *   - `renderEmailTemplate(key, vars)` interpolates `{{placeholders}}`.
+ *
+ * Admin on/off control (the "isActive" switch in Settings → Email Templates):
+ *   - ACTIVE   → the email is rendered from the DB row (or the code default
+ *                if the row is missing) and sent normally.
+ *   - INACTIVE → the email is SUPPRESSED: `renderEmailTemplate` returns null
+ *                and every send site skips delivery. This is the platform
+ *                admin's kill-switch per template — business emails stop
+ *                entirely, not silently revert to the factory default.
+ *     Pass `{ force: true }` to bypass suppression for admin test sends and
+ *     inbox previews (Settings → Email Delivery → Send test).
  *
  * Variable values are inserted as-is (matching the previous inline-string
  * behaviour), so templates can intentionally include markup around values.
@@ -85,6 +94,8 @@ export type RenderedEmail = {
   html: string;
   text: string;
   source: "db" | "default";
+  /** True when the row is deactivated and only a forced render produced this. */
+  suppressed?: boolean;
 };
 
 // ── Shared variable groups ────────────────────────────────────────────────────
@@ -518,14 +529,33 @@ export function interpolate(template: string, vars: Record<string, string | numb
 export async function renderEmailTemplate(
   key: EmailTemplateKey,
   vars: Record<string, string | number | boolean>,
-): Promise<RenderedEmail> {
+  opts?: { force?: boolean },
+): Promise<RenderedEmail | null> {
   // Precedence: send-site values > custom static variables > appName default.
   const effective = { appName: APP, ...(await getCustomVariableValues()), ...vars };
   const row = await fetchTemplate(key);
-  const def = row?.isActive ? row.def : EMAIL_TEMPLATE_DEFAULTS[key];
+
+  // Admin deactivated this template → suppress the email entirely.
+  // `force` is used by the admin test-send tool, which must be able to
+  // preview a deactivated template in a real inbox.
+  if (row && !row.isActive && !opts?.force) {
+    console.log(`[email-templates] "${key}" is deactivated — email suppressed`);
+    return null;
+  }
+
+  // With `force` the DB row still renders (that's what would be sent the
+  // moment the admin reactivates the template); without a row we use the
+  // code default — the factory content IS the row's initial seed.
+  const def = row ? row.def : EMAIL_TEMPLATE_DEFAULTS[key];
   const html = interpolate(def.bodyHtml, effective);
   const subject = interpolate(def.subject, effective);
-  return { subject, html, text: htmlToText(html), source: row?.isActive ? "db" : "default" };
+  return {
+    subject,
+    html,
+    text: htmlToText(html),
+    source: row ? "db" : "default",
+    suppressed: row ? !row.isActive : false,
+  };
 }
 
 // ── Management (used by the admin templates API) ──────────────────────────────

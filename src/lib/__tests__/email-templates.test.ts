@@ -337,9 +337,10 @@ describe("renderEmailTemplate variable precedence", () => {
       userName: "Aisha",
       resetUrl: "https://x/reset",
     });
-    expect(rendered.html).toContain("Aisha");
+    expect(rendered).not.toBeNull();
+    expect(rendered?.html).toContain("Aisha");
     // custom vars are available even when the default template doesn't use them
-    expect(rendered.subject).toBe(EMAIL_TEMPLATE_DEFAULTS.password_reset.subject
+    expect(rendered?.subject).toBe(EMAIL_TEMPLATE_DEFAULTS.password_reset.subject
       .replace("{{appName}}", "Clara AI"));
   });
 
@@ -354,16 +355,34 @@ describe("renderEmailTemplate variable precedence", () => {
     });
     // test_email template does not use footerNote — check the merge indirectly:
     // appName default still applies.
-    expect(rendered.subject).toContain("Clara AI");
+    expect(rendered?.subject).toContain("Clara AI");
   });
 
-  it("falls back to the code default when the row is inactive", async () => {
+  it("suppresses the email entirely when the row is inactive (admin kill-switch)", async () => {
     await setEmailTemplateActive(KEY, false);
-    const before = await getFixture(KEY);
-    before.subject = "TAMPERED SUBJECT";
     const rendered = await renderEmailTemplate(KEY, { userName: "A", resetUrl: "https://x" });
-    expect(rendered.subject).not.toContain("TAMPERED");
-    expect(rendered.source).toBe("default");
+    expect(rendered).toBeNull();
+  });
+
+  it("force render bypasses suppression for admin test sends (DB content, flagged)", async () => {
+    await setEmailTemplateActive(KEY, false);
+    const rendered = await renderEmailTemplate(KEY, { userName: "A", resetUrl: "https://x" }, { force: true });
+    expect(rendered).not.toBeNull();
+    // forced render uses the DB row (what would be sent once reactivated)
+    expect(rendered?.source).toBe("db");
+    expect(rendered?.subject).toBe(EMAIL_TEMPLATE_DEFAULTS[KEY].subject.replace(/\{\{\s*appName\s*\}\}/g, "Clara AI"));
+    // and reports suppression so the test tool can warn the admin
+    expect(rendered?.suppressed).toBe(true);
+  });
+
+  it("reactivating the template resumes rendering from the DB row", async () => {
+    await setEmailTemplateActive(KEY, false);
+    expect(await renderEmailTemplate(KEY, { userName: "A", resetUrl: "https://x" })).toBeNull();
+    await setEmailTemplateActive(KEY, true);
+    const rendered = await renderEmailTemplate(KEY, { userName: "A", resetUrl: "https://x" });
+    expect(rendered).not.toBeNull();
+    expect(rendered?.source).toBe("db");
+    expect(rendered?.suppressed).toBe(false);
   });
 });
 
@@ -480,8 +499,8 @@ describe("managed variable CRUD", () => {
     });
     await publishEmailTemplate(KEY);
     const rendered = await renderEmailTemplate(KEY, { userName: "Aisha", resetUrl: "https://x" });
-    expect(rendered.html).toContain("help@clara.example");
-    expect(rendered.html).toContain("Aisha");
+    expect(rendered?.html).toContain("help@clara.example");
+    expect(rendered?.html).toContain("Aisha");
   });
 
   it("system variables: description editable, value locked, delete blocked", async () => {
