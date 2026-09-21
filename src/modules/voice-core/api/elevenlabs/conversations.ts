@@ -1,4 +1,4 @@
-import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
+import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/conversations.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
-import { isConversationalAIEnabled, isElevenLabsEnabled, isValidUuid } from "../../model-catalog";
+import { isConversationalAIEnabled, isValidUuid } from "../../model-catalog";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { isConversationalVoiceService } from "../../types";
