@@ -56,12 +56,14 @@ import {
 } from "./model-catalog";
 import type {
   ElevenLabsResolvedConfig,
+  OpenAIRealtimeResolvedConfig,
   ResolveVoiceConfigInput,
   SarvamResolvedConfig,
   VoiceResolution,
 } from "./config-types";
 import type { VoiceProvider } from "./types";
 import { query } from "@/lib/db";
+import { isOpenAIRealtimeModel, isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
 
 export class VoiceConfigResolutionError extends Error {
   constructor(message: string) {
@@ -435,6 +437,67 @@ export async function resolveVoiceConfig(
     };
   }
 
+  // ── OpenAI specifics ──────────────────────────────────────────────────────
+  // Resolved when EITHER purpose selects OpenAI. The native realtime
+  // transport (model / output voice / transcription) is a VOICE-axis concern:
+  // it must never depend on the brain provider, because a Sarvam or Gemini
+  // brain with an OpenAI realtime voice selection still needs a fully valid
+  // OpenAI Realtime session. Voice candidates are validated against the
+  // fixed OpenAI Realtime voice contract so cross-provider leftovers (a
+  // Bulbul speaker, a Gemini voice name) are skipped instead of sent to the
+  // vendor. Precedence mirrors the Sarvam/ElevenLabs arms:
+  //   version realtime voice → agent realtime voice → agent voice-chat voice
+  //     → assistant-config voice → org allow-list → platform env → "alloy".
+  let openai: OpenAIRealtimeResolvedConfig | null = null;
+  if (voiceProvider === "openai" || realtimeProvider === "openai") {
+    const orgOpenAIVoices =
+      (orgSettings?.allowedVoices && Array.isArray(orgSettings.allowedVoices.openai)
+        ? orgSettings.allowedVoices.openai
+        : []) ?? [];
+    const voiceCandidates = [
+      versionRealtimeVoiceId,
+      realtimeProvider === "openai" ? agentSettings?.realtimeVoiceId ?? null : null,
+      voiceProvider === "openai" ? agentSettings?.voiceChatVoiceId ?? null : null,
+      brain.assistantConfig?.voiceId ?? null,
+      orgOpenAIVoices[0] ?? null,
+      process.env.OPENAI_DEFAULT_VOICE?.trim() || null,
+      process.env.OPENAI_REALTIME_VOICE?.trim() || null,
+    ];
+    const voiceId =
+      voiceCandidates.find(
+        (candidate): candidate is string =>
+          !!candidate && isSupportedOpenAIRealtimeVoice(candidate.trim()),
+      )?.trim() ?? "alloy";
+
+    const modelCandidates = [
+      versionAIPreferences?.realtimeModel ?? null,
+      agentSettings?.realtimeModel ?? null,
+      orgSettings?.defaultRealtimeModel ?? null,
+    ];
+    const realtimeModel =
+      modelCandidates.find(
+        (candidate): candidate is string =>
+          !!candidate && isOpenAIRealtimeModel(candidate.trim()),
+      )?.trim() ||
+      process.env.OPENAI_REALTIME_MODEL?.trim() ||
+      "gpt-realtime-mini";
+
+    const transcriptionCandidates = [
+      versionAIPreferences?.transcriptionModel ?? null,
+      agentSettings?.transcriptionModel ?? null,
+      orgSettings?.defaultTranscriptionModel ?? null,
+    ];
+    const transcriptionModel =
+      transcriptionCandidates.find(
+        (candidate): candidate is string =>
+          !!candidate && /(?:^|[-_])(?:whisper|transcribe)/i.test(candidate),
+      )?.trim() ||
+      process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL?.trim() ||
+      "gpt-4o-mini-transcribe";
+
+    openai = { voiceId, realtimeModel, transcriptionModel };
+  }
+
   return {
     voiceProvider,
     source,
@@ -443,6 +506,7 @@ export async function resolveVoiceConfig(
     brain,
     elevenlabs,
     sarvam,
+    openai,
   };
 }
 

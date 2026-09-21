@@ -12,6 +12,7 @@ import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit"
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
+import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
 import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
 import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
 
@@ -83,19 +84,31 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       if (!config) return NextResponse.json({ error: "AssistantConfig not found for this knowledge base" }, { status: 500 });
 
       const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
-      if (resolved.provider !== "openai") {
-        return NextResponse.json({ error: "Resolved voice provider is Gemini for this knowledge base.", provider: resolved.provider }, { status: 409 });
+      // ── Voice-axis transport gate ────────────────────────────────────────
+      // The OpenAI Realtime transport is selected by the VOICE axis
+      // (realtime purpose), not the brain provider: an org may run a Sarvam
+      // or Gemini brain while the realtime voice assistant runs on OpenAI
+      // (production incident 2026-09-21: a Sarvam brain made this route 409
+      // even though the org explicitly selected OpenAI realtime voice).
+      // The voice/model values come from the voice-axis resolver, which
+      // validates every fallback against the OpenAI Realtime contract.
+      const voiceResolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+      if (voiceResolved.realtimeProvider !== "openai") {
+        return NextResponse.json({
+          error: `OpenAI Realtime is not the resolved realtime voice provider for this knowledge base (resolved: ${voiceResolved.realtimeProvider}).`,
+          provider: voiceResolved.realtimeProvider,
+        }, { status: 409 });
       }
 
       instructions = buildSystemPrompt(config, { kbName: kb.name });
-      voice = resolved.voiceId ?? config.voiceId ?? DEFAULT_REALTIME_VOICE;
+      voice = voiceResolved.openai?.voiceId ?? DEFAULT_REALTIME_VOICE;
       if (!isSupportedOpenAIRealtimeVoice(voice)) {
         return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400 });
       }
       maxTokens = resolved.maxTokens ?? config.maxTokens;
-      transcriptionModel = resolved.transcriptionModel ?? TRANSCRIPTION_MODEL;
+      transcriptionModel = voiceResolved.openai?.transcriptionModel ?? TRANSCRIPTION_MODEL;
       transcriptionLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
-      model = resolved.realtimeModel ?? DEFAULT_REALTIME_MODEL;
+      model = voiceResolved.openai?.realtimeModel ?? DEFAULT_REALTIME_MODEL;
       toolDescription = `Retrieve grounded evidence from the "${kb.name}" knowledge base. Use kbId for KB-wide search, documentId only when the user explicitly scopes to one document, and pass ragMode=${requestedRagMode} so the server can use classic, hybrid, or agentic retrieval.`;
     } else {
       const languagePreferences = resolveLanguagePreferences({

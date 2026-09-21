@@ -66,6 +66,33 @@ vi.mock("@/modules/ai-core/resolve", () => ({
     maxTokens: 650,
     transcriptionModel: "gpt-4o-mini-transcribe",
   })),
+  getProviderApiKey: vi.fn(() => "sk-voice-axis"),
+}));
+
+// Voice-axis resolution: realtime transport on OpenAI with the locked
+// baseline values (the brain axis above is now orthogonal to the transport).
+vi.mock("@/modules/voice-core/resolve", () => ({
+  VoiceConfigResolutionError: class VoiceConfigResolutionError extends Error {},
+  resolveVoiceConfig: vi.fn(async () => ({
+    voiceProvider: "openai",
+    source: "env",
+    realtimeProvider: "openai",
+    realtimeSource: "voice_chat",
+    brain: {
+      provider: "openai",
+      realtimeModel: "gpt-realtime-2.1-mini",
+      voiceId: "marin",
+      maxTokens: 650,
+      transcriptionModel: "gpt-4o-mini-transcribe",
+    },
+    elevenlabs: null,
+    sarvam: null,
+    openai: {
+      voiceId: "marin",
+      realtimeModel: "gpt-realtime-2.1-mini",
+      transcriptionModel: "gpt-4o-mini-transcribe",
+    },
+  })),
 }));
 
 vi.mock("@/modules/assistant/api/openai-catalog", () => ({
@@ -173,6 +200,32 @@ describe("postRealtimeSession — locked happy path (kbId)", () => {
   });
 });
 
+describe("postRealtimeSession — voice-axis transport (production incident 2026-09-21)", () => {
+  it("mints an OpenAI session for a SARVAM brain + OpenAI realtime voice selection", async () => {
+    const { resolveVoiceConfig } = await import("@/modules/voice-core/resolve");
+    (resolveVoiceConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      voiceProvider: "sarvam",
+      source: "env",
+      realtimeProvider: "openai",
+      realtimeSource: "agent_settings",
+      brain: { provider: "sarvam", realtimeModel: null, voiceId: null },
+      elevenlabs: null,
+      sarvam: null,
+      openai: {
+        voiceId: "alloy",
+        realtimeModel: "gpt-realtime-mini",
+        transcriptionModel: "gpt-4o-mini-transcribe",
+      },
+    });
+    const response = await postRealtimeSession(sessionRequest({ kbId: KB_FIXTURE.id }));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.provider).toBe("openai");
+    expect(payload.voice).toBe("alloy");
+    expect(payload.model).toBe("gpt-realtime-mini");
+  });
+});
+
 describe("postRealtimeSession — guarded paths (locked contracts)", () => {
   it("404s an unknown KB", async () => {
     const response = await postRealtimeSession(sessionRequest({ kbId: "kb-nope" }));
@@ -180,22 +233,40 @@ describe("postRealtimeSession — guarded paths (locked contracts)", () => {
     expect((await response.json()).error).toBe("Knowledge base not found");
   });
 
-  it("409s when the resolved voice provider is not openai", async () => {
-    (resolveAIConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      provider: "gemini",
-      realtimeModel: "gemini-2.5-flash-native-audio-preview-12-2025",
+  it("409s when the realtime voice axis is not openai (voice-axis gate, not the brain)", async () => {
+    const { resolveVoiceConfig } = await import("@/modules/voice-core/resolve");
+    (resolveVoiceConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      voiceProvider: "openai",
+      source: "env",
+      realtimeProvider: "gemini",
+      realtimeSource: "org",
+      brain: { provider: "openai" },
+      elevenlabs: null,
+      sarvam: null,
+      openai: null,
     });
     const response = await postRealtimeSession(sessionRequest({ kbId: KB_FIXTURE.id }));
     expect(response.status).toBe(409);
     const payload = await response.json();
     expect(payload.provider).toBe("gemini");
-    expect(payload.error).toContain("Gemini");
+    expect(payload.error).toContain("OpenAI Realtime is not the resolved realtime voice provider");
   });
 
-  it("400s an unsupported realtime voice", async () => {
-    (resolveAIConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      provider: "openai",
-      voiceId: "not-a-real-voice",
+  it("400s an unsupported realtime voice from the voice axis", async () => {
+    const { resolveVoiceConfig } = await import("@/modules/voice-core/resolve");
+    (resolveVoiceConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      voiceProvider: "openai",
+      source: "env",
+      realtimeProvider: "openai",
+      realtimeSource: "voice_chat",
+      brain: { provider: "openai" },
+      elevenlabs: null,
+      sarvam: null,
+      openai: {
+        voiceId: "not-a-real-voice",
+        realtimeModel: "gpt-realtime-2.1-mini",
+        transcriptionModel: "gpt-4o-mini-transcribe",
+      },
     });
     const response = await postRealtimeSession(sessionRequest({ kbId: KB_FIXTURE.id }));
     expect(response.status).toBe(400);

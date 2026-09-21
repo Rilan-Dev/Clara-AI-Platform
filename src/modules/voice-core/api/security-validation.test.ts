@@ -137,15 +137,17 @@ beforeEach(() => {
     transcriptionModel: "gpt-4o-mini-transcribe",
   });
   resolveVoiceConfigMock.mockResolvedValue({
-    voiceProvider: "elevenlabs",
-    realtimeProvider: "elevenlabs",
+    voiceProvider: "openai",
+    source: "env",
+    realtimeProvider: "openai",
+    realtimeSource: "voice_chat",
     brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
-    elevenlabs: {
-      ttsModel: "eleven_flash_v2_5",
-      sttModel: "scribe_v1",
-      voiceId: "el-voice",
-      voiceSettings: {},
-      language: "en",
+    elevenlabs: null,
+    sarvam: null,
+    openai: {
+      voiceId: "marin",
+      realtimeModel: "gpt-realtime-2.1-mini",
+      transcriptionModel: "gpt-4o-mini-transcribe",
     },
   });
 });
@@ -183,6 +185,20 @@ describe("vendor API keys never reach the browser", () => {
       transcriptionModel: "gpt-4o-mini-transcribe",
     });
 
+    resolveVoiceConfigMock.mockResolvedValue({
+      voiceProvider: "elevenlabs",
+      realtimeProvider: "elevenlabs",
+      brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
+      elevenlabs: {
+        ttsModel: "eleven_flash_v2_5",
+        sttModel: "scribe_v1",
+        voiceId: "el-voice",
+        voiceSettings: {},
+        language: "en",
+      },
+      sarvam: null,
+      openai: null,
+    });
     const elevenlabs = await (await postElevenLabsSession(post({ kbId: KB_ID }))).json();
     payloads.push(JSON.stringify(elevenlabs));
 
@@ -201,6 +217,7 @@ describe("vendor API keys never reach the browser", () => {
         realtimeLlmModel: "sarvam-105b-conversations",
         realtimeTtsEnabled: true,
       },
+      openai: null,
     });
     const sarvam = await (await postSarvamSession(post({ kbId: KB_ID }))).json();
     payloads.push(JSON.stringify(sarvam));
@@ -221,6 +238,20 @@ describe("vendor API keys never reach the browser", () => {
   });
 
   it("relay HMAC tokens are capability-scoped (kb+org), never vendor credentials", async () => {
+    resolveVoiceConfigMock.mockResolvedValue({
+      voiceProvider: "elevenlabs",
+      realtimeProvider: "elevenlabs",
+      brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
+      elevenlabs: {
+        ttsModel: "eleven_flash_v2_5",
+        sttModel: "scribe_v1",
+        voiceId: "el-voice",
+        voiceSettings: {},
+        language: "en",
+      },
+      sarvam: null,
+      openai: null,
+    });
     const elevenlabs = await (await postElevenLabsSession(post({ kbId: KB_ID }))).json();
     const token = elevenlabs.stt?.realtime?.token as string;
     expect(typeof token).toBe("string");

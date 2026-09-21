@@ -63,6 +63,26 @@ export interface SarvamResolvedConfig {
 }
 
 /**
+ * OpenAI specifics resolved when either voice purpose selects "openai".
+ *
+ * The native realtime transport (model / output voice / transcription) is a
+ * VOICE-axis concern, deliberately independent of the brain provider: a
+ * Sarvam or Gemini brain with an OpenAI realtime voice selection must still
+ * receive a fully valid OpenAI Realtime session descriptor. Every fallback
+ * is validated against the OpenAI Realtime API contract (fixed voice set,
+ * realtime model ids) so a stale agent/org value from another provider can
+ * never leak into the session (e.g. a Bulbul speaker id as output voice).
+ */
+export interface OpenAIRealtimeResolvedConfig {
+  /** Validated OpenAI Realtime output voice ("alloy" when nothing valid is configured). */
+  voiceId: string;
+  /** OpenAI Realtime model id (validated realtime family, platform env default). */
+  realtimeModel: string;
+  /** Input-audio transcription model (whisper/transcribe family). */
+  transcriptionModel: string;
+}
+
+/**
  * Result of resolveVoiceConfig(): which provider serves each voice PURPOSE,
  * the (untouched) brain config, and the ElevenLabs specifics when selected.
  *
@@ -86,6 +106,8 @@ export interface VoiceResolution {
   elevenlabs: ElevenLabsResolvedConfig | null;
   /** Sarvam specifics — non-null when either voice purpose selects "sarvam". */
   sarvam: SarvamResolvedConfig | null;
+  /** OpenAI specifics — non-null when either voice purpose selects "openai". */
+  openai: OpenAIRealtimeResolvedConfig | null;
 }
 
 // ─── Session bootstrap payload (hybrid pipeline, Mode A) ─────────────────────

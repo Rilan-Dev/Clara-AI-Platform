@@ -135,6 +135,25 @@ function openAIResolved() {
     maxTokens: 500,
     transcriptionModel: "gpt-4o-mini-transcribe",
   });
+  resolveVoiceConfigMock.mockResolvedValue({
+    voiceProvider: "openai",
+    source: "env",
+    realtimeProvider: "openai",
+    realtimeSource: "voice_chat",
+    brain: {
+      provider: "openai",
+      orgId: ORG_ID,
+      agentId: AGENT_ID,
+      flags: { voiceEnabled: true, realtimeEnabled: true },
+    },
+    elevenlabs: null,
+    sarvam: null,
+    openai: {
+      voiceId: "marin",
+      realtimeModel: "gpt-realtime-2.1-mini",
+      transcriptionModel: "gpt-4o-mini-transcribe",
+    },
+  });
 }
 
 function geminiResolved() {
@@ -143,6 +162,21 @@ function geminiResolved() {
     realtimeModel: "gemini-2.5-flash-native-audio-preview-12-2025",
     voiceId: "Aoede",
     assistantConfig: { ...ASSISTANT_CONFIG },
+  });
+  resolveVoiceConfigMock.mockResolvedValue({
+    voiceProvider: "gemini",
+    source: "env",
+    realtimeProvider: "gemini",
+    realtimeSource: "voice_chat",
+    brain: {
+      provider: "gemini",
+      orgId: ORG_ID,
+      agentId: AGENT_ID,
+      flags: { voiceEnabled: true, realtimeEnabled: true },
+    },
+    elevenlabs: null,
+    sarvam: null,
+    openai: null,
   });
 }
 
@@ -163,6 +197,7 @@ function elevenlabsResolved() {
       voiceSettings: {},
       language: "en",
     },
+    openai: null,
   });
 }
 
@@ -187,6 +222,7 @@ function sarvamResolved() {
       realtimeLlmModel: "sarvam-105b-conversations",
       realtimeTtsEnabled: true,
     },
+    openai: null,
   });
 }
 

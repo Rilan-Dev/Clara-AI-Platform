@@ -75,13 +75,17 @@ vi.mock("./model-catalog", () => ({
   getPlatformDefaultSarvamSpeaker: () => "shubh",
   isSupportedSarvamTTSModel: () => true,
   isSupportedSarvamSpeaker: () => true,
+  // Sarvam realtime arm — only exercised when Sarvam is actually selected.
+  getPlatformDefaultSarvamRealtimeSttModel: () => "saaras:v3-realtime",
+  getPlatformDefaultSarvamRealtimeLlmModel: () => "sarvam-105b",
+  isSarvamRealtimeTtsEnabled: () => true,
   SARVAM_TTS_LANGUAGES: ["hi-IN", "ta-IN", "en-IN"],
 }));
 
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
-import { isElevenLabsEnabled } from "./model-catalog";
+import { isElevenLabsEnabled, isSarvamEnabled } from "./model-catalog";
 import { isSarvamRealtimeSttEnabled, resolveVoiceConfig } from "./resolve";
 import type { VoiceResolution } from "./config-types";
 
@@ -89,6 +93,7 @@ const orgSettingsMock = vi.mocked(getOrgAISettings);
 const agentSettingsMock = vi.mocked(getAgentAISettings);
 const kbOverridesMock = vi.mocked(getKbAIOverrides);
 const isElevenLabsEnabledMock = vi.mocked(isElevenLabsEnabled);
+const isSarvamEnabledMock = vi.mocked(isSarvamEnabled);
 
 const baseOrg = {
   voiceProvider: null as string | null,
@@ -231,5 +236,185 @@ describe("Phase 13 rollout gate — SARVAM_REALTIME_STT_ENABLED stays DARK by de
     process.env.SARVAM_REALTIME_STT_ENABLED = "true";
     expect(isSarvamRealtimeSttEnabled()).toBe(true);
     delete process.env.SARVAM_REALTIME_STT_ENABLED;
+  });
+});
+
+// ── OpenAI native-realtime axis (production incident 2026-09-21) ──────────────
+//
+// The realtime transport (model / output voice / transcription) must resolve
+// from the VOICE axis with OpenAI-contract validation, independent of the
+// brain provider: a Sarvam brain with an OpenAI realtime voice selection is a
+// SUPPORTED split (org chat/RAG on Sarvam, realtime voice assistant on OpenAI
+// Realtime) and must yield a fully valid OpenAI session descriptor.
+import { resolveAIConfig } from "@/modules/ai-core/resolve";
+
+const resolveAIMock = vi.mocked(resolveAIConfig);
+
+const sarvamBrain = {
+  orgId: "org-1",
+  agentId: null,
+  kbId: null,
+  provider: "sarvam",
+  chatModel: "sarvam-105b",
+  embeddingModel: null,
+  realtimeModel: null,
+  transcriptionModel: null,
+  voiceId: null,
+  allowedLanguages: ["en"],
+  defaultLanguage: "en",
+  maxTokens: null,
+  temperature: null,
+  sources: {},
+  flags: { voiceEnabled: true, realtimeEnabled: true, publicEmbedEnabled: true },
+  assistantConfig: null,
+};
+
+const openaiRealtimeAgent = {
+  id: "agent-ai-1",
+  agentId: "agent-1",
+  orgId: "org-1",
+  provider: null,
+  voiceProvider: null,
+  voiceChatSttModel: null,
+  voiceChatTtsModel: null,
+  voiceChatVoiceId: null,
+  realtimeVoiceProvider: "openai",
+  realtimeLlmModel: null,
+  realtimeSttModel: null,
+  realtimeTtsModel: null,
+  realtimeVoiceId: null,
+  chatModel: null,
+  embeddingModel: null,
+  realtimeModel: null,
+  transcriptionModel: null,
+  defaultLanguageId: null,
+  defaultVoiceId: null,
+  languages: [],
+  voices: [],
+};
+
+describe("voice resolution — OpenAI native-realtime axis", () => {
+  beforeEach(() => {
+    delete process.env.OPENAI_REALTIME_MODEL;
+    delete process.env.OPENAI_DEFAULT_VOICE;
+    delete process.env.OPENAI_REALTIME_VOICE;
+    delete process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL;
+    // A Sarvam brain must be a legal voice-chat inherit value: enable the
+    // provider in the (mocked) platform surface and allow it org-wide.
+    isSarvamEnabledMock.mockReturnValue(true);
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+    } as never);
+  });
+
+  it("resolves a valid OpenAI transport for a SARVAM brain + OpenAI realtime selection (the incident split)", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    agentSettingsMock.mockResolvedValue({ ...openaiRealtimeAgent } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.brain.provider).toBe("sarvam");        // brain untouched
+    expect(r.realtimeProvider).toBe("openai");     // realtime on the voice axis
+    expect(r.openai).not.toBeNull();
+    expect(r.openai?.voiceId).toBe("alloy");       // contract fallback, never null
+    expect(r.openai?.realtimeModel).toBe("gpt-realtime-mini");
+    expect(r.openai?.transcriptionModel).toBe("gpt-4o-mini-transcribe");
+  });
+
+  it("honours the agent realtime voice when it is a valid OpenAI Realtime voice", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    agentSettingsMock.mockResolvedValue({ ...openaiRealtimeAgent, realtimeVoiceId: "ash" } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.openai?.voiceId).toBe("ash");
+  });
+
+  it("filters cross-provider voice leftovers (a Bulbul speaker id is never an OpenAI voice)", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    agentSettingsMock.mockResolvedValue({ ...openaiRealtimeAgent, realtimeVoiceId: "meera" } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.openai?.voiceId).toBe("alloy");
+  });
+
+  it("picks only OpenAI realtime models from the tenant chain (a Sarvam chat model is skipped)", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    agentSettingsMock.mockResolvedValue({ ...openaiRealtimeAgent, realtimeModel: "gpt-realtime-2.1-mini" } as never);
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+      realtimeVoiceProvider: "openai",
+      defaultRealtimeModel: "sarvam-105b",
+    } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.openai?.realtimeModel).toBe("gpt-realtime-2.1-mini");
+  });
+
+  it("falls back to the platform env model when no tenant model is an OpenAI realtime model", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+      realtimeVoiceProvider: "openai",
+      defaultRealtimeModel: "sarvam-105b",
+    } as never);
+    process.env.OPENAI_REALTIME_MODEL = "gpt-4o-realtime-preview";
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.openai?.realtimeModel).toBe("gpt-4o-realtime-preview");
+    delete process.env.OPENAI_REALTIME_MODEL;
+  });
+
+  it("resolves the org allow-list voice and a whisper transcription model", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    agentSettingsMock.mockResolvedValue({
+      ...openaiRealtimeAgent,
+      transcriptionModel: "whisper-1",
+    } as never);
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+      realtimeVoiceProvider: "openai",
+      allowedVoices: { openai: ["verse"], gemini: ["Puck"] },
+    } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.openai?.voiceId).toBe("verse");
+    expect(r.openai?.transcriptionModel).toBe("whisper-1");
+  });
+
+  it("keeps the assistant-config voice when it is a valid OpenAI voice", async () => {
+    resolveAIMock.mockResolvedValue({
+      ...sarvamBrain,
+      assistantConfig: { voiceId: "coral" },
+    } as never);
+    agentSettingsMock.mockResolvedValue({ ...openaiRealtimeAgent } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.openai?.voiceId).toBe("coral");
+  });
+
+  it("resolves an OpenAI block for a pure-OpenAI tenant too (inherit case, brain openai)", async () => {
+    resolveAIMock.mockResolvedValue({
+      ...sarvamBrain,
+      provider: "openai",
+      chatModel: "gpt-4o-mini",
+    } as never);
+    agentSettingsMock.mockResolvedValue(null as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.voiceProvider).toBe("openai");
+    expect(r.realtimeProvider).toBe("openai");
+    expect(r.openai).not.toBeNull();
+    expect(r.openai?.voiceId).toBe("alloy");
+  });
+
+  it("leaves the OpenAI block null when neither purpose selects OpenAI", async () => {
+    resolveAIMock.mockResolvedValue({ ...sarvamBrain } as never);
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+      voiceProvider: "elevenlabs",
+      realtimeVoiceProvider: "elevenlabs",
+      elevenlabsTtsModel: "eleven_flash_v2_5",
+      elevenlabsSttModel: "scribe_v1",
+      defaultElevenlabsVoice: null,
+    } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.realtimeProvider).toBe("elevenlabs");
+    expect(r.openai).toBeNull();
   });
 });

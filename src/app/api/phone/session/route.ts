@@ -98,8 +98,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const basePrompt   = buildSystemPrompt(assistantConfig, { kbName: kb.name });
     const instructions = `${basePrompt}\n\nYou are answering a live phone call. Be concise, natural, and conversational. Keep responses under 3 sentences. Do not use markdown, bullet points, or formatting of any kind.`;
 
-    const model              = resolved.realtimeModel   ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
-    const voice              = resolved.voiceId         ?? assistantConfig.voiceId ?? "alloy";
+    // Voice-axis OpenAI transport values (validated against the OpenAI
+    // Realtime contract — a Sarvam-brain voiceId like a Bulbul speaker id
+    // must never be sent to OpenAI as an output voice).
+    const model              = voiceResolved.openai?.realtimeModel ?? resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
+    const voice              = voiceResolved.openai?.voiceId ?? "alloy";
     const temperature        = resolved.temperature     ?? assistantConfig.temperature ?? 0.8;
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
     const language           = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
