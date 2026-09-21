@@ -144,7 +144,7 @@ export interface KnowledgeBinding {
   ragMode: string;
 }
 
-export interface GroundedContext {
+export interface GroundingScope {\n  assistantName: string;\n  welcomeMessage: string;\n  knowledgeBaseName: string;\n  knowledgeBaseDescription: string | null;\n}\n\nexport interface GroundedContext {
   /** Assembled grounded context string ([S1]…/[G1]… blocks). */
   context: string;
   /** True only when retrieval produced sufficiently relevant evidence. */
