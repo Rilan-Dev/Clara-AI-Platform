@@ -80,7 +80,10 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         }
       }
 
-      const [config, documentTitles] = await Promise.all([\n        getAssistantConfigByKb(kbId),\n        getKnowledgeBaseDocumentTitles(kbId),\n      ]);
+      const [config, documentTitles] = await Promise.all([
+        getAssistantConfigByKb(kbId),
+        getKnowledgeBaseDocumentTitles(kbId),
+      ]);
       if (!config) return NextResponse.json({ error: "AssistantConfig not found for this knowledge base" }, { status: 500 });
 
       const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
