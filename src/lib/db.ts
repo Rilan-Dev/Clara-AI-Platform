@@ -6,9 +6,8 @@
  * Uses the `pg` package (node-postgres). If pg is not yet installed run:
  *   npm install pg @types/pg
  *
- * Connection details are read from environment variables:
- *   POSTGRES_HOST     POSTGRES_PORT  POSTGRES_USER
- *   POSTGRES_PASSWORD POSTGRES_DB
+ * Connection details are read exclusively from DATABASE_URL.
+ * The same variable is used by the app, migrations, seed scripts, and tooling.
  *
  * The pool is lazy-initialised on first use and cached on the global object
  * in development so Next.js hot-reload does not create a new pool per module
@@ -19,20 +18,17 @@ import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
+const DATABASE_URL = process.env.DATABASE_URL?.trim();
+
+if (!DATABASE_URL) {
+  throw new Error("[db] DATABASE_URL is required");
+}
+
 const PG_CONFIG = {
-  host:     process.env.POSTGRES_HOST,
-  port:     Number(process.env.POSTGRES_PORT ?? "5432"),
-  user:     process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  database: process.env.POSTGRES_DB,
-  // Keep pool small: Next.js can have many concurrent edge/serverless invocations.
-  max:             Number(process.env.PG_POOL_MAX  ?? "10"),
-  idleTimeoutMillis:  30_000,
+  connectionString: DATABASE_URL,
+  max: Number(process.env.PG_POOL_MAX ?? "10"),
+  idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
-  // Allow self-signed certs on private/internal PostgreSQL servers
-  ssl: process.env.POSTGRES_SSL === "true"
-    ? { rejectUnauthorized: false }
-    : false,
 } as const;
 
 // ── Singleton pattern safe for Next.js dev hot-reload ─────────────────────────
