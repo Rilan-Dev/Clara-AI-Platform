@@ -131,6 +131,11 @@ export function ProvidersWorkspace() {
   );
 
   const setPlatformDefault = async (providerId: string) => {
+    const provider = providers.find((item) => item.providerId === providerId);
+    if (!provider?.enabled) {
+      setError("Enable the provider before making it a platform default.");
+      return;
+    }
     setDefaultBusy(providerId);
     setError(null);
     try {
@@ -185,9 +190,7 @@ export function ProvidersWorkspace() {
                       {isDefault && <VersionBadge tone="primary">Platform default</VersionBadge>}
                       {!provider.enabled && (
                         <VersionBadge tone="warning">
-                          {provider.disabledReason === "kill_switch"
-                            ? `Disabled — ${KILL_SWITCH_ENV[provider.providerId] ?? "operational flag"} off · enable to fix`
-                            : "Disabled"}
+                          Disabled platform-wide
                         </VersionBadge>
                       )}
                       {!provider.configured && <VersionBadge tone="muted">Not configured</VersionBadge>}
@@ -237,7 +240,7 @@ export function ProvidersWorkspace() {
                       <WorkspaceButton
                         variant="ghost"
                         onClick={() => void setPlatformDefault(provider.providerId)}
-                        disabled={defaultBusy != null}
+                        disabled={defaultBusy != null || !provider.enabled}
                       >
                         {defaultBusy === provider.providerId ? "Setting…" : `Set as ${CAPABILITY_META[capability].label.toLowerCase()} default`}
                       </WorkspaceButton>
