@@ -74,6 +74,7 @@ http.createServer = (...args) => {
     console.log("[clara-relay]    /api/voice/sarvam/realtime — Saaras realtime STT relay");
     console.log("[clara-relay]    /api/voice/elevenlabs/realtime — Scribe realtime STT relay");
     console.log("[clara-relay]    /api/voice/elevenlabs/tts-realtime — ElevenLabs streaming TTS relay");
+    console.log("[clara-relay]    /api/voice/elevenlabs/speech-engine — ElevenLabs Speech Engine upstream WSS");
     console.log("[clara-relay]    /api/voice/gemini/realtime — Gemini Live passthrough relay");
   });
 
