@@ -345,34 +345,22 @@ export default function AgentPublishScreen() {
                 </WorkspaceButton>
               ) : (
                 <div className="space-y-2.5">
-                  {(
-                    [
-                      { label: "Chat widget", url: exploreLink.widgetUrl },
-                      { label: "Voice page", url: exploreLink.voiceUrl },
-                    ] as const
-                  ).map(({ label, url }) => (
-                    <div key={label} className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">{label}</p>
-                        <div className="flex items-center gap-1.5">
-                          <WorkspaceButton variant="ghost" onClick={() => void copyUrl(url)}>
-                            {copied === url ? "Copied" : "Copy"}
-                          </WorkspaceButton>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50"
-                          >
-                            Open
-                          </a>
-                        </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">Unified preview</p>
+                      <div className="flex items-center gap-1.5">
+                        <WorkspaceButton variant="ghost" onClick={() => void copyUrl(exploreLink.previewUrl)}>
+                          {copied === exploreLink.previewUrl ? "Copied" : "Copy"}
+                        </WorkspaceButton>
+                        <a href={exploreLink.previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50">
+                          Open
+                        </a>
                       </div>
-                      <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{url}</p>
                     </div>
-                  ))}
+                    <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{exploreLink.previewUrl}</p>
+                  </div>
                   <p className="text-[11px] text-muted-foreground/60">
-                    Serving knowledge base “{exploreLink.kbName}”. The raw key is shown once — regenerate to rotate it
+                    Serving knowledge base “{exploreLink.kbName}”. The unified preview contains both Chat and Voice. The raw key is shown once — regenerate to rotate it
                     (the previous explore key is revoked automatically).
                   </p>
                   <WorkspaceButton onClick={generateLink} disabled={exploreBusy || isAdmin}>

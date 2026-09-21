@@ -259,6 +259,35 @@ export async function upsertDocumentsKb(
   console.log(`[vs-kb] ✅ upserted ${points.length} points into "${collectionName}"`);
 }
 
+/**
+ * Create an immutable point-in-time copy of a KB collection.
+ * Published deployments use this collection so later KB edits cannot alter
+ * the content served by an already-published version.
+ */
+export async function cloneKbCollection(sourceCollection: string, targetCollection: string): Promise<void> {
+  const client = getQdrantClient();
+  const source = await client.getCollection(sourceCollection);
+  const vectors = (source as any)?.config?.params?.vectors;
+  if (!vectors) throw new Error(`Qdrant collection "${sourceCollection}" has no vector configuration`);
+
+  await client.createCollection(targetCollection, { vectors } as any);
+
+  let offset: string | number | Record<string, unknown> | null | undefined = undefined;
+  do {
+    const page = await client.scroll(sourceCollection, {
+      offset,
+      limit: 256,
+      with_payload: true,
+      with_vector: true,
+    } as any);
+    const points = (page as any)?.points ?? [];
+    if (points.length > 0) {
+      await client.upsert(targetCollection, { wait: true, points } as any);
+    }
+    offset = (page as any)?.next_page_offset ?? null;
+  } while (offset != null);
+}
+
 // ── Per-chunk operations (for Chunk Viewer UI) ──────────────────────────────
 
 export type KbChunk = {

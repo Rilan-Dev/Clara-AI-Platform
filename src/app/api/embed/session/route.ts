@@ -75,6 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const effectiveConfig = resolved.assistantConfig ?? config;
 
     // ── Voice-axis routing ──────────────────────────────────────────────────
     // The embed voice surfaces are realtime-purpose surfaces; when the
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               endpoint: "/api/embed/chat",
               kbId: ctx.kbId,
             },
-            welcomeMessage: config.welcomeMessage ?? "",
+            welcomeMessage: effectiveConfig.welcomeMessage ?? "",
             config: {
               orgId: voiceResolution.brain.orgId ?? ctx.orgId,
               projectId: voiceResolution.brain.agentId,
@@ -126,8 +127,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               transcriptionModel: el.sttModel,
               allowedLanguages: resolved.allowedLanguages,
               defaultLanguage: resolved.defaultLanguage,
-              maxTokens: resolved.maxTokens ?? config.maxTokens,
-              temperature: resolved.temperature ?? config.temperature,
+              maxTokens: resolved.maxTokens ?? effectiveConfig.maxTokens,
+              temperature: resolved.temperature ?? effectiveConfig.temperature,
               sources: resolved.sources,
               flags: resolved.flags,
             },
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             endpoint: "/api/embed/chat",
             kbId: ctx.kbId,
           },
-          welcomeMessage: config.welcomeMessage ?? "",
+          welcomeMessage: effectiveConfig.welcomeMessage ?? "",
           config: {
             orgId: voiceResolution.brain.orgId ?? ctx.orgId,
             projectId: voiceResolution.brain.agentId,
@@ -175,8 +176,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             transcriptionModel: el.sttModel,
             allowedLanguages: resolved.allowedLanguages,
             defaultLanguage: resolved.defaultLanguage,
-            maxTokens: resolved.maxTokens ?? config.maxTokens,
-            temperature: resolved.temperature ?? config.temperature,
+            maxTokens: resolved.maxTokens ?? effectiveConfig.maxTokens,
+            temperature: resolved.temperature ?? effectiveConfig.temperature,
             sources: resolved.sources,
             flags: resolved.flags,
           },
@@ -216,7 +217,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             endpoint: "/api/embed/chat",
             kbId: ctx.kbId,
           },
-          welcomeMessage: config.welcomeMessage ?? "",
+          welcomeMessage: effectiveConfig.welcomeMessage ?? "",
           config: {
             orgId: voiceResolution.brain.orgId ?? ctx.orgId,
             projectId: voiceResolution.brain.agentId,
@@ -233,8 +234,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               ttsEnabled: sv.realtimeTtsEnabled,
             },
             defaultLanguage: resolved.defaultLanguage,
-            maxTokens: resolved.maxTokens ?? config.maxTokens,
-            temperature: resolved.temperature ?? config.temperature,
+            maxTokens: resolved.maxTokens ?? effectiveConfig.maxTokens,
+            temperature: resolved.temperature ?? effectiveConfig.temperature,
             sources: resolved.sources,
             flags: resolved.flags,
           },
@@ -251,8 +252,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const transcriptionModel = resolved.transcriptionModel;
     const allowedLanguages = resolved.allowedLanguages;
     const defaultLanguage = resolved.defaultLanguage;
-    const maxTokens = resolved.maxTokens ?? config.maxTokens;
-    const temperature = resolved.temperature ?? config.temperature;
+    const maxTokens = resolved.maxTokens ?? effectiveConfig.maxTokens;
+    const temperature = resolved.temperature ?? effectiveConfig.temperature;
     const audioPolicy = getRealtimeAudioPolicy();
 
     // ── Native realtime transports (OpenAI Realtime / Gemini Live) ──────────
@@ -349,7 +350,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           projectId: resolved.agentId,
           provider: resolved.provider,
           voiceProvider: voiceResolution.realtimeProvider,
-          welcomeMessage: config.welcomeMessage ?? "",
+          welcomeMessage: effectiveConfig.welcomeMessage ?? "",
           config: {
             orgId: resolved.orgId ?? ctx.orgId,
             projectId: resolved.agentId,
@@ -419,7 +420,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           instructions,
           inputSampleRate: GEMINI_INPUT_SAMPLE_RATE,
           outputSampleRate: GEMINI_OUTPUT_SAMPLE_RATE,
-          welcomeMessage: config.welcomeMessage ?? "",
+          welcomeMessage: effectiveConfig.welcomeMessage ?? "",
           audioPolicy,
           config: {
             orgId: resolved.orgId ?? ctx.orgId,

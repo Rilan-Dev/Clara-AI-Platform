@@ -206,16 +206,21 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // ── Production immutable version (Stage H: new-first dual-read) ──────────
   const productionVersion = agent?.id ? await getProductionVersionConfigCached(agent.id) : null;
   const deployment = agent?.id ? await getActiveDeploymentCached(agent.id) : null;
+  const knowledgeCollection = agent?.id && input.kbId && deployment
+    ? await (await import("@/modules/agent-versioning/core/db")).getActiveDeploymentKbCollection(agent.id, input.kbId)
+    : null;
   const versionConfig: AgentVersionConfig | null = productionVersion?.configuration ?? null;
   const versionAI = versionConfig?.ai ?? null;
   const versionRuntime = versionConfig?.runtime ?? null;
-
   const [orgSettings, agentSettings, kbOverrides, liveAssistantConfig] = await Promise.all([
     orgId ? getOrgAISettings(orgId) : Promise.resolve(null),
     agent?.id ? getAgentAISettings(agent.id) : Promise.resolve(null),
     input.kbId ? getKbAIOverrides(input.kbId) : Promise.resolve(null),
     agent?.id ? getAssistantConfigByAgent(agent.id) : Promise.resolve(null),
   ]);
+
+  // Published versions are immutable: mutable KB overrides cannot leak into runtime resolution.
+  const effectiveKbOverrides = versionConfig ? null : kbOverrides;
 
   if (agentSettings && agent && agentSettings.orgId !== agent.orgId) {
     throw new AIConfigResolutionError("Agent AI configuration belongs to another organisation.");
@@ -269,7 +274,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     orgSettings?.defaultProvider ??
     platformDefaultProvider ??
     defaults.provider;
-  let providerSource: ResolvedAIConfig["sources"]["provider"] = kbOverrides?.provider
+  let providerSource: ResolvedAIConfig["sources"]["provider"] = effectiveKbOverrides?.provider
     ? "kb_override"
     : versionAI?.provider
       ? "agent"
@@ -279,7 +284,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
           ? "org"
           : "env";
 
-  if (kbOverrides?.provider) {
+  if (effectiveKbOverrides?.provider) {
     provider = kbOverrides.provider;
     providerSource = "kb_override";
   }
@@ -339,18 +344,18 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     registryDefaultModel(provider, "realtime_voice", "voice") ?? defaults.models[provider].defaultVoice;
 
   const chatCandidate =
-    kbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
+    effectiveKbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
   const embeddingCandidate =
-    kbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
+    effectiveKbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
   const realtimeCandidate =
-    kbOverrides?.realtimeModel ??
+    effectiveKbOverrides?.realtimeModel ??
     versionAI?.realtimeLlmModel ??
     versionAI?.realtimeModel ??
     agentSettings?.realtimeModel ??
     orgSettings?.defaultRealtimeModel ??
     defaultRealtime;
   const transcriptionCandidate =
-    kbOverrides?.transcriptionModel ??
+    effectiveKbOverrides?.transcriptionModel ??
     versionAI?.transcriptionModel ??
     agentSettings?.transcriptionModel ??
     orgSettings?.defaultTranscriptionModel ??
@@ -512,14 +517,18 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     throw new AIConfigResolutionError(`No ${provider} voice is configured for this agent or platform.`);
   }
 
+  if (input.surface === "embed" && agent?.id && !deployment) {
+    throw new AIConfigResolutionError("Public embed requires an active published deployment.");
+  }
+
   const flags = {
     // Version runtime toggles are agent-owned (new architecture); org-level
     // toggles remain the legacy fallback during the compat window.
-    voiceEnabled: (versionRuntime?.enableVoice ?? orgSettings?.enableVoice ?? true) && !(kbOverrides?.disableVoice ?? false),
+    voiceEnabled: (versionRuntime?.enableVoice ?? orgSettings?.enableVoice ?? true) && !(effectiveKbOverrides?.disableVoice ?? false),
     realtimeEnabled: versionRuntime?.enableRealtime ?? orgSettings?.enableRealtime ?? true,
     publicEmbedEnabled: deployment
-      ? deployment.publicAccess && !(kbOverrides?.disablePublicEmbed ?? false)
-      : (orgSettings?.enablePublicEmbed ?? true) && !(kbOverrides?.disablePublicEmbed ?? false),
+      ? deployment.publicAccess && !(effectiveKbOverrides?.disablePublicEmbed ?? false)
+      : (orgSettings?.enablePublicEmbed ?? true) && !(effectiveKbOverrides?.disablePublicEmbed ?? false),
   };
   assertSurfaceEnabled(input.surface, flags);
 
@@ -551,6 +560,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     orgId,
     agentId: agent?.id ?? null,
     kbId: input.kbId ?? null,
+    knowledgeCollection,
     provider,
     embeddingProvider,
     chatModel,
@@ -585,7 +595,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
           ? "env" // the split comes from SARVAM_EMBEDDING_FALLBACK_PROVIDER
           : providerSource,
       chatModel:
-        kbOverrides?.chatModel != null
+        effectiveKbOverrides?.chatModel != null
           ? "kb_override"
           : versionAI?.chatModel != null
             ? "agent"
@@ -595,7 +605,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
                 ? "org"
                 : "env",
       embeddingModel:
-        kbOverrides?.embeddingModel != null
+        effectiveKbOverrides?.embeddingModel != null
           ? "kb_override"
           : versionAI?.embeddingModel != null
             ? "agent"
@@ -605,7 +615,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
                 ? "org"
                 : "env",
       realtimeModel:
-        kbOverrides?.realtimeModel != null
+        effectiveKbOverrides?.realtimeModel != null
           ? "kb_override"
           : versionAI?.realtimeModel != null
             ? "agent"
@@ -615,7 +625,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
                 ? "org"
                 : "env",
       transcriptionModel:
-        kbOverrides?.transcriptionModel != null
+        effectiveKbOverrides?.transcriptionModel != null
           ? "kb_override"
           : versionAI?.transcriptionModel != null
             ? "agent"

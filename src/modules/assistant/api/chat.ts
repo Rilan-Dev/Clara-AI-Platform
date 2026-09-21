@@ -283,7 +283,7 @@ async function postChatKb(
   const embeddingConfig = toProviderConfig(resolved, "embedding");
   let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
   try {
-    results = await searchKbEmbedded(kb.qdrantCollection, retrievalQuery, 6, {
+    results = await searchKbEmbedded(resolved.knowledgeCollection ?? kb.qdrantCollection, retrievalQuery, 6, {
       providerConfig: embeddingConfig,
     });
   } catch (searchErr) {

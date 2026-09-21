@@ -274,9 +274,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Embedding config: resolved from KB AI policy; the override only pins
   // the embedding transport (public demo), never the knowledge.
-  const resolved = request.embeddingOverride
-    ? null
-    : await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
+  const resolved = await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
   const providerConfig =
     request.embeddingOverride ?? toProviderConfig(resolved!, "embedding");
 
@@ -291,7 +289,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
-      kb.qdrantCollection,
+      resolved.knowledgeCollection ?? kb.qdrantCollection,
       query,
       topK,
       filter,
