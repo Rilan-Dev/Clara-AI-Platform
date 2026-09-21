@@ -14,7 +14,7 @@
           "topic": "clara-ingest"
         }
       ],
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "src/app/api/queue/crawl/route.ts": {
       "experimentalTriggers": [
@@ -23,10 +23,10 @@
           "topic": "clara-crawl"
         }
       ],
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "api/voice-realtime.mjs": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "src/app/api/queue/scrape/route.ts": {
       "experimentalTriggers": [
@@ -35,7 +35,7 @@
           "topic": "clara-scrape"
         }
       ],
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "src/app/api/queue/retry/route.ts": {
       "experimentalTriggers": [
@@ -44,7 +44,7 @@
           "topic": "clara-retry"
         }
       ],
-      "maxDuration": 300
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -79,6 +79,10 @@
     {
       "source": "/api/voice/gemini/realtime",
       "destination": "/api/voice-realtime/gemini"
+    },
+    {
+      "source": "/api/voice/elevenlabs/speech-engine",
+      "destination": "/api/voice-realtime/speech-engine"
     }
   ]
 }

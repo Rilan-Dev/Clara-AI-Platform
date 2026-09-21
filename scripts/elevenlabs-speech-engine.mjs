@@ -109,7 +109,7 @@ async function* readClaraStream(response, signal, telemetry = {}) {
   }
 }
 
-export async function attachElevenLabsSpeechEngine(httpServer) {
+export async function attachElevenLabsSpeechEngine(httpServer, path = "/api/voice/elevenlabs/speech-engine") {
   const engineId = process.env.ELEVENLABS_SPEECH_ENGINE_ID;
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
@@ -121,7 +121,7 @@ export async function attachElevenLabsSpeechEngine(httpServer) {
   const client = new ElevenLabsClient({ apiKey });
   const engine = await client.speechEngine.get(engineId);
 
-  const attachment = await engine.attach(httpServer, "/api/voice/elevenlabs/speech-engine", {
+  const attachment = await engine.attach(httpServer, path, {
     debug: process.env.ELEVENLABS_SPEECH_ENGINE_DEBUG === "true",
     onInit(conversationId) {
       console.info("[elevenlabs-speech-engine] initialized", { conversationId });
