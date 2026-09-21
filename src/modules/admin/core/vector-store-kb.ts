@@ -267,24 +267,24 @@ export async function upsertDocumentsKb(
 export async function cloneKbCollection(sourceCollection: string, targetCollection: string): Promise<void> {
   const client = getQdrantClient();
   const source = await client.getCollection(sourceCollection);
-  const vectors = (source as any)?.config?.params?.vectors;
+  const vectors = source.config.params.vectors;
   if (!vectors) throw new Error(`Qdrant collection "${sourceCollection}" has no vector configuration`);
 
-  await client.createCollection(targetCollection, { vectors } as any);
+  await client.createCollection(targetCollection, { vectors });
 
-  let offset: string | number | Record<string, unknown> | null | undefined = undefined;
+  let offset: string | number | undefined;
   do {
     const page = await client.scroll(sourceCollection, {
       offset,
       limit: 256,
       with_payload: true,
       with_vector: true,
-    } as any);
-    const points = (page as any)?.points ?? [];
+    });
+    const points = page.points;
     if (points.length > 0) {
-      await client.upsert(targetCollection, { wait: true, points } as any);
+      await client.upsert(targetCollection, { wait: true, points });
     }
-    offset = (page as any)?.next_page_offset ?? null;
+    offset = page.next_page_offset ?? undefined;
   } while (offset != null);
 }
 
