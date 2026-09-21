@@ -144,7 +144,14 @@ export interface KnowledgeBinding {
   ragMode: string;
 }
 
-export interface GroundingScope {\n  assistantName: string;\n  welcomeMessage: string;\n  knowledgeBaseName: string;\n  knowledgeBaseDescription: string | null;\n}\n\nexport interface GroundedContext {
+export interface GroundingScope {
+  assistantName: string;
+  welcomeMessage: string;
+  knowledgeBaseName: string;
+  knowledgeBaseDescription: string | null;
+}
+
+export interface GroundedContext {
   /** Assembled grounded context string ([S1]…/[G1]… blocks). */
   context: string;
   /** True only when retrieval produced sufficiently relevant evidence. */
@@ -359,7 +366,8 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         .slice(0, 2)
         .map((chunk) => chunk.text)
         .filter(Boolean)
-        .join("\n");
+        .join("
+");
 
       return [
         `[G${index + 1}] ${hit.label}`,
@@ -368,9 +376,12 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         evidence ? `Evidence: ${evidence}` : "",
       ]
         .filter(Boolean)
-        .join("\n");
+        .join("
+");
     })
-    .join("\n\n");
+    .join("
+
+");
 
   if (admissionMode === "quota") {
     void finalizeQueryEvent(admission && admission.admitted ? admission.eventId : null, {
@@ -399,16 +410,22 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         const title = r.payload?.title ? String(r.payload.title) : "Document";
         const filename = r.payload?.originalFilename ? String(r.payload.originalFilename) : "";
         const label = filename && filename !== title ? `${title} (${filename})` : title;
-        return `[S${i + 1}] ${label}\n${r.snippet}`.trim();
+        return `[S${i + 1}] ${label}
+${r.snippet}`.trim();
       })
-      .join("\n\n"),
+      .join("
+
+"),
   ];
 
   if (graphContext) {
-    contextParts.push(`Graph context\n${graphContext}`);
+    contextParts.push(`Graph context
+${graphContext}`);
   }
 
-  const context = contextParts.filter(Boolean).join("\n\n");
+  const context = contextParts.filter(Boolean).join("
+
+");
 
   const sources: GroundedSource[] = vectorResults.map((r, i) => ({
     index: i + 1,
@@ -429,7 +446,8 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     snippet: hit.supportingChunks
       .map((chunk) => chunk.text)
       .filter(Boolean)
-      .join("\n")
+      .join("
+")
       .slice(0, 500),
     sourceType: "graph",
     relations: hit.relations,
