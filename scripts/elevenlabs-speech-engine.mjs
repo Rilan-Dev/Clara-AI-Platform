@@ -7,12 +7,22 @@ let redis;
 
 function getRedis() {
   if (!redis) {
-    redis = new Redis({
-      host: process.env.REDIS_HOST ?? "redis",
-      port: Number(process.env.REDIS_PORT ?? 6379),
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    });
+    const rawUrl = process.env.REDIS_URL
+      ?? (process.env.REDIS_HOST?.includes("://") ? process.env.REDIS_HOST : undefined);
+
+    if (rawUrl) {
+      redis = new Redis(rawUrl, {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      });
+    } else {
+      redis = new Redis({
+        host: process.env.REDIS_HOST ?? "redis",
+        port: Number(process.env.REDIS_PORT ?? 6379),
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      });
+    }
   }
   return redis;
 }

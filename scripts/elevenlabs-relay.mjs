@@ -48,7 +48,7 @@ import crypto from "node:crypto";
 import WebSocket from "ws";
 
 const PORT = process.env.PORT ?? 3000;
-const BASE = `http://127.0.0.1:${PORT}`;
+const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
 
 const MAX_LIFETIME_MS = 60 * 60 * 1000; // 60 minutes
 const MAX_IDLE_MS = 120 * 1000;         // 120 seconds without any frame
