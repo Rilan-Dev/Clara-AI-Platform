@@ -145,6 +145,11 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
     }
     const rowEnabled = Boolean(p.enabled);
     return {
+      providerId,
+      displayName: String(p.display_name),
+      description: typeof p.description === "string" ? p.description : null,
+      enabled: rowEnabled,
+      disabledReason: null,
       configured,
       capabilities: capabilityRows
         .filter((c) => String(c.provider_id) === providerId)
