@@ -1,0 +1,142 @@
+{
+  "capturedAt": "2026-09-21T07:01:55.767Z",
+  "provider": "sarvam",
+  "url": "https://clara.ai.amazetechclans.com/embed/voice",
+  "measurement": "realtime telemetry: TTFA = browser.first_audio − stt.final",
+  "turns": 3,
+  "ttfa": {
+    "p50": null,
+    "p95": null
+  },
+  "stages": {
+    "sttMs": {
+      "p50": null,
+      "p95": null
+    },
+    "ragMs": {
+      "p50": null,
+      "p95": null
+    },
+    "llmMs": {
+      "p50": 5939,
+      "p95": 9074
+    },
+    "ttsMs": {
+      "p50": null,
+      "p95": null
+    },
+    "playbackMs": {
+      "p50": null,
+      "p95": null
+    }
+  },
+  "modeATurns": [
+    {
+      "sttFinalAt": 1789974082212,
+      "url": "wss://clara.ai.amazetechclans.com/api/voice/sarvam/realtime?token=v1.1789977676366.197fbb70-8565-4216-a5ed-a78489dcc9d4.03f3b6b9-ed43-4447-80d5-cc63ddc82c7b.901406f0b4bcb814f1e955f439782bde4043b20b16f4156f3102c582b1db06b9",
+      "chatStart": 1789974082215,
+      "chatEnd": 1789974087593,
+      "ttsFirstFrameAt": 1789974087602,
+      "ttfaWsMs": 5390,
+      "ttfaNetworkMs": 5390,
+      "sttMs": null,
+      "chatMs": 5378,
+      "ttsFirstMs": null
+    },
+    {
+      "sttFinalAt": 1789974094800,
+      "url": "wss://clara.ai.amazetechclans.com/api/voice/sarvam/realtime?token=v1.1789977676366.197fbb70-8565-4216-a5ed-a78489dcc9d4.03f3b6b9-ed43-4447-80d5-cc63ddc82c7b.901406f0b4bcb814f1e955f439782bde4043b20b16f4156f3102c582b1db06b9",
+      "chatStart": 1789974094801,
+      "chatEnd": 1789974104105,
+      "ttsFirstFrameAt": 1789974104333,
+      "ttfaWsMs": 9533,
+      "ttfaNetworkMs": 9533,
+      "sttMs": null,
+      "chatMs": 9304,
+      "ttsFirstMs": null
+    },
+    {
+      "sttFinalAt": 1789974107280,
+      "url": "wss://clara.ai.amazetechclans.com/api/voice/sarvam/realtime?token=v1.1789977676366.197fbb70-8565-4216-a5ed-a78489dcc9d4.03f3b6b9-ed43-4447-80d5-cc63ddc82c7b.901406f0b4bcb814f1e955f439782bde4043b20b16f4156f3102c582b1db06b9",
+      "chatStart": 1789974107281,
+      "ttsFirstFrameAt": 1789974108461,
+      "ttfaWsMs": 1181,
+      "chatEnd": 1789974113841,
+      "ttfaNetworkMs": 1181,
+      "sttMs": null,
+      "chatMs": 6560,
+      "ttsFirstMs": null
+    }
+  ],
+  "raw": [
+    {
+      "sessionId": "vrs_7150170b-210a-4c9d-b2cb-ce3bc44f02e8",
+      "generationId": "vrg_e90c2389-2217-41ec-9eae-754def68639d",
+      "turnId": "vrt_56328615-d3fb-4e8e-8c63-f7743611bb59",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789974082212,
+        "llm.start": 1789974082213,
+        "rag.end": 1789974082948,
+        "llm.first_token": 1789974087233,
+        "tts.start": 1789974087272,
+        "turn.complete": 1789974087593
+      },
+      "latencies": {
+        "sttMs": null,
+        "ragMs": null,
+        "llmMs": 5020,
+        "ttsMs": null,
+        "playbackMs": null,
+        "ttfaMs": null
+      }
+    },
+    {
+      "sessionId": "vrs_7150170b-210a-4c9d-b2cb-ce3bc44f02e8",
+      "generationId": "vrg_ff832b84-0d0f-4dc9-a2b3-ea0220c4052f",
+      "turnId": "vrt_375633e8-a28a-41dd-a064-7da951a36b44",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789974094799,
+        "llm.start": 1789974094799,
+        "rag.end": 1789974099810,
+        "llm.first_token": 1789974103873,
+        "tts.start": 1789974103873,
+        "turn.complete": 1789974104104
+      },
+      "latencies": {
+        "sttMs": null,
+        "ragMs": null,
+        "llmMs": 9074,
+        "ttsMs": null,
+        "playbackMs": null,
+        "ttfaMs": null
+      }
+    },
+    {
+      "sessionId": "vrs_7150170b-210a-4c9d-b2cb-ce3bc44f02e8",
+      "generationId": "vrg_c7d99370-1151-4b65-9f70-ff293465e9dd",
+      "turnId": "vrt_44ae61e6-905c-4538-a7bc-ee7a8974320e",
+      "provider": "sarvam",
+      "model": "saaras:v3-realtime",
+      "marks": {
+        "turn.start": 1789974107279,
+        "llm.start": 1789974107279,
+        "rag.end": 1789974111992,
+        "llm.first_token": 1789974113218,
+        "tts.start": 1789974113541,
+        "turn.complete": 1789974113839
+      },
+      "latencies": {
+        "sttMs": null,
+        "ragMs": null,
+        "llmMs": 5939,
+        "ttsMs": null,
+        "playbackMs": null,
+        "ttfaMs": null
+      }
+    }
+  ]
+}
