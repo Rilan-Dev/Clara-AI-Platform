@@ -31,7 +31,6 @@ import {
   isVoiceDesignEnabled,
   isValidUuid,
 } from "../../model-catalog";
-import { isElevenLabsEnabled } from "../../server-provider-availability";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { isConversationalVoiceService } from "../../types";

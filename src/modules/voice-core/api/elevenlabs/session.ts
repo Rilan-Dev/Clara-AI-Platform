@@ -32,7 +32,6 @@ import {
   getElevenLabsRealtimeSttModel,
   isValidUuid,
 } from "../../model-catalog";
-import { isElevenLabsRealtimeEnabled } from "../../server-provider-availability";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { mintElevenLabsRealtimeToken } from "./realtime-auth";
