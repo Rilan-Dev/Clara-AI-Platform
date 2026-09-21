@@ -24,6 +24,8 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => [{ id: "binding-1" }]),
+  // AI provider registry row — the platform-level on/off control.
+  queryOne: vi.fn(async () => ({ enabled: true })),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({
@@ -48,7 +50,8 @@ vi.mock("@/modules/voice-core/resolve", () => ({
 }));
 
 import { postVoiceProvider } from "../provider";
-import { isElevenLabsRealtimeEnabled, getElevenLabsRealtimeSttModel } from "../../model-catalog";
+import { getElevenLabsRealtimeSttModel } from "../../model-catalog";
+import { isElevenLabsRealtimeEnabled } from "../../server-provider-availability";
 
 function providerRequest(): NextRequest {
   return new NextRequest("http://localhost/api/voice/provider", {
@@ -122,14 +125,17 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
     expect(payload.mode).toBe("pipeline");
   });
 
-  it("Mode C requires the base provider gate (key + ELEVENLABS_ENABLED)", async () => {
-    setEnv("ELEVENLABS_ENABLED", "false");
+  it("Mode C requires the provider registry gate AND the realtime flag", async () => {
+    // Registry row is enabled (mocked @/lib/db.queryOne) and the key is set
+    // in beforeEach — so the flag alone decides:
     setEnv("ELEVENLABS_REALTIME_ENABLED", "true");
-    expect(isElevenLabsRealtimeEnabled()).toBe(false);
-    // Route falls back through resolveVoiceConfig — but the flag itself is
-    // the gate the session/init routes consult:
-    setEnv("ELEVENLABS_ENABLED", "true");
-    expect(isElevenLabsRealtimeEnabled()).toBe(true);
+    await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(true);
+    setEnv("ELEVENLABS_REALTIME_ENABLED", undefined);
+    await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
+    // Credential prerequisite — key missing keeps the gate closed:
+    setEnv("ELEVENLABS_REALTIME_ENABLED", "true");
+    setEnv("ELEVENLABS_API_KEY", undefined);
+    await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
   });
 
   it("non-elevenlabs providers never receive a mode beyond pipeline", async () => {
@@ -159,9 +165,8 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
 });
 
 describe("Phase 13 rollout gates — realtime flags stay DARK by default", () => {
-  it("ELEVENLABS_REALTIME_ENABLED defaults OFF (rollback is configuration-only)", () => {
+  it("ELEVENLABS_REALTIME_ENABLED defaults OFF (rollback is configuration-only)", async () => {
     setEnv("ELEVENLABS_REALTIME_ENABLED", undefined);
-    setEnv("ELEVENLABS_ENABLED", "true");
-    expect(isElevenLabsRealtimeEnabled()).toBe(false);
+    await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
   });
 });

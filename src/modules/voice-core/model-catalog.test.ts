@@ -10,7 +10,6 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
-  isElevenLabsEnabled,
   getElevenLabsBaseUrl,
   getPlatformDefaultTTSModel,
   getPlatformDefaultSTTModel,
@@ -50,30 +49,8 @@ import {
 import { isVoiceProvider } from "./types";
 
 // ─── Kill switch ─────────────────────────────────────────────────────────────
-
-describe("isElevenLabsEnabled", () => {
-  beforeEach(() => { vi.unstubAllEnvs(); });
-  afterEach(() => { vi.unstubAllEnvs(); });
-
-  it("is off by default", () => {
-    delete process.env.ELEVENLABS_ENABLED;
-    delete process.env.ELEVENLABS_API_KEY;
-    expect(isElevenLabsEnabled()).toBe(false);
-  });
-
-  it("requires BOTH the flag and the key", () => {
-    vi.stubEnv("ELEVENLABS_ENABLED", "true");
-    expect(isElevenLabsEnabled()).toBe(false); // no key yet
-    vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
-    expect(isElevenLabsEnabled()).toBe(true);
-  });
-
-  it("flag alone with key absent stays off", () => {
-    vi.stubEnv("ELEVENLABS_ENABLED", "true");
-    delete process.env.ELEVENLABS_API_KEY;
-    expect(isElevenLabsEnabled()).toBe(false);
-  });
-});
+// isElevenLabsEnabled moved to ./server-provider-availability.ts (DB-backed)
+// — its tests live there.
 
 // ─── Model catalogue ─────────────────────────────────────────────────────────
 

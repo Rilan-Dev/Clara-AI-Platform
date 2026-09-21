@@ -99,12 +99,6 @@ export function isConversationalAIEnabled(): boolean {
   return (process.env.ELEVENLABS_CONVERSATIONAL_AI_ENABLED ?? "false").toLowerCase() === "true";
 }
 
-/** Mode C (Clara-controlled realtime) — separate platform feature setting. */
-export async function isElevenLabsRealtimeEnabled(): Promise<boolean> {
-  return (await isElevenLabsEnabled())
-    && (process.env.ELEVENLABS_REALTIME_ENABLED ?? "false").toLowerCase() === "true";
-}
-
 /**
  * Scribe realtime model id for the /v1/speech-to-text/realtime WebSocket.
  * Validated against the current docs (client-side streaming guide): the

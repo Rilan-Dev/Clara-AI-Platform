@@ -1,4 +1,4 @@
-import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
+import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/webhooks.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ import { groundClaraContext } from "@/modules/rag/grounding";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { appUrl } from "@/lib/stripe";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
-import { getWebhookSecret, isElevenLabsEnabled, isValidUuid } from "../../model-catalog";
+import { getWebhookSecret, isValidUuid } from "../../model-catalog";
 import { logConversationUsage } from "../../metering";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";

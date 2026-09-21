@@ -1,4 +1,4 @@
-import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
+import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/agent-session.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
 import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit";
-import { isConversationalAIEnabled, isElevenLabsEnabled, isValidUuid } from "../../model-catalog";
+import { isConversationalAIEnabled, isValidUuid } from "../../model-catalog";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { VoiceProviderFactory } from "../../factory";
