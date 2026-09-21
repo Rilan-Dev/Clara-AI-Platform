@@ -68,20 +68,18 @@ async function checkPostgres(): Promise<CheckResult & { pool?: object; migration
 
 async function checkRedis(): Promise<CheckResult> {
   const { default: Redis } = await import("ioredis");
-  const host = process.env.REDIS_HOST ?? "redis";
-  const port = parseInt(process.env.REDIS_PORT ?? "6379", 10);
-
-  const redis = new Redis({ host, port, lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: CHECK_TIMEOUT_MS });
+  const { getRedisConnectionOptions } = await import("@/modules/queue/redis");
+  const options = { ...getRedisConnectionOptions(), lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: CHECK_TIMEOUT_MS };
+  const redis = new Redis(options);
   try {
     const start = Date.now();
     await withTimeout(redis.connect(), "Redis");
     const pong = await withTimeout(redis.ping(), "Redis");
-    const latencyMs = Date.now() - start;
-    return { status: pong === "PONG" ? "up" : "down", latencyMs, detail: `${host}:${port}` };
+    return { status: pong === "PONG" ? "up" : "down", latencyMs: Date.now() - start, detail: options.host + ":" + options.port + (options.tls ? " (TLS)" : "") };
   } catch (err) {
-    return { status: "down", detail: `${host}:${port}`, error: (err as Error).message };
+    return { status: "down", detail: options.host + ":" + options.port, error: (err as Error).message };
   } finally {
-    try { redis.quit(); } catch { /* already closed */ }
+    try { await redis.quit(); } catch { /* already closed */ }
   }
 }
 
@@ -90,46 +88,39 @@ async function checkQdrant(): Promise<CheckResult> {
   if (!url) return { status: "not_configured", detail: "QDRANT_URL not set" };
   try {
     const start = Date.now();
-    const res = await withTimeout(fetch(`${url.replace(/\/$/, "")}/healthz`, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) }), "Qdrant");
+    const headers: Record<string, string> = {};
+    const apiKey = process.env.QDRANT_API_KEY?.trim();
+    if (apiKey) headers["api-key"] = apiKey;
+    const base = url.replace(/\/$/, "");
+    const res = await withTimeout(fetch(base + "/healthz", { headers, signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) }), "Qdrant");
     const latencyMs = Date.now() - start;
-    if (!res.ok) return { status: "down", latencyMs, error: `HTTP ${res.status}` };
-    return { status: "up", latencyMs, detail: url };
+    if (!res.ok) return { status: "down", latencyMs, error: "HTTP " + res.status };
+    return { status: "up", latencyMs, detail: new URL(url).hostname };
   } catch (err) {
-    return { status: "down", detail: url, error: (err as Error).message };
+    return { status: "down", detail: new URL(url).hostname, error: (err as Error).message };
   }
 }
 
 async function checkRabbitMq(): Promise<CheckResult> {
-  // RABBITMQ_URL (amqp://user:pass@host:5672/%2F) → management API at host:15672.
   const raw = (process.env.RABBITMQ_URL ?? "").trim();
   if (!raw) return { status: "not_configured", detail: "RABBITMQ_URL not set" };
-
   try {
-    const u = new URL(raw);
-    const host = u.hostname;
-    const user = decodeURIComponent(u.username || process.env.RABBITMQ_DEFAULT_USER || "guest");
-    const pass = decodeURIComponent(u.password || process.env.RABBITMQ_DEFAULT_PASS || "guest");
-    const mgmtPort = parseInt(process.env.RABBITMQ_MANAGEMENT_PORT ?? "15672", 10);
-
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "amqp:" && parsed.protocol !== "amqps:") throw new Error("RABBITMQ_URL must use amqp:// or amqps://");
+    const { connect } = await import("amqplib");
     const start = Date.now();
-    const res = await withTimeout(
-      fetch(`http://${host}:${mgmtPort}/api/overview`, {
-        headers: { Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}` },
-        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-      }),
-      "RabbitMQ",
-    );
-    const latencyMs = Date.now() - start;
-    if (!res.ok) return { status: "down", latencyMs, detail: `${host}:${mgmtPort}`, error: `HTTP ${res.status}` };
-
-    const data = (await res.json()) as { rabbitmq_version?: string; node?: string };
-    return {
-      status: "up",
-      latencyMs,
-      detail: `${host}:${mgmtPort} · v${data.rabbitmq_version ?? "?"}`,
-    };
+    const connection = await withTimeout(connect(raw), "RabbitMQ");
+    const channel = await withTimeout(connection.createChannel(), "RabbitMQ channel");
+    await channel.close();
+    await connection.close();
+    return { status: "up", latencyMs: Date.now() - start, detail: parsed.hostname + ":" + (parsed.port || (parsed.protocol === "amqps:" ? 5671 : 5672)) };
   } catch (err) {
-    return { status: "down", detail: raw.replace(/\/\/.*@/, "//***@"), error: (err as Error).message };
+    let detail = "invalid configuration";
+    try {
+      const parsed = new URL(raw);
+      detail = parsed.hostname + ":" + (parsed.port || (parsed.protocol === "amqps:" ? 5671 : 5672));
+    } catch {}
+    return { status: "down", detail, error: (err as Error).message };
   }
 }
 
