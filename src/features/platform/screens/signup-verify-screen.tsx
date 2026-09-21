@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Brain, Mail, CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
+import { apiUrl } from "@/lib/runtime";
 
 const PLAN_NAMES: Record<string, string> = {
   free: "Free", starter: "Starter", pro: "Pro",
@@ -16,14 +17,28 @@ export default function SignupVerifyScreen() {
 
   const [resent,   setResent]   = useState(false);
   const [resending, setResending] = useState(false);
+  const [resendError, setResendError] = useState("");
 
   async function handleResend() {
     setResending(true);
-    // Placeholder: real implementation would call POST /api/auth/resend-verification
-    await new Promise(r => setTimeout(r, 1200));
-    setResending(false);
-    setResent(true);
-    setTimeout(() => setResent(false), 5000);
+    setResendError("");
+    try {
+      // Real implementation — POST /api/auth/resend-verification. Always
+      // 200 (never leaks account existence); rate limited 3 / 10 min.
+      const res = await fetch(apiUrl("/api/auth/resend-verification"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not resend the email.");
+      setResent(true);
+      setTimeout(() => setResent(false), 5000);
+    } catch (err) {
+      setResendError((err as Error).message);
+    } finally {
+      setResending(false);
+    }
   }
 
   return (
@@ -82,17 +97,20 @@ export default function SignupVerifyScreen() {
         <div className="mb-6">
           {resent ? (
             <div className="flex items-center justify-center gap-2 text-sm text-emerald-600">
-              <CheckCircle2 className="w-4 h-4" /> Email resent successfully!
+              <CheckCircle2 className="w-4 h-4" /> Verification email resent!
             </div>
           ) : (
             <p className="text-muted-foreground/70 text-sm">
               Didn&apos;t receive it?{" "}
-              <button onClick={handleResend} disabled={resending}
+              <button onClick={handleResend} disabled={resending || !email}
                 className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 disabled:opacity-50">
                 {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending…</> : "Resend email"}
               </button>
               <span className="block text-xs text-muted-foreground/50 mt-1">Check your spam folder if it doesn&apos;t arrive within a minute.</span>
             </p>
+          )}
+          {resendError && (
+            <p className="text-xs text-destructive mt-2">{resendError}</p>
           )}
         </div>
 

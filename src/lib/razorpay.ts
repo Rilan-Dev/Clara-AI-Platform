@@ -28,3 +28,8 @@ export function verifyRazorpayWebhookSignature(rawBody: string, signature: strin
   if (!secret) return false;
   return createHmac("sha256", secret).update(rawBody).digest("hex") === signature;
 }
+
+/** Formats paise as an INR money string, e.g. 400000 → "₹4,000.00". */
+export function formatInr(paise: number): string {
+  return `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

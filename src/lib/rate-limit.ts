@@ -99,6 +99,7 @@ export function clear(bucketKey: string): void {
 // ── Phase 6.4 platform limits (single source of truth) ───────────────────────
 
 export const LOGIN_RATE = { limit: 5, windowMs: 15 * 60 * 1000 } as const; // 5 / 15 min / IP
+export const VERIFICATION_RESEND_RATE = { limit: 3, windowMs: 10 * 60 * 1000 } as const; // 3 / 10 min / email
 export const CHAT_RATE = { limit: 60, windowMs: 60 * 1000 } as const; // 60 / min / org
 export const UPLOAD_RATE = { limit: 10, windowMs: 60 * 1000 } as const; // 10 / min / org
 export const REALTIME_SESSION_RATE = { limit: 10, windowMs: 60 * 60 * 1000 } as const; // 10 / hour / org

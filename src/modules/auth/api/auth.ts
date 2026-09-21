@@ -163,6 +163,16 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
       await createSession(result.userRow.id, hashToken(token), sessionExpiresAt(), getIp(req), req.headers.get("user-agent") ?? undefined);
       await writeAuditLog({ userId: result.userRow.id, orgId: result.orgRow.id, action: "user.register_org", resourceType: "organisation", resourceId: result.orgRow.id, newData: { planId: resolvedPlanId }, ipAddress: getIp(req) });
 
+      // ── Email verification ────────────────────────────────────────────
+      // Fire-and-forget: a mail outage must never fail registration. The
+      // signup-verify screen tells the user to check their inbox; the link
+      // itself is a single-use, 24-hour token.
+      const { sendVerificationEmail } = await import("./email-verification");
+      sendVerificationEmail(
+        { id: result.userRow.id, email: result.userRow.email, fullName: result.userRow.full_name },
+        getIp(req),
+      ).catch(() => {});
+
       const res = NextResponse.json({
         user: { id: result.userRow.id, email: result.userRow.email, fullName: result.userRow.full_name, emailVerified: false },
         org:  { id: result.orgRow.id, name: result.orgRow.name, slug: result.orgRow.slug },
@@ -178,6 +188,10 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
     const expires = sessionExpiresAt();
     await createSession(user.id, hashToken(token), expires, getIp(req), req.headers.get("user-agent") ?? undefined);
     await writeAuditLog({ userId: user.id, action: "user.register", resourceType: "user", resourceId: user.id, ipAddress: getIp(req) });
+
+    // ── Email verification (fire-and-forget, same as org signup) ─────────
+    const { sendVerificationEmail } = await import("./email-verification");
+    sendVerificationEmail(user, getIp(req)).catch(() => {});
 
     const res = NextResponse.json({ user, token }, { status: 201 });
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
@@ -282,7 +296,9 @@ export async function loginHandler(req: NextRequest): Promise<NextResponse> {
     delete user.passwordHash;
     delete (user as Record<string, unknown>).failedLoginAttempts;
     delete (user as Record<string, unknown>).lockedUntil;
-    const res = NextResponse.json({ user, token });
+    // Explicit flag so clients can surface a "verify your email" banner
+    // without depending on the full user-shape spread above.
+    const res = NextResponse.json({ user, token, emailVerified: userWithHash.emailVerified });
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
     return res;
   } catch (err) {

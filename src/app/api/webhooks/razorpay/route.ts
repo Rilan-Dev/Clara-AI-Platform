@@ -4,9 +4,9 @@
  * Razorpay webhook endpoint.
  *
  * Events handled:
- *   payment.captured       → activate subscription
- *   payment.failed         → mark past_due
- *   subscription.charged   → log renewal
+ *   payment.captured       → activate subscription + owner receipt email
+ *   payment.failed         → mark past_due + owner payment_failed email
+ *   subscription.charged   → log renewal + owner receipt email
  *   subscription.cancelled → mark canceled
  *   subscription.halted    → mark past_due
  *
@@ -22,7 +22,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, queryOne } from "@/lib/db";
-import { verifyRazorpayWebhookSignature, PLAN_AMOUNTS_INR_PAISE } from "@/lib/razorpay";
+import { verifyRazorpayWebhookSignature, PLAN_AMOUNTS_INR_PAISE, formatInr } from "@/lib/razorpay";
+import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 
 export const config = { api: { bodyParser: false } };
 
@@ -51,7 +52,66 @@ type RzpWebhookPayload = {
   };
 };
 
-// ── Route handler ─────────────────────────────────────────────────────────────
+// ── Org owner notification helpers ─────────────────────────────────────────
+
+async function orgInfoFor(orgId: string, planId: string): Promise<{ orgName: string; planName: string } | null> {
+  const row = await queryOne<{ org_name: string; plan_name: string }>(
+    `SELECT o.name AS org_name, sp.name AS plan_name
+       FROM organisations o
+       JOIN subscription_plans sp ON sp.id = $2
+      WHERE o.id = $1`,
+    [orgId, planId]
+  );
+  return row ? { orgName: row.org_name, planName: row.plan_name } : null;
+}
+
+/** Payment receipt (payment_success) — first purchase and renewals. */
+async function notifyPaymentSuccess(
+  orgId: string, planId: string, amountPaise: number, paymentId: string
+): Promise<void> {
+  try {
+    const info = await orgInfoFor(orgId, planId);
+    if (!info) return;
+    const ownerEmail = await getOrgOwnerEmail(orgId);
+    if (!ownerEmail) return;
+    await queueNotification({
+      orgId,
+      orgName: info.orgName,
+      recipientEmail: ownerEmail,
+      type: "payment_success",
+      data: {
+        orgName: info.orgName,
+        planName: info.planName,
+        amount: formatInr(amountPaise),
+        paymentId,
+        receiptUrl: "/dashboard",
+      },
+    });
+  } catch (mailErr) {
+    console.error("[razorpay-webhook] payment_success notification failed:", (mailErr as Error).message);
+  }
+}
+
+/** Payment failure alert (payment_failed) — parity with the Stripe webhook. */
+async function notifyPaymentFailed(orgId: string, planId: string): Promise<void> {
+  try {
+    const info = await orgInfoFor(orgId, planId);
+    if (!info) return;
+    const ownerEmail = await getOrgOwnerEmail(orgId);
+    if (!ownerEmail) return;
+    await queueNotification({
+      orgId,
+      orgName: info.orgName,
+      recipientEmail: ownerEmail,
+      type: "payment_failed",
+      data: { orgName: info.orgName, planName: info.planName },
+    });
+  } catch (mailErr) {
+    console.error("[razorpay-webhook] payment_failed notification failed:", (mailErr as Error).message);
+  }
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   await ensureMigrated();
@@ -124,6 +184,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             JSON.stringify({ orderId: payment.order_id }),
           ]
         );
+
+        // Owner receipt email. The client-side /verify endpoint races this
+        // webhook for the same payment; whichever records billing_events
+        // first sends the email, the other side's idempotency check skips
+        // it — one receipt per payment, never two.
+        await notifyPaymentSuccess(orgId, planId, payment.amount, payment.id);
         break;
       }
 
@@ -153,6 +219,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             JSON.stringify({ orderId: payment.order_id }),
           ]
         );
+
+        // Notify the org owner via the editable payment_failed template —
+        // previously only the Stripe webhook emailed failures; Razorpay
+        // orgs silently went past_due.
+        if (planId) {
+          await notifyPaymentFailed(orgId, planId);
+        }
         break;
       }
 
@@ -186,6 +259,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             JSON.stringify({ subscriptionId: sub.id }),
           ]
         );
+
+        // Renewal receipt for the org owner.
+        if (planId) {
+          await notifyPaymentSuccess(
+            orgId, planId, PLAN_AMOUNTS_INR_PAISE[planId] ?? 0, sub.id
+          );
+        }
         break;
       }
 
