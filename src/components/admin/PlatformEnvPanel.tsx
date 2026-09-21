@@ -121,6 +121,14 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     label: "Default voice ID",
     hint: "Platform-fallback voice, e.g. JBFqnCBsd6RMkjVDRZzb. Organisations pick their own voices in their AI settings.",
   },
+  ELEVENLABS_SPEECH_ENGINE_ENABLED: {
+    label: "Enable Speech Engine",
+    hint: "Use ElevenLabs Speech Engine for realtime voice. ElevenLabs handles STT, turn-taking and TTS while Clara supplies the LLM/RAG response stream.",
+  },
+  ELEVENLABS_SPEECH_ENGINE_ID: {
+    label: "Speech Engine ID",
+    hint: "ElevenLabs Speech Engine resource ID (seng_...). The resource must point to the Clara Speech Engine WebSocket endpoint.",
+  },
   ELEVENLABS_TOOL_HMAC_SECRET: {
     label: "Mode-B tool secret",
     hint: "HMAC secret for the signed RAG server-tool callback. Required before any Mode-B agent can be created. Generate with: openssl rand -hex 32",
