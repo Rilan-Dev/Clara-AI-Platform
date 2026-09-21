@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/agent-session.ts
  * ─────────────────────────────────────────────────────────────────────────────
