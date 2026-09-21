@@ -92,13 +92,13 @@ async function stageProviderRegistry(platformEnv) {
     { id: "openai", envKey: "OPENAI_API_KEY", enabledEnv: null },
     { id: "gemini", envKey: "GEMINI_API_KEY", enabledEnv: null },
     { id: "sarvam", envKey: "SARVAM_API_KEY", enabledEnv: "SARVAM_ENABLED" },
-    { id: "elevenlabs", envKey: "ELEVENLABS_API_KEY", enabledEnv: "ELEVENLABS_ENABLED" },
+    { id: "elevenlabs", envKey: "ELEVENLABS_API_KEY", enabledEnv: null },
   ];
   const results = [];
   for (const p of providers) {
     const secret = (platformEnv[p.envKey] ?? envVars[p.envKey] ?? process.env[p.envKey] ?? "").trim();
-    const killSwitchOn = p.enabledEnv ? (platformEnv[p.enabledEnv] ?? envVars[p.enabledEnv] ?? "false").toLowerCase() === "true" : true;
-    const configured = Boolean(secret) && killSwitchOn;
+    const killSwitchOn = true;
+    const configured = Boolean(secret);
 
     const masked = secret ? `••••••••${secret.slice(-3)}` : null;
     const current = await client.query(
