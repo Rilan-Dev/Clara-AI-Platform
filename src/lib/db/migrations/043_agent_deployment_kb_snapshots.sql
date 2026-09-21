@@ -11,7 +11,3 @@ CREATE TABLE IF NOT EXISTS agent_deployment_kb_snapshots (
 
 CREATE INDEX IF NOT EXISTS agent_deployment_kb_snapshots_lookup_idx
   ON agent_deployment_kb_snapshots (agent_id, kb_id, created_at DESC);
-
-ALTER TABLE agent_deployment_kb_snapshots
-  ADD CONSTRAINT agent_deployment_kb_snapshots_deployment_agent_fk
-  FOREIGN KEY (deployment_id) REFERENCES agent_deployments(id) ON DELETE CASCADE;
