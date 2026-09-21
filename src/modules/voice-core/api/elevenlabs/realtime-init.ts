@@ -51,7 +51,7 @@ export async function postElevenLabsRealtimeInit(request: NextRequest): Promise<
       return NextResponse.json({ error: "kbId is required." }, { status: 400 });
     }
 
-    if (!isElevenLabsRealtimeEnabled()) {
+    if (!(await isElevenLabsRealtimeEnabled())) {
       return NextResponse.json(
         { error: "ElevenLabs realtime is not enabled on this platform." },
         { status: 503 },
