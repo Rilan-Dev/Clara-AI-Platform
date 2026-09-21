@@ -70,9 +70,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const voiceDenied = requireVoiceAccess(ctx, corsHeaders);
     if (voiceDenied) return voiceDenied;
 
-    const [kb, config] = await Promise.all([
+    const [kb, config, documentTitles] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
       getAssistantConfigByKb(ctx.kbId),
+      getKnowledgeBaseDocumentTitles(ctx.kbId),
     ]);
     if (!kb || !config) {
       return NextResponse.json(
@@ -83,6 +84,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const effectiveConfig = resolved.assistantConfig ?? config;
+    const requestedLanguage =
+      typeof (await req.clone().json().catch(() => ({}))).language === "string"
+        ? String((await req.clone().json().catch(() => ({}))).language).trim().toLowerCase()
+        : null;
+    const requestedLanguageAllowed =
+      requestedLanguage && resolved.allowedLanguages.includes(requestedLanguage)
+        ? requestedLanguage
+        : null;
+    const effectiveResponseLanguage =
+      effectiveConfig.alwaysRespondIn?.trim().toLowerCase() ??
+      requestedLanguageAllowed ??
+      resolved.defaultLanguage;
+
 
     // ── Voice-axis routing ──────────────────────────────────────────────────
     // The embed voice surfaces are realtime-purpose surfaces; when the
@@ -255,6 +269,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         kbName: kb.name,
         surface: "realtime",
         allowedLanguages: resolved.allowedLanguages,
+        responseLanguage: effectiveResponseLanguage,
+        documentCount: documentTitles.length,
+        documentTitles,
       });
 
       const turnDetection = {
@@ -268,7 +285,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       const transcription = {
         model: oa.transcriptionModel,
-        language: defaultLanguage ?? undefined,
+        language: requestedLanguageAllowed ?? effectiveResponseLanguage ?? undefined,
       };
 
       const realtimeSession = buildOpenAIRealtimeSession({
