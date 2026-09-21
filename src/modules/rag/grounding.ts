@@ -50,6 +50,35 @@ import type { QuerySurface } from "@/modules/knowledge-bases/core/analytics-db";
 const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K = 6;
 const MAX_TOP_K = 20;
+const GROUNDING_RESOLUTION_CACHE_TTL_MS = 5_000;
+
+type CachedEmbeddingResolution = {
+  expiresAt: number;
+  value: Awaited<ReturnType<typeof resolveAIConfig>>;
+};
+
+const groundingResolutionCache = new Map<string, CachedEmbeddingResolution>();
+
+async function resolveGroundingAIConfig(kbId: string) {
+  const key = `rag-embedding:${kbId}`;
+  const cached = groundingResolutionCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const value = await resolveAIConfig({ kbId, surface: "rag-embedding" });
+  groundingResolutionCache.set(key, {
+    expiresAt: Date.now() + GROUNDING_RESOLUTION_CACHE_TTL_MS,
+    value,
+  });
+
+  if (groundingResolutionCache.size > 512) {
+    const now = Date.now();
+    for (const [cacheKey, entry] of groundingResolutionCache) {
+      if (entry.expiresAt <= now) groundingResolutionCache.delete(cacheKey);
+    }
+  }
+
+  return value;
+}
 
 export type GroundingRagMode = "classic" | "hybrid" | "agentic";
 
@@ -118,6 +147,10 @@ export interface KnowledgeBinding {
 export interface GroundedContext {
   /** Assembled grounded context string ([S1]…/[G1]… blocks). */
   context: string;
+  /** True only when retrieval produced sufficiently relevant evidence. */
+  grounded: boolean;
+  /** Provider-neutral response for out-of-scope questions. */
+  outOfScopeReply: string;
   sources: GroundedSource[];
   graphSources: GraphSource[];
   mode: string;
@@ -269,7 +302,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Embedding config: resolved from KB AI policy; the override only pins
   // the embedding transport (public demo), never the knowledge.
-  const resolved = await resolveAIConfig({ kbId: kb.id, surface: "rag-embedding" });
+  const resolved = await resolveGroundingAIConfig(kb.id);
   const providerConfig =
     request.embeddingOverride ?? toProviderConfig(resolved!, "embedding");
 
@@ -414,7 +447,11 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       outOfScopeReply:
         resolved.assistantConfig?.outOfScopeReply ??
         "I can only answer questions about the topics I have been set up for.",
-      kb: { id: kb.id, name: kb.name, collection: kb.qdrantCollection },
+      kb: {
+        id: kb.id,
+        name: kb.name,
+        collection: resolved.knowledgeCollection ?? kb.qdrantCollection,
+      },
       binding: {
         tenantId: orgId,
         agentId,
