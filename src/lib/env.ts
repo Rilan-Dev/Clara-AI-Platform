@@ -20,7 +20,7 @@ type Env = {
 
   // AI
   AI_PROVIDER: "openai" | "gemini" | "sarvam";
-  OPENAI_API_KEY: string;
+  OPENAI_API_KEY: string | undefined;
   GEMINI_API_KEY: string | undefined;
   SARVAM_API_KEY: string | undefined;
 
@@ -41,9 +41,6 @@ const REQUIRED: Array<keyof Env> = [
   "DATABASE_URL",
   "QDRANT_URL",
   "AUTH_SECRET",
-  // OpenAI is the platform bootstrap provider and is mandatory even when
-  // another provider is selected at runtime by the platform admin.
-  "OPENAI_API_KEY",
 ];
 
 // Phase 6.2: AUTH_SECRET must be a real secret (min 32 chars), not the
@@ -109,7 +106,7 @@ function loadEnv(): Env {
     QDRANT_URL:              process.env.QDRANT_URL ?? "http://localhost:6333",
     QDRANT_API_KEY:          process.env.QDRANT_API_KEY,
     AI_PROVIDER:             provider,
-    OPENAI_API_KEY:          process.env.OPENAI_API_KEY!,
+    OPENAI_API_KEY:          process.env.OPENAI_API_KEY,
     GEMINI_API_KEY:          process.env.GEMINI_API_KEY,
     SARVAM_API_KEY:          process.env.SARVAM_API_KEY,
     AUTH_SECRET:             process.env.AUTH_SECRET ?? "change-me-in-production",
