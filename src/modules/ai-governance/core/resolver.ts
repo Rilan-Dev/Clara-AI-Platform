@@ -20,6 +20,7 @@
  * via validateAgentAISelection) so UI and runtime can never disagree.
  */
 
+import { query } from "@/lib/db";
 import { getPlatformAIRegistry } from "./registry-db";
 import { resolvePlanAIEntitlements } from "./entitlements-db";
 import { listProviderModels } from "./registry-db";
@@ -169,7 +170,43 @@ export async function resolveAvailableAIOptions(
     const voiceKinds: ResolvedAIModelOption["kind"][] = capability === "chat" ? [] : ["voice"];
 
     const modelOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, modelKinds);
-    const voiceOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, voiceKinds);
+    let voiceOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, voiceKinds);
+
+    // ElevenLabs voices are vendor-owned and tenant-scoped, so they cannot be
+    // represented as a static platform model row. Merge the organisation's
+    // synced ElevenLabs voice catalog into both speech capability pickers.
+    if (provider.providerId === "elevenlabs" && input.organizationId != null && capability !== "chat") {
+      const elevenVoices = await query<{
+        voice_id: string;
+        name: string;
+        enabled: boolean;
+      }>(
+        `SELECT voice_id, name, enabled
+           FROM elevenlabs_voices
+          WHERE org_id = $1
+            AND enabled = TRUE
+        UNION
+        SELECT voice_id, name, enabled
+          FROM organisation_voices
+         WHERE org_id = $1
+           AND provider = 'elevenlabs'
+           AND enabled = TRUE
+         ORDER BY name`,
+        [input.organizationId],
+      );
+      const seenVoiceIds = new Set(voiceOptions.map((voice) => voice.modelId));
+      voiceOptions = [
+        ...voiceOptions,
+        ...elevenVoices
+          .filter((voice) => !seenVoiceIds.has(voice.voice_id))
+          .map((voice) => ({
+            modelId: voice.voice_id,
+            displayName: voice.name,
+            kind: "voice" as const,
+            isDefault: false,
+          })),
+      ];
+    }
 
     available.push({
       providerId: provider.providerId,

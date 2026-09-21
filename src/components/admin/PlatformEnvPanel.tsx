@@ -121,6 +121,14 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     label: "Default voice ID",
     hint: "Platform-fallback voice, e.g. JBFqnCBsd6RMkjVDRZzb. Organisations pick their own voices in their AI settings.",
   },
+  ELEVENLABS_SPEECH_ENGINE_ENABLED: {
+    label: "Enable Speech Engine",
+    hint: "Use ElevenLabs Speech Engine for realtime voice. ElevenLabs handles STT, turn-taking and TTS while Clara supplies the LLM/RAG response stream.",
+  },
+  ELEVENLABS_SPEECH_ENGINE_ID: {
+    label: "Speech Engine ID",
+    hint: "ElevenLabs Speech Engine resource ID (seng_...). The resource must point to the Clara Speech Engine WebSocket endpoint.",
+  },
   ELEVENLABS_TOOL_HMAC_SECRET: {
     label: "Mode-B tool secret",
     hint: "HMAC secret for the signed RAG server-tool callback. Required before any Mode-B agent can be created. Generate with: openssl rand -hex 32",
@@ -328,7 +336,7 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
   // surfaces is the "duplicated provider information" anti-pattern the
   // migration removes.
   ai: [
-    "ELEVENLABS_ENABLED",
+    "ELEVENLABS_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
     "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
     "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
     "SARVAM_ENABLED", "SARVAM_TIMEOUT_MS",
@@ -1008,6 +1016,21 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             <h4 className="text-sm font-semibold text-foreground">ElevenLabs settings</h4>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
+            <FeatureToggle
+              icon={<Waves />}
+              label={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ENABLED.label}
+              description={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ENABLED.hint}
+              checked={display("ELEVENLABS_SPEECH_ENGINE_ENABLED") === "true"}
+              onChange={(checked) => boolToggle("ELEVENLABS_SPEECH_ENGINE_ENABLED", checked)}
+            />
+            <TextField
+              label={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ID.label}
+              hint={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ID.hint}
+              value={display("ELEVENLABS_SPEECH_ENGINE_ID")}
+              onChange={(value) => setDraftValue("ELEVENLABS_SPEECH_ENGINE_ID", value)}
+              placeholder="seng_..."
+              mono
+            />
             <ModelSelect
               label="Default TTS model (speaking)"
               hint="Flash = lowest latency."

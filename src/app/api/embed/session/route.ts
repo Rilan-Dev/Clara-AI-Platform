@@ -7,12 +7,11 @@
  * project -> organisation -> platform configuration chain.
  *
  * Provider routing follows the VOICE axis (resolveVoiceConfig), not just the
- * brain axis: an organisation whose voice provider is ElevenLabs gets the
- * Mode A pipeline descriptors (STT/TTS/chat endpoints) here — the same
- * pipeline the in-app floating assistant uses — so embedded demos consume
- * the SAME provider the platform admin configured instead of silently
- * falling through to OpenAI Realtime. Mode B (Agents) is never minted for
- * embed keys by design (data-flow gates); embeds run Mode A.
+ * brain axis. ElevenLabs embeds use the dedicated Speech Engine transport
+ * when its platform gate is enabled: browser WebRTC → ElevenLabs → Clara
+ * Speech Engine WSS → Clara LLM/RAG → streamed text → ElevenLabs TTS. The
+ * existing batch STT/TTS pipeline remains the explicit fallback when Speech
+ * Engine is not configured.
  */
 import { NextRequest, NextResponse } from "next/server";
 import {

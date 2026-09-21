@@ -23,7 +23,7 @@ export async function listOrganisationVoices(orgId: string): Promise<AgentVoice[
   );
   return rows.map((row) => ({
     id: String(row.id), orgId: String(row.org_id),
-    provider: row.provider === "gemini" ? "gemini" : "openai",
+    provider: row.provider === "gemini" ? "gemini" : row.provider === "elevenlabs" ? "elevenlabs" : "openai",
     voiceId: String(row.voice_id), name: String(row.name), enabled: Boolean(row.enabled),
     metadata: row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : {},
   }));
@@ -53,7 +53,7 @@ export async function upsertOrganisationLanguage(
 
 export async function upsertOrganisationVoice(
   orgId: string,
-  input: { provider: AIProvider; voiceId: string; name: string; enabled?: boolean; metadata?: Record<string, unknown> },
+  input: { provider: AIProvider | "elevenlabs"; voiceId: string; name: string; enabled?: boolean; metadata?: Record<string, unknown> },
 ): Promise<AgentVoice> {
   const voiceId = input.voiceId.trim();
   const name = input.name.trim();
