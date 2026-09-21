@@ -42,8 +42,10 @@ function toClaraMessages(transcript) {
     .filter((item) => item.content.trim());
 }
 
-async function* readClaraStream(response, signal) {
+async function* readClaraStream(response, signal, telemetry = {}) {
   const reader = response.body.getReader();
+  const startedAt = Number(telemetry.startedAt ?? Date.now());
+  let firstTokenLogged = false;
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -62,6 +64,13 @@ async function* readClaraStream(response, signal) {
         try {
           const event = JSON.parse(line);
           if (event.type === "token" && typeof event.payload === "string" && event.payload) {
+            if (!firstTokenLogged) {
+              firstTokenLogged = true;
+              console.info("[elevenlabs-speech-engine] clara.first_token", {
+                conversationId: telemetry.conversationId,
+                ms: Date.now() - startedAt,
+              });
+            }
             yield event.payload;
           }
         } catch {
@@ -74,6 +83,13 @@ async function* readClaraStream(response, signal) {
       try {
         const event = JSON.parse(buffer);
         if (event.type === "token" && typeof event.payload === "string" && event.payload) {
+          if (!firstTokenLogged) {
+            firstTokenLogged = true;
+            console.info("[elevenlabs-speech-engine] clara.first_token", {
+              conversationId: telemetry.conversationId,
+              ms: Date.now() - startedAt,
+            });
+          }
           yield event.payload;
         }
       } catch {}
@@ -114,9 +130,17 @@ export async function attachElevenLabsSpeechEngine(httpServer) {
       const lastUser = [...messages].reverse().find((message) => message.role === "user");
       if (!lastUser) return;
 
+      const turnStartedAt = Date.now();
+      console.info("[elevenlabs-speech-engine] turn.start", {
+        conversationId: session.conversationId,
+        transcriptMessages: messages.length,
+        userChars: lastUser.content.length,
+      });
+
       const endpoint = context.surface === "embed" ? "/api/embed/chat" : "/api/chat";
       const baseUrl = context.baseUrl.replace(/\/$/, "");
 
+      const chatStartedAt = Date.now();
       const response = await fetch(baseUrl + endpoint, {
         method: "POST",
         headers: {
@@ -139,7 +163,21 @@ export async function attachElevenLabsSpeechEngine(httpServer) {
         throw new Error(errorText || `Clara chat failed: HTTP ${response.status}`);
       }
 
-      await session.sendResponse(readClaraStream(response, signal));
+      console.info("[elevenlabs-speech-engine] clara.response_headers", {
+        conversationId: session.conversationId,
+        ms: Date.now() - chatStartedAt,
+        status: response.status,
+      });
+
+      await session.sendResponse(readClaraStream(response, signal, {
+        conversationId: session.conversationId,
+        startedAt: turnStartedAt,
+      }));
+
+      console.info("[elevenlabs-speech-engine] turn.complete", {
+        conversationId: session.conversationId,
+        totalMs: Date.now() - turnStartedAt,
+      });
     },
     onClose(session) {
       console.info("[elevenlabs-speech-engine] closed", { conversationId: session.conversationId });
