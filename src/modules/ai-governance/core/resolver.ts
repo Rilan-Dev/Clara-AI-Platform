@@ -185,7 +185,13 @@ export async function resolveAvailableAIOptions(
            FROM elevenlabs_voices
           WHERE org_id = $1
             AND enabled = TRUE
-          ORDER BY name`,
+        UNION
+        SELECT voice_id, name, enabled
+          FROM organisation_voices
+         WHERE org_id = $1
+           AND provider = 'elevenlabs'
+           AND enabled = TRUE
+         ORDER BY name`,
         [input.organizationId],
       );
       const seenVoiceIds = new Set(voiceOptions.map((voice) => voice.modelId));
