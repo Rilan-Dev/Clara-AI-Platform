@@ -40,3 +40,13 @@ SET is_default = (model_id = 'eleven_flash_v2_5')
 WHERE provider_id = 'elevenlabs'
   AND capability = 'realtime_voice'
   AND kind = 'tts';
+
+
+-- Platform settings for the Speech Engine runtime.
+INSERT INTO platform_env_settings (key, value, description, category, is_secret, requires_restart)
+VALUES
+  ('ELEVENLABS_SPEECH_ENGINE_ENABLED', 'false',
+   'Enable ElevenLabs Speech Engine realtime voice transport', 'ai', FALSE, TRUE),
+  ('ELEVENLABS_SPEECH_ENGINE_ID', '',
+   'ElevenLabs Speech Engine resource id (seng_...)', 'ai', FALSE, TRUE)
+ON CONFLICT (key) DO NOTHING;
