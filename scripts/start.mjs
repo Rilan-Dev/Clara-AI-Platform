@@ -60,9 +60,17 @@ http.createServer = (...args) => {
       } catch { socket.destroy(); }
     });
 
-  void attachElevenLabsSpeechEngine(server).catch((error) => {
-    console.error("[elevenlabs-speech-engine] failed to attach:", error?.message ?? error);
-  });
+  let speechEngineAttached = false;
+
+  const attachSpeechEngine = async () => {
+    if (speechEngineAttached) return;
+    try {
+      const attachment = await attachElevenLabsSpeechEngine(server);
+      speechEngineAttached = Boolean(attachment);
+    } catch (error) {
+      console.error("[elevenlabs-speech-engine] failed to attach:", error?.message ?? error);
+    }
+  };
 
   server.once("listening", () => {
     const addr = server.address();
@@ -76,6 +84,33 @@ http.createServer = (...args) => {
     console.log("[clara-relay]    /api/voice/elevenlabs/tts-realtime — ElevenLabs streaming TTS relay");
     console.log("[clara-relay]    /api/voice/elevenlabs/speech-engine — ElevenLabs Speech Engine upstream WSS");
     console.log("[clara-relay]    /api/voice/gemini/realtime — Gemini Live passthrough relay");
+
+    // Platform Settings are persisted in Postgres and mirrored into
+    // process.env by /api/internal/init. Attach Speech Engine only after the
+    // HTTP server is listening so the init route can run first when the
+    // runtime credentials are DB-managed.
+    void (async () => {
+      if (!process.env.ELEVENLABS_SPEECH_ENGINE_ID || !process.env.ELEVENLABS_API_KEY) {
+        const secret = process.env.LOCAL_INIT_SECRET;
+        if (secret) {
+          try {
+            const response = await fetch(
+              `http://127.0.0.1:${port ?? 3000}/api/internal/init`,
+              {
+                method: "POST",
+                headers: { "x-clara-init-secret": secret },
+              },
+            );
+            if (!response.ok) {
+              console.warn("[startup] internal init returned", response.status);
+            }
+          } catch (error) {
+            console.warn("[startup] internal init failed:", error?.message ?? error);
+          }
+        }
+      }
+      await attachSpeechEngine();
+    })();
   });
 
   wss.on("connection", (ws, req) => handleVoiceConnection(ws, req));
