@@ -31,10 +31,8 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
     const auth = await requireAuth(request);
     await requireSuperAdmin(auth);
 
-    const enabled = isElevenLabsEnabled();
+    const enabled = await isElevenLabsEnabled();
 
-    // Kill-switch states are always reported so the admin panel can render
-    // the full control surface even before a key is configured.
     const speechEngineId = process.env.ELEVENLABS_SPEECH_ENGINE_ID?.trim() || null;
     const speechEngineEnabled = (process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED ?? "false").toLowerCase() === "true";
     let speechEngine: {
@@ -98,7 +96,7 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
     if (!enabled) {
       return NextResponse.json({
         connected: false,
-        reason: "ELEVENLABS_ENABLED is off or ELEVENLABS_API_KEY is not configured.",
+        reason: "ElevenLabs is disabled in Platform AI Settings or its API key is not configured.",
         ...flags,
       });
     }
