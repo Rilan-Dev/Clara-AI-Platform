@@ -36,6 +36,15 @@
         }
       ],
       "maxDuration": 300
+    },
+    "src/app/api/queue/retry/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "clara-retry"
+        }
+      ],
+      "maxDuration": 300
     }
   },
   "rewrites": [
