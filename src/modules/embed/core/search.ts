@@ -52,12 +52,9 @@ export async function searchKbEmbedded(
   try {
     results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
 
-    // Fallback: if nothing passes threshold, retry without it
-    if (!Array.isArray(results) || results.length === 0) {
-      const fallback: Record<string, unknown> = { ...searchParams };
-      delete fallback.score_threshold;
-      results = await client.search(collectionName, fallback as Parameters<typeof client.search>[1]);
-    }
+    // Zero results means there is no sufficiently relevant KB evidence.
+    // Do not retry without the threshold; weak matches must not become
+    // grounding context for an out-of-scope question.
   } catch (err) {
     console.warn(`[searchKbEmbedded] Failed to search collection '${collectionName}':`, (err as Error).message);
     // If the collection doesn't exist (e.g. unseeded demo), just return no results
