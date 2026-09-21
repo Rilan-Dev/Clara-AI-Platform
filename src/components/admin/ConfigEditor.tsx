@@ -38,7 +38,7 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newRule, setNewRule] = useState("");
-  const [activeTab, setActiveTab] = useState<"identity" | "behaviour" | "language" | "voice" | "preview">("identity");
+  const [activeTab, setActiveTab] = useState<"agent" | "behaviour" | "voice" | "preview">("agent");
   const [voiceCatalog, setVoiceCatalog] = useState<OpenAICatalog | null>(null);
   const [voiceCatalogLoading, setVoiceCatalogLoading] = useState(false);
   const [voiceCatalogError, setVoiceCatalogError] = useState<string | null>(null);
@@ -143,17 +143,16 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
   }, [cfg, onSave]);
 
   const TABS = [
-    { id: "identity", label: "Identity" },
+    { id: "agent", label: "Agent" },
     { id: "behaviour", label: "Behaviour" },
-    { id: "language", label: "Language" },
     { id: "voice", label: "Voice" },
     { id: "preview", label: "Preview" },
   ] as const;
 
   return (
     <div className="space-y-6">
-      {/* Responsive tab grid — wraps to 3+2 rows on narrow screens so the
-          last tab is never clipped (same posture as WorkspaceTabs). */}
+      {/* Compact section switcher — the primary Agent section keeps the
+          ElevenLabs-style first message, system prompt and language controls together. */}
       <div className="grid auto-rows-fr grid-cols-3 gap-1 rounded-lg border border-border bg-muted/50 p-1 sm:grid-cols-5">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex min-w-0 items-center justify-center rounded-md px-2 py-1.5 text-center text-xs font-medium leading-tight transition-all sm:px-3 sm:text-sm ${activeTab === t.id ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
@@ -162,16 +161,142 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
         ))}
       </div>
 
-      {activeTab === "identity" && (
+      {activeTab === "agent" && (
         <div className="space-y-5">
-          <Field label="Assistant Name"><Input value={cfg.assistantName} onChange={(e) => set("assistantName", e.target.value)} placeholder="Clara" maxLength={50} /></Field>
-          <Field label="System Prompt" hint="The core instructions the assistant follows on every turn."><Textarea value={cfg.systemPrompt} onChange={(e) => set("systemPrompt", e.target.value)} rows={5} placeholder="You are a helpful assistant…" /></Field>
-          <Field label="Welcome Message" hint="Shown when the chat first opens."><Input value={cfg.welcomeMessage} onChange={(e) => set("welcomeMessage", e.target.value)} placeholder="Hello! How can I help you today?" /></Field>
-          <Field label="Out-of-Scope Reply" hint="Returned when strict mode rejects a question."><Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." /></Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Primary Colour"><div className="flex items-center gap-3"><input type="color" value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-border p-0.5" /><Input value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="font-mono text-sm" maxLength={7} /></div></Field>
-            <Field label="Accent Colour"><div className="flex items-center gap-3"><input type="color" value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-border p-0.5" /><Input value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="font-mono text-sm" maxLength={7} /></div></Field>
-          </div>
+          <section className="rounded-2xl border border-border bg-card shadow-sm">
+            <div className="border-b border-border px-5 py-4">
+              <p className="text-sm font-semibold text-foreground">Agent</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Configure the agent&apos;s identity, first message, system prompt and language support.
+              </p>
+            </div>
+
+            <div className="space-y-6 p-5">
+              <Field label="Agent name" hint="The name shown for this assistant.">
+                <Input value={cfg.assistantName} onChange={(e) => set("assistantName", e.target.value)} placeholder="Clara" maxLength={50} />
+              </Field>
+
+              <Field
+                label="First message"
+                hint="The first message the assistant speaks when a conversation starts."
+              >
+                <Textarea
+                  value={cfg.welcomeMessage}
+                  onChange={(e) => set("welcomeMessage", e.target.value)}
+                  rows={3}
+                  placeholder="Hi, this is Clara. How can I help you today?"
+                />
+              </Field>
+
+              <Field
+                label="System prompt"
+                hint="The core instructions that guide the agent&apos;s behaviour, tasks and personality."
+              >
+                <Textarea
+                  value={cfg.systemPrompt}
+                  onChange={(e) => set("systemPrompt", e.target.value)}
+                  rows={12}
+                  placeholder="You are a helpful assistant…"
+                  className="font-mono text-[13px] leading-6"
+                />
+              </Field>
+
+              <div className="grid gap-5 border-t border-border pt-5 lg:grid-cols-2">
+                <Field
+                  label="Default language"
+                  hint="The language the agent uses by default."
+                >
+                  <LanguageSelect
+                    value={cfg.defaultLanguage}
+                    onChange={(code) => {
+                      if (!code) return;
+                      set("defaultLanguage", code);
+                      if (!cfg.allowedLanguages.includes(code)) {
+                        set("allowedLanguages", [...cfg.allowedLanguages, code]);
+                      }
+                    }}
+                  />
+                </Field>
+
+                <Field
+                  label="Allowed languages"
+                  hint="Languages the agent can use during conversations."
+                >
+                  <LanguageMultiSelect
+                    value={cfg.allowedLanguages}
+                    onChange={(codes) => set("allowedLanguages", codes)}
+                    onBlockedMinimum={() =>
+                      toast.info("At least one language is required", {
+                        description: "The assistant always needs a language to chat in.",
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+
+              <Collapsible open={lockLanguageOpen} onOpenChange={setLockLanguageOpen}>
+                <div className="rounded-xl border border-border bg-muted/20">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
+                    <span>
+                      <span className="block text-sm font-medium text-foreground">Language behaviour</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Advanced language handling and forced output language.
+                      </span>
+                    </span>
+                    <span className={`text-xs font-medium ${cfg.alwaysRespondIn ? "text-primary" : "text-muted-foreground"}`}>
+                      {cfg.alwaysRespondIn ? "Locked" : "Auto"}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-4 pb-4">
+                    <Field
+                      label="Always respond in"
+                      hint="Auto mirrors the language used by the customer."
+                    >
+                      <LanguageSelect
+                        value={cfg.alwaysRespondIn}
+                        onChange={(code) => set("alwaysRespondIn", code)}
+                        autoLabel="Auto — mirror the customer"
+                        autoDescription="Reply in whatever language the customer writes in."
+                      />
+                    </Field>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+
+              <Collapsible>
+                <div className="rounded-xl border border-border bg-muted/20">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
+                    <span>
+                      <span className="block text-sm font-medium text-foreground">Advanced agent settings</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Out-of-scope response and widget colours. Existing settings are preserved here.
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">Advanced</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-5 px-4 pb-4">
+                    <Field label="Out-of-scope reply" hint="Returned when strict mode rejects a question.">
+                      <Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." />
+                    </Field>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="Primary colour">
+                        <div className="flex items-center gap-3">
+                          <input type="color" value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-border p-0.5" />
+                          <Input value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="font-mono text-sm" maxLength={7} />
+                        </div>
+                      </Field>
+                      <Field label="Accent colour">
+                        <div className="flex items-center gap-3">
+                          <input type="color" value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-border p-0.5" />
+                          <Input value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="font-mono text-sm" maxLength={7} />
+                        </div>
+                      </Field>
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            </div>
+          </section>
         </div>
       )}
 
@@ -186,62 +311,6 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
           <div className="grid grid-cols-2 gap-6"><SwitchField label="Strict Mode" desc="Reject off-topic questions" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} /><SwitchField label="Cite Sources" desc="Include [S1] citations in answers" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} /></div>
           <Field label="Temperature" hint={`${cfg.temperature} — controls response creativity (0 = deterministic, 1 = creative)`}><Slider min={0} max={1} step={0.05} value={[cfg.temperature]} onValueChange={([v]) => set("temperature", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Precise</span><span>Creative</span></div></Field>
           <Field label="Max Response Tokens" hint={`${cfg.maxTokens} tokens`}><Slider min={100} max={2000} step={50} value={[cfg.maxTokens]} onValueChange={([v]) => set("maxTokens", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>100</span><span>2000</span></div></Field>
-        </div>
-      )}
-
-      {activeTab === "language" && (
-        <div className="space-y-6">
-          <Field label="Primary language" hint="The language your assistant speaks by default.">
-            <LanguageSelect
-              value={cfg.defaultLanguage}
-              onChange={(code) => {
-                if (!code) return;
-                set("defaultLanguage", code);
-                // Keep the conversation set consistent: the server always
-                // guarantees the primary language is enabled, so reflect it
-                // immediately instead of surprising the user after save.
-                if (!cfg.allowedLanguages.includes(code)) {
-                  set("allowedLanguages", [...cfg.allowedLanguages, code]);
-                }
-              }}
-            />
-          </Field>
-
-          <Field label="Additional languages" hint="Customers can also chat in these. Search, or add the popular set in one click.">
-            <LanguageMultiSelect
-              value={cfg.allowedLanguages}
-              onChange={(codes) => set("allowedLanguages", codes)}
-              onBlockedMinimum={() =>
-                toast.info("At least one language is required", {
-                  description: "The assistant always needs a language to chat in.",
-                })
-              }
-            />
-          </Field>
-
-          <Collapsible open={lockLanguageOpen} onOpenChange={setLockLanguageOpen}>
-            <div className="rounded-xl border border-border bg-muted/20">
-              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
-                <span>
-                  <span className="block text-sm font-medium text-foreground">Lock output language</span>
-                  <span className="block text-xs text-muted-foreground">Advanced — force replies in one language instead of mirroring the customer.</span>
-                </span>
-                <span className={`text-xs font-medium ${cfg.alwaysRespondIn ? "text-primary" : "text-muted-foreground"}`}>
-                  {cfg.alwaysRespondIn ? "Locked" : "Auto"}
-                </span>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="px-4 pb-4">
-                <Field label="Always respond in" hint="Leave on Auto to reply in the language the customer is using.">
-                  <LanguageSelect
-                    value={cfg.alwaysRespondIn}
-                    onChange={(code) => set("alwaysRespondIn", code)}
-                    autoLabel="Auto — mirror the customer"
-                    autoDescription="Reply in whatever language the customer writes in."
-                  />
-                </Field>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
         </div>
       )}
 
