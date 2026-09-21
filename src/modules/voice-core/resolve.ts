@@ -36,6 +36,7 @@ import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db
 import { resolveAIConfig } from "@/modules/ai-core/resolve";
 import { findChatModel } from "@/modules/ai-core/model-catalog";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
+import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
