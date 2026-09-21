@@ -206,6 +206,9 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // ── Production immutable version (Stage H: new-first dual-read) ──────────
   const productionVersion = agent?.id ? await getProductionVersionConfigCached(agent.id) : null;
   const deployment = agent?.id ? await getActiveDeploymentCached(agent.id) : null;
+  const knowledgeCollection = agent?.id && input.kbId && deployment
+    ? await (await import("@/modules/agent-versioning/core/db")).getActiveDeploymentKbCollection(agent.id, input.kbId)
+    : null;
   const versionConfig: AgentVersionConfig | null = productionVersion?.configuration ?? null;
   const versionAI = versionConfig?.ai ?? null;
   const versionRuntime = versionConfig?.runtime ?? null;
@@ -557,6 +560,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     orgId,
     agentId: agent?.id ?? null,
     kbId: input.kbId ?? null,
+    knowledgeCollection,
     provider,
     embeddingProvider,
     chatModel,
