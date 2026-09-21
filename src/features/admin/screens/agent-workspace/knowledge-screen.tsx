@@ -10,12 +10,10 @@ import Link from "next/link";
 import { BookOpen, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useKbs } from "@/modules/admin-ui/hooks";
-import { AgentWorkspaceHeader, useAgentWorkspaceContext } from "@/components/admin/agent-workspace/AgentWorkspaceHeader";
 import { WorkspaceButton } from "@/components/admin/ai-platform/shared";
 
 export default function AgentKnowledgeScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
-  const { context, loading } = useAgentWorkspaceContext(agentId);
   const { kbs, loading: kbsLoading, create } = useKbs(agentId);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -42,8 +40,7 @@ export default function AgentKnowledgeScreen() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <AgentWorkspaceHeader tab="knowledge" context={context} loading={loading} />
+    <div>
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4">

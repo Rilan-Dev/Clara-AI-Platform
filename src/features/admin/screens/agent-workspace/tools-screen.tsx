@@ -16,8 +16,8 @@ import {
   type AgentAIOptionsDTO,
   type AICapability,
 } from "@/modules/admin-ui/ai-platform-api";
-import { AgentWorkspaceHeader, useAgentWorkspaceContext } from "@/components/admin/agent-workspace/AgentWorkspaceHeader";
-import { WorkspaceButton, VersionBadge } from "@/components/admin/ai-platform/shared";
+import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
+import { VersionBadge } from "@/components/admin/ai-platform/shared";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ export default function AgentToolsScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
-  const { context, loading, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
+  const { refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
 
   const [draft, setDraft] = useState<AgentDraftDTO | null>(null);
   const [options, setOptions] = useState<Partial<Record<AICapability, AgentAIOptionsDTO | null>>>({});
@@ -67,8 +67,7 @@ export default function AgentToolsScreen() {
   const realtimeOptions = options.realtime_voice;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <AgentWorkspaceHeader tab="tools" context={context} loading={loading} />
+    <div>
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-foreground">Tools</h2>

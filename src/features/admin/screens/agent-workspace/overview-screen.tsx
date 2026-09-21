@@ -8,20 +8,19 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useKbs } from "@/modules/admin-ui/hooks";
-import { AgentWorkspaceHeader, useAgentWorkspaceContext } from "@/components/admin/agent-workspace/AgentWorkspaceHeader";
+import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
 
 export default function AgentOverviewScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
-  const { context, loading, refetch } = useAgentWorkspaceContext(agentId);
+  const { context, refetch } = useAgentWorkspaceContext(agentId);
   const { kbs } = useKbs(agentId);
 
   const deployment = context?.deployment ?? null;
   const currentVersion = context?.currentVersion ?? null;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <AgentWorkspaceHeader tab="overview" context={context} loading={loading} />
+    <div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">

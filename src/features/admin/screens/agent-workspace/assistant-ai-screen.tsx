@@ -30,7 +30,7 @@ import {
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 import { ConfigEditor } from "@/components/admin/ConfigEditor";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
-import { AgentWorkspaceHeader, useAgentWorkspaceContext } from "@/components/admin/agent-workspace/AgentWorkspaceHeader";
+import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { WorkspaceButton, VersionBadge, timeAgo } from "@/components/admin/ai-platform/shared";
 
 export default function AgentAssistantAIScreen() {
@@ -148,8 +148,7 @@ export default function AgentAssistantAIScreen() {
 
   if (ctxLoading || loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8">
-        <AgentWorkspaceHeader tab="assistant" context={null} loading />
+      <div>
         <div className="space-y-3">
           <div className="h-24 animate-pulse rounded-2xl bg-muted/60" />
           <div className="h-96 animate-pulse rounded-2xl bg-muted/60" />
@@ -159,8 +158,7 @@ export default function AgentAssistantAIScreen() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <AgentWorkspaceHeader tab="assistant" context={context} loading={ctxLoading} />
+    <div>
 
       {error && (
         <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>

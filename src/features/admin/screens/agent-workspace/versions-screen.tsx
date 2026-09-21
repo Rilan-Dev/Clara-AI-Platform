@@ -28,7 +28,7 @@ import {
   type MergeReviewDTO,
   type SemanticDiffDTO,
 } from "@/modules/admin-ui/ai-platform-api";
-import { AgentWorkspaceHeader, useAgentWorkspaceContext } from "@/components/admin/agent-workspace/AgentWorkspaceHeader";
+import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import {
   ContextDrawer,
   DiffViewer,
@@ -42,7 +42,7 @@ export default function AgentVersionsScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
-  const { context, loading: ctxLoading, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
+  const { context, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
 
   const [versions, setVersions] = useState<AgentVersionDTO[]>([]);
   const [branches, setBranches] = useState<AgentBranchDTO[]>([]);
@@ -164,8 +164,7 @@ export default function AgentVersionsScreen() {
   const nextVersionNumber = versions[0]?.versionNumber ?? 0;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <AgentWorkspaceHeader tab="versions" context={context} loading={ctxLoading} />
+    <div>
 
       {error && (
         <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>

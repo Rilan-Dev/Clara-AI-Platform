@@ -28,7 +28,7 @@ import {
   type AgentVersionDTO,
   type PublishReviewDTO,
 } from "@/modules/admin-ui/ai-platform-api";
-import { AgentWorkspaceHeader, useAgentWorkspaceContext } from "@/components/admin/agent-workspace/AgentWorkspaceHeader";
+import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { ContextDrawer, DiffViewer, VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
 import { useAuth } from "@/modules/admin-ui/hooks";
 
@@ -36,7 +36,7 @@ export default function AgentPublishScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
-  const { context, loading: ctxLoading, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
+  const { context, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
 
   const [versions, setVersions] = useState<AgentVersionDTO[]>([]);
   const [deployments, setDeployments] = useState<AgentDeploymentDTO[]>([]);
@@ -161,8 +161,7 @@ export default function AgentPublishScreen() {
   }, []);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <AgentWorkspaceHeader tab="publish" context={context} loading={ctxLoading} />
+    <div>
 
       {error && (
         <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
