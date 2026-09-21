@@ -91,7 +91,7 @@ async function stageProviderRegistry(platformEnv) {
   const providers = [
     { id: "openai", envKey: "OPENAI_API_KEY", enabledEnv: null },
     { id: "gemini", envKey: "GEMINI_API_KEY", enabledEnv: null },
-    { id: "sarvam", envKey: "SARVAM_API_KEY", enabledEnv: "SARVAM_ENABLED" },
+    { id: "sarvam", envKey: "SARVAM_API_KEY", enabledEnv: null },
     { id: "elevenlabs", envKey: "ELEVENLABS_API_KEY", enabledEnv: null },
   ];
   const results = [];
