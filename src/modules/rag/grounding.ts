@@ -375,12 +375,9 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         evidence ? `Evidence: ${evidence}` : "",
       ]
         .filter(Boolean)
-        .join("
-");
+        .join("\\n");
     })
-    .join("
-
-");
+    .join("\\n\\n");
 
   if (admissionMode === "quota") {
     void finalizeQueryEvent(admission && admission.admitted ? admission.eventId : null, {
