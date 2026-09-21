@@ -49,23 +49,11 @@ import {
   findActiveSession,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
 import { getScrapeUrlRetryContext } from "@/modules/knowledge-bases/core/scrape-url-retry-db";
-import { getCrawlQueue } from "@/modules/queue";
-import { runScrapeSession } from "@/modules/knowledge-bases/worker/scrape-worker";
+import { enqueueCrawlJob, enqueueScrapeJob } from "@/modules/cloud-jobs/queue";
 import { scheduleImmediateRetryForUrl } from "@/modules/knowledge-bases/worker/retry-scheduler";
 import type Redis from "ioredis";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function triggerScrapeWorker(sessionId: string): void {
-  queueMicrotask(() => {
-    void runScrapeSession(sessionId, { concurrency: 2 }).catch(async (e) => {
-      const message = (e as Error).message;
-      console.error(`[scrape] background worker failed for session ${sessionId}:`, message);
-      await markSessionFailed(sessionId, `Scrape failed: ${message}`).catch(() => null);
-      await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    });
-  });
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -86,35 +74,18 @@ async function rollbackSessionDocuments(kbId: string, sessionId: string): Promis
 }
 
 async function waitForSessionWorkersToStop(sessionId: string): Promise<boolean> {
-  const deadline = Date.now() + 20_000;
+  const session = await getSessionById(sessionId);
+  if (!session) return true;
 
-  while (Date.now() < deadline) {
-    const session = await getSessionById(sessionId);
-    if (!session) return true;
+  // Discovery and document work are now durable cloud-queue messages.
+  // Cancellation is persisted first; the consumer checks cancelRequested before
+  // doing more work, so there is no in-process worker that needs draining here.
+  if (session.status === "discovering") return true;
 
-    let crawlBusy = false;
-    if (session.status === "discovering" && session.jobId) {
-      try {
-        const job = await getCrawlQueue().getJob(session.jobId);
-        if (job) {
-          const state = await job.getState();
-          crawlBusy = state === "waiting" || state === "active" || state === "delayed";
-        }
-      } catch {}
-    }
-
-    const snapshot = await buildScrapeStreamSnapshot(sessionId);
-    const scrapingBusy = (snapshot?.scrapingUrls ?? 0) > 0;
-    const ingestBusy = await countRunningIngestJobsForSession(sessionId);
-
-    if (!crawlBusy && !scrapingBusy && ingestBusy === 0) {
-      return true;
-    }
-
-    await sleep(250);
-  }
-
-  return false;
+  const snapshot = await buildScrapeStreamSnapshot(sessionId);
+  const scrapingBusy = (snapshot?.scrapingUrls ?? 0) > 0;
+  const ingestBusy = await countRunningIngestJobsForSession(sessionId);
+  return !scrapingBusy && ingestBusy === 0;
 }
 
 async function finalizeSessionCancellation(kbId: string, sessionId: string): Promise<void> {
@@ -165,16 +136,23 @@ export async function discoverHandler(req: NextRequest, kbId: string): Promise<N
 
     const session = await createSession({ kbId, rootUrl: url.trim(), maxDepth, createdBy: auth.user.id });
 
-    const job = await getCrawlQueue().add("discover", {
-      sessionId: session.id, kbId, url: url.trim(),
-      maxDepth, maxUrls, requestDelayMs, scopeToInputPath: Boolean(scopeToInputPath),
+    const queueResult = await enqueueCrawlJob(session.id, {
+      sessionId: session.id,
+      kbId,
+      url: url.trim(),
+      maxDepth,
+      maxUrls,
+      requestDelayMs,
+      scopeToInputPath: Boolean(scopeToInputPath),
     });
 
-    await setSessionJobId(session.id, job.id!);
+    if (queueResult.messageId) {
+      await setSessionJobId(session.id, queueResult.messageId);
+    }
 
-    console.log(`[scrape] Enqueued crawl job ${job.id} for session ${session.id} (${url.trim()})`);
+    console.log(`[scrape] Enqueued cloud crawl job ${queueResult.messageId ?? "deferred"} for session ${session.id} (${url.trim()})`);
 
-    return NextResponse.json({ ...session, jobId: job.id }, { status: 202 });
+    return NextResponse.json({ ...session, jobId: queueResult.messageId }, { status: 202 });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[scrape] discover:", err);
@@ -301,8 +279,11 @@ export async function startScrapeHandler(
       );
     await markSessionScraping(sessionId);
     await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    triggerScrapeWorker(sessionId);
-    return NextResponse.json({ started: true, sessionId });
+    const queueResult = await enqueueScrapeJob(
+      `${sessionId}:run:${Date.now()}`,
+      { sessionId, action: "run" },
+    );
+    return NextResponse.json({ started: true, sessionId, jobId: queueResult.messageId });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

@@ -278,9 +278,14 @@ export async function claimPendingJobById(jobId: string): Promise<IngestJobWithP
     const res = await client.query<Record<string, unknown>>(
       `SELECT * FROM ingest_jobs
        WHERE id = $1
-         AND status = 'pending'
          AND attempts < max_attempts
-         AND scheduled_at <= now()
+         AND (
+           (status = 'pending' AND scheduled_at <= now())
+           OR (
+             status = 'running'
+             AND started_at < now() - INTERVAL '10 minutes'
+           )
+         )
        FOR UPDATE SKIP LOCKED`,
       [jobId]
     );

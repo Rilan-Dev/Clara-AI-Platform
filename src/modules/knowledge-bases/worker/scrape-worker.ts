@@ -27,9 +27,8 @@ import {
   markSessionIngesting,
   recalcSessionProgress,
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
-import { getSessionIngestProgress } from "@/modules/knowledge-bases/core/documents-db";
 import { publishScrapeSessionRefresh } from "@/modules/knowledge-bases/core/scrape-progress-stream";
-import { processJobsById } from "@/modules/knowledge-bases/worker/ingest-worker";
+import { enqueueIngestJob } from "@/modules/cloud-jobs/queue";
 import { scheduleFailedUrlRetries } from "@/modules/knowledge-bases/worker/retry-scheduler";
 
 export type ScrapeWorkerResult = {
@@ -86,9 +85,10 @@ export async function runScrapeSession(
   sessionId: string,
   options: {
     concurrency?: number;
+    maxUrls?: number;
   } = {}
-): Promise<ScrapeWorkerResult> {
-  const { concurrency = 2 } = options;
+): Promise<ScrapeWorkerResult & { hasMore: boolean }> {
+  const { concurrency = 2, maxUrls = 10 } = options;
 
   const session = await getSessionById(sessionId);
   if (!session) throw new Error(`Scrape session ${sessionId} not found`);
@@ -99,7 +99,8 @@ export async function runScrapeSession(
     );
   }
 
-  const urls  = await listIncludedPendingUrls(sessionId);
+  const urls = await listIncludedPendingUrls(sessionId);
+  const urlsToProcess = urls.slice(0, Math.max(1, maxUrls));
   const { kbId } = session;
 
   const ensureNotCancelled = async (): Promise<boolean> => {
@@ -111,14 +112,14 @@ export async function runScrapeSession(
   let failed    = 0;
   let skipped   = 0;
   let refreshed = 0;
-  const ingestJobIds: string[] = [];
+
 
   console.log(
     `[scrape-worker] Session ${sessionId}: ${urls.length} URLs to scrape (concurrency=${concurrency})`
   );
 
-  for (let i = 0; i < urls.length; i += concurrency) {
-    const batch = urls.slice(i, i + concurrency);
+  for (let i = 0; i < urlsToProcess.length; i += concurrency) {
+    const batch = urlsToProcess.slice(i, i + concurrency);
 
     await Promise.all(
       batch.map(async (scrapeUrl) => {
@@ -169,7 +170,7 @@ export async function runScrapeSession(
             mimeType: "text/markdown",
             filename,
           });
-          ingestJobIds.push(ingestJob.id);
+          await enqueueIngestJob(ingestJob.id);
           if (await ensureNotCancelled()) return;
           await markUrlCompleted(scrapeUrl.id, doc.id);
           console.log(`[scrape-worker] ✅ ${scrapeUrl.url} (attempts=${attempts})`);
@@ -197,54 +198,38 @@ export async function runScrapeSession(
 
   if (await ensureNotCancelled()) {
     await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    return { sessionId, scraped, failed, skipped, refreshed };
+    return { sessionId, scraped, failed, skipped, refreshed, hasMore: false };
   }
 
-  if (scraped === 0 && refreshed === 0 && skipped === 0 && failed > 0) {
+  if (scraped === 0 && refreshed === 0 && skipped === 0 && failed > 0 && urlsToProcess.length >= urls.length) {
     await markSessionFailed(sessionId, `All ${failed} URLs failed to scrape`);
     await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    return { sessionId, scraped, failed, skipped, refreshed };
+    return { sessionId, scraped, failed, skipped, refreshed, hasMore: false };
   }
 
-  if (ingestJobIds.length > 0) {
+  const remaining = await listIncludedPendingUrls(sessionId);
+  if (remaining.length > 0) {
+    await publishScrapeSessionRefresh(sessionId).catch(() => null);
+    return { sessionId, scraped, failed, skipped, refreshed, hasMore: true };
+  }
+
+  const totalCreated = scraped + refreshed;
+  if (totalCreated > 0) {
     await markSessionIngesting(sessionId);
-    await publishScrapeSessionRefresh(sessionId).catch(() => null);
-
-    await processJobsById(ingestJobIds, {
-      shouldStop: ensureNotCancelled,
-      onProgress: async () => {
-        await publishScrapeSessionRefresh(sessionId).catch(() => null);
-      },
-    });
-  }
-
-  if (await ensureNotCancelled()) {
-    await publishScrapeSessionRefresh(sessionId).catch(() => null);
-    return { sessionId, scraped, failed, skipped, refreshed };
-  }
-
-  const ingest = await getSessionIngestProgress(sessionId);
-  if (ingest.readyDocs > 0) {
+  } else if (skipped > 0) {
     await markSessionCompleted(sessionId);
   } else {
     await markSessionFailed(sessionId, "No scraped documents were successfully added to the knowledge base");
   }
   await publishScrapeSessionRefresh(sessionId).catch(() => null);
 
-  // ── Schedule retries for any failed URLs ──────────────────────────────────
-  // Fire-and-forget: retry scheduling is non-critical and must not throw.
   if (failed > 0) {
     scheduleFailedUrlRetries(sessionId, kbId).catch((e) =>
       console.error(`[scrape-worker] retry scheduling error for session ${sessionId}:`, (e as Error).message)
     );
   }
 
-  console.log(
-    `[scrape-worker] Session ${sessionId} done — ` +
-    `scraped=${scraped}, refreshed=${refreshed}, skipped=${skipped}, failed=${failed}`
-  );
-
-  return { sessionId, scraped, failed, skipped, refreshed };
+  return { sessionId, scraped, failed, skipped, refreshed, hasMore: false };
 }
 
 // ── Content formatter ─────────────────────────────────────────────────────────

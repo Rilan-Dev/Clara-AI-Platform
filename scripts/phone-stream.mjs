@@ -22,7 +22,7 @@
 import WebSocket from "ws";
 
 const PORT = process.env.PORT ?? 3000;
-const BASE = `http://127.0.0.1:${PORT}`;
+const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
 
 // ── Twilio handler ─────────────────────────────────────────────────────────────
 

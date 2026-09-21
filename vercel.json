@@ -1,7 +1,84 @@
 {
-  "$schema":"https://openapi.vercel.sh/vercel.json",
-  "framework":"nextjs",
-  "installCommand":"npm ci --legacy-peer-deps",
-  "buildCommand":"npm run build",
-  "regions":["bom1"]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "regions": [
+    "bom1"
+  ],
+  "functions": {
+    "src/app/api/queue/ingest/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "clara-ingest"
+        }
+      ],
+      "maxDuration": 300
+    },
+    "src/app/api/queue/crawl/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "clara-crawl"
+        }
+      ],
+      "maxDuration": 300
+    },
+    "api/voice-realtime.mjs": {
+      "maxDuration": 300
+    },
+    "src/app/api/queue/scrape/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "clara-scrape"
+        }
+      ],
+      "maxDuration": 300
+    },
+    "src/app/api/queue/retry/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "clara-retry"
+        }
+      ],
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/embed/voice",
+      "destination": "/api/voice-realtime/embed"
+    },
+    {
+      "source": "/api/phone/twilio/stream",
+      "destination": "/api/voice-realtime/twilio"
+    },
+    {
+      "source": "/api/phone/vonage/stream",
+      "destination": "/api/voice-realtime/vonage"
+    },
+    {
+      "source": "/api/voice/sarvam/realtime",
+      "destination": "/api/voice-realtime/sarvam"
+    },
+    {
+      "source": "/api/voice/sarvam/tts-realtime",
+      "destination": "/api/voice-realtime/sarvam-tts"
+    },
+    {
+      "source": "/api/voice/elevenlabs/realtime",
+      "destination": "/api/voice-realtime/elevenlabs-stt"
+    },
+    {
+      "source": "/api/voice/elevenlabs/tts-realtime",
+      "destination": "/api/voice-realtime/elevenlabs-tts"
+    },
+    {
+      "source": "/api/voice/gemini/realtime",
+      "destination": "/api/voice-realtime/gemini"
+    }
+  ]
 }

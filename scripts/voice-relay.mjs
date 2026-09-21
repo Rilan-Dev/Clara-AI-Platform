@@ -18,7 +18,7 @@
 import WebSocket from "ws";
 
 const PORT    = process.env.PORT    ?? 3000;
-const BASE    = `http://127.0.0.1:${PORT}`;
+const BASE    = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
 const GEMINI_WSS =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent";
 const GEMINI_IN_HZ  = 16_000;
