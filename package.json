@@ -119,7 +119,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.24",
     "@eslint/eslintrc": "^3",
-    "amqplib": "2.0.1"
+    "amqplib": "2.0.1",
+    "@vercel/queue": "^0.5.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.22",
