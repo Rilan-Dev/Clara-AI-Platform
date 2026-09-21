@@ -153,7 +153,7 @@ export function ConfigEditor({ config: initial, contextName, onSave }: Props) {
     <div className="space-y-6">
       {/* Compact section switcher — the primary Agent section keeps the
           ElevenLabs-style first message, system prompt and language controls together. */}
-      <div className="grid auto-rows-fr grid-cols-3 gap-1 rounded-lg border border-border bg-muted/50 p-1 sm:grid-cols-5">
+      <div className="grid auto-rows-fr grid-cols-4 gap-1 rounded-lg border border-border bg-muted/50 p-1">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex min-w-0 items-center justify-center rounded-md px-2 py-1.5 text-center text-xs font-medium leading-tight transition-all sm:px-3 sm:text-sm ${activeTab === t.id ? "bg-card text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>
             {t.label}
