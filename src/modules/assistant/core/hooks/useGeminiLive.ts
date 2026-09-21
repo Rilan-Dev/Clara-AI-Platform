@@ -570,6 +570,11 @@ export function useGeminiLive(opts?: Options) {
               latencyTelRef.current?.ragEnd();
               const sources: Source[] = Array.isArray(payload?.sources)
                 ? payload.sources : [];
+              const grounded = payload?.grounded === true || sources.length > 0;
+              const outOfScopeReply =
+                typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
+                  ? payload.outOfScopeReply.trim()
+                  : "I can only answer questions about the topics I have been set up for.";
 
               // Attach sources to the active history turn.
               if (!activeTurnIdRef.current) {
@@ -587,8 +592,12 @@ export function useGeminiLive(opts?: Options) {
                     name: fc.name,             // FIX G10: required by FunctionResponse proto
                     response: {
                       output: JSON.stringify({
-                        context: payload.context,
+                        context: grounded
+                          ? payload.context
+                          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say exactly: "${outOfScopeReply}"`,
                         sources: payload.sources,
+                        grounded,
+                        outOfScopeReply,
                       }),
                     },
                   }],
