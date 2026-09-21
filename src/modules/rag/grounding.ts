@@ -31,13 +31,14 @@
  * pipelines all share the exact same grounding path.
  */
 
-import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
 import {
   finalizeQueryEvent,
   logQueryEvent,
 } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, type AdmissionDenied, type QuotaWarning } from "@/lib/quota-admission";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { translateQueryForRag } from "@/modules/language-core/pipeline";
 import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
@@ -149,7 +150,11 @@ export interface GroundingScope {
   welcomeMessage: string;
   knowledgeBaseName: string;
   knowledgeBaseDescription: string | null;
+  documentCount: number;
+  documentTitles: string[];
 }
+
+export type GroundingIntent = "capability" | "knowledge" | "out_of_scope";
 
 export interface GroundedContext {
   /** Assembled grounded context string ([S1]…/[G1]… blocks). */
@@ -164,6 +169,10 @@ export interface GroundedContext {
   kb: { id: string; name: string; collection: string };
   /** Server-resolved binding — identical across providers for the same KB. */
   binding: KnowledgeBinding;
+  /** Dynamic assistant scope used for onboarding/capability turns. */
+  scope: GroundingScope;
+  /** Lightweight intent classification performed before retrieval. */
+  intent: GroundingIntent;
   latencyMs: number;
 }
 
@@ -189,6 +198,42 @@ async function resolveKbTenant(
   const orgId = rows[0]?.org_id ?? null;
   const agentId = rows[0]?.agent_id ?? null;
   return { orgId, agentId };
+}
+
+function isCapabilityQuery(query: string): boolean {
+  const normalized = query.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+  if (!normalized) return false;
+
+  // This classifier identifies onboarding/capability intent only; it never
+  // encodes customer topics. It deliberately covers common English, Tamil,
+  // and mixed/romanized Tamil formulations so these turns do not depend on
+  // semantic retrieval finding a matching FAQ passage.
+  const patterns = [
+    /\\bwhat (can|do) you (do|help|answer)\\b/,
+    /\\bhow can you help\\b/,
+    /\\bwhat can i ask\\b/,
+    /\\bwhat (topics|questions) (do you|can you) (cover|answer)\\b/,
+    /\\bhow do you help\\b/,
+    /என்ன மாதிரி .*help/,
+    /எந்தந்த .*help/,
+    /எப்படி .*help/,
+    /என்ன .*கேட்க/,
+    /என்னென்ன .*கேட்க/,
+    /என்னென்ன .*தெரியும்/,
+    /எதைப் பற்றி .*பதில்/,
+    /எதை பற்றி .*பதில்/,
+    /எந்த .*விஷய/,
+    /எந்தந்த .*விஷய/,
+    /என்ன மாதிரி .*பண்ண முடியும்/,
+    /எப்படி .*உதவி/,
+    /எனக்கு .*ஹெல்ப்/,
+    /enna .*help/,
+    /eppadi .*help/,
+    /enna maathiri .*help/,
+    /enna ketkalam/,
+    /enna topics/,
+  ];
+  return patterns.some((pattern) => pattern.test(normalized));
 }
 
 type SearchHit = {
@@ -277,7 +322,11 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const topK = Math.min(Number(request.topK ?? DEFAULT_TOP_K), MAX_TOP_K);
 
   const t0 = Date.now();
-  const kb = await getKnowledgeBaseById(request.kbId);
+  const [kb, assistantConfig, documentTitles] = await Promise.all([
+    getKnowledgeBaseById(request.kbId),
+    getAssistantConfigByKb(request.kbId),
+    getKnowledgeBaseDocumentTitles(request.kbId),
+  ]);
   if (!kb) {
     return { ok: false, status: 404, error: "Knowledge base not found" };
   }
@@ -285,8 +334,59 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     return { ok: false, status: 400, error: "Knowledge base is archived" };
   }
 
+  const scope: GroundingScope = {
+    assistantName: assistantConfig?.assistantName ?? kb.name,
+    welcomeMessage: assistantConfig?.welcomeMessage ?? "",
+    knowledgeBaseName: kb.name,
+    knowledgeBaseDescription:
+      typeof (kb as { description?: unknown }).description === "string"
+        ? (kb as { description: string }).description
+        : null,
+    documentCount: documentTitles.length,
+    documentTitles,
+  };
+
   // ── Tenant binding: derived server-side from the KB row, never from input.
   const { orgId, agentId } = await resolveKbTenant(kb.id);
+  // Capability/onboarding turns are intentionally resolved before vector search.
+  // They should work even when the KB contains no FAQ phrased like the visitor's
+  // question, and their answer is derived from the current assistant/KB config.
+  if (isCapabilityQuery(query)) {
+    const capabilityLines = [
+      scope.welcomeMessage.trim(),
+      scope.knowledgeBaseDescription?.trim(),
+      scope.documentTitles.length > 0
+        ? `Available knowledge sources: ${scope.documentTitles.join(", ")}.`
+        : "",
+    ].filter(Boolean);
+
+    return {
+      ok: true,
+      warning: null,
+      result: {
+        context: capabilityLines.join("\n\n"),
+        grounded: false,
+        outOfScopeReply:
+          assistantConfig?.outOfScopeReply ??
+          "I can only answer questions about the topics I have been set up for.",
+        sources: [],
+        graphSources: [],
+        mode: getRagRuntimeConfig({ requestedMode: request.ragMode ?? undefined }).ragMode,
+        kb: { id: kb.id, name: kb.name, collection: kb.qdrantCollection },
+        binding: {
+          tenantId: orgId,
+          agentId,
+          kbId: kb.id,
+          documentId: request.documentId ?? null,
+          ragMode: getRagRuntimeConfig({ requestedMode: request.ragMode ?? undefined }).ragMode,
+        },
+        scope,
+        intent: "capability",
+        latencyMs: Date.now() - t0,
+      },
+    };
+  }
+
 
   // ── Atomic quota admission (org-wide, rolling 24h) BEFORE retrieval spend.
   // Audit-only surfaces log the event AFTER retrieval instead (their quota
@@ -461,6 +561,8 @@ ${graphContext}`);
         name: kb.name,
         collection: resolved.knowledgeCollection ?? kb.qdrantCollection,
       },
+      scope,
+      intent: "knowledge",
       binding: {
         tenantId: orgId,
         agentId,
