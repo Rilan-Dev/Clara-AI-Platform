@@ -1,4 +1,3 @@
-import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/status.ts
  * ─────────────────────────────────────────────────────────────────────────────
