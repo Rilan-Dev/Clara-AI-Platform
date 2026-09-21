@@ -45,6 +45,8 @@ import type {
   SemanticDiff,
 } from "./types";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
+import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { cloneKbCollection } from "@/modules/admin/core/vector-store-kb";
 
 // ─── Ensure / bootstrap ───────────────────────────────────────────────────────
 
@@ -700,6 +702,26 @@ export async function publishVersion(
   }
 
   const { main } = await ensureAgentVersioning(agentId);
+
+  // Capture KB content before switching production. Each published deployment
+  // gets its own Qdrant collection, so later document edits cannot change the
+  // content seen by an already-published version.
+  const configuredKbIds = version.configuration.knowledge?.kbIds?.filter(Boolean) ?? [];
+  const kbRows = configuredKbIds.length > 0
+    ? await Promise.all(configuredKbIds.map((kbId) => getKnowledgeBaseById(kbId)))
+    : await import("@/lib/db").then(({ query }) => query<{ id: string; qdrant_collection: string }>(
+        "SELECT id, qdrant_collection FROM knowledge_bases WHERE agent_id = $1 AND status = 'active' ORDER BY created_at ASC",
+        [agentId],
+      ));
+  const kbSnapshots: Array<{ kbId: string; collectionName: string }> = [];
+  for (const kb of kbRows) {
+    if (!kb) continue;
+    const sourceCollection = "qdrantCollection" in kb ? kb.qdrantCollection : kb.qdrant_collection;
+    const collectionName = `pub_${version.id.replace(/-/g, "").slice(0, 12)}_${kb.id.replace(/-/g, "").slice(0, 12)}`;
+    await cloneKbCollection(sourceCollection, collectionName);
+    kbSnapshots.push({ kbId: kb.id, collectionName });
+  }
+
   const deployment = await insertDeployment({
     agentId,
     orgId: main.orgId,
@@ -707,6 +729,7 @@ export async function publishVersion(
     versionId: version.id,
     publicAccess: input.publicAccess,
     publishedBy: userId,
+    kbSnapshots,
   });
   invalidateProductionVersionCache();
   return { deployment, validation };
