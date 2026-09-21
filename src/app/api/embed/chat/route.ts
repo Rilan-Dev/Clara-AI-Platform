@@ -247,12 +247,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        const write = (event: { type: string; payload?: unknown }) => {
-          controller.enqueue(encoder.encode(encodeNDJSONEvent(event)));
+        let closed = false;
+        const safeWrite = (event: { type: string; payload?: unknown }) => {
+          if (closed || req.signal.aborted) return false;
+          try {
+            controller.enqueue(encoder.encode(encodeNDJSONEvent(event)));
+            return true;
+          } catch {
+            closed = true;
+            return false;
+          }
         };
+        const close = () => {
+          if (closed) return;
+          closed = true;
+          try { controller.close(); } catch {}
+        };
+        const onAbort = () => {
+          closed = true;
+          try { controller.close(); } catch {}
+        };
+        req.signal.addEventListener("abort", onAbort, { once: true });
 
         if (sources.length > 0) {
-          write({
+          safeWrite({
             type: "sources",
             payload: sources.map((result, index) => ({
               index: index + 1,
@@ -264,7 +282,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         }
 
         if (quotaWarning) {
-          write({ type: "quota_warning", payload: quotaWarning });
+          safeWrite({ type: "quota_warning", payload: quotaWarning });
         }
 
         void (async () => {
@@ -277,16 +295,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                   console.info("[realtime-latency] first LLM token", { realtimeVoice, ms: Date.now() - llmStart });
                 }
                 answerBuffer += chunk;
-                write({ type: "token", payload: chunk });
+                if (!safeWrite({ type: "token", payload: chunk })) break;
               }
             }
           } catch (error) {
             console.error("[embed/chat] provider stream failed", error);
             streamError = error instanceof Error ? error.message : "AI provider stream failed";
-            write({ type: "error", payload: streamError });
+            safeWrite({ type: "error", payload: streamError });
           } finally {
-            write({ type: "done" });
-            controller.close();
+            safeWrite({ type: "done" });
+            close();
+            req.signal.removeEventListener("abort", onAbort);
             console.info("[realtime-latency] stream complete", {
               realtimeVoice,
               ms: Date.now() - llmStart,
