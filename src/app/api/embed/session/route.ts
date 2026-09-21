@@ -54,6 +54,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
+    // Platform AI credentials can be managed through Settings and persisted
+    // in Postgres. Mirror them into process.env before resolving the realtime
+    // transport so DB-managed ElevenLabs Speech Engine credentials are
+    // available even when the container .env was not changed.
+    const { syncEnvFromDb } = await import("@/modules/phone/core/db");
+    await syncEnvFromDb();
+
     const validation = await validateEmbedRequest(req);
     if (!validation.ok) return validation.response;
     const { ctx } = validation;
