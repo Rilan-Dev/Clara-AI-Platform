@@ -27,7 +27,7 @@ export const POST = handleCallback(async (message: Message) => {
 
     const ingest = await getSessionIngestProgress(message.sessionId);
     if (ingest.pendingDocs > 0 || ingest.processingDocs > 0) {
-      await enqueueScrapeJob(`${message.sessionId}:finalize`, message, { delaySeconds: 10 });
+      await enqueueScrapeJob(`${message.sessionId}:finalize:${Date.now()}`, message, { delaySeconds: 10 });
       return;
     }
 
@@ -50,7 +50,7 @@ export const POST = handleCallback(async (message: Message) => {
 
   if (result.hasMore) {
     await enqueueScrapeJob(
-      `${message.sessionId}:run`,
+      `${message.sessionId}:run:${Date.now()}`,
       { sessionId: message.sessionId, action: "run" },
     );
   } else {
