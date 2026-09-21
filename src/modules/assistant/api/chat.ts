@@ -198,10 +198,11 @@ async function postChatKb(
   const latest = messages[messages.length - 1]!;
   if (latest.role !== "user") throw new Error("The final message must come from the user.");
 
-  const [kb, config, resolved] = await Promise.all([
+  const [kb, config, resolved, documentTitles] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfigByKb(kbId),
     resolveAIConfig({ kbId, surface: "chat" }),
+    getKnowledgeBaseDocumentTitles(kbId),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");
   if (!config) throw new Error("Knowledge base configuration not found.");
