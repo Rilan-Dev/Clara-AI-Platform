@@ -35,7 +35,7 @@ export type ElevenLabsCallResolution =
 export async function resolveElevenLabsCallBinding(
   kbId: string,
 ): Promise<ElevenLabsCallResolution> {
-  if (!isElevenLabsEnabled() || !isConversationalAIEnabled()) {
+  if (!(await isElevenLabsEnabled()) || !isConversationalAIEnabled()) {
     return {
       ok: false,
       status: 503,

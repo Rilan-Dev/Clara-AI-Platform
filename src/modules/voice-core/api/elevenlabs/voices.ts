@@ -95,7 +95,7 @@ export async function getElevenLabsVoices(request: NextRequest): Promise<NextRes
 
     return NextResponse.json({
       voices,
-      enabled: isElevenLabsEnabled(),
+      enabled: await isElevenLabsEnabled(),
     });
   } catch (error) {
     console.error("[elevenlabs-voices] get:", error);
@@ -118,9 +118,9 @@ export async function postElevenLabsVoicesSync(request: NextRequest): Promise<Ne
       return NextResponse.json({ error: "orgId is required." }, { status: 400 });
     }
 
-    if (!isElevenLabsEnabled()) {
+    if (!(await isElevenLabsEnabled())) {
       return NextResponse.json(
-        { error: "ElevenLabs is not enabled on this platform (missing API key or kill switch off)." },
+        { error: "ElevenLabs is disabled in Platform AI Settings or its API key is not configured." },
         { status: 503 },
       );
     }

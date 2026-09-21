@@ -6,11 +6,15 @@ import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
-  MoreHorizontal, X, Palette, History, GitBranch, ArrowLeft,
+  MoreHorizontal, X, Palette, GitBranch, ArrowLeft,
+  BookOpen, Plus, Rocket, Wrench,
 } from "lucide-react";
-import { useAuth } from "@/modules/admin-ui/hooks";
+import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import {
+  fetchAgentWorkspaceContextCached,
+} from "@/features/admin/screens/agent-workspace/context-cache";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -64,11 +68,22 @@ function agentWorkspaceNav(orgId: string, agentId: string) {
   const base = `/orgs/${orgId}/agents/${agentId}`;
   return [
     { href: base, icon: LayoutDashboard, label: "Overview", exact: true },
-    { href: `${base}/config`, icon: Bot, label: "Assistant & AI", exact: false },
-    { href: `${base}/knowledge`, icon: FileText, label: "Knowledge", exact: false },
-    { href: `${base}/tools`, icon: GitBranch, label: "Tools", exact: false },
-    { href: `${base}/versions?history=1`, icon: History, label: "History", exact: false },
-    { href: `${base}/publish`, icon: Activity, label: "Publish", exact: false },
+    { href: `${base}/config`, icon: Bot, label: "Agent", exact: false },
+    { href: `${base}/knowledge`, icon: BookOpen, label: "Knowledge", exact: false },
+    { href: `${base}/tools`, icon: Wrench, label: "Tools", exact: false },
+    { href: `${base}/versions`, icon: GitBranch, label: "Branches", exact: false },
+    { href: `${base}/publish`, icon: Rocket, label: "Publish", exact: false },
+  ];
+}
+
+/** Sidebar groups shown while an agent is open (ElevenLabs layout:
+ * Overview / Configure / Deploy). */
+function agentWorkspaceNavGroups(orgId: string, agentId: string) {
+  const items = agentWorkspaceNav(orgId, agentId);
+  return [
+    { label: "Overview", items: items.slice(0, 1) },
+    { label: "Configure", items: items.slice(1, 5) },
+    { label: "Deploy", items: items.slice(5) },
   ];
 }
 
@@ -189,15 +204,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isAdmin = user.isSuperAdmin;
 
   // Organisation navigation remains the primary rail. When an agent is open,
-  // its configuration, history and publish actions are added below in the
-  // same rail — never as a second sidebar.
+  // its identity + configuration groups are added below in the same rail —
+  // never as a second sidebar. On the agents index the rail lists the org's
+  // agents themselves (ElevenLabs layout).
   const orgNav = primaryOrgId ? orgWorkspaceNav(primaryOrgId) : [];
   const agentRoute = pathname.match(/^\/orgs\/([^/]+)\/agents\/([^/]+)/);
   const activeAgentOrgId = agentRoute?.[1] ?? null;
   const activeAgentId = agentRoute?.[2] ?? null;
-  const agentNav = activeAgentOrgId && activeAgentId
-    ? agentWorkspaceNav(activeAgentOrgId, activeAgentId)
+  const agentNavGroups = activeAgentOrgId && activeAgentId
+    ? agentWorkspaceNavGroups(activeAgentOrgId, activeAgentId)
     : [];
+  const onAgentsIndex =
+    !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
   const nav = isAdmin ? ADMIN_NAV : orgNav;
   const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
   // Org users only have Account left — a one-item dropdown would be noise, so
@@ -287,12 +305,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               separate nested agent sidebar was removed to preserve content width. */}
           {!isAdmin && activeAgentId && activeAgentOrgId && (
             <div className="mt-3 border-t border-border/70 pt-3">
-              <div className="px-3 pb-1.5 flex items-center gap-2">
-                <GitBranch className="w-3.5 h-3.5 text-muted-foreground/70" />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                  Agent workspace
-                </p>
-              </div>
               <Link
                 href={`/orgs/${activeAgentOrgId}/agents`}
                 className="mx-1 mb-1 flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -300,31 +312,46 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back to agents
               </Link>
-              <div className="space-y-0.5">
-                {agentNav.map((item) => {
-                  const active = item.exact
-                    ? pathname === item.href
-                    : pathname === item.href || pathname.startsWith(item.href.split("?")[0] + "/") ||
-                      (item.label === "History" && pathname === item.href.split("?")[0]);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        active
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                      {active && <ChevronRight className="w-3 h-3 ml-auto text-primary" />}
-                    </Link>
-                  );
-                })}
-              </div>
+
+              {/* Agent identity — name + active branch, links to Branches. */}
+              <AgentSidebarIdentity orgId={activeAgentOrgId} agentId={activeAgentId} />
+
+              {agentNavGroups.map((group) => (
+                <div key={group.label} className="mt-2">
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const active = item.exact
+                        ? pathname === item.href
+                        : pathname === item.href || pathname.startsWith(item.href + "/");
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                            active
+                              ? "bg-primary/10 text-primary border border-primary/20"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
+                          }`}
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                          {active && <ChevronRight className="w-3 h-3 ml-auto text-primary" />}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
+          )}
+
+          {/* Agents index — the org's agents list directly in the rail. */}
+          {onAgentsIndex && primaryOrgId && (
+            <OrgAgentsSidebarSection orgId={primaryOrgId} />
           )}
 
           {/* Settings — expandable dropdown group (admins: Account / AI
@@ -583,6 +610,110 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Agent workspace sidebar pieces (ElevenLabs layout) ───────────────────────
+
+/**
+ * Agent identity block shown at the top of the agent rail: agent avatar +
+ * name, active branch ("Main") with a green health dot, chevron into the
+ * Branches page. Data comes from the shared workspace-context cache so the
+ * sidebar and the workspace shell never double-fetch.
+ */
+function AgentSidebarIdentity({ orgId, agentId }: { orgId: string; agentId: string }) {
+  const [name, setName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAgentWorkspaceContextCached(agentId)
+      .then((context) => {
+        if (!cancelled) setName(context.agent.name);
+      })
+      .catch(() => {
+        if (!cancelled) setName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [agentId]);
+
+  return (
+    <Link
+      href={`/orgs/${orgId}/agents/${agentId}/versions`}
+      title="Agent · branch Main — open Branches"
+      className="mx-1 mb-2 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-2.5 py-2 transition-colors hover:border-primary/30 hover:bg-muted/70"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
+        <Bot className="h-4 w-4 text-primary" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">
+          {name ?? "Agent"}
+        </span>
+        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+          Main
+        </span>
+      </span>
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+    </Link>
+  );
+}
+
+/**
+ * Org agents listed directly in the rail on the agents index — the ElevenLabs
+ * pattern of browsing agents from the sidebar instead of a second rail.
+ * The header "+" opens the shared create-agent dialog (event bridge — the
+ * dialog itself is owned by the workspace shell provider).
+ */
+function OrgAgentsSidebarSection({ orgId }: { orgId: string }) {
+  const { agents, loading } = useAgents(orgId);
+
+  return (
+    <div className="mt-3 border-t border-border/70 pt-3">
+      <div className="flex items-center justify-between px-3 pb-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          Agents
+        </p>
+        <button
+          type="button"
+          aria-label="New agent"
+          title="New agent"
+          onClick={() => window.dispatchEvent(new CustomEvent("clara:open-create-agent"))}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-1 px-2 pb-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-8 animate-pulse rounded-lg bg-muted/60" />
+          ))}
+        </div>
+      ) : agents.length === 0 ? (
+        <p className="px-3 pb-2 text-xs text-muted-foreground/70">
+          No agents yet — create one to get started.
+        </p>
+      ) : (
+        <ul className="space-y-0.5 pb-2">
+          {agents.map((agent) => (
+            <li key={agent.id}>
+              <Link
+                href={`/orgs/${orgId}/agents/${agent.id}`}
+                title={agent.name}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+              >
+                <Bot className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                <span className="truncate">{agent.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -83,11 +83,11 @@ function mapBindingRow(row: AgentBindingDbRow): ElevenLabsAgentBindingRow {
 }
 
 /** Mode B availability gate shared by the mutating handlers + status UIs. */
-export function modeBReadiness(): { ready: true } | { ready: false; reason: string; status: number } {
-  if (!isElevenLabsEnabled()) {
+export async function modeBReadiness(): Promise<{ ready: true } | { ready: false; reason: string; status: number }> {
+  if (!(await isElevenLabsEnabled())) {
     return {
       ready: false,
-      reason: "ElevenLabs is not enabled on this platform (missing API key or kill switch off).",
+      reason: "ElevenLabs is not enabled on this platform (disabled in Platform AI Settings or API key not configured).",
       status: 503,
     };
   }
@@ -450,7 +450,7 @@ export async function deleteElevenLabsAgentById(
 
     // Delete at the vendor first — a dangling binding is recoverable, a
     // dangling vendor agent is invisible spend.
-    if (isElevenLabsEnabled()) {
+    if (await isElevenLabsEnabled()) {
       const service = VoiceProviderFactory.getVoiceService();
       if (isConversationalVoiceService(service)) {
         await service.deleteConversationalAgent(binding.elevenlabsAgentId);

@@ -83,13 +83,6 @@ const KIND_LABELS: Record<string, string> = {
   voice: "Voice",
 };
 
-// Operational kill-switch env keys (mirrors the server-side map in
-// registry-db.ts) — used purely for admin-facing guidance text.
-const KILL_SWITCH_ENV: Record<string, string> = {
-  elevenlabs: "ELEVENLABS_ENABLED",
-  sarvam: "SARVAM_ENABLED",
-};
-
 export function ProvidersWorkspace() {
   const [capability, setCapability] = useState<AICapability>("chat");
   const [providers, setProviders] = useState<PlatformAIProviderDTO[]>([]);
@@ -522,12 +515,6 @@ function ProviderDetailDrawer({
                 {provider.credential?.updatedAt ? ` · updated ${timeAgo(provider.credential.updatedAt)}` : ""}
               </p>
             </div>
-            {provider.disabledReason === "kill_switch" && (
-              <p className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-700">
-                The operational flag {KILL_SWITCH_ENV[provider.providerId] ?? "(provider flag)"} is off. Use
-                &quot;Enable provider&quot; below — enabling also turns the flag on.
-              </p>
-            )}
             <label className="block">
               <span className="text-xs font-medium text-foreground/90">Update API key</span>
               <input

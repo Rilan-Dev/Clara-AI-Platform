@@ -18,6 +18,7 @@ import type { AgentVersionConfig, MergeResolution } from "../core/types";
 import {
   applyPlatformDefaultUpdate,
   archiveAgentBranch,
+  changeTagsForVersion,
   createBranchFromVersion,
   diffAgentVersionConfigs,
   ensureAgentVersioning,
@@ -114,7 +115,10 @@ export async function listVersionsHandler(req: NextRequest, agentId: string): Pr
     const branchId = req.nextUrl.searchParams.get("branchId") ?? undefined;
     const versions = await listAgentVersions(agentId, branchId);
     // Configurations can be large — list responses carry metadata only; the
-    // detail endpoint returns the full configuration.
+    // detail endpoint returns the full configuration. Change tags (the short
+    // pills shown on branch-history rows) are derived here because every
+    // configuration is already in memory — no extra queries.
+    const configById = new Map(versions.map((v) => [v.id, v.configuration]));
     return NextResponse.json({
       versions: versions.map((v) => ({
         id: v.id,
@@ -124,6 +128,10 @@ export async function listVersionsHandler(req: NextRequest, agentId: string): Pr
         parentVersionId: v.parentVersionId,
         changeSummary: v.changeSummary,
         source: v.source,
+        changeTags: changeTagsForVersion(
+          v.parentVersionId ? (configById.get(v.parentVersionId) ?? null) : null,
+          v.configuration,
+        ),
         createdByName: v.createdByName,
         createdAt: v.createdAt,
         publishedAt: v.publishedAt,

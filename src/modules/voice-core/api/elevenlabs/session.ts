@@ -126,7 +126,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // descriptor — same HMAC token discipline as the Sarvam V5 relay.
         // Embed sessions get it too: the token is capability-scoped (kb+org),
         // never a vendor credential.
-        ...(isElevenLabsRealtimeEnabled() && orgId
+        ...((await isElevenLabsRealtimeEnabled()) && orgId
           ? {
               realtime: {
                 endpoint: "/api/voice/elevenlabs/realtime",

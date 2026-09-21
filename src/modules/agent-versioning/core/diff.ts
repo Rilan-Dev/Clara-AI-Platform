@@ -209,6 +209,68 @@ export function changedSections(diff: SemanticDiff): DiffSection[] {
   return diff.sections.filter((s) => s.changes.length > 0);
 }
 
+// ─── Change tags (branch-history rows) ────────────────────────────────────────
+
+/**
+ * Short per-version change tags for the branch-history list — the compact
+ * pills shown next to each history row ("System prompt", "Voice", "LLM"…).
+ *
+ * Section keys map to short labels; the behaviour section additionally
+ * promotes its two signature fields (system prompt / first message) so the
+ * pills read like ElevenLabs' history entries. Ordered by FIELD_SPECS order.
+ */
+const SECTION_TAG: Record<string, string> = {
+  identity: "Identity",
+  language: "Language",
+  voice: "Voice",
+  ai: "LLM",
+  tools: "Tools",
+  branding: "Widget",
+  knowledge: "Knowledge base",
+};
+
+const FIELD_TAG: Record<string, string> = {
+  "assistant.systemPrompt": "System prompt",
+  "assistant.welcomeMessage": "First message",
+  "assistant.rules": "Rules",
+  "assistant.outOfScopeReply": "Behaviour",
+  "assistant.strictMode": "Behaviour",
+  "assistant.citeSources": "Behaviour",
+  "assistant.temperature": "Behaviour",
+  "assistant.maxTokens": "Behaviour",
+};
+
+/** Maximum tags kept per version before collapsing into "+n". */
+export const CHANGE_TAG_LIMIT = 5;
+
+export function changeTagsForVersion(
+  before: AgentVersionConfig | null,
+  after: AgentVersionConfig,
+): string[] {
+  if (!before) return ["Initial"];
+
+  const tags: string[] = [];
+  const push = (tag: string) => {
+    if (!tags.includes(tag)) tags.push(tag);
+  };
+
+  for (const group of FIELD_SPECS) {
+    let sectionChanged = false;
+    for (const spec of group.fields) {
+      if (diffField(spec, before, after)) {
+        sectionChanged = true;
+        const fieldTag = FIELD_TAG[spec.path];
+        if (fieldTag) push(fieldTag);
+      }
+    }
+    if (sectionChanged && group.section !== "behaviour") {
+      push(SECTION_TAG[group.section] ?? group.sectionTitle);
+    }
+  }
+
+  return tags.slice(0, CHANGE_TAG_LIMIT);
+}
+
 // ─── Three-way merge review ───────────────────────────────────────────────────
 
 function readField(config: AgentVersionConfig, path: string): unknown {

@@ -129,7 +129,7 @@ export async function postElevenLabsConversationsSync(request: NextRequest): Pro
       return NextResponse.json({ error: "A valid orgId is required." }, { status: 400 });
     }
 
-    if (!isElevenLabsEnabled() || !isConversationalAIEnabled()) {
+    if (!(await isElevenLabsEnabled()) || !isConversationalAIEnabled()) {
       return NextResponse.json(
         { error: "Conversational AI (Mode B) is not enabled on this platform." },
         { status: 503 },

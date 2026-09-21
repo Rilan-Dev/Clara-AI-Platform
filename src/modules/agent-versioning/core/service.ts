@@ -31,6 +31,8 @@ import {
   setBranchArchived,
 } from "./db";
 import { buildMergeReview, applyMerge, diffAgentConfigs } from "./diff";
+// Re-exported for the API barrel — handlers import everything from ./service.
+export { changeTagsForVersion, CHANGE_TAG_LIMIT } from "./diff";
 import { buildVersionConfigFromLive, projectDraftToLegacyStores } from "./projection";
 import type {
   AgentBranch,

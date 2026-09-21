@@ -37,7 +37,7 @@ import { isConversationalVoiceService } from "../../types";
 export async function postElevenLabsAgentSession(request: NextRequest): Promise<NextResponse> {
   try {
     // ── 0. Mode-B platform gates (cheapest checks first) ────────────────────
-    if (!isElevenLabsEnabled() || !isConversationalAIEnabled()) {
+    if (!(await isElevenLabsEnabled()) || !isConversationalAIEnabled()) {
       return NextResponse.json(
         {
           error:

@@ -41,7 +41,6 @@ import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
   getPlatformDefaultVoiceId,
-  isElevenLabsEnabled,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
   getPlatformDefaultSarvamSttModel,
@@ -286,8 +285,6 @@ export async function resolveVoiceConfig(
   // the operator. The org-level selection stays in the DB untouched, so
   // re-enabling the provider restores the org's choice instantly.
   const platformUnavailable = async (p: VoiceProvider): Promise<boolean> => {
-    if (p === "elevenlabs" && !isElevenLabsEnabled()) return true;
-    if (p === "sarvam" && !isSarvamEnabled()) return true;
     // Registry + entitlement gate (same resolver the UI uses). ElevenLabs and
     // Sarvam serve VOICE-CHAT (batch STT/TTS adapters); OpenAI/Gemini serve
     // voice surfaces through their native REALTIME capability — gate each

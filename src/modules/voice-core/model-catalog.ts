@@ -12,7 +12,7 @@
  *   • the settings APIs     — writes are rejected when an unsupported
  *                             ElevenLabs TTS model id is stored
  *                             (organisations/api/ai-settings.ts)
- *   • voice-core/resolve    — kill switch + provider default models + voice
+ *   • voice-core/resolve    — provider governance + default models + voice
  *                             id shape validation during resolution
  *   • voice-core/pricing    — per-model price list → cost per invocation
  *
@@ -26,6 +26,7 @@
  * logs via src/lib/redact.ts.
  */
 
+import { queryOne } from "@/lib/db";
 import type { VoiceProvider } from "./types";
 
 // ─── Catalogue entries ───────────────────────────────────────────────────────
@@ -92,36 +93,36 @@ export const STT_MAX_AUDIO_SECONDS = 120;
 export const STT_MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 export const TTS_OUTPUT_FORMAT = "pcm_16000";
 
-// ─── Kill switches / flags ───────────────────────────────────────────────────
+// ─── Provider availability ───────────────────────────────────────────────────
 
 /**
- * Platform-level availability gate for the ElevenLabs voice provider.
- * Requires BOTH the explicit opt-in flag and a usable API key.
+ * Platform provider availability is owned by the AI registry database.
+ * The database provider toggle is the only platform-level on/off control;
+ * the API key is only a credential/configuration prerequisite.
  */
-export function isElevenLabsEnabled(): boolean {
-  return (process.env.ELEVENLABS_ENABLED ?? "false").toLowerCase() === "true"
-    && Boolean(getElevenLabsApiKey());
+export async function isElevenLabsEnabled(): Promise<boolean> {
+  const row = await queryOne<{ enabled: boolean }>(
+    "SELECT enabled FROM platform_ai_providers WHERE provider_id = $1 LIMIT 1",
+    ["elevenlabs"],
+  );
+  return Boolean(row?.enabled) && Boolean(getElevenLabsApiKey());
 }
 
-/** Mode B (Conversational AI agents) — separate, stricter flag. */
+/** Mode B (Conversational AI agents) — separate platform feature setting. */
 export function isConversationalAIEnabled(): boolean {
   return (process.env.ELEVENLABS_CONVERSATIONAL_AI_ENABLED ?? "false").toLowerCase() === "true";
 }
 
-/**
- * Mode C (Clara-controlled realtime: Scribe realtime STT → Clara turn →
- * streaming TTS WebSocket) — flag-gated, DARK by default per plan Phase 13
- * (`ELEVENLABS_REALTIME_ENABLED=false`). Requires the base provider gate.
- */
-export function isElevenLabsRealtimeEnabled(): boolean {
-  return isElevenLabsEnabled()
+/** Mode C (Clara-controlled realtime) — separate platform feature setting. */
+export async function isElevenLabsRealtimeEnabled(): Promise<boolean> {
+  return (await isElevenLabsEnabled())
     && (process.env.ELEVENLABS_REALTIME_ENABLED ?? "false").toLowerCase() === "true";
 }
 
 /**
  * Scribe realtime model id for the /v1/speech-to-text/realtime WebSocket.
  * Validated against the current docs (client-side streaming guide): the
- * realtime endpoint takes `scribe_v2_realtime` (NOT the batch `scribe_v1`).
+ * realtime endpoint takes scribe_v2_realtime (NOT the batch scribe_v1).
  */
 export function getElevenLabsRealtimeSttModel(): string {
   return process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim() || "scribe_v2_realtime";

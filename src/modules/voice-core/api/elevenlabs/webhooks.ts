@@ -371,9 +371,9 @@ export async function postElevenLabsWebhookProvision(request: NextRequest): Prom
     const auth = await requireAuth(request);
     await requireSuperAdmin(auth);
 
-    if (!isElevenLabsEnabled()) {
+    if (!(await isElevenLabsEnabled())) {
       return NextResponse.json(
-        { error: "ElevenLabs is not enabled on this platform (missing API key or kill switch off)." },
+        { error: "ElevenLabs is disabled in Platform AI Settings or its API key is not configured." },
         { status: 503 },
       );
     }
