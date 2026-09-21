@@ -1,4 +1,4 @@
-import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
+import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/agents.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { appUrl } from "@/lib/stripe";
-import { getToolHmacSecret, isConversationalAIEnabled, isElevenLabsEnabled, isValidUuid } from "../../model-catalog";
+import { getToolHmacSecret, isConversationalAIEnabled, isValidUuid } from "../../model-catalog";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { isConversationalVoiceService } from "../../types";
