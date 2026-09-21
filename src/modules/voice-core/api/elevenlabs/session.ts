@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/session.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -29,7 +30,6 @@ import {
   STT_MAX_AUDIO_SECONDS,
   TTS_OUTPUT_FORMAT,
   getElevenLabsRealtimeSttModel,
-  isElevenLabsRealtimeEnabled,
   isValidUuid,
 } from "../../model-catalog";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
