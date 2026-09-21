@@ -109,7 +109,7 @@ function loadEnv(): Env {
     QDRANT_URL:              process.env.QDRANT_URL ?? "http://localhost:6333",
     QDRANT_API_KEY:          process.env.QDRANT_API_KEY,
     AI_PROVIDER:             provider,
-    OPENAI_API_KEY:          process.env.OPENAI_API_KEY,
+    OPENAI_API_KEY:          process.env.OPENAI_API_KEY!,
     GEMINI_API_KEY:          process.env.GEMINI_API_KEY,
     SARVAM_API_KEY:          process.env.SARVAM_API_KEY,
     AUTH_SECRET:             process.env.AUTH_SECRET ?? "change-me-in-production",
