@@ -86,35 +86,18 @@ async function rollbackSessionDocuments(kbId: string, sessionId: string): Promis
 }
 
 async function waitForSessionWorkersToStop(sessionId: string): Promise<boolean> {
-  const deadline = Date.now() + 20_000;
+  const session = await getSessionById(sessionId);
+  if (!session) return true;
 
-  while (Date.now() < deadline) {
-    const session = await getSessionById(sessionId);
-    if (!session) return true;
+  // Discovery and document work are now durable cloud-queue messages.
+  // Cancellation is persisted first; the consumer checks cancelRequested before
+  // doing more work, so there is no in-process worker that needs draining here.
+  if (session.status === "discovering") return true;
 
-    let crawlBusy = false;
-    if (session.status === "discovering" && session.jobId) {
-      try {
-        const job = await getCrawlQueue().getJob(session.jobId);
-        if (job) {
-          const state = await job.getState();
-          crawlBusy = state === "waiting" || state === "active" || state === "delayed";
-        }
-      } catch {}
-    }
-
-    const snapshot = await buildScrapeStreamSnapshot(sessionId);
-    const scrapingBusy = (snapshot?.scrapingUrls ?? 0) > 0;
-    const ingestBusy = await countRunningIngestJobsForSession(sessionId);
-
-    if (!crawlBusy && !scrapingBusy && ingestBusy === 0) {
-      return true;
-    }
-
-    await sleep(250);
-  }
-
-  return false;
+  const snapshot = await buildScrapeStreamSnapshot(sessionId);
+  const scrapingBusy = (snapshot?.scrapingUrls ?? 0) > 0;
+  const ingestBusy = await countRunningIngestJobsForSession(sessionId);
+  return !scrapingBusy && ingestBusy === 0;
 }
 
 async function finalizeSessionCancellation(kbId: string, sessionId: string): Promise<void> {
