@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/realtime-init.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,6 @@ import {
   getElevenLabsBaseUrl,
   getElevenLabsRealtimeSttModel,
   getPlatformDefaultTTSModel,
-  isElevenLabsRealtimeEnabled,
 } from "../../model-catalog";
 import { logSttUsage, logTtsUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
