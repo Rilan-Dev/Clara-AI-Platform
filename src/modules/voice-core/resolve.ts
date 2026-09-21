@@ -41,7 +41,6 @@ import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
   getPlatformDefaultVoiceId,
-  isElevenLabsEnabled,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
   getPlatformDefaultSarvamSttModel,
