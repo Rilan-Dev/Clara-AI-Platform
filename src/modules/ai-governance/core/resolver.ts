@@ -179,14 +179,12 @@ export async function resolveAvailableAIOptions(
       const elevenVoices = await query<{
         voice_id: string;
         name: string;
-        enabled: boolean;
       }>(
-        `SELECT voice_id, name, enabled
+        `SELECT voice_id, name
            FROM elevenlabs_voices
           WHERE org_id = $1
-            AND enabled = TRUE
         UNION
-        SELECT voice_id, name, enabled
+        SELECT voice_id, name
           FROM organisation_voices
          WHERE org_id = $1
            AND provider = 'elevenlabs'
