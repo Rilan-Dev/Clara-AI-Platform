@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/provider.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -34,8 +35,6 @@ import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
 import {
   isConversationalAIEnabled,
-  isElevenLabsEnabled,
-  isElevenLabsRealtimeEnabled,
 } from "../model-catalog";
 import { resolveVoiceConfig } from "../resolve";
 import { query as dbQuery } from "@/lib/db";
