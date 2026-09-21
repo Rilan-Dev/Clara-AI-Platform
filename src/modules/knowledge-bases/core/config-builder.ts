@@ -13,9 +13,12 @@ export function buildSystemPrompt(config: AssistantConfig, ctx: SessionPromptCon
 ${ctx.kbDescription.trim()}`);
   if (config.welcomeMessage.trim()) parts.push(`Configured visitor welcome/capability guidance:
 ${config.welcomeMessage.trim()}`);
-  if (ctx.documentTitles?.length) parts.push("The indexed documents are:
-" + ctx.documentTitles.map((title, index) => `  ${index + 1}. ${title}`).join("
-"));
+  if (ctx.documentTitles?.length) {
+    parts.push(
+      "The indexed documents are:\n" +
+        ctx.documentTitles.map((title, index) => `  ${index + 1}. ${title}`).join("\n"),
+    );
+  }
   if (ctx.surface !== "embed") parts.push("IMPORTANT: You MUST call the rag_search function before answering ANY user question. Do not answer from general knowledge. Always call rag_search first, wait for the result, then answer based only on what was returned. Never fabricate information that is not present in the retrieved context.");
   else parts.push("IMPORTANT: You MUST answer using the retrieved knowledge-base context provided above. Do not answer factual policy questions from general knowledge. Treat a broad or naturally worded question as in-scope when the retrieved passages contain related facts. Synthesize the relevant passages instead of refusing merely because there is no exact phrase match. For broad questions that match multiple products or coverage areas, ALWAYS give a useful summary of the relevant retrieved facts FIRST. Do not ask the user to choose a policy type before answering. A follow-up question may be offered only AFTER the answer if it would help narrow the discussion. Never fabricate information that is not present in the retrieved context.");
   if (config.rules.length > 0) { parts.push("Behaviour rules — follow these strictly:"); config.rules.forEach((rule, index) => parts.push(`  ${index + 1}. ${rule}`)); }
