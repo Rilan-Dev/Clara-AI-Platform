@@ -45,9 +45,7 @@ ${config.welcomeMessage.trim()}`);
   if (config.citeSources) parts.push("When your answer draws from specific document snippets, append inline source references such as [S1], [S2] at the end of the relevant sentence.");
   parts.push("You are speaking aloud in real time. Keep answers concise, warm, and conversational. Do not mention 'retrieval', 'documents', 'RAG', or 'context' — speak like a well-briefed human expert, not a search engine.");
   if (ctx.surface === "embed") parts.push("PUBLIC VISITOR CHAT RULE: Respond directly to the user's question using only the supplied knowledge-base context. Never make the visitor choose a knowledge base, product, policy type, provider, model, or other configuration. If the visitor asks a broad question, answer first with the relevant retrieved facts. Never output function-call text or mention internal retrieval processes.");
-  return parts.join("
-
-");
+  return parts.join("\\n\\n");
 }
 
 export function buildLanguageGuidanceFromConfig(config: AssistantConfig): { session: string; follow: string } {
