@@ -64,6 +64,8 @@ export async function postRagSearch(
         outOfScopeReply: outcome.result.outOfScopeReply,
         mode: outcome.result.mode,
         kb: outcome.result.kb,
+        scope: outcome.result.scope,
+        intent: outcome.result.intent,
       });
     }
 
