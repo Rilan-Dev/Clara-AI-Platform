@@ -37,19 +37,14 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
-  BookOpen,
   Bot,
-  ChevronRight,
   GitBranch,
   History,
-  LayoutDashboard,
   Plus,
   Rocket,
   Trash2,
-  Wrench,
   X,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
@@ -57,10 +52,13 @@ import { fetchKbs, type Agent, type KnowledgeBase } from "@/modules/admin-ui/api
 import {
   checkAgentDefaultUpdate,
   fetchAgentWorkspaceContext,
+  fetchAgentBranches,
+  fetchAgentVersions,
+  type AgentBranchDTO,
+  type AgentVersionDTO,
   type AgentWorkspaceContextDTO,
 } from "@/modules/admin-ui/ai-platform-api";
 import { VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
-import { cn } from "@/lib/utils";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
 
@@ -80,43 +78,8 @@ const TAB_SEGMENTS: Record<string, AgentWorkspaceTab> = {
   publish: "publish",
 };
 
-/** Sidebar groups shown when an agent is selected (ElevenLabs layout). */
-const AGENT_NAV_GROUPS: Array<{
-  label: string;
-  items: Array<{
-    id: AgentWorkspaceTab;
-    label: string;
-    icon: typeof LayoutDashboard;
-    href: (orgId: string, agentId: string) => string;
-  }>;
-}> = [
-  {
-    label: "Overview",
-    items: [
-      { id: "overview", label: "Overview", icon: LayoutDashboard, href: (o, a) => `/orgs/${o}/agents/${a}` },
-    ],
-  },
-  {
-    label: "Configure",
-    items: [
-      { id: "assistant", label: "Assistant & AI", icon: Bot, href: (o, a) => `/orgs/${o}/agents/${a}/config` },
-      { id: "knowledge", label: "Knowledge", icon: BookOpen, href: (o, a) => `/orgs/${o}/agents/${a}/knowledge` },
-      { id: "tools", label: "Tools", icon: Wrench, href: (o, a) => `/orgs/${o}/agents/${a}/tools` },
-    ],
-  },
-  {
-    label: "Deploy",
-    items: [
-      { id: "versions", label: "Versions", icon: History, href: (o, a) => `/orgs/${o}/agents/${a}/versions` },
-      { id: "publish", label: "Publish", icon: Rocket, href: (o, a) => `/orgs/${o}/agents/${a}/publish` },
-    ],
-  },
-];
-
-/** Flat tab list for the mobile strip. */
-const AGENT_TABS: Array<{ id: AgentWorkspaceTab; label: string; href: (o: string, a: string) => string }> =
-  AGENT_NAV_GROUPS.flatMap((g) => g.items.map(({ id, label, href }) => ({ id, label, href })));
-
+/** Navigation is rendered by the existing organisation sidebar.
+ * The agent workspace shell intentionally does not create another rail. */
 /** Knowledge base entry attributed to its owning agent. */
 export type OrgKbEntry = {
   kb: KnowledgeBase;
@@ -324,250 +287,6 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
   );
 }
 
-// ── Sidebar: no agent selected ─────────────────────────────────────────────────
-
-function AgentsListSidebar({ className }: { className?: string }) {
-  const { orgId, agents, agentsLoading, kbs, kbsLoading, agentId, openCreate } = useAgentsWorkspace();
-
-  return (
-    <div className={cn("flex flex-col", className)}>
-      {/* Agents group */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Agents</p>
-        <button
-          type="button"
-          onClick={openCreate}
-          aria-label="New agent"
-          title="New agent"
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {agentsLoading ? (
-        <div className="space-y-1 px-2">
-          {[1, 2, 3].map((i) => <div key={i} className="h-9 animate-pulse rounded-lg bg-muted/60" />)}
-        </div>
-      ) : agents.length === 0 ? (
-        <p className="px-4 pb-3 text-xs text-muted-foreground/70">
-          No agents yet — create one to get started.
-        </p>
-      ) : (
-        <ul className="px-2 pb-3 space-y-0.5">
-          {agents.map((agent) => (
-            <li key={agent.id}>
-              <Link
-                href={`/orgs/${orgId}/agents/${agent.id}`}
-                aria-current={agentId === agent.id ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
-                  agentId === agent.id
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-foreground/80 hover:bg-muted/60 hover:text-foreground",
-                )}
-              >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
-                  <Bot className="h-3.5 w-3.5" />
-                </span>
-                <span className="truncate">{agent.name}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* Knowledge bases group */}
-      <div className="mt-2 border-t border-border/60 pt-3">
-        <div className="flex items-center gap-2 px-4 pb-2">
-          <BookOpen className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Knowledge Base
-          </p>
-        </div>
-        {kbsLoading ? (
-          <div className="space-y-1 px-2 pb-3">
-            {[1, 2].map((i) => <div key={i} className="h-9 animate-pulse rounded-lg bg-muted/60" />)}
-          </div>
-        ) : kbs.length === 0 ? (
-          <p className="px-4 pb-3 text-xs text-muted-foreground/70">
-            No knowledge bases yet — open an agent to create one.
-          </p>
-        ) : (
-          <ul className="px-2 pb-4 space-y-0.5">
-            {kbs.map(({ kb, agentName }) => (
-              <li key={kb.id}>
-                <Link
-                  href={`/kbs/${kb.id}`}
-                  title={`${kb.name} · ${agentName}`}
-                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground/80 transition-colors hover:bg-muted/60 hover:text-foreground"
-                >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
-                    <BookOpen className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate leading-tight">{kb.name}</span>
-                    <span className="block truncate text-[10px] leading-tight text-muted-foreground/60">
-                      {agentName}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Sidebar: agent selected ──────────────────────────────────────────────────
-
-function AgentContextCard() {
-  const { orgId, agentId, context, contextLoading, agents } = useAgentsWorkspace();
-  const name =
-    context?.agent.name ??
-    agents.find((a) => a.id === agentId)?.name ??
-    (contextLoading ? "…" : "Agent");
-  const currentVersion = context?.currentVersion;
-
-  return (
-    <Link
-      href={`/orgs/${orgId}/agents/${agentId}/versions`}
-      className="mx-2 mt-2 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 transition-colors hover:border-primary/30 hover:bg-muted/70"
-      title="Agent · branch Main · current version — open version history"
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-        <Bot className="h-4 w-4 text-primary" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{name}</span>
-        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-          Main · v{currentVersion?.versionNumber ?? 1}
-        </span>
-      </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-    </Link>
-  );
-}
-
-function AgentNavSidebar({ className }: { className?: string }) {
-  const { orgId, agentId, tab } = useAgentsWorkspace();
-  if (!agentId) return null;
-
-  return (
-    <div className={cn("flex flex-col", className)}>
-      <Link
-        href={`/orgs/${orgId}/agents`}
-        className="mx-2 mt-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to agents
-      </Link>
-
-      <AgentContextCard />
-
-      <nav className="flex-1 px-2 py-3 space-y-4" aria-label="Agent workspace">
-        {AGENT_NAV_GROUPS.map((group) => (
-          <div key={group.label}>
-            <p className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-              {group.label}
-            </p>
-            <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = tab === item.id;
-                return (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href(orgId, agentId)}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
-                        active
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-foreground/80 hover:bg-muted/60 hover:text-foreground",
-                      )}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </nav>
-    </div>
-  );
-}
-
-// ── Mobile strips (sidebar collapses to horizontal scroll rows) ─────────────
-
-function MobileAgentsStrip() {
-  const { orgId, agents, agentsLoading, agentId, openCreate } = useAgentsWorkspace();
-  return (
-    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none px-3 py-2.5">
-      <button
-        type="button"
-        onClick={openCreate}
-        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/30"
-      >
-        <Plus className="h-3 w-3" /> New
-      </button>
-      {agentsLoading
-        ? [1, 2, 3].map((i) => <div key={i} className="h-7 w-24 shrink-0 animate-pulse rounded-full bg-muted/60" />)
-        : agents.map((agent) => (
-            <Link
-              key={agent.id}
-              href={`/orgs/${orgId}/agents/${agent.id}`}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors",
-                agentId === agent.id
-                  ? "border-primary/40 bg-primary/10 text-primary font-medium"
-                  : "border-border bg-card text-foreground/80 hover:text-foreground",
-              )}
-            >
-              <Bot className="h-3 w-3" />
-              <span className="max-w-32 truncate">{agent.name}</span>
-            </Link>
-          ))}
-    </div>
-  );
-}
-
-function MobileAgentTabsStrip() {
-  const { orgId, agentId, tab } = useAgentsWorkspace();
-  if (!agentId) return null;
-  return (
-    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-3 py-2">
-      <Link
-        href={`/orgs/${orgId}/agents`}
-        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-3 w-3" /> Agents
-      </Link>
-      {AGENT_TABS.map((t) => {
-        const active = tab === t.id;
-        return (
-          <Link
-            key={t.id}
-            href={t.href(orgId, agentId)}
-            className={cn(
-              "inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs transition-colors",
-              active
-                ? "border-primary/40 bg-primary/10 text-primary font-medium"
-                : "border-border bg-card text-foreground/80 hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Navbar ───────────────────────────────────────────────────────────────────
 
 function WorkspaceNavbar() {
@@ -681,14 +400,15 @@ function AgentNavbar({ context, loading }: {
           )}
         </div>
 
-        {/* Versions / publishing — only exist once an agent is selected. */}
+        {/* History opens the branch/version history as a half-canvas,
+            matching the version-control interaction used by ElevenLabs. */}
         <div className="flex shrink-0 items-center gap-2">
           <WorkspaceButton
             variant="secondary"
-            onClick={() => agentId && router.push(`/orgs/${orgId}/agents/${agentId}/versions`)}
+            onClick={() => agentId && router.push(`/orgs/${orgId}/agents/${agentId}/versions?history=1`)}
           >
             <History className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Versions</span>
+            <span className="hidden sm:inline">History</span>
           </WorkspaceButton>
           <WorkspaceButton
             variant={deployment ? "secondary" : "primary"}
@@ -828,24 +548,229 @@ function CreateAgentDialog({ onClose }: { onClose: () => void }) {
 
 function ShellFrame({ children }: { children: ReactNode }) {
   const { agentId } = useAgentsWorkspace();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const historyOpen = searchParams.get("history") === "1";
 
   return (
-    <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col lg:flex-row">
-      {/* Sidebar — desktop: fixed column; mobile: horizontal strip on top */}
-      <aside className="border-b border-border bg-muted/20 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-        <div className="lg:hidden">{agentId ? <MobileAgentTabsStrip /> : <MobileAgentsStrip />}</div>
-        <div className="hidden lg:block pb-6">
-          {agentId ? <AgentNavSidebar className="min-h-full" /> : <AgentsListSidebar />}
+    <div className="min-h-[calc(100dvh-3.5rem)]">
+      {/* The organisation sidebar owns navigation. This shell only supplies
+          the agent header and content, so the page keeps the full width that
+          the old nested sidebar consumed. */}
+      <header className="sticky top-14 z-20 border-b border-border bg-background/90 backdrop-blur-md md:top-16">
+        <WorkspaceNavbar />
+      </header>
+      <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+
+      {agentId && (
+        <AgentHistoryDrawer
+          agentId={agentId}
+          open={historyOpen}
+          onClose={() => router.replace(pathname)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AgentHistoryDrawer({
+  agentId,
+  open,
+  onClose,
+}: {
+  agentId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [branches, setBranches] = useState<AgentBranchDTO[]>([]);
+  const [versions, setVersions] = useState<AgentVersionDTO[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchAgentBranches(agentId)
+      .then((result) => {
+        if (cancelled) return;
+        setBranches(result.branches);
+        const main = result.branches.find((branch) => branch.isMain) ?? result.branches[0] ?? null;
+        setSelectedBranchId((current) => current ?? main?.id ?? null);
+      })
+      .catch((err) => !cancelled && setError((err as Error).message))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, [agentId, open]);
+
+  useEffect(() => {
+    if (!open || !selectedBranchId) return;
+    let cancelled = false;
+    setVersionsLoading(true);
+    fetchAgentVersions(agentId, selectedBranchId)
+      .then((result) => !cancelled && setVersions(result.versions))
+      .catch((err) => !cancelled && setError((err as Error).message))
+      .finally(() => !cancelled && setVersionsLoading(false));
+    return () => { cancelled = true; };
+  }, [agentId, open, selectedBranchId]);
+
+  if (!open) return null;
+
+  const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) ?? null;
+
+  return (
+    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Agent history">
+      <button
+        type="button"
+        aria-label="Close history"
+        className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <aside className="absolute inset-y-0 right-0 flex w-full max-w-[760px] flex-col border-l border-border bg-background shadow-2xl sm:w-[50vw]">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+              Agent versioning
+            </p>
+            <h2 className="text-base font-semibold text-foreground">History</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1">
+          {/* Branch rail — deliberately compact, matching a source-control
+              browser rather than adding another permanent sidebar. */}
+          <div className="w-[38%] min-w-[190px] shrink-0 overflow-y-auto border-r border-border bg-muted/10 p-3">
+            <div className="mb-3 flex items-center justify-between px-2">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Branches</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground/60">Lines of development</p>
+              </div>
+              <GitBranch className="h-3.5 w-3.5 text-muted-foreground/60" />
+            </div>
+
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-lg bg-muted/60" />)}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {branches.map((branch) => {
+                  const active = branch.id === selectedBranchId;
+                  return (
+                    <button
+                      key={branch.id}
+                      type="button"
+                      onClick={() => setSelectedBranchId(branch.id)}
+                      className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                        active
+                          ? "border-primary/25 bg-primary/10"
+                          : "border-transparent hover:border-border hover:bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`h-1.5 w-1.5 rounded-full ${branch.isMain ? "bg-primary" : "bg-muted-foreground/50"}`} />
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{branch.name}</span>
+                        {branch.isMain && <VersionBadge tone="primary">Main</VersionBadge>}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/60">
+                        <span>v{branch.latestVersionNumber ?? 1}</span>
+                        {branch.draftUpdatedAt && <span>Draft</span>}
+                        {branch.isArchived && <span>Archived</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+                {branches.length === 0 && !error && (
+                  <p className="px-2 py-6 text-xs text-muted-foreground/70">No branches yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Branch history */}
+          <div className="min-w-0 flex-1 overflow-y-auto">
+            <div className="border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
+                <h3 className="truncate text-sm font-semibold text-foreground">
+                  {selectedBranch?.name ?? "Branch"}
+                </h3>
+                {selectedBranch?.isMain && <VersionBadge tone="primary">Main</VersionBadge>}
+                {selectedBranch?.isArchived && <VersionBadge tone="muted">Archived</VersionBadge>}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                {selectedBranch?.description || "Immutable configuration history for this branch."}
+              </p>
+            </div>
+
+            {error && (
+              <p className="m-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </p>
+            )}
+
+            {versionsLoading ? (
+              <div className="space-y-2 p-5">
+                {[1, 2, 3, 4].map((item) => <div key={item} className="h-16 animate-pulse rounded-lg bg-muted/50" />)}
+              </div>
+            ) : (
+              <ol className="relative p-5">
+                {versions.map((version, index) => (
+                  <li key={version.id} className="relative pl-7 pb-5 last:pb-0">
+                    {index < versions.length - 1 && (
+                      <span className="absolute left-[7px] top-3 h-full w-px bg-border" aria-hidden />
+                    )}
+                    <span className="absolute left-0 top-1.5 h-4 w-4 rounded-full border-2 border-background bg-primary ring-1 ring-border" aria-hidden />
+                    <div className="rounded-xl border border-border/70 bg-card px-3.5 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-foreground">v{version.versionNumber}</span>
+                        {version.publishedAt && <VersionBadge tone="success">Published</VersionBadge>}
+                        {version.source === "restore" && <VersionBadge tone="muted">Restore</VersionBadge>}
+                        {version.source === "merge" && <VersionBadge tone="muted">Merge</VersionBadge>}
+                      </div>
+                      <p className="mt-1 text-xs text-foreground/80">
+                        {version.changeSummary || "Configuration updated"}
+                      </p>
+                      <p className="mt-1 text-[10px] text-muted-foreground/60">
+                        {version.createdByName || "System"} · {timeAgo(version.createdAt)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+                {versions.length === 0 && (
+                  <li className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground/70">
+                    No committed versions on this branch yet.
+                  </li>
+                )}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-3">
+          <p className="text-[10px] text-muted-foreground/60">
+            Drafts stay separate from immutable versions until you save a version.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-xs font-medium text-primary hover:underline"
+          >
+            Close
+          </button>
         </div>
       </aside>
-
-      {/* Main column — navbar + screen content */}
-      <div className="min-w-0 flex-1">
-        <header className="sticky top-14 z-20 border-b border-border bg-background/85 backdrop-blur-md md:top-16">
-          <WorkspaceNavbar />
-        </header>
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-      </div>
     </div>
   );
 }
