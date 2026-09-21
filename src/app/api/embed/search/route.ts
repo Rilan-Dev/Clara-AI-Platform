@@ -130,7 +130,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const providerConfig = providerOverride ?? toProviderConfig(resolved!, "embedding");
     let results;
     try {
-      results = await searchKbEmbedded(kb.qdrantCollection, query, limit, { providerConfig });
+      results = await searchKbEmbedded(resolved!.knowledgeCollection ?? kb.qdrantCollection, query, limit, { providerConfig });
     } catch (searchErr) {
       // Retrieval failed (e.g. embedding provider unreachable). Two duties:
       // 1. Finalise the already-admitted query event so the audit trail never
