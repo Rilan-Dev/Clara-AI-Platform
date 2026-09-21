@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/phone/core/elevenlabs-call.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -19,7 +20,6 @@
 import { query as dbQuery } from "@/lib/db";
 import {
   isConversationalAIEnabled,
-  isElevenLabsEnabled,
 } from "@/modules/voice-core/model-catalog";
 import { VoiceProviderFactory } from "@/modules/voice-core/factory";
 import { isConversationalVoiceService } from "@/modules/voice-core/types";

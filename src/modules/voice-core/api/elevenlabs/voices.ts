@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/voices.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,6 @@ import { query as dbQuery } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import {
   TTS_PREVIEW_MAX_CHARS,
-  isElevenLabsEnabled,
   isVoiceCloningEnabled,
   isVoiceDesignEnabled,
   isValidUuid,

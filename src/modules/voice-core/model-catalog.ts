@@ -26,7 +26,6 @@
  * logs via src/lib/redact.ts.
  */
 
-import { queryOne } from "@/lib/db";
 import type { VoiceProvider } from "./types";
 
 // ─── Catalogue entries ───────────────────────────────────────────────────────
@@ -94,19 +93,6 @@ export const STT_MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 export const TTS_OUTPUT_FORMAT = "pcm_16000";
 
 // ─── Provider availability ───────────────────────────────────────────────────
-
-/**
- * Platform provider availability is owned by the AI registry database.
- * The database provider toggle is the only platform-level on/off control;
- * the API key is only a credential/configuration prerequisite.
- */
-export async function isElevenLabsEnabled(): Promise<boolean> {
-  const row = await queryOne<{ enabled: boolean }>(
-    "SELECT enabled FROM platform_ai_providers WHERE provider_id = $1 LIMIT 1",
-    ["elevenlabs"],
-  );
-  return Boolean(row?.enabled) && Boolean(getElevenLabsApiKey());
-}
 
 /** Mode B (Conversational AI agents) — separate platform feature setting. */
 export function isConversationalAIEnabled(): boolean {

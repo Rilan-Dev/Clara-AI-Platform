@@ -1,3 +1,4 @@
+import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
 /**
  * src/modules/voice-core/api/elevenlabs/status.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -16,7 +17,6 @@ import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
   isConversationalAIEnabled,
-  isElevenLabsEnabled,
   isVoiceCloningEnabled,
   isVoiceDesignEnabled,
 } from "../../model-catalog";
