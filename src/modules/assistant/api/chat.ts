@@ -303,7 +303,7 @@ async function postChatKb(
     .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
     .join("\n\n");
 
-  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name }));
+  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, surface: "chat" }));
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
