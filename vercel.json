@@ -1,7 +1,21 @@
 {
-  "$schema":"https://openapi.vercel.sh/vercel.json",
-  "framework":"nextjs",
-  "installCommand":"npm ci --legacy-peer-deps",
-  "buildCommand":"npm run build",
-  "regions":["bom1"]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "regions": ["bom1"],
+  "functions": {
+    "src/app/api/queue/ingest/route.ts": {
+      "experimentalTriggers": [
+        { "type": "queue/v2beta", "topic": "clara-ingest" }
+      ],
+      "maxDuration": 300
+    },
+    "src/app/api/queue/crawl/route.ts": {
+      "experimentalTriggers": [
+        { "type": "queue/v2beta", "topic": "clara-crawl" }
+      ],
+      "maxDuration": 300
+    }
+  }
 }
