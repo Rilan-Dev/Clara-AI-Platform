@@ -36,7 +36,7 @@ const MANAGED_KEYS = new Set([
   // platform_env_settings rows — without these entries the Settings → AI
   // Sarvam section can render but every save is rejected with 403
   // "Setting is not managed by the platform settings page".)
-  "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_BASE_URL", "SARVAM_TIMEOUT_MS",
+  "SARVAM_API_KEY", "SARVAM_BASE_URL", "SARVAM_TIMEOUT_MS",
   "SARVAM_CHAT_MODEL", "SARVAM_BETA_MODELS_ENABLED",
   "SARVAM_TTS_MODEL", "SARVAM_STT_MODEL", "SARVAM_DEFAULT_SPEAKER",
   "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
