@@ -261,3 +261,12 @@ export async function sendPlatformEmail(email: PlatformEmail): Promise<EmailSend
 // ── Reuse the canonical app URL helper ────────────────────────────────────────
 
 export { appUrl };
+
+// ── Request-aware public origin ───────────────────────────────────────────────
+//
+// Implementation lives in the dependency-free src/lib/public-origin.ts (see
+// the docs there for why a bare env-based appUrl() breaks emailed links on
+// unconfigured deploys). Re-exported here so every email-sending call site
+// can pull it from the same module it already imports.
+
+export { resolvePublicOrigin, appUrlFor } from "@/lib/public-origin";

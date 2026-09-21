@@ -10,11 +10,16 @@
  *   ?gateway=stripe|razorpay
  *   ?session_id=cs_…  (Stripe only — used to verify/display receipt)
  *   ?source=portal    (returning from Stripe portal)
+ *
+ * Paid signups skip /signup/verify (they went straight from registration
+ * to checkout), so this screen also reminds them to verify their email —
+ * with a working resend button (session-authenticated, no email needed).
  */
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink } from "lucide-react";
+import { Brain, CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink, MailWarning, RefreshCw } from "lucide-react";
 
 const PLAN_FEATURES: Record<string, string[]> = {
   starter: ["3 Knowledge Bases", "50 docs per KB", "1,000 req/day", "Voice AI", "API access"],
@@ -33,6 +38,32 @@ export default function CheckoutSuccessScreen() {
   const gateway   = searchParams.get("gateway")  ?? "stripe";
   const source    = searchParams.get("source")   ?? "";
   const sessionId = searchParams.get("session_id") ?? "";
+
+  // Verify-email resend (paid signup funnel — the session identifies the
+  // user, so no email address is needed here). Non-blocking by design.
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [resendError, setResendError] = useState("");
+
+  async function handleResendVerification() {
+    setResending(true);
+    setResendError("");
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // empty body → authenticated fallback
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not resend the email.");
+      setResent(true);
+      setTimeout(() => setResent(false), 6000);
+    } catch (err) {
+      setResendError((err as Error).message);
+    } finally {
+      setResending(false);
+    }
+  }
 
   const features  = PLAN_FEATURES[planId] ?? [];
   const planName  = planId.charAt(0).toUpperCase() + planId.slice(1);
@@ -117,6 +148,39 @@ export default function CheckoutSuccessScreen() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status</span>
               <span className="text-emerald-600 font-medium">Active</span>
+            </div>
+          </div>
+        )}
+
+        {/* Verify-email reminder (paid signup funnel only — portal visits
+            and returning customers are already verified) */}
+        {!isPortal && (
+          <div className="border border-amber-500/25 bg-amber-500/[0.06] rounded-xl p-4 mb-6 text-left">
+            <div className="flex items-start gap-3">
+              <MailWarning className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">One last step — verify your email</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  We sent a confirmation link when you signed up. Verify to secure your account
+                  and make sure billing receipts reach your inbox.
+                </p>
+                {resent ? (
+                  <p className="text-xs text-emerald-600 mt-2">
+                    Verification email resent — check your inbox (and spam folder).
+                  </p>
+                ) : resendError ? (
+                  <p className="text-xs text-destructive mt-2">{resendError}</p>
+                ) : (
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={resending}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-60"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${resending ? "animate-spin" : ""}`} />
+                    {resending ? "Resending…" : "Resend verification email"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

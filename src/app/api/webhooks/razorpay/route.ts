@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, queryOne } from "@/lib/db";
 import { verifyRazorpayWebhookSignature, PLAN_AMOUNTS_INR_PAISE, formatInr } from "@/lib/razorpay";
+import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 
 export const config = { api: { bodyParser: false } };
@@ -67,7 +68,8 @@ async function orgInfoFor(orgId: string, planId: string): Promise<{ orgName: str
 
 /** Payment receipt (payment_success) — first purchase and renewals. */
 async function notifyPaymentSuccess(
-  orgId: string, planId: string, amountPaise: number, paymentId: string
+  orgId: string, planId: string, amountPaise: number, paymentId: string,
+  origin?: string
 ): Promise<void> {
   try {
     const info = await orgInfoFor(orgId, planId);
@@ -79,12 +81,14 @@ async function notifyPaymentSuccess(
       orgName: info.orgName,
       recipientEmail: ownerEmail,
       type: "payment_success",
+      origin,
       data: {
         orgName: info.orgName,
         planName: info.planName,
         amount: formatInr(amountPaise),
         paymentId,
-        receiptUrl: "/dashboard",
+        // Absolute URL — a relative href is unusable inside email clients.
+        receiptUrl: `${origin ?? appUrlFor("")}/dashboard`,
       },
     });
   } catch (mailErr) {
@@ -93,7 +97,7 @@ async function notifyPaymentSuccess(
 }
 
 /** Payment failure alert (payment_failed) — parity with the Stripe webhook. */
-async function notifyPaymentFailed(orgId: string, planId: string): Promise<void> {
+async function notifyPaymentFailed(orgId: string, planId: string, origin?: string): Promise<void> {
   try {
     const info = await orgInfoFor(orgId, planId);
     if (!info) return;
@@ -104,6 +108,7 @@ async function notifyPaymentFailed(orgId: string, planId: string): Promise<void>
       orgName: info.orgName,
       recipientEmail: ownerEmail,
       type: "payment_failed",
+      origin,
       data: { orgName: info.orgName, planName: info.planName },
     });
   } catch (mailErr) {
@@ -189,7 +194,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // webhook for the same payment; whichever records billing_events
         // first sends the email, the other side's idempotency check skips
         // it — one receipt per payment, never two.
-        await notifyPaymentSuccess(orgId, planId, payment.amount, payment.id);
+        await notifyPaymentSuccess(orgId, planId, payment.amount, payment.id, appUrlFor("", req));
         break;
       }
 
@@ -224,7 +229,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // previously only the Stripe webhook emailed failures; Razorpay
         // orgs silently went past_due.
         if (planId) {
-          await notifyPaymentFailed(orgId, planId);
+          await notifyPaymentFailed(orgId, planId, appUrlFor("", req));
         }
         break;
       }
@@ -263,7 +268,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // Renewal receipt for the org owner.
         if (planId) {
           await notifyPaymentSuccess(
-            orgId, planId, PLAN_AMOUNTS_INR_PAISE[planId] ?? 0, sub.id
+            orgId, planId, PLAN_AMOUNTS_INR_PAISE[planId] ?? 0, sub.id, appUrlFor("", req)
           );
         }
         break;

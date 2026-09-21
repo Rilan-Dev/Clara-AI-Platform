@@ -277,8 +277,8 @@ async function seedDemoTenants(client: PoolClient, logger: Logger) {
 
   const omenHash = await hashPassword(omenPassword);
   await client.query(
-    `INSERT INTO users (id, email, password_hash, full_name, email_verified, status)
-     VALUES ($1, $2, $3, 'Omen Portal Admin', TRUE, 'active')
+    `INSERT INTO users (id, email, password_hash, full_name, email_verified, status, welcome_email_sent_at)
+     VALUES ($1, $2, $3, 'Omen Portal Admin', TRUE, 'active', now())
      ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email, password_hash = EXCLUDED.password_hash,
        full_name = EXCLUDED.full_name, status = 'active'`,
@@ -287,8 +287,8 @@ async function seedDemoTenants(client: PoolClient, logger: Logger) {
 
   const tvHash = await hashPassword(tvPassword);
   await client.query(
-    `INSERT INTO users (id, email, password_hash, full_name, email_verified, status)
-     VALUES ($1, $2, $3, 'TechVision Admin', TRUE, 'active')
+    `INSERT INTO users (id, email, password_hash, full_name, email_verified, status, welcome_email_sent_at)
+     VALUES ($1, $2, $3, 'TechVision Admin', TRUE, 'active', now())
      ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email, password_hash = EXCLUDED.password_hash,
        full_name = EXCLUDED.full_name, status = 'active'`,

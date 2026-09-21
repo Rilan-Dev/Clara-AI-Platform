@@ -43,6 +43,14 @@ interface NotificationPayload {
   recipientEmail: string;
   type:        NotificationType;
   data:        Record<string, string | number | boolean>;
+  /**
+   * Absolute public origin (e.g. "https://app.example.com") derived from
+   * the triggering request via appUrlFor("", req). When omitted (background
+   * worker contexts such as the expiry sweep) the env-configured appUrl()
+   * applies. Guarantees emailed CTAs never degrade to localhost links on an
+   * unconfigured deploy.
+   */
+  origin?:     string;
 }
 
 // ── Template rendering ───────────────────────────────────────────────────────
@@ -55,12 +63,12 @@ function templateKeyFor(type: NotificationType): EmailTemplateKey {
   return type as EmailTemplateKey;
 }
 
-async function buildTemplate(type: NotificationType, data: Record<string, string | number | boolean>): Promise<{
+async function buildTemplate(type: NotificationType, data: Record<string, string | number | boolean>, origin?: string): Promise<{
   subject: string; bodyHtml: string; bodyText: string;
 } | null> {
   const rendered = await renderEmailTemplate(templateKeyFor(type), {
     ...data,
-    renewUrl: appUrl("/login"),
+    renewUrl: `${origin ?? appUrl("")}/login`,
   });
   // null → a platform admin deactivated this template (Settings → Email
   // Templates). The business event still happened, so the caller records a
@@ -75,7 +83,7 @@ export async function queueNotification(payload: NotificationPayload): Promise<s
   const built = await buildTemplate(payload.type, {
     orgName: payload.orgName,
     ...payload.data,
-  });
+  }, payload.origin);
 
   // Template deactivated by a platform admin → keep an auditable trace that
   // the event occurred but no email was delivered (status 'suppressed' is

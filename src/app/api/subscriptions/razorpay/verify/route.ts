@@ -29,6 +29,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { query, queryOne } from "@/lib/db";
 import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr } from "@/lib/razorpay";
+import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 
 type VerifyBody = {
@@ -137,12 +138,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             orgName: orgRow.org_name,
             recipientEmail: ownerEmail,
             type: "payment_success",
+            origin: appUrlFor("", req),
             data: {
               orgName: orgRow.org_name,
               planName: orgRow.plan_name,
               amount: formatInr(PLAN_AMOUNTS_INR_PAISE[planId] ?? 0),
               paymentId: razorpay_payment_id,
-              receiptUrl: "/dashboard",
+              // Absolute URL — a relative href is unusable in email clients.
+              receiptUrl: `${appUrlFor("", req)}/dashboard`,
             },
           });
         }

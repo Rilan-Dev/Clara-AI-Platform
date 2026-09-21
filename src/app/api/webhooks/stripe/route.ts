@@ -27,7 +27,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, queryOne } from "@/lib/db";
-import { getStripe, getStripeWebhookSecret, appUrl } from "@/lib/stripe";
+import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 import type Stripe from "stripe";
 
@@ -98,7 +99,7 @@ function formatUsd(cents: number): string {
   return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-async function sendPaymentSuccessEmail(orgId: string, inv: Stripe.Invoice): Promise<void> {
+async function sendPaymentSuccessEmail(orgId: string, inv: Stripe.Invoice, origin?: string): Promise<void> {
   try {
     const orgRow = await queryOne<{ org_name: string; plan_name: string }>(
       `SELECT o.name AS org_name, sp.name AS plan_name
@@ -118,12 +119,13 @@ async function sendPaymentSuccessEmail(orgId: string, inv: Stripe.Invoice): Prom
       orgName: orgRow.org_name,
       recipientEmail: ownerEmail,
       type: "payment_success",
+      origin,
       data: {
         orgName: orgRow.org_name,
         planName: orgRow.plan_name,
         amount: formatUsd(inv.amount_paid ?? 0),
         paymentId: inv.id ?? inv.number ?? "stripe-invoice",
-        receiptUrl: inv.hosted_invoice_url ?? appUrl("/dashboard"),
+        receiptUrl: inv.hosted_invoice_url ?? `${origin ?? appUrlFor("")}/dashboard`,
       },
     });
   } catch (mailErr) {
@@ -269,7 +271,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // email-free: Stripe fires BOTH events for the first payment, so
         // sending there too would double-email every new customer.
         if (orgId && orgId !== "unknown") {
-          await sendPaymentSuccessEmail(orgId, inv);
+          await sendPaymentSuccessEmail(orgId, inv, appUrlFor("", req));
         }
         break;
       }
@@ -327,6 +329,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                 orgName: subRow.org_name,
                 recipientEmail: ownerEmail,
                 type: "payment_failed",
+                origin: appUrlFor("", req),
                 data: { orgName: subRow.org_name, planName: subRow.plan_name },
               });
             }

@@ -153,19 +153,23 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDef>
   welcome_email: {
     key: "welcome_email",
     name: "Welcome / registration confirmed",
-    description: "Sent the moment an email is verified — doubles as the registration confirmation.",
+    description: "Registration confirmation + welcome — sent on email verification OR the first successful login (exactly once).",
     category: "auth",
     subject: "Welcome to {{appName}}, {{userName}}! 🎉",
     bodyHtml: ctaWrap(`
       <h2 style="margin:0 0 12px;">You're all set! 🎉</h2>
       <p>Hi <strong>{{userName}}</strong>,</p>
-      <p>Your email has been confirmed and your {{appName}} account is now fully activated.</p>
+      <p>Your {{appName}} account is active and you're signed in successfully —
+         consider this your official welcome aboard.</p>
       <p>Here's what you can do next:</p>
       <ul style="margin:8px 0 12px 20px;padding:0;">
         <li>Build your first AI assistant</li>
         <li>Upload documents to a knowledge base</li>
         <li>Invite teammates to collaborate</li>
-      </ul>`,
+      </ul>
+      <p style="font-size:12px;color:#888;margin:8px 0 0;">
+        Tip: confirming your email address (link sent at sign-up) keeps your
+        account secure and billing receipts reaching you.</p>`,
       "{{dashboardUrl}}", "Open my workspace"),
     variables: [VAR_USER, VAR_APP, VAR_DASH],
   },
