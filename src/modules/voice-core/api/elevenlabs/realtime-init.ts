@@ -28,6 +28,7 @@ import {
   getElevenLabsRealtimeSttModel,
   getPlatformDefaultTTSModel,
 } from "../../model-catalog";
+import { isElevenLabsRealtimeEnabled } from "../../server-provider-availability";
 import { logSttUsage, logTtsUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { isElevenLabsRelayRequest } from "./realtime-auth";

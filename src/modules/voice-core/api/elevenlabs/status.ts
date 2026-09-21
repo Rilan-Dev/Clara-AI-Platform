@@ -20,6 +20,7 @@ import {
   isVoiceCloningEnabled,
   isVoiceDesignEnabled,
 } from "../../model-catalog";
+import { isElevenLabsEnabled } from "../../server-provider-availability";
 import { VoiceProviderFactory } from "../../factory";
 import { ElevenLabsError } from "../../providers/elevenlabs";
 import { evaluateCreditBurn } from "../../credit-alerts";
