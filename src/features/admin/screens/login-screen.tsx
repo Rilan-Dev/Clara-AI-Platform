@@ -1,7 +1,7 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Brain, Eye, EyeOff } from "lucide-react";
+import { Brain, Eye, EyeOff, MailWarning, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import axios, { isAxiosError } from "axios";
 import { setStoredToken } from "@/lib/client-auth";
@@ -25,6 +25,31 @@ function LoginForm() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Post-login interstitial: signed in, but the email is not verified yet.
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [resendError, setResendError] = useState("");
+
+  async function handleResendVerification() {
+    setResending(true);
+    setResendError("");
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not resend the email.");
+      setResent(true);
+      setTimeout(() => setResent(false), 6000);
+    } catch (err) {
+      setResendError((err as Error).message);
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,7 +59,7 @@ function LoginForm() {
     try {
       // Keep login on the current origin so the Set-Cookie response from
       // /api/auth/login is stored for the same host that serves /dashboard.
-      const { data } = await authClient.post<{ token?: string }>(
+      const { data } = await authClient.post<{ token?: string; emailVerified?: boolean }>(
         AUTH_LOGIN_ENDPOINT,
         { email, password },
         { withCredentials: true },
@@ -48,6 +73,14 @@ function LoginForm() {
       // Keep the bearer token for client-side API calls as before. The
       // HttpOnly cookie is the authoritative browser session for middleware.
       setStoredToken(data.token);
+
+      // Unverified account → non-blocking interstitial before the redirect:
+      // the session is already established, but we prompt once so the user
+      // can resend the verification email. "Continue" proceeds normally.
+      if (data.emailVerified === false) {
+        setNeedsVerification(true);
+        return;
+      }
 
       // Do a full navigation rather than an in-place router transition. This
       // guarantees the next request is made with the freshly-issued cookie and
@@ -81,6 +114,48 @@ function LoginForm() {
           <p className="text-muted-foreground text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
         <div className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm">
+          {needsVerification ? (
+            <div className="space-y-4 text-center">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <MailWarning className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-foreground font-medium">You&apos;re signed in — please verify your email</p>
+                <p className="text-sm text-muted-foreground mt-1 break-all">
+                  We sent a confirmation link to <span className="text-foreground/80 font-medium">{email}</span>.
+                  Verifying secures your account and keeps billing receipts reaching you.
+                </p>
+              </div>
+              {resent ? (
+                <div className="text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                  Verification email resent — check your inbox.
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resending}
+                  className="w-full border border-border text-foreground/80 hover:text-foreground hover:border-primary/40 font-medium py-2.5 rounded-xl text-sm transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {resending ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin" /> Resending…</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4" /> Resend verification email</>
+                  )}
+                </button>
+              )}
+              {resendError && (
+                <p className="text-xs text-destructive">{resendError}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => window.location.replace(redirectTo)}
+                className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 transition-all"
+              >
+                Continue to Clara AI
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
@@ -107,6 +182,7 @@ function LoginForm() {
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

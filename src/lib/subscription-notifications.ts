@@ -26,6 +26,7 @@ export type NotificationType =
   | "trial_extended"
   | "trial_converted"
   | "trial_ending_soon"
+  | "payment_success"
   | "payment_failed"
   | "subscription_reactivated"
   | "renewal_reminder"

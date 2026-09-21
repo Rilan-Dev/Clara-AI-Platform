@@ -15,6 +15,11 @@
  *   1. Validates HMAC-SHA256 signature
  *   2. Activates the org subscription
  *   3. Logs a billing_event record
+ *   4. Emails the org owner a payment-success receipt (only when this
+ *      payment hasn't been processed before — the Razorpay webhook races
+ *      this endpoint for the same payment and handles the email there if
+ *      it arrives first, so the billing_events idempotency check prevents
+ *      double-emailing).
  *
  * Returns: { ok: true; message: string }
  */
@@ -23,7 +28,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { query, queryOne } from "@/lib/db";
-import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE } from "@/lib/razorpay";
+import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr } from "@/lib/razorpay";
+import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 
 type VerifyBody = {
   razorpay_order_id:   string;
@@ -92,8 +98,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       [orgId, planId, razorpay_payment_id]
     );
 
-    // ── Log billing event ────────────────────────────────────────────────────
-    // Idempotency: skip if already recorded
+    // ── Log billing event + payment receipt email ────────────────────────────
+    // Idempotency: skip if already recorded. When the webhook processed this
+    // payment first it already sent the receipt email, so skipping here too
+    // is exactly what prevents a double email.
     const existing = await queryOne(
       "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'razorpay'",
       [razorpay_payment_id]
@@ -112,6 +120,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           JSON.stringify({ orderId: razorpay_order_id, paymentId: razorpay_payment_id }),
         ]
       );
+
+      // ── Payment success receipt for the org owner ────────────────────
+      try {
+        const orgRow = await queryOne<{ org_name: string; plan_name: string }>(
+          `SELECT o.name AS org_name, sp.name AS plan_name
+             FROM organisations o
+             JOIN subscription_plans sp ON sp.id = $2
+            WHERE o.id = $1`,
+          [orgId, planId]
+        );
+        const ownerEmail = orgRow ? await getOrgOwnerEmail(orgId) : null;
+        if (orgRow && ownerEmail) {
+          await queueNotification({
+            orgId,
+            orgName: orgRow.org_name,
+            recipientEmail: ownerEmail,
+            type: "payment_success",
+            data: {
+              orgName: orgRow.org_name,
+              planName: orgRow.plan_name,
+              amount: formatInr(PLAN_AMOUNTS_INR_PAISE[planId] ?? 0),
+              paymentId: razorpay_payment_id,
+              receiptUrl: "/dashboard",
+            },
+          });
+        }
+      } catch (mailErr) {
+        console.error("[razorpay-verify] payment_success notification failed:", (mailErr as Error).message);
+      }
     }
 
     return NextResponse.json({

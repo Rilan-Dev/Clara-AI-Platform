@@ -32,6 +32,8 @@ import { htmlToText, wrapEmail } from "@/lib/email";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type EmailTemplateKey =
+  | "email_verification"
+  | "welcome_email"
   | "password_reset"
   | "password_changed"
   | "org_invitation_new_user"
@@ -44,6 +46,7 @@ export type EmailTemplateKey =
   | "trial_extended"
   | "trial_converted"
   | "trial_ending_soon"
+  | "payment_success"
   | "payment_failed"
   | "renewal_reminder"
   | "subscription_expired"
@@ -111,6 +114,11 @@ const VAR_NOTE      = { name: "note",      description: "Optional admin note" };
 const VAR_ROLE      = { name: "role",      description: "Member role (e.g. org_admin)" };
 const VAR_LOGIN     = { name: "loginUrl",  description: "Sign-in page link" };
 const VAR_APP       = { name: "appName",   description: "Platform name (Clara AI)" };
+const VAR_VERIFY    = { name: "verifyUrl",  description: "One-time email verification link (24 hours)" };
+const VAR_DASH      = { name: "dashboardUrl", description: "Workspace / dashboard link" };
+const VAR_AMOUNT    = { name: "amount",     description: "Payment amount with currency (e.g. $49.00 / ₹3,999)" };
+const VAR_RECEIPT   = { name: "receiptUrl",  description: "Invoice / receipt link when available" };
+const VAR_PAYMENT   = { name: "paymentId",   description: "Gateway payment reference" };
 
 // ── Default template catalogue ────────────────────────────────────────────────
 //
@@ -126,6 +134,42 @@ const subWrap = (body: string) => wrapEmail(body);
 
 export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDef> = {
   // ── Auth ────────────────────────────────────────────────────────────────
+  email_verification: {
+    key: "email_verification",
+    name: "Email verification link",
+    description: "Sent right after registration — the link verifies the address (24 hours).",
+    category: "auth",
+    subject: "Verify your email for {{appName}}",
+    bodyHtml: ctaWrap(`
+      <h2 style="margin:0 0 12px;">Confirm your email address</h2>
+      <p>Hi <strong>{{userName}}</strong>,</p>
+      <p>Thanks for creating your {{appName}} account. Please confirm this email address to
+         activate your account and secure your workspace.</p>
+      <p>This link is valid for <strong>24 hours</strong> and can only be used once.</p>`,
+      "{{verifyUrl}}", "Verify my email"),
+    variables: [VAR_USER, VAR_APP, VAR_VERIFY],
+  },
+
+  welcome_email: {
+    key: "welcome_email",
+    name: "Welcome / registration confirmed",
+    description: "Sent the moment an email is verified — doubles as the registration confirmation.",
+    category: "auth",
+    subject: "Welcome to {{appName}}, {{userName}}! 🎉",
+    bodyHtml: ctaWrap(`
+      <h2 style="margin:0 0 12px;">You're all set! 🎉</h2>
+      <p>Hi <strong>{{userName}}</strong>,</p>
+      <p>Your email has been confirmed and your {{appName}} account is now fully activated.</p>
+      <p>Here's what you can do next:</p>
+      <ul style="margin:8px 0 12px 20px;padding:0;">
+        <li>Build your first AI assistant</li>
+        <li>Upload documents to a knowledge base</li>
+        <li>Invite teammates to collaborate</li>
+      </ul>`,
+      "{{dashboardUrl}}", "Open my workspace"),
+    variables: [VAR_USER, VAR_APP, VAR_DASH],
+  },
+
   password_reset: {
     key: "password_reset",
     name: "Password reset link",
@@ -301,6 +345,23 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDef>
       <p>Your free trial of <strong>{{planName}}</strong> ends on <strong>{{trialEnd}}</strong>.</p>
       <p>Upgrade before it ends to keep every feature running without interruption.</p>`),
     variables: [VAR_ORG, VAR_PLAN, VAR_DAYS, VAR_END_DATE, VAR_APP],
+  },
+
+  payment_success: {
+    key: "payment_success",
+    name: "Payment successful",
+    description: "Receipt sent when a payment succeeds — first purchase and every renewal (Stripe + Razorpay).",
+    category: "subscription",
+    subject: "Payment received — {{appName}} {{planName}} ({{amount}})",
+    bodyHtml: ctaWrap(`
+      <h2 style="margin:0 0 12px;color:#10b981;">Payment successful ✅</h2>
+      <p>Hi <strong>{{orgName}}</strong>,</p>
+      <p>We've received your payment of <strong>{{amount}}</strong> for the
+         <strong>{{planName}}</strong> plan. Your subscription is active.</p>
+      <p style="font-size:12px;color:#888;margin:12px 0;">
+        Payment reference: {{paymentId}}</p>`,
+      "{{receiptUrl}}", "View billing details"),
+    variables: [VAR_ORG, VAR_PLAN, VAR_AMOUNT, VAR_RECEIPT, VAR_PAYMENT, VAR_APP],
   },
 
   payment_failed: {

@@ -287,7 +287,7 @@ async function resetStore() {
   audit = [];
   auditSeq = 1;
   queryMock.mockClear();
-  await listEmailTemplates(); // runs ensureEmailTemplates → seeds 16 defaults
+  await listEmailTemplates(); // runs ensureEmailTemplates → seeds every default
 }
 
 const KEY = "password_reset" as const;
@@ -558,5 +558,50 @@ describe("template rows expose draft state", () => {
     const rows = await listEmailTemplates();
     expect(rows.length).toBe(Object.keys(EMAIL_TEMPLATE_DEFAULTS).length);
     expect(rows.every((r) => r.draft === null)).toBe(true);
+  });
+});
+
+// ── Signup + billing funnel templates ─────────────────────────────────────────
+
+describe("signup and payment funnel templates", () => {
+  beforeEach(resetStore);
+
+  it("seeds and renders the email_verification template with its CTA link", async () => {
+    const rendered = await renderEmailTemplate("email_verification", {
+      userName: "Jane",
+      verifyUrl: "https://clara.example/login/verify-email?token=xyz",
+    });
+    expect(rendered).not.toBeNull();
+    expect(rendered?.html).toContain("https://clara.example/login/verify-email?token=xyz");
+    expect(rendered?.subject).toBe("Verify your email for Clara AI");
+  });
+
+  it("seeds and renders the welcome_email template", async () => {
+    const rendered = await renderEmailTemplate("welcome_email", {
+      userName: "Jane",
+      dashboardUrl: "https://clara.example/dashboard",
+    });
+    expect(rendered).not.toBeNull();
+    expect(rendered?.html).toContain("Jane");
+    expect(rendered?.html).toContain("https://clara.example/dashboard");
+  });
+
+  it("seeds and renders the payment_success template with amount and reference", async () => {
+    const rendered = await renderEmailTemplate("payment_success", {
+      orgName: "Acme",
+      planName: "Pro",
+      amount: "₹4,000.00",
+      paymentId: "pay_Nxq1Q0r",
+      receiptUrl: "https://clara.example/dashboard",
+    });
+    expect(rendered).not.toBeNull();
+    expect(rendered?.subject).toContain("Payment received");
+    expect(rendered?.html).toContain("₹4,000.00");
+    expect(rendered?.html).toContain("pay_Nxq1Q0r");
+  });
+
+  it("payment_success honours the admin kill-switch like every other template", async () => {
+    await setEmailTemplateActive("payment_success", false);
+    expect(await renderEmailTemplate("payment_success", { orgName: "Acme" })).toBeNull();
   });
 });

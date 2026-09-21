@@ -7,7 +7,8 @@
  *   checkout.session.completed       → activate subscription after checkout
  *   customer.subscription.updated   → sync plan changes / status changes
  *   customer.subscription.deleted   → mark subscription as canceled
- *   invoice.payment_succeeded        → log paid billing event
+ *   invoice.payment_succeeded        → log paid billing event + email the org
+ *                                       owner a receipt (payment_success)
  *   invoice.payment_failed           → mark subscription past_due + email the
  *                                       org owner (payment_failed template)
  *
@@ -26,7 +27,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, queryOne } from "@/lib/db";
-import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { getStripe, getStripeWebhookSecret, appUrl } from "@/lib/stripe";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 import type Stripe from "stripe";
 
@@ -85,6 +86,49 @@ function mapStripeStatus(
   if (s === "active")    return "active";
   if (s === "past_due")  return "past_due";
   return "canceled";
+}
+
+// ── Payment receipt email ─────────────────────────────────────────────────
+// Shared by invoice.payment_succeeded (first purchase + every renewal).
+// Wrapped so an email failure never fails the webhook — a 500 would make
+// Stripe retry the whole event, but billing_events already recorded it and
+// the retry would be deduped, skipping this notification.
+
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+async function sendPaymentSuccessEmail(orgId: string, inv: Stripe.Invoice): Promise<void> {
+  try {
+    const orgRow = await queryOne<{ org_name: string; plan_name: string }>(
+      `SELECT o.name AS org_name, sp.name AS plan_name
+         FROM organisations o
+         JOIN org_subscriptions os ON os.org_id = o.id
+         JOIN subscription_plans sp ON sp.id = os.plan_id
+        WHERE o.id = $1`,
+      [orgId]
+    );
+    if (!orgRow) return;
+
+    const ownerEmail = await getOrgOwnerEmail(orgId);
+    if (!ownerEmail) return;
+
+    await queueNotification({
+      orgId,
+      orgName: orgRow.org_name,
+      recipientEmail: ownerEmail,
+      type: "payment_success",
+      data: {
+        orgName: orgRow.org_name,
+        planName: orgRow.plan_name,
+        amount: formatUsd(inv.amount_paid ?? 0),
+        paymentId: inv.id ?? inv.number ?? "stripe-invoice",
+        receiptUrl: inv.hosted_invoice_url ?? appUrl("/dashboard"),
+      },
+    });
+  } catch (mailErr) {
+    console.error("[stripe-webhook] payment_success notification failed:", (mailErr as Error).message);
+  }
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -194,7 +238,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         break;
       }
 
-      // ── Invoice paid ─────────────────────────────────────────────────────
+      // ── Invoice paid → billing event + owner receipt email ────────────────
       case "invoice.payment_succeeded": {
         const inv = event.data.object as Stripe.Invoice;
         const subId = typeof inv.subscription === "string"
@@ -219,6 +263,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             }),
           ]
         );
+
+        // Receipt email to the org owner — covers the first purchase AND
+        // every renewal. checkout.session.completed deliberately stays
+        // email-free: Stripe fires BOTH events for the first payment, so
+        // sending there too would double-email every new customer.
+        if (orgId && orgId !== "unknown") {
+          await sendPaymentSuccessEmail(orgId, inv);
+        }
         break;
       }
 
