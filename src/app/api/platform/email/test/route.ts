@@ -58,7 +58,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       to,
     };
 
-    const rendered = await renderEmailTemplate(templateKey, sampleVars);
+    const rendered = await renderEmailTemplate(templateKey, sampleVars, { force: true });
+    if (!rendered) {
+      return NextResponse.json(
+        { error: `Template "${templateKey}" could not be rendered.` },
+        { status: 500 },
+      );
+    }
     const result = await sendPlatformEmail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text });
 
     return NextResponse.json({
@@ -67,6 +73,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       error: result.error ?? null,
       templateKey,
       templateSource: rendered.source,
+      // Surface deactivation so the admin understands this template is NOT
+      // being sent to real recipients right now (test sends bypass it).
+      templateActive: !rendered.suppressed,
       subject: rendered.subject,
       from: cfg.provider === "smtp" ? cfg.smtp.fromAddress : cfg.fromAddress,
       sentAt,

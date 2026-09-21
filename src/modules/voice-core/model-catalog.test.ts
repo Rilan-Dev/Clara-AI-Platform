@@ -2,11 +2,11 @@
  * Unit tests for the voice-core model catalogue — the voice-axis mirror of
  * ai-core/model-catalog.test.ts.
  *
- * Covers: TTS model catalogue validation, voice-id
+ * Covers: kill-switch semantics, TTS model catalogue validation, voice-id
  * shape checks, provider union guards, and request caps.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
@@ -47,6 +47,10 @@ import {
   SARVAM_REALTIME_STT_MODEL_FALLBACK,
 } from "./model-catalog";
 import { isVoiceProvider } from "./types";
+
+// ─── Kill switch ─────────────────────────────────────────────────────────────
+// isElevenLabsEnabled moved to ./server-provider-availability.ts (DB-backed)
+// — its tests live there.
 
 // ─── Model catalogue ─────────────────────────────────────────────────────────
 

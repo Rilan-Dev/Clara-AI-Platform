@@ -405,6 +405,7 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
     // ── Invitation email ─────────────────────────────────────────────────────
     // New users get a set-password link (14-day token); existing users simply
     // get told they now have access.
+    let emailSent = false;
     try {
       const org = await queryOne<{ name: string; slug: string }>(
         "SELECT name, slug FROM organisations WHERE id = $1", [orgId]
@@ -423,11 +424,17 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
           role: role.replace("_", " "),
           inviteUrl: link,
         });
-        await sendPlatformEmail({
-          to: target.email,
-          subject: rendered.subject,
-          html: rendered.html,
-        });
+        // rendered === null when a platform admin deactivated the template.
+        if (rendered) {
+          await sendPlatformEmail({
+            to: target.email,
+            subject: rendered.subject,
+            html: rendered.html,
+          });
+          emailSent = true;
+        } else {
+          console.log("[invite-member] org_invitation_new_user template deactivated — email skipped");
+        }
       } else {
         const rendered = await renderEmailTemplate("org_invitation_existing_user", {
           userName: target.fullName,
@@ -435,18 +442,23 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
           role: role.replace("_", " "),
           loginUrl: appUrl("/login"),
         });
-        await sendPlatformEmail({
-          to: target.email,
-          subject: rendered.subject,
-          html: rendered.html,
-        });
+        if (rendered) {
+          await sendPlatformEmail({
+            to: target.email,
+            subject: rendered.subject,
+            html: rendered.html,
+          });
+          emailSent = true;
+        } else {
+          console.log("[invite-member] org_invitation_existing_user template deactivated — email skipped");
+        }
       }
     } catch (mailErr) {
       console.error("[invite-member] invitation email failed:", (mailErr as Error).message);
     }
 
     await writeAuditLog({ userId: auth.user.id, orgId, action: "org.invite_member", resourceType: "user", resourceId: target.id, newData: { role, email: target.email }, ipAddress: getIp(req) });
-    return NextResponse.json({ ...member, invited: true, isNewUser, emailSent: true }, { status: 201 });
+    return NextResponse.json({ ...member, invited: true, isNewUser, emailSent }, { status: 201 });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

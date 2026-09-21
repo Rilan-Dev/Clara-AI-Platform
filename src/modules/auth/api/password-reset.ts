@@ -99,9 +99,14 @@ export async function forgotPasswordHandler(req: NextRequest): Promise<NextRespo
     });
 
     // Fire-and-forget — the response must not depend on email delivery.
-    sendPlatformEmail({ to: user.email, subject: rendered.subject, html: rendered.html }).catch((e) =>
-      console.error("[forgot-password] email failed:", (e as Error).message)
-    );
+    // rendered === null when a platform admin deactivated the template.
+    if (rendered) {
+      sendPlatformEmail({ to: user.email, subject: rendered.subject, html: rendered.html }).catch((e) =>
+        console.error("[forgot-password] email failed:", (e as Error).message)
+      );
+    } else {
+      console.log("[forgot-password] password_reset template deactivated — email skipped");
+    }
 
     return okResponse;
   } catch (err) {
@@ -156,7 +161,9 @@ export async function resetPasswordHandler(req: NextRequest): Promise<NextRespon
       userName: entry.full_name,
       loginUrl: appUrl("/login"),
     });
-    sendPlatformEmail({ to: entry.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
+    if (rendered) {
+      sendPlatformEmail({ to: entry.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
+    }
 
     return NextResponse.json({ ok: true, message: "Password updated — you can now sign in with your new password." });
   } catch (err) {
@@ -205,7 +212,9 @@ export async function changePasswordHandler(req: NextRequest): Promise<NextRespo
       userName: auth.user.fullName,
       loginUrl: appUrl("/login"),
     });
-    sendPlatformEmail({ to: auth.user.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
+    if (rendered) {
+      sendPlatformEmail({ to: auth.user.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
+    }
 
     return NextResponse.json({ ok: true, message: "Password changed successfully." });
   } catch (err) {

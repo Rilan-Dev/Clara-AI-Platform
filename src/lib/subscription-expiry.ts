@@ -5,9 +5,12 @@
  *
  *   1. Renewal reminders: paid subscriptions ending within 7 days get a
  *      reminder email (deduped once per billing period).
+ *      - ACTIVE subscriptions → renewal_reminder
+ *      - TRIALING subscriptions → trial_ending_soon (3-day window)
  *   2. Expiry sweep: paid subscriptions past their current_period_end are
  *      moved to `past_due` and the owner receives an "expired — renew"
  *      email (deduped once per billing period).
+ *   3. Due self-serve downgrades are applied at current_period_end.
  *
  * Free plans never expire (perpetual). Sweep runs:
  *   - once on server startup (src/instrumentation.ts)
@@ -21,9 +24,10 @@
  */
 
 import { query } from "@/lib/db";
-import { queueNotification, writeSubscriptionAudit } from "@/lib/subscription-notifications";
+import { getOrgOwnerEmail, queueNotification, writeSubscriptionAudit } from "@/lib/subscription-notifications";
 
 const REMINDER_WINDOW_DAYS = 7;
+const TRIAL_REMINDER_WINDOW_DAYS = 3;
 
 type DueSubscription = {
   org_id:               string;
@@ -40,22 +44,6 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-async function getOrgOwnerEmail(orgId: string): Promise<string | null> {
-  try {
-    const rows = await query<{ email: string }>(
-      `SELECT u.email FROM users u
-         JOIN org_members om ON om.user_id = u.id
-         JOIN roles r ON r.id = om.role_id
-        WHERE om.org_id = $1 AND r.name = 'org_admin'
-        ORDER BY om.joined_at ASC LIMIT 1`,
-      [orgId]
-    );
-    return rows[0]?.email ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /** Has a notification of this type already been sent for the CURRENT period? */
 async function alreadyNotified(orgId: string, type: string, periodStart: string): Promise<boolean> {
   const rows = await query<{ id: string }>(
@@ -70,6 +58,7 @@ async function alreadyNotified(orgId: string, type: string, periodStart: string)
 export type SweepResult = {
   checked:        number;
   reminded:       number;
+  trialReminded:  number;
   expired:        number;
   downgraded:     number;
   errors:         string[];
@@ -90,7 +79,7 @@ type DueDowngrade = {
  * deduped and idempotent.
  */
 export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
-  const result: SweepResult = { checked: 0, reminded: 0, expired: 0, downgraded: 0, errors: [] };
+  const result: SweepResult = { checked: 0, reminded: 0, trialReminded: 0, expired: 0, downgraded: 0, errors: [] };
 
   try {
     // Paid, non-terminal subscriptions only. Free is perpetual.
@@ -152,9 +141,16 @@ export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
           continue;
         }
 
-        // ── 2. Ending within the reminder window → renewal reminder ────────
-        if (daysLeft <= REMINDER_WINDOW_DAYS) {
-          const notified = await alreadyNotified(sub.org_id, "renewal_reminder", sub.current_period_start);
+        // ── 2. Ending within the reminder window → reminder email ─────────
+        // Active subs get renewal_reminder (7-day window); trials get the
+        // softer trial_ending_soon nudge (3-day window) so trial owners are
+        // prompted to upgrade without a renewal-style warning.
+        const isTrial         = sub.status === "trialing";
+        const reminderType    = isTrial ? "trial_ending_soon" : "renewal_reminder";
+        const reminderWindow  = isTrial ? TRIAL_REMINDER_WINDOW_DAYS : REMINDER_WINDOW_DAYS;
+
+        if (daysLeft <= reminderWindow) {
+          const notified = await alreadyNotified(sub.org_id, reminderType, sub.current_period_start);
           if (notified) continue;
 
           const ownerEmail = await getOrgOwnerEmail(sub.org_id);
@@ -163,7 +159,7 @@ export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
               orgId: sub.org_id,
               orgName: sub.org_name,
               recipientEmail: ownerEmail,
-              type: "renewal_reminder",
+              type: reminderType,
               data: {
                 orgName: sub.org_name,
                 planName: sub.plan_name,
@@ -171,7 +167,8 @@ export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
                 trialDays: String(daysLeft),
               },
             });
-            result.reminded++;
+            if (isTrial) result.trialReminded++;
+            else         result.reminded++;
           }
         }
       } catch (err) {
@@ -231,9 +228,9 @@ export async function sweepSubscriptionExpiry(): Promise<SweepResult> {
     result.errors.push(`sweep: ${(err as Error).message}`);
   }
 
-  if (result.expired || result.reminded || result.downgraded || result.errors.length) {
+  if (result.expired || result.reminded || result.trialReminded || result.downgraded || result.errors.length) {
     console.log(
-      `[subscription-expiry] checked=${result.checked} reminded=${result.reminded} expired=${result.expired} downgraded=${result.downgraded}` +
+      `[subscription-expiry] checked=${result.checked} reminded=${result.reminded} trialReminded=${result.trialReminded} expired=${result.expired} downgraded=${result.downgraded}` +
       (result.errors.length ? ` errors=${JSON.stringify(result.errors)}` : "")
     );
   }

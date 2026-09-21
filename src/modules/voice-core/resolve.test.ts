@@ -80,17 +80,25 @@ vi.mock("./model-catalog", () => ({
   isSarvamRealtimeTtsEnabled: () => true,
   SARVAM_TTS_LANGUAGES: ["hi-IN", "ta-IN", "en-IN"],
 }));
+// Legacy gate mock — resolve.ts no longer consults this DB-backed flag
+// directly (the API routes do), but the mock keeps these tests hermetic.
+vi.mock("./server-provider-availability", () => ({
+  isElevenLabsEnabled: vi.fn(async () => true),
+  isElevenLabsRealtimeEnabled: vi.fn(async () => true),
+}));
 
 import { getOrgAISettings } from "@/modules/organisations/core/ai-settings-db";
 import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settings-db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import { isSarvamEnabled } from "./model-catalog";
+import { isElevenLabsEnabled } from "./server-provider-availability";
 import { isSarvamRealtimeSttEnabled, resolveVoiceConfig } from "./resolve";
 import type { VoiceResolution } from "./config-types";
 
 const orgSettingsMock = vi.mocked(getOrgAISettings);
 const agentSettingsMock = vi.mocked(getAgentAISettings);
 const kbOverridesMock = vi.mocked(getKbAIOverrides);
+const isElevenLabsEnabledMock = vi.mocked(isElevenLabsEnabled);
 const isSarvamEnabledMock = vi.mocked(isSarvamEnabled);
 
 const baseOrg = {
@@ -111,6 +119,7 @@ beforeEach(() => {
   orgSettingsMock.mockResolvedValue({ ...baseOrg } as never);
   agentSettingsMock.mockResolvedValue(null as never);
   kbOverridesMock.mockResolvedValue(null as never);
+  isElevenLabsEnabledMock.mockResolvedValue(true);
 });
 
 describe("voice resolution — native-by-default", () => {
@@ -175,6 +184,30 @@ describe("voice resolution — guards", () => {
     await expect(resolve()).rejects.toThrow(/Realtime voice provider elevenlabs/);
   });
 
+  it("degrades a realtime elevenlabs pick to the voice-chat provider when the platform kill switch is off", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      voiceProvider: null,
+      realtimeVoiceProvider: "elevenlabs",
+    } as never);
+    isElevenLabsEnabledMock.mockResolvedValue(false);
+    const r = await resolve();
+    expect(r.voiceProvider).toBe("openai");          // voice-chat axis untouched
+    expect(r.realtimeProvider).toBe("openai");      // realtime degraded, not fatal
+    expect(r.realtimeSource).toBe("voice_chat");
+    expect(r.elevenlabs).toBeNull();                // no ElevenLabs specifics resolved
+  });
+
+  it("degrades the voice-chat elevenlabs axis to the brain provider when the kill switch is off", async () => {
+    orgSettingsMock.mockResolvedValue({ ...baseOrg, voiceProvider: "elevenlabs" } as never);
+    isElevenLabsEnabledMock.mockResolvedValue(false);
+    const r = await resolve();
+    expect(r.voiceProvider).toBe("openai");
+    expect(r.realtimeProvider).toBe("openai"); // inherited pick degrades with it
+    expect(r.source).toBe("env");
+    expect(r.elevenlabs).toBeNull();
+  });
+
   it("degrades a sarvam selection when SARVAM_ENABLED is off (dark-launch posture)", async () => {
     orgSettingsMock.mockResolvedValue({
       ...baseOrg,
@@ -188,6 +221,15 @@ describe("voice resolution — guards", () => {
     expect(r.sarvam).toBeNull();
   });
 
+  it("still hard-fails when the org allow-list excludes every fallback provider", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["elevenlabs"], // brain fallback (openai) not allowed
+      voiceProvider: "elevenlabs",
+    } as never);
+    isElevenLabsEnabledMock.mockResolvedValue(false);
+    await expect(resolve()).rejects.toThrow(/ElevenLabs voice is not available on this platform/);
+  });
 });
 
 describe("Phase 13 rollout gate — SARVAM_REALTIME_STT_ENABLED stays DARK by default", () => {
