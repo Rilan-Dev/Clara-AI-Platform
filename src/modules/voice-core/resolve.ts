@@ -49,7 +49,6 @@ import {
   getPlatformDefaultSarvamRealtimeSttModel,
   getPlatformDefaultSarvamRealtimeLlmModel,
   isSarvamRealtimeTtsEnabled,
-  isSarvamEnabled,
   isSupportedSarvamSpeaker,
   isSupportedSarvamTTSModel,
   SARVAM_TTS_LANGUAGES,
@@ -302,8 +301,8 @@ export async function resolveVoiceConfig(
   const unavailableError = (p: VoiceProvider): VoiceConfigResolutionError =>
     new VoiceConfigResolutionError(
       p === "elevenlabs"
-        ? "ElevenLabs voice is not available on this platform (ELEVENLABS_ENABLED is off or the API key is not configured), and no fallback voice provider is enabled for this organisation."
-        : "Sarvam voice is not available on this platform (SARVAM_ENABLED is off or the API key is not configured), and no fallback voice provider is enabled for this organisation.",
+        ? "ElevenLabs voice is not available on this platform (disabled, not configured, or unavailable), and no fallback voice provider is enabled for this organisation."
+        : "Sarvam voice is not available on this platform (disabled, not configured, or unavailable), and no fallback voice provider is enabled for this organisation.",
     );
 
   // Voice-chat purpose. The brain provider is the natural fallback — the
