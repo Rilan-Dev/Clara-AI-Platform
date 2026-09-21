@@ -99,7 +99,7 @@ type VoiceTurn = {
  * 300ms is enough to prevent double-fires on rapid re-transcriptions
  * while keeping the perceived response latency tight.
  */
-const RAG_DEBOUNCE_MS = 300;
+const RAG_DEBOUNCE_MS = 100;
 
 /**
  * Minimum word count for a query to be considered valid for RAG retrieval.
@@ -662,14 +662,25 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         // ── CORRECT tool output format ──────────────────────────────────────
         // conversation.item.create with type "function_call_output" is the
         // only supported way to return a tool result in the Realtime API.
+        const grounded = payload?.grounded === true || payloadSources.length > 0;
+        const outOfScopeReply =
+          typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
+            ? payload.outOfScopeReply.trim()
+            : "I can only answer questions about the topics I have been set up for.";
+        const toolContext = grounded
+          ? payload.context
+          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say exactly: "${outOfScopeReply}"`;
+
         sendJSON({
           type: "conversation.item.create",
           item: {
             type: "function_call_output",
             call_id: toolCall.id,
             output: JSON.stringify({
-              context: payload.context,
-              sources: payload.sources,
+              context: toolContext,
+              sources: payloadSources,
+              grounded,
+              outOfScopeReply,
             }),
           },
         });
