@@ -62,17 +62,12 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
         const engine = await client.speechEngine.get(speechEngineId);
         speechEngine = {
           ...speechEngine,
-          wsUrl: engine.speechEngine?.wsUrl ?? null,
-          ttsModel: engine.tts?.modelId ?? null,
-          voiceId: engine.tts?.voiceId ?? null,
-          ready:
-            speechEngineEnabled &&
-            typeof engine.speechEngine?.wsUrl === "string" &&
-            engine.speechEngine.wsUrl.length > 0,
+          engineId: engine.engineId,
+          ready: speechEngineEnabled && engine.engineId === speechEngineId,
           reason:
-            speechEngineEnabled && typeof engine.speechEngine?.wsUrl === "string"
+            speechEngineEnabled && engine.engineId === speechEngineId
               ? undefined
-              : "Speech Engine is disabled or its ElevenLabs upstream WebSocket URL is not configured.",
+              : "Speech Engine is disabled or the configured ElevenLabs Speech Engine ID could not be verified.",
         };
       } catch (error) {
         speechEngine.reason = error instanceof Error ? error.message : "Speech Engine lookup failed";
