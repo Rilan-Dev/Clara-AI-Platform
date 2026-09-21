@@ -36,7 +36,7 @@ import crypto from "node:crypto";
 import WebSocket from "ws";
 
 const PORT = process.env.PORT ?? 3000;
-const BASE = `http://127.0.0.1:${PORT}`;
+const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
 
 /** Connection hard caps (plan §15 V5). */
 const MAX_LIFETIME_MS = 60 * 60 * 1000; // 60 minutes
