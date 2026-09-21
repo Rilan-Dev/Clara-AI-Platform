@@ -63,7 +63,7 @@ server.on("upgrade", (req, socket, head) => {
 
     // ElevenLabs Speech Engine attaches its own upgrade listener. It must see
     // this path before the generic dispatcher claims the socket.
-    if (pathname === "/api/voice/elevenlabs/speech-engine") return;
+    if (pathname === "/api/voice-realtime/speech-engine") return;
 
     if (!handlerFor(pathname)) {
       socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
@@ -81,7 +81,7 @@ server.on("upgrade", (req, socket, head) => {
 
 // The ElevenLabs Speech Engine SDK registers its authenticated upgrade listener
 // against this same Vercel-managed Node server when configured. It is optional.
-void attachElevenLabsSpeechEngine(server).catch((error) => {
+void attachElevenLabsSpeechEngine(server, "/api/voice-realtime/speech-engine").catch((error) => {
   console.warn("[vercel-realtime] Speech Engine attachment skipped:", error?.message ?? error);
 });
 

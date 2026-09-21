@@ -17,7 +17,7 @@ Remove Clara production's dependency on any VPS/local long-running process while
 - Do not replace existing provider integrations merely to simplify deployment.
 - Prioritize latency: keep user-facing API routes short, use Vercel Fluid Compute in Mumbai where appropriate, avoid polling for realtime voice, avoid unnecessary HTTP self-fetches, and keep persistent voice connections on WebSocket paths.
 - Background work must be durable and resumable; no function may depend on an in-memory worker loop.
-- The free-tier design must respect Vercel Hobby resource limits. Hobby functions have 300s maximum duration with Fluid Compute, 1M invocations and 4 active CPU-hours included; Vercel Queues currently includes 1M API operations on Hobby. Vercel Cron on Hobby is daily only, so it must not be used as a second-by-second worker loop.
+- The free-tier design must respect Vercel Hobby resource limits. Hobby functions have 60s maximum duration for the free Hobby plan with Fluid Compute, 1M invocations and 4 active CPU-hours included; Vercel Queues currently includes 1M API operations on Hobby. Vercel Cron on Hobby is daily only, so it must not be used as a second-by-second worker loop.
 - Document and crawl work must be sliced into bounded jobs that can finish inside the Hobby function duration rather than assuming a permanent worker.
 - Do not expose provider secrets to browsers.
 - Existing database/Qdrant records remain the source of truth; migration must be backwards-compatible with existing pending jobs.

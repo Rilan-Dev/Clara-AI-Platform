@@ -122,7 +122,7 @@
   Do not rewrite parsing, chunking, embeddings, or Qdrant upsert. Reuse the existing `processClaimedJob` implementation.
 
 - [ ] **Step 4: Add stale-job handling tuned for Vercel**
-  Preserve the existing 10-minute recovery policy, but make the cloud handler stop accepting new work before the 300-second function ceiling.
+  Preserve the existing 10-minute recovery policy, but make the cloud handler stop accepting new work before the 60-second free-plan function ceiling.
 
 - [ ] **Step 5: Add a private queue consumer route**
   The route must validate the Vercel queue callback, process a bounded batch, and enqueue a continuation when `hasMore` is true.
@@ -446,3 +446,8 @@
 
 - [ ] **Step 8: Final acceptance**
   Only report completion after the deployment, runtime logs, browser flow, queue processing, Qdrant retrieval, and latency measurements all provide fresh evidence.
+
+
+## Free-plan constraint
+
+Vercel's current terms restrict the Hobby plan to personal or non-commercial use. The architecture can be technically validated on the free plan, but commercial production use must use a plan whose terms permit that workload. This is a platform-policy constraint, not an application latency choice.
