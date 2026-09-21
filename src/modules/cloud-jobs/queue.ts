@@ -3,6 +3,7 @@ import { send } from "@vercel/queue";
 export const CLOUD_JOB_TOPICS = {
   ingest: "clara-ingest",
   crawl: "clara-crawl",
+  scrape: "clara-scrape",
   retry: "clara-retry",
 } as const;
 
@@ -41,6 +42,13 @@ export const enqueueCrawlJob = (
   payload: Record<string, unknown>,
   options?: { delaySeconds?: number },
 ) => enqueueCloudJob("crawl", jobId, payload, options);
+
+
+export const enqueueScrapeJob = (
+  jobId: string,
+  payload: Record<string, unknown> = {},
+  options?: { delaySeconds?: number },
+) => enqueueCloudJob("scrape", jobId, payload, options);
 
 export const enqueueRetryJob = (
   jobId: string,
