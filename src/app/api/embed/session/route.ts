@@ -61,6 +61,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { syncEnvFromDb } = await import("@/modules/phone/core/db");
     await syncEnvFromDb();
 
+    const sessionBody = (await req.clone().json().catch(() => ({}))) as Record<string, unknown>;
+
     const validation = await validateEmbedRequest(req);
     if (!validation.ok) return validation.response;
     const { ctx } = validation;
@@ -85,8 +87,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
     const effectiveConfig = resolved.assistantConfig ?? config;
     const requestedLanguage =
-      typeof (await req.clone().json().catch(() => ({}))).language === "string"
-        ? String((await req.clone().json().catch(() => ({}))).language).trim().toLowerCase()
+      typeof sessionBody.language === "string"
+        ? sessionBody.language.trim().toLowerCase()
         : null;
     const requestedLanguageAllowed =
       requestedLanguage && resolved.allowedLanguages.includes(requestedLanguage)
