@@ -113,6 +113,8 @@
     "@elevenlabs/react": "^1.0.3",
     "@elevenlabs/client": "^1.1.2",
     "@elevenlabs/elevenlabs-js": "^2.42.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
     "tailwindcss": "3.4"
   },
   "devDependencies": {
@@ -121,12 +123,10 @@
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
-    "autoprefixer": "^10.4.21",
     "baseline-browser-mapping": "^2.10.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.24",
     "pdf-lib": "^1.17.1",
-    "postcss": "^8.5.6",
     "tsx": "^4.20.6",
     "vitest": "^2.1.5"
   },
