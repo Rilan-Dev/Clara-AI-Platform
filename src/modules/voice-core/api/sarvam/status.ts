@@ -19,11 +19,11 @@ import {
   getPlatformDefaultSarvamSpeaker,
   getPlatformDefaultSarvamSttModel,
   getPlatformDefaultSarvamTTSModel,
-  isSarvamEnabled,
   getSarvamBaseUrl,
 } from "../../model-catalog";
 import { VoiceProviderFactory } from "../../factory";
 import { SarvamVoiceError } from "../../providers/sarvam";
+import { getPlatformAIRegistry } from "@/modules/ai-governance/core/registry-db";
 
 export async function getSarvamStatus(request: NextRequest): Promise<NextResponse> {
   try {
@@ -31,10 +31,10 @@ export async function getSarvamStatus(request: NextRequest): Promise<NextRespons
     const auth = await requireAuth(request);
     await requireSuperAdmin(auth);
 
-    const enabled = isSarvamEnabled();
+    const registry = await getPlatformAIRegistry();
+    const provider = registry.providers.find((p) => p.providerId === "sarvam");
+    const enabled = Boolean(provider?.enabled);
 
-    // Kill-switch states are always reported so the admin panel can render
-    // the full control surface even before a key is configured.
     const flags = {
       enabled,
       defaultTtsModel: getPlatformDefaultSarvamTTSModel(),
@@ -47,7 +47,9 @@ export async function getSarvamStatus(request: NextRequest): Promise<NextRespons
     if (!enabled) {
       return NextResponse.json({
         connected: false,
-        reason: "SARVAM_ENABLED is off or SARVAM_API_KEY is not configured.",
+        reason: !provider?.enabled
+          ? "Sarvam is disabled in Platform AI Settings."
+          : "Sarvam API key is not configured.",
         ...flags,
       });
     }
