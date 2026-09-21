@@ -63,6 +63,15 @@ export async function getElevenLabsStatus(request: NextRequest): Promise<NextRes
         speechEngine = {
           ...speechEngine,
           engineId: engine.engineId,
+          // SpeechEngineResource keeps the API payload on `.config`
+          // (Omit<SpeechEngineResponse, "speechEngineId">): the upstream
+          // transcript server WebSocket URL lives at
+          // config.speechEngine.wsUrl and the TTS voice/model pair at
+          // config.tts.{modelId,voiceId} — none of these exist flat on
+          // the resource itself.
+          wsUrl: engine.config?.speechEngine?.wsUrl ?? null,
+          ttsModel: engine.config?.tts?.modelId ?? null,
+          voiceId: engine.config?.tts?.voiceId ?? null,
           ready: speechEngineEnabled && engine.engineId === speechEngineId,
           reason:
             speechEngineEnabled && engine.engineId === speechEngineId
