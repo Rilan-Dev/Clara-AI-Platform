@@ -136,53 +136,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           { headers: corsHeaders },
         );
       }
+      // Explicit ElevenLabs realtime selection must use Speech Engine.
+      // Never silently downgrade to the legacy STT/chat/TTS pipeline: that
+      // would make the UI claim ElevenLabs realtime while using a different
+      // transport and defeats the selected realtime provider.
       return NextResponse.json(
         {
+          error: "ElevenLabs is selected as the realtime voice provider, but Speech Engine is not configured on the server. Set ELEVENLABS_SPEECH_ENGINE_ID and ELEVENLABS_API_KEY.",
           provider: voiceResolution.brain.provider,
           voiceProvider: "elevenlabs",
-          // Embed keys never resolve a conversational (Mode B) session — the
-          // client hook forces pipeline mode and re-bootstraps through
-          // /api/voice/elevenlabs/session with the SAME clr_ credential.
-          mode: "pipeline",
-          kbId: ctx.kbId,
-          orgId: voiceResolution.brain.orgId ?? ctx.orgId,
-          projectId: voiceResolution.brain.agentId,
-          stt: {
-            endpoint: "/api/voice/elevenlabs/transcribe",
-            model: el.sttModel,
-            language: el.language,
-            sampleRate: 16_000,
-            maxAudioSeconds: STT_MAX_AUDIO_SECONDS,
-          },
-          tts: {
-            endpoint: "/api/voice/elevenlabs/tts",
-            model: el.ttsModel,
-            voiceId: el.voiceId,
-            outputFormat: TTS_OUTPUT_FORMAT,
-            voiceSettings: el.voiceSettings,
-          },
-          chat: {
-            endpoint: "/api/embed/chat",
-            kbId: ctx.kbId,
-          },
-          welcomeMessage: effectiveConfig.welcomeMessage ?? "",
-          config: {
-            orgId: voiceResolution.brain.orgId ?? ctx.orgId,
-            projectId: voiceResolution.brain.agentId,
-            provider: voiceResolution.brain.provider,
-            voiceProvider: "elevenlabs",
-            realtimeModel: null,
-            voiceId: el.voiceId,
-            transcriptionModel: el.sttModel,
-            allowedLanguages: resolved.allowedLanguages,
-            defaultLanguage: resolved.defaultLanguage,
-            maxTokens: resolved.maxTokens ?? effectiveConfig.maxTokens,
-            temperature: resolved.temperature ?? effectiveConfig.temperature,
-            sources: resolved.sources,
-            flags: resolved.flags,
-          },
+          realtimeProvider: "elevenlabs",
+          speechEngineRequired: true,
         },
-        { headers: corsHeaders },
+        { status: 503, headers: corsHeaders },
       );
     }
 
