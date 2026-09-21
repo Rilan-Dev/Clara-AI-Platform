@@ -11,7 +11,7 @@ import {
 } from "@/modules/knowledge-bases/core/scrape-sessions-db";
 import { publishScrapeSessionRefresh } from "@/modules/knowledge-bases/core/scrape-progress-stream";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 type Message = {
   sessionId: string;
@@ -60,4 +60,4 @@ export const POST = handleCallback(async (message: Message) => {
       { delaySeconds: 5 },
     );
   }
-}, { visibilityTimeoutSeconds: 300 });
+}, { visibilityTimeoutSeconds: 60 });
