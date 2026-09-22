@@ -157,7 +157,10 @@ export async function resolveVoiceConfig(
   const brain = input.brainConfig ?? await resolveAIConfig({
     kbId: input.kbId,
     orgId: input.orgId,
-    surface: input.surface,
+    // AI config has no separate voice-chat surface; keep its existing
+    // realtime/embed flag semantics while the voice resolver tracks the
+    // provider purpose independently.
+    surface: input.surface === "voice_chat" ? "realtime" : input.surface,
   });
 
   const kb = input.kbId ? await getKnowledgeBaseById(input.kbId) : null;
