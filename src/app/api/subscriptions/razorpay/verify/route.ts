@@ -31,6 +31,7 @@ import { query, queryOne } from "@/lib/db";
 import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr, getRazorpay } from "@/lib/razorpay";
 import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
+import { notifyBillingReview } from "@/lib/billing-review";
 
 type VerifyBody = {
   razorpay_order_id:   string;
@@ -97,18 +98,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const razorpay = getRazorpay();
     const order = await razorpay.orders.fetch(razorpay_order_id);
     if (order.id !== razorpay_order_id || order.currency !== "INR" || Number(order.amount) !== Number(PLAN_AMOUNTS_INR_PAISE[planId])) {
+      const reason = "Razorpay order amount/currency/plan mismatch";
       await query(
         "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
-        [orgId, "Razorpay order amount/currency/plan mismatch"],
+        [orgId, reason],
       );
+      await notifyBillingReview({ orgId, planId, reason });
       return NextResponse.json({ error: "Payment requires manual verification.", code: "PAYMENT_REVIEW" }, { status: 409 });
     }
 
     if (order.notes?.orgId && order.notes.orgId !== orgId) {
+      const reason = "Razorpay order organization mismatch";
       await query(
         "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
-        [orgId, "Razorpay order organization mismatch"],
+        [orgId, reason],
       );
+      await notifyBillingReview({ orgId, planId, reason });
       return NextResponse.json({ error: "Payment requires manual verification.", code: "PAYMENT_REVIEW" }, { status: 409 });
     }
 
@@ -150,10 +155,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       [orgId, planId, razorpay_payment_id]
       );
     } catch (activationErr) {
+      const reason = `Payment verified but subscription activation failed: ${(activationErr as Error).message}`;
       await query(
         "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
-        [orgId, `Payment verified but subscription activation failed: ${(activationErr as Error).message}`],
+        [orgId, reason],
       );
+      await notifyBillingReview({ orgId, planId, reason });
       return NextResponse.json({ error: "Payment received but activation requires manual verification.", code: "PAYMENT_REVIEW" }, { status: 409 });
     }
 
