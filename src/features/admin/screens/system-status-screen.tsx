@@ -61,8 +61,10 @@ type StatusPayload = {
     queues: BaseCheck & {
       queues?: Array<{ name: string; waiting: number; active: number; delayed: number; failed: number }>;
     };
-    aiOpenai: BaseCheck & { model?: string; endpoint?: string; active?: boolean };
-    aiGemini: BaseCheck & { model?: string; endpoint?: string; active?: boolean };
+    aiOpenai: BaseCheck & { model?: string; endpoint?: string; active?: boolean; enabled?: boolean; providerId?: string };
+    aiGemini: BaseCheck & { model?: string; endpoint?: string; active?: boolean; enabled?: boolean; providerId?: string };
+    aiSarvam: BaseCheck & { active?: boolean; enabled?: boolean; providerId?: string };
+    aiElevenLabs: BaseCheck & { active?: boolean; enabled?: boolean; providerId?: string };
     app: BaseCheck & {
       uptimeSeconds: number;
       memory?: { rssMb: number; heapUsedMb: number; heapTotalMb: number };
@@ -444,6 +446,30 @@ export function SystemStatusScreen() {
               </ServiceCard>
 
               <ServiceCard
+                icon={<Sparkles className="w-5 h-5" />}
+                name="AI: Sarvam AI"
+                subtitle={`${data.services.aiSarvam.active ? "Active provider" : "Standby"} · chat & voice`}
+                check={data.services.aiSarvam}
+              >
+                <div>
+                  <DetailRow label="Provider" value="Sarvam AI" />
+                  <DetailRow label="Connectivity" value={data.services.aiSarvam.detail ?? "—"} />
+                </div>
+              </ServiceCard>
+
+              <ServiceCard
+                icon={<Sparkles className="w-5 h-5" />}
+                name="AI: ElevenLabs"
+                subtitle={`${data.services.aiElevenLabs.active ? "Active provider" : "Standby"} · voice & realtime`}
+                check={data.services.aiElevenLabs}
+              >
+                <div>
+                  <DetailRow label="Provider" value="ElevenLabs" />
+                  <DetailRow label="Connectivity" value={data.services.aiElevenLabs.detail ?? "—"} />
+                </div>
+              </ServiceCard>
+
+              <ServiceCard
                 icon={<ListChecks className="w-5 h-5" />}
                 name="Background queues"
                 subtitle="Crawl & retry workers (BullMQ)"
@@ -483,9 +509,9 @@ export function SystemStatusScreen() {
             </div>
 
             <p className="pb-4 text-center text-[11px] text-muted-foreground/50">
-              Status checks are read-only and run on demand — no service is modified.
-              Not-configured services are monitored automatically once their
-              settings exist.
+              Status checks run server-side and never expose provider credentials.
+              Enabled provider failures create a persistent platform incident and
+              notify active super-admins; repeated refreshes do not spam duplicate alerts.
             </p>
           </>
         ) : null}

@@ -5,7 +5,8 @@
   "buildCommand": "npm run build",
   "regions": ["bom1"],
   "crons": [
-    { "path": "/api/cron/onboarding-reminders", "schedule": "30 18 * * *" }
+    { "path": "/api/cron/onboarding-reminders", "schedule": "30 18 * * *" },
+    { "path": "/api/platform/services-status", "schedule": "*/10 * * * *" }
   ],
   "functions": {
     "src/app/api/queue/ingest/route.ts": {
