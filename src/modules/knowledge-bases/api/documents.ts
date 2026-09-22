@@ -465,7 +465,7 @@ export async function reprocessAllDocumentsHandler(
       );
       await Promise.all(
         pendingJobs
-          .filter((job): job is NonNullable<typeof job> => Boolean(job?.id) && job.status === "pending")
+          .filter((job): job is NonNullable<typeof job> => Boolean(job?.id) && job?.status === "pending")
           .map((job) => enqueueIngestJob(job.id))
       );
     }

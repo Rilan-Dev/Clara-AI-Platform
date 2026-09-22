@@ -117,8 +117,8 @@ async function seedPlatformAdmin(client: PoolClient, logger: Logger) {
 
   const hash = await hashPassword(password);
   await client.query(
-    `INSERT INTO users (id, email, password_hash, full_name, is_super_admin, email_verified, status)
-     VALUES ($1, $2, $3, $4, TRUE, TRUE, 'active')
+    `INSERT INTO users (id, email, password_hash, full_name, is_super_admin, email_verified, status, welcome_email_sent_at)
+     VALUES ($1, $2, $3, $4, TRUE, TRUE, 'active', now())
      ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email,
        password_hash = EXCLUDED.password_hash,
@@ -278,8 +278,8 @@ async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
 
   const hash = await hashPassword(password);
   await client.query(
-    `INSERT INTO users (id, email, password_hash, full_name, is_super_admin, email_verified, status)
-     VALUES ($1, $2, $3, $4, FALSE, TRUE, 'active')
+    `INSERT INTO users (id, email, password_hash, full_name, is_super_admin, email_verified, status, welcome_email_sent_at)
+     VALUES ($1, $2, $3, $4, FALSE, TRUE, 'active', now())
      ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email,
        password_hash = EXCLUDED.password_hash,

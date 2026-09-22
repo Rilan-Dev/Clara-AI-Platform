@@ -22,7 +22,7 @@ import { requireAuth } from "../core/rbac";
 import { hashToken } from "../core/tokens";
 import { hashPassword, verifyPassword } from "../core/password";
 import { getUserByEmail, deleteAllUserSessions } from "../core/db";
-import { sendPlatformEmail, appUrl } from "@/lib/email";
+import { sendPlatformEmail, appUrlFor } from "@/lib/email";
 import { renderEmailTemplate } from "@/lib/email-templates";
 
 const RESET_TTL_MS   = 60 * 60 * 1000;        // 1 hour
@@ -92,7 +92,7 @@ export async function forgotPasswordHandler(req: NextRequest): Promise<NextRespo
 
     const raw = await insertResetToken(user.id, "password_reset", RESET_TTL_MS, getIp(req));
 
-    const link = appUrl(`/login/reset?token=${raw}`);
+    const link = appUrlFor(`/login/reset?token=${raw}`, req);
     const rendered = await renderEmailTemplate("password_reset", {
       userName: user.fullName,
       resetUrl: link,
@@ -159,7 +159,7 @@ export async function resetPasswordHandler(req: NextRequest): Promise<NextRespon
 
     const rendered = await renderEmailTemplate("password_changed", {
       userName: entry.full_name,
-      loginUrl: appUrl("/login"),
+      loginUrl: appUrlFor("/login", req),
     });
     if (rendered) {
       sendPlatformEmail({ to: entry.email, subject: rendered.subject, html: rendered.html }).catch(() => {});
@@ -210,7 +210,7 @@ export async function changePasswordHandler(req: NextRequest): Promise<NextRespo
 
     const rendered = await renderEmailTemplate("password_changed", {
       userName: auth.user.fullName,
-      loginUrl: appUrl("/login"),
+      loginUrl: appUrlFor("/login", req),
     });
     if (rendered) {
       sendPlatformEmail({ to: auth.user.email, subject: rendered.subject, html: rendered.html }).catch(() => {});

@@ -14,16 +14,24 @@
  *     - verified account     → generic 200, no email sent
  *     - unverified account   → new token issued + verification email
  *     - 4th request in 10min → 429 RATE_LIMITED
+ *     - empty body + session → authenticated fallback resends (checkout card)
  *
  *   sendVerificationEmail
  *     - verification template deactivated by an admin → falls back to the
  *       welcome email so a brand-new account still gets onboarded.
+ *     - explicit origin → the emailed link uses it (never localhost in prod)
+ *
+ *   sendWelcomeEmailOnce (migration 049 — "welcome on first login")
+ *     - first claim wins and sends; second call is a no-op (exactly once)
+ *
+ *   resolvePublicOrigin / appUrlFor (src/lib/public-origin.ts — REAL, unmocked)
+ *     - env var wins; request headers derive the origin; localhost fallback
  *
  * The rate limiter is the REAL in-memory implementation (reset between
  * tests); DB / email / template layers are mocked.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -39,6 +47,8 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/email", () => ({
   sendPlatformEmail: vi.fn(async () => ({ sent: true, provider: "resend" as const })),
   appUrl: (path: string) => `https://clara.example${path}`,
+  resolvePublicOrigin: vi.fn(() => "https://clara.example"),
+  appUrlFor: (path: string) => `https://clara.example${path}`,
 }));
 
 vi.mock("@/lib/email-templates", () => ({
@@ -50,15 +60,23 @@ vi.mock("../core/db", () => ({
   writeAuditLog: vi.fn(async () => {}),
 }));
 
+vi.mock("../core/rbac", () => ({
+  requireAuth: vi.fn(async () => {
+    throw new Error("unauthenticated");
+  }),
+}));
+
 import { query, execute } from "@/lib/db";
 import { sendPlatformEmail } from "@/lib/email";
 import { renderEmailTemplate } from "@/lib/email-templates";
 import { getUserByEmail, writeAuditLog } from "../core/db";
+import { requireAuth } from "../core/rbac";
 import { resetRateLimits } from "@/lib/rate-limit";
 import {
   verifyEmailHandler,
   resendVerificationHandler,
   sendVerificationEmail,
+  sendWelcomeEmailOnce,
 } from "./email-verification";
 
 const queryMock = vi.mocked(query);
@@ -67,6 +85,7 @@ const sendMock = vi.mocked(sendPlatformEmail);
 const renderMock = vi.mocked(renderEmailTemplate);
 const getUserMock = vi.mocked(getUserByEmail);
 const auditMock = vi.mocked(writeAuditLog);
+const requireAuthMock = vi.mocked(requireAuth);
 
 const RENDERED = {
   subject: "Verify your email for Clara AI",
@@ -82,10 +101,16 @@ const WELCOME_RENDERED = {
   source: "db" as const,
 };
 
-function makeReq(body: unknown, ip = "203.0.113.7"): NextRequest {
+function makeReq(
+  body: unknown,
+  opts: { ip?: string; headers?: Record<string, string> } = {},
+): NextRequest {
+  const headers: Record<string, string> = {};
+  if (opts.ip !== undefined) headers["x-forwarded-for"] = opts.ip;
+  Object.assign(headers, opts.headers ?? {});
   return {
     json: async () => body,
-    headers: new Headers(ip ? { "x-forwarded-for": ip } : {}),
+    headers: new Headers(headers),
   } as unknown as NextRequest;
 }
 
@@ -100,9 +125,12 @@ beforeEach(() => {
 
 describe("verifyEmailHandler", () => {
   it("verifies the user, consumes the token, audits and sends the welcome email", async () => {
-    queryMock.mockResolvedValueOnce([
-      { id: "tok-1", user_id: "user-1", email: "jane@acme.example", full_name: "Jane", email_verified: false },
-    ]);
+    queryMock
+      .mockResolvedValueOnce([
+        { id: "tok-1", user_id: "user-1", email: "jane@acme.example", full_name: "Jane", email_verified: false },
+      ])
+      // welcome-once claim UPDATE … RETURNING id
+      .mockResolvedValueOnce([{ id: "user-1" }]);
     renderMock.mockResolvedValueOnce({ ...WELCOME_RENDERED }); // welcome render
 
     const res = await verifyEmailHandler(makeReq({ token: "abc" }));
@@ -131,6 +159,22 @@ describe("verifyEmailHandler", () => {
       ),
     );
     expect(renderMock).toHaveBeenCalledWith("welcome_email", expect.objectContaining({ userName: "Jane" }));
+  });
+
+  it("skips the welcome email when the once-flag was already claimed at first login", async () => {
+    queryMock
+      .mockResolvedValueOnce([
+        { id: "tok-3", user_id: "user-1", email: "jane@acme.example", full_name: "Jane", email_verified: false },
+      ])
+      // claim UPDATE matches nothing → user was already welcomed at login
+      .mockResolvedValueOnce([]);
+
+    const res = await verifyEmailHandler(makeReq({ token: "abc" }));
+
+    expect(res.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(sendMock).not.toHaveBeenCalled();
+    expect(renderMock).not.toHaveBeenCalledWith("welcome_email", expect.anything());
   });
 
   it("looks the token up in the email_verification purpose only", async () => {
@@ -224,6 +268,23 @@ describe("resendVerificationHandler", () => {
     await vi.waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
   });
 
+  it("resends for an authenticated session when the body has no email (checkout card)", async () => {
+    // The post-checkout verify reminder calls with an empty body — the
+    // session identifies the user instead of a typed-in email address.
+    requireAuthMock.mockResolvedValueOnce({
+      user: UNVERIFIED_USER as never,
+      session: { id: "sess-1" } as never,
+    });
+    getUserMock.mockResolvedValueOnce(UNVERIFIED_USER as never);
+
+    const res = await resendVerificationHandler(makeReq({}));
+
+    expect(res.status).toBe(200);
+    expect(requireAuthMock).toHaveBeenCalled();
+    expect(renderMock).toHaveBeenCalledWith("email_verification", expect.objectContaining({ userName: "Jane" }));
+    await vi.waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
+  });
+
   it("returns the same generic 200 for an unknown email and sends nothing", async () => {
     getUserMock.mockResolvedValueOnce(null);
 
@@ -264,13 +325,14 @@ describe("resendVerificationHandler", () => {
   });
 
   it("accepts a missing/invalid body without leaking anything", async () => {
+    // requireAuth mock throws (default) → no email, no session → generic 200
     const res = await resendVerificationHandler(makeReq({}));
     expect(res.status).toBe(200);
     expect(getUserMock).not.toHaveBeenCalled();
   });
 });
 
-// ── sendVerificationEmail — admin deactivation fallback ───────────────────────
+// ── sendVerificationEmail — admin deactivation fallback + origins ─────────────
 
 describe("sendVerificationEmail — template deactivation fallback", () => {
   it("falls back to the welcome email when email_verification is deactivated", async () => {
@@ -304,5 +366,124 @@ describe("sendVerificationEmail — template deactivation fallback", () => {
 
     expect(ok).toBe(false);
     expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it("builds the verification link from the caller-supplied origin", async () => {
+    renderMock.mockResolvedValueOnce({ ...RENDERED });
+
+    await sendVerificationEmail(
+      { id: "user-7", email: "ola@acme.example", fullName: "Ola" },
+      null,
+      "https://app.clara.example",
+    );
+
+    expect(renderMock).toHaveBeenCalledWith(
+      "email_verification",
+      expect.objectContaining({
+        verifyUrl: expect.stringContaining("https://app.clara.example/login/verify-email?token="),
+      }),
+    );
+    await vi.waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ── sendWelcomeEmailOnce — exactly-once (migration 049) ────────────────────────
+
+describe("sendWelcomeEmailOnce", () => {
+  it("claims the flag and sends on the first call", async () => {
+    queryMock.mockResolvedValueOnce([{ id: "user-1" }]); // claim succeeded
+    renderMock.mockResolvedValueOnce({ ...WELCOME_RENDERED });
+
+    const sent = await sendWelcomeEmailOnce(
+      { id: "user-1", email: "jane@acme.example", fullName: "Jane" },
+      "https://app.clara.example",
+    );
+
+    expect(sent).toBe(true);
+    // Atomic claim BEFORE sending
+    expect(queryMock).toHaveBeenCalledWith(
+      expect.stringContaining("welcome_email_sent_at IS NULL"),
+      ["user-1"],
+    );
+    // dashboardUrl uses the origin, not localhost
+    expect(renderMock).toHaveBeenCalledWith(
+      "welcome_email",
+      expect.objectContaining({ dashboardUrl: "https://app.clara.example/dashboard" }),
+    );
+    await vi.waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("is a no-op when the flag was already claimed (second login / verify race)", async () => {
+    queryMock.mockResolvedValueOnce([]); // claim matched nothing
+
+    const sent = await sendWelcomeEmailOnce(
+      { id: "user-1", email: "jane@acme.example", fullName: "Jane" },
+    );
+
+    expect(sent).toBe(false);
+    expect(renderMock).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── resolvePublicOrigin / appUrlFor — REAL implementation ──────────────────────
+
+describe("resolvePublicOrigin / appUrlFor (real, from @/lib/public-origin)", () => {
+  const ENV_BACKUP = process.env.NEXT_PUBLIC_APP_URL;
+
+  afterEach(() => {
+    if (ENV_BACKUP === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+    else process.env.NEXT_PUBLIC_APP_URL = ENV_BACKUP;
+  });
+
+  it("prefers the configured env var over request headers", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://env-configured.example/";
+    const { resolvePublicOrigin, appUrlFor } = await import("@/lib/public-origin");
+
+    const req = makeReq({}, { headers: { "x-forwarded-host": "request-host.example" } });
+    expect(resolvePublicOrigin(req)).toBe("https://env-configured.example");
+    expect(appUrlFor("/login", req)).toBe("https://env-configured.example/login");
+  });
+
+  it("derives https origin from x-forwarded-host when the env var is unset", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const { resolvePublicOrigin, appUrlFor } = await import("@/lib/public-origin");
+
+    // Vercel-style proxy headers
+    const req = makeReq(
+      {},
+      { headers: { "x-forwarded-host": "clara.vercel.app", "x-forwarded-proto": "https" } },
+    );
+    expect(resolvePublicOrigin(req)).toBe("https://clara.vercel.app");
+    expect(appUrlFor("", req)).toBe("https://clara.vercel.app"); // no trailing slash
+  });
+
+  it("derives the origin from a plain Host header and defaults to https", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const { resolvePublicOrigin } = await import("@/lib/public-origin");
+
+    const req = makeReq({}, { headers: { host: "app.acme.example" } });
+    expect(resolvePublicOrigin(req)).toBe("https://app.acme.example");
+  });
+
+  it("keeps http for local dev hosts and falls back to localhost without a request", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const { resolvePublicOrigin, appUrlFor } = await import("@/lib/public-origin");
+
+    const localReq = makeReq({}, { headers: { host: "localhost:3000" } });
+    expect(resolvePublicOrigin(localReq)).toBe("http://localhost:3000");
+    // No request at all (background worker) → dev fallback, not a crash
+    expect(resolvePublicOrigin()).toBe("http://localhost:3000");
+    expect(appUrlFor("/login")).toBe("http://localhost:3000/login");
+  });
+
+  it("joins paths without producing double slashes", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const { appUrlFor } = await import("@/lib/public-origin");
+
+    const req = makeReq({}, { headers: { host: "app.acme.example" } });
+    expect(appUrlFor("", req)).toBe("https://app.acme.example");
+    expect(appUrlFor("/dashboard", req)).toBe("https://app.acme.example/dashboard");
+    expect(appUrlFor("dashboard", req)).toBe("https://app.acme.example/dashboard");
   });
 });

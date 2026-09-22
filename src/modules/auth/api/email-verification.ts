@@ -4,13 +4,25 @@
  * Email verification flow for the signup funnel:
  *
  *   POST /api/auth/verify-email          { token }
- *     → marks users.email_verified = TRUE, sends the welcome email.
+ *     → marks users.email_verified = TRUE, sends the welcome email
+ *       (exactly-once via users.welcome_email_sent_at, migration 049).
  *       Public endpoint — the emailed token IS the credential (single-use,
  *       24h expiry, HMAC-hashed at rest exactly like password resets).
  *
- *   POST /api/auth/resend-verification   { email }
+ *   POST /api/auth/resend-verification   { email? }
  *     → re-issues a verification link for an unverified account. Always 200
  *       (never leaks account existence); rate limited 3 / 10 min per email.
+ *       With an empty body, the authenticated session identifies the user
+ *       (used by the post-checkout "verify your email" reminder card).
+ *
+ * Welcome email timing — first of these moments wins, exactly once:
+ *   * the verification link is clicked, or
+ *   * the FIRST successful login (users who never click the verify link
+ *     still receive their confirmation + welcome email).
+ *
+ * Link origins — every emailed URL is built from resolvePublicOrigin()
+ * (env NEXT_PUBLIC_APP_URL → request headers → localhost dev fallback) so
+ * links never silently point at localhost on an unconfigured deploy.
  *
  * Security model (shared with password resets — same token table):
  *   * 32 random bytes emailed to the user, only the SHA-256 hash is stored.
@@ -25,11 +37,21 @@ import { query, execute } from "@/lib/db";
 import { hit, clear, VERIFICATION_RESEND_RATE, rateLimitResponse } from "@/lib/rate-limit";
 import { hashToken } from "../core/tokens";
 import { getUserByEmail, writeAuditLog } from "../core/db";
-import { sendPlatformEmail, appUrl } from "@/lib/email";
+import { requireAuth } from "../core/rbac";
+import { sendPlatformEmail } from "@/lib/email";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { renderEmailTemplate } from "@/lib/email-templates";
 import type { User } from "../core/models";
 
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Re-exported for dynamic-import call sites (auth.ts uses `await import()`
+ * to keep this module out of the register/login hot path): resolves the
+ * public origin from the live request so emailed links always point at the
+ * domain the user is actually on.
+ */
+export { resolvePublicOrigin as resolvePublicOriginFor } from "@/lib/public-origin";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
@@ -59,10 +81,15 @@ export async function createEmailVerificationToken(userId: string, ip: string | 
 }
 
 /** Renders + fire-and-forget sends the verification email. Never throws. */
-export async function sendVerificationEmail(user: Pick<User, "id" | "email" | "fullName">, ip: string | null): Promise<boolean> {
+export async function sendVerificationEmail(
+  user: Pick<User, "id" | "email" | "fullName">,
+  ip: string | null,
+  origin?: string
+): Promise<boolean> {
   try {
     const raw = await createEmailVerificationToken(user.id, ip);
-    const link = appUrl(`/login/verify-email?token=${raw}`);
+    const base = origin ?? resolvePublicOrigin();
+    const link = `${base}/login/verify-email?token=${raw}`;
     const rendered = await renderEmailTemplate("email_verification", {
       userName: user.fullName,
       verifyUrl: link,
@@ -72,7 +99,7 @@ export async function sendVerificationEmail(user: Pick<User, "id" | "email" | "f
     // its onboarding message.
     if (!rendered) {
       console.log("[email-verification] email_verification template deactivated — trying welcome_email");
-      await sendWelcomeEmail(user);
+      await sendWelcomeEmail(user, origin);
       return false;
     }
     sendPlatformEmail({ to: user.email, subject: rendered.subject, html: rendered.html }).catch((e) =>
@@ -86,11 +113,15 @@ export async function sendVerificationEmail(user: Pick<User, "id" | "email" | "f
 }
 
 /** Renders + fire-and-forget sends the welcome email. Never throws. */
-export async function sendWelcomeEmail(user: Pick<User, "email" | "fullName">): Promise<boolean> {
+export async function sendWelcomeEmail(
+  user: Pick<User, "id" | "email" | "fullName">,
+  origin?: string
+): Promise<boolean> {
   try {
+    const base = origin ?? resolvePublicOrigin();
     const rendered = await renderEmailTemplate("welcome_email", {
       userName: user.fullName,
-      dashboardUrl: appUrl("/dashboard"),
+      dashboardUrl: `${base}/dashboard`,
     });
     if (!rendered) {
       console.log("[email-verification] welcome_email template deactivated — email skipped");
@@ -102,6 +133,39 @@ export async function sendWelcomeEmail(user: Pick<User, "email" | "fullName">): 
     return true;
   } catch (err) {
     console.error("[email-verification] could not queue welcome email:", (err as Error).message);
+    return false;
+  }
+}
+
+/**
+ * Exactly-once welcome email (migration 049).
+ *
+ * The welcome mail now fires at the FIRST of these moments:
+ *   * the verification link is clicked, or
+ *   * the first successful login (users who never click the verify link
+ *     still get their onboarding + login-confirmation email).
+ *
+ * Atomically claims users.welcome_email_sent_at BEFORE sending, so two
+ * concurrent logins — or a login racing the verify click — can never both
+ * send. The claim is kept even when the template is deactivated by an
+ * admin: that suppression is a deliberate platform choice, not a failure
+ * to retry.
+ */
+export async function sendWelcomeEmailOnce(
+  user: Pick<User, "id" | "email" | "fullName">,
+  origin?: string
+): Promise<boolean> {
+  try {
+    const claimed = await query<{ id: string }>(
+      `UPDATE users SET welcome_email_sent_at = now(), updated_at = now()
+        WHERE id = $1 AND welcome_email_sent_at IS NULL
+        RETURNING id`,
+      [user.id]
+    );
+    if (!claimed[0]) return false; // already welcomed — nothing to do
+    return await sendWelcomeEmail(user, origin);
+  } catch (err) {
+    console.error("[email-verification] welcome-once claim failed:", (err as Error).message);
     return false;
   }
 }
@@ -164,8 +228,12 @@ export async function verifyEmailHandler(req: NextRequest): Promise<NextResponse
       ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
     });
 
-    // Registration confirmation + welcome in one message (fire-and-forget).
-    await sendWelcomeEmail({ email: entry.email, fullName: entry.full_name });
+    // Registration confirmation + welcome in one message (fire-and-forget,
+    // exactly-once — a login that already welcomed this user won't re-send).
+    await sendWelcomeEmailOnce(
+      { id: entry.user_id, email: entry.email, fullName: entry.full_name },
+      resolvePublicOrigin(req)
+    );
 
     return NextResponse.json({ ok: true, email: entry.email });
   } catch (err) {
@@ -183,7 +251,20 @@ export async function resendVerificationHandler(req: NextRequest): Promise<NextR
   try {
     await ensureMigrated();
     const { email } = await req.json().catch(() => ({}) as { email?: string });
-    const normalized = (email ?? "").toString().toLowerCase().trim();
+    let normalized = (email ?? "").toString().toLowerCase().trim();
+
+    // Authenticated fallback: the post-checkout "resend verification" card
+    // (and any logged-in surface) can call this without knowing the email —
+    // the session already identifies the user. Verified accounts get the
+    // same generic 200 below, so this never leaks verification state.
+    if (!normalized || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) {
+      try {
+        const auth = await requireAuth(req);
+        normalized = auth.user.email.toLowerCase();
+      } catch {
+        normalized = "";
+      }
+    }
 
     // Always the same response — do not leak account existence.
     const okResponse = NextResponse.json({
@@ -208,7 +289,7 @@ export async function resendVerificationHandler(req: NextRequest): Promise<NextR
     if (user.emailVerified) { clear(bucket); return okResponse; }
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-    await sendVerificationEmail(user, ip);
+    await sendVerificationEmail(user, ip, resolvePublicOrigin(req));
 
     return okResponse;
   } catch (err) {

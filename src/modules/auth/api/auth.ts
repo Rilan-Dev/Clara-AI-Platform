@@ -166,11 +166,14 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
       // ── Email verification ────────────────────────────────────────────
       // Fire-and-forget: a mail outage must never fail registration. The
       // signup-verify screen tells the user to check their inbox; the link
-      // itself is a single-use, 24-hour token.
-      const { sendVerificationEmail } = await import("./email-verification");
+      // itself is a single-use, 24-hour token. The origin is captured from
+      // the live request so the link always points at the domain the user
+      // signed up on (never localhost on an unconfigured deploy).
+      const { sendVerificationEmail, resolvePublicOriginFor } = await import("./email-verification");
       sendVerificationEmail(
         { id: result.userRow.id, email: result.userRow.email, fullName: result.userRow.full_name },
         getIp(req),
+        resolvePublicOriginFor(req),
       ).catch(() => {});
 
       const res = NextResponse.json({
@@ -190,8 +193,8 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
     await writeAuditLog({ userId: user.id, action: "user.register", resourceType: "user", resourceId: user.id, ipAddress: getIp(req) });
 
     // ── Email verification (fire-and-forget, same as org signup) ─────────
-    const { sendVerificationEmail } = await import("./email-verification");
-    sendVerificationEmail(user, getIp(req)).catch(() => {});
+    const { sendVerificationEmail, resolvePublicOriginFor } = await import("./email-verification");
+    sendVerificationEmail(user, getIp(req), resolvePublicOriginFor(req)).catch(() => {});
 
     const res = NextResponse.json({ user, token }, { status: 201 });
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
@@ -286,6 +289,20 @@ export async function loginHandler(req: NextRequest): Promise<NextResponse> {
     await createSession(userWithHash.id, hashToken(token), expires, ip, req.headers.get("user-agent") ?? undefined);
     await touchLastLogin(userWithHash.id);
     await writeAuditLog({ userId: userWithHash.id, action: "user.login", resourceType: "user", resourceId: userWithHash.id, ipAddress: ip });
+
+    // ── Post-login email (product requirement: after a successful login,
+    // send a confirmation + welcome email) ────────────────────────────────
+    // Exactly-once via users.welcome_email_sent_at (migration 049): the
+    // FIRST successful login delivers the welcome mail — covering users
+    // who signed up but never clicked the verification link. Later logins
+    // send nothing, so this can never become login spam. Fire-and-forget.
+    try {
+      const { sendWelcomeEmailOnce, resolvePublicOriginFor } = await import("./email-verification");
+      sendWelcomeEmailOnce(
+        { id: userWithHash.id, email: userWithHash.email, fullName: userWithHash.fullName },
+        resolvePublicOriginFor(req),
+      ).catch(() => {});
+    } catch { /* welcome email must never break login */ }
 
     const user = {
       ...userWithHash,
@@ -427,13 +444,13 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
         "SELECT name, slug FROM organisations WHERE id = $1", [orgId]
       );
       const orgName = org?.name ?? "your organisation";
-      const { sendPlatformEmail, appUrl } = await import("@/lib/email");
+      const { sendPlatformEmail, appUrlFor } = await import("@/lib/email");
       const { renderEmailTemplate } = await import("@/lib/email-templates");
 
       if (isNewUser) {
         const { createInvitationToken } = await import("./password-reset");
         inviteToken = await createInvitationToken(target.id, orgId, orgName);
-        const link = appUrl(`/login/reset?token=${inviteToken}`);
+        const link = appUrlFor(`/login/reset?token=${inviteToken}`, req);
         const rendered = await renderEmailTemplate("org_invitation_new_user", {
           userName: target.fullName,
           orgName,
@@ -456,7 +473,7 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
           userName: target.fullName,
           orgName,
           role: role.replace("_", " "),
-          loginUrl: appUrl("/login"),
+          loginUrl: appUrlFor("/login", req),
         });
         if (rendered) {
           await sendPlatformEmail({
