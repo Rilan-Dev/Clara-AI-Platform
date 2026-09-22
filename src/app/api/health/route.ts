@@ -78,7 +78,7 @@ export async function GET() {
         database: {
           status:    dbStatus,
           latencyMs: dbLatencyMs,
-          error:     dbError,
+          error:     process.env.NODE_ENV === "production" ? undefined : dbError,
           pool:      poolStats,
         },
         qdrant: {
