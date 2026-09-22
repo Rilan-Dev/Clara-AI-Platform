@@ -316,6 +316,64 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const services = { postgres, redis, qdrant, rabbitmq, email, queues, aiOpenai, aiGemini, app };
 
+    const alerts: Array<{
+      id: string;
+      severity: "warning" | "critical";
+      title: string;
+      message: string;
+      actionLabel?: string;
+      actionHref?: string;
+    }> = [];
+
+    const activeProvider = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
+    const activeAI = activeProvider === "gemini" ? aiGemini : aiOpenai;
+    if (activeAI.status === "not_configured") {
+      alerts.push({
+        id: `ai-${activeProvider}-credentials`,
+        severity: "critical",
+        title: `${activeProvider === "openai" ? "OpenAI" : "Gemini"} credentials are missing`,
+        message: `The active AI provider has no usable server credential. AI chat/embedding jobs may fail. Add the provider credential in Platform → AI Platform, then run the provider connection test.`,
+        actionLabel: "Open AI Platform",
+        actionHref: "/settings/ai-platform",
+      });
+    } else if (activeAI.status === "down") {
+      alerts.push({
+        id: `ai-${activeProvider}-down`,
+        severity: "critical",
+        title: `${activeProvider === "openai" ? "OpenAI" : "Gemini"} is unavailable`,
+        message: activeAI.error ?? "The active AI provider connectivity check failed.",
+        actionLabel: "Open AI Platform",
+        actionHref: "/settings/ai-platform",
+      });
+    }
+
+    if (redis.status === "down") {
+      alerts.push({
+        id: "redis-down",
+        severity: "critical",
+        title: "Redis is unavailable",
+        message: redis.error ?? "Queue/cache connectivity failed. Background jobs and cache-backed features may be affected.",
+      });
+    }
+
+    if (postgres.status === "down") {
+      alerts.push({
+        id: "postgres-down",
+        severity: "critical",
+        title: "PostgreSQL is unavailable",
+        message: postgres.error ?? "The primary database health check failed. Authentication, configuration and tenant data may be unavailable.",
+      });
+    }
+
+    if (qdrant.status === "down") {
+      alerts.push({
+        id: "qdrant-down",
+        severity: "critical",
+        title: "Qdrant is unavailable",
+        message: qdrant.error ?? "Vector retrieval/ingestion health check failed.",
+      });
+    }
+
     // Roll-up: down services (excluding not_configured) mark the platform degraded.
     // AI providers only count when they are the ACTIVE provider — an unreachable
     // standby is visible on its card but does not degrade the whole platform.
@@ -338,6 +396,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ok: down === 0,
         overall: down === 0 ? "healthy" : "degraded",
         summary: { up, down, notConfigured },
+        alerts,
         services,
         checkedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,
