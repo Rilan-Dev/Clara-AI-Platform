@@ -24,6 +24,8 @@ import {
   PLAN_AMOUNTS_CENTS,
   PLAN_NAMES,
   appUrl,
+  getStripeWebhookSecret,
+  sanitizeStripeError,
 } from "@/lib/stripe";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -68,6 +70,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const stripe = getStripe();
+    // A successful Checkout without a verified webhook cannot safely activate
+    // the subscription. Fail closed before creating a customer/session.
+    getStripeWebhookSecret();
 
     // ── Resolve or create Stripe Customer ───────────────────────────────────
     const sub = await queryOne<{ stripe_customer_id: string | null }>(
@@ -143,6 +148,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[POST /api/subscriptions/checkout]", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ error: sanitizeStripeError(err) }, { status: 500 });
   }
 }
