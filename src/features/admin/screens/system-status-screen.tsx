@@ -40,6 +40,7 @@ type StatusPayload = {
   summary: { up: number; down: number; notConfigured: number };
   checkedAt: string;
   durationMs: number;
+  alerts?: Array<{ id: string; severity: "warning" | "critical"; title: string; message: string; actionLabel?: string; actionHref?: string }>;
   services: {
     postgres: BaseCheck & { pool?: { total: number; idle: number; waiting: number } };
     redis: BaseCheck;
@@ -329,6 +330,30 @@ export function SystemStatusScreen() {
                 </span>
               </div>
             </div>
+
+            {data.alerts && data.alerts.length > 0 && (
+              <div className="space-y-2">
+                {data.alerts.map((alert) => (
+                  <div key={alert.id} className="rounded-2xl border border-destructive/25 bg-destructive/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">{alert.title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{alert.message}</p>
+                        {alert.actionHref && (
+                          <a
+                            href={alert.actionHref}
+                            className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
+                          >
+                            {alert.actionLabel ?? "Open"}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* ── Services grid ─────────────────────────────────────────── */}
             <div className="grid gap-4 sm:grid-cols-2">
