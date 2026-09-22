@@ -87,14 +87,23 @@ export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   const client = await pool.connect();
+  let committed = false;
+
   try {
     await client.query("BEGIN");
     const result = await fn(client);
     await client.query("COMMIT");
+    committed = true;
     return result;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
+  } catch (error) {
+    if (!committed) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("[db] transaction rollback failed:", rollbackError);
+      }
+    }
+    throw error;
   } finally {
     client.release();
   }

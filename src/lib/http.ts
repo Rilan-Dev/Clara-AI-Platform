@@ -47,7 +47,7 @@ export function isApiError(err: unknown): err is ApiError {
 
 const http: AxiosInstance = axios.create({
   baseURL: `${getApiBaseUrl()}/api`,
-  timeout: 30_000,
+  timeout: 15_000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -76,11 +76,27 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response: AxiosResponse) => response,
 
-  (error: unknown) => {
+  async (error: unknown) => {
     if (!isAxiosError(error)) {
       return Promise.reject(
         new ApiError(0, "UNKNOWN", "An unexpected error occurred.", error)
       );
+    }
+
+    const config = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const method = config?.method?.toUpperCase();
+    const responseStatus = error.response?.status;
+    const retryable =
+      !error.response ||
+      responseStatus === 408 ||
+      responseStatus === 429 ||
+      (responseStatus !== undefined && responseStatus >= 500);
+
+    // Only retry idempotent reads once; never duplicate mutations.
+    if (config && !config._retry && retryable && (method === "GET" || method === "HEAD")) {
+      config._retry = true;
+      await new Promise((resolve) => setTimeout(resolve, responseStatus === 429 ? 500 : 150));
+      return http.request(config);
     }
 
     if (!error.response) {
