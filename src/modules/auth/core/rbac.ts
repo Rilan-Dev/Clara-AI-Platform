@@ -74,14 +74,17 @@ async function enforceOnboardingMutationGate(request: Request, userId: string, i
     );
   }
 
-  const row = await queryOne<{ has_active_org: boolean; has_incomplete_org: boolean }>(
+  const row = await queryOne<{ has_entitled_org: boolean; has_incomplete_org: boolean }>(
     `SELECT
        EXISTS (
          SELECT 1
            FROM org_members om
            JOIN org_subscriptions os ON os.org_id = om.org_id
-          WHERE om.user_id = $1 AND os.status IN ('active','trialing')
-       ) AS has_active_org,
+           JOIN subscription_plans sp ON sp.id = os.plan_id
+          WHERE om.user_id = $1
+            AND os.status IN ('active','trialing')
+            AND (sp.price_usd > 0 OR sp.enabled = TRUE)
+       ) AS has_entitled_org,
        EXISTS (
          SELECT 1
            FROM org_members om
@@ -94,11 +97,22 @@ async function enforceOnboardingMutationGate(request: Request, userId: string, i
     [userId],
   );
 
-  if (!row?.has_active_org && row?.has_incomplete_org) {
+  if (row?.has_incomplete_org && !row?.has_entitled_org) {
     throw NextResponse.json(
       {
         error: "Complete email verification and payment before using Clara AI.",
         code: "ONBOARDING_INCOMPLETE",
+        status: 402,
+      },
+      { status: 402 },
+    );
+  }
+
+  if (!row?.has_entitled_org) {
+    throw NextResponse.json(
+      {
+        error: "An active paid subscription is required to use Clara AI features.",
+        code: "SUBSCRIPTION_REQUIRED",
         status: 402,
       },
       { status: 402 },
