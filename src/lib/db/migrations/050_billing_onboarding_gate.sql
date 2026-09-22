@@ -106,7 +106,6 @@ UPDATE org_subscriptions os
          FROM org_members om
          JOIN users u ON u.id = om.user_id
         WHERE om.org_id = os.org_id
-          AND rtrim(lower(u.email)) = rtrim(lower(u.email))
           AND u.email_verified = TRUE
      ) THEN 'payment_required'
      ELSE 'pending_email'
