@@ -108,6 +108,12 @@ export async function runMigrationsOnStartup(): Promise<void> {
   migrated = true;
 }
 
+/** Load DB-backed runtime settings without performing schema work. */
+export async function loadRuntimeSettingsOnStartup(): Promise<void> {
+  await loadRuntimeSettings();
+  migrated = true;
+}
+
 /**
  * Request-path migration guard.
  *
