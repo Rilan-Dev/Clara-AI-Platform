@@ -63,6 +63,17 @@ async function enforceOnboardingMutationGate(request: Request, userId: string, i
   const pathname = new URL(request.url).pathname;
   if (isOnboardingAllowedMutation(pathname)) return;
 
+  const verified = await queryOne<{ email_verified: boolean }>(
+    "SELECT email_verified FROM users WHERE id = $1",
+    [userId],
+  );
+  if (!verified?.email_verified) {
+    throw NextResponse.json(
+      { error: "Verify your email before using Clara AI features.", code: "EMAIL_VERIFICATION_REQUIRED", status: 403 },
+      { status: 403 },
+    );
+  }
+
   const row = await queryOne<{ has_active_org: boolean; has_incomplete_org: boolean }>(
     `SELECT
        EXISTS (
