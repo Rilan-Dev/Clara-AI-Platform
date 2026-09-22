@@ -41,6 +41,7 @@ const SETTINGS_NAV = [
   { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
   { href: "/settings/email",    icon: Mail,      label: "Email Delivery"   },
   { href: "/settings/templates", icon: FileText,  label: "Email Templates"  },
+  { href: "/settings/announcements", icon: Rocket, label: "Announcements" },
 ];
 
 // Org users have no AI Configuration section any more — assistant persona
