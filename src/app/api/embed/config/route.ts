@@ -34,7 +34,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    const [resolved, voiceResult] = await Promise.all([
+      resolveAIConfig({ kbId: ctx.kbId, surface: "chat" }),
+      resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" }).catch((error) => {
+        if (error instanceof VoiceConfigResolutionError) return null;
+        throw error;
+      }),
+    ]);
     const effectiveConfig = resolved.assistantConfig ?? config;
     if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json(
@@ -47,13 +53,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // which mis-branded ElevenLabs-configured orgs as "openai" on every
     // embed host. Falls back to the brain provider on resolution failure so
     // a voice misconfiguration never takes the whole embed config down.
-    let voiceProvider: string = resolved.provider ?? "openai";
-    try {
-      const voice = await resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" });
-      voiceProvider = voice.realtimeProvider;
-    } catch (voiceError) {
-      if (!(voiceError instanceof VoiceConfigResolutionError)) throw voiceError;
-    }
+    const voiceProvider: string = voiceResult?.realtimeProvider ?? resolved.provider ?? "openai";
 
     return NextResponse.json(
       {
