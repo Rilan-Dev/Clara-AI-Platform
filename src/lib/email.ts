@@ -118,6 +118,31 @@ export function hasEmailProvider(): boolean {
   return getEmailConfig().provider !== "console";
 }
 
+export function getEmailProviderConfigStatus(): {
+  provider: EmailProviderName;
+  configured: boolean;
+  reason?: string;
+} {
+  const cfg = getEmailConfig();
+  if (cfg.provider === "resend") {
+    if (!cfg.resendApiKey) return { provider: cfg.provider, configured: false, reason: "Resend API key is not configured." };
+    if (!cfg.fromAddress || !cfg.fromAddress.includes("@")) {
+      return { provider: cfg.provider, configured: false, reason: "Resend sender address is not configured." };
+    }
+    return { provider: cfg.provider, configured: true };
+  }
+  if (cfg.provider === "smtp") {
+    if (!cfg.smtp.host) return { provider: cfg.provider, configured: false, reason: "SMTP host is not configured." };
+    if (!cfg.smtp.user) return { provider: cfg.provider, configured: false, reason: "SMTP username is not configured." };
+    if (!cfg.smtp.password) return { provider: cfg.provider, configured: false, reason: "SMTP password/app password is not configured." };
+    if (!cfg.smtp.fromAddress || !cfg.smtp.fromAddress.includes("@")) {
+      return { provider: cfg.provider, configured: false, reason: "SMTP sender address is not configured." };
+    }
+    return { provider: cfg.provider, configured: true };
+  }
+  return { provider: "console", configured: false, reason: "No email provider is configured." };
+}
+
 // ── SMTP transporter cache ────────────────────────────────────────────────────
 // nodemailer transporters are pooled (5 keep-alive connections). Credentials are
 // captured per transporter; whenever an SMTP setting changes we drop the cache

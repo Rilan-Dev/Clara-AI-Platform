@@ -121,7 +121,7 @@ export function EmailDeliveryPanel() {
   useEffect(() => { void load(); /* eslint-disable-line */ }, []);
 
   const getSetting = (key: string) => settings.find((s) => s.key === key);
-  const activeProvider = (getSetting("EMAIL_PROVIDER")?.value ?? "resend").toLowerCase();
+  const activeProvider = (getSetting("EMAIL_PROVIDER")?.value ?? "console").toLowerCase();
 
   const handleSave = async (key: string) => {
     const val = values[key] ?? "";
@@ -315,7 +315,10 @@ export function EmailDeliveryPanel() {
   };
 
   const resendConfigured = getSetting("RESEND_API_KEY")?.isSet ?? false;
-  const smtpConfigured = Boolean(getSetting("SMTP_HOST")?.isSet) && Boolean(getSetting("SMTP_USER")?.isSet);
+  const smtpConfigured =
+    Boolean(getSetting("SMTP_HOST")?.isSet) &&
+    Boolean(getSetting("SMTP_USER")?.isSet) &&
+    Boolean(getSetting("SMTP_PASSWORD")?.isSet);
 
   return (
     <div className="space-y-6">
@@ -377,7 +380,7 @@ export function EmailDeliveryPanel() {
         </h3>
         <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
           <p className="text-xs text-muted-foreground">
-            Sends a real message through the <strong className="text-foreground/70">{activeProvider === "smtp" ? "SMTP" : "Resend"}</strong> provider
+            Sends a real message through the <strong className="text-foreground/70">{activeProvider === "smtp" ? "SMTP" : activeProvider === "resend" ? "Resend" : "configured provider"}</strong> provider
             {" "}to the address you enter — the same path every system email takes.
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
