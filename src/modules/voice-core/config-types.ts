@@ -17,7 +17,9 @@ import type { ElevenLabsVoiceSettings, VoiceProvider } from "./types";
 export interface ResolveVoiceConfigInput {
   kbId?: string;
   orgId?: string;
-  surface: "realtime" | "embed";
+  surface: "voice_chat" | "realtime" | "embed";
+  /** Optional pre-resolved brain config to avoid duplicate AI resolution in composite callers. */
+  brainConfig?: ResolvedAIConfig;
 }
 
 // ─── Resolution output ───────────────────────────────────────────────────────

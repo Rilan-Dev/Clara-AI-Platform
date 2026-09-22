@@ -36,6 +36,7 @@ import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
 import {
   resolveVoiceConfig,
+  VoiceConfigResolutionError,
 } from "@/modules/voice-core/resolve";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
@@ -71,10 +72,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const [resolved, voiceResolution] = await Promise.all([
-      resolveAIConfig({ kbId: ctx.kbId, surface: "embed" }),
-      resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" }),
-    ]);
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const voiceResolution = await resolveVoiceConfig({
+      kbId: ctx.kbId,
+      surface: "embed",
+      brainConfig: resolved,
+    });
     const effectiveConfig = resolved.assistantConfig ?? config;
     const requestedLanguage =
       typeof sessionBody.language === "string"
@@ -426,7 +429,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 503, headers: corsHeaders },
     );
   } catch (err) {
-    if (err instanceof AIConfigResolutionError) {
+    if (err instanceof AIConfigResolutionError || err instanceof VoiceConfigResolutionError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("[embed/session]:", err);
