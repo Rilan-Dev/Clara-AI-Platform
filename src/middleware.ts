@@ -107,7 +107,7 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   if (startsWith(pathname, ADMIN_PAGE_PREFIXES)) {
-    const skipAuth = process.env.SKIP_AUTH === "true";
+    const skipAuth = process.env.NODE_ENV !== "production" && process.env.SKIP_AUTH === "true";
     const adminToken = request.cookies.get("clara_platform_token")?.value ?? request.cookies.get("clara_admin_token")?.value ?? request.cookies.get("clara_token")?.value;
     if (!skipAuth && !adminToken) {
       const loginUrl = new URL("/login", request.url);
@@ -118,7 +118,7 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   if (startsWith(pathname, PROTECTED_API_PREFIXES)) {
-    const skipAuth = process.env.SKIP_AUTH === "true";
+    const skipAuth = process.env.NODE_ENV !== "production" && process.env.SKIP_AUTH === "true";
     const authHeader = request.headers.get("authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const cookieToken = request.cookies.get("clara_platform_token")?.value ?? request.cookies.get("clara_admin_token")?.value ?? request.cookies.get("clara_token")?.value;
