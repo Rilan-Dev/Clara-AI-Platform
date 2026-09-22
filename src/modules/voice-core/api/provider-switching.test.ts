@@ -43,9 +43,11 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
     kbId === KB_ID ? { ...KB_FIXTURE } : null,
   ),
   getAssistantConfigByKb: vi.fn(async () => ({ ...ASSISTANT_CONFIG })),
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/db", () => ({
+  queryOne: vi.fn(async () => null),
   query: vi.fn(async (sql: string) => {
     if (String(sql).includes("SELECT a.org_id")) return [{ org_id: ORG_ID }];
     return [];

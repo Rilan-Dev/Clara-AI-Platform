@@ -6,8 +6,6 @@ import type { PoolClient } from "pg";
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
 const MIGRATION_LOCK_KEY = "clara-schema-migrations";
 
-let migrated = false;
-
 async function createMigrationsTable(client: PoolClient): Promise<void> {
   await client.query(
     `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -105,13 +103,11 @@ async function loadRuntimeSettings(): Promise<void> {
 export async function runMigrationsOnStartup(): Promise<void> {
   await runMigrations();
   await loadRuntimeSettings();
-  migrated = true;
 }
 
-/** Load DB-backed runtime settings without performing schema work. */
+/** Compatibility name used by the Node instrumentation bootstrap. */
 export async function loadRuntimeSettingsOnStartup(): Promise<void> {
-  await loadRuntimeSettings();
-  migrated = true;
+  await runMigrationsOnStartup();
 }
 
 /**

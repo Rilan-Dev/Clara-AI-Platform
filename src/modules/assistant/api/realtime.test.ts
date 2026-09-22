@@ -33,6 +33,7 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
     kbId === KB_FIXTURE.id ? { ...KB_FIXTURE } : null,
   ),
   getAssistantConfigByKb: vi.fn(async () => ({ ...ASSISTANT_CONFIG_FIXTURE })),
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/db", () => ({
