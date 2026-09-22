@@ -61,6 +61,7 @@ async function startIngestPollerIfEnabled(): Promise<void> {
     const v = Number(process.env.INGEST_POLLER_INTERVAL_MS ?? "3000");
     return Number.isFinite(v) && v >= 500 ? v : 3000;
   })();
+
   const maxJobsPerTick = (() => {
     const v = Number(process.env.INGEST_POLLER_MAX_JOBS ?? "5");
     return Number.isFinite(v) && v > 0 ? v : 5;
@@ -90,8 +91,12 @@ async function startIngestPollerIfEnabled(): Promise<void> {
   };
 
   void tick();
-  const timer = setInterval(() => { void tick(); }, intervalMs);
+  const timer = setInterval(() => {
+    void tick();
+  }, intervalMs);
+
   if (typeof timer.unref === "function") timer.unref();
+
   console.log(
     `[ingest-poller] background ingest queue poller started ` +
       `(interval=${intervalMs}ms, maxJobsPerTick=${maxJobsPerTick})`
