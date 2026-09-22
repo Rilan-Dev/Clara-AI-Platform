@@ -318,7 +318,7 @@ export default function SignupScreen() {
             <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
           <h1 className="text-2xl font-black text-foreground mb-1">Create your account</h1>
-          <p className="text-muted-foreground text-sm">Choose a plan and get started right away</p>
+          <p className="text-muted-foreground text-sm">Choose a plan and complete your account setup securely</p>
         </div>
 
         <div className="flex items-center gap-0 mb-8">
@@ -375,7 +375,7 @@ export default function SignupScreen() {
           {step === "plan" && (
             <div>
               <h2 className="text-lg font-bold text-foreground mb-1">Choose your plan</h2>
-              <p className="text-muted-foreground text-sm mb-5">Your selected plan starts immediately.</p>
+              <p className="text-muted-foreground text-sm mb-5">Choose your plan. You’ll verify your email before continuing, and paid plans require payment before activation.</p>
               <div className="space-y-3">
                 {PLAN_META.map((plan) => (
                   <button
@@ -411,7 +411,7 @@ export default function SignupScreen() {
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-black text-foreground">{plan.price}</div>
-                        <div className="text-xs text-muted-foreground/70">after trial</div>
+                        <div className="text-xs text-muted-foreground/70">{plan.id === "free" ? "no payment required" : "per month"}</div>
                       </div>
                     </div>
                     {form.planId === plan.id && (
@@ -647,7 +647,9 @@ export default function SignupScreen() {
                 </h2>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {verified ? (
-                    "Your account is fully activated. Redirecting you now…"
+                    form.planId === "free"
+                      ? "Your email is verified and your free plan is ready. Redirecting you now…"
+                      : "Your email is verified. Redirecting you to payment now…"
                   ) : emailDeliveryFailed ? (
                     <>
                       Your account was created, but Clara could not deliver the verification email.
@@ -659,8 +661,7 @@ export default function SignupScreen() {
                   ) : (
                     <>
                       We sent a verification link to{" "}
-                      <span className="text-primary font-semibold break-all">{form.email}</span>. Click it
-                      in your inbox to activate your account.
+                      <span className="text-primary font-semibold break-all">{form.email}</span>. Click it in your inbox to verify your email. Paid plans continue to payment after verification.
                     </>
                   )}
                 </p>
@@ -670,8 +671,8 @@ export default function SignupScreen() {
                 <div className="flex items-center gap-2 bg-emerald-500/[0.06] border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-sm rounded-xl px-4 py-3">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>
-                    Welcome aboard — your {selectedPlan.name} plan{" "}
-                    {form.planId === "free" ? "is active." : "is ready to activate."}
+                    Email verified. Your {selectedPlan.name} plan{" "}
+                    {form.planId === "free" ? "is ready to use." : "is ready for payment."}
                   </span>
                 </div>
               ) : (
@@ -748,13 +749,9 @@ export default function SignupScreen() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={continueAfterVerify}
-                  className="flex items-center gap-2 border border-border hover:border-primary/50 hover:text-primary text-muted-foreground font-medium px-6 py-2.5 rounded-xl text-sm transition-all"
-                >
-                  Skip for now <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="text-xs text-muted-foreground/70 px-4 py-2.5 text-center">
+                  Waiting for email verification. This step is required before continuing.
+                </div>
               )
             ) : step !== "review" ? (
               <button
