@@ -122,8 +122,7 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
     }
   }
 
-  const primary = status ?? announcements[0] ?? null;
-  const extraAnnouncements = status ? announcements : announcements.slice(1);
+  const extraAnnouncements = status ? announcements : announcements.slice(0, 3);
 
   return (
     <>
