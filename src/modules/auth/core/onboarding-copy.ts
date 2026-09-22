@@ -4,7 +4,7 @@ export type VerificationTokenState = "expired" | "invalid" | "already_verified";
 export type VerificationCopyInput = {
   context: VerificationContext;
   emailVerified: boolean;
-  plan: "free" | "starter" | "pro" | null;
+  plan: "free" | "starter" | "pro" | "enterprise" | null;
   onboardingStatus: string | null;
   tokenState?: VerificationTokenState;
 };
@@ -16,7 +16,7 @@ export type VerificationCopy = {
   destination: "login" | "payment" | "workspace";
 };
 
-const PAID_PLANS = new Set(["starter", "pro"]);
+const PAID_PLANS = new Set(["starter", "pro", "enterprise"]);
 
 export function getVerificationCopy(input: VerificationCopyInput): VerificationCopy {
   if (input.tokenState === "already_verified" || input.emailVerified) {
