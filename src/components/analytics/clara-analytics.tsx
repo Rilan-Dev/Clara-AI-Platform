@@ -1,13 +1,17 @@
 "use client";
 
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export function ClaraAnalytics() {
   return (
-    <Analytics
-      beforeSend={(event) =>
-        event.url.includes("/admin") ? null : event
-      }
-    />
+    <>
+      <Analytics
+        beforeSend={(event) =>
+          event.url.includes("/admin") ? null : event
+        }
+      />
+      <SpeedInsights />
+    </>
   );
 }
