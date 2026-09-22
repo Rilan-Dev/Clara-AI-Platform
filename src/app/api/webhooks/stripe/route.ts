@@ -39,7 +39,8 @@ export const config = { api: { bodyParser: false } };
 // Helper: upsert org subscription from Stripe subscription object
 async function syncSubscription(
   subscription: Stripe.Subscription,
-  orgId?: string
+  orgId?: string,
+  paymentConfirmed = false,
 ): Promise<void> {
   const resolvedOrgId = orgId ?? (subscription.metadata?.orgId as string | undefined);
   if (!resolvedOrgId) {
@@ -66,9 +67,13 @@ async function syncSubscription(
        LIMIT 1`,
     [resolvedOrgId, planId],
   );
+  // checkout.session.completed is itself a verified Stripe payment signal when
+  // payment_status === "paid". Do not require a billing_events row that is
+  // inserted later in this same handler; doing so creates an ordering race
+  // where payment_status becomes "paid" while status remains "payment_pending".
   const effectiveStatus = !owner?.email_verified && status === 'active'
     ? 'pending_email'
-    : (status === 'active' && !paidEvidence ? 'payment_pending' : status);
+    : (status === 'active' && !(paymentConfirmed || paidEvidence) ? 'payment_pending' : status);
   const periodStart = new Date(subscription.current_period_start * 1000);
   const periodEnd   = new Date(subscription.current_period_end   * 1000);
   const cancelAtEnd = subscription.cancel_at_period_end;
@@ -210,7 +215,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           const stripe = getStripe();
           const sub    = await stripe.subscriptions.retrieve(subId);
           if (session.payment_status === 'paid') {
-            await syncSubscription(sub, orgId);
+            await syncSubscription(sub, orgId, true);
             await query(
               "UPDATE org_subscriptions SET payment_status = 'paid', payment_verified_at = now(), pending_plan_id = NULL, payment_session_id = $2, activation_review_reason = NULL, updated_at = now() WHERE org_id = $1",
               [orgId, session.id],
