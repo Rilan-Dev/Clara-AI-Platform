@@ -32,6 +32,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // ── Auth ────────────────────────────────────────────────────────────────
     const auth = await requireAuth(req);
+
+    if (!auth.user.emailVerified) {
+      return NextResponse.json({ error: "Verify your email before starting payment.", code: "EMAIL_VERIFICATION_REQUIRED" }, { status: 403 });
+    }
     const body = await req.json() as { orgId?: string; planId?: string };
     const { orgId, planId } = body;
 
@@ -54,6 +58,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
     if (!membership && !auth.user.isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const onboarding = await queryOne<{ plan_id: string; status: string }>(
+      "SELECT plan_id, status FROM org_subscriptions WHERE org_id = $1", [orgId]
+    );
+    if (!auth.user.isSuperAdmin && (!onboarding || onboarding.plan_id !== planId || !["payment_required","payment_pending","payment_failed","payment_cancelled"].includes(onboarding.status))) {
+      return NextResponse.json({ error: "This organization is not eligible for payment for the selected plan.", code: "PAYMENT_NOT_ELIGIBLE" }, { status: 409 });
     }
 
     const stripe = getStripe();
@@ -118,6 +129,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
       allow_promotion_codes: true,
     });
+
+    await query(
+      `UPDATE org_subscriptions
+          SET plan_id = $2, pending_plan_id = $2, status = 'payment_pending',
+              payment_status = 'pending', payment_session_id = $3,
+              gateway = 'stripe', updated_at = now()
+        WHERE org_id = $1`,
+      [orgId, planId, session.id]
+    );
 
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (err) {
