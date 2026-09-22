@@ -24,8 +24,7 @@ export default function WorkspacePage(): JSX.Element {
     : undefined;
 
   return (
-    <>
-      <OnboardingGate />
+    <OnboardingGate>
       <div className="relative flex min-h-[calc(100dvh-64px)] flex-col overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-48 right-[12%] h-80 w-80 rounded-full bg-primary/20 blur-[160px]" />
@@ -61,6 +60,6 @@ export default function WorkspacePage(): JSX.Element {
         />
       )}
       </div>
-    </>
+    </OnboardingGate>
   );
 }
