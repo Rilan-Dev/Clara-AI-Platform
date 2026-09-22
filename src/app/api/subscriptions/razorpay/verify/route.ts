@@ -28,7 +28,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { query, queryOne } from "@/lib/db";
-import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr, getRazorpay } from "@/lib/razorpay";
+import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr } from "@/lib/razorpay";
 import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 import { notifyBillingReview } from "@/lib/billing-review";
@@ -42,7 +42,7 @@ type VerifyBody = {
 };
 
 
-async function fetchRazorpayOrder(orderId: string): Promise<{ id: string; amount: number; currency: string }> {
+async function fetchRazorpayOrder(orderId: string): Promise<{ id: string; amount: number; currency: string; notes?: Record<string, string> }> {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
   if (!keyId || !keySecret) throw new Error("Razorpay credentials are not configured");
@@ -52,7 +52,7 @@ async function fetchRazorpayOrder(orderId: string): Promise<{ id: string; amount
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`Razorpay order lookup failed: ${response.status}`);
-  return response.json() as Promise<{ id: string; amount: number; currency: string }>;
+  return response.json() as Promise<{ id: string; amount: number; currency: string; notes?: Record<string, string> }>;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
