@@ -58,9 +58,16 @@ async function syncSubscription(
       LIMIT 1`,
     [resolvedOrgId],
   );
-  const effectiveStatus = subscription.metadata?.planId && !owner?.email_verified && status === 'active'
+  const paidEvidence = planId === "free" ? true : !!await queryOne<{ id: string }>(
+    `SELECT id FROM billing_events
+       WHERE org_id = $1 AND plan_id = $2 AND status = 'paid'
+         AND event_type IN ('invoice.payment_succeeded','invoice.paid','payment_intent.succeeded')
+       LIMIT 1`,
+    [resolvedOrgId, planId],
+  );
+  const effectiveStatus = !owner?.email_verified && status === 'active'
     ? 'pending_email'
-    : status;
+    : (status === 'active' && !paidEvidence ? 'payment_pending' : status);
   const periodStart = new Date(subscription.current_period_start * 1000);
   const periodEnd   = new Date(subscription.current_period_end   * 1000);
   const cancelAtEnd = subscription.cancel_at_period_end;
