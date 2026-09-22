@@ -122,7 +122,8 @@
     "@eslint/eslintrc": "^3",
     "amqplib": "2.0.1",
     "@vercel/queue": "^0.5.1",
-    "@vercel/analytics": "^2.0.1"
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.22",
