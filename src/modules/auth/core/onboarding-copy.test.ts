@@ -16,6 +16,18 @@ describe("getVerificationCopy", () => {
     expect(result.destination).toBe("payment");
   });
 
+  it("treats enterprise as a paid signup", () => {
+    const result = getVerificationCopy({
+      context: "signup",
+      emailVerified: true,
+      plan: "enterprise",
+      onboardingStatus: "payment_required",
+    });
+
+    expect(result.nextAction).toBe("Continue to payment");
+    expect(result.destination).toBe("payment");
+  });
+
   it("does not mention payment for a verified free signup", () => {
     const result = getVerificationCopy({
       context: "signup",
