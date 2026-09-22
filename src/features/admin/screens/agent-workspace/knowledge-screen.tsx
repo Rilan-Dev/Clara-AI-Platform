@@ -5,7 +5,7 @@
  * (content stays live; version configs only record attachments for diffs).
  */
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Plus, X } from "lucide-react";
 import { useState } from "react";
@@ -16,6 +16,7 @@ import { WorkspaceButton } from "@/components/admin/ai-platform/shared";
 export default function AgentKnowledgeScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { orgId } = useAgentsWorkspace();
+  const router = useRouter();
   const { kbs, loading: kbsLoading, create } = useKbs(agentId);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -34,7 +35,7 @@ export default function AgentKnowledgeScreen() {
       setName("");
       setDescription("");
       setCreateOpen(false);
-      window.location.assign(`${agentKnowledgeBase}/${kb.id}`);
+      router.push(`${agentKnowledgeBase}/${kb.id}`);
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : "Failed to create knowledge base");
     } finally {
