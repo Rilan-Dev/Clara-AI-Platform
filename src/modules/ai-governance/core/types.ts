@@ -84,6 +84,12 @@ export interface PlatformAIProvider {
 
 export interface PlatformAIRegistry {
   providers: PlatformAIProvider[];
+  /** Dedicated embedding backbone used by document ingestion/scraping. */
+  embeddingDefault: {
+    providerId: "openai" | "gemini";
+    modelId: string;
+    updatedAt: string | null;
+  } | null;
   defaults: Array<{ capability: AICapability; providerId: string | null; modelId: string | null }>;
   /** Enabled models marked is_default per (provider, capability, kind) — the
    *  per-slot fallbacks the runtime uses when a tenant pinned nothing and the
