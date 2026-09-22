@@ -275,7 +275,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       postgres = { status: "down", error: (err as Error).message };
     }
 
-    const activeProviderId = (process.env.AI_PROVIDER ?? "openai").trim().toLowerCase();
+    const platformRegistry = await getPlatformAIRegistry();
+    const activeProviderId =
+      platformRegistry.defaults.find((item) => item.capability === "chat")?.providerId?.toLowerCase() ??
+      (process.env.AI_PROVIDER ?? "openai").trim().toLowerCase();
     const [redis, qdrant, rabbitmq, email, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app] = await Promise.all([
       checkRedis().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
