@@ -179,7 +179,7 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
 
   const embeddingDefault = embeddingDefaultRows[0]
     ? {
-        providerId: String(embeddingDefaultRows[0].provider_id) as GovernanceProviderId,
+        providerId: String(embeddingDefaultRows[0].provider_id) as "openai" | "gemini",
         modelId: String(embeddingDefaultRows[0].model_id),
         updatedAt: embeddingDefaultRows[0].updated_at == null ? null : String(embeddingDefaultRows[0].updated_at),
       }
