@@ -7,11 +7,14 @@ import { AlertCircle, ArrowRight, MailCheck, CreditCard, ShieldAlert } from "luc
 type Status = {
   orgId: string;
   emailVerified: boolean;
+  featureAccess: boolean;
   onboarding: {
     plan_id: string;
     plan_name: string;
     status: string;
     payment_status: string;
+    plan_enabled: boolean;
+    plan_price_usd: number;
     activation_review_reason?: string | null;
   } | null;
 };
@@ -32,21 +35,26 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
   if (!data?.onboarding) return <>{children}</>;
 
   const { emailVerified, onboarding } = data;
-  if (emailVerified && onboarding.status === "active") return <>{children}</>;
+  if (data.featureAccess && emailVerified && onboarding.status === "active") return <>{children}</>;
 
   const needsEmail = !emailVerified || onboarding.status === "pending_email";
+  const needsSubscription = !needsEmail && !review && !data.featureAccess;
   const review = onboarding.status === "payment_review";
 
   const title = needsEmail
     ? "Verify your email before continuing"
     : review
       ? "Payment received — activation is under review"
+      : needsSubscription
+      ? "Choose a Clara AI subscription to unlock features"
       : "Complete your Clara AI payment";
 
   const message = needsEmail
     ? "Your workspace is reserved, but paid features remain locked until your email address is verified."
     : review
       ? "We recorded the payment but could not safely activate the subscription automatically. Platform support has been notified."
+      : needsSubscription
+      ? "You can explore the workspace, but agents, knowledge bases, AI actions, and other feature operations remain locked until an active entitled subscription is available."
       : "Your selected plan is ready. Complete payment to activate your workspace and unlock Clara AI features.";
 
   return (
