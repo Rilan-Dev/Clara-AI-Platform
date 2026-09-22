@@ -204,7 +204,13 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     };
   }
 
-  const planLimits = await getOrgPlanForKey(keyCtx.keyId);
+  // These guards use independent database operations. Fetch the plan and
+  // reserve the hourly counter together so the public embed hot path does not
+  // pay two sequential database round trips.
+  const [planLimits, withinHourlyLimit] = await Promise.all([
+    getOrgPlanForKey(keyCtx.keyId),
+    checkAndIncrementRateLimit(keyCtx.keyId, keyCtx.rateLimitPerHour),
+  ]);
 
   if (planLimits) {
     const quota = await checkDailyQuota(keyCtx.orgId, planLimits.maxReqDay);
@@ -229,10 +235,6 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     }
   }
 
-  const withinHourlyLimit = await checkAndIncrementRateLimit(
-    keyCtx.keyId,
-    keyCtx.rateLimitPerHour,
-  );
 
   if (!withinHourlyLimit) {
     return {

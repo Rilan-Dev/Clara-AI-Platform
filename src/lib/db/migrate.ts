@@ -7,6 +7,7 @@ const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations"
 const MIGRATION_LOCK_KEY = "clara-schema-migrations";
 
 let migrated = false;
+let migrationPromise: Promise<void> | null = null;
 
 async function createMigrationsTable(client: PoolClient): Promise<void> {
   await client.query(
@@ -108,10 +109,20 @@ export async function runMigrationsOnStartup(): Promise<void> {
   migrated = true;
 }
 
-/** Load DB-backed runtime settings without performing schema work. */
-export async function loadRuntimeSettingsOnStartup(): Promise<void> {
-  await loadRuntimeSettings();
-  migrated = true;
+export async function ensureMigrated(): Promise<void> {
+  if (migrated) return;
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    await runMigrations();
+    await loadRuntimeSettings();
+    migrated = true;
+  })().catch((error) => {
+    migrationPromise = null;
+    throw error;
+  });
+
+  return migrationPromise;
 }
 
 /**

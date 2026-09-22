@@ -35,14 +35,8 @@ import {
 import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
 import {
-  VoiceConfigResolutionError,
   resolveVoiceConfig,
 } from "@/modules/voice-core/resolve";
-import {
-  STT_MAX_AUDIO_SECONDS,
-  TTS_OUTPUT_FORMAT,
-} from "@/modules/voice-core/model-catalog";
-
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
 
@@ -53,13 +47,6 @@ export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
-
-    // Platform AI credentials can be managed through Settings and persisted
-    // in Postgres. Mirror them into process.env before resolving the realtime
-    // transport so DB-managed ElevenLabs Speech Engine credentials are
-    // available even when the container .env was not changed.
-    const { syncEnvFromDb } = await import("@/modules/phone/core/db");
-    await syncEnvFromDb();
 
     const sessionBody = (await req.clone().json().catch(() => ({}))) as Record<string, unknown>;
 
@@ -84,7 +71,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
+    const [resolved, voiceResolution] = await Promise.all([
+      resolveAIConfig({ kbId: ctx.kbId, surface: "embed" }),
+      resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" }),
+    ]);
     const effectiveConfig = resolved.assistantConfig ?? config;
     const requestedLanguage =
       typeof sessionBody.language === "string"
@@ -106,16 +96,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // pipeline descriptor set (STT/TTS/chat endpoints) rather than an
     // OpenAI/Gemini realtime socket. Everything the client needs is
     // capability descriptors — no keys ever cross this response.
-    let voiceResolution: Awaited<ReturnType<typeof resolveVoiceConfig>> | null = null;
-    try {
-      voiceResolution = await resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" });
-    } catch (voiceError) {
-      if (voiceError instanceof VoiceConfigResolutionError) {
-        return NextResponse.json({ error: voiceError.message }, { status: 400, headers: corsHeaders });
-      }
-      throw voiceError;
-    }
-
     if (voiceResolution.realtimeProvider === "elevenlabs" && voiceResolution.elevenlabs) {
       const el = voiceResolution.elevenlabs;
       const speechEngineReady =

@@ -308,8 +308,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkAiEmbedding("openai").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "openai" })),
-      checkAiEmbedding("gemini").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "gemini" })),
+      checkAiEmbedding("openai").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, detail: undefined, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "openai" })),
+      checkAiEmbedding("gemini").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, detail: undefined, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "gemini" })),
       Promise.resolve(checkApp()),
     ]);
 

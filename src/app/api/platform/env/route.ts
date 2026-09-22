@@ -15,7 +15,10 @@ const MODEL_FIELD_KEYS: Record<string, { field: "chat" | "embedding"; provider: 
   GEMINI_EMBEDDING_MODEL:   { field: "embedding", provider: "gemini" },
 };
 
-const CONFIRM_SECRET = process.env.PLATFORM_CONFIRM_SECRET ?? process.env.NEXTAUTH_SECRET ?? "clara-platform-confirm-secret";
+const CONFIRM_SECRET = process.env.PLATFORM_CONFIRM_SECRET ?? process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
+if (!CONFIRM_SECRET || (process.env.NODE_ENV === "production" && CONFIRM_SECRET.length < 32)) {
+  throw new Error("A strong platform confirmation secret is required.");
+}
 const TOKEN_TTL_MS = 5 * 60 * 1000;
 const MASK = "●●●●●●●●";
 const MANAGED_KEYS = new Set([
@@ -51,7 +54,7 @@ const MANAGED_KEYS = new Set([
   "RESEND_API_KEY",
   "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM_ADDRESS",
 ]);
-function buildToken(key:string,value:string,ts:number):string{return crypto.createHmac("sha256",CONFIRM_SECRET).update(`${key}:${value}:${ts}`).digest("hex");}
+function buildToken(key:string,value:string,ts:number):string{return crypto.createHmac("sha256",CONFIRM_SECRET!).update(`${key}:${value}:${ts}`).digest("hex");}
 
 export async function GET(req:NextRequest):Promise<NextResponse>{
   try{

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/shared/layouts/app-shell";
 import { getPlatformDefaultTheme } from "@/lib/theme-settings";
@@ -62,6 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Analytics
             beforeSend={(event) => event.url.includes("/admin") ? null : event}
           />
+          <SpeedInsights />
         </AppShell>
       </body>
     </html>
