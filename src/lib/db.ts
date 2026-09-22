@@ -27,9 +27,9 @@ const PG_CONFIG = {
   connectionString: DATABASE_URL,
   // Keep enough warm connections for concurrent API work without allowing one
   // request to serialize the entire serverless instance. Override per plan.
-  max: Math.max(1, Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? "5" : "10"))),
+  max: process.env.VERCEL ? Math.min(2, Math.max(1, Number(process.env.PG_POOL_MAX ?? "1"))) : Math.max(1, Number(process.env.PG_POOL_MAX ?? "10")),
   min: 0,
-  idleTimeoutMillis: 10_000,
+  idleTimeoutMillis: 5_000,
   connectionTimeoutMillis: 3_000,
   query_timeout: 8_000,
   statement_timeout: 8_000,
