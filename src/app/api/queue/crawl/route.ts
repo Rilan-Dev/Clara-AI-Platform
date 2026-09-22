@@ -3,9 +3,11 @@ import { processCrawlJobData, type CloudCrawlJob } from "@/modules/cloud-jobs/pr
 
 export const maxDuration = 60;
 
-export const POST = handleCallback(async (message: CloudCrawlJob) => {
-  if (!message?.sessionId || !message.url) {
-    throw new Error("Invalid crawl queue message");
-  }
+const callback = handleCallback(async (message: CloudCrawlJob) => {
+  if (!message?.sessionId || !message.url) throw new Error("Invalid crawl queue message");
   await processCrawlJobData(message);
 }, { visibilityTimeoutSeconds: 60 });
+
+export async function POST(request: Request) {
+  return callback(request);
+}
