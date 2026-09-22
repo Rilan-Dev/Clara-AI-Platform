@@ -27,7 +27,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, queryOne } from "@/lib/db";
-import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { getStripe, getStripeWebhookSecret, sanitizeStripeError } from "@/lib/stripe";
+import { syncPlatformHealthIncidents } from "@/modules/platform-health/core/incidents";
 import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 import type Stripe from "stripe";
@@ -171,6 +172,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     event = stripe.webhooks.constructEvent(rawBody, sigHeader, getStripeWebhookSecret());
   } catch (err) {
     console.error("[stripe-webhook] signature verification failed:", err);
+    await syncPlatformHealthIncidents([{
+      key: "stripe-webhook",
+      serviceName: "Stripe webhook",
+      healthy: false,
+      severity: "critical",
+      message: `Stripe webhook signature verification failed: ${sanitizeStripeError(err)}`,
+    }]);
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
@@ -387,6 +395,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   } catch (err) {
     console.error(`[stripe-webhook] error processing ${event.type}:`, err);
+    await syncPlatformHealthIncidents([{
+      key: "stripe-webhook-processing",
+      serviceName: "Stripe webhook processing",
+      healthy: false,
+      severity: "critical",
+      message: `Stripe webhook processing failed for ${event.type}: ${sanitizeStripeError(err)}`,
+    }]);
     // Return 500 so Stripe retries the event
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }

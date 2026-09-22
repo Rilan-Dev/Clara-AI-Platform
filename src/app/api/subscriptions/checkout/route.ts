@@ -18,12 +18,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { queryOne, query } from "@/lib/db";
+import { syncPlatformHealthIncidents } from "@/modules/platform-health/core/incidents";
 import {
   getStripe,
   getStripePriceId,
   PLAN_AMOUNTS_CENTS,
   PLAN_NAMES,
   appUrl,
+  getStripeWebhookSecret,
+  sanitizeStripeError,
 } from "@/lib/stripe";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -68,6 +71,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const stripe = getStripe();
+    // A successful Checkout without a verified webhook cannot safely activate
+    // the subscription. Fail closed before creating a customer/session.
+    getStripeWebhookSecret();
 
     // ── Resolve or create Stripe Customer ───────────────────────────────────
     const sub = await queryOne<{ stripe_customer_id: string | null }>(
@@ -143,6 +149,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[POST /api/subscriptions/checkout]", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    const safeMessage = sanitizeStripeError(err);
+    if (safeMessage.includes("Stripe") || safeMessage.includes("STRIPE_") || safeMessage.includes("sk_***")) {
+      await syncPlatformHealthIncidents([{
+        key: "stripe",
+        serviceName: "Stripe payments",
+        healthy: false,
+        severity: "critical",
+        message: safeMessage,
+      }]);
+    }
+    return NextResponse.json({ error: safeMessage }, { status: 500 });
   }
 }
