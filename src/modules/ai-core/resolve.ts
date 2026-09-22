@@ -281,7 +281,9 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
         ? "agent_settings"
         : orgSettings?.defaultProvider
           ? "org"
-          : "env";
+          : platformDefaultProvider
+            ? "platform"
+            : "env";
 
   if (effectiveKbOverrides?.provider) {
     provider = effectiveKbOverrides.provider;
@@ -294,6 +296,30 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   if (!allowedProviders.includes(provider)) {
     throw new AIConfigResolutionError(`Agent provider ${provider} is not enabled for this organisation.`);
+  }
+
+  // Operator-safe self-healing: when the provider came only from a platform/env
+  // default and its server credential is missing, prefer a configured provider
+  // that supports the same capability. Explicit tenant/agent selections are
+  // never silently changed; those remain hard failures so configuration intent
+  // is preserved and the admin gets an actionable error.
+  if ((providerSource === "platform" || providerSource === "env") && !process.env[
+    provider === "openai" ? "OPENAI_API_KEY" :
+    provider === "gemini" ? "GEMINI_API_KEY" :
+    "SARVAM_API_KEY"
+  ]?.trim()) {
+    const fallback = registry.providers.find((p) => {
+      if (p.providerId === provider || !p.configured || !p.enabled) return false;
+      if (!allowedProviders.includes(p.providerId as AIProvider)) return false;
+      return p.capabilities.some((cap) => cap.capability === "chat" && cap.supported);
+    });
+    if (fallback && (fallback.providerId === "openai" || fallback.providerId === "gemini" || fallback.providerId === "sarvam")) {
+      console.error(
+        `[ai-config] provider ${provider} is not configured; automatically falling back to configured provider ${fallback.providerId} for chat. Fix the primary provider credential in Platform → AI Platform.`,
+      );
+      provider = fallback.providerId;
+      providerSource = "platform";
+    }
   }
 
   // ── Platform governance gate (registry + entitlement, §4 resolver) ────────
