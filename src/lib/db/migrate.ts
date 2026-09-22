@@ -107,7 +107,9 @@ export async function runMigrationsOnStartup(): Promise<void> {
 
 /** Compatibility name used by the Node instrumentation bootstrap. */
 export async function loadRuntimeSettingsOnStartup(): Promise<void> {
-  await runMigrationsOnStartup();
+  // Migrations run in the deployment build. Do not acquire an advisory lock
+  // from every Vercel cold start; only load the DB-backed runtime settings.
+  await loadRuntimeSettings();
 }
 
 /**
