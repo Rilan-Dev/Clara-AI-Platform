@@ -33,4 +33,6 @@ Worker recommendation: keep the current VPS worker initially. If a free separate
 
 Production validation: Vercel Preview from Vite-Converted, then Production from Vercel-Prod; verify Supabase, Qdrant, Redis, RabbitMQ, worker jobs, and VPS WebSockets independently.
 
+Preview deployments (Hobby plan): Vercel blocks any preview deployment whose commit author cannot be resolved to an account with contributing access ("Deployment was blocked" on the GitHub status, red Vercel check, no build starts). On the Hobby plan only the account owner qualifies. Commits pushed to preview branches MUST therefore be authored as the owner identity `RiluRaafu <65199603+Rilan-Dev@users.noreply.github.com>` (the GitHub noreply email reliably maps to the account). A plain personal email that is not verified against the GitHub account will NOT pass the check. Production deployments are exempt from this rule.
+
 Security: the Vercel token supplied during setup has been exposed in chat and should be rotated. Never commit it.
