@@ -42,6 +42,16 @@ const UPSERT_BATCH_SIZE = (() => {
 
 function sleep(ms: number) { return new Promise<void>((r) => setTimeout(r, ms)); }
 
+function qdrantErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const e = err as Error & { data?: unknown; status?: number };
+    const body = e.data ? ` | body: ${JSON.stringify(e.data)}` : "";
+    return `${e.message}${e.status ? ` (HTTP ${e.status})` : ""}${body}`;
+  }
+  try { return JSON.stringify(err); } catch { return String(err); }
+}
+
+
 /** Metadata injected into every Qdrant point for a KB-aware document */
 export type KbChunkMeta = {
   kbId:             string;
@@ -328,28 +338,34 @@ export async function listDocumentChunks(
   let offset: string | number | Record<string, unknown> | null | undefined = undefined;
 
   do {
-    const result = await client.scroll(collectionName, {
-      filter: { must: [{ key: "documentId", match: { value: documentId } }] },
-      limit: 100,
-      ...(offset !== undefined ? { offset } : {}),
-      with_payload: true,
-      with_vector: false,
-    });
-
-    for (const point of result.points) {
-      const p = point.payload as Record<string, unknown>;
-      chunks.push({
-        pointId:          String(point.id),
-        chunkIndex:       Number(p.chunkIndex ?? 0),
-        chunk:            String(p.chunk ?? ""),
-        uploadedAt:       String(p.uploadedAt ?? ""),
-        title:            String(p.title ?? ""),
-        originalFilename: String(p.originalFilename ?? ""),
-        documentId:       String(p.documentId ?? documentId),
+    try {
+      const result = await client.scroll(collectionName, {
+        filter: { must: [{ key: "documentId", match: { value: documentId } }] },
+        limit: 100,
+        ...(offset !== undefined ? { offset } : {}),
+        with_payload: true,
+        with_vector: false,
       });
-    }
 
-    offset = result.next_page_offset ?? null;
+      for (const point of result.points) {
+        const p = point.payload as Record<string, unknown>;
+        chunks.push({
+          pointId:          String(point.id),
+          chunkIndex:       Number(p.chunkIndex ?? 0),
+          chunk:            String(p.chunk ?? ""),
+          uploadedAt:       String(p.uploadedAt ?? ""),
+          title:            String(p.title ?? ""),
+          originalFilename: String(p.originalFilename ?? ""),
+          documentId:       String(p.documentId ?? documentId),
+        });
+      }
+
+      offset = result.next_page_offset ?? null;
+    } catch (err) {
+      throw new Error(
+        `[qdrant] failed to list chunks for collection="${collectionName}" documentId="${documentId}": ${qdrantErrorMessage(err)}`,
+      );
+    }
   } while (offset !== null && offset !== undefined);
 
   return chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
