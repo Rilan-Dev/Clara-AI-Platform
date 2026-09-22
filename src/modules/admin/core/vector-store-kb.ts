@@ -216,6 +216,7 @@ export async function upsertDocumentsKb(
   await ensureCollectionExists(collectionName, {
     vectorSize: provider.getEmbeddingDimension(),
   });
+  await ensureDocumentIdIndex(collectionName);
 
   const embeddings = await embedBatches(textChunks, providerConfig, {
     orgId: resolved.orgId,
@@ -325,6 +326,26 @@ function qdrantErrorMessage(err: unknown): string {
   return parts.join(" | ");
 }
 
+/** Ensure Qdrant can execute the documentId payload filter. */
+export async function ensureDocumentIdIndex(collectionName: string): Promise<void> {
+  const client = getQdrantClient();
+  try {
+    await client.createPayloadIndex(collectionName, {
+      field_name: "documentId",
+      field_schema: "keyword",
+      wait: true,
+    });
+  } catch (err) {
+    const message = qdrantErrorMessage(err).toLowerCase();
+    if (!message.includes("already exists") && !message.includes("already exist")) {
+      throw new Error(
+        `[qdrant] failed to ensure documentId payload index for collection="${collectionName}": ${qdrantErrorMessage(err)}`,
+      );
+    }
+  }
+}
+
+
 /**
  * Scroll all chunks for a single document out of Qdrant (no vectors).
  * Returns chunks sorted by chunkIndex.
@@ -335,6 +356,7 @@ export async function listDocumentChunks(
 ): Promise<KbChunk[]> {
   const client = getQdrantClient();
   const chunks: KbChunk[] = [];
+  await ensureDocumentIdIndex(collectionName);
   let offset: string | number | Record<string, unknown> | null | undefined = undefined;
 
   do {
@@ -462,6 +484,7 @@ export async function deleteDocumentChunks(
 ): Promise<void> {
   const client = getQdrantClient();
   try {
+    await ensureDocumentIdIndex(collectionName);
     await client.delete(collectionName, {
       wait: true,
       filter: {
