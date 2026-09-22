@@ -9,17 +9,20 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Plus, X } from "lucide-react";
 import { useState } from "react";
+import { useAgentsWorkspace } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { useKbs } from "@/modules/admin-ui/hooks";
 import { WorkspaceButton } from "@/components/admin/ai-platform/shared";
 
 export default function AgentKnowledgeScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
+  const { orgId } = useAgentsWorkspace();
   const { kbs, loading: kbsLoading, create } = useKbs(agentId);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const agentKnowledgeBase = `/orgs/${orgId}/agents/${agentId}/knowledge`;
 
   async function handleCreate() {
     const trimmedName = name.trim();
@@ -31,7 +34,7 @@ export default function AgentKnowledgeScreen() {
       setName("");
       setDescription("");
       setCreateOpen(false);
-      window.location.href = `/kbs/${kb.id}`;
+      window.location.assign(`${agentKnowledgeBase}/${kb.id}`);
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : "Failed to create knowledge base");
     } finally {
@@ -41,7 +44,6 @@ export default function AgentKnowledgeScreen() {
 
   return (
     <div>
-
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -69,7 +71,7 @@ export default function AgentKnowledgeScreen() {
                     <BookOpen className="h-4 w-4 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <Link href={`/kbs/${kb.id}`} className="truncate text-sm font-medium text-foreground hover:text-primary">
+                    <Link href={`${agentKnowledgeBase}/${kb.id}`} className="truncate text-sm font-medium text-foreground hover:text-primary">
                       {kb.name}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground/60">
@@ -77,7 +79,7 @@ export default function AgentKnowledgeScreen() {
                     </p>
                   </div>
                 </div>
-                <Link href={`/kbs/${kb.id}`}>
+                <Link href={`${agentKnowledgeBase}/${kb.id}`}>
                   <WorkspaceButton variant="secondary">Open</WorkspaceButton>
                 </Link>
               </li>
