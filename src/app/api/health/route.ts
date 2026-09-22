@@ -42,7 +42,13 @@ export async function GET() {
       if (!qdrantUrl) return { status: "unconfigured" as const, latencyMs: 0, error: undefined };
       try {
         const qdrantStart = Date.now();
+        // Qdrant Cloud enforces the api-key header on every endpoint
+        // (including /healthz — keyless probes are rejected with HTTP 403).
+        // Without this header the check only ever passed against a local,
+        // unauthenticated Qdrant instance.
+        const qdrantApiKey = process.env.QDRANT_API_KEY?.trim();
         const res = await fetch(`${qdrantUrl.replace(/\/$/, "")}/healthz`, {
+          headers: qdrantApiKey ? { "api-key": qdrantApiKey } : undefined,
           signal: AbortSignal.timeout(700),
           cache: "no-store",
         });
