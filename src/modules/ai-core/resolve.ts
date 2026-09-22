@@ -281,7 +281,9 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
         ? "agent_settings"
         : orgSettings?.defaultProvider
           ? "org"
-          : "env";
+          : platformDefaultProvider
+            ? "platform"
+            : "env";
 
   if (effectiveKbOverrides?.provider) {
     provider = effectiveKbOverrides.provider;
@@ -294,6 +296,31 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   if (!allowedProviders.includes(provider)) {
     throw new AIConfigResolutionError(`Agent provider ${provider} is not enabled for this organisation.`);
+  }
+
+  // A broken platform default must not take the entire tenant/embed surface
+  // down. If the provider came from the platform default and has no usable
+  // credential, select another enabled/configured chat provider. Explicit
+  // agent/org/KB selections remain strict and still fail loudly.
+  if (providerSource === "platform") {
+    const selected = registry.providers.find((candidate) =>
+      candidate.enabled &&
+      candidate.configured &&
+      allowedProviders.includes(candidate.providerId as AIProvider) &&
+      candidate.capabilities.some((cap) => cap.capability === "chat" && cap.supported),
+    );
+    const selectedProvider = selected?.providerId as AIProvider | undefined;
+    if (selectedProvider && selectedProvider !== provider) {
+      console.error(
+        `[ai-config] platform default provider "${provider}" is not configured; falling back to configured provider "${selectedProvider}". Configure the platform default in Settings → AI.`,
+      );
+      provider = selectedProvider;
+      providerSource = "platform";
+    } else if (!selectedProvider) {
+      throw new AIConfigResolutionError(
+        `Platform AI provider ${provider} has no configured credentials and no configured chat provider is available.`,
+      );
+    }
   }
 
   // ── Platform governance gate (registry + entitlement, §4 resolver) ────────
