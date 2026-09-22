@@ -45,7 +45,7 @@ export default function CheckoutSuccessScreen() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [resendError, setResendError] = useState("");
-
+  const isPortal  = source === "portal";
 
   useEffect(() => {
     if (isPortal || !orgId) return;
@@ -83,7 +83,6 @@ export default function CheckoutSuccessScreen() {
 
   const features  = PLAN_FEATURES[planId] ?? [];
   const planName  = planId.charAt(0).toUpperCase() + planId.slice(1);
-  const isPortal  = source === "portal";
 
   return (
     <div className="min-h-screen px-4 py-10 sm:py-20 flex items-center justify-center">
