@@ -50,14 +50,38 @@ export default function CheckoutSuccessScreen() {
   useEffect(() => {
     if (isPortal || !orgId) return;
     let cancelled = false;
-    fetch(`/api/subscriptions/onboarding-status?orgId=${encodeURIComponent(orgId)}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((data: { emailVerified?: boolean; onboarding?: { status?: string; payment_status?: string } } | null) => {
+    let attempts = 0;
+    const checkStatus = async (): Promise<void> => {
+      try {
+        const res = await fetch(`/api/subscriptions/onboarding-status?orgId=${encodeURIComponent(orgId)}`, {
+          cache: "no-store",
+        });
+        const data = res.ok
+          ? await res.json() as { emailVerified?: boolean; onboarding?: { status?: string; payment_status?: string } }
+          : null;
         if (cancelled) return;
-        if (!data?.emailVerified) setActivationStatus("pending_email");
-        else setActivationStatus(data.onboarding?.status ?? "payment_review");
-      })
-      .catch(() => { if (!cancelled) setActivationStatus("payment_review"); });
+
+        if (!data?.emailVerified) {
+          setActivationStatus("pending_email");
+          return;
+        }
+
+        const status = data.onboarding?.status ?? "payment_review";
+        setActivationStatus(status);
+
+        // Stripe can deliver the webhook just after the browser returns from
+        // Checkout. Poll briefly so the success screen moves to the active
+        // state without making the user manually revisit the page.
+        if (status === "payment_pending" && attempts < 15) {
+          attempts += 1;
+          window.setTimeout(checkStatus, 1000);
+        }
+      } catch {
+        if (!cancelled) setActivationStatus("payment_review");
+      }
+    };
+
+    void checkStatus();
     return () => { cancelled = true; };
   }, [isPortal, orgId]);
 
@@ -215,7 +239,7 @@ export default function CheckoutSuccessScreen() {
         {/* CTAs */}
         <div className="flex flex-col gap-3">
           {activationStatus === "active" ? (
-            <Link href="/workspace"
+            <Link href={orgId ? `/orgs/${encodeURIComponent(orgId)}` : "/orgs"}
               className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
               Continue to Clara AI <ArrowRight className="w-4 h-4" />
             </Link>
@@ -225,9 +249,9 @@ export default function CheckoutSuccessScreen() {
               Return to Clara AI <ArrowRight className="w-4 h-4" />
             </Link>
           ) : (
-            <Link href="/workspace"
+            <Link href={orgId ? `/orgs/${encodeURIComponent(orgId)}` : "/orgs"}
               className="inline-flex items-center justify-center gap-2 border border-border text-foreground/80 hover:text-foreground hover:border-primary/40 font-medium px-6 py-3 rounded-xl text-sm transition-all">
-              Check activation status <ArrowRight className="w-4 h-4" />
+              {activationStatus === "payment_pending" ? "Open your Clara dashboard" : "Continue to Clara dashboard"} <ArrowRight className="w-4 h-4" />
             </Link>
           )}
 
