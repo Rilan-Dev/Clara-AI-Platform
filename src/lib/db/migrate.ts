@@ -1,38 +1,51 @@
 import fs from "fs";
 import path from "path";
 import { pool } from "@/lib/db";
+import type { PoolClient } from "pg";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
 const MIGRATION_LOCK_KEY = "clara-schema-migrations";
 
 let migrated = false;
 
-async function createMigrationsTable(): Promise<void> {
-  await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (filename TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+async function createMigrationsTable(client: PoolClient): Promise<void> {
+  await client.query(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+      filename TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+  );
 }
 
-async function appliedMigrations(): Promise<Set<string>> {
-  const result = await pool.query<{ filename: string }>("SELECT filename FROM schema_migrations ORDER BY filename");
+async function appliedMigrations(client: PoolClient): Promise<Set<string>> {
+  const result = await client.query<{ filename: string }>(
+    "SELECT filename FROM schema_migrations ORDER BY filename",
+  );
   return new Set(result.rows.map((r) => r.filename));
 }
 
 async function runMigrations(): Promise<void> {
-  // Vercel can start multiple serverless instances at the same time. Without a
-  // database-level lock, two instances can both observe a missing migration
-  // and execute CREATE TABLE concurrently, producing duplicate pg_type errors.
+  // Vercel can start multiple serverless instances at the same time. The
+  // advisory lock serializes schema changes across instances.
+  //
+  // IMPORTANT: the lock client must also execute the migration queries.
+  // Vercel uses PG_POOL_MAX=1 by default, so acquiring one client and then
+  // calling pool.query()/pool.connect() again would wait forever for a second
+  // connection and surface as "timeout exceeded when trying to connect".
   const lockClient = await pool.connect();
+
   try {
     await lockClient.query("SELECT pg_advisory_lock(hashtext($1))", [MIGRATION_LOCK_KEY]);
 
-    await createMigrationsTable();
-    const applied = await appliedMigrations();
+    await createMigrationsTable(lockClient);
+    const applied = await appliedMigrations(lockClient);
 
     const files = fs.readdirSync(MIGRATIONS_DIR)
       .filter((f) => f.endsWith(".sql"))
       .sort();
 
-    // Guard: each migration file number must be unique — the baseline is
-    // strictly sequential, duplicates would indicate an accidental re-add.
+    // Guard: each migration file number must be unique — duplicates indicate
+    // an accidental re-add and must never be executed.
     const numbers = files.map((f) => f.split("_")[0]);
     const dupes = numbers.filter((n, i) => numbers.indexOf(n) !== i);
     if (dupes.length > 0) {
@@ -42,23 +55,25 @@ async function runMigrations(): Promise<void> {
     let appliedCount = 0;
     for (const filename of files) {
       if (applied.has(filename)) continue;
+
       const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), "utf-8");
-      const client = await pool.connect();
       try {
-        await client.query("BEGIN");
-        await client.query(sql);
-        await client.query("INSERT INTO schema_migrations (filename) VALUES ($1)", [filename]);
-        await client.query("COMMIT");
+        await lockClient.query("BEGIN");
+        await lockClient.query(sql);
+        await lockClient.query(
+          "INSERT INTO schema_migrations (filename) VALUES ($1)",
+          [filename],
+        );
+        await lockClient.query("COMMIT");
         console.log(`[migrate] applied ${filename}`);
         appliedCount++;
       } catch (err) {
-        await client.query("ROLLBACK");
+        await lockClient.query("ROLLBACK");
         console.error(`[migrate] FAILED on required schema migration ${filename}:`, err);
         throw err;
-      } finally {
-        client.release();
       }
     }
+
     if (appliedCount === 0) console.log("[migrate] All migrations already applied.");
   } finally {
     try {
