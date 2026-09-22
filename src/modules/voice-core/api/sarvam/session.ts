@@ -94,7 +94,7 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       }
     }
 
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+    const resolved = await resolveVoiceConfig({ kbId, surface: "voice_chat" });
     const pipelineSelected =
       resolved.voiceProvider === "sarvam" || resolved.realtimeProvider === "sarvam";
     if (!pipelineSelected || !resolved.sarvam) {

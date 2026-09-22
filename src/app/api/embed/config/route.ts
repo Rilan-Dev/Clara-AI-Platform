@@ -34,13 +34,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const [resolved, voiceResult] = await Promise.all([
-      resolveAIConfig({ kbId: ctx.kbId, surface: "chat" }),
-      resolveVoiceConfig({ kbId: ctx.kbId, surface: "embed" }).catch((error) => {
-        if (error instanceof VoiceConfigResolutionError) return null;
-        throw error;
-      }),
-    ]);
+    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    const voiceResult = await resolveVoiceConfig({
+      kbId: ctx.kbId,
+      surface: "embed",
+      brainConfig: resolved,
+    });
     const effectiveConfig = resolved.assistantConfig ?? config;
     if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json(
@@ -49,11 +48,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Voice-axis resolution — the field used to report the BRAIN provider,
-    // which mis-branded ElevenLabs-configured orgs as "openai" on every
-    // embed host. Falls back to the brain provider on resolution failure so
-    // a voice misconfiguration never takes the whole embed config down.
-    const voiceProvider: string = voiceResult?.realtimeProvider ?? resolved.provider ?? "openai";
+    // The embed voice launcher is a REALTIME-purpose surface. Report the
+    // resolved realtime provider, not the brain provider and never a stale
+    // voice-chat provider. Resolution errors are actionable because hiding
+    // them makes the public config disagree with /api/embed/session.
+    const voiceProvider: string = voiceResult.realtimeProvider;
 
     return NextResponse.json(
       {
@@ -151,7 +150,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       { headers: { ...corsHeaders, "Cache-Control": "no-store" } },
     );
   } catch (err) {
-    if (err instanceof AIConfigResolutionError) {
+    if (err instanceof AIConfigResolutionError || err instanceof VoiceConfigResolutionError) {
       return NextResponse.json({ error: err.message }, { status: 400, headers: corsHeaders });
     }
     console.error("[embed/config]:", err);

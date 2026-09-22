@@ -118,7 +118,7 @@ export async function postSarvamTts(request: NextRequest): Promise<NextResponse 
 
     // Server-side re-resolution: client-suggested speaker/model are advisory.
     // Cached for 5 s — this route fires per sentence.
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "voice_chat" });
     if (
       (resolved.voiceProvider !== "sarvam" && resolved.realtimeProvider !== "sarvam") ||
       !resolved.sarvam

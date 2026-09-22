@@ -317,6 +317,49 @@ const openaiRealtimeAgent = {
   voices: [],
 };
 
+describe("voice resolution — independent voice-chat and realtime providers", () => {
+  beforeEach(() => {
+    resolveAIMock.mockResolvedValue({
+      ...sarvamBrain,
+      provider: "openai",
+      chatModel: "gpt-4o-mini",
+    } as never);
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+      voiceProvider: "elevenlabs",
+      realtimeVoiceProvider: "openai",
+      defaultElevenlabsVoice: null,
+    } as never);
+    agentSettingsMock.mockResolvedValue({
+      ...openaiRealtimeAgent,
+      realtimeVoiceProvider: "openai",
+    } as never);
+  });
+
+  it("does not require an ElevenLabs voice when realtime is explicitly OpenAI", async () => {
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+    expect(r.voiceProvider).toBe("elevenlabs");
+    expect(r.realtimeProvider).toBe("openai");
+    expect(r.elevenlabs).toBeNull();
+    expect(r.openai).not.toBeNull();
+  });
+
+  it("still resolves ElevenLabs for the voice-chat pipeline independently", async () => {
+    agentSettingsMock.mockResolvedValue({
+      ...openaiRealtimeAgent,
+      voiceProvider: "elevenlabs",
+      realtimeVoiceProvider: "openai",
+      voices: [{ enabled: true, provider: "elevenlabs", voiceId: "el-test", id: "v1", orgId: "org-1", name: "Test", metadata: {} }],
+    } as never);
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "voice_chat" });
+    expect(r.voiceProvider).toBe("elevenlabs");
+    expect(r.realtimeProvider).toBe("openai");
+    expect(r.elevenlabs?.voiceId).toBe("el-test");
+    expect(r.openai).toBeNull();
+  });
+});
+
 describe("voice resolution — OpenAI native-realtime axis", () => {
   beforeEach(() => {
     delete process.env.OPENAI_REALTIME_MODEL;
