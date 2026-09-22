@@ -3,6 +3,9 @@ import { pool, query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { getEmailConfig, getEmailProviderConfigStatus } from "@/lib/email";
+import { getPlatformAIRegistry, recordProviderHealth } from "@/modules/ai-governance/core/registry-db";
+import { testProviderConnection } from "@/modules/ai-governance/core/health";
+import { syncPlatformHealthIncidents, type PlatformHealthCheck } from "@/modules/platform-health/core/incidents";
 
 /**
  * GET /api/platform/services-status
@@ -285,6 +288,36 @@ function checkApp(): CheckResult & { uptimeSeconds: number; memory: object; vers
   };
 }
 
+
+async function checkGovernedProvider(
+  providerId: "openai" | "gemini" | "sarvam" | "elevenlabs",
+  activeProviderId: string,
+  checkedBy: string | null,
+): Promise<CheckResult & { active: boolean; providerId: string; enabled: boolean }> {
+  const registry = await getPlatformAIRegistry();
+  const provider = registry.providers.find((item) => item.providerId === providerId);
+  const active = activeProviderId === providerId;
+
+  if (!provider) {
+    return { status: "down", active, enabled: false, providerId, error: "Provider is missing from the platform AI registry." };
+  }
+  if (!provider.enabled) {
+    return { status: "not_configured", active, enabled: false, providerId, detail: "Disabled by platform admin." };
+  }
+
+  const outcome = await testProviderConnection(providerId);
+  await recordProviderHealth(providerId, outcome, checkedBy);
+  return {
+    status: outcome.status === "healthy" ? "up" : "down",
+    active,
+    enabled: true,
+    providerId,
+    latencyMs: outcome.latencyMs ?? undefined,
+    error: outcome.errorMessage ?? undefined,
+    detail: outcome.status === "healthy" ? "Authenticated connectivity check passed" : "Provider connectivity check failed",
+  };
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -303,19 +336,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       postgres = { status: "down", error: (err as Error).message };
     }
 
-    const [redis, qdrant, rabbitmq, email, aiOpenai, aiGemini, app] = await Promise.all([
+    const activeProviderId = (process.env.AI_PROVIDER ?? "openai").trim().toLowerCase();
+    const [redis, qdrant, rabbitmq, email, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app] = await Promise.all([
       checkRedis().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkAiEmbedding("openai").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, detail: undefined, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "openai" })),
-      checkAiEmbedding("gemini").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, detail: undefined, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "gemini" })),
+      checkGovernedProvider("openai", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
+      checkGovernedProvider("gemini", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
+      checkGovernedProvider("sarvam", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),
+      checkGovernedProvider("elevenlabs", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "elevenlabs", enabled: true, providerId: "elevenlabs" })),
       Promise.resolve(checkApp()),
     ]);
 
     const queues = await checkQueues(redis.status === "up");
 
-    const services = { postgres, redis, qdrant, rabbitmq, email, queues, aiOpenai, aiGemini, app };
+    const services = { postgres, redis, qdrant, rabbitmq, email, queues, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app };
 
     type Alert = {
       id: string;
@@ -328,27 +364,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const alerts: Alert[] = [];
     const addAlert = (alert: Alert) => alerts.push(alert);
 
-    const aiOpenaiActive = aiOpenai.active ?? false;
-    const aiGeminiActive = aiGemini.active ?? false;
-    const activeAi = aiOpenaiActive ? aiOpenai : aiGeminiActive ? aiGemini : null;
-    if (activeAi?.status === "not_configured") {
-      addAlert({
-        id: "active-ai-not-configured",
-        severity: "critical",
-        title: "Active AI provider is not configured",
-        message: `The active provider is missing its API credential. AI chat/embed/ingestion may fail. ${activeAi.detail ?? ""}`.trim(),
-        actionLabel: "Open AI settings",
-        actionHref: "/settings/ai",
-      });
-    } else if (activeAi?.status === "down") {
-      addAlert({
-        id: "active-ai-down",
-        severity: "critical",
-        title: "Active AI provider is unreachable",
-        message: activeAi.error ?? "The active AI provider health check failed.",
-        actionLabel: "Open AI settings",
-        actionHref: "/settings/ai",
-      });
+    const governedProviders = [aiOpenai, aiGemini, aiSarvam, aiElevenLabs];
+    for (const provider of governedProviders) {
+      if (!provider.enabled) continue;
+      if (provider.status === "not_configured" || provider.status === "down") {
+        addAlert({
+          id: `ai-provider-${provider.providerId}`,
+          severity: provider.active ? "critical" : "warning",
+          title: `${provider.providerId} provider requires attention`,
+          message: provider.error ?? `${provider.providerId} is enabled but its credential/connectivity check failed.`,
+          actionLabel: "Open AI settings",
+          actionHref: "/settings/ai",
+        });
+      }
     }
     if (postgres.status === "down") addAlert({
       id: "postgres-down", severity: "critical", title: "PostgreSQL is down",
@@ -365,23 +393,44 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       message: qdrant.error ?? "Qdrant health check failed.",
       actionLabel: "Review system status", actionHref: "/system-status",
     });
+    if (rabbitmq.status === "down") addAlert({
+      id: "rabbitmq-down", severity: "critical", title: "RabbitMQ is down",
+      message: rabbitmq.error ?? "RabbitMQ health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
     if (email.status === "down") addAlert({
       id: "email-down", severity: "warning", title: "Email delivery is failing",
       message: email.error ?? "Email provider health check failed.",
       actionLabel: "Review system status", actionHref: "/system-status",
     });
 
-    // Roll-up: down services (excluding not_configured) mark the platform degraded.
-    // AI providers only count when they are the ACTIVE provider — an unreachable
-    // standby is visible on its card but does not degrade the whole platform.
+    const aiProviderChecks: PlatformHealthCheck[] = governedProviders
+      .filter((provider) => provider.enabled)
+      .map((provider) => ({
+        key: `ai-provider:${provider.providerId}`,
+        serviceName: provider.providerId,
+        healthy: provider.status === "up",
+        severity: provider.active ? "critical" as const : "warning" as const,
+        message: provider.error ?? `${provider.providerId} is enabled but its connectivity check failed.`,
+      }));
+
+    const serviceChecks: PlatformHealthCheck[] = [
+      { key: "postgres", serviceName: "PostgreSQL", healthy: postgres.status === "up", severity: "critical", message: postgres.error ?? "PostgreSQL health check failed." },
+      { key: "redis", serviceName: "Redis", healthy: redis.status === "up", severity: "critical", message: redis.error ?? "Redis health check failed." },
+      { key: "qdrant", serviceName: "Qdrant", healthy: qdrant.status === "up", severity: "critical", message: qdrant.error ?? "Qdrant health check failed." },
+      { key: "rabbitmq", serviceName: "RabbitMQ", healthy: rabbitmq.status === "up", severity: "critical", message: rabbitmq.error ?? "RabbitMQ health check failed." },
+      { key: "email", serviceName: "Email delivery", healthy: email.status === "up", severity: "warning", message: email.error ?? "Email delivery health check failed." },
+      ...aiProviderChecks,
+    ];
+    await syncPlatformHealthIncidents(serviceChecks);
+
     const rollupEntries: Array<{ status: ServiceStatus; counts: boolean }> = [
       ...Object.values({ postgres, redis, qdrant, rabbitmq, email, queues, app }).map(
         (s) => ({ status: s.status, counts: true }),
       ),
-      { status: aiOpenai.status, counts: aiOpenaiActive },
-      { status: aiGemini.status, counts: aiGeminiActive },
+      ...governedProviders.map((provider) => ({ status: provider.status, counts: provider.enabled })),
     ];
-    const statuses = rollupEntries.filter((s) => s.counts).map((s) => s.status);
+.filter((s) => s.counts).map((s) => s.status);
     const down = statuses.filter((s) => s === "down").length;
     const up = statuses.filter((s) => s === "up").length;
     const notConfigured = statuses.filter((s) => s === "not_configured").length;
