@@ -156,6 +156,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         const planId = payment.notes?.planId;
         if (!orgId || !planId) break;
 
+        const owner = await queryOne<{ email_verified: boolean; user_id: string }>(
+          `SELECT u.email_verified, u.id AS user_id
+             FROM org_members om
+             JOIN users u ON u.id = om.user_id
+             JOIN roles r ON r.id = om.role_id
+            WHERE om.org_id = $1 AND r.name = 'org_admin'
+            LIMIT 1`,
+          [orgId],
+        );
+        if (!owner?.email_verified) {
+          await query(
+            "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
+            [orgId, "Payment captured before email verification; manual reconciliation required"],
+          );
+          break;
+        }
+
         // Idempotency
         const existing = await queryOne(
           "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'razorpay'",
@@ -174,6 +191,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
              razorpay_subscription_id = EXCLUDED.razorpay_subscription_id,
              current_period_start = now(),
              current_period_end   = now() + INTERVAL '1 month',
+             payment_status = 'paid',
+             payment_verified_at = now(),
+             pending_plan_id = NULL,
+             activation_review_reason = NULL,
              updated_at = now()`,
           [orgId, planId, payment.id]
         );
@@ -208,8 +229,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (!orgId) break;
 
         await query(
-          `UPDATE org_subscriptions SET status = 'past_due', updated_at = now()
-           WHERE org_id = $1`,
+          `UPDATE org_subscriptions
+              SET status = CASE
+                WHEN payment_status IN ('not_started','pending','failed','cancelled','review')
+                  THEN 'payment_failed'
+                ELSE 'past_due'
+              END,
+              payment_status = 'failed',
+              updated_at = now()
+            WHERE org_id = $1`,
           [orgId]
         );
 

@@ -28,9 +28,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { query, queryOne } from "@/lib/db";
-import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr } from "@/lib/razorpay";
+import { verifyRazorpaySignature, PLAN_AMOUNTS_INR_PAISE, formatInr, getRazorpay } from "@/lib/razorpay";
 import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
+import { notifyBillingReview } from "@/lib/billing-review";
 
 type VerifyBody = {
   razorpay_order_id:   string;
@@ -71,6 +72,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    if (!auth.user.emailVerified) {
+      return NextResponse.json({ error: "Verify your email before completing payment.", code: "EMAIL_VERIFICATION_REQUIRED" }, { status: 403 });
+    }
+
+    const onboarding = await queryOne<{ plan_id: string; status: string; payment_order_id: string | null }>(
+      "SELECT plan_id, status, payment_order_id FROM org_subscriptions WHERE org_id = $1",
+      [orgId]
+    );
+    if (!auth.user.isSuperAdmin && (!onboarding || onboarding.plan_id !== planId || onboarding.payment_order_id !== razorpay_order_id)) {
+      return NextResponse.json({ error: "Payment does not match the current organization checkout.", code: "PAYMENT_MISMATCH" }, { status: 409 });
+    }
+
     // ── Verify HMAC signature ────────────────────────────────────────────────
     const valid = verifyRazorpaySignature(
       razorpay_order_id,
@@ -82,8 +95,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Payment signature verification failed" }, { status: 400 });
     }
 
+    const razorpay = getRazorpay();
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    if (order.id !== razorpay_order_id || order.currency !== "INR" || Number(order.amount) !== Number(PLAN_AMOUNTS_INR_PAISE[planId])) {
+      const reason = "Razorpay order amount/currency/plan mismatch";
+      await query(
+        "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
+        [orgId, reason],
+      );
+      await notifyBillingReview({ orgId, planId, reason });
+      return NextResponse.json({ error: "Payment requires manual verification.", code: "PAYMENT_REVIEW" }, { status: 409 });
+    }
+
+    if (order.notes?.orgId && order.notes.orgId !== orgId) {
+      const reason = "Razorpay order organization mismatch";
+      await query(
+        "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
+        [orgId, reason],
+      );
+      await notifyBillingReview({ orgId, planId, reason });
+      return NextResponse.json({ error: "Payment requires manual verification.", code: "PAYMENT_REVIEW" }, { status: 409 });
+    }
+
+    // Record verified payment before granting entitlement. This also gives
+    // the activation trigger durable evidence if activation is retried.
+    const existingPayment = await queryOne(
+      "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'razorpay'",
+      [razorpay_payment_id]
+    );
+    if (!existingPayment) {
+      await query(
+        `INSERT INTO billing_events
+           (org_id, gateway, event_type, event_id, plan_id,
+            amount_paise, currency, status, metadata)
+         VALUES ($1,'razorpay','payment.captured',$2,$3,$4,'INR','paid',$5)`,
+        [
+          orgId, razorpay_payment_id, planId,
+          PLAN_AMOUNTS_INR_PAISE[planId] ?? 0,
+          JSON.stringify({ orderId: razorpay_order_id, paymentId: razorpay_payment_id }),
+        ]
+      );
+    }
+
     // ── Activate subscription ────────────────────────────────────────────────
-    await query(
+    try {
+      await query(
       `INSERT INTO org_subscriptions
          (org_id, plan_id, status, gateway, razorpay_subscription_id,
           current_period_start, current_period_end)
@@ -97,32 +153,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
          current_period_end       = EXCLUDED.current_period_end,
          updated_at               = now()`,
       [orgId, planId, razorpay_payment_id]
-    );
-
-    // ── Log billing event + payment receipt email ────────────────────────────
-    // Idempotency: skip if already recorded. When the webhook processed this
-    // payment first it already sent the receipt email, so skipping here too
-    // is exactly what prevents a double email.
-    const existing = await queryOne(
-      "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'razorpay'",
-      [razorpay_payment_id]
-    );
-    if (!existing) {
-      await query(
-        `INSERT INTO billing_events
-           (org_id, gateway, event_type, event_id, plan_id,
-            amount_paise, currency, status, metadata)
-         VALUES ($1,'razorpay','payment.captured',$2,$3,$4,'INR','paid',$5)`,
-        [
-          orgId,
-          razorpay_payment_id,
-          planId,
-          PLAN_AMOUNTS_INR_PAISE[planId] ?? 0,
-          JSON.stringify({ orderId: razorpay_order_id, paymentId: razorpay_payment_id }),
-        ]
       );
+    } catch (activationErr) {
+      const reason = `Payment verified but subscription activation failed: ${(activationErr as Error).message}`;
+      await query(
+        "UPDATE org_subscriptions SET status = 'payment_review', payment_status = 'review', activation_review_reason = $2, updated_at = now() WHERE org_id = $1",
+        [orgId, reason],
+      );
+      await notifyBillingReview({ orgId, planId, reason });
+      return NextResponse.json({ error: "Payment received but activation requires manual verification.", code: "PAYMENT_REVIEW" }, { status: 409 });
+    }
 
-      // ── Payment success receipt for the org owner ────────────────────
+    await query(
+      "UPDATE org_subscriptions SET payment_status = 'paid', payment_verified_at = now(), pending_plan_id = NULL, activation_review_reason = NULL, updated_at = now() WHERE org_id = $1",
+      [orgId],
+    );
+
+    // ── Payment success receipt ───────────────────────────────────────────────
+    // The event was recorded before activation; send the receipt only when
+    // this request was the first observer of the payment.
+    if (!existingPayment) {
       try {
         const orgRow = await queryOne<{ org_name: string; plan_name: string }>(
           `SELECT o.name AS org_name, sp.name AS plan_name
@@ -144,7 +194,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               planName: orgRow.plan_name,
               amount: formatInr(PLAN_AMOUNTS_INR_PAISE[planId] ?? 0),
               paymentId: razorpay_payment_id,
-              // Absolute URL — a relative href is unusable in email clients.
               receiptUrl: `${appUrlFor("", req)}/dashboard`,
             },
           });

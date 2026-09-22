@@ -36,6 +36,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await ensureMigrated();
 
     const auth = await requireAuth(req);
+
+    if (!auth.user.emailVerified) {
+      return NextResponse.json({ error: "Verify your email before starting payment.", code: "EMAIL_VERIFICATION_REQUIRED" }, { status: 403 });
+    }
     const body = await req.json() as { orgId?: string; planId?: string };
     const { orgId, planId } = body;
 
@@ -58,6 +62,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
     if (!membership && !auth.user.isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const onboarding = await queryOne<{ plan_id: string; status: string }>(
+      "SELECT plan_id, status FROM org_subscriptions WHERE org_id = $1", [orgId]
+    );
+    if (!auth.user.isSuperAdmin && (!onboarding || onboarding.plan_id !== planId || !["payment_required","payment_pending","payment_failed","payment_cancelled"].includes(onboarding.status))) {
+      return NextResponse.json({ error: "This organization is not eligible for payment for the selected plan.", code: "PAYMENT_NOT_ELIGIBLE" }, { status: 409 });
     }
 
     // Guard against charging for a downgrade — a crafted request must not be
@@ -107,14 +118,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     });
 
-    // Mark the org as using razorpay gateway (pre-flight)
     await query(
-      `INSERT INTO org_subscriptions (org_id, plan_id, status, gateway)
-       VALUES ($1, $2, 'trialing', 'razorpay')
-       ON CONFLICT (org_id) DO UPDATE SET
-         gateway    = 'razorpay',
-         updated_at = now()`,
-      [orgId, planId]
+      `UPDATE org_subscriptions
+          SET plan_id = $2, pending_plan_id = $2, status = 'payment_pending',
+              payment_status = 'pending', payment_order_id = $3,
+              gateway = 'razorpay', updated_at = now()
+        WHERE org_id = $1`,
+      [orgId, planId, order.id]
     );
 
     return NextResponse.json({

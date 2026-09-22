@@ -16,7 +16,7 @@
  * with a working resend button (session-authenticated, no email needed).
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Brain, CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink, MailWarning, RefreshCw } from "lucide-react";
@@ -41,9 +41,25 @@ export default function CheckoutSuccessScreen() {
 
   // Verify-email resend (paid signup funnel — the session identifies the
   // user, so no email address is needed here). Non-blocking by design.
+  const [activationStatus, setActivationStatus] = useState<string>("checking");
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [resendError, setResendError] = useState("");
+
+
+  useEffect(() => {
+    if (isPortal || !orgId) return;
+    let cancelled = false;
+    fetch(`/api/subscriptions/onboarding-status?orgId=${encodeURIComponent(orgId)}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data: { emailVerified?: boolean; onboarding?: { status?: string; payment_status?: string } } | null) => {
+        if (cancelled) return;
+        if (!data?.emailVerified) setActivationStatus("pending_email");
+        else setActivationStatus(data.onboarding?.status ?? "payment_review");
+      })
+      .catch(() => { if (!cancelled) setActivationStatus("payment_review"); });
+    return () => { cancelled = true; };
+  }, [isPortal, orgId]);
 
   async function handleResendVerification() {
     setResending(true);
@@ -147,7 +163,7 @@ export default function CheckoutSuccessScreen() {
             )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status</span>
-              <span className="text-emerald-600 font-medium">Active</span>
+              <span className={activationStatus === "active" ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>{activationStatus === "checking" ? "Checking…" : activationStatus.replaceAll("_", " ")}</span>
             </div>
           </div>
         )}
@@ -187,9 +203,9 @@ export default function CheckoutSuccessScreen() {
 
         {/* CTAs */}
         <div className="flex flex-col gap-3">
-          <Link href="/dashboard"
+          <Link href="/workspace"
             className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
-            Go to dashboard <ArrowRight className="w-4 h-4" />
+            Continue to Clara AI <ArrowRight className="w-4 h-4" />
           </Link>
 
           {/* Stripe billing portal link */}

@@ -49,6 +49,25 @@ async function syncSubscription(
   const planId      = (subscription.metadata?.planId as string | undefined) ?? "free";
   const priceId     = subscription.items.data[0]?.price.id ?? null;
   const status      = mapStripeStatus(subscription.status);
+  const owner = await queryOne<{ email_verified: boolean }>(
+    `SELECT u.email_verified
+       FROM org_members om
+       JOIN users u ON u.id = om.user_id
+       JOIN roles r ON r.id = om.role_id
+      WHERE om.org_id = $1 AND r.name = 'org_admin'
+      LIMIT 1`,
+    [resolvedOrgId],
+  );
+  const paidEvidence = planId === "free" ? true : !!await queryOne<{ id: string }>(
+    `SELECT id FROM billing_events
+       WHERE org_id = $1 AND plan_id = $2 AND status = 'paid'
+         AND event_type IN ('invoice.payment_succeeded','invoice.paid','payment_intent.succeeded')
+       LIMIT 1`,
+    [resolvedOrgId, planId],
+  );
+  const effectiveStatus = !owner?.email_verified && status === 'active'
+    ? 'pending_email'
+    : (status === 'active' && !paidEvidence ? 'payment_pending' : status);
   const periodStart = new Date(subscription.current_period_start * 1000);
   const periodEnd   = new Date(subscription.current_period_end   * 1000);
   const cancelAtEnd = subscription.cancel_at_period_end;
@@ -74,7 +93,7 @@ async function syncSubscription(
        gateway                = 'stripe',
        updated_at             = now()`,
     [
-      resolvedOrgId, planId, status, customerId, subscription.id,
+      resolvedOrgId, planId, effectiveStatus, customerId, subscription.id,
       priceId, periodStart.toISOString(), periodEnd.toISOString(), cancelAtEnd,
     ]
   );
@@ -182,7 +201,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (orgId && subId) {
           const stripe = getStripe();
           const sub    = await stripe.subscriptions.retrieve(subId);
-          await syncSubscription(sub, orgId);
+          if (session.payment_status === 'paid') {
+            await syncSubscription(sub, orgId);
+            await query(
+              "UPDATE org_subscriptions SET payment_status = 'paid', payment_verified_at = now(), pending_plan_id = NULL, payment_session_id = $2, activation_review_reason = NULL, updated_at = now() WHERE org_id = $1",
+              [orgId, session.id],
+            );
+          } else {
+            await query(
+              "UPDATE org_subscriptions SET status = 'payment_pending', payment_status = 'pending', payment_session_id = $2, updated_at = now() WHERE org_id = $1",
+              [orgId, session.id],
+            );
+          }
         }
 
         await query(
@@ -248,6 +278,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           : (inv.subscription as Stripe.Subscription | null)?.id;
         const orgId = (inv.subscription_details?.metadata as Record<string, string> | null)?.orgId
           ?? (inv as unknown as { metadata?: Record<string, string> }).metadata?.orgId;
+
+        if (orgId && orgId !== "unknown") {
+          await query(
+            `UPDATE org_subscriptions
+                SET status = 'active', payment_status = 'paid',
+                    payment_verified_at = now(), pending_plan_id = NULL,
+                    activation_review_reason = NULL, updated_at = now()
+              WHERE org_id = $1 AND status IN ('payment_pending','payment_required','payment_failed','payment_cancelled','pending_email')`,
+            [orgId],
+          );
+        }
 
         await query(
           `INSERT INTO billing_events (org_id, gateway, event_type, event_id,

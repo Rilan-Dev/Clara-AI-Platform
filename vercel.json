@@ -4,6 +4,9 @@
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
   "regions": ["bom1"],
+  "crons": [
+    { "path": "/api/cron/onboarding-reminders", "schedule": "30 18 * * *" }
+  ],
   "functions": {
     "src/app/api/queue/ingest/route.ts": {
       "experimentalTriggers": [{"type": "queue/v2beta", "topic": "clara-ingest"}],

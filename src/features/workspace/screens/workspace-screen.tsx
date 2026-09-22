@@ -5,6 +5,7 @@ import { JSX, useMemo, useState } from "react";
 import { useAssistant } from "@/modules/assistant/core";
 import { ChatWindow } from "@/modules/assistant/ui/chat";
 import { KbSelectorPanel } from "@/components/catalog/KbSelectorPanel";
+import OnboardingGate from "../components/onboarding-gate";
 
 export default function WorkspacePage(): JSX.Element {
   const { activeDocument, activeKbId, overviewFor } = useAssistant();
@@ -23,7 +24,8 @@ export default function WorkspacePage(): JSX.Element {
     : undefined;
 
   return (
-    <div className="relative flex min-h-[calc(100dvh-64px)] flex-col overflow-x-hidden">
+    <OnboardingGate>
+      <div className="relative flex min-h-[calc(100dvh-64px)] flex-col overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-48 right-[12%] h-80 w-80 rounded-full bg-primary/20 blur-[160px]" />
         <div className="absolute bottom-[-160px] left-[18%] h-96 w-96 rounded-full bg-secondary/15 blur-[180px]" />
@@ -57,6 +59,7 @@ export default function WorkspacePage(): JSX.Element {
           onClose={() => setVoiceOpen(false)}
         />
       )}
-    </div>
+      </div>
+    </OnboardingGate>
   );
 }
