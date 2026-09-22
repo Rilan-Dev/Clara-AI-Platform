@@ -252,7 +252,8 @@ async function searchKbCollection(
   providerConfig?: ProviderConfig,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
-  if (filter?.must?.some((condition: unknown) =>
+  const filterConditions = Array.isArray(filter?.must) ? filter.must : [];
+  if (filterConditions.some((condition: unknown) =>
     typeof condition === "object" && condition !== null &&
     (condition as { key?: unknown }).key === "documentId"
   )) {
