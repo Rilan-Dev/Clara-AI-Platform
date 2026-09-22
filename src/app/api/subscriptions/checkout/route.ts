@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth } from "@/modules/auth/core/rbac";
 import { queryOne, query } from "@/lib/db";
+import { syncPlatformHealthIncidents } from "@/modules/platform-health/core/incidents";
 import {
   getStripe,
   getStripePriceId,
@@ -148,6 +149,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[POST /api/subscriptions/checkout]", err);
-    return NextResponse.json({ error: sanitizeStripeError(err) }, { status: 500 });
+    const safeMessage = sanitizeStripeError(err);
+    if (safeMessage.includes("Stripe") || safeMessage.includes("STRIPE_") || safeMessage.includes("sk_***")) {
+      await syncPlatformHealthIncidents([{
+        key: "stripe",
+        serviceName: "Stripe payments",
+        healthy: false,
+        severity: "critical",
+        message: safeMessage,
+      }]);
+    }
+    return NextResponse.json({ error: safeMessage }, { status: 500 });
   }
 }
