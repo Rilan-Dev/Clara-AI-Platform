@@ -145,8 +145,8 @@ export type DocumentChunk = {
 // accept the create call silently, then fail every upsert with Qdrant's
 // "Wrong vector size" 400 error — which was previously hidden behind [Object].
 //
-// Fix: fetch the collection info, compare the stored vector size to the
-// expected size, and recreate the collection if there is a mismatch.
+// Fix: fetch the collection info and compare the stored vector size to the
+// expected size. Existing tenant collections are never deleted automatically on mismatch.
 
 export async function ensureCollectionExists(
   collectionName: string,
@@ -182,22 +182,15 @@ export async function ensureCollectionExists(
       return;
     }
 
-    // FIX: Vector dimension mismatch.
-    // Delete the stale collection so we can recreate it with the correct size.
-    // This is safe: a mismatched collection is unusable for search anyway.
-    console.warn(
-      `[vector-store] collection "${collectionName}" has vector size ${existingSize} ` +
+    // Never delete a tenant collection automatically. A dimension mismatch
+    // means the collection was created for a different embedding model; deleting
+    // it here would silently destroy every document vector in that KB.
+    // The caller must explicitly reindex/rebuild the collection.
+    throw new Error(
+      `[vector-store] Qdrant collection "${collectionName}" has vector size ${existingSize}, ` +
       `but the current embedding model requires ${expectedSize}. ` +
-      `Deleting and recreating the collection.`
+      `Refusing to delete the existing collection; explicitly reindex/rebuild this KB.`
     );
-    try {
-      await client.deleteCollection(collectionName);
-    } catch (delErr) {
-      throw new Error(
-        `[vector-store] failed to delete mismatched collection "${collectionName}": ` +
-        qdrantErrorMessage(delErr)
-      );
-    }
   }
 
   // Create collection with correct dimensions.
