@@ -101,16 +101,23 @@ FOR EACH ROW EXECUTE FUNCTION clara_email_verified_moves_onboarding();
 -- Existing paid rows created by the old signup flow are classified safely.
 UPDATE org_subscriptions os
    SET status = CASE
-     WHEN u.email_verified THEN 'payment_required'
+     WHEN EXISTS (
+       SELECT 1
+         FROM org_members om
+         JOIN users u ON u.id = om.user_id
+        WHERE om.org_id = os.org_id
+          AND u.email_verified = TRUE
+     ) THEN 'payment_required'
      ELSE 'pending_email'
    END,
    payment_status = 'not_started',
    updated_at = now()
-  FROM org_members om
-  JOIN users u ON u.id = om.user_id
-  JOIN subscription_plans sp ON sp.id = os.plan_id
- WHERE om.org_id = os.org_id
-   AND sp.price_usd > 0
+ WHERE EXISTS (
+   SELECT 1
+     FROM subscription_plans sp
+    WHERE sp.id = os.plan_id
+      AND sp.price_usd > 0
+ )
    AND os.status IN ('active','trialing')
    AND NOT EXISTS (
      SELECT 1 FROM billing_events be
