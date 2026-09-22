@@ -74,9 +74,9 @@ function LoginForm() {
       // HttpOnly cookie is the authoritative browser session for middleware.
       setStoredToken(data.token);
 
-      // Unverified account → non-blocking interstitial before the redirect:
-      // the session is already established, but we prompt once so the user
-      // can resend the verification email. "Continue" proceeds normally.
+      // Unverified account → keep the user on the verification interstitial.
+      // The session exists, but workspace access remains gated until email
+      // verification and onboarding requirements are satisfied.
       if (data.emailVerified === false) {
         setNeedsVerification(true);
         return;
@@ -120,10 +120,10 @@ function LoginForm() {
                 <MailWarning className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-foreground font-medium">You&apos;re signed in — please verify your email</p>
+                <p className="text-foreground font-medium">Email verification required</p>
                 <p className="text-sm text-muted-foreground mt-1 break-all">
                   We sent a confirmation link to <span className="text-foreground/80 font-medium">{email}</span>.
-                  Verifying secures your account and keeps billing receipts reaching you.
+                  Verify your email before continuing to your Clara AI workspace.
                 </p>
               </div>
               {resent ? (
@@ -149,10 +149,10 @@ function LoginForm() {
               )}
               <button
                 type="button"
-                onClick={() => window.location.replace(redirectTo)}
-                className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 transition-all"
+                onClick={() => window.location.replace("/login")}
+                className="w-full border border-border text-foreground/80 hover:text-foreground hover:border-primary/40 font-medium py-2.5 rounded-xl transition-all"
               >
-                Continue to Clara AI
+                Return to sign in
               </button>
             </div>
           ) : (

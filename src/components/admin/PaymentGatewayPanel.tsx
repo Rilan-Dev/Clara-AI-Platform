@@ -44,9 +44,23 @@ const MASK = "●●●●●●●●";
 /* ── helpers ─────────────────────────────────────────────────────────────────── */
 
 async function saveSetting(key: string, value: string): Promise<void> {
+  const normalizedValue = value.trim();
+
+  // Keep credentials deterministic: accidental leading/trailing whitespace must
+  // never reach Stripe/Razorpay and produce a misleading "invalid API key" error.
+  if (key === "STRIPE_SECRET_KEY" && !/^sk_(test|live)_[A-Za-z0-9]+$/.test(normalizedValue)) {
+    throw new Error("Invalid Stripe secret key format. Use the server-side sk_test_… or sk_live_… key from Stripe.");
+  }
+  if (key === "STRIPE_WEBHOOK_SECRET" && !/^whsec_[A-Za-z0-9]+$/.test(normalizedValue)) {
+    throw new Error("Invalid Stripe webhook secret format. Use the whsec_… signing secret from Stripe Webhooks.");
+  }
+  if (key.startsWith("STRIPE_PRICE_") && normalizedValue && !/^price_[A-Za-z0-9]+$/.test(normalizedValue)) {
+    throw new Error("Invalid Stripe Price ID format. Use a price_… ID from the same Stripe account/mode.");
+  }
+
   // Step 1: get HMAC confirmation token
   const tokenRes = await fetch(
-    apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`),
+    apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(normalizedValue)}`),
     { headers: withAuthHeaders() },
   );
   const tokenData = await tokenRes.json() as { confirmation_token?: string; timestamp?: number; error?: string };
@@ -58,7 +72,7 @@ async function saveSetting(key: string, value: string): Promise<void> {
     method: "POST",
     headers: withAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
-      key, value,
+      key, value: normalizedValue,
       confirmation_token: tokenData.confirmation_token,
       timestamp: tokenData.timestamp,
     }),

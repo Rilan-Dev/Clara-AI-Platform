@@ -11,9 +11,9 @@
  *   ?session_id=cs_…  (Stripe only — used to verify/display receipt)
  *   ?source=portal    (returning from Stripe portal)
  *
- * Paid signups skip /signup/verify (they went straight from registration
- * to checkout), so this screen also reminds them to verify their email —
- * with a working resend button (session-authenticated, no email needed).
+ * Paid checkout can return here before onboarding is fully active. The
+ * activation status is checked server-side so this screen does not claim
+ * a paid plan is active while email verification or activation is pending.
  */
 
 import { useState, useEffect } from "react";

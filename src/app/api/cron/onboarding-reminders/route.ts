@@ -61,9 +61,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           const verifyUrl = `${origin}/login/verify-email?token=${encodeURIComponent(token)}`;
           const result = await sendPlatformEmail({
             to: row.email,
-            subject: "Complete your Clara AI registration",
+            subject: "Verify your email to continue your Clara AI signup",
             html: `<p>Hello ${row.full_name || "there"},</p>
-              <p>Your Clara AI <strong>${row.plan_name}</strong> registration is waiting for email verification.</p>
+              <p>Your Clara AI <strong>${row.plan_name}</strong> signup is waiting for email verification.</p>
               <p><a href="${verifyUrl}">Verify your email</a> to continue.</p>
               <p>You cannot start payment until your email is verified.</p>`,
           });

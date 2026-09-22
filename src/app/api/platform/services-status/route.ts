@@ -6,6 +6,7 @@ import { getEmailConfig, getEmailProviderConfigStatus } from "@/lib/email";
 import { getPlatformAIRegistry, recordProviderHealth } from "@/modules/ai-governance/core/registry-db";
 import { testProviderConnection } from "@/modules/ai-governance/core/health";
 import { syncPlatformHealthIncidents, type PlatformHealthCheck } from "@/modules/platform-health/core/incidents";
+import { checkRazorpayGateway, checkStripeGateway, type PaymentGatewayHealth } from "@/modules/billing/core/health";
 
 /**
  * GET /api/platform/services-status
@@ -279,11 +280,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const activeProviderId =
       platformRegistry.defaults.find((item) => item.capability === "chat")?.providerId?.toLowerCase() ??
       (process.env.AI_PROVIDER ?? "openai").trim().toLowerCase();
-    const [redis, qdrant, rabbitmq, email, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app] = await Promise.all([
+    const [redis, qdrant, rabbitmq, email, stripe, razorpay, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app] = await Promise.all([
       checkRedis().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
+      checkStripeGateway().catch((e): PaymentGatewayHealth => ({ status: "down", error: (e as Error).message, webhookConfigured: false })),
+      checkRazorpayGateway().catch((e): PaymentGatewayHealth => ({ status: "down", error: (e as Error).message, webhookConfigured: false })),
       checkGovernedProvider("openai", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
       checkGovernedProvider("gemini", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
       checkGovernedProvider("sarvam", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),
@@ -293,7 +296,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const queues = await checkQueues(redis.status === "up");
 
-    const services = { postgres, redis, qdrant, rabbitmq, email, queues, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app };
+    const services = { postgres, redis, qdrant, rabbitmq, email, queues, stripe, razorpay, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app };
 
     type Alert = {
       id: string;
@@ -345,6 +348,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       message: email.error ?? "Email provider health check failed.",
       actionLabel: "Review system status", actionHref: "/system-status",
     });
+    if (stripe.status === "down") addAlert({
+      id: "stripe-down", severity: "critical", title: "Stripe payments require attention",
+      message: stripe.error ?? stripe.detail ?? "Stripe payment gateway health check failed.",
+      actionLabel: "Open payment settings", actionHref: "/settings/payments",
+    });
+    if (razorpay.status === "down") addAlert({
+      id: "razorpay-down", severity: "critical", title: "Razorpay payments require attention",
+      message: razorpay.error ?? razorpay.detail ?? "Razorpay payment gateway health check failed.",
+      actionLabel: "Open payment settings", actionHref: "/settings/payments",
+    });
 
     const aiProviderChecks: PlatformHealthCheck[] = governedProviders
       .filter((provider) => provider.enabled)
@@ -362,12 +375,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       { key: "qdrant", serviceName: "Qdrant", healthy: qdrant.status === "up", severity: "critical", message: qdrant.error ?? "Qdrant health check failed." },
       { key: "rabbitmq", serviceName: "RabbitMQ", healthy: rabbitmq.status === "up", severity: "critical", message: rabbitmq.error ?? "RabbitMQ health check failed." },
       { key: "email", serviceName: "Email delivery", healthy: email.status === "up", severity: "warning", message: email.error ?? "Email delivery health check failed." },
+      { key: "stripe", serviceName: "Stripe payments", healthy: stripe.status === "up", severity: "critical", message: stripe.error ?? stripe.detail ?? "Stripe payment gateway health check failed." },
+      { key: "razorpay", serviceName: "Razorpay payments", healthy: razorpay.status === "up", severity: "critical", message: razorpay.error ?? razorpay.detail ?? "Razorpay payment gateway health check failed." },
       ...aiProviderChecks,
     ];
     await syncPlatformHealthIncidents(serviceChecks);
 
     const rollupEntries: Array<{ status: ServiceStatus; counts: boolean }> = [
-      ...Object.values({ postgres, redis, qdrant, rabbitmq, email, queues, app }).map(
+      ...Object.values({ postgres, redis, qdrant, rabbitmq, email, queues, stripe, razorpay, app }).map(
         (s) => ({ status: s.status, counts: true }),
       ),
       ...governedProviders.map((provider) => ({ status: provider.status, counts: provider.enabled })),

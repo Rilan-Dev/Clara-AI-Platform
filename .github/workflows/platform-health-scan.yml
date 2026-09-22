@@ -1,0 +1,70 @@
+name: Platform Health Scanner
+
+# Proactive platform health scans every 10 minutes.
+#
+# Why a GitHub Action instead of a native Vercel cron? The Vercel Hobby
+# plan only allows cron schedules that trigger at most once per day —
+# the every-10-minute schedule in vercel.json was rejected at deployment
+# time and blocked ALL production + preview deploys (2026-09-22 outage).
+# The Vercel cron now runs a once-daily baseline scan at 04:10 UTC; this
+# workflow restores the intended high-frequency alerting at zero cost.
+#
+# The target endpoint (/api/platform/services-status) accepts the same
+# Bearer CRON_SECRET auth Vercel's cron uses. Set the CRON_SECRET GitHub
+# repo secret to the same value configured in the Vercel project env.
+#
+# Runtime budget: ~4320 runs/month at ~15-20s per run ≈ 1.4k Actions
+# minutes — fits the private-repo free tier (2,000 min/month).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: platform-health-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Scan platform health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger health scan
+        env:
+          HEALTH_URL: ${{ vars.PLATFORM_HEALTH_URL || 'https://clara-rag.amazetechclans.com/api/platform/services-status' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET repo secret is not set — skipping scan (add it to GitHub repo secrets, same value as the Vercel project env var)."
+            exit 0
+          fi
+          echo "Scanning $HEALTH_URL ..."
+          response_code=$(curl -sS -o /tmp/health-scan.json -w '%{http_code}' \
+            --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$HEALTH_URL" || echo "curl_failed")
+          echo "HTTP $response_code"
+          if [ "$response_code" = "curl_failed" ] || [ "$response_code" -ge 500 ]; then
+            echo "::error::Platform health scan failed (HTTP $response_code) — the platform itself may be unreachable."
+            exit 1
+          fi
+          # Surface a compact status summary in the run log.
+          node -e '
+            const fs = require("fs");
+            try {
+              const body = JSON.parse(fs.readFileSync("/tmp/health-scan.json", "utf8"));
+              const svcs = body.services ?? {};
+              const rows = Object.entries(svcs).map(([name, s]) => name + "=" + (s.status ?? "unknown"));
+              console.log("Services: " + rows.join(" "));
+              const rollup = body.rollup ?? body.overall ?? "unknown";
+              console.log("Rollup: " + rollup);
+              const alerts = body.alerts ?? [];
+              if (alerts.length > 0) {
+                console.log("Alerts: " + alerts.map(a => a.title).join(" | "));
+              }
+            } catch (e) {
+              console.log("(non-JSON response body — endpoint may be down)");
+            }
+          ' || true
