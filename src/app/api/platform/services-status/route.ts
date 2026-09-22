@@ -334,7 +334,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         title: `${activeProvider === "openai" ? "OpenAI" : "Gemini"} credentials are missing`,
         message: `The active AI provider has no usable server credential. AI chat/embedding jobs may fail. Add the provider credential in Platform → AI Platform, then run the provider connection test.`,
         actionLabel: "Open AI Platform",
-        actionHref: "/settings/ai-platform",
+        actionHref: "/settings/ai",
       });
     } else if (activeAI.status === "down") {
       alerts.push({
@@ -343,7 +343,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         title: `${activeProvider === "openai" ? "OpenAI" : "Gemini"} is unavailable`,
         message: activeAI.error ?? "The active AI provider connectivity check failed.",
         actionLabel: "Open AI Platform",
-        actionHref: "/settings/ai-platform",
+        actionHref: "/settings/ai",
       });
     }
 
