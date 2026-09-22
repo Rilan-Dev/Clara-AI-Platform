@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm install --legacy-peer-deps --package-lock=false
       - run: npm run lint
 
   typecheck:
