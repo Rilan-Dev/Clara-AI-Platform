@@ -42,7 +42,7 @@ export async function registerNode(): Promise<void> {
     const { loadRuntimeSettingsOnStartup } = await import("@/lib/db/migrate");
     await loadRuntimeSettingsOnStartup();
 
-    startIngestPollerIfEnabled().catch((err: unknown) =>
+    // Vercel horizontally scales function instances. Persistent pollers and\n    // scheduled DB maintenance must run on the dedicated worker/cron runtime.\n    if (process.env.VERCEL) {\n      console.info("[instrumentation] Vercel runtime: background DB workers disabled");\n      return;\n    }\n\n    startIngestPollerIfEnabled().catch((err: unknown) =>
       console.error("[instrumentation] ingest poller failed to start:", err)
     );
 
