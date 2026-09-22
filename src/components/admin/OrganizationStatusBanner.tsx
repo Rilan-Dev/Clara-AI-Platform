@@ -95,6 +95,7 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
   if (!orgId || (!status && announcements.length === 0) || dismissed) return null;
 
   const dismiss = () => {
+    if (!status) return;
     const key = DISMISS_KEY_PREFIX + orgId + ":" + status.state;
     window.sessionStorage.setItem(key, "1");
     setDismissed(true);
