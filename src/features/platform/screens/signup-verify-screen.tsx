@@ -89,7 +89,7 @@ export default function SignupVerifyScreen() {
         <div className="border border-emerald-500/20 bg-emerald-500/[0.04] rounded-xl px-4 py-3 mb-6 flex items-center gap-3">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm text-muted-foreground text-left">
-            Your <span className="text-foreground font-medium">{planName} plan</span> activates once you verify.
+            Your <span className="text-foreground font-medium">{planName} plan</span> continues to payment after you verify. It will not activate until payment is confirmed.
           </p>
         </div>
 
@@ -116,9 +116,9 @@ export default function SignupVerifyScreen() {
 
         {/* CTA — already verified / use later */}
         <div className="flex flex-col gap-2">
-          <Link href="/dashboard"
+          <Link href={`/workspace?onboarding=verify&plan=${encodeURIComponent(planId)}`}
             className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
-            Continue to dashboard <ArrowRight className="w-4 h-4" />
+            Continue to Clara AI <ArrowRight className="w-4 h-4" />
           </Link>
           <Link href="/"
             className="text-xs text-muted-foreground/70 hover:text-foreground/80 transition-colors py-1">
