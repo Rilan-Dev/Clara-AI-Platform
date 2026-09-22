@@ -30,7 +30,6 @@ const CORS_HEADERS = {
 const EMBED_CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Extensions",
-  "Access-Control-Allow-Credentials": "true",
   "Access-Control-Max-Age": "86400",
 } as const;
 const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
@@ -107,7 +106,7 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   if (startsWith(pathname, ADMIN_PAGE_PREFIXES)) {
-    const skipAuth = process.env.SKIP_AUTH === "true";
+    const skipAuth = process.env.NODE_ENV !== "production" && process.env.SKIP_AUTH === "true";
     const adminToken = request.cookies.get("clara_platform_token")?.value ?? request.cookies.get("clara_admin_token")?.value ?? request.cookies.get("clara_token")?.value;
     if (!skipAuth && !adminToken) {
       const loginUrl = new URL("/login", request.url);
@@ -118,7 +117,7 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   if (startsWith(pathname, PROTECTED_API_PREFIXES)) {
-    const skipAuth = process.env.SKIP_AUTH === "true";
+    const skipAuth = process.env.NODE_ENV !== "production" && process.env.SKIP_AUTH === "true";
     const authHeader = request.headers.get("authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const cookieToken = request.cookies.get("clara_platform_token")?.value ?? request.cookies.get("clara_admin_token")?.value ?? request.cookies.get("clara_token")?.value;

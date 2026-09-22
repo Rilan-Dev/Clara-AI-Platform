@@ -39,8 +39,8 @@ export async function registerNode(): Promise<void> {
   }
 
   try {
-    const { ensureMigrated } = await import("@/lib/db/migrate");
-    await ensureMigrated();
+    const { loadRuntimeSettingsOnStartup } = await import("@/lib/db/migrate");
+    await loadRuntimeSettingsOnStartup();
 
     startIngestPollerIfEnabled().catch((err: unknown) =>
       console.error("[instrumentation] ingest poller failed to start:", err)

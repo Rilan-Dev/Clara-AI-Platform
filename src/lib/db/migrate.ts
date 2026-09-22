@@ -108,9 +108,21 @@ export async function runMigrationsOnStartup(): Promise<void> {
   migrated = true;
 }
 
-export async function ensureMigrated(): Promise<void> {
-  if (migrated) return;
-  await runMigrations();
+/** Load DB-backed runtime settings without performing schema work. */
+export async function loadRuntimeSettingsOnStartup(): Promise<void> {
   await loadRuntimeSettings();
   migrated = true;
+}
+
+/**
+ * Request-path migration guard.
+ *
+ * Schema migrations MUST NOT run from an HTTP request on serverless runtimes.
+ * Production schema changes are applied during deployment/startup via
+ * runMigrationsOnStartup(). Keeping this function as a compatibility no-op
+ * lets existing handlers be migrated incrementally without reintroducing a
+ * database migration into every cold-start/request path.
+ */
+export async function ensureMigrated(): Promise<void> {
+  return;
 }
