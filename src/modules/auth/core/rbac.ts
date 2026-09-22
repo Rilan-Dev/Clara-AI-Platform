@@ -33,7 +33,65 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
   const user = await getUserById(session.userId);
   if (!user) throw NextResponse.json({ error: "User not found" }, { status: 401 });
   if (user.status !== "active") throw NextResponse.json({ error: "Account is suspended" }, { status: 403 });
+  await enforceOnboardingMutationGate(request, user.id, user.isSuperAdmin);
   return { user, session };
+}
+
+const ONBOARDING_MUTATION_ALLOWLIST = [
+  "/api/auth/",
+  "/api/subscriptions/",
+  "/api/webhooks/",
+  "/api/cron/",
+  "/api/health",
+] as const;
+
+function isOnboardingAllowedMutation(pathname: string): boolean {
+  return ONBOARDING_MUTATION_ALLOWLIST.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+}
+
+/**
+ * Fail closed for incomplete paid onboarding. This runs at the authentication
+ * boundary so feature mutation routes cannot accidentally bypass the gate.
+ * Billing/auth/recovery endpoints stay available so the user can complete
+ * onboarding. Existing organizations with at least one active subscription
+ * are not blocked globally; org-specific APIs still enforce membership.
+ */
+async function enforceOnboardingMutationGate(request: Request, userId: string, isSuperAdmin: boolean): Promise<void> {
+  if (isSuperAdmin || !["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) return;
+
+  const pathname = new URL(request.url).pathname;
+  if (isOnboardingAllowedMutation(pathname)) return;
+
+  const row = await queryOne<{ has_active_org: boolean; has_incomplete_org: boolean }>(
+    `SELECT
+       EXISTS (
+         SELECT 1
+           FROM org_members om
+           JOIN org_subscriptions os ON os.org_id = om.org_id
+          WHERE om.user_id = $1 AND os.status IN ('active','trialing')
+       ) AS has_active_org,
+       EXISTS (
+         SELECT 1
+           FROM org_members om
+           JOIN org_subscriptions os ON os.org_id = om.org_id
+           JOIN subscription_plans sp ON sp.id = os.plan_id
+          WHERE om.user_id = $1
+            AND sp.price_usd > 0
+            AND os.status IN ('pending_email','payment_required','payment_pending','payment_failed','payment_cancelled','payment_review','past_due')
+       ) AS has_incomplete_org`,
+    [userId],
+  );
+
+  if (!row?.has_active_org && row?.has_incomplete_org) {
+    throw NextResponse.json(
+      {
+        error: "Complete email verification and payment before using Clara AI.",
+        code: "ONBOARDING_INCOMPLETE",
+        status: 402,
+      },
+      { status: 402 },
+    );
+  }
 }
 
 export async function getAuthContext(request: Request): Promise<AuthContext | null> {
