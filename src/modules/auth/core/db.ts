@@ -205,6 +205,45 @@ export async function getSessionByTokenHash(tokenHash: string): Promise<Session 
   return row ? toSession(row) : null;
 }
 
+/**
+ * Session + user in ONE round trip (used on every authenticated request).
+ * Replaces the getSessionByTokenHash → getUserById pair, which cost two
+ * sequential round trips on every API call and dominated per-request latency
+ * when the database is remote (Vercel bom1 → Supabase).
+ */
+export async function getSessionWithUserByTokenHash(
+  tokenHash: string
+): Promise<{ session: Session; user: User } | null> {
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT s.id, s.user_id, s.expires_at, s.ip_address, s.user_agent, s.created_at,
+            u.id AS u_id, u.email AS u_email, u.full_name AS u_full_name,
+            u.avatar_url AS u_avatar_url, u.status AS u_status,
+            u.email_verified AS u_email_verified, u.is_super_admin AS u_is_super_admin,
+            u.last_login_at AS u_last_login_at, u.created_at AS u_created_at,
+            u.updated_at AS u_updated_at
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+      WHERE s.token_hash = $1 AND s.expires_at > now()`,
+    [tokenHash]
+  );
+  if (!row) return null;
+  return {
+    session: toSession(row),
+    user: toUser({
+      id: row.u_id,
+      email: row.u_email,
+      full_name: row.u_full_name,
+      avatar_url: row.u_avatar_url,
+      status: row.u_status,
+      email_verified: row.u_email_verified,
+      is_super_admin: row.u_is_super_admin,
+      last_login_at: row.u_last_login_at,
+      created_at: row.u_created_at,
+      updated_at: row.u_updated_at,
+    }),
+  };
+}
+
 export async function deleteSession(id: string): Promise<void> {
   await execute("DELETE FROM sessions WHERE id = $1", [id]);
 }
@@ -355,6 +394,92 @@ export async function getOrgIdForAgent(agentId: string): Promise<string | null> 
     [agentId]
   );
   return row?.org_id ?? null;
+}
+
+// ── Combined access-context lookups (single round trip) ──────────────────────
+
+/**
+ * One-query tenant access context: resolves the org that owns a KB/agent,
+ * the caller's membership, and the role's full permission set in a single
+ * round trip. Replaces the getOrgIdForKb → getOrgMembership →
+ * getPermissionsForRole chain (3 sequential round trips on every
+ * permission-checked request).
+ *
+ * Semantics preserved exactly:
+ *   rows.length === 0        → entity not found (caller maps to 404)
+ *   member_id IS NULL        → caller is not a member (caller maps to 403)
+ *   member_id present        → membership + permission set usable
+ */
+async function getEntityAccessContext(
+  entityFrom: string,
+  orgJoin: string,
+  entityId: string,
+  userId: string
+): Promise<{ orgId: string; membership: OrgMember | null; permissions: Set<PermissionKey> }[]> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT o.id AS org_id,
+            om.id AS member_id, om.org_id AS member_org_id, om.user_id AS member_user_id,
+            om.role_id, om.invited_by, om.joined_at, r.name AS role_name,
+            COALESCE(array_agg(p.resource || ':' || p.action ORDER BY p.resource, p.action)
+                     FILTER (WHERE p.id IS NOT NULL), ARRAY[]::text[]) AS permission_keys
+       FROM ${entityFrom}
+       JOIN organisations o ON ${orgJoin}
+       LEFT JOIN org_members om ON om.org_id = o.id AND om.user_id = $2
+       LEFT JOIN roles r ON r.id = om.role_id
+       LEFT JOIN role_permissions rp ON rp.role_id = om.role_id
+       LEFT JOIN permissions p ON p.id = rp.permission_id
+      WHERE e.id = $1
+      GROUP BY o.id, om.id, r.name`,
+    [entityId, userId]
+  );
+  return rows.map((row) => ({
+    orgId: String(row.org_id),
+    membership: row.member_id != null
+      ? toOrgMember({
+          id: row.member_id,
+          org_id: row.member_org_id,
+          user_id: row.member_user_id,
+          role_id: row.role_id,
+          role_name: row.role_name,
+          invited_by: row.invited_by,
+          joined_at: row.joined_at,
+        })
+      : null,
+    permissions: new Set(
+      (row.permission_keys as string[] | null ?? []).map(
+        (k) => k as PermissionKey
+      )
+    ),
+  }));
+}
+
+/** KB-scoped access context (kb → agent → org traversal in the same query). */
+export async function getKbAccessContext(
+  kbId: string,
+  userId: string
+): Promise<{ orgId: string; membership: OrgMember | null; permissions: Set<PermissionKey> }[]> {
+  return getEntityAccessContext(
+    "knowledge_bases e JOIN agents a ON a.id = e.agent_id",
+    "o.id = a.org_id",
+    kbId,
+    userId
+  );
+}
+
+/** Agent-scoped access context (agents.org_id direct). */
+export async function getAgentAccessContext(
+  agentId: string,
+  userId: string
+): Promise<{ orgId: string; membership: OrgMember | null; permissions: Set<PermissionKey> }[]> {
+  return getEntityAccessContext("agents e", "o.id = e.org_id", agentId, userId);
+}
+
+/** Org-scoped access context (no traversal). */
+export async function getOrgAccessContext(
+  orgId: string,
+  userId: string
+): Promise<{ orgId: string; membership: OrgMember | null; permissions: Set<PermissionKey> }[]> {
+  return getEntityAccessContext("organisations e", "o.id = e.id", orgId, userId);
 }
 
 // ── Audit logs ────────────────────────────────────────────────────────────────

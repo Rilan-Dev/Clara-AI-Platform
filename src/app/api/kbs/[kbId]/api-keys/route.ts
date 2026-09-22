@@ -5,25 +5,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import {
+  requireAuth,
+  requireKbPermission,
+} from "@/modules/auth/core/rbac";
+import {
   listApiKeys,
   createApiKey,
   getAllKeysUsageStats,
 } from "@/modules/embed/core/api-keys-db";
 import { checkApiKeyQuota } from "@/modules/embed/core/subscription-guard";
-import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 
 type Props = { params: Promise<{ kbId: string }> };
 
-export async function GET(_req: NextRequest, { params }: Props): Promise<NextResponse> {
+export async function GET(req: NextRequest, { params }: Props): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const { kbId } = await params;
 
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) return NextResponse.json({ error: "KB not found" }, { status: 404 });
-
-    const orgId = await getOrgIdForKb(kbId);
-    if (!orgId) return NextResponse.json({ error: "Organisation not found for KB" }, { status: 404 });
+    // SECURITY: this endpoint previously had NO authentication or permission
+    // check — any request carrying any cookie could list another tenant's API
+    // keys. The permission query also resolves orgId and 404s unknown KBs in
+    // the same round trip, replacing two extra sequential lookups.
+    const auth = await requireAuth(req);
+    const { orgId } = await requireKbPermission(auth, kbId, "kb:read");
 
     const [keys, usageStats, quota] = await Promise.all([
       listApiKeys(kbId),
@@ -58,11 +62,10 @@ export async function POST(req: NextRequest, { params }: Props): Promise<NextRes
     await ensureMigrated();
     const { kbId } = await params;
 
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) return NextResponse.json({ error: "KB not found" }, { status: 404 });
-
-    const orgId = await getOrgIdForKb(kbId);
-    if (!orgId) return NextResponse.json({ error: "Organisation not found for KB" }, { status: 404 });
+    // SECURITY: same missing auth/permission fix as GET (kb:update gates
+    // key creation). orgId comes from the permission context.
+    const auth = await requireAuth(req);
+    const { orgId } = await requireKbPermission(auth, kbId, "kb:update");
 
     // ── Subscription enforcement ──────────────────────────────────────────────
     const quota = await checkApiKeyQuota(orgId);
@@ -123,16 +126,4 @@ export async function POST(req: NextRequest, { params }: Props): Promise<NextRes
     console.error("[api-keys] POST:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
-}
-
-async function getOrgIdForKb(kbId: string): Promise<string | null> {
-  const { pool } = await import("@/lib/db");
-  const result = await pool.query<{ org_id: string }>(
-    `SELECT p.org_id
-     FROM knowledge_bases kb
-     JOIN agents p ON p.id = kb.agent_id
-     WHERE kb.id = $1`,
-    [kbId]
-  );
-  return result.rows[0]?.org_id ?? null;
 }
