@@ -482,12 +482,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        {!isAdmin && primaryOrgId && (
-          <OrganizationStatusBanner orgId={primaryOrgId} />
-        )}
-
-        {/* Bottom safe area for the tab bar */
+        {/* Bottom safe area for the tab bar */}
         <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-0">
+          {!isAdmin && primaryOrgId && (
+            <OrganizationStatusBanner orgId={primaryOrgId} />
+          )}
           {children}
         </main>
       </div>
