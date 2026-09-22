@@ -313,8 +313,13 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // Sarvam publishes no embeddings API. When the brain is Sarvam, embedding
   // work runs on the platform backbone; Qdrant collections stay byte-identical
   // (dimensions are pinned to the backbone — 1536/3072/768 — unchanged).
+  // Embeddings are a dedicated platform setting. This prevents document
+  // ingestion from accidentally inheriting a chat/realtime provider that has
+  // no embedding API (for example Sarvam). The legacy env fallback is used
+  // only if the migration has no row yet.
   const embeddingProvider: AIProvider =
-    provider === "sarvam" ? parseSarvamEmbeddingFallbackProvider() : provider;
+    registry.embeddingDefault?.providerId ??
+    (provider === "sarvam" ? parseSarvamEmbeddingFallbackProvider() : provider);
 
   // Platform default chat model (when it belongs to the resolved provider).
   const platformDefaultChatModel =
@@ -325,7 +330,9 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // embedding model (catalogued under the chat capability) is consulted before
   // the env var so the platform catalogue governs when env is unset.
   const defaultEmbedding =
-    registryDefaultModel(embeddingProvider, "chat", "embedding") ?? defaults.models[embeddingProvider].embedding;
+    registry.embeddingDefault?.modelId ??
+    registryDefaultModel(embeddingProvider, "chat", "embedding") ??
+    defaults.models[embeddingProvider].embedding;
   const defaultRealtime =
     registryDefaultModel(provider, "realtime_voice", "realtime") ?? defaults.models[provider].realtime;
   const defaultTranscription =
@@ -580,10 +587,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     flags,
     sources: {
       provider: providerSource,
-      embeddingProvider:
-        provider === "sarvam"
-          ? "env" // the split comes from SARVAM_EMBEDDING_FALLBACK_PROVIDER
-          : providerSource,
+      embeddingProvider: registry.embeddingDefault ? "platform" : providerSource,
       chatModel:
         effectiveKbOverrides?.chatModel != null
           ? "kb_override"

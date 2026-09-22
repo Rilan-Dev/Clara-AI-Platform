@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { query, queryOne, execute } from "@/lib/db";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
 import { syncLiveProviderCatalog } from "./live-catalog";
+import { ensureMigrated } from "@/lib/db/migrate";
 import type {
   AICapability,
   AIModelKind,
@@ -86,10 +87,14 @@ function toModelRow(row: Row): ProviderModelRow {
 
 /** Read the full platform provider registry (providers, capabilities, credential slots, health, model counts, defaults). */
 export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
+  // Runtime settings are DB-backed in production. Load them before resolving
+  // configured state so Vercel functions do not mistake a saved API key for a
+  // missing credential simply because the instance started without env values.
+  await ensureMigrated();
   const hit = registryCache;
   if (hit && hit.expiresAt > Date.now()) return hit.value;
 
-  const [providerRows, capabilityRows, credentialRows, healthRows, modelCountRows, defaultRows, defaultModelRows] =
+  const [providerRows, capabilityRows, credentialRows, healthRows, modelCountRows, defaultRows, defaultModelRows, embeddingDefaultRows] =
     await Promise.all([
       query<Row>("SELECT * FROM platform_ai_providers ORDER BY display_name"),
       query<Row>("SELECT provider_id, capability, supported FROM platform_ai_provider_capabilities"),
@@ -113,6 +118,12 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
         `SELECT provider_id, capability, kind, model_id
            FROM platform_ai_provider_models
           WHERE enabled AND is_default`,
+      ),
+      query<Row>(
+        `SELECT provider_id, model_id, updated_at
+           FROM platform_ai_embedding_defaults
+          WHERE id = TRUE
+          LIMIT 1`,
       ),
     ]);
 
@@ -166,8 +177,17 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
     };
   });
 
+  const embeddingDefault = embeddingDefaultRows[0]
+    ? {
+        providerId: String(embeddingDefaultRows[0].provider_id) as GovernanceProviderId,
+        modelId: String(embeddingDefaultRows[0].model_id),
+        updatedAt: embeddingDefaultRows[0].updated_at == null ? null : String(embeddingDefaultRows[0].updated_at),
+      }
+    : null;
+
   const registry: PlatformAIRegistry = {
     providers,
+    embeddingDefault,
     defaults: defaultRows.map((d) => ({
       capability: String(d.capability) as AICapability,
       providerId: d.provider_id == null ? null : String(d.provider_id),
@@ -279,16 +299,19 @@ export async function updateProviderCredential(
     const trimmed = input.apiKey.trim();
     if (trimmed) {
       await setPlatformEnvSetting(envKey, trimmed, updatedBy);
+      process.env[envKey] = trimmed;
       maskedHint = maskSecret(trimmed);
     } else {
       // Empty value = clear the credential.
       await setPlatformEnvSetting(envKey, "", updatedBy);
+      delete process.env[envKey];
       maskedHint = null;
     }
   }
   if (baseUrlEnvKey && input.baseUrl !== undefined && input.baseUrl !== null) {
     const trimmed = input.baseUrl.trim();
     await setPlatformEnvSetting(baseUrlEnvKey, trimmed, updatedBy);
+    process.env[baseUrlEnvKey] = trimmed;
   }
 
   const effectiveSecret = process.env[envKey]?.trim() ?? "";
@@ -356,6 +379,29 @@ export async function setModelDefault(
 }
 
 /** Set the platform default provider (+ optional model) for a capability. */
+export async function setEmbeddingDefault(
+  providerId: "openai" | "gemini",
+  modelId: string,
+  updatedBy: string | null,
+): Promise<void> {
+  const model = await queryOne<Row>(
+    `SELECT id FROM platform_ai_provider_models
+      WHERE provider_id = $1 AND capability = 'chat' AND kind = 'embedding'
+        AND model_id = $2 AND enabled = TRUE`,
+    [providerId, modelId],
+  );
+  if (!model) throw new Error("Embedding model is not available or enabled for this provider.");
+
+  await execute(
+    `INSERT INTO platform_ai_embedding_defaults (id, provider_id, model_id, updated_by, updated_at)
+     VALUES (TRUE, $1, $2, $3, now())
+     ON CONFLICT (id) DO UPDATE
+       SET provider_id = $1, model_id = $2, updated_by = $3, updated_at = now()`,
+    [providerId, modelId, updatedBy],
+  );
+  invalidateProviderRegistryCache();
+}
+
 export async function setCapabilityDefault(
   capability: AICapability,
   providerId: string | null,
