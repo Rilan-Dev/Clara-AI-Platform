@@ -24,10 +24,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!membership && !auth.user.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const row = await queryOne<{
-      plan_id: string; plan_name: string; status: string; payment_status: string;
+      plan_id: string; plan_name: string; status: string; payment_status: string; plan_enabled: boolean; plan_price_usd: number;
       payment_verified_at: string | null; activation_review_reason: string | null;
     }>(
-      `SELECT os.plan_id, sp.name AS plan_name, os.status, os.payment_status,
+      `SELECT os.plan_id, sp.name AS plan_name, os.status, os.payment_status, sp.enabled AS plan_enabled, sp.price_usd AS plan_price_usd,
               os.payment_verified_at::text AS payment_verified_at,
               os.activation_review_reason
          FROM org_subscriptions os
@@ -40,6 +40,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       emailVerified: auth.user.emailVerified,
       orgId,
       onboarding: row ?? null,
+      featureAccess: Boolean(
+      row &&
+      (
+        row.plan_price_usd <= 0 ||
+        row.payment_status === "paid" ||
+        (row.status === "trialing" && row.plan_price_usd > 0)
+      ) &&
+      (row.status === "active" || row.status === "trialing")
+    ),
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;

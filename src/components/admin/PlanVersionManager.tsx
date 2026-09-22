@@ -25,6 +25,7 @@ type Plan = {
   published_version_id?: string;
   published_version?: number;
   version_count?: number;
+  enabled: boolean;
 };
 
 type Draft = {
@@ -107,6 +108,25 @@ export function PlanVersionManager() {
     }
   }
 
+  async function toggleAvailability(plan: Plan) {
+    setSaving(true); setError(null); setMessage(null);
+    try {
+      const res = await fetch(apiUrl("/api/platform/subscription-plans"), {
+        method: "PATCH",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ planId: plan.id, action: plan.enabled ? "disable" : "enable" }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to update plan availability");
+      setMessage(`${plan.name} is now ${data.enabled ? "available" : "disabled"} for new subscriptions.`);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function publish(plan: Plan) {
     if (!plan.published_version_id) return;
     setSaving(true); setError(null); setMessage(null);
@@ -144,13 +164,21 @@ export function PlanVersionManager() {
                   <p className="font-medium text-foreground">{plan.name}</p>
                   <p className="text-xs text-muted-foreground/70 mt-1">{plan.price_usd < 0 ? "Custom" : `$${plan.price_usd}/mo`} · published v{plan.published_version ?? 1}</p>
                 </div>
-                <span className="text-[10px] text-muted-foreground/70">{plan.version_count ?? 1} versions</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${plan.enabled ? "text-emerald-600 border-emerald-500/20 bg-emerald-500/10" : "text-muted-foreground border-border bg-muted"}`}>
+                    {plan.enabled ? "Available" : "Disabled"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/70">{plan.version_count ?? 1} versions</span>
+                </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <span>{plan.max_kbs === -1 ? "Unlimited" : plan.max_kbs} KBs</span>
                 <span>{plan.max_req_day === -1 ? "Unlimited" : plan.max_req_day.toLocaleString()} req/day</span>
               </div>
               <div className="mt-4 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => void toggleAvailability(plan)} disabled={saving}>
+                  {plan.enabled ? "Disable" : "Enable"}
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => startEdit(plan)} disabled={saving}>
                   <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit draft
                 </Button>

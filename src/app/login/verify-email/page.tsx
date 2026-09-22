@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Brain, MailCheck, ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react";
+import { Brain, ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react";
 
 function VerifyEmailForm() {
   const searchParams = useSearchParams();
@@ -33,8 +33,8 @@ function VerifyEmailForm() {
         setEmail(data.email ?? "");
         setMessage(
           data.alreadyVerified
-            ? "This email was already confirmed — nothing more to do."
-            : "Your email has been confirmed and your account is fully activated. We've sent a welcome email to your inbox."
+            ? "This email was already confirmed."
+            : "Your email has been confirmed successfully."
         );
       } catch (err) {
         if (cancelled) return;
@@ -99,32 +99,24 @@ function VerifyEmailForm() {
         <ShieldCheck className="w-6 h-6 text-emerald-600" />
       </div>
       <p className="text-foreground font-medium">Email verified 🎉</p>
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-sm text-muted-foreground">
+        Your email has been verified. Go back to the Clara AI registration window to continue.
+        You don't need to navigate anywhere from this email verification page.
+      </p>
       {email && (
         <p className="text-xs text-muted-foreground/70 break-all">{email}</p>
       )}
-      <div className="flex flex-col gap-2 pt-2">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 transition-all"
-        >
-          <MailCheck className="w-4 h-4" /> Continue to my workspace
-        </Link>
-        <Link
-          href="/login"
-          className="text-xs text-muted-foreground/70 hover:text-foreground/80 transition-colors py-1"
-        >
-          Back to sign in
-        </Link>
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
+        <p className="text-xs font-semibold text-foreground">Continue your registration</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Return to the registration tab or window you were using. Once verification is detected,
+          Clara will continue the signup flow and take you to checkout for your selected paid plan.
+        </p>
       </div>
     </div>
   );
 }
 
-/**
- * /login/verify-email?token=… — confirms an email address from the
- * verification link mailed right after registration.
- */
 export default function VerifyEmailPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">

@@ -58,9 +58,20 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
       if (!orgName.trim() || orgName.trim().length < 2)
         return NextResponse.json({ error: "Organisation name must be at least 2 characters" }, { status: 400 });
 
-      const resolvedPlanId = (planId && ["free","starter","pro"].includes(planId)) ? planId : "free";
-      const plan = await queryOne("SELECT id FROM subscription_plans WHERE id = $1", [resolvedPlanId]);
+      const requestedPlanId = typeof planId === "string" && planId.trim() ? planId.trim().toLowerCase() : "starter";
+      const allowedPlanIds = ["free", "starter", "pro", "enterprise"];
+      if (!allowedPlanIds.includes(requestedPlanId)) {
+        return NextResponse.json({ error: "Invalid plan selected" }, { status: 400 });
+      }
+      const plan = await queryOne<{ id: string; enabled: boolean }>(
+        "SELECT id, enabled FROM subscription_plans WHERE id = $1",
+        [requestedPlanId],
+      );
       if (!plan) return NextResponse.json({ error: "Invalid plan selected" }, { status: 400 });
+      if (!plan.enabled) {
+        return NextResponse.json({ error: "This subscription plan is not currently available." }, { status: 409 });
+      }
+      const resolvedPlanId = requestedPlanId;
 
       const result = await withTransaction(async (client) => {
         // 1. User

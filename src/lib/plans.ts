@@ -15,7 +15,7 @@
 export const PLAN_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
 
 /** Plans a self-serve org user can move between without contacting sales. */
-export const SELF_SERVE_PLAN_IDS = ["free", "starter", "pro"] as const;
+export const SELF_SERVE_PLAN_IDS = ["starter", "pro"] as const;
 export type SelfServePlanId = (typeof SELF_SERVE_PLAN_IDS)[number];
 
 export function isSelfServePlan(planId: string): planId is SelfServePlanId {

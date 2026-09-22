@@ -21,6 +21,8 @@ type PlanInput = {
   analyticsLevel?: "basic" | "full" | "advanced" | "custom";
   prioritySupport?: boolean;
   features?: string[];
+  enabled?: boolean;
+  action?: "enable" | "disable";
 };
 
 async function requirePlatformAdmin(req: NextRequest) {
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     await ensureMigrated();
     await requirePlatformAdmin(req);
     const plans = await query(`
-      SELECT sp.id, COALESCE(pv.name, sp.name) AS name,
+      SELECT sp.id, sp.enabled, COALESCE(pv.name, sp.name) AS name,
              COALESCE(pv.description, sp.description) AS description,
              COALESCE(pv.price_usd, sp.price_usd) AS price_usd,
              COALESCE(pv.max_kbs, sp.max_kbs) AS max_kbs,
@@ -114,7 +116,20 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
     await requirePlatformAdmin(req);
-    const body = await req.json() as { versionId?: string; action?: "publish" | "archive" };
+    const body = await req.json() as { versionId?: string; action?: "publish" | "archive" | "enable" | "disable"; planId?: string };
+    if (body.action === "enable" || body.action === "disable") {
+      if (!body.planId) return NextResponse.json({ error: "planId is required" }, { status: 400 });
+      if (!["free", "starter", "pro", "enterprise"].includes(body.planId)) {
+        return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+      }
+      const result = await query<{ id: string }>(
+        "UPDATE subscription_plans SET enabled = $1 WHERE id = $2 RETURNING id",
+        [body.action === "enable", body.planId],
+      );
+      if (!result[0]) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+      return NextResponse.json({ ok: true, planId: body.planId, enabled: body.action === "enable" });
+    }
+
     if (!body.versionId || !body.action) {
       return NextResponse.json({ error: "versionId and action are required" }, { status: 400 });
     }
