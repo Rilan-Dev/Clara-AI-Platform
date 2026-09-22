@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,16 +10,19 @@ import {
   Brain,
   Building2,
   Check,
+  CheckCircle2,
   Eye,
   EyeOff,
+  Mail,
+  RefreshCw,
   User,
   Zap,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/client-auth";
-import { apiUrl } from "@/lib/runtime";
+import { apiFetchJson, apiUrl } from "@/lib/runtime";
 
-type Step = "plan" | "account" | "org" | "review";
+type Step = "plan" | "account" | "org" | "review" | "verify";
 
 type FormState = {
   planId: "free" | "starter" | "pro";
@@ -41,8 +44,8 @@ type PlanMeta = {
   features: string[];
 };
 
-const STEPS: Step[] = ["plan", "account", "org", "review"];
-const STEP_LABELS = ["Plan", "Account", "Workspace", "Review"];
+const STEPS: Step[] = ["plan", "account", "org", "review", "verify"];
+const STEP_LABELS = ["Plan", "Account", "Workspace", "Review", "Verify"];
 
 const PLAN_META: PlanMeta[] = [
   {
@@ -111,6 +114,16 @@ export default function SignupScreen() {
   const [showCpw, setShowCpw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // In-wizard email verification (final "Verify" step). The register call
+  // leaves an authenticated session (token + cookie), so /api/auth/me can
+  // be polled for emailVerified while the user clicks the emailed link in
+  // their inbox (usually another tab).
+  const [orgId, setOrgId] = useState("");
+  const [verified, setVerified] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendError, setResendError] = useState("");
 
   const stepIndex = STEPS.indexOf(step);
   const selectedPlan = PLAN_META.find((plan) => plan.id === form.planId) ?? PLAN_META[2]!;
@@ -208,15 +221,85 @@ export default function SignupScreen() {
         setStoredToken(data.token);
       }
 
-      if (form.planId !== "free" && data.org?.id) {
-        router.push(`/checkout?plan=${form.planId}&orgId=${data.org.id}`);
-      } else {
-        router.push(`/signup/verify?email=${encodeURIComponent(form.email)}&plan=${form.planId}`);
-      }
+      setOrgId(data.org?.id ?? "");
+      // Stay inside the wizard: registration has already fired the
+      // verification email (fire-and-forget, server-side); the final
+      // "Verify" step watches for the link click and then routes on.
+      setStep("verify");
     } catch (err: unknown) {
       setError((err as Error).message ?? "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Verify step: watch for the emailed link being clicked ────────────────
+  useEffect(() => {
+    if (step !== "verify" || verified) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const data = await apiFetchJson<{ user?: { emailVerified?: boolean } }>("/api/auth/me", {
+          cache: "no-store",
+        });
+        if (!cancelled && data?.user?.emailVerified) setVerified(true);
+      } catch {
+        // Transient poll failure — the next tick retries.
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [step, verified]);
+
+  // Verified → show the success state briefly, then continue automatically.
+  useEffect(() => {
+    if (step !== "verify" || !verified) return;
+    const timer = setTimeout(() => {
+      if (form.planId !== "free" && orgId) {
+        router.push(`/checkout?plan=${form.planId}&orgId=${orgId}`);
+      } else if (form.planId !== "free") {
+        router.push(`/checkout?plan=${form.planId}`);
+      } else {
+        router.push("/dashboard");
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [step, verified, form.planId, orgId, router]);
+
+  function continueAfterVerify() {
+    if (form.planId !== "free" && orgId) {
+      router.push(`/checkout?plan=${form.planId}&orgId=${orgId}`);
+    } else if (form.planId !== "free") {
+      router.push(`/checkout?plan=${form.planId}`);
+    } else {
+      router.push("/dashboard");
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    setResendError("");
+    try {
+      // Always 200 (never leaks account existence); rate limited 3 / 10 min.
+      const res = await fetch(apiUrl("/api/auth/resend-verification"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email.trim() }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not resend the email. Please try again shortly.");
+      setResent(true);
+      setTimeout(() => setResent(false), 6000);
+    } catch (err: unknown) {
+      setResendError((err as Error).message);
+    } finally {
+      setResending(false);
     }
   }
 
@@ -502,7 +585,7 @@ export default function SignupScreen() {
               <p className="text-muted-foreground text-sm mb-5">
                 {form.planId === "free"
                   ? "Everything look right? Click create to get started."
-                  : "Everything look right? You'll choose your payment method next to activate your plan."}
+                  : "Everything look right? After verifying your email you'll choose your payment method."}
               </p>
               <div className="space-y-3">
                 {[
@@ -539,8 +622,100 @@ export default function SignupScreen() {
             </div>
           )}
 
+          {step === "verify" && (
+            <div>
+              <div className="flex flex-col items-center text-center mb-5">
+                <div
+                  className={`w-14 h-14 rounded-2xl border flex items-center justify-center mb-4 transition-colors ${
+                    verified
+                      ? "bg-emerald-500/15 border-emerald-500/30"
+                      : "bg-primary/10 border-primary/20"
+                  }`}
+                >
+                  {verified ? (
+                    <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                  ) : (
+                    <Mail className="w-7 h-7 text-primary" />
+                  )}
+                </div>
+                <h2 className="text-lg font-bold text-foreground mb-1">
+                  {verified ? "Email verified" : "Verify your email"}
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {verified ? (
+                    "Your account is fully activated. Redirecting you now…"
+                  ) : (
+                    <>
+                      We sent a verification link to{" "}
+                      <span className="text-primary font-semibold break-all">{form.email}</span>. Click it
+                      in your inbox to activate your account.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {verified ? (
+                <div className="flex items-center gap-2 bg-emerald-500/[0.06] border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-sm rounded-xl px-4 py-3">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>
+                    Welcome aboard — your {selectedPlan.name} plan{" "}
+                    {form.planId === "free" ? "is active." : "is ready to activate."}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="border border-border/70 bg-surface rounded-xl p-4 space-y-2.5 mb-4">
+                    {[
+                      "Open the email from Clara AI (check your spam folder too)",
+                      "Click the verification link — it's valid for 24 hours",
+                      "This screen updates automatically once you're verified",
+                    ].map((text, index) => (
+                      <div key={text} className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          {index + 1}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{text}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/80 border border-dashed border-border rounded-xl px-4 py-3 mb-4">
+                    <span className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    Waiting for verification…
+                  </div>
+
+                  <div className="text-center mb-2">
+                    {resent ? (
+                      <p className="text-xs text-emerald-600 flex items-center justify-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Verification email resent — check your inbox.
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resending}
+                        className="text-xs text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {resending ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending…
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5" /> Resend verification email
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {resendError && <p className="text-xs text-destructive mt-1.5">{resendError}</p>}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center gap-3 mt-6">
-            {step !== "plan" && (
+            {step !== "plan" && step !== "verify" && (
               <button
                 type="button"
                 onClick={back}
@@ -550,7 +725,26 @@ export default function SignupScreen() {
               </button>
             )}
             <div className="flex-1" />
-            {step !== "review" ? (
+            {step === "verify" ? (
+              verified ? (
+                <button
+                  type="button"
+                  onClick={continueAfterVerify}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2.5 rounded-xl text-sm transition-all"
+                >
+                  {form.planId === "free" ? "Continue to dashboard" : "Continue to payment"}{" "}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={continueAfterVerify}
+                  className="flex items-center gap-2 border border-border hover:border-primary/50 hover:text-primary text-muted-foreground font-medium px-6 py-2.5 rounded-xl text-sm transition-all"
+                >
+                  Skip for now <ArrowRight className="w-4 h-4" />
+                </button>
+              )
+            ) : step !== "review" ? (
               <button
                 type="button"
                 onClick={next}
@@ -567,13 +761,9 @@ export default function SignupScreen() {
               >
                 {loading ? (
                   "Creating account..."
-                ) : form.planId === "free" ? (
-                  <>
-                    <Check className="w-4 h-4" /> Create account
-                  </>
                 ) : (
                   <>
-                    <ArrowRight className="w-4 h-4" /> Continue to payment
+                    <Check className="w-4 h-4" /> Create account
                   </>
                 )}
               </button>
