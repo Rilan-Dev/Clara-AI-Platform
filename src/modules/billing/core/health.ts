@@ -83,7 +83,7 @@ export async function checkStripeGateway(): Promise<PaymentGatewayHealth> {
           ? "Stripe webhook delivery is not configured for this application; paid activation cannot be completed safely."
           : "Stripe webhook verification is unavailable; paid activation cannot be completed safely.",
         mode,
-        webhookConfigured: false,
+        webhookConfigured,
         webhookEndpointConfigured,
         priceChecks,
       };
