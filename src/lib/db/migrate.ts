@@ -3,6 +3,7 @@ import path from "path";
 import { pool } from "@/lib/db";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
+const MIGRATION_LOCK_KEY = "clara-schema-migrations";
 
 let migrated = false;
 
@@ -16,42 +17,56 @@ async function appliedMigrations(): Promise<Set<string>> {
 }
 
 async function runMigrations(): Promise<void> {
-  await createMigrationsTable();
-  const applied = await appliedMigrations();
+  // Vercel can start multiple serverless instances at the same time. Without a
+  // database-level lock, two instances can both observe a missing migration
+  // and execute CREATE TABLE concurrently, producing duplicate pg_type errors.
+  const lockClient = await pool.connect();
+  try {
+    await lockClient.query("SELECT pg_advisory_lock(hashtext($1))", [MIGRATION_LOCK_KEY]);
 
-  const files = fs.readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+    await createMigrationsTable();
+    const applied = await appliedMigrations();
 
-  // Guard: each migration file number must be unique — the baseline is
-  // strictly sequential, duplicates would indicate an accidental re-add.
-  const numbers = files.map((f) => f.split("_")[0]);
-  const dupes = numbers.filter((n, i) => numbers.indexOf(n) !== i);
-  if (dupes.length > 0) {
-    throw new Error(`[migrate] duplicate migration numbers detected: ${dupes.join(", ")}`);
-  }
+    const files = fs.readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
 
-  let appliedCount = 0;
-  for (const filename of files) {
-    if (applied.has(filename)) continue;
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), "utf-8");
-    const client = await pool.connect();
+    // Guard: each migration file number must be unique — the baseline is
+    // strictly sequential, duplicates would indicate an accidental re-add.
+    const numbers = files.map((f) => f.split("_")[0]);
+    const dupes = numbers.filter((n, i) => numbers.indexOf(n) !== i);
+    if (dupes.length > 0) {
+      throw new Error(`[migrate] duplicate migration numbers detected: ${dupes.join(", ")}`);
+    }
+
+    let appliedCount = 0;
+    for (const filename of files) {
+      if (applied.has(filename)) continue;
+      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), "utf-8");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(sql);
+        await client.query("INSERT INTO schema_migrations (filename) VALUES ($1)", [filename]);
+        await client.query("COMMIT");
+        console.log(`[migrate] applied ${filename}`);
+        appliedCount++;
+      } catch (err) {
+        await client.query("ROLLBACK");
+        console.error(`[migrate] FAILED on required schema migration ${filename}:`, err);
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+    if (appliedCount === 0) console.log("[migrate] All migrations already applied.");
+  } finally {
     try {
-      await client.query("BEGIN");
-      await client.query(sql);
-      await client.query("INSERT INTO schema_migrations (filename) VALUES ($1)", [filename]);
-      await client.query("COMMIT");
-      console.log(`[migrate] applied ${filename}`);
-      appliedCount++;
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.error(`[migrate] FAILED on required schema migration ${filename}:`, err);
-      throw err;
+      await lockClient.query("SELECT pg_advisory_unlock(hashtext($1))", [MIGRATION_LOCK_KEY]);
     } finally {
-      client.release();
+      lockClient.release();
     }
   }
-  if (appliedCount === 0) console.log("[migrate] All migrations already applied.");
 }
 
 /**
