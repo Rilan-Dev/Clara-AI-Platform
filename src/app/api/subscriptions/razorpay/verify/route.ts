@@ -41,6 +41,20 @@ type VerifyBody = {
   planId:              string;
 };
 
+
+async function fetchRazorpayOrder(orderId: string): Promise<{ id: string; amount: number; currency: string }> {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) throw new Error("Razorpay credentials are not configured");
+  const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+  const response = await fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(orderId)}`, {
+    headers: { Authorization: `Basic ${auth}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Razorpay order lookup failed: ${response.status}`);
+  return response.json() as Promise<{ id: string; amount: number; currency: string }>;
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
@@ -95,8 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Payment signature verification failed" }, { status: 400 });
     }
 
-    const razorpay = getRazorpay();
-    const order = await razorpay.orders.fetch(razorpay_order_id);
+    const order = await fetchRazorpayOrder(razorpay_order_id);
     if (order.id !== razorpay_order_id || order.currency !== "INR" || Number(order.amount) !== Number(PLAN_AMOUNTS_INR_PAISE[planId])) {
       const reason = "Razorpay order amount/currency/plan mismatch";
       await query(
