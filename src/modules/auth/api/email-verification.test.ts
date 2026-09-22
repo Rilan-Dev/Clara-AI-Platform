@@ -334,6 +334,26 @@ describe("resendVerificationHandler", () => {
 
 // ── sendVerificationEmail — admin deactivation fallback + origins ─────────────
 
+describe("sendVerificationEmail — provider delivery result", () => {
+  it("returns false when the active email provider rejects delivery", async () => {
+    sendMock.mockResolvedValueOnce({
+      sent: false,
+      provider: "resend",
+      error: "provider rejected request",
+    });
+
+    const ok = await sendVerificationEmail(
+      { id: "user-delivery", email: "delivery@acme.example", fullName: "Delivery Test" },
+      null,
+    );
+
+    expect(ok).toBe(false);
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "delivery@acme.example" }),
+    );
+  });
+});
+
 describe("sendVerificationEmail — template deactivation fallback", () => {
   it("falls back to the welcome email when email_verification is deactivated", async () => {
     renderMock
