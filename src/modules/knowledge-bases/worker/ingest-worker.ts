@@ -16,6 +16,7 @@
  *   POST /api/worker/ingest  — triggered after each upload + by external cron
  */
 
+import { ensureMigrated } from "@/lib/db/migrate";
 import { parseDocumentFromBuffer } from "@/modules/admin/core/ingest/document-loader";
 import { chunkText } from "@/modules/admin/core/ingest/chunker";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
@@ -46,6 +47,11 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
   const { documentId, kbId, id: jobId, filePayload } = job;
 
   try {
+    // Queue consumers are fresh Vercel functions and do not necessarily pass
+    // through the normal app bootstrap. Load DB-backed provider credentials and
+    // migrations before resolving the embedding provider.
+    await ensureMigrated();
+
     if (!filePayload) {
       throw new Error("Job has no file payload — cannot process");
     }
