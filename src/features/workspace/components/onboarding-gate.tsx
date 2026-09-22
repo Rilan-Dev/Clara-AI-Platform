@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowRight, MailCheck, CreditCard, ShieldAlert } from "lucide-react";
 
 type Status = {
+  orgId: string;
   emailVerified: boolean;
   onboarding: {
     plan_id: string;
@@ -77,7 +78,7 @@ export default function OnboardingGate(): JSX.Element | null {
             Verify email <ArrowRight className="w-4 h-4" />
           </Link>
         ) : (
-          <Link href={`/checkout?plan=${encodeURIComponent(onboarding.plan_id)}&orgId=${encodeURIComponent((new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")).get("orgId") ?? "")}`}
+          <Link href={`/checkout?plan=${encodeURIComponent(onboarding.plan_id)}&orgId=${encodeURIComponent(data.orgId)}`}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
             Continue payment <ArrowRight className="w-4 h-4" />
           </Link>
