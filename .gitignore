@@ -88,3 +88,9 @@ mcp-servers
 # production benchmark session WAVs (regenerable, large)
 tool-results/voice-bench/prod/*.wav
 tool-results/voice-bench/prod/debug*.json
+
+# Never track backup or versioned environment snapshots
+backups/.env*
+*.env.v1
+*.env.v2
+*.env.v3
