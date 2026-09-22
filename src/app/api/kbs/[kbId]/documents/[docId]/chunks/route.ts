@@ -1,3 +1,4 @@
+import { ensureMigrated } from "@/lib/db/migrate";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
