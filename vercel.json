@@ -95,5 +95,12 @@
       "destination": "/api/voice-realtime/speech-engine"
     }
   ],
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"Vercel-Preview\" ] || [ \"$VERCEL_GIT_COMMIT_REF\" = \"Vercel-Prod\" ]; then exit 1; else exit 0; fi"
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"Vercel-Preview\" ] || [ \"$VERCEL_GIT_COMMIT_REF\" = \"Vercel-Prod\" ]; then exit 1; else exit 0; fi",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "Vercel-Preview": true,
+      "Vercel-Prod": true
+    }
+  }
 }
