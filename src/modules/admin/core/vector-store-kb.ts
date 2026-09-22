@@ -327,7 +327,7 @@ function qdrantErrorMessage(err: unknown): string {
 }
 
 /** Ensure Qdrant can execute the documentId payload filter. */
-async function ensureDocumentIdIndex(collectionName: string): Promise<void> {
+export async function ensureDocumentIdIndex(collectionName: string): Promise<void> {
   const client = getQdrantClient();
   try {
     await client.createPayloadIndex(collectionName, {
@@ -339,8 +339,7 @@ async function ensureDocumentIdIndex(collectionName: string): Promise<void> {
     const message = qdrantErrorMessage(err).toLowerCase();
     if (!message.includes("already exists") && !message.includes("already exist")) {
       throw new Error(
-        "[qdrant] failed to ensure documentId payload index for collection="" +
-        collectionName + "": " + qdrantErrorMessage(err),
+        `[qdrant] failed to ensure documentId payload index for collection="${collectionName}": ${qdrantErrorMessage(err)}`,
       );
     }
   }
@@ -485,6 +484,7 @@ export async function deleteDocumentChunks(
 ): Promise<void> {
   const client = getQdrantClient();
   try {
+    await ensureDocumentIdIndex(collectionName);
     await client.delete(collectionName, {
       wait: true,
       filter: {
