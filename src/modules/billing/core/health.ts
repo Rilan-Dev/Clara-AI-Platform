@@ -9,6 +9,7 @@ export type PaymentGatewayHealth = {
   error?: string;
   mode?: "test" | "live";
   webhookConfigured: boolean;
+  webhookEndpointConfigured?: boolean;
   priceChecks?: Record<string, "valid" | "invalid">;
 };
 
@@ -46,6 +47,14 @@ export async function checkStripeGateway(): Promise<PaymentGatewayHealth> {
   try {
     const stripe = getStripe();
     await stripe.balance.retrieve();
+    const webhookEndpoints = await stripe.webhookEndpoints.list({ limit: 20 });
+    const webhookEndpointConfigured = webhookEndpoints.data.some((endpoint) => {
+      try {
+        return endpoint.status === "enabled" && new URL(endpoint.url).pathname.endsWith("/api/webhooks/stripe");
+      } catch {
+        return false;
+      }
+    });
 
     const priceChecks: Record<string, "valid" | "invalid"> = {};
     for (const planId of ["starter", "pro"]) {
@@ -63,14 +72,19 @@ export async function checkStripeGateway(): Promise<PaymentGatewayHealth> {
       .filter(([, status]) => status === "invalid")
       .map(([plan]) => plan);
 
-    if (!webhookConfigured) {
+    if (!webhookConfigured || !webhookEndpointConfigured) {
       return {
         status: "down",
         latencyMs: Date.now() - startedAt,
-        detail: "Stripe API is reachable, but the webhook signing secret is not configured.",
-        error: "Stripe webhook verification is unavailable; paid activation cannot be completed safely.",
+        detail: webhookConfigured
+          ? "Stripe API is reachable, but no enabled Stripe webhook endpoint for /api/webhooks/stripe was found."
+          : "Stripe API is reachable, but the webhook signing secret is not configured.",
+        error: webhookConfigured
+          ? "Stripe webhook delivery is not configured for this application; paid activation cannot be completed safely."
+          : "Stripe webhook verification is unavailable; paid activation cannot be completed safely.",
         mode,
         webhookConfigured: false,
+        webhookEndpointConfigured,
         priceChecks,
       };
     }
@@ -82,6 +96,7 @@ export async function checkStripeGateway(): Promise<PaymentGatewayHealth> {
         detail: `Stripe API is reachable, but configured price IDs are invalid: ${invalidPrices.join(", ")}.`,
         mode,
         webhookConfigured: true,
+        webhookEndpointConfigured,
         priceChecks,
       };
     }
@@ -92,6 +107,7 @@ export async function checkStripeGateway(): Promise<PaymentGatewayHealth> {
       detail: `Stripe API authenticated (${mode} mode); webhook configured.`,
       mode,
       webhookConfigured: true,
+      webhookEndpointConfigured,
       priceChecks,
     };
   } catch (error) {
