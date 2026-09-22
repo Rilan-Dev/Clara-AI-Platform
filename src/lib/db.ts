@@ -25,13 +25,16 @@ if (!DATABASE_URL) {
 
 const PG_CONFIG = {
   connectionString: DATABASE_URL,
-  // Vercel/Next.js serverless instances are short-lived and can scale horizontally.
-  // Supabase recommends a small application-side pool for serverless workloads;
-  // use the Session Pooler URL (port 5432) in DATABASE_URL for IPv4-only hosts.
-  max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? "1" : "10")),
-
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 10_000,
+  // Keep enough warm connections for concurrent API work without allowing one
+  // request to serialize the entire serverless instance. Override per plan.
+  max: process.env.VERCEL ? Math.min(2, Math.max(1, Number(process.env.PG_POOL_MAX ?? "1"))) : Math.max(1, Number(process.env.PG_POOL_MAX ?? "10")),
+  min: 0,
+  idleTimeoutMillis: 5_000,
+  connectionTimeoutMillis: 3_000,
+  query_timeout: 8_000,
+  statement_timeout: 8_000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10_000,
 } as const;
 
 // ── Singleton pattern safe for Next.js dev hot-reload ─────────────────────────
@@ -84,14 +87,23 @@ export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   const client = await pool.connect();
+  let committed = false;
+
   try {
     await client.query("BEGIN");
     const result = await fn(client);
     await client.query("COMMIT");
+    committed = true;
     return result;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
+  } catch (error) {
+    if (!committed) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("[db] transaction rollback failed:", rollbackError);
+      }
+    }
+    throw error;
   } finally {
     client.release();
   }

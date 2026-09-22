@@ -114,10 +114,22 @@ export default function CheckoutSuccessScreen() {
         ) : (
           <>
             <h1 className="text-3xl font-black text-foreground mb-2">
-              You&apos;re on <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">{planName}!</span>
+              {activationStatus === "pending_email"
+                ? <>Payment received — <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">verify your email</span></>
+                : activationStatus === "checking"
+                  ? <>Payment received for <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">{planName}</span></>
+                  : activationStatus === "active"
+                    ? <>You&apos;re on <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">{planName}!</span></>
+                    : <>Payment received — <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">activation pending</span></>}
             </h1>
             <p className="text-muted-foreground mb-2">Payment processed successfully via {GATEWAY_LABELS[gateway] ?? gateway}.</p>
-            <p className="text-muted-foreground/70 text-sm mb-8">Your plan is active now.</p>
+            <p className="text-muted-foreground/70 text-sm mb-8">
+              {activationStatus === "pending_email"
+                ? "Verify your email before your paid plan can be activated."
+                : activationStatus === "active"
+                  ? "Your plan is active now."
+                  : "Your payment has been received. We’ll finish activation once all required checks are complete."}
+            </p>
           </>
         )}
 
@@ -169,7 +181,7 @@ export default function CheckoutSuccessScreen() {
 
         {/* Verify-email reminder (paid signup funnel only — portal visits
             and returning customers are already verified) */}
-        {!isPortal && (
+        {!isPortal && activationStatus === "pending_email" && (
           <div className="border border-amber-500/25 bg-amber-500/[0.06] rounded-xl p-4 mb-6 text-left">
             <div className="flex items-start gap-3">
               <MailWarning className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -202,10 +214,22 @@ export default function CheckoutSuccessScreen() {
 
         {/* CTAs */}
         <div className="flex flex-col gap-3">
-          <Link href="/workspace"
-            className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
-            Continue to Clara AI <ArrowRight className="w-4 h-4" />
-          </Link>
+          {activationStatus === "active" ? (
+            <Link href="/workspace"
+              className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
+              Continue to Clara AI <ArrowRight className="w-4 h-4" />
+            </Link>
+          ) : activationStatus === "pending_email" ? (
+            <Link href="/login"
+              className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
+              Return to Clara AI <ArrowRight className="w-4 h-4" />
+            </Link>
+          ) : (
+            <Link href="/workspace"
+              className="inline-flex items-center justify-center gap-2 border border-border text-foreground/80 hover:text-foreground hover:border-primary/40 font-medium px-6 py-3 rounded-xl text-sm transition-all">
+              Check activation status <ArrowRight className="w-4 h-4" />
+            </Link>
+          )}
 
           {/* Stripe billing portal link */}
           {gateway === "stripe" && orgId && (

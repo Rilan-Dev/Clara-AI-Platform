@@ -52,6 +52,9 @@ async function timedTest(
     if (result.status === 401 || result.status === 403) {
       return { status: "degraded", latencyMs, errorMessage: `Authentication failed (HTTP ${result.status}).` };
     }
+    if (result.status === 429) {
+      return { status: "degraded", latencyMs, errorMessage: `${label} is reachable but rate-limited (HTTP 429).` };
+    }
     return {
       status: "down",
       latencyMs,
@@ -93,13 +96,27 @@ export async function testProviderConnection(
     case "sarvam": {
       const key = process.env.SARVAM_API_KEY?.trim();
       if (!key) return { status: "down", latencyMs: null, errorMessage: "No API key configured." };
-      const base = getSarvamBaseUrl();
-      return timedTest("Sarvam", () =>
-        fetchJson(`${base.replace(/\/$/, "")}/v1/models`, {
-          Authorization: `Bearer ${key}`,
-          "api-subscription-key": key,
-        }),
-      );
+      const base = getSarvamBaseUrl().replace(/\/$/, "");
+      // Sarvam's authenticated model-serving endpoint is the most meaningful
+      // health probe. /v1/models is not the credential validation path.
+      return timedTest("Sarvam", async () => {
+        const res = await fetch(`${base}/v1/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+            "api-subscription-key": key,
+          },
+          body: JSON.stringify({
+            model: "sarvam-105b-conversations",
+            messages: [{ role: "user", content: "ping" }],
+            max_tokens: 1,
+            temperature: 0,
+          }),
+          signal: timeoutSignal(8_000),
+        });
+        return { ok: res.ok, status: res.status, body: (await res.text()).slice(0, 500) };
+      });
     }
     case "elevenlabs": {
       const key = process.env.ELEVENLABS_API_KEY?.trim();

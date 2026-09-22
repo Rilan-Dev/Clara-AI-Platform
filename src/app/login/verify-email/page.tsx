@@ -53,10 +53,7 @@ function VerifyEmailForm() {
         <p className="text-sm text-muted-foreground mt-2 mb-4">
           This page needs a valid verification link from your email.
         </p>
-        <Link
-          href="/login"
-          className="inline-block text-sm text-primary hover:text-primary/80 transition-colors"
-        >
+        <Link href="/login" className="inline-block text-sm text-primary hover:text-primary/80 transition-colors">
           Go to sign in →
         </Link>
       </div>
@@ -100,19 +97,24 @@ function VerifyEmailForm() {
       </div>
       <p className="text-foreground font-medium">Email verified 🎉</p>
       <p className="text-sm text-muted-foreground">
-        Your email has been verified. Go back to the Clara AI registration window to continue.
-        You do not need to navigate anywhere from this email verification page.
+        Your email has been verified. If you were signing up in another tab or window, return there to continue.
+        Otherwise, go back to Clara AI and sign in.
       </p>
       {email && (
         <p className="text-xs text-muted-foreground/70 break-all">{email}</p>
       )}
       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
-        <p className="text-xs font-semibold text-foreground">Continue your registration</p>
+        <p className="text-xs font-semibold text-foreground">What to do next</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Return to the registration tab or window you were using. Once verification is detected,
-          Clara will continue the signup flow and take you to checkout for your selected paid plan.
+          Return to the Clara AI tab or window you were using. Your next step will be shown there based on your account and plan.
         </p>
       </div>
+      <Link
+        href="/login"
+        className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 transition-all"
+      >
+        Return to Clara AI
+      </Link>
     </div>
   );
 }

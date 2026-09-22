@@ -137,14 +137,14 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<EmailTemplateKey, EmailTemplateDef>
   email_verification: {
     key: "email_verification",
     name: "Email verification link",
-    description: "Sent right after registration — the link verifies the address (24 hours).",
+    description: "Sent after signup — the link verifies the address (24 hours).",
     category: "auth",
     subject: "Verify your email for {{appName}}",
     bodyHtml: ctaWrap(`
       <h2 style="margin:0 0 12px;">Confirm your email address</h2>
       <p>Hi <strong>{{userName}}</strong>,</p>
       <p>Thanks for creating your {{appName}} account. Please confirm this email address to
-         activate your account and secure your workspace.</p>
+         continue setting up your account and secure your workspace.</p>
       <p>This link is valid for <strong>24 hours</strong> and can only be used once.</p>`,
       "{{verifyUrl}}", "Verify my email"),
     variables: [VAR_USER, VAR_APP, VAR_VERIFY],

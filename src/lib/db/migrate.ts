@@ -6,9 +6,6 @@ import type { PoolClient } from "pg";
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
 const MIGRATION_LOCK_KEY = "clara-schema-migrations";
 
-let migrated = false;
-let migrationPromise: Promise<void> | null = null;
-
 async function createMigrationsTable(client: PoolClient): Promise<void> {
   await client.query(
     `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -106,23 +103,13 @@ async function loadRuntimeSettings(): Promise<void> {
 export async function runMigrationsOnStartup(): Promise<void> {
   await runMigrations();
   await loadRuntimeSettings();
-  migrated = true;
 }
 
-export async function ensureMigrated(): Promise<void> {
-  if (migrated) return;
-  if (migrationPromise) return migrationPromise;
-
-  migrationPromise = (async () => {
-    await runMigrations();
-    await loadRuntimeSettings();
-    migrated = true;
-  })().catch((error) => {
-    migrationPromise = null;
-    throw error;
-  });
-
-  return migrationPromise;
+/** Compatibility name used by the Node instrumentation bootstrap. */
+export async function loadRuntimeSettingsOnStartup(): Promise<void> {
+  // Migrations run in the deployment build. Do not acquire an advisory lock
+  // from every Vercel cold start; only load the DB-backed runtime settings.
+  await loadRuntimeSettings();
 }
 
 /**

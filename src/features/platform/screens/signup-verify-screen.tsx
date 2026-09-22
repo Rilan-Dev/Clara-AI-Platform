@@ -74,7 +74,7 @@ export default function SignupVerifyScreen() {
           {[
             { n: "1", text: "Open the email from Clara AI" },
             { n: "2", text: "Click the verification link" },
-            { n: "3", text: "You'll be signed into your new workspace automatically" },
+            { n: "3", text: planId === "free" ? "Return to your signup window to finish setup" : "Return to your signup window to continue to payment" },
           ].map(step => (
             <div key={step.n} className="flex items-center gap-3">
               <div className="w-6 h-6 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
@@ -89,7 +89,11 @@ export default function SignupVerifyScreen() {
         <div className="border border-emerald-500/20 bg-emerald-500/[0.04] rounded-xl px-4 py-3 mb-6 flex items-center gap-3">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm text-muted-foreground text-left">
-            Your <span className="text-foreground font-medium">{planName} plan</span> continues to payment after you verify. It will not activate until payment is confirmed.
+            {planId === "free" ? (
+              <>Your <span className="text-foreground font-medium">{planName} plan</span> is free. Verify your email, then return to your signup window to finish setup.</>
+            ) : (
+              <>Your <span className="text-foreground font-medium">{planName} plan</span> continues to payment after you verify. It will not activate until payment is confirmed.</>
+            )}
           </p>
         </div>
 
@@ -116,9 +120,9 @@ export default function SignupVerifyScreen() {
 
         {/* CTA — already verified / use later */}
         <div className="flex flex-col gap-2">
-          <Link href={`/workspace?onboarding=verify&plan=${encodeURIComponent(planId)}`}
+          <Link href="/login"
             className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl text-sm transition-all">
-            Continue to Clara AI <ArrowRight className="w-4 h-4" />
+            Return to Clara AI <ArrowRight className="w-4 h-4" />
           </Link>
           <Link href="/"
             className="text-xs text-muted-foreground/70 hover:text-foreground/80 transition-colors py-1">
