@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
 type Announcement = {
   id: string;
@@ -29,7 +30,16 @@ export function AnnouncementManager() {
     if (res.ok) setItems(((await res.json()) as { announcements?: Announcement[] }).announcements ?? []);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/platform/announcements", { cache: "no-store" })
+      .then(async (res) => res.ok ? (await res.json()) as { announcements?: Announcement[] } : null)
+      .then((data) => {
+        if (!cancelled) setItems(data?.announcements ?? []);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
