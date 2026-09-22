@@ -42,6 +42,7 @@ import { translateQueryForRag } from "@/modules/language-core/pipeline";
 import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
+import { ensureDocumentIdIndex } from "@/modules/admin/core/vector-store-kb";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
@@ -251,6 +252,12 @@ async function searchKbCollection(
   providerConfig?: ProviderConfig,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
+  if (filter?.must?.some((condition: unknown) =>
+    typeof condition === "object" && condition !== null &&
+    (condition as { key?: unknown }).key === "documentId"
+  )) {
+    await ensureDocumentIdIndex(collectionName);
+  }
   const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
 
   // Fetch a wider candidate pool so a document-scoped filter isn't required
