@@ -116,7 +116,7 @@ export function PlanVersionManager() {
         headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ planId: plan.id, action: plan.enabled ? "disable" : "enable" }),
       });
-      const data = await res.json() as { error?: string };
+      const data = await res.json() as { error?: string; enabled?: boolean };
       if (!res.ok) throw new Error(data.error ?? "Failed to update plan availability");
       setMessage(`${plan.name} is now ${data.enabled ? "available" : "disabled"} for new subscriptions.`);
       await load();
