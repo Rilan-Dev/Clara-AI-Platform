@@ -1,88 +1,37 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps --no-package-lock",
+  "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
-  "regions": [
-    "bom1"
-  ],
+  "regions": ["bom1"],
   "functions": {
     "src/app/api/queue/ingest/route.ts": {
-      "experimentalTriggers": [
-        {
-          "type": "queue/v2beta",
-          "topic": "clara-ingest"
-        }
-      ],
+      "experimentalTriggers": [{"type": "queue/v2beta", "topic": "clara-ingest"}],
       "maxDuration": 60
     },
     "src/app/api/queue/crawl/route.ts": {
-      "experimentalTriggers": [
-        {
-          "type": "queue/v2beta",
-          "topic": "clara-crawl"
-        }
-      ],
+      "experimentalTriggers": [{"type": "queue/v2beta", "topic": "clara-crawl"}],
       "maxDuration": 60
     },
-    "api/voice-realtime.mjs": {
-      "maxDuration": 60
-    },
+    "api/voice-realtime.mjs": {"maxDuration": 60},
     "src/app/api/queue/scrape/route.ts": {
-      "experimentalTriggers": [
-        {
-          "type": "queue/v2beta",
-          "topic": "clara-scrape"
-        }
-      ],
+      "experimentalTriggers": [{"type": "queue/v2beta", "topic": "clara-scrape"}],
       "maxDuration": 60
     },
     "src/app/api/queue/retry/route.ts": {
-      "experimentalTriggers": [
-        {
-          "type": "queue/v2beta",
-          "topic": "clara-retry"
-        }
-      ],
+      "experimentalTriggers": [{"type": "queue/v2beta", "topic": "clara-retry"}],
       "maxDuration": 60
     }
   },
   "rewrites": [
-    {
-      "source": "/api/embed/voice",
-      "destination": "/api/voice-realtime/embed"
-    },
-    {
-      "source": "/api/phone/twilio/stream",
-      "destination": "/api/voice-realtime/twilio"
-    },
-    {
-      "source": "/api/phone/vonage/stream",
-      "destination": "/api/voice-realtime/vonage"
-    },
-    {
-      "source": "/api/voice/sarvam/realtime",
-      "destination": "/api/voice-realtime/sarvam"
-    },
-    {
-      "source": "/api/voice/sarvam/tts-realtime",
-      "destination": "/api/voice-realtime/sarvam-tts"
-    },
-    {
-      "source": "/api/voice/elevenlabs/realtime",
-      "destination": "/api/voice-realtime/elevenlabs-stt"
-    },
-    {
-      "source": "/api/voice/elevenlabs/tts-realtime",
-      "destination": "/api/voice-realtime/elevenlabs-tts"
-    },
-    {
-      "source": "/api/voice/gemini/realtime",
-      "destination": "/api/voice-realtime/gemini"
-    },
-    {
-      "source": "/api/voice/elevenlabs/speech-engine",
-      "destination": "/api/voice-realtime/speech-engine"
-    }
+    {"source": "/api/embed/voice", "destination": "/api/voice-realtime/embed"},
+    {"source": "/api/phone/twilio/stream", "destination": "/api/voice-realtime/twilio"},
+    {"source": "/api/phone/vonage/stream", "destination": "/api/voice-realtime/vonage"},
+    {"source": "/api/voice/sarvam/realtime", "destination": "/api/voice-realtime/sarvam"},
+    {"source": "/api/voice/sarvam/tts-realtime", "destination": "/api/voice-realtime/sarvam-tts"},
+    {"source": "/api/voice/elevenlabs/realtime", "destination": "/api/voice-realtime/elevenlabs-stt"},
+    {"source": "/api/voice/elevenlabs/tts-realtime", "destination": "/api/voice-realtime/elevenlabs-tts"},
+    {"source": "/api/voice/gemini/realtime", "destination": "/api/voice-realtime/gemini"},
+    {"source": "/api/voice/elevenlabs/speech-engine", "destination": "/api/voice-realtime/speech-engine"}
   ]
 }
