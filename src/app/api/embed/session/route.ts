@@ -38,11 +38,6 @@ import {
   VoiceConfigResolutionError,
   resolveVoiceConfig,
 } from "@/modules/voice-core/resolve";
-import {
-  STT_MAX_AUDIO_SECONDS,
-  TTS_OUTPUT_FORMAT,
-} from "@/modules/voice-core/model-catalog";
-
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
 const GEMINI_OUTPUT_SAMPLE_RATE = 24_000;
 
@@ -53,13 +48,6 @@ export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
-
-    // Platform AI credentials can be managed through Settings and persisted
-    // in Postgres. Mirror them into process.env before resolving the realtime
-    // transport so DB-managed ElevenLabs Speech Engine credentials are
-    // available even when the container .env was not changed.
-    const { syncEnvFromDb } = await import("@/modules/phone/core/db");
-    await syncEnvFromDb();
 
     const sessionBody = (await req.clone().json().catch(() => ({}))) as Record<string, unknown>;
 
