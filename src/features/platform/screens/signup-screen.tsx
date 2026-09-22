@@ -124,6 +124,7 @@ export default function SignupScreen() {
   const [resent, setResent] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendError, setResendError] = useState("");
+  const [emailDeliveryFailed, setEmailDeliveryFailed] = useState(false);
 
   const stepIndex = STEPS.indexOf(step);
   const selectedPlan = PLAN_META.find((plan) => plan.id === form.planId) ?? PLAN_META[2]!;
@@ -210,6 +211,7 @@ export default function SignupScreen() {
       const data = (await response.json()) as {
         error?: string;
         token?: string;
+        emailVerificationSent?: boolean;
         org?: { id: string };
       };
 
@@ -222,9 +224,11 @@ export default function SignupScreen() {
       }
 
       setOrgId(data.org?.id ?? "");
-      // Stay inside the wizard: registration has already fired the
-      // verification email (fire-and-forget, server-side); the final
-      // "Verify" step watches for the link click and then routes on.
+      setEmailDeliveryFailed(data.emailVerificationSent === false);
+      // Stay inside the wizard. The registration API waits for the email
+      // provider to accept the verification message before returning, so
+      // this step never claims delivery when the platform has no working
+      // email provider configured.
       setStep("verify");
     } catch (err: unknown) {
       setError((err as Error).message ?? "Something went wrong. Please try again.");
@@ -644,6 +648,14 @@ export default function SignupScreen() {
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {verified ? (
                     "Your account is fully activated. Redirecting you now…"
+                  ) : emailDeliveryFailed ? (
+                    <>
+                      Your account was created, but Clara could not deliver the verification email.
+                      <span className="block mt-1 text-foreground/80">
+                        Please use <span className="font-semibold">Resend verification email</span> after
+                        the platform email provider is configured.
+                      </span>
+                    </>
                   ) : (
                     <>
                       We sent a verification link to{" "}

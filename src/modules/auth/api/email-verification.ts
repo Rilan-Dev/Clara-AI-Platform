@@ -102,10 +102,18 @@ export async function sendVerificationEmail(
       await sendWelcomeEmail(user, origin);
       return false;
     }
-    sendPlatformEmail({ to: user.email, subject: rendered.subject, html: rendered.html }).catch((e) =>
-      console.error("[email-verification] send failed:", (e as Error).message)
-    );
-    return true;
+    const result = await sendPlatformEmail({
+      to: user.email,
+      subject: rendered.subject,
+      html: rendered.html,
+    });
+    if (!result.sent) {
+      console.error(
+        "[email-verification] delivery failed:",
+        result.error ?? "email provider did not accept the message",
+      );
+    }
+    return result.sent;
   } catch (err) {
     console.error("[email-verification] could not queue verification email:", (err as Error).message);
     return false;
@@ -127,10 +135,18 @@ export async function sendWelcomeEmail(
       console.log("[email-verification] welcome_email template deactivated — email skipped");
       return false;
     }
-    sendPlatformEmail({ to: user.email, subject: rendered.subject, html: rendered.html }).catch((e) =>
-      console.error("[email-verification] welcome send failed:", (e as Error).message)
-    );
-    return true;
+    const result = await sendPlatformEmail({
+      to: user.email,
+      subject: rendered.subject,
+      html: rendered.html,
+    });
+    if (!result.sent) {
+      console.error(
+        "[email-verification] welcome delivery failed:",
+        result.error ?? "email provider did not accept the message",
+      );
+    }
+    return result.sent;
   } catch (err) {
     console.error("[email-verification] could not queue welcome email:", (err as Error).message);
     return false;
