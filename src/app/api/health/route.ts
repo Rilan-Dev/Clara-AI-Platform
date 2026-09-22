@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * GET /api/health
  * ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +32,7 @@ export async function GET() {
     (async () => {
       try {
         const dbStart = Date.now();
-        await pool.query("SELECT 1");
+        await withTimeout(pool.query("SELECT 1"), 700, "database health check timed out");
         return { status: "ok" as const, latencyMs: Date.now() - dbStart };
       } catch (err) {
         return { status: "error" as const, latencyMs: 0, error: (err as Error).message };
