@@ -67,20 +67,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         voiceEnabled: resolved.flags.voiceEnabled && resolved.flags.realtimeEnabled,
         voiceProvider,
 
-        // Non-secret effective AI runtime configuration. This makes tenant
-        // resolution observable from the iframe without exposing API keys.
-        runtime: {
-          provider: resolved.provider,
-          chatModel: resolved.chatModel,
-          embeddingModel: resolved.embeddingModel,
-          realtimeModel: resolved.realtimeModel,
-          transcriptionModel: resolved.transcriptionModel,
-          voiceId: resolved.voiceId,
-          allowedLanguages: resolved.allowedLanguages,
-          defaultLanguage: resolved.defaultLanguage,
-          sources: resolved.sources,
-          flags: resolved.flags,
-        },
+        // Keep the public contract minimal. Runtime implementation details
+        // (provider/model/source/flags) belong to server-side session resolution.
+        allowedLanguages: resolved.allowedLanguages,
+        voiceId: resolved.voiceId,
+
 
         primaryColour: effectiveConfig.primaryColour,
         accentColour: effectiveConfig.accentColour,
@@ -165,7 +156,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
     console.error("[embed/config]:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal error" },
+      { error: "Internal server error", code: "INTERNAL_ERROR" },
       { status: 500, headers: corsHeaders },
     );
   }

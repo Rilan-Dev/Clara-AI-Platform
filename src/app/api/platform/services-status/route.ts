@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool, query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
-import { getEmailConfig } from "@/lib/email";
+import { getEmailConfig, getEmailProviderConfigStatus } from "@/lib/email";
 
 /**
  * GET /api/platform/services-status
@@ -129,6 +129,7 @@ async function checkEmail(): Promise<CheckResult & {
 }> {
   const cfg = getEmailConfig();
   const providerLabel = cfg.provider === "console" ? "none (dev mode)" : cfg.provider;
+  const configStatus = getEmailProviderConfigStatus();
 
   let queue: { pending: number; sent: number; failed: number; last24h: number } | undefined;
   try {
@@ -147,8 +148,8 @@ async function checkEmail(): Promise<CheckResult & {
     };
   } catch { /* non-fatal */ }
 
-  if (cfg.provider === "console") {
-    return { status: "not_configured", provider: providerLabel, queue };
+  if (!configStatus.configured) {
+    return { status: "not_configured", provider: providerLabel, queue, error: configStatus.reason };
   }
   if (cfg.provider === "resend") {
     return { status: "up", provider: "resend", from: cfg.fromAddress, queue };
@@ -307,8 +308,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkAiEmbedding("openai").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "openai" })),
-      checkAiEmbedding("gemini").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "gemini" })),
+      checkAiEmbedding("openai").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, detail: undefined, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "openai" })),
+      checkAiEmbedding("gemini").catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, detail: undefined, active: (process.env.AI_PROVIDER ?? "openai").toLowerCase() === "gemini" })),
       Promise.resolve(checkApp()),
     ]);
 
@@ -316,11 +317,63 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const services = { postgres, redis, qdrant, rabbitmq, email, queues, aiOpenai, aiGemini, app };
 
+    type Alert = {
+      id: string;
+      severity: "warning" | "critical";
+      title: string;
+      message: string;
+      actionLabel: string;
+      actionHref: string;
+    };
+    const alerts: Alert[] = [];
+    const addAlert = (alert: Alert) => alerts.push(alert);
+
+    const aiOpenaiActive = aiOpenai.active ?? false;
+    const aiGeminiActive = aiGemini.active ?? false;
+    const activeAi = aiOpenaiActive ? aiOpenai : aiGeminiActive ? aiGemini : null;
+    if (activeAi?.status === "not_configured") {
+      addAlert({
+        id: "active-ai-not-configured",
+        severity: "critical",
+        title: "Active AI provider is not configured",
+        message: `The active provider is missing its API credential. AI chat/embed/ingestion may fail. ${activeAi.detail ?? ""}`.trim(),
+        actionLabel: "Open AI settings",
+        actionHref: "/settings/ai",
+      });
+    } else if (activeAi?.status === "down") {
+      addAlert({
+        id: "active-ai-down",
+        severity: "critical",
+        title: "Active AI provider is unreachable",
+        message: activeAi.error ?? "The active AI provider health check failed.",
+        actionLabel: "Open AI settings",
+        actionHref: "/settings/ai",
+      });
+    }
+    if (postgres.status === "down") addAlert({
+      id: "postgres-down", severity: "critical", title: "PostgreSQL is down",
+      message: postgres.error ?? "Database health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    if (redis.status === "down") addAlert({
+      id: "redis-down", severity: "critical", title: "Redis is down",
+      message: redis.error ?? "Redis health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    if (qdrant.status === "down") addAlert({
+      id: "qdrant-down", severity: "critical", title: "Qdrant is down",
+      message: qdrant.error ?? "Qdrant health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    if (email.status === "down") addAlert({
+      id: "email-down", severity: "warning", title: "Email delivery is failing",
+      message: email.error ?? "Email provider health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+
     // Roll-up: down services (excluding not_configured) mark the platform degraded.
     // AI providers only count when they are the ACTIVE provider — an unreachable
     // standby is visible on its card but does not degrade the whole platform.
-    const aiOpenaiActive = aiOpenai.active ?? false;
-    const aiGeminiActive = aiGemini.active ?? false;
     const rollupEntries: Array<{ status: ServiceStatus; counts: boolean }> = [
       ...Object.values({ postgres, redis, qdrant, rabbitmq, email, queues, app }).map(
         (s) => ({ status: s.status, counts: true }),
@@ -339,6 +392,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         overall: down === 0 ? "healthy" : "degraded",
         summary: { up, down, notConfigured },
         services,
+        alerts,
         checkedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,
       },

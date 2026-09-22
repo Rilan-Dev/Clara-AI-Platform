@@ -124,3 +124,16 @@ export async function ensureMigrated(): Promise<void> {
 
   return migrationPromise;
 }
+
+/**
+ * Request-path migration guard.
+ *
+ * Schema migrations MUST NOT run from an HTTP request on serverless runtimes.
+ * Production schema changes are applied during deployment/startup via
+ * runMigrationsOnStartup(). Keeping this function as a compatibility no-op
+ * lets existing handlers be migrated incrementally without reintroducing a
+ * database migration into every cold-start/request path.
+ */
+export async function ensureMigrated(): Promise<void> {
+  return;
+}
