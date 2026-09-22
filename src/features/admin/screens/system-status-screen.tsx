@@ -40,6 +40,14 @@ type StatusPayload = {
   summary: { up: number; down: number; notConfigured: number };
   checkedAt: string;
   durationMs: number;
+  alerts: Array<{
+    id: string;
+    severity: "warning" | "critical";
+    title: string;
+    message: string;
+    actionLabel: string;
+    actionHref: string;
+  }>;
   services: {
     postgres: BaseCheck & { pool?: { total: number; idle: number; waiting: number } };
     redis: BaseCheck;
@@ -282,6 +290,23 @@ export function SystemStatusScreen() {
             <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
           </div>
         )}
+
+        {data?.alerts?.length ? (
+          <div className="space-y-2">
+            {data.alerts.map((alert) => (
+              <div key={alert.id} className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{alert.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground break-words">{alert.message}</p>
+                </div>
+                <a href={alert.actionHref} className="shrink-0 text-xs font-medium underline underline-offset-4">
+                  {alert.actionLabel}
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {loading ? (
           <div className="space-y-4">

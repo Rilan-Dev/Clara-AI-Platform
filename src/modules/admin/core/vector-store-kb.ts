@@ -315,6 +315,16 @@ export type KbChunk = {
   documentId:       string;
 };
 
+function qdrantErrorMessage(err: unknown): string {
+  const e = err as { message?: unknown; status?: unknown; data?: unknown };
+  const parts = [typeof e.message === "string" ? e.message : String(err)];
+  if (typeof e.status === "number") parts.push(`HTTP ${e.status}`);
+  if (e.data != null) {
+    try { parts.push(JSON.stringify(e.data)); } catch { /* ignore non-serializable data */ }
+  }
+  return parts.join(" | ");
+}
+
 /**
  * Scroll all chunks for a single document out of Qdrant (no vectors).
  * Returns chunks sorted by chunkIndex.
@@ -328,13 +338,20 @@ export async function listDocumentChunks(
   let offset: string | number | Record<string, unknown> | null | undefined = undefined;
 
   do {
-    const result = await client.scroll(collectionName, {
-      filter: { must: [{ key: "documentId", match: { value: documentId } }] },
-      limit: 100,
-      ...(offset !== undefined ? { offset } : {}),
-      with_payload: true,
-      with_vector: false,
-    });
+    let result;
+    try {
+      result = await client.scroll(collectionName, {
+        filter: { must: [{ key: "documentId", match: { value: documentId } }] },
+        limit: 100,
+        ...(offset !== undefined ? { offset } : {}),
+        with_payload: true,
+        with_vector: false,
+      });
+    } catch (err) {
+      throw new Error(
+        `[qdrant] failed to list chunks for collection="${collectionName}" documentId="${documentId}": ${qdrantErrorMessage(err)}`,
+      );
+    }
 
     for (const point of result.points) {
       const p = point.payload as Record<string, unknown>;
