@@ -411,7 +411,7 @@ function EmbeddingsWorkspace() {
               {provider.models.map((model) => {
                 const active = embeddingDefault?.providerId === provider.providerId && embeddingDefault.modelId === model.modelId;
                 const key = provider.providerId + ":" + model.modelId;
-                const dims = model.modelId === "text-embedding-3-large" ? 3072 : model.modelId.includes("embedding") || model.modelId.includes("ada") ? 1536 : "provider-defined";
+                const dims = model.modelId === "text-embedding-3-large" ? 3072 : model.modelId === "text-embedding-3-small" || model.modelId === "text-embedding-ada-002" ? 1536 : "provider-defined";
                 return (
                   <div key={model.id} className={cn("flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-3", active ? "border-primary/30 bg-primary/5" : "border-border bg-card")}>
                     <div className="min-w-0">
