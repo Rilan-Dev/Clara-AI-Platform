@@ -369,7 +369,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ),
       ...governedProviders.map((provider) => ({ status: provider.status, counts: provider.enabled })),
     ];
-.filter((s) => s.counts).map((s) => s.status);
+    const statuses = rollupEntries.filter((s) => s.counts).map((s) => s.status);
     const down = statuses.filter((s) => s === "down").length;
     const up = statuses.filter((s) => s === "up").length;
     const notConfigured = statuses.filter((s) => s === "not_configured").length;
