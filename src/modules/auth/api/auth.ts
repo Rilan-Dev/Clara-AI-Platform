@@ -112,9 +112,11 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
           [orgRow.id, userRow.id, roleRow.id]
         );
 
-        // 6. Subscription — starts active on the chosen plan immediately.
-        // No automatic free trial; platform admins can grant trial extensions
-        // manually from Subscriptions management if needed.
+        // 6. Subscription onboarding snapshot.
+        // The billing-onboarding trigger converts paid, unverified rows from
+        // active → pending_email; email verification then moves them to
+        // payment_required. Free plans may remain active immediately.
+        // There is no automatic free trial.
         const planVersionRows = await client.query<Record<string, unknown>>(
           `
           SELECT sp.id AS plan_id, pv.id AS plan_version_id, COALESCE(pv.version, 1) AS version,
