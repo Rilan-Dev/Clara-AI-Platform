@@ -170,16 +170,16 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
       // the live request so the link always points at the domain the user
       // signed up on (never localhost on an unconfigured deploy).
       const { sendVerificationEmail, resolvePublicOriginFor } = await import("./email-verification");
-      sendVerificationEmail(
+      const emailVerificationSent = await sendVerificationEmail(
         { id: result.userRow.id, email: result.userRow.email, fullName: result.userRow.full_name },
         getIp(req),
         resolvePublicOriginFor(req),
-      ).catch(() => {});
+      );
 
       const res = NextResponse.json({
         user: { id: result.userRow.id, email: result.userRow.email, fullName: result.userRow.full_name, emailVerified: false },
         org:  { id: result.orgRow.id, name: result.orgRow.name, slug: result.orgRow.slug },
-        planId: resolvedPlanId, token,
+        planId: resolvedPlanId, token, emailVerificationSent,
       }, { status: 201 });
       res.headers.set("Set-Cookie", buildSetCookieHeader(token, sessionExpiresAt()));
       return res;
@@ -192,11 +192,19 @@ export async function registerHandler(req: NextRequest): Promise<NextResponse> {
     await createSession(user.id, hashToken(token), expires, getIp(req), req.headers.get("user-agent") ?? undefined);
     await writeAuditLog({ userId: user.id, action: "user.register", resourceType: "user", resourceId: user.id, ipAddress: getIp(req) });
 
-    // ── Email verification (fire-and-forget, same as org signup) ─────────
+    // ── Email verification ────────────────────────────────────────────────
+    // This is awaited intentionally. Vercel Functions are serverless and an
+    // un-awaited SMTP/Resend promise is not guaranteed to finish after the
+    // response is returned. The client also receives the actual delivery
+    // result so it never claims an email was sent when no provider is active.
     const { sendVerificationEmail, resolvePublicOriginFor } = await import("./email-verification");
-    sendVerificationEmail(user, getIp(req), resolvePublicOriginFor(req)).catch(() => {});
+    const emailVerificationSent = await sendVerificationEmail(
+      user,
+      getIp(req),
+      resolvePublicOriginFor(req),
+    );
 
-    const res = NextResponse.json({ user, token }, { status: 201 });
+    const res = NextResponse.json({ user, token, emailVerificationSent }, { status: 201 });
     res.headers.set("Set-Cookie", buildSetCookieHeader(token, expires));
     return res;
   } catch (err) {
