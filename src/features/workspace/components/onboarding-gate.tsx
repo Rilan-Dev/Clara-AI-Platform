@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, MailCheck, CreditCard, ShieldAlert } from "lucide-react";
 
@@ -16,7 +16,7 @@ type Status = {
   } | null;
 };
 
-export default function OnboardingGate(): JSX.Element | null {
+export default function OnboardingGate({ children }: { children: ReactNode }): JSX.Element {
   const [data, setData] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,10 +28,11 @@ export default function OnboardingGate(): JSX.Element | null {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading || !data?.onboarding) return null;
+  if (loading) return <div className="min-h-[calc(100dvh-64px)] flex items-center justify-center text-sm text-muted-foreground">Checking account status…</div>;
+  if (!data?.onboarding) return <>{children}</>;
 
   const { emailVerified, onboarding } = data;
-  if (emailVerified && onboarding.status === "active") return null;
+  if (emailVerified && onboarding.status === "active") return <>{children}</>;
 
   const needsEmail = !emailVerified || onboarding.status === "pending_email";
   const review = onboarding.status === "payment_review";
