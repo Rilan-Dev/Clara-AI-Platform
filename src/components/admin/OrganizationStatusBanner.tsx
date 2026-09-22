@@ -155,7 +155,7 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
               <div className="flex min-w-0 items-center gap-2">
                 <p className="truncate text-sm font-semibold">{status.title}</p>
                 {status.planName && (
-                  <span className="hidden shrink-0 rounded-full border border-current/15 px-2 py-0.5 text-[10px] font-medium opacity-70 xs:inline-flex">
+                  <span className="hidden shrink-0 rounded-full border border-current/15 px-2 py-0.5 text-[10px] font-medium opacity-70 sm:inline-flex">
                     {status.planName}
                   </span>
                 )}
