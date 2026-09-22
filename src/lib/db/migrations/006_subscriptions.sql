@@ -36,7 +36,7 @@ INSERT INTO subscription_plans
    analytics_level, priority_support, features, max_api_keys,
    phone_calls_enabled, max_phone_numbers)
 VALUES
-  ('free','Free','Get started at no cost',0,1,10,100,100,
+  ('free','Free','Platform-controlled free tier',0,1,10,100,100,
    FALSE,FALSE,FALSE,FALSE,'basic',FALSE,
    '["1 Knowledge Base","10 documents","100 requests/day","Text chat only","Basic analytics"]'::jsonb,
    0, FALSE, 0),
