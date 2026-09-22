@@ -60,9 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppShell>
           {children}
           <Toaster position="top-right" richColors closeButton />
-          <Analytics
-            beforeSend={(event) => event.url.includes("/admin") ? null : event}
-          />
+          <Analytics />
           <SpeedInsights />
         </AppShell>
       </body>
