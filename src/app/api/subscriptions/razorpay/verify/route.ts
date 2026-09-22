@@ -114,11 +114,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Record verified payment before granting entitlement. This also gives
     // the activation trigger durable evidence if activation is retried.
-    const existing = await queryOne(
+    const existingPayment = await queryOne(
       "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'razorpay'",
       [razorpay_payment_id]
     );
-    if (!existing) {
+    if (!existingPayment) {
       await query(
         `INSERT INTO billing_events
            (org_id, gateway, event_type, event_id, plan_id,
@@ -162,30 +162,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       [orgId],
     );
 
-    // ── Log payment receipt email ────────────────────────────────────────────
-    // Idempotency: skip if already recorded. When the webhook processed this
-    // payment first it already sent the receipt email, so skipping here too
-    // is exactly what prevents a double email.
-    const existing = await queryOne(
-      "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'razorpay'",
-      [razorpay_payment_id]
-    );
-    if (!existing) {
-      await query(
-        `INSERT INTO billing_events
-           (org_id, gateway, event_type, event_id, plan_id,
-            amount_paise, currency, status, metadata)
-         VALUES ($1,'razorpay','payment.captured',$2,$3,$4,'INR','paid',$5)`,
-        [
-          orgId,
-          razorpay_payment_id,
-          planId,
-          PLAN_AMOUNTS_INR_PAISE[planId] ?? 0,
-          JSON.stringify({ orderId: razorpay_order_id, paymentId: razorpay_payment_id }),
-        ]
-      );
-
-      // ── Payment success receipt for the org owner ────────────────────
+    // ── Payment success receipt ───────────────────────────────────────────────
+    // The event was recorded before activation; send the receipt only when
+    // this request was the first observer of the payment.
+    if (!existingPayment) {
       try {
         const orgRow = await queryOne<{ org_name: string; plan_name: string }>(
           `SELECT o.name AS org_name, sp.name AS plan_name
@@ -207,7 +187,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               planName: orgRow.plan_name,
               amount: formatInr(PLAN_AMOUNTS_INR_PAISE[planId] ?? 0),
               paymentId: razorpay_payment_id,
-              // Absolute URL — a relative href is unusable in email clients.
               receiptUrl: `${appUrlFor("", req)}/dashboard`,
             },
           });
