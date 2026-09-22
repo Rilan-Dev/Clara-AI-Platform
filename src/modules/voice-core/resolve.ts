@@ -344,7 +344,7 @@ export async function resolveVoiceConfig(
   // Resolved when EITHER purpose selects ElevenLabs — both purposes share the
   // same org-level models / voice configuration.
   let elevenlabs: ElevenLabsResolvedConfig | null = null;
-  if (voiceProvider === "elevenlabs" || realtimeProvider === "elevenlabs") {
+  if ((input.surface === "voice_chat" && voiceProvider === "elevenlabs") ||\n      (input.surface !== "voice_chat" && realtimeProvider === "elevenlabs")) {
     const ttsModel =
       orgSettings?.elevenlabsTtsModel ??
       getPlatformDefaultTTSModel();
@@ -383,7 +383,7 @@ export async function resolveVoiceConfig(
   // same org-level models / speaker configuration. Speakers are a STATIC
   // catalogue (no DB round-trip, no sync job — contrast ElevenLabs above).
   let sarvam: SarvamResolvedConfig | null = null;
-  if (voiceProvider === "sarvam" || realtimeProvider === "sarvam") {
+  if ((input.surface === "voice_chat" && voiceProvider === "sarvam") ||\n      (input.surface !== "voice_chat" && realtimeProvider === "sarvam")) {
     const sarvamTtsModel =
       (voiceProvider === "sarvam" ? versionVoiceChatTtsModel : null) ??
       orgSettings?.sarvamTtsModel ??
@@ -448,7 +448,7 @@ export async function resolveVoiceConfig(
   //   version realtime voice → agent realtime voice → agent voice-chat voice
   //     → assistant-config voice → org allow-list → platform env → "alloy".
   let openai: OpenAIRealtimeResolvedConfig | null = null;
-  if (voiceProvider === "openai" || realtimeProvider === "openai") {
+  if ((input.surface === "voice_chat" && voiceProvider === "openai") ||\n      (input.surface !== "voice_chat" && realtimeProvider === "openai")) {
     const orgOpenAIVoices =
       (orgSettings?.allowedVoices && Array.isArray(orgSettings.allowedVoices.openai)
         ? orgSettings.allowedVoices.openai
