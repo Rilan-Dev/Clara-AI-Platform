@@ -7,7 +7,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    const orgId = new URL(req.url).searchParams.get("orgId");
+    let orgId = new URL(req.url).searchParams.get("orgId");
+    if (!orgId && !auth.user.isSuperAdmin) {
+      const firstOrg = await queryOne<{ org_id: string }>(
+        "SELECT org_id FROM org_members WHERE user_id = $1 ORDER BY id LIMIT 1",
+        [auth.user.id],
+      );
+      orgId = firstOrg?.org_id ?? null;
+    }
     if (!orgId) return NextResponse.json({ error: "orgId is required" }, { status: 400 });
 
     const membership = await queryOne(
