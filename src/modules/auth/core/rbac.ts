@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { queryOne } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import {
   getSessionByTokenHash,
