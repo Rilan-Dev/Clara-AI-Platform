@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
+import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   fetchAgentWorkspaceContextCached,
@@ -480,7 +481,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        {/* Bottom safe area for the tab bar */}
+        {!isAdmin && primaryOrgId && (
+          <OrganizationStatusBanner orgId={primaryOrgId} />
+        )}
+
+        {/* Bottom safe area for the tab bar */
         <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-0">
           {children}
         </main>
