@@ -316,6 +316,58 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const services = { postgres, redis, qdrant, rabbitmq, email, queues, aiOpenai, aiGemini, app };
 
+    type Alert = {
+      id: string;
+      severity: "warning" | "critical";
+      title: string;
+      message: string;
+      actionLabel: string;
+      actionHref: string;
+    };
+    const alerts: Alert[] = [];
+    const addAlert = (alert: Alert) => alerts.push(alert);
+
+    const activeAi = aiOpenaiActive ? aiOpenai : aiGeminiActive ? aiGemini : null;
+    if (activeAi?.status === "not_configured") {
+      addAlert({
+        id: "active-ai-not-configured",
+        severity: "critical",
+        title: "Active AI provider is not configured",
+        message: `The active provider is missing its API credential. AI chat/embed/ingestion may fail. ${activeAi.detail ?? ""}`.trim(),
+        actionLabel: "Open AI settings",
+        actionHref: "/settings/ai",
+      });
+    } else if (activeAi?.status === "down") {
+      addAlert({
+        id: "active-ai-down",
+        severity: "critical",
+        title: "Active AI provider is unreachable",
+        message: activeAi.error ?? "The active AI provider health check failed.",
+        actionLabel: "Open AI settings",
+        actionHref: "/settings/ai",
+      });
+    }
+    if (postgres.status === "down") addAlert({
+      id: "postgres-down", severity: "critical", title: "PostgreSQL is down",
+      message: postgres.error ?? "Database health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    if (redis.status === "down") addAlert({
+      id: "redis-down", severity: "critical", title: "Redis is down",
+      message: redis.error ?? "Redis health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    if (qdrant.status === "down") addAlert({
+      id: "qdrant-down", severity: "critical", title: "Qdrant is down",
+      message: qdrant.error ?? "Qdrant health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    if (email.status === "down") addAlert({
+      id: "email-down", severity: "warning", title: "Email delivery is failing",
+      message: email.error ?? "Email provider health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+
     // Roll-up: down services (excluding not_configured) mark the platform degraded.
     // AI providers only count when they are the ACTIVE provider — an unreachable
     // standby is visible on its card but does not degrade the whole platform.
@@ -339,6 +391,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         overall: down === 0 ? "healthy" : "degraded",
         summary: { up, down, notConfigured },
         services,
+        alerts,
         checkedAt: new Date().toISOString(),
         durationMs: Date.now() - startedAt,
       },
