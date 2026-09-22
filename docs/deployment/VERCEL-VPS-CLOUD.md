@@ -4,8 +4,9 @@ Deployment contract:
 - Vite-Converted = development / Vercel Preview.
 - Vercel-Prod = production / Vercel Production.
 - Existing VPS Docker deployment remains active and unchanged.
-- clara-rag.amazetechclans.com = Vercel production web/API.
-- voice.clara-rag.amazetechclans.com = existing VPS realtime WebSocket endpoint.
+- clara.rag.amazetechclans.com = Vercel production web/API (live since 2026-09-22).
+- clara.ai.amazetechclans.com = existing VPS portal + realtime WebSocket endpoint (voice WS is same-origin: wss://<host>/api/voice/...).
+- NEVER use the legacy hyphenated name `clara-rag.amazetechclans.com` — it has no DNS record (NXDOMAIN) and is not a valid platform hostname. Valid hostnames are only `clara.rag.amazetechclans.com` (Vercel) and `clara.ai.amazetechclans.com` (VPS).
 - Supabase = PostgreSQL.
 - Upstash = Redis/BullMQ.
 - Qdrant Cloud = vector database.
@@ -15,15 +16,18 @@ Vercel must run the normal Next.js build. Do not run scripts/start.mjs on Vercel
 
 Required Vercel variables:
 
-    NEXT_PUBLIC_APP_URL=https://clara-rag.amazetechclans.com
+    NEXT_PUBLIC_APP_URL=https://clara.rag.amazetechclans.com
     NEXT_PUBLIC_API_BASE_URL=
-    NEXT_PUBLIC_VOICE_WS_BASE_URL=https://voice.clara-rag.amazetechclans.com
+    # Voice WS base for Vercel-served pages -> VPS. (Currently unused by code:
+    # the client builds the voice WS URL from the page origin, so Vercel pages
+    # talk to the Vercel origin; long-lived WS sessions are owned by the VPS.)
+    NEXT_PUBLIC_VOICE_WS_BASE_URL=https://clara.ai.amazetechclans.com
 
 Server variables must contain the Supabase DATABASE_URL, Qdrant URL/key, Upstash Redis connection, CloudAMQP RABBITMQ_URL, and existing AI/auth secrets. Keep secrets out of NEXT_PUBLIC_*.
 
 DNS:
-    clara-rag.amazetechclans.com -> Vercel
-    voice.clara-rag.amazetechclans.com -> VPS
+    clara.rag.amazetechclans.com -> CNAME 182fb57ad884a70d.vercel-dns-017.com -> Vercel
+    clara.ai.amazetechclans.com -> A 180.188.231.138 -> VPS
 
 Worker recommendation: keep the current VPS worker initially. If a free separate worker is required, test OCI Always Free Ampere A1 first; the current worker uses Playwright, so ARM compatibility must be verified before migration.
 
