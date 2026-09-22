@@ -574,6 +574,10 @@ describe("signup and payment funnel templates", () => {
     expect(rendered).not.toBeNull();
     expect(rendered?.html).toContain("https://clara.example/login/verify-email?token=xyz");
     expect(rendered?.subject).toBe("Verify your email for Clara AI");
+    expect(rendered?.html).toContain("Verify my email");
+    expect(rendered?.html).toContain("continue setting up your account");
+    expect(rendered?.html.toLowerCase()).not.toContain("continue your registration");
+    expect(rendered?.html.toLowerCase()).not.toContain("activate your account");
   });
 
   it("seeds and renders the welcome_email template", async () => {
