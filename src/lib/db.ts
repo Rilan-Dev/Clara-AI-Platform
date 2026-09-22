@@ -27,9 +27,21 @@ const PG_CONFIG = {
   connectionString: DATABASE_URL,
   // Keep enough warm connections for concurrent API work without allowing one
   // request to serialize the entire serverless instance. Override per plan.
-  max: process.env.VERCEL ? Math.min(2, Math.max(1, Number(process.env.PG_POOL_MAX ?? "1"))) : Math.max(1, Number(process.env.PG_POOL_MAX ?? "10")),
+  //
+  // max on Vercel: 5 (not 1). With max:1 every Promise.all of queries in a
+  // route serialised through the single connection — "parallel" workloads paid
+  // the full per-query round-trip time sequentially. 5 lets a request fan out.
+  // Supabase direct connections are limited (~60 on the default tier); Vercel
+  // Hobby concurrency keeps simultaneous instances low enough that 5/instance
+  // is safe. Tune with PG_POOL_MAX if the database tier changes.
+  max: process.env.VERCEL ? Math.min(10, Math.max(1, Number(process.env.PG_POOL_MAX ?? "5"))) : Math.max(1, Number(process.env.PG_POOL_MAX ?? "10")),
   min: 0,
-  idleTimeoutMillis: 5_000,
+  // idleTimeoutMillis: 60s (not 5s). A 5s idle timeout dropped the connection
+  // between typical UI interactions, so EVERY request after a brief pause paid
+  // a fresh TCP + TLS + SCRAM handshake to a remote database (~200-700ms per
+  // request of pure overhead). 60s keeps connections warm across clicks,
+  // navigation bursts and polling while still recycling long-idle sockets.
+  idleTimeoutMillis: 60_000,
   connectionTimeoutMillis: 3_000,
   query_timeout: 8_000,
   statement_timeout: 8_000,
