@@ -7,15 +7,13 @@ import { NextResponse } from "next/server";
 import { queryOne } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import {
-  getSessionByTokenHash,
-  getUserById,
-  getOrgMembership,
-  getPermissionsForRole,
-  getOrgIdForKb,
-  getOrgIdForAgent,
+  getSessionWithUserByTokenHash,
+  getKbAccessContext,
+  getAgentAccessContext,
+  getOrgAccessContext,
 } from "./db";
 import { hashToken, extractToken } from "./tokens";
-import type { AuthContext, PermissionKey } from "./models";
+import type { AuthContext, OrgMember, PermissionKey } from "./models";
 
 export async function requireAuth(request: Request): Promise<AuthContext> {
   if (process.env.NODE_ENV !== "production" && process.env.SKIP_AUTH === "true") {
@@ -28,14 +26,15 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
   const token = extractToken(request);
   if (!token) throw NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
-  const session = await getSessionByTokenHash(hashToken(token));
-  if (!session) throw NextResponse.json({ error: "Session expired or invalid" }, { status: 401 });
+  // Single JOIN round trip — the session→user pair previously cost two
+  // sequential round trips on every authenticated request.
+  const authPair = await getSessionWithUserByTokenHash(hashToken(token));
+  if (!authPair) throw NextResponse.json({ error: "Session expired or invalid" }, { status: 401 });
 
-  const user = await getUserById(session.userId);
-  if (!user) throw NextResponse.json({ error: "User not found" }, { status: 401 });
+  const user = authPair.user;
   if (user.status !== "active") throw NextResponse.json({ error: "Account is suspended" }, { status: 403 });
   await enforceOnboardingMutationGate(request, user.id, user.isSuperAdmin);
-  return { user, session };
+  return { user, session: authPair.session };
 }
 
 const ONBOARDING_MUTATION_ALLOWLIST = [
@@ -63,19 +62,12 @@ async function enforceOnboardingMutationGate(request: Request, userId: string, i
   const pathname = new URL(request.url).pathname;
   if (isOnboardingAllowedMutation(pathname)) return;
 
-  const verified = await queryOne<{ email_verified: boolean }>(
-    "SELECT email_verified FROM users WHERE id = $1",
-    [userId],
-  );
-  if (!verified?.email_verified) {
-    throw NextResponse.json(
-      { error: "Verify your email before using Clara AI features.", code: "EMAIL_VERIFICATION_REQUIRED", status: 403 },
-      { status: 403 },
-    );
-  }
-
-  const row = await queryOne<{ has_entitled_org: boolean; has_incomplete_org: boolean }>(
+  // The auth JOIN already loaded email_verified — no extra query for it.
+  // One round trip for both entitlement flags (previously two sequential
+  // queries: email check + separate EXISTS probe).
+  const row = await queryOne<{ email_verified: boolean; has_entitled_org: boolean; has_incomplete_org: boolean }>(
     `SELECT
+       (SELECT u.email_verified FROM users u WHERE u.id = $1) AS email_verified,
        EXISTS (
          SELECT 1
            FROM org_members om
@@ -96,6 +88,13 @@ async function enforceOnboardingMutationGate(request: Request, userId: string, i
        ) AS has_incomplete_org`,
     [userId],
   );
+
+  if (!row?.email_verified) {
+    throw NextResponse.json(
+      { error: "Verify your email before using Clara AI features.", code: "EMAIL_VERIFICATION_REQUIRED", status: 403 },
+      { status: 403 },
+    );
+  }
 
   if (row?.has_incomplete_org && !row?.has_entitled_org) {
     throw NextResponse.json(
@@ -145,10 +144,10 @@ export async function hasOrgPermission(
   permission: PermissionKey,
 ): Promise<boolean> {
   if (auth.user.isSuperAdmin) return false;
-  const membership = await getOrgMembership(orgId, auth.user.id);
-  if (!membership) return false;
-  const perms = await getPermissionsForRole(membership.roleId);
-  return perms.has(permission);
+  // Single round trip: org + membership + role permissions in one query.
+  const [ctx] = await getOrgAccessContext(orgId, auth.user.id);
+  if (!ctx || !ctx.membership) return false;
+  return ctx.permissions.has(permission);
 }
 
 export async function requireOrgPermission(
@@ -169,22 +168,40 @@ export async function requireKbPermission(
   auth: AuthContext,
   kbId: string,
   permission: PermissionKey,
-): Promise<void> {
+): Promise<{ orgId: string; membership: OrgMember; permissions: Set<PermissionKey> }> {
   requireTenantScope(auth);
-  const orgId = await getOrgIdForKb(kbId);
-  if (!orgId) throw NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
-  await requireOrgPermission(auth, orgId, permission);
+  // Single round trip: kb → agent → org traversal, membership and role
+  // permissions in one query (previously 3 sequential round trips). The
+  // returned context lets handlers reuse orgId instead of re-fetching the KB
+  // just to learn its org.
+  const [ctx] = await getKbAccessContext(kbId, auth.user.id);
+  if (!ctx) throw NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+  if (!ctx.membership || !ctx.permissions.has(permission)) {
+    throw NextResponse.json(
+      { error: `Forbidden — requires permission: ${permission}` },
+      { status: 403 },
+    );
+  }
+  return { orgId: ctx.orgId, membership: ctx.membership, permissions: ctx.permissions };
 }
 
 export async function requireAgentPermission(
   auth: AuthContext,
   agentId: string,
   permission: PermissionKey,
-): Promise<void> {
+): Promise<{ orgId: string; membership: OrgMember; permissions: Set<PermissionKey> }> {
   requireTenantScope(auth);
-  const orgId = await getOrgIdForAgent(agentId);
-  if (!orgId) throw NextResponse.json({ error: "Agent not found" }, { status: 404 });
-  await requireOrgPermission(auth, orgId, permission);
+  // Single round trip (previously 3 sequential round trips). The returned
+  // context lets handlers reuse orgId instead of re-fetching the agent row.
+  const [ctx] = await getAgentAccessContext(agentId, auth.user.id);
+  if (!ctx) throw NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  if (!ctx.membership || !ctx.permissions.has(permission)) {
+    throw NextResponse.json(
+      { error: `Forbidden — requires permission: ${permission}` },
+      { status: 403 },
+    );
+  }
+  return { orgId: ctx.orgId, membership: ctx.membership, permissions: ctx.permissions };
 }
 
 export async function requireSuperAdmin(auth: AuthContext): Promise<void> {

@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
-import { getKnowledgeBaseById } from "../core/db";
 import { getKbAnalytics } from "../core/analytics-db";
 
 export async function getKbAnalyticsHandler(
@@ -17,12 +16,9 @@ export async function getKbAnalyticsHandler(
     await ensureMigrated();
 
     const auth = await requireAuth(req);
+    // The permission query 404s for unknown KBs — no separate existence
+    // check needed.
     await requireKbPermission(auth, kbId, "kb:read");
-
-    const kb = await getKnowledgeBaseById(kbId);
-    if (!kb) {
-      return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
-    }
 
     const analytics = await getKbAnalytics(kbId);
     return NextResponse.json(analytics);

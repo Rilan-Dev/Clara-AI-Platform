@@ -327,22 +327,43 @@ function qdrantErrorMessage(err: unknown): string {
 }
 
 /** Ensure Qdrant can execute the documentId payload filter. */
+// Memoised per process instance: once a collection's documentId index has
+// been ensured, skip the Qdrant createPayloadIndex round trip on every
+// subsequent chunk read/write. The previous behaviour issued the (wait:true)
+// index-creation call on EVERY request — a synchronous Qdrant round trip per
+// chunk listing that also raced concurrent index builds and surfaced as
+// intermittent 502 CHUNKS_READ_FAILED responses.
+const ensuredDocumentIdIndex = new Set<string>();
+const documentIdIndexInFlight = new Map<string, Promise<void>>();
+
 export async function ensureDocumentIdIndex(collectionName: string): Promise<void> {
-  const client = getQdrantClient();
-  try {
-    await client.createPayloadIndex(collectionName, {
-      field_name: "documentId",
-      field_schema: "keyword",
-      wait: true,
-    });
-  } catch (err) {
-    const message = qdrantErrorMessage(err).toLowerCase();
-    if (!message.includes("already exists") && !message.includes("already exist")) {
-      throw new Error(
-        `[qdrant] failed to ensure documentId payload index for collection="${collectionName}": ${qdrantErrorMessage(err)}`,
-      );
+  if (ensuredDocumentIdIndex.has(collectionName)) return;
+  const inFlight = documentIdIndexInFlight.get(collectionName);
+  if (inFlight) return inFlight;
+
+  const task = (async () => {
+    const client = getQdrantClient();
+    try {
+      await client.createPayloadIndex(collectionName, {
+        field_name: "documentId",
+        field_schema: "keyword",
+        wait: true,
+      });
+    } catch (err) {
+      const message = qdrantErrorMessage(err).toLowerCase();
+      if (!message.includes("already exists") && !message.includes("already exist")) {
+        throw new Error(
+          `[qdrant] failed to ensure documentId payload index for collection="${collectionName}": ${qdrantErrorMessage(err)}`,
+        );
+      }
+    } finally {
+      documentIdIndexInFlight.delete(collectionName);
     }
-  }
+    ensuredDocumentIdIndex.add(collectionName);
+  })();
+
+  documentIdIndexInFlight.set(collectionName, task);
+  return task;
 }
 
 

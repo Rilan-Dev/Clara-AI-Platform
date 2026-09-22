@@ -114,10 +114,17 @@ export async function resolveAvailableAIOptions(
   input: ResolveAvailableAIOptionsInput,
 ): Promise<ResolveAvailableAIOptionsResult> {
   const capability = input.capability;
-  const registry = await getPlatformAIRegistry();
 
-  const entitlements =
-    input.organizationId != null ? await resolvePlanAIEntitlements(input.organizationId) : null;
+  // Fan out the three independent lookups concurrently: the registry (an
+  // internally parallel, cached batch), plan entitlements, and the agent's
+  // current selection. Previously all three ran sequentially.
+  const [registry, entitlements, currentSelectionBase] = await Promise.all([
+    getPlatformAIRegistry(),
+    input.organizationId != null
+      ? resolvePlanAIEntitlements(input.organizationId)
+      : Promise.resolve(null),
+    readAgentCurrentSelection(input.agentId),
+  ]);
 
   const capabilityEnabled = entitlements
     ? entitlements.capabilities[capability] ?? false
@@ -128,95 +135,92 @@ export async function resolveAvailableAIOptions(
   const available: ResolvedAIProviderOption[] = [];
   const blocked: ResolvedAIOptionBlocked[] = [];
 
-  for (const provider of registry.providers) {
-    const gate = providerUsable(provider, capability);
-    if (!gate.usable) {
-      blocked.push({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        reason: gate.reason,
-      });
-      continue;
-    }
-    if (entitlements) {
-      if (!capabilityEnabled) {
-        blocked.push({
+  // Resolve every provider concurrently. The previous sequential loop issued
+  // one listProviderModels round trip per provider (plus the ElevenLabs voice
+  // query) one after another — with 4 providers that alone was 5+ serial round
+  // trips and dominated the multi-second ai-options latency.
+  const providerResults = await Promise.all(
+    registry.providers.map(async (provider): Promise<{ blocked: ResolvedAIOptionBlocked } | { available: ResolvedAIProviderOption }> => {
+      const gate = providerUsable(provider, capability);
+      if (!gate.usable) {
+        return { blocked: { providerId: provider.providerId, displayName: provider.displayName, reason: gate.reason } };
+      }
+      if (entitlements) {
+        if (!capabilityEnabled) {
+          return { blocked: { providerId: provider.providerId, displayName: provider.displayName, reason: "plan_not_entitled" } };
+        }
+        if (entitlements.allowedProviders[provider.providerId] === false) {
+          return { blocked: { providerId: provider.providerId, displayName: provider.displayName, reason: "plan_provider_not_allowed" } };
+        }
+      }
+
+      const models = await listProviderModels(provider.providerId, capability);
+      const modelKinds: ResolvedAIModelOption["kind"][] =
+        capability === "chat"
+          ? ["chat"]
+          : capability === "voice_chat"
+            ? ["tts", "stt"]
+            : // Realtime tab: native realtime models, realtime STT, transcription
+              // and conversational TTS (ElevenLabs Mode B serves realtime via its
+              // conversational TTS models).
+              ["realtime", "stt", "transcription", "tts"];
+      const voiceKinds: ResolvedAIModelOption["kind"][] = capability === "chat" ? [] : ["voice"];
+
+      const modelOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, modelKinds);
+      let voiceOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, voiceKinds);
+
+      // ElevenLabs voices are vendor-owned and tenant-scoped, so they cannot be
+      // represented as a static platform model row. Merge the organisation's
+      // synced ElevenLabs voice catalog into both speech capability pickers.
+      if (provider.providerId === "elevenlabs" && input.organizationId != null && capability !== "chat") {
+        const elevenVoices = await query<{
+          voice_id: string;
+          name: string;
+        }>(
+          `SELECT voice_id, name
+             FROM elevenlabs_voices
+            WHERE org_id = $1
+            UNION
+            SELECT voice_id, name
+              FROM organisation_voices
+             WHERE org_id = $1
+               AND provider = 'elevenlabs'
+               AND enabled = TRUE
+             ORDER BY name`,
+          [input.organizationId],
+        );
+        const seenVoiceIds = new Set(voiceOptions.map((voice) => voice.modelId));
+        voiceOptions = [
+          ...voiceOptions,
+          ...elevenVoices
+            .filter((voice) => !seenVoiceIds.has(voice.voice_id))
+            .map((voice) => ({
+              modelId: voice.voice_id,
+              displayName: voice.name,
+              kind: "voice" as const,
+              isDefault: false,
+            })),
+        ];
+      }
+
+      return {
+        available: {
           providerId: provider.providerId,
           displayName: provider.displayName,
-          reason: "plan_not_entitled",
-        });
-        continue;
-      }
-      if (entitlements.allowedProviders[provider.providerId] === false) {
-        blocked.push({
-          providerId: provider.providerId,
-          displayName: provider.displayName,
-          reason: "plan_provider_not_allowed",
-        });
-        continue;
-      }
-    }
+          health: provider.health?.status ?? "unknown",
+          isDefault: defaultProviderId === provider.providerId,
+          models: modelOptions,
+          voices: voiceOptions,
+        },
+      };
+    }),
+  );
 
-    const models = await listProviderModels(provider.providerId, capability);
-    const modelKinds: ResolvedAIModelOption["kind"][] =
-      capability === "chat"
-        ? ["chat"]
-        : capability === "voice_chat"
-          ? ["tts", "stt"]
-          : // Realtime tab: native realtime models, realtime STT, transcription
-            // and conversational TTS (ElevenLabs Mode B serves realtime via its
-            // conversational TTS models).
-            ["realtime", "stt", "transcription", "tts"];
-    const voiceKinds: ResolvedAIModelOption["kind"][] = capability === "chat" ? [] : ["voice"];
-
-    const modelOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, modelKinds);
-    let voiceOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, voiceKinds);
-
-    // ElevenLabs voices are vendor-owned and tenant-scoped, so they cannot be
-    // represented as a static platform model row. Merge the organisation's
-    // synced ElevenLabs voice catalog into both speech capability pickers.
-    if (provider.providerId === "elevenlabs" && input.organizationId != null && capability !== "chat") {
-      const elevenVoices = await query<{
-        voice_id: string;
-        name: string;
-      }>(
-        `SELECT voice_id, name
-           FROM elevenlabs_voices
-          WHERE org_id = $1
-        UNION
-        SELECT voice_id, name
-          FROM organisation_voices
-         WHERE org_id = $1
-           AND provider = 'elevenlabs'
-           AND enabled = TRUE
-         ORDER BY name`,
-        [input.organizationId],
-      );
-      const seenVoiceIds = new Set(voiceOptions.map((voice) => voice.modelId));
-      voiceOptions = [
-        ...voiceOptions,
-        ...elevenVoices
-          .filter((voice) => !seenVoiceIds.has(voice.voice_id))
-          .map((voice) => ({
-            modelId: voice.voice_id,
-            displayName: voice.name,
-            kind: "voice" as const,
-            isDefault: false,
-          })),
-      ];
-    }
-
-    available.push({
-      providerId: provider.providerId,
-      displayName: provider.displayName,
-      health: provider.health?.status ?? "unknown",
-      isDefault: defaultProviderId === provider.providerId,
-      models: modelOptions,
-      voices: voiceOptions,
-    });
+  for (const result of providerResults) {
+    if ("blocked" in result && result.blocked) blocked.push(result.blocked);
+    else if ("available" in result && result.available) available.push(result.available);
   }
 
-  const currentSelectionBase = await readAgentCurrentSelection(input.agentId);
   const currentSelection: ResolveAvailableAIOptionsResult["currentSelection"] = currentSelectionBase
     ? {
         ...currentSelectionBase,
