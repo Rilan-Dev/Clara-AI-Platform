@@ -40,7 +40,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       emailVerified: auth.user.emailVerified,
       orgId,
       onboarding: row ?? null,
-      featureAccess: Boolean(row && (row.status === "active" || row.status === "trialing") && (row.plan_price_usd > 0 || row.plan_enabled)),
+      featureAccess: Boolean(
+      row &&
+      (
+        row.plan_price_usd <= 0 ||
+        row.payment_status === "paid" ||
+        (row.status === "trialing" && row.plan_price_usd > 0)
+      ) &&
+      (row.status === "active" || row.status === "trialing")
+    ),
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
