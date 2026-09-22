@@ -38,8 +38,8 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
   if (data.featureAccess && emailVerified && onboarding.status === "active") return <>{children}</>;
 
   const needsEmail = !emailVerified || onboarding.status === "pending_email";
-  const needsSubscription = !needsEmail && !review && !data.featureAccess;
   const review = onboarding.status === "payment_review";
+  const needsSubscription = !needsEmail && !review && !data.featureAccess;
 
   const title = needsEmail
     ? "Verify your email before continuing"
@@ -85,6 +85,11 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
         ) : needsEmail ? (
           <Link href="/login/verify-email" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
             Verify email <ArrowRight className="w-4 h-4" />
+          </Link>
+        ) : needsSubscription ? (
+          <Link href={`/checkout?plan=starter&orgId=${encodeURIComponent(data.orgId)}`}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
+            Continue with Starter <ArrowRight className="w-4 h-4" />
           </Link>
         ) : (
           <Link href={`/checkout?plan=${encodeURIComponent(onboarding.plan_id)}&orgId=${encodeURIComponent(data.orgId)}`}
