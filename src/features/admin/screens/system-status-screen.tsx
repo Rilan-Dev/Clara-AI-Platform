@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  RefreshCw, Database, Zap, Boxes, Rabbit, Mail, ListChecks, Server, Sparkles,
+  RefreshCw, Database, Zap, Boxes, Rabbit, Mail, ListChecks, Server, Sparkles, CreditCard, Landmark,
   Activity, ChevronDown, ChevronUp, CircleCheck, CircleX, MinusCircle,
   Clock, Timer, AlertTriangle,
 } from "lucide-react";
@@ -53,6 +53,8 @@ type StatusPayload = {
     redis: BaseCheck;
     qdrant: BaseCheck;
     rabbitmq: BaseCheck;
+    stripe: BaseCheck & { mode?: "test" | "live"; webhookConfigured: boolean; priceChecks?: Record<string, "valid" | "invalid"> };
+    razorpay: BaseCheck & { webhookConfigured: boolean };
     email: BaseCheck & {
       provider?: string;
       from?: string;
@@ -409,6 +411,35 @@ export function SystemStatusScreen() {
                     <DetailRow label="Queued last 24h" value={String(data.services.email.queue.last24h)} />
                   </div>
                 )}
+              </ServiceCard>
+
+              <ServiceCard
+                icon={<CreditCard className="w-5 h-5" />}
+                name="Stripe payments"
+                subtitle={data.services.stripe.mode ? `Stripe API · ${data.services.stripe.mode} mode` : "USD payment gateway"}
+                check={data.services.stripe}
+              >
+                <div>
+                  <DetailRow label="API mode" value={data.services.stripe.mode ?? "—"} />
+                  <DetailRow label="Webhook secret" value={data.services.stripe.webhookConfigured ? "Configured" : "Missing"} />
+                  {data.services.stripe.priceChecks && Object.entries(data.services.stripe.priceChecks).map(([plan, status]) => (
+                    <DetailRow key={plan} label={`${plan} price ID`} value={status} />
+                  ))}
+                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground/70">
+                    This check calls Stripe server-side, so an invalid/revoked secret is detected before checkout.
+                  </p>
+                </div>
+              </ServiceCard>
+
+              <ServiceCard
+                icon={<Landmark className="w-5 h-5" />}
+                name="Razorpay payments"
+                subtitle="INR payment gateway"
+                check={data.services.razorpay}
+              >
+                <div>
+                  <DetailRow label="Webhook secret" value={data.services.razorpay.webhookConfigured ? "Configured" : "Missing"} />
+                </div>
               </ServiceCard>
 
               <ServiceCard
