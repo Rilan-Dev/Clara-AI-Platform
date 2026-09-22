@@ -6,7 +6,7 @@ import { getEmailConfig, getEmailProviderConfigStatus } from "@/lib/email";
 import { getPlatformAIRegistry, recordProviderHealth } from "@/modules/ai-governance/core/registry-db";
 import { testProviderConnection } from "@/modules/ai-governance/core/health";
 import { syncPlatformHealthIncidents, type PlatformHealthCheck } from "@/modules/platform-health/core/incidents";
-import { checkRazorpayGateway, checkStripeGateway } from "@/modules/billing/core/health";
+import { checkRazorpayGateway, checkStripeGateway, type PaymentGatewayHealth } from "@/modules/billing/core/health";
 
 /**
  * GET /api/platform/services-status
@@ -285,8 +285,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkStripeGateway().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, webhookConfigured: false })),
-      checkRazorpayGateway().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, webhookConfigured: false })),
+      checkStripeGateway().catch((e): PaymentGatewayHealth => ({ status: "down", error: (e as Error).message, webhookConfigured: false })),
+      checkRazorpayGateway().catch((e): PaymentGatewayHealth => ({ status: "down", error: (e as Error).message, webhookConfigured: false })),
       checkGovernedProvider("openai", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
       checkGovernedProvider("gemini", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
       checkGovernedProvider("sarvam", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),

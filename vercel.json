@@ -6,7 +6,7 @@
   "regions": ["bom1"],
   "crons": [
     { "path": "/api/cron/onboarding-reminders", "schedule": "30 18 * * *" },
-    { "path": "/api/platform/services-status", "schedule": "*/10 * * * *" }
+    { "path": "/api/platform/services-status", "schedule": "10 4 * * *" }
   ],
   "functions": {
     "src/app/api/queue/ingest/route.ts": {
