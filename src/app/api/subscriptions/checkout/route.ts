@@ -122,7 +122,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       success_url: appUrl(
         `/checkout/success?session_id={CHECKOUT_SESSION_ID}&orgId=${orgId}&plan=${planId}`
       ),
-      cancel_url: appUrl(`/signup?plan=${planId}&orgId=${orgId}&cancelled=1`),
+      cancel_url: appUrl(`/checkout?plan=${planId}&orgId=${orgId}&cancelled=1`),
       metadata:   { orgId, planId, userId: auth.user.id },
       subscription_data: {
         metadata: { orgId, planId },
