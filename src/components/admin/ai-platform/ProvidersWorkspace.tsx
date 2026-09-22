@@ -23,6 +23,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchAIProviders,
+  fetchEmbeddingDefault,
+  putEmbeddingDefault,
   fetchProviderUsage,
   fetchProviderWorkspace,
   patchProvider,
@@ -31,6 +33,7 @@ import {
   putProviderCredential,
   testProvider,
   type AICapability,
+  type EmbeddingDefaultDTO,
   type CapabilityDefaultDTO,
   type PlatformAIProviderDTO,
   type ProviderModelDTO,
@@ -84,7 +87,8 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 export function ProvidersWorkspace() {
-  const [capability, setCapability] = useState<AICapability>("chat");
+  const [area, setArea] = useState<AICapability | "embeddings">("chat");
+  const capability: AICapability = area === "embeddings" ? "chat" : area;
   const [providers, setProviders] = useState<PlatformAIProviderDTO[]>([]);
   const [defaults, setDefaults] = useState<CapabilityDefaultDTO[]>([]);
   const [usage, setUsage] = useState<ProviderUsageReportDTO[]>([]);
@@ -155,12 +159,22 @@ export function ProvidersWorkspace() {
   return (
     <div className="space-y-5">
       <WorkspaceTabs
-        tabs={CAPABILITIES.map((c) => ({ id: c, label: CAPABILITY_META[c].label }))}
-        active={capability}
-        onChange={setCapability}
+        tabs={[
+          { id: "chat" as const, label: "Chat" },
+          { id: "embeddings" as const, label: "Embeddings" },
+          { id: "voice_chat" as const, label: "Voice Chat" },
+          { id: "realtime_voice" as const, label: "Realtime Voice" },
+        ]}
+        active={area}
+        onChange={setArea}
       />
 
-      <p className="text-sm text-muted-foreground">{CAPABILITY_META[capability].blurb}</p>
+      {area === "embeddings" ? (
+        <EmbeddingsWorkspace />
+      ) : (
+        <>
+                <p className="text-sm text-muted-foreground">{CAPABILITY_META[capability].blurb}</p>
+
 
       {loading && (
         <div className="grid gap-4 md:grid-cols-2">
@@ -261,7 +275,7 @@ export function ProvidersWorkspace() {
         </div>
       )}
 
-      {detail && (
+        {detail && (
         <ProviderDetailDrawer
           provider={detail}
           capability={capability}
@@ -272,8 +286,162 @@ export function ProvidersWorkspace() {
           defaults={defaults}
         />
       )}
+        </>
+      )}
     </div>
   );
+}
+
+function EmbeddingsWorkspace() {
+  const [embeddingDefault, setEmbeddingDefault] = useState<EmbeddingDefaultDTO | null>(null);
+  const [options, setOptions] = useState<Array<{
+    providerId: "openai" | "gemini";
+    displayName: string;
+    configured: boolean;
+    enabled: boolean;
+    models: ProviderModelDTO[];
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const [registry, current] = await Promise.all([
+        fetchAIProviders(),
+        fetchEmbeddingDefault(),
+      ]);
+      setEmbeddingDefault(current.embeddingDefault ?? registry.embeddingDefault ?? null);
+      const supported = registry.providers.filter(
+        (provider): provider is PlatformAIProviderDTO & { providerId: "openai" | "gemini" } =>
+          provider.providerId === "openai" || provider.providerId === "gemini",
+      );
+      const workspaces = await Promise.all(
+        supported.map(async (provider) => {
+          const workspace = await fetchProviderWorkspace(provider.providerId);
+          return {
+            providerId: provider.providerId,
+            displayName: provider.displayName,
+            configured: provider.configured,
+            enabled: provider.enabled,
+            models: workspace.models.filter((model) => model.capability === "chat" && model.kind === "embedding" && model.enabled),
+          };
+        }),
+      );
+      setOptions(workspaces);
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const save = async (providerId: "openai" | "gemini", modelId: string) => {
+    setBusy(providerId + ":" + modelId);
+    setMessage(null);
+    try {
+      const result = await putEmbeddingDefault(providerId, modelId);
+      setEmbeddingDefault(result.embeddingDefault);
+      setMessage(`Embedding model set to ${modelId}. New document ingestion will use this backbone.`);
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const test = async () => {
+    setTesting(true);
+    setMessage(null);
+    try {
+      const result = await apiFetchEmbeddingTest();
+      setMessage(`Embedding test passed: ${result.modelId} returned ${result.dimension} dimensions in ${result.latencyMs} ms.`);
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (loading) return <div className="h-56 animate-pulse rounded-2xl bg-muted/60" />;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-foreground">Document Embeddings</h3>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Dedicated embedding configuration for PDF uploads, web scraping and document re-indexing. This is independent from the chat and realtime model selections.
+            </p>
+          </div>
+          <WorkspaceButton onClick={test} disabled={testing || !embeddingDefault}>
+            {testing ? "Testing…" : "Test embedding"}
+          </WorkspaceButton>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+          <VersionBadge tone="primary">Active</VersionBadge>
+          <span className="text-muted-foreground">Provider: <strong className="text-foreground">{embeddingDefault?.providerId ?? "—"}</strong></span>
+          <span className="text-muted-foreground">Model: <strong className="font-mono text-foreground">{embeddingDefault?.modelId ?? "—"}</strong></span>
+        </div>
+        {message && <p className="mt-4 rounded-xl border border-border bg-card px-3 py-2.5 text-xs text-foreground/80">{message}</p>}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {options.map((provider) => (
+          <article key={provider.providerId} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">{provider.displayName}</h4>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {provider.configured ? "API credentials configured" : "API credentials not configured"}
+                  {!provider.enabled && " · provider disabled"}
+                </p>
+              </div>
+              {embeddingDefault?.providerId === provider.providerId && <VersionBadge tone="primary">Embedding provider</VersionBadge>}
+            </div>
+            <div className="mt-4 space-y-2">
+              {provider.models.map((model) => {
+                const active = embeddingDefault?.providerId === provider.providerId && embeddingDefault.modelId === model.modelId;
+                const key = provider.providerId + ":" + model.modelId;
+                const dims = model.modelId === "text-embedding-3-large" ? 3072 : model.modelId.includes("embedding") || model.modelId.includes("ada") ? 1536 : "provider-defined";
+                return (
+                  <div key={model.id} className={cn("flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-3", active ? "border-primary/30 bg-primary/5" : "border-border bg-card")}>
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-foreground">{model.displayName}</p>
+                      <p className="mt-0.5 break-all font-mono text-[11px] text-muted-foreground/70">{model.modelId} · {dims} dims</p>
+                    </div>
+                    <WorkspaceButton variant={active ? "ghost" : "primary"} onClick={() => void save(provider.providerId, model.modelId)} disabled={busy != null || !provider.configured || !provider.enabled}>
+                      {busy === key ? "Saving…" : active ? "Active" : "Use for documents"}
+                    </WorkspaceButton>
+                  </div>
+                );
+              })}
+              {provider.models.length === 0 && <p className="rounded-xl border border-dashed border-border px-3 py-5 text-center text-xs text-muted-foreground">No enabled embedding models.</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+        Changing this setting does not rewrite existing Qdrant vectors automatically. Existing documents remain on their current vector space until you explicitly reprocess them. New uploads and scrapes use the active setting.
+      </div>
+    </div>
+  );
+}
+
+async function apiFetchEmbeddingTest(): Promise<{ providerId: string; modelId: string; dimension: number; latencyMs: number }> {
+  const response = await fetch("/api/platform/ai/embedding-default/test", { method: "POST", headers: { "Content-Type": "application/json" } });
+  const body = (await response.json().catch(() => ({}))) as { error?: string; providerId?: string; modelId?: string; dimension?: number; latencyMs?: number };
+  if (!response.ok) throw new Error(body.error ?? "Embedding test failed");
+  return { providerId: body.providerId ?? "", modelId: body.modelId ?? "", dimension: body.dimension ?? 0, latencyMs: body.latencyMs ?? 0 };
 }
 
 // ─── Provider detail drawer (Connection / Capabilities / Models / Voices / Health / Usage) ──
