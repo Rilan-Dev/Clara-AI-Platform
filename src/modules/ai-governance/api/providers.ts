@@ -21,6 +21,7 @@ import {
   listProviderHealthHistory,
   listProviderModels,
   setCapabilityDefault,
+  setEmbeddingDefault,
   setModelDefault,
   setModelEnabled,
   setProviderEnabled,
@@ -30,6 +31,9 @@ import {
 import { testAndRecordProviderHealth } from "../core/health";
 import { getProviderUsageReports } from "../core/usage-db";
 import { resolveAvailableAIOptions } from "../core/resolver";
+import { ProviderFactory } from "@/modules/ai-core/factory";
+import { getProviderApiKey } from "@/modules/ai-core/resolve";
+import { ensureMigrated } from "@/lib/db/migrate";
 import type { AICapability, AIModelKind, GovernanceProviderId } from "../core/types";
 
 function errorResponse(message: string, status: number, code?: string): NextResponse {
@@ -251,7 +255,7 @@ export async function getDefaultsHandler(req: NextRequest): Promise<NextResponse
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
     const registry = await getPlatformAIRegistry();
-    return NextResponse.json({ defaults: registry.defaults });
+    return NextResponse.json({ defaults: registry.defaults, embeddingDefault: registry.embeddingDefault });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[GET /api/platform/ai/defaults]", err);
@@ -276,11 +280,69 @@ export async function putDefaultsHandler(req: NextRequest): Promise<NextResponse
 
     await setCapabilityDefault(capability, providerId, modelId, auth.user.id);
     const registry = await getPlatformAIRegistry();
-    return NextResponse.json({ defaults: registry.defaults });
+    return NextResponse.json({ defaults: registry.defaults, embeddingDefault: registry.embeddingDefault });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[PUT /api/platform/ai/defaults]", err);
     return errorResponse("Failed to update platform AI defaults", 500);
+  }
+}
+
+export async function testEmbeddingDefaultHandler(req: NextRequest): Promise<NextResponse> {
+  try {
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
+    await ensureMigrated();
+
+    const registry = await getPlatformAIRegistry();
+    const selected = registry.embeddingDefault;
+    if (!selected) return errorResponse("No embedding model is configured.", 400);
+
+    const provider = registry.providers.find((item) => item.providerId === selected.providerId);
+    if (!provider?.enabled) return errorResponse(`Embedding provider ${selected.providerId} is disabled.`, 400);
+    if (!provider.configured) return errorResponse(`Embedding provider ${selected.providerId} has no configured credentials.`, 400);
+
+    const started = Date.now();
+    const embeddingProvider = ProviderFactory.getProvider({
+      provider: selected.providerId,
+      apiKey: getProviderApiKey(selected.providerId),
+      embeddingModel: selected.modelId,
+    });
+    const vector = await embeddingProvider.embedText("Clara AI embedding configuration test");
+    if (!Array.isArray(vector) || vector.length === 0) {
+      return errorResponse("Embedding provider returned an empty vector.", 502);
+    }
+
+    return NextResponse.json({
+      providerId: selected.providerId,
+      modelId: selected.modelId,
+      dimension: vector.length,
+      latencyMs: Date.now() - started,
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[POST /api/platform/ai/embedding-default/test]", err);
+    return errorResponse((err as Error).message || "Embedding test failed", 502);
+  }
+}
+
+export async function putEmbeddingDefaultHandler(req: NextRequest): Promise<NextResponse> {
+  try {
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const providerId = body.providerId === "openai" || body.providerId === "gemini" ? body.providerId : null;
+    const modelId = typeof body.modelId === "string" ? body.modelId.trim() : "";
+    if (!providerId) return errorResponse("Embedding provider must be openai or gemini", 400);
+    if (!modelId) return errorResponse("modelId is required", 400);
+
+    await setEmbeddingDefault(providerId, modelId, auth.user.id);
+    const registry = await getPlatformAIRegistry();
+    return NextResponse.json({ embeddingDefault: registry.embeddingDefault });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[PUT /api/platform/ai/embedding-default]", err);
+    return errorResponse((err as Error).message || "Failed to update embedding default", 400);
   }
 }
 

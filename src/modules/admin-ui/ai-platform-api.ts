@@ -78,6 +78,12 @@ export type CapabilityDefaultDTO = {
   modelId: string | null;
 };
 
+export type EmbeddingDefaultDTO = {
+  providerId: "openai" | "gemini";
+  modelId: string;
+  updatedAt: string | null;
+};
+
 export type ProviderUsageReportDTO = {
   providerId: string;
   periodStart: string;
@@ -88,7 +94,7 @@ export type ProviderUsageReportDTO = {
   rechargeWarning: boolean;
 };
 
-export async function fetchAIProviders(): Promise<{ providers: PlatformAIProviderDTO[]; defaults: CapabilityDefaultDTO[] }> {
+export async function fetchAIProviders(): Promise<{ providers: PlatformAIProviderDTO[]; defaults: CapabilityDefaultDTO[]; embeddingDefault: EmbeddingDefaultDTO | null }> {
   return apiFetch("/api/platform/ai/providers");
 }
 
@@ -126,6 +132,20 @@ export async function patchProviderModel(
   input: { capability: AICapability; kind: string; modelId: string; enabled?: boolean; isDefault?: boolean },
 ): Promise<{ models: ProviderModelDTO[] }> {
   return apiFetch(`/api/platform/ai/providers/${providerId}/models`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export async function fetchEmbeddingDefault(): Promise<{ embeddingDefault: EmbeddingDefaultDTO | null }> {
+  return apiFetch("/api/platform/ai/embedding-default");
+}
+
+export async function putEmbeddingDefault(
+  providerId: "openai" | "gemini",
+  modelId: string,
+): Promise<{ embeddingDefault: EmbeddingDefaultDTO }> {
+  return apiFetch("/api/platform/ai/embedding-default", {
+    method: "PUT",
+    body: JSON.stringify({ providerId, modelId }),
+  });
 }
 
 export async function putCapabilityDefault(
