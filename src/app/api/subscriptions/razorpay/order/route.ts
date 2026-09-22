@@ -74,8 +74,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Guard against charging for a downgrade — a crafted request must not be
     // able to pay Razorpay for a lower plan than the org already has.
     // Downgrades are always free and go through /api/subscriptions/downgrade.
-    const currentSub = await queryOne<{ plan_id: string; status: string; current_period_end: string | null }>(
-      "SELECT plan_id, status, current_period_end::text AS current_period_end FROM org_subscriptions WHERE org_id = $1",
+    const currentSub = await queryOne<{
+      plan_id: string;
+      status: string;
+      payment_status: string;
+      current_period_end: string | null;
+    }>(
+      "SELECT plan_id, status, payment_status, current_period_end::text AS current_period_end FROM org_subscriptions WHERE org_id = $1",
       [orgId]
     );
     const currentPlanId = currentSub?.plan_id ?? "free";
@@ -88,12 +93,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     if (direction === "same") {
       const periodEnd = currentSub?.current_period_end ? new Date(currentSub.current_period_end) : null;
-      const stillActive = !!periodEnd && periodEnd.getTime() > Date.now()
-        && currentSub?.status !== "past_due" && currentSub?.status !== "cancelled";
+      const stillActive = currentSub?.payment_status === "paid"
+        && !!periodEnd
+        && periodEnd.getTime() > Date.now()
+        && currentSub?.status !== "past_due"
+        && currentSub?.status !== "cancelled";
       if (stillActive) {
         return NextResponse.json({ error: "You're already on this plan and it's still active." }, { status: 400 });
       }
-      // else: expired/past_due same-plan renewal is allowed to fall through.
+      // An unpaid onboarding row is intentionally allowed through even if an
+      // old/stale current_period_end makes the subscription look active.
+      // Payment status, not a period date alone, determines whether the
+      // customer has already paid for this plan.
+      // Expired/past_due same-plan renewal is also allowed to fall through.
     }
 
     const amountPaise = PLAN_AMOUNTS_INR_PAISE[planId];
