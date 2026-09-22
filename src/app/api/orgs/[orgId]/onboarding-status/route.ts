@@ -23,7 +23,7 @@ const PAYMENT_STATES = new Set([
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ orgId: string }> },
 ): Promise<NextResponse> {
   try {
     const auth = await requireAuth(req);
@@ -31,7 +31,7 @@ export async function GET(
       return NextResponse.json({ state: "ready" satisfies OnboardingState });
     }
 
-    const { id: orgId } = await params;
+    const { orgId } = await params;
     const membership = await getOrgMembership(orgId, auth.user.id);
     if (!membership) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
