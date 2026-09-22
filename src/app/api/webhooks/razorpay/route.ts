@@ -229,8 +229,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (!orgId) break;
 
         await query(
-          `UPDATE org_subscriptions SET status = 'past_due', updated_at = now()
-           WHERE org_id = $1`,
+          `UPDATE org_subscriptions
+              SET status = CASE
+                WHEN payment_status IN ('not_started','pending','failed','cancelled','review')
+                  THEN 'payment_failed'
+                ELSE 'past_due'
+              END,
+              payment_status = 'failed',
+              updated_at = now()
+            WHERE org_id = $1`,
           [orgId]
         );
 
