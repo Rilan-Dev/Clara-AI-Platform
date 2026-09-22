@@ -95,7 +95,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
       }
     }
 
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+    const resolved = await resolveVoiceConfig({ kbId, surface: "voice_chat" });
     // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
     // as the chat-window voice-chat experience) or the realtime axis (Mode A
     // as the fallback when a realtime=elevenlabs config has no Mode-B
