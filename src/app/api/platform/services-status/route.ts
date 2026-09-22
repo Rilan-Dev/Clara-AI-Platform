@@ -254,8 +254,16 @@ async function checkGovernedProvider(
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
-    const auth = await requireAuth(req);
-    await requireSuperAdmin(auth);
+    const cronAuthorized =
+      Boolean(process.env.CRON_SECRET) &&
+      req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
+
+    let checkedBy: string | null = null;
+    if (!cronAuthorized) {
+      const auth = await requireAuth(req);
+      await requireSuperAdmin(auth);
+      checkedBy = auth.user.id;
+    }
 
     const startedAt = Date.now();
 
@@ -273,10 +281,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkGovernedProvider("openai", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
-      checkGovernedProvider("gemini", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
-      checkGovernedProvider("sarvam", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),
-      checkGovernedProvider("elevenlabs", activeProviderId, auth.user.id).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "elevenlabs", enabled: true, providerId: "elevenlabs" })),
+      checkGovernedProvider("openai", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
+      checkGovernedProvider("gemini", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
+      checkGovernedProvider("sarvam", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),
+      checkGovernedProvider("elevenlabs", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "elevenlabs", enabled: true, providerId: "elevenlabs" })),
       Promise.resolve(checkApp()),
     ]);
 
