@@ -53,7 +53,7 @@ type StatusPayload = {
     redis: BaseCheck;
     qdrant: BaseCheck;
     rabbitmq: BaseCheck;
-    stripe: BaseCheck & { mode?: "test" | "live"; webhookConfigured: boolean; priceChecks?: Record<string, "valid" | "invalid"> };
+    stripe: BaseCheck & { mode?: "test" | "live"; webhookConfigured: boolean; webhookEndpointConfigured?: boolean; priceChecks?: Record<string, "valid" | "invalid"> };
     razorpay: BaseCheck & { webhookConfigured: boolean };
     email: BaseCheck & {
       provider?: string;
@@ -422,6 +422,7 @@ export function SystemStatusScreen() {
                 <div>
                   <DetailRow label="API mode" value={data.services.stripe.mode ?? "—"} />
                   <DetailRow label="Webhook secret" value={data.services.stripe.webhookConfigured ? "Configured" : "Missing"} />
+                  <DetailRow label="Webhook endpoint" value={data.services.stripe.webhookEndpointConfigured ? "Enabled" : "Missing"} />
                   {data.services.stripe.priceChecks && Object.entries(data.services.stripe.priceChecks).map(([plan, status]) => (
                     <DetailRow key={plan} label={`${plan} price ID`} value={status} />
                   ))}
