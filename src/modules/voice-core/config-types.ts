@@ -18,6 +18,8 @@ export interface ResolveVoiceConfigInput {
   kbId?: string;
   orgId?: string;
   surface: "realtime" | "embed";
+  /** Optional pre-resolved brain config to avoid duplicate AI resolution in composite callers. */
+  brainConfig?: ResolvedAIConfig;
 }
 
 // ─── Resolution output ───────────────────────────────────────────────────────

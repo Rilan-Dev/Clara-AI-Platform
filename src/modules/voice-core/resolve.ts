@@ -151,9 +151,10 @@ export async function resolveVoiceConfigCached(
 export async function resolveVoiceConfig(
   input: ResolveVoiceConfigInput,
 ): Promise<VoiceResolution> {
-  // Brain resolution first — unchanged code path, unchanged failures. This
-  // also enforces the surface flags via assertSurfaceEnabled inside.
-  const brain = await resolveAIConfig({
+  // Reuse a caller-provided brain resolution when available. Composite
+  // session/bootstrap routes already resolve the brain once; re-resolving it
+  // here doubles DB work and can make provider resolution race itself.
+  const brain = input.brainConfig ?? await resolveAIConfig({
     kbId: input.kbId,
     orgId: input.orgId,
     surface: input.surface,

@@ -131,7 +131,7 @@ vi.mock("@/modules/voice-core/model-catalog", () => ({
 import { POST } from "./route";
 import { createOpenAIRealtimeClientSecret } from "@/modules/assistant/api/openai-realtime";
 import { getProviderApiKey, resolveAIConfig } from "@/modules/ai-core/resolve";
-import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
+import { resolveVoiceConfig, VoiceConfigResolutionError } from "@/modules/voice-core/resolve";
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
 
 const mintMock = vi.mocked(createOpenAIRealtimeClientSecret);
@@ -203,6 +203,16 @@ describe("POST /api/embed/session — voice-axis native realtime transport", () 
     expect(body.voiceProvider).toBe("openai");
     expect(body.client_secret?.value).toBe("ephemeral-1");
     expect(mintGeminiMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a voice configuration resolution error instead of hiding it as Internal error", async () => {
+    resolveVoiceMock.mockRejectedValueOnce(
+      new VoiceConfigResolutionError("ElevenLabs voice is not configured for this organisation."),
+    );
+    const res = await POST(sessionRequest());
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/ElevenLabs voice is not configured/);
   });
 
   it("returns 503 naming OPENAI_API_KEY when the transport credential is missing", async () => {
