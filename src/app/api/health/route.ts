@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * GET /api/health
  * ─────────────────────────────────────────────────────────────────────────────
@@ -11,40 +25,43 @@ import { pool } from "@/lib/db";
 export async function GET() {
   const start = Date.now();
 
-  // ── Database ping ─────────────────────────────────────────────────────────
-  let dbStatus: "ok" | "error" = "error";
-  let dbLatencyMs = 0;
-  let dbError: string | undefined;
-
-  try {
-    const dbStart = Date.now();
-    await pool.query("SELECT 1");
-    dbLatencyMs = Date.now() - dbStart;
-    dbStatus = "ok";
-  } catch (err) {
-    dbError = (err as Error).message;
-  }
-
-  // ── Qdrant ping ───────────────────────────────────────────────────────────
-  let qdrantStatus: "ok" | "error" | "unconfigured" = "unconfigured";
-  let qdrantLatencyMs = 0;
-  let qdrantError: string | undefined;
-
+  // Database and vector-store checks are independent. Run them together so a
+  // slow dependency cannot add its full latency to the other check.
   const qdrantUrl = process.env.QDRANT_URL;
-  if (qdrantUrl) {
-    try {
-      const qdrantStart = Date.now();
-      const res = await fetch(`${qdrantUrl.replace(/\/$/, "")}/healthz`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      qdrantLatencyMs = Date.now() - qdrantStart;
-      qdrantStatus = res.ok ? "ok" : "error";
-      if (!res.ok) qdrantError = `HTTP ${res.status}`;
-    } catch (err) {
-      qdrantError = (err as Error).message;
-      qdrantStatus = "error";
-    }
-  }
+  const [dbCheck, qdrantCheck] = await Promise.all([
+    (async () => {
+      try {
+        const dbStart = Date.now();
+        await withTimeout(pool.query("SELECT 1"), 700, "database health check timed out");
+        return { status: "ok" as const, latencyMs: Date.now() - dbStart };
+      } catch (err) {
+        return { status: "error" as const, latencyMs: 0, error: (err as Error).message };
+      }
+    })(),
+    (async () => {
+      if (!qdrantUrl) return { status: "unconfigured" as const, latencyMs: 0, error: undefined };
+      try {
+        const qdrantStart = Date.now();
+        const res = await fetch(`${qdrantUrl.replace(/\/$/, "")}/healthz`, {
+          signal: AbortSignal.timeout(700),
+          cache: "no-store",
+        });
+        return {
+          status: res.ok ? "ok" as const : "error" as const,
+          latencyMs: Date.now() - qdrantStart,
+          ...(res.ok ? {} : { error: `HTTP ${res.status}` }),
+        };
+      } catch (err) {
+        return { status: "error" as const, latencyMs: 0, error: (err as Error).message };
+      }
+    })(),
+  ]);
+  const dbStatus = dbCheck.status;
+  const dbLatencyMs = dbCheck.latencyMs;
+  const dbError = dbCheck.error;
+  const qdrantStatus = qdrantCheck.status;
+  const qdrantLatencyMs = qdrantCheck.latencyMs;
+  const qdrantError = qdrantCheck.error;
 
   // ── System stats ──────────────────────────────────────────────────────────
   const memUsage   = process.memoryUsage();
@@ -78,7 +95,7 @@ export async function GET() {
         database: {
           status:    dbStatus,
           latencyMs: dbLatencyMs,
-          error:     dbError,
+          error:     process.env.NODE_ENV === "production" ? undefined : dbError,
           pool:      poolStats,
         },
         qdrant: {
