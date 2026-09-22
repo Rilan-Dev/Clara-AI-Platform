@@ -39,9 +39,10 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
 
   // Keep navigation/read-only screens available. Every feature mutation is
   // independently blocked server-side by the auth subscription gate.
-  const needsEmail = !emailVerified || onboarding.status === "pending_email";
+  const needsEmail = !emailVerified;
   const review = onboarding.status === "payment_review";
-  const needsSubscription = !needsEmail && !review && !data.featureAccess;
+  const paymentRequired = emailVerified && !data.featureAccess && !review;
+  const needsSubscription = paymentRequired && onboarding.plan_price_usd <= 0;
 
   const title = needsEmail
     ? "Verify your email before continuing"
@@ -49,16 +50,16 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
       ? "Payment received — activation is under review"
       : needsSubscription
       ? "Choose a Clara AI subscription to unlock features"
-      : "Complete your Clara AI payment";
+      : "Email verified — payment required";
 
   if (!data.featureAccess) {
     const lockedMessage = !emailVerified
-      ? "Verify your email before using Clara AI features."
+      ? "Your email address is not verified yet. Verify it to continue."
       : onboarding.status === "payment_review"
-        ? "Payment is under review. Feature actions remain locked until activation is confirmed."
-        : onboarding.status !== "active" && onboarding.status !== "trialing"
-          ? "Complete your subscription payment to unlock Clara AI features."
-          : "An active Starter, Pro, or Enterprise subscription is required to use Clara AI features.";
+        ? "Your payment was received and is under review. Feature actions remain locked until activation is confirmed."
+        : onboarding.payment_status === "paid"
+          ? "Your payment is recorded, but the subscription has not been activated yet. Please wait for activation or contact support."
+          : "Your email is verified. Complete payment for the selected plan to unlock Clara AI features.";
     return (
       <>
         {children}
@@ -68,7 +69,7 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
             <p className="flex-1 text-sm text-foreground">{lockedMessage}</p>
             {!emailVerified ? (
               <Link href="/login/verify-email" className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Verify email</Link>
-            ) : onboarding.status === "payment_required" || onboarding.status === "payment_pending" || onboarding.status === "payment_failed" || onboarding.status === "payment_cancelled" ? (
+            ) : paymentRequired ? (
               <Link href={`/checkout?plan=${encodeURIComponent(onboarding.plan_id)}&orgId=${encodeURIComponent(data.orgId)}`} className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Continue payment</Link>
             ) : null}
           </div>
@@ -80,10 +81,12 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
   const message = needsEmail
     ? "Your workspace is reserved, but paid features remain locked until your email address is verified."
     : review
-      ? "We recorded the payment but could not safely activate the subscription automatically. Platform support has been notified."
-      : needsSubscription
-      ? "You can explore the workspace, but agents, knowledge bases, AI actions, and other feature operations remain locked until an active entitled subscription is available."
-      : "Your selected plan is ready. Complete payment to activate your workspace and unlock Clara AI features.";
+      ? "We recorded your payment, but activation is still under review. You do not need to pay again."
+      : onboarding.payment_status === "paid"
+        ? "Your payment is recorded, but the subscription has not been activated yet. Please wait for activation or contact support."
+        : needsSubscription
+          ? "Choose a paid subscription to unlock agents, knowledge bases, AI actions, and other feature operations."
+          : "Your email is verified. Complete payment for your selected plan to unlock Clara AI features.";
 
   return (
     <div className="min-h-[calc(100dvh-64px)] flex items-center justify-center px-4 py-10">
@@ -117,8 +120,13 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
         ) : needsSubscription ? (
           <Link href={`/checkout?plan=starter&orgId=${encodeURIComponent(data.orgId)}`}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
-            Continue with Starter <ArrowRight className="w-4 h-4" />
+            Choose a plan <ArrowRight className="w-4 h-4" />
           </Link>
+        ) : onboarding.payment_status === "paid" ? (
+          <button type="button" disabled
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground cursor-not-allowed">
+            Payment received — awaiting activation
+          </button>
         ) : (
           <Link href={`/checkout?plan=${encodeURIComponent(onboarding.plan_id)}&orgId=${encodeURIComponent(data.orgId)}`}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
