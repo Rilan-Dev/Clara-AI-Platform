@@ -12,5 +12,24 @@ CREATE TABLE IF NOT EXISTS platform_ai_embedding_defaults (
 );
 
 INSERT INTO platform_ai_embedding_defaults (id, provider_id, model_id)
-VALUES (TRUE, 'openai', 'text-embedding-3-small')
+SELECT
+  TRUE,
+  'openai',
+  COALESCE(
+    (
+      SELECT pes.value
+      FROM platform_env_settings pes
+      JOIN platform_ai_provider_models pam
+        ON pam.provider_id = 'openai'
+       AND pam.capability = 'chat'
+       AND pam.kind = 'embedding'
+       AND pam.model_id = pes.value
+       AND pam.enabled = TRUE
+      WHERE pes.key = 'OPENAI_EMBEDDING_MODEL'
+        AND pes.value IS NOT NULL
+        AND pes.value <> ''
+      LIMIT 1
+    ),
+    'text-embedding-3-small'
+  )
 ON CONFLICT (id) DO NOTHING;
