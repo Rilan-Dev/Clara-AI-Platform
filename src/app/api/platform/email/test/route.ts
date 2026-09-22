@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { getEmailConfig, sendPlatformEmail } from "@/lib/email";
 import { renderEmailTemplate, type EmailTemplateKey, EMAIL_TEMPLATE_DEFAULTS } from "@/lib/email-templates";
@@ -20,7 +19,6 @@ import { renderEmailTemplate, type EmailTemplateKey, EMAIL_TEMPLATE_DEFAULTS } f
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    await ensureMigrated();
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
 
@@ -88,6 +86,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[POST /api/platform/email/test]", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "Email test failed.", code: "EMAIL_TEST_FAILED" }, { status: 500 });
   }
 }

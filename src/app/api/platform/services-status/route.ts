@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool, query } from "@/lib/db";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
-import { getEmailConfig } from "@/lib/email";
+import { getEmailConfig, getEmailProviderConfigStatus } from "@/lib/email";
 
 /**
  * GET /api/platform/services-status
@@ -129,6 +129,7 @@ async function checkEmail(): Promise<CheckResult & {
 }> {
   const cfg = getEmailConfig();
   const providerLabel = cfg.provider === "console" ? "none (dev mode)" : cfg.provider;
+  const configStatus = getEmailProviderConfigStatus();
 
   let queue: { pending: number; sent: number; failed: number; last24h: number } | undefined;
   try {
@@ -147,8 +148,8 @@ async function checkEmail(): Promise<CheckResult & {
     };
   } catch { /* non-fatal */ }
 
-  if (cfg.provider === "console") {
-    return { status: "not_configured", provider: providerLabel, queue };
+  if (!configStatus.configured) {
+    return { status: "not_configured", provider: providerLabel, queue, error: configStatus.reason };
   }
   if (cfg.provider === "resend") {
     return { status: "up", provider: "resend", from: cfg.fromAddress, queue };
@@ -327,6 +328,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const alerts: Alert[] = [];
     const addAlert = (alert: Alert) => alerts.push(alert);
 
+    const aiOpenaiActive = aiOpenai.active ?? false;
+    const aiGeminiActive = aiGemini.active ?? false;
     const activeAi = aiOpenaiActive ? aiOpenai : aiGeminiActive ? aiGemini : null;
     if (activeAi?.status === "not_configured") {
       addAlert({
@@ -371,8 +374,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Roll-up: down services (excluding not_configured) mark the platform degraded.
     // AI providers only count when they are the ACTIVE provider — an unreachable
     // standby is visible on its card but does not degrade the whole platform.
-    const aiOpenaiActive = aiOpenai.active ?? false;
-    const aiGeminiActive = aiGemini.active ?? false;
     const rollupEntries: Array<{ status: ServiceStatus; counts: boolean }> = [
       ...Object.values({ postgres, redis, qdrant, rabbitmq, email, queues, app }).map(
         (s) => ({ status: s.status, counts: true }),
