@@ -100,9 +100,11 @@ async function enforceOnboardingMutationGate(request: Request, userId: string, i
   if (row?.has_incomplete_org && !row?.has_entitled_org) {
     throw NextResponse.json(
       {
-        error: "Complete email verification and payment before using Clara AI.",
+        error: "Complete the remaining organization onboarding step before using Clara AI.",
         code: "ONBOARDING_INCOMPLETE",
         status: 402,
+        nextAction: "OPEN_BILLING",
+        reason: "PAYMENT_REQUIRED",
       },
       { status: 402 },
     );
