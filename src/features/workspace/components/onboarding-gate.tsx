@@ -37,6 +37,8 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
   const { emailVerified, onboarding } = data;
   if (data.featureAccess && emailVerified && onboarding.status === "active") return <>{children}</>;
 
+  // Keep navigation/read-only screens available. Every feature mutation is
+  // independently blocked server-side by the auth subscription gate.
   const needsEmail = !emailVerified || onboarding.status === "pending_email";
   const review = onboarding.status === "payment_review";
   const needsSubscription = !needsEmail && !review && !data.featureAccess;
@@ -48,6 +50,32 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
       : needsSubscription
       ? "Choose a Clara AI subscription to unlock features"
       : "Complete your Clara AI payment";
+
+  if (!data.featureAccess) {
+    const lockedMessage = !emailVerified
+      ? "Verify your email before using Clara AI features."
+      : onboarding.status === "payment_review"
+        ? "Payment is under review. Feature actions remain locked until activation is confirmed."
+        : onboarding.status !== "active" && onboarding.status !== "trialing"
+          ? "Complete your subscription payment to unlock Clara AI features."
+          : "An active Starter, Pro, or Enterprise subscription is required to use Clara AI features.";
+    return (
+      <>
+        {children}
+        <div className="fixed bottom-4 left-1/2 z-40 w-[min(92vw,760px)] -translate-x-1/2 rounded-2xl border border-amber-500/30 bg-card/95 px-4 py-3 shadow-xl backdrop-blur">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="w-5 h-5 shrink-0 text-amber-600" />
+            <p className="flex-1 text-sm text-foreground">{lockedMessage}</p>
+            {!emailVerified ? (
+              <Link href="/login/verify-email" className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Verify email</Link>
+            ) : onboarding.status === "payment_required" || onboarding.status === "payment_pending" || onboarding.status === "payment_failed" || onboarding.status === "payment_cancelled" ? (
+              <Link href={`/checkout?plan=${encodeURIComponent(onboarding.plan_id)}&orgId=${encodeURIComponent(data.orgId)}`} className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Continue payment</Link>
+            ) : null}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const message = needsEmail
     ? "Your workspace is reserved, but paid features remain locked until your email address is verified."
