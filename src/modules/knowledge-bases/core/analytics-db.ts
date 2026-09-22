@@ -403,21 +403,22 @@ export type KbAnalytics = {
 };
 
 export async function getKbAnalytics(kbId: string): Promise<KbAnalytics> {
-  // Total & this-week counts
-  const [totals] = await query<{ total: string; this_week: string; avg_latency: string | null; avg_sources: string | null }>(
-    `SELECT
+  // The three aggregates are independent — run them concurrently instead of
+  // sequentially (each serial round trip cost the full DB RTT).
+  const [totalsRows, perDay, top] = await Promise.all([
+    query<{ total: string; this_week: string; avg_latency: string | null; avg_sources: string | null }>(
+      `SELECT
        COUNT(*) AS total,
        COUNT(*) FILTER (WHERE created_at >= now() - interval '7 days') AS this_week,
        AVG(latency_ms)   AS avg_latency,
        AVG(source_count) AS avg_sources
      FROM query_events
      WHERE kb_id = $1`,
-    [kbId]
-  );
-
-  // Queries per day — last 30 days
-  const perDay = await query<{ day: string; cnt: string }>(
-    `SELECT
+      [kbId]
+    ),
+    // Queries per day — last 30 days
+    query<{ day: string; cnt: string }>(
+      `SELECT
        date_trunc('day', created_at AT TIME ZONE 'UTC')::date::text AS day,
        COUNT(*) AS cnt
      FROM query_events
@@ -425,12 +426,11 @@ export async function getKbAnalytics(kbId: string): Promise<KbAnalytics> {
        AND created_at >= now() - interval '30 days'
      GROUP BY day
      ORDER BY day ASC`,
-    [kbId]
-  );
-
-  // Top 10 queries (by exact match, case-insensitive)
-  const top = await query<{ query_text: string; cnt: string }>(
-    `SELECT
+      [kbId]
+    ),
+    // Top 10 queries (by exact match, case-insensitive)
+    query<{ query_text: string; cnt: string }>(
+      `SELECT
        lower(trim(query_text)) AS query_text,
        COUNT(*) AS cnt
      FROM query_events
@@ -438,8 +438,10 @@ export async function getKbAnalytics(kbId: string): Promise<KbAnalytics> {
      GROUP BY lower(trim(query_text))
      ORDER BY cnt DESC
      LIMIT 10`,
-    [kbId]
-  );
+      [kbId]
+    ),
+  ]);
+  const totals = totalsRows[0];
 
   return {
     totalQueries:    Number(totals?.total ?? 0),

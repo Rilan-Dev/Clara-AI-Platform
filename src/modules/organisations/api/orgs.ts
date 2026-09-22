@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
-import { createOrganisation, listOrganisations, getOrganisationById, updateOrganisation, deleteOrganisation } from "../core/db";
+import { createOrganisation, getOrganisationById, updateOrganisation, deleteOrganisation } from "../core/db";
 import { getAuthContext, requireAuth, requireOrgPermission, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { addOrgMember } from "@/modules/auth/core/db";
 
@@ -48,9 +48,38 @@ export async function listOrgsHandler(req: NextRequest): Promise<NextResponse> {
       // listOrganisations() has no auth guard of its own — reject explicitly.
       return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
     }
-    const orgs = await listOrganisations();
-    const memberOrgIds = new Set((await query<{ org_id: string }>("SELECT org_id FROM org_members WHERE user_id = $1", [auth.user.id])).map((r) => r.org_id));
-    return NextResponse.json(orgs.filter((o) => memberOrgIds.has(o.id)));
+    // Single JOIN query scoped to the caller's memberships. The previous flow
+    // fetched EVERY organisation in the database and then filtered in JS by a
+    // second membership query — an N+1 pattern that grew with platform size
+    // and leaked org names/ids to the response path before filtering.
+    // Shape mirrors listOrganisations()/toOrg (incl. agent + KB counts).
+    const orgs = await query<{
+      id: string; name: string; slug: string; logo_url: string | null;
+      created_at: string; updated_at: string; agent_count: number; kb_count: number;
+    }>(
+      `SELECT o.id, o.name, o.slug, o.logo_url, o.created_at, o.updated_at,
+              COUNT(DISTINCT a.id)::int AS agent_count,
+              COUNT(DISTINCT kb.id)::int AS kb_count
+         FROM organisations o
+         JOIN org_members om ON om.org_id = o.id AND om.user_id = $1
+         LEFT JOIN agents a ON a.org_id = o.id
+         LEFT JOIN knowledge_bases kb ON kb.agent_id = a.id
+        GROUP BY o.id
+        ORDER BY o.name ASC`,
+      [auth.user.id]
+    );
+    return NextResponse.json(
+      orgs.map((o) => ({
+        id: o.id,
+        name: o.name,
+        slug: o.slug,
+        logoUrl: o.logo_url ?? null,
+        createdAt: o.created_at,
+        updatedAt: o.updated_at,
+        agentCount: o.agent_count,
+        knowledgeBaseCount: o.kb_count,
+      }))
+    );
   } catch (err) {
     console.error("[orgs] listOrgs:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

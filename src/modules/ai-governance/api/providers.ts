@@ -34,7 +34,7 @@ import { resolveAvailableAIOptions } from "../core/resolver";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getProviderApiKey } from "@/modules/ai-core/resolve";
 import { ensureMigrated } from "@/lib/db/migrate";
-import type { AICapability, AIModelKind, GovernanceProviderId } from "../core/types";
+import type { AICapability, AIModelKind } from "../core/types";
 
 function errorResponse(message: string, status: number, code?: string): NextResponse {
   return NextResponse.json({ error: message, ...(code ? { code } : {}) }, { status });
@@ -367,18 +367,15 @@ export async function agentAIOptionsHandler(req: NextRequest, agentId: string): 
   try {
     const auth = await requireAuth(req);
     const { requireAgentPermission } = await import("@/modules/auth/core/rbac");
-    await requireAgentPermission(auth, agentId, "project:read");
+    // The permission query already resolves the agent's org in the same round
+    // trip — no separate getAgentById fetch needed.
+    const { orgId } = await requireAgentPermission(auth, agentId, "project:read");
 
     const capability = parseCapability(req.nextUrl.searchParams.get("capability"));
     if (!capability) return errorResponse("capability must be chat | voice_chat | realtime_voice", 400);
 
-    // The agent's org scopes the entitlement resolution.
-    const { getAgentById } = await import("@/modules/organisations/core/db");
-    const agent = await getAgentById(agentId);
-    if (!agent) return errorResponse("Agent not found", 404);
-
     const result = await resolveAvailableAIOptions({
-      organizationId: agent.orgId,
+      organizationId: orgId,
       agentId,
       capability,
     });

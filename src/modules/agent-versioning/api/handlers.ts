@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
-import { AgentVersioningError } from "../core/db";
+import { AgentVersioningError, getBranch, getDraft } from "../core/db";
 import type { AgentVersionConfig, MergeResolution } from "../core/types";
 import {
   applyPlatformDefaultUpdate,
@@ -23,7 +23,6 @@ import {
   diffAgentVersionConfigs,
   ensureAgentVersioning,
   executeMergeToMain,
-  getAgentDraft,
   getAgentWorkspaceContext,
   getPublishContext,
   listAgentBranches,
@@ -80,9 +79,20 @@ export async function getDraftHandler(req: NextRequest, agentId: string): Promis
     const auth = await requireAuth(req);
     await requireAgentPermission(auth, agentId, "project:read");
     const branchId = req.nextUrl.searchParams.get("branchId");
-    const { main } = await ensureAgentVersioning(agentId);
-    const draft = await getAgentDraft(agentId, branchId ?? main.id);
-    return NextResponse.json(draft);
+    // ONE ensureAgentVersioning call. The previous flow ran the full chain
+    // twice: getDraftHandler → ensureAgentVersioning, then getAgentDraft →
+    // ensureAgentVersioning again — ~6 redundant queries per request.
+    const { main, draft } = await ensureAgentVersioning(agentId);
+    if (!branchId || branchId === main.id) {
+      return NextResponse.json(draft);
+    }
+    // Non-main branch — same semantics as getAgentDraft, without re-running
+    // the main-branch chain.
+    const branch = await getBranch(agentId, branchId);
+    if (!branch) throw new AgentVersioningError("Branch not found.", "BRANCH_NOT_FOUND");
+    const branchDraft = await getDraft(agentId, branchId);
+    if (!branchDraft) throw new AgentVersioningError("Branch has no draft.", "DRAFT_NOT_FOUND");
+    return NextResponse.json(branchDraft);
   } catch (err) {
     return versioningErrorResponse(err);
   }

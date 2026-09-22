@@ -62,12 +62,14 @@ export async function ensureAgentVersioning(
   agentId: string,
   userId?: string | null,
 ): Promise<{ main: AgentBranch; draft: AgentDraft }> {
-  const { getAgentById } = await import("@/modules/organisations/core/db");
-  const agent = await getAgentById(agentId);
-  if (!agent) throw new AgentVersioningError("Agent not found.", "AGENT_NOT_FOUND");
-
   let main = await getMainBranch(agentId);
   if (!main) {
+    // Only the (rare) first-time seeding path needs the agent row — the
+    // permission layer already validated agent existence on the request path,
+    // so the steady-state flow skips this extra round trip.
+    const { getAgentById } = await import("@/modules/organisations/core/db");
+    const agent = await getAgentById(agentId);
+    if (!agent) throw new AgentVersioningError("Agent not found.", "AGENT_NOT_FOUND");
     main = await ensureMainBranch(agentId, agent.orgId, userId ?? null);
   }
 
