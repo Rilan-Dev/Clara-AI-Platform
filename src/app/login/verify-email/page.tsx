@@ -101,7 +101,7 @@ function VerifyEmailForm() {
       <p className="text-foreground font-medium">Email verified 🎉</p>
       <p className="text-sm text-muted-foreground">
         Your email has been verified. Go back to the Clara AI registration window to continue.
-        You don't need to navigate anywhere from this email verification page.
+        You do not need to navigate anywhere from this email verification page.
       </p>
       {email && (
         <p className="text-xs text-muted-foreground/70 break-all">{email}</p>
