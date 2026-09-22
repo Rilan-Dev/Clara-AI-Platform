@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Analytics } from "@vercel/analytics/next";
+import { ClaraAnalytics } from "@/components/analytics/clara-analytics";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/shared/layouts/app-shell";
 import { getPlatformDefaultTheme } from "@/lib/theme-settings";
@@ -59,9 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppShell>
           {children}
           <Toaster position="top-right" richColors closeButton />
-          <Analytics
-            beforeSend={(event) => event.url.includes("/admin") ? null : event}
-          />
+          <ClaraAnalytics />
         </AppShell>
       </body>
     </html>
