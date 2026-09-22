@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { query, queryOne } from "@/lib/db";
+import { query } from "@/lib/db";
 import { sendPlatformEmail } from "@/lib/email";
 import { createEmailVerificationToken } from "@/modules/auth/api/email-verification";
 import { resolvePublicOrigin } from "@/lib/public-origin";
