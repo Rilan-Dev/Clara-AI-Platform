@@ -49,6 +49,13 @@ vi.mock("@/modules/ai-core/resolve", () => ({
   })),
 }));
 vi.mock("@/lib/db", () => ({
+  pool: {
+    query: vi.fn(async () => ({ rows: [] })),
+    connect: vi.fn(async () => ({
+      query: vi.fn(async () => ({ rows: [] })),
+      release: vi.fn(),
+    })),
+  },
   query: vi.fn(async () => []),
 }));
 // Agent-versioning dual-read: no production deployment → legacy chain (the
@@ -59,7 +66,18 @@ vi.mock("@/modules/agent-versioning/core/db", () => ({
 }));
 // Governance gate: platform allows everything in this suite's scenarios.
 vi.mock("@/modules/ai-governance/core/resolver", () => ({
-  validateAgentAISelection: vi.fn(async () => ({ ok: true })),
+  validateAgentAISelection: vi.fn(async ({ provider }: { provider: string }) => ({
+    ok:
+      provider === "elevenlabs"
+        ? await isElevenLabsEnabledMock()
+        : provider === "sarvam"
+          ? isSarvamEnabledMock()
+          : true,
+  })),
+}));
+vi.mock("@/modules/ai-governance/core/registry-db", () => ({
+  getPlatformAIRegistry: vi.fn(async () => ({ defaults: [] })),
+  listProviderModels: vi.fn(async () => []),
 }));
 vi.mock("./model-catalog", () => ({
   getPlatformDefaultSTTModel: () => "scribe_v1",
