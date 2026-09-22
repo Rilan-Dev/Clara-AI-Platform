@@ -38,6 +38,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       emailVerified: auth.user.emailVerified,
+      orgId,
       onboarding: row ?? null,
     });
   } catch (err) {
