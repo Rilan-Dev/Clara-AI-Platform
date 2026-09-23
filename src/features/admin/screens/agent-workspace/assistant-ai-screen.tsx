@@ -21,13 +21,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
-import { Sparkles } from "lucide-react";
-import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
+import { ChevronRight, Cpu, Mic, Radio, Settings2 } from "lucide-react";
+import { useAuth } from "@/modules/admin-ui/hooks";
 import {
   fetchAgentAIOptions,
   fetchAgentDraft,
   putAgentDraft,
-  saveAgentVersion,
   type AgentAIOptionsDTO,
   type AgentDraftDTO,
   type AICapability,
@@ -35,23 +34,20 @@ import {
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 import { toast } from "@/components/ui/sonner";
 import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
-import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
-import { AutoSaveChip, WorkspaceButton, VersionBadge, timeAgo } from "@/components/admin/ai-platform/shared";
+import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
 
 export default function AgentAssistantAIScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
-  const { context, loading: ctxLoading, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
+  const { context, loading: ctxLoading } = useAgentWorkspaceContext(agentId);
 
   const [draft, setDraft] = useState<AgentDraftDTO | null>(null);
   const [options, setOptions] = useState<Partial<Record<AICapability, AgentAIOptionsDTO | null>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [versionSummary, setVersionSummary] = useState("");
-  const [savingVersion, setSavingVersion] = useState(false);
   // Lifted realtime provider selection — drives the ConfigEditor voice list so
   // picking a provider here instantly syncs the voices over there.
   const [realtimeProviderId, setRealtimeProviderId] = useState<string | null>(null);
@@ -71,23 +67,16 @@ export default function AgentAssistantAIScreen() {
     return run;
   }, []);
 
-  const { kbs } = useKbs(agentId);
-  const previewKb = kbs[0];
-
   const load = useCallback(async () => {
     if (!agentId) return;
     setLoading(true);
     setError(null);
     try {
-      const [draftResult, chat, voice, realtime] = await Promise.all([
-        fetchAgentDraft(agentId),
-        fetchAgentAIOptions(agentId, "chat").catch(() => null),
-        fetchAgentAIOptions(agentId, "voice_chat").catch(() => null),
-        fetchAgentAIOptions(agentId, "realtime_voice").catch(() => null),
-      ]);
+      // Initial config load is intentionally one request. Capability catalogs
+      // are loaded only when the user opens that capability's half-canvas.
+      const draftResult = await fetchAgentDraft(agentId);
       setDraft(draftResult);
       draftRef.current = draftResult;
-      setOptions({ chat, voice_chat: voice, realtime_voice: realtime });
       setRealtimeProviderId((prev) => prev ?? draftResult.configuration.ai?.realtimeVoiceProvider ?? null);
     } catch (err) {
       setError((err as Error).message);
@@ -128,11 +117,13 @@ export default function AgentAssistantAIScreen() {
         const saved = await putAgentDraft(agentId, next);
         draftRef.current = saved;
         setDraft(saved);
-        void refetchCtx();
+        window.dispatchEvent(new CustomEvent("agent-workspace:draft-updated", {
+          detail: { agentId, draftUpdatedAt: saved.updatedAt },
+        }));
         return { ...configValue, ...data };
       });
     },
-    [configValue, agentId, refetchCtx, enqueueDraftSave],
+    [configValue, agentId, enqueueDraftSave],
   );
 
   const saveAISelection = useCallback(
@@ -147,24 +138,13 @@ export default function AgentAssistantAIScreen() {
         });
         draftRef.current = saved;
         setDraft(saved);
-        void refetchCtx();
+        window.dispatchEvent(new CustomEvent("agent-workspace:draft-updated", {
+          detail: { agentId, draftUpdatedAt: saved.updatedAt },
+        }));
       });
     },
-    [agentId, refetchCtx, enqueueDraftSave],
+    [agentId, enqueueDraftSave],
   );
-
-  const saveVersion = useCallback(async () => {
-    setSavingVersion(true);
-    try {
-      await saveAgentVersion(agentId, versionSummary.trim() || null);
-      setVersionSummary("");
-      void refetchCtx();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSavingVersion(false);
-    }
-  }, [agentId, versionSummary, refetchCtx]);
 
   /** LLM summary for the right-column card (agent variant ConfigEditor). */
   const llmSummary = useMemo(() => {
@@ -186,7 +166,13 @@ export default function AgentAssistantAIScreen() {
   // pickProvider keeps this live before the draft is even saved).
   const voiceCatalog = useMemo<ProviderVoiceCatalog | null>(() => {
     const realtime = options.realtime_voice;
-    if (!realtime) return null; // options not loaded yet → OpenAI fallback inside the editor
+    if (!realtime) {
+      return {
+        providerId: realtimeProviderId ?? "__realtime_pending__",
+        providerName: "Realtime Voice",
+        voices: [],
+      };
+    }
     const provider =
       realtime.available.find((p) => p.providerId === realtimeProviderId) ??
       realtime.available.find((p) => p.isDefault) ??
@@ -225,36 +211,6 @@ export default function AgentAssistantAIScreen() {
         <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
       )}
 
-      {/* Explicit draft state (§24) — edits auto-save; versions/publishing
-          remain explicit actions (Save version / one-click Publish). */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Sparkles className="h-4 w-4 text-primary" /> Draft
-            {draft?.parentVersionNumber != null && (
-              <VersionBadge tone="muted">based on v{draft.parentVersionNumber}</VersionBadge>
-            )}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            {draft ? `Saved ${timeAgo(draft.updatedAt)} — edits auto-save into the draft and never touch production until you publish.` : "…"}
-          </p>
-        </div>
-        {!isAdmin && (
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              value={versionSummary}
-              onChange={(e) => setVersionSummary(e.target.value)}
-              placeholder="Change summary (optional)"
-              className="w-52 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40"
-            />
-            <WorkspaceButton variant="primary" onClick={saveVersion} disabled={savingVersion || !draft}>
-              Save version
-            </WorkspaceButton>
-            {previewKb && <VoicePreviewButton kbId={previewKb.id} kbName={previewKb.name} />}
-          </div>
-        )}
-      </div>
-
       <div className="space-y-6">
         {/* Agent editor first (ElevenLabs "Agent" page): system prompt +
             first message on the left, settings cards on the right. */}
@@ -288,10 +244,11 @@ export default function AgentAssistantAIScreen() {
         {!isAdmin && (
           <div id="ai-runtime-config" className="scroll-mt-24">
             <AISelectionCard
+              agentId={agentId}
               draft={draft}
               options={options}
               onSave={saveAISelection}
-              previewKbId={previewKb?.id}
+              onOptionsLoaded={(capability, value) => setOptions((prev) => ({ ...prev, [capability]: value }))}
               realtimeProviderId={realtimeProviderId}
               onRealtimeProviderChange={setRealtimeProviderId}
             />
@@ -314,52 +271,44 @@ export default function AgentAssistantAIScreen() {
   );
 }
 
-// ─── AI model selection card (capability resolver driven) ─────────────────────
+// ─── AI provider selection workspace ─────────────────────────────────────────
 
 function AISelectionCard({
+  agentId,
   draft,
   options,
   onSave,
-  previewKbId,
+  onOptionsLoaded,
   realtimeProviderId,
   onRealtimeProviderChange,
 }: {
+  agentId: string;
   draft: AgentDraftDTO | null;
   options: Partial<Record<AICapability, AgentAIOptionsDTO | null>>;
   onSave: (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => Promise<void>;
-  previewKbId?: string;
-  /** Lifted realtime provider selection — keeps the ConfigEditor Voices card
-   *  synced with the provider picked here, even before the draft is saved. */
+  onOptionsLoaded: (capability: AICapability, value: AgentAIOptionsDTO) => void;
   realtimeProviderId?: string | null;
   onRealtimeProviderChange?: (providerId: string | null) => void;
 }) {
   const [ai, setAi] = useState(draft?.configuration.ai ?? null);
   const [runtime, setRuntime] = useState(draft?.configuration.runtime ?? null);
-  const [surface, setSurface] = useState<AICapability>("chat");
+  const [surface, setSurface] = useState<AICapability | null>(null);
+  const [loadingCapability, setLoadingCapability] = useState<AICapability | null>(null);
 
-  // ── Auto-save (no Save button): the AI selection persists ~0.8 s after a
-  //    pick — these are discrete selects/sliders, so a shorter debounce than
-  //    the free-text editor is right. Latest-wins, echo-guarded below.
-  const selection = useMemo(
-    () => ({ ai: ai ?? emptyAI(), runtime }),
-    [ai, runtime],
-  );
-
+  const selection = useMemo(() => ({ ai: ai ?? emptyAI(), runtime }), [ai, runtime]);
   const autoSave = useAutoSave({
     value: selection,
-    save: async (value) => {
-      await onSave(value.ai, value.runtime ?? undefined);
-    },
+    save: async (value) => onSave(value.ai, value.runtime ?? undefined),
     delay: 800,
     enabled: Boolean(draft),
-    onError: (e) =>
-      toast.error("Could not save the AI selection", { description: e.message }),
+    onError: (e) => toast.error("Could not save the AI selection", { description: e.message }),
   });
 
-  // Echo-guarded external reset — skip the parent's post-save echo so a
-  // provider pick typed while a save is in flight is never reverted.
   useEffect(() => {
-    const incoming = { ai: draft?.configuration.ai ?? emptyAI(), runtime: draft?.configuration.runtime ?? null };
+    const incoming = {
+      ai: draft?.configuration.ai ?? emptyAI(),
+      runtime: draft?.configuration.runtime ?? null,
+    };
     if (autoSave.baselineMatches(incoming)) return;
     setAi(draft?.configuration.ai ?? null);
     setRuntime(draft?.configuration.runtime ?? null);
@@ -367,16 +316,33 @@ function AISelectionCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.configuration.ai, draft?.configuration.runtime]);
 
-  const chat = options.chat;
-  const voiceChat = options.voice_chat;
-  const realtime = options.realtime_voice;
+  // Local setter is kept in the component so opening one canvas does not
+  // trigger a route refresh or reload unrelated sections.
+  const [localOptions, setLocalOptions] = useState(options);
+  useEffect(() => setLocalOptions(options), [options]);
+
+  const loadCapability = useCallback(async (capability: AICapability) => {
+    if (localOptions[capability]) {
+      setSurface(capability);
+      return;
+    }
+    if (!draft) return;
+    setSurface(capability);
+    setLoadingCapability(capability);
+    try {
+      const result = await fetchAgentAIOptions(agentId, capability);
+      setLocalOptions((prev) => ({ ...prev, [capability]: result }));
+      onOptionsLoaded(capability, result);
+    } catch (err) {
+      setSurface(null);
+      toast.error("Could not load providers", { description: (err as Error).message });
+    } finally {
+      setLoadingCapability(null);
+    }
+  }, [localOptions, draft, agentId, onOptionsLoaded]);
 
   const pickProvider = (providerId: string | null, capability: AICapability) => {
-    // Lift the realtime selection first so the ConfigEditor's Voices card
-    // re-syncs to the newly selected provider immediately.
-    if (capability === "realtime_voice") {
-      onRealtimeProviderChange?.(providerId);
-    }
+    if (capability === "realtime_voice") onRealtimeProviderChange?.(providerId);
     const next = { ...(ai ?? emptyAI()) };
     if (capability === "chat") {
       next.provider = providerId as never;
@@ -389,6 +355,7 @@ function AISelectionCard({
     } else {
       next.realtimeVoiceProvider = providerId as never;
       next.realtimeLlmModel = null;
+      next.realtimeModel = null;
       next.realtimeSttModel = null;
       next.realtimeTtsModel = null;
       next.realtimeVoiceId = null;
@@ -396,157 +363,244 @@ function AISelectionCard({
     setAi(next);
   };
 
-  const selectedProvider = surface === "chat"
-    ? ai?.provider
-    : surface === "voice_chat"
-      ? ai?.voiceProvider
-      : // Realtime surface follows the LIFTED selection so the provider list
-        // and its model fields mirror what the Voices card is synced to.
-        (realtimeProviderId ?? ai?.realtimeVoiceProvider);
-
-  const selectedOptions =
-    surface === "chat" ? chat :
-    surface === "voice_chat" ? voiceChat :
-    realtime;
-
-  const selectedProviderOptions =
-    selectedOptions?.available.find((p) => p.providerId === selectedProvider) ??
-    selectedOptions?.available[0] ??
-    null;
-
-  const models = selectedProviderOptions?.models ?? [];
   const setAI = (patch: Partial<NonNullable<AgentDraftDTO["configuration"]["ai"]>>) =>
     setAi({ ...(ai ?? emptyAI()), ...patch });
 
+  const cards: Array<{
+    id: AICapability;
+    label: string;
+    description: string;
+    provider: string | null;
+    model: string | null;
+    icon: typeof Cpu;
+  }> = [
+    {
+      id: "chat",
+      label: "Chat",
+      description: "LLM + RAG",
+      provider: ai?.provider ?? null,
+      model: ai?.chatModel ?? null,
+      icon: Cpu,
+    },
+    {
+      id: "voice_chat",
+      label: "Voice Chat",
+      description: "STT → LLM → TTS",
+      provider: ai?.voiceProvider ?? null,
+      model: ai?.voiceChatTtsModel ?? ai?.voiceChatSttModel ?? null,
+      icon: Mic,
+    },
+    {
+      id: "realtime_voice",
+      label: "Realtime Voice",
+      description: "Realtime STT → LLM → TTS",
+      provider: realtimeProviderId ?? ai?.realtimeVoiceProvider ?? null,
+      model: ai?.realtimeModel ?? ai?.realtimeLlmModel ?? null,
+      icon: Radio,
+    },
+  ];
+
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <header>
-        <h3 className="text-sm font-semibold text-foreground">AI runtime configuration</h3>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          Chat, Voice Chat and Realtime Voice are independent capability slots. Changing one does not change the others.
-        </p>
-      </header>
+    <>
+      <section className="rounded-2xl border border-border bg-card shadow-sm">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">AI configuration</h3>
+            <p className="mt-1 max-w-2xl text-xs text-muted-foreground/70">
+              Choose the provider and model for each capability. Changes stay in the draft and never reload the page.
+            </p>
+          </div>
+          <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
+        </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted/30 p-1">
-        {([
-          ["chat", "Chat", "LLM + RAG"],
-          ["voice_chat", "Voice Chat", "STT → LLM → TTS"],
-          ["realtime_voice", "Realtime Voice", "Realtime STT → LLM → TTS"],
-        ] as const).map(([id, label, hint]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setSurface(id)}
-            className={`rounded-lg px-3 py-2 text-left transition-colors ${surface === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <span className="block text-xs font-semibold">{label}</span>
-            <span className="mt-0.5 block text-[10px] text-muted-foreground/70">{hint}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-5 space-y-5">
-        <div>
-          <p className="text-xs font-medium text-foreground/90">Provider</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(selectedOptions?.available ?? []).map((p) => (
+        <div className="grid gap-3 p-4 md:grid-cols-3">
+          {cards.map((card) => {
+            const Icon = card.icon;
+            const saving = autoSave.status === "saving" && surface === card.id;
+            return (
               <button
-                key={p.providerId}
+                key={card.id}
                 type="button"
-                onClick={() => pickProvider(p.providerId, surface)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${selectedProvider === p.providerId ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/25"}`}
+                onClick={() => void loadCapability(card.id)}
+                className={cn(
+                  "group relative rounded-xl border bg-background/60 p-4 text-left transition-all",
+                  "hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-sm",
+                  saving && "animate-pulse ring-2 ring-primary/10",
+                )}
               >
-                {p.displayName}
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+                </div>
+                <p className="mt-3 text-sm font-semibold text-foreground">{card.label}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{card.description}</p>
+                <div className="mt-4 rounded-lg border border-border/70 bg-card px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">Provider</p>
+                  <p className="mt-0.5 truncate text-xs font-medium text-foreground">
+                    {prettyProvider(card.provider)}
+                  </p>
+                  <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                    {card.model ?? "Platform default"}
+                  </p>
+                </div>
+                <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                  Configure <Settings2 className="h-3 w-3" />
+                </span>
               </button>
-            ))}
-            {(selectedOptions?.available ?? []).length === 0 && (
-              <p className="text-xs text-muted-foreground/70">No providers currently available.</p>
-            )}
-          </div>
+            );
+          })}
         </div>
+      </section>
 
-        {surface === "chat" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <ModelField label="Chat model" value={ai?.chatModel ?? ""}
-              options={models.filter((m) => m.kind === "chat")}
-              onChange={(value) => setAI({ chatModel: value || null })} />
-            <InfoBox title="Chat only">
-              This model is used by text chat and does not alter Voice Chat or Realtime Voice.
-            </InfoBox>
-          </div>
-        )}
-
-        {surface === "voice_chat" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <ModelField label="Voice Chat STT" value={ai?.voiceChatSttModel ?? ""}
-              options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
-              onChange={(value) => setAI({ voiceChatSttModel: value || null })} />
-            <ModelField label="Voice Chat TTS" value={ai?.voiceChatTtsModel ?? ""}
-              options={models.filter((m) => m.kind === "tts")}
-              onChange={(value) => setAI({ voiceChatTtsModel: value || null })} />
-            <SelectField label="Voice Chat speaker" value={ai?.voiceChatVoiceId ?? ""}
-              options={models.filter((m) => m.kind === "voice")}
-              onChange={(value) => setAI({ voiceChatVoiceId: value || null })} />
-            <InfoBox title="Turn-based voice">
-              STT, TTS and speaker are stored separately from Realtime Voice.
-            </InfoBox>
-          </div>
-        )}
-
-        {surface === "realtime_voice" && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <ModelField
-              label={selectedProviderOptions?.providerId === "elevenlabs" ? "Realtime engine" : "Realtime LLM"}
-              value={ai?.realtimeModel ?? ai?.realtimeLlmModel ?? ""}
-              options={models.filter((m) =>
-                selectedProviderOptions?.providerId === "elevenlabs"
-                  ? m.kind === "realtime"
-                  : m.kind === "realtime" || (selectedProviderOptions?.providerId === "sarvam" && m.kind === "chat"),
-              )}
-              onChange={(value) =>
-                selectedProviderOptions?.providerId === "elevenlabs"
-                  ? setAI({ realtimeModel: value || null, realtimeLlmModel: null })
-                  : setAI({ realtimeLlmModel: value || null, realtimeModel: value || null })
-              }
-            />
-            <ModelField label="Realtime STT" value={ai?.realtimeSttModel ?? ""}
-              options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
-              onChange={(value) => setAI({ realtimeSttModel: value || null })} />
-            <ModelField label="Realtime TTS" value={ai?.realtimeTtsModel ?? ""}
-              options={models.filter((m) => m.kind === "tts")}
-              onChange={(value) => setAI({ realtimeTtsModel: value || null })} />
-            <SelectField label="Realtime speaker" value={ai?.realtimeVoiceId ?? ""}
-              options={models.filter((m) => m.kind === "voice")}
-              onChange={(value) => setAI({ realtimeVoiceId: value || null })} />
-            <div className="md:col-span-2 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs text-muted-foreground/80">
-              <p className="font-medium text-foreground/90">Realtime transport</p>
-              <p className="mt-1">
-                {selectedProviderOptions?.providerId === "elevenlabs"
-                  ? "ElevenLabs Speech Engine owns realtime STT, turn-taking and TTS; Clara keeps the selected Chat provider as the LLM/RAG brain and streams response text to ElevenLabs over its authenticated Speech Engine WebSocket."
-                  : "Realtime LLM, STT, TTS and speaker are persisted as their own slots. For Sarvam this maps to Saaras realtime + Sarvam conversational LLM + Bulbul."}
-              </p>
+      {surface && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`${capabilityLabel(surface)} configuration`}>
+          <button type="button" aria-label="Close configuration" onClick={() => setSurface(null)}
+            className="absolute inset-0 bg-black/35 backdrop-blur-[1px]" />
+          <aside className="absolute right-0 top-0 flex h-full w-full max-w-2xl flex-col border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-200">
+            <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">AI runtime</p>
+                <h2 className="mt-1 text-base font-semibold text-foreground">{capabilityLabel(surface)}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Select a provider first, then configure only the models used by this capability.
+                </p>
+              </div>
+              <button type="button" onClick={() => setSurface(null)}
+                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">Close</button>
             </div>
-          </div>
-        )}
 
-        <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-[11px] text-muted-foreground/70">
-          {selectedOptions?.entitlement.capabilityEnabled
-            ? `✓ ${selectedOptions.entitlement.planName ? `Available on ${selectedOptions.entitlement.planName}` : "Capability available"}`
-            : `Capability is not included in ${selectedOptions?.entitlement.planName ?? "the current plan"}`}
-          {previewKbId ? " · Preview is available after publishing." : ""}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {loadingCapability === surface && !localOptions[surface] ? (
+                <div className="space-y-3">
+                  <div className="h-14 animate-pulse rounded-xl bg-muted/60" />
+                  <div className="h-32 animate-pulse rounded-xl bg-muted/60" />
+                  <div className="h-20 animate-pulse rounded-xl bg-muted/60" />
+                </div>
+              ) : (
+                <CapabilityEditor
+                  capability={surface}
+                  ai={ai ?? emptyAI()}
+                  options={localOptions[surface] ?? null}
+                  selectedProvider={surface === "chat" ? ai?.provider : surface === "voice_chat" ? ai?.voiceProvider : realtimeProviderId ?? ai?.realtimeVoiceProvider}
+                  onProviderChange={pickProvider}
+                  onAIChange={setAI}
+                />
+              )}
+            </div>
+
+            <div className="border-t border-border px-6 py-3">
+              <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                <span>Changes save automatically to the draft.</span>
+                <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}
+
+function CapabilityEditor({
+  capability,
+  ai,
+  options,
+  selectedProvider,
+  onProviderChange,
+  onAIChange,
+}: {
+  capability: AICapability;
+  ai: NonNullable<AgentDraftDTO["configuration"]["ai"]>;
+  options: AgentAIOptionsDTO | null;
+  selectedProvider?: string | null;
+  onProviderChange: (providerId: string | null, capability: AICapability) => void;
+  onAIChange: (patch: Partial<NonNullable<AgentDraftDTO["configuration"]["ai"]>>) => void;
+}) {
+  const provider = options?.available.find((p) => p.providerId === selectedProvider) ?? null;
+  const providers = options?.available ?? [];
+  const models = provider?.models ?? [];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-medium text-foreground">Provider</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {providers.map((p) => (
+            <button key={p.providerId} type="button" onClick={() => onProviderChange(p.providerId, capability)}
+              className={cn("rounded-xl border px-4 py-3 text-left transition-colors",
+                selectedProvider === p.providerId ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/25 hover:bg-muted/30")}>
+              <p className="text-sm font-medium text-foreground">{p.displayName}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{p.health}</p>
+            </button>
+          ))}
+          {providers.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border px-4 py-6 text-xs text-muted-foreground">
+              No enabled providers are available for this capability.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Auto-save footer — provider/model picks persist ~0.8 s after the
-          change; publishing remains the explicit action in the topbar. */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4">
-        <p className="text-[11px] text-muted-foreground/70">
-          Selections save automatically into the draft — publish from the top bar when ready.
-        </p>
-        <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
-      </div>
-    </section>
+      {capability === "chat" && (
+        <div className="grid gap-4">
+          <ModelField label="Chat LLM" value={ai.chatModel ?? ""} options={models.filter((m) => m.kind === "chat")}
+            onChange={(value) => onAIChange({ chatModel: value || null })} />
+          <InfoBox title="LLM used by Chat and RAG">
+            This selection controls the language model used for text conversations. Knowledge retrieval remains on Clara's existing knowledge-base pipeline.
+          </InfoBox>
+        </div>
+      )}
+
+      {capability === "voice_chat" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ModelField label="Voice Chat STT" value={ai.voiceChatSttModel ?? ""} options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
+            onChange={(value) => onAIChange({ voiceChatSttModel: value || null })} />
+          <ModelField label="Voice Chat TTS" value={ai.voiceChatTtsModel ?? ""} options={models.filter((m) => m.kind === "tts")}
+            onChange={(value) => onAIChange({ voiceChatTtsModel: value || null })} />
+          <SelectField label="Voice Chat speaker" value={ai.voiceChatVoiceId ?? ""} options={models.filter((m) => m.kind === "voice")}
+            onChange={(value) => onAIChange({ voiceChatVoiceId: value || null })} />
+          <InfoBox title="LLM path">
+            Voice Chat uses the selected Chat LLM for generation while this provider controls the turn-based speech pipeline.
+          </InfoBox>
+        </div>
+      )}
+
+      {capability === "realtime_voice" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ModelField label={provider?.providerId === "elevenlabs" ? "Realtime engine" : "Realtime LLM"}
+            value={ai.realtimeModel ?? ai.realtimeLlmModel ?? ""}
+            options={models.filter((m) => provider?.providerId === "elevenlabs"
+              ? m.kind === "realtime"
+              : m.kind === "realtime" || (provider?.providerId === "sarvam" && m.kind === "chat"))}
+            onChange={(value) => provider?.providerId === "elevenlabs"
+              ? onAIChange({ realtimeModel: value || null, realtimeLlmModel: null })
+              : onAIChange({ realtimeLlmModel: value || null, realtimeModel: value || null })} />
+          <ModelField label="Realtime STT" value={ai.realtimeSttModel ?? ""} options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
+            onChange={(value) => onAIChange({ realtimeSttModel: value || null })} />
+          <ModelField label="Realtime TTS" value={ai.realtimeTtsModel ?? ""} options={models.filter((m) => m.kind === "tts")}
+            onChange={(value) => onAIChange({ realtimeTtsModel: value || null })} />
+          <SelectField label="Realtime speaker" value={ai.realtimeVoiceId ?? ""} options={models.filter((m) => m.kind === "voice")}
+            onChange={(value) => onAIChange({ realtimeVoiceId: value || null })} />
+          <div className="sm:col-span-2 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs text-muted-foreground/80">
+            {provider?.providerId === "elevenlabs"
+              ? "ElevenLabs owns realtime speech transport and turn-taking; Clara remains responsible for the selected LLM/RAG path."
+              : "Realtime speech settings are stored independently from Chat and Voice Chat."}
+          </div>
+        </div>
+      )}
+    </div>
   );
+}
+
+function capabilityLabel(capability: AICapability): string {
+  return capability === "chat" ? "Chat" : capability === "voice_chat" ? "Voice Chat" : "Realtime Voice";
+}
+
+function prettyProvider(providerId: string | null): string {
+  if (!providerId) return "Platform default";
+  return providerId.split(/[-_]/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
 function ModelField({
