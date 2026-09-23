@@ -1,0 +1,20 @@
+Drop the original pasted reference screenshots here, keeping these EXACT filenames
+(they are referenced by name inside ../CLARA-Admin-UI-Redesign-Prompt.md, section 2
+and Appendix A):
+
+ADMIN UI/UX RESTRUCTURE REFERENCES (pasted 2026-09-23)
+  pasted_image_1790178841516.png   - S1: ANTI-PATTERN "This is what you changed" - menus at top of main content (to eliminate)
+  pasted_image_1790179059322.png   - S2: RESTORE TARGET - sidebar with agent section under "Agents >"
+  pasted_image_1790179416607.png   - S3: sidebar when NO agent selected (plain)
+  pasted_image_1790179235085.png   - S4: sidebar with agent SELECTED (7 section tabs)
+  pasted_image_1790179688782.png   - S5: topbar next to profile icon "MR MOHAMMED RILAN. J" (version cluster destination)
+  pasted_image_1790179931543.png   - S6: publish screen reference (published URL controls)
+  pasted_image_1790180026215.png   - S7: versioned drafts reference
+  pasted_image_1790180748312.png   - S8: draft diff view ("view pending changes")
+  pasted_image_1790180948723.png   - S9: profile popup with usage limits
+
+NOTE: these image binaries were not persisted by the chat gateway (verified
+2026-09-24 via exhaustive filesystem sweep + VLM analysis of every recoverable
+paste), so re-attach/re-paste them as real image attachments to complete the
+bundle. Meanwhile the annotations in SCREENSHOT-REGISTRY.md and the prompt's
+section 2 are the authoritative visual reference.
