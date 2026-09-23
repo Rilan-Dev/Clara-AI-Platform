@@ -8,16 +8,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
-    requireTenantScope(auth);
     const orgId = req.nextUrl.searchParams.get("orgId");
+
+    if (!auth.user.isPlatformAdmin) {
+      requireTenantScope(auth);
+    }
     let whereClause = "kb.status = 'active'";
     const queryParams: unknown[] = [];
 
     if (orgId) {
-      await requireOrgPermission(auth, orgId, "kb:read");
+      if (!auth.user.isPlatformAdmin) {
+        await requireOrgPermission(auth, orgId, "kb:read");
+      }
       whereClause += " AND o.id = $1";
       queryParams.push(orgId);
-    } else {
+    } else if (!auth.user.isPlatformAdmin) {
       whereClause += " AND o.id IN (SELECT org_id FROM org_members WHERE user_id = $1)";
       queryParams.push(auth.user.id);
     }
