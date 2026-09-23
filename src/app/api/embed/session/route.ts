@@ -87,6 +87,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       requestedLanguage && resolved.allowedLanguages.includes(requestedLanguage)
         ? requestedLanguage
         : null;
+    const autoDetectLanguage = sessionBody.autoDetectLanguage === true;
     const effectiveResponseLanguage =
       effectiveConfig.alwaysRespondIn?.trim().toLowerCase() ??
       requestedLanguageAllowed ??
@@ -270,7 +271,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       const transcription = {
         model: oa.transcriptionModel,
-        language: requestedLanguageAllowed ?? effectiveResponseLanguage ?? undefined,
+        // Realtime voice defaults to provider-native language detection. An
+        // explicit language is still honored when auto detection is disabled.
+        ...(autoDetectLanguage
+          ? {}
+          : {
+              language:
+                requestedLanguageAllowed ??
+                effectiveResponseLanguage ??
+                undefined,
+            }),
       };
 
       const realtimeSession = buildOpenAIRealtimeSession({
