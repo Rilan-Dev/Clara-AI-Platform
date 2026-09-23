@@ -146,8 +146,19 @@ export function AgentTopbarProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => undefined);
     };
+    const contextUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string; context?: AgentWorkspaceContextDTO }>).detail;
+      if (!agentId || detail?.agentId !== agentId || !detail.context) return;
+      setContext(detail.context);
+      updateAgentWorkspaceContextCache(agentId, detail.context);
+    };
+
     window.addEventListener("agent-workspace:refresh", refresh);
-    return () => window.removeEventListener("agent-workspace:refresh", refresh);
+    window.addEventListener("agent-workspace:context-updated", contextUpdated);
+    return () => {
+      window.removeEventListener("agent-workspace:refresh", refresh);
+      window.removeEventListener("agent-workspace:context-updated", contextUpdated);
+    };
   }, [agentId]);
 
   const value = useMemo<AgentTopbarValue>(
