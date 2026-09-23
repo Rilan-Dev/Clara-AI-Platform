@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This screenshot displays the ElevenLabs admin dashboard with a dark-themed sidebar navigation on the left and a main content area titled \"Phone Numbers\" on the right. The sidebar includes sections for Agents, Configure (Knowledge Base, Tools, Integrations, Voices), Monitor (Conversations, Users, Tests), Deploy (Phone Numbers, WhatsApp, Outbound), Settings, and Developers. The main content area shows a search interface for phone numbers with a dropdown menu for selecting agents.\n\nCLASS: (c) admin app with sidebar showing Agents section menus (Overview/Main/FAQ/Knowledge/Tools/Branches/Publish)",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790188964,
+  "id": "20260924024241b3305f877f804bf0",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260924024241b3305f877f804bf0",
+  "usage": {
+    "completion_tokens": 124,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1923,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 2047
+  }
+}

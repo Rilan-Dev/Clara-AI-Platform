@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This screenshot displays the ElevenLabs admin dashboard with a dark-themed sidebar and a three-column layout. The left sidebar shows navigation options like Agent, Procedures, Workflow, Branches, and Knowledge Base. The center panel lists \"Branches\" with traffic split data, while the right panel shows a \"Branch History\" log of recent configuration changes for a \"Support agent.\"\n\nAPP: **ElevenLabs admin dashboard**\n\nSCREEN: **Branches / Branch History** (within the Agent configuration section)",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790189000,
+  "id": "20260924024315a4e022a968aa4bc2",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260924024315a4e022a968aa4bc2",
+  "usage": {
+    "completion_tokens": 103,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3616,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 3719
+  }
+}

@@ -1,0 +1,24 @@
+Drop the original pasted reference screenshots here, keeping these EXACT filenames
+(they are referenced by name inside ../CLARA-Voice-Agent-Master-Prompt.md, section 2
+and Appendix A):
+
+VOICE / PREVIEW / PUBLISHED EXPERIENCE
+  pasted_image_1790169728678.png   - While enter into Preview
+  pasted_image_1790169687747.png   - While chatting
+  pasted_image_1790169802320.png   - While starting with Realtime Voice Agent Conversations
+  pasted_image_1790170695981.png   - Published page: real-time voice agent
+  pasted_image_1790170491254.png   - Published page: chat (simple and crisp in richness)
+
+ADMIN UI/UX STRUCTURE (round-2 feedback)
+  pasted_image_1790178841516.png   - Wrong state: menus at top of main content (anti-pattern)
+  pasted_image_1790179059322.png   - Sidebar target: agent section under "Agents >"
+  pasted_image_1790179416607.png   - Sidebar: no agent selected (plain)
+  pasted_image_1790179235085.png   - Sidebar: agent selected (7 section tabs)
+  pasted_image_1790179688782.png   - Topbar next to profile avatar (version cluster)
+  pasted_image_1790179931543.png   - Publish UI reference
+  pasted_image_1790180026215.png   - Versioned drafts reference
+  pasted_image_1790180748312.png   - Draft diff view reference
+  pasted_image_1790180948723.png   - Profile popup with usage limits
+
+NOTE: these image binaries were not persisted by the chat gateway (verified
+2026-09-24), so re-attach/re-paste them to complete the bundle.

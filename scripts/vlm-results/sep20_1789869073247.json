@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This is a dark-themed admin dashboard for an \"AI Platform\" that manages various AI providers. The screen displays a grid of provider cards (Google Gemini, OpenAI, Sarvam AI, ElevenLabs) showing their health status, capabilities (Chat, Voice Chat, Realtime Voice), and available model counts. Key UI elements include a top navigation with \"Providers & Models\" and \"Default Assistant\" tabs, a sub-navigation for \"Chat,\" \"Voice Chat,\" and \"Realtime Voice,\" and action buttons like \"Open provider\" and \"Configure.\"\n\nAPP: Clara AI Platform\nSCREEN: Providers & Models (or Platform Admin - Providers)",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790189018,
+  "id": "2026092402433488206a21daf246bf",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026092402433488206a21daf246bf",
+  "usage": {
+    "completion_tokens": 133,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2656,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 2789
+  }
+}

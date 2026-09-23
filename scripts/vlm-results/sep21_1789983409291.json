@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This screenshot shows the ElevenLabs admin dashboard with a dark-themed sidebar navigation. The UI displays a \"Support agent\" configuration screen with sections for Overview (Spotlight, Dashboards, Architect), Configure (Agent, Procedures, Workflow, Branches, Knowledge Base, Analysis, Tools, Guardrails, Settings), and Monitor (Conversations, Tests, Users).\nAPP: ElevenLabs admin dashboard\nSCREEN: Agent Configuration / Support agent sidebar",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790189026,
+  "id": "20260924024343fd271edaea6c4ef2",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260924024343fd271edaea6c4ef2",
+  "usage": {
+    "completion_tokens": 91,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 800,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 891
+  }
+}

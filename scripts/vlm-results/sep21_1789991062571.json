@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This screenshot displays the ElevenLabs admin dashboard with a dark-themed sidebar and a main content area titled \"Branches.\" The sidebar includes navigation for Overview, Configure (Agent, Procedures, Workflow, Branches, Knowledge Base), and Monitor sections. The main view shows a table listing agent branches with columns for Name, Traffic Split, Conversations, Status, and metadata, along with a \"Create branch\" button and top-bar options like \"Preview\" and \"Publish.\"\n\nAPP: ElevenLabs admin dashboard\nSCREEN: Branches (Agent Configuration)",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790189037,
+  "id": "202609240243510d0121671bb44879",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609240243510d0121671bb44879",
+  "usage": {
+    "completion_tokens": 113,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3936,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 4049
+  }
+}

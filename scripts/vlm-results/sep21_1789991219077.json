@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This screenshot displays the ElevenLabs admin dashboard with a dark-themed sidebar and a main configuration area for an AI agent named \"Support agent.\" The interface features a system prompt editor, voice selection (ElevenLabs voices like Jessica), language settings (Arabic, English & Tamil), LLM configuration (GPT-5 Nano), and a first message field with Arabic text. The left sidebar includes navigation for Overview, Configure (Agent, Procedures, Workflow, Knowledge Base), and Monitor sections.\n\nAPP: **ElevenLabs admin dashboard**\n\nSCREEN: **Agent Configuration / Agent Builder**",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790188990,
+  "id": "2026092402430279b1bebc8b704bf1",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026092402430279b1bebc8b704bf1",
+  "usage": {
+    "completion_tokens": 121,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3936,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 4057
+  }
+}

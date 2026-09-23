@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "DESCRIPTION: This screenshot displays the ElevenLabs admin dashboard with a dark-themed sidebar containing navigation categories like Agents, Configure, Monitor, and Deploy. The main content area shows the \"Phone Numbers\" screen, which includes a search bar for phone numbers and a dropdown menu for selecting an agent (currently showing \"Support agent\").\n\nAPP: ElevenLabs admin dashboard\nSCREEN: Phone Numbers",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790189009,
+  "id": "2026092402432560d7467521e4444a",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026092402432560d7467521e4444a",
+  "usage": {
+    "completion_tokens": 77,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1856,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1933
+  }
+}
