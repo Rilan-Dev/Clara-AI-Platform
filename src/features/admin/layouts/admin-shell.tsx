@@ -7,9 +7,10 @@ import {
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
   MoreHorizontal, X, Palette,
-  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion,
+  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion, Trash2,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
+import { deleteAgent } from "@/modules/admin-ui/api";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -126,7 +127,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname   = usePathname();
   const router     = useRouter();
   const [moreOpen, setMoreOpen] = useState(false); // mobile "More" bottom sheet
-  const [agentLabel, setAgentLabel] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState("Main");
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
@@ -214,12 +215,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const activeAgentOrgId = agentRoute?.[1] ?? null;
   const activeAgentId = agentRoute?.[2] ?? null;
   useEffect(() => {
-    if (!activeAgentId) { setAgentLabel(null); return; }
+    if (!activeAgentId) {
+      setBranchName("Main");
+      return;
+    }
     let cancelled = false;
     fetchAgentWorkspaceContextCached(activeAgentId)
-      .then((ctx: any) => { if (!cancelled) setAgentLabel(ctx?.agent?.name ?? ctx?.agent?.displayName ?? null); })
-      .catch(() => { if (!cancelled) setAgentLabel(null); });
-    return () => { cancelled = true; };
+      .then((context) => {
+        if (!cancelled) {
+          setBranchName(context.currentVersion?.branchName ?? context.main.name ?? "Main");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBranchName("Main");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [activeAgentId]);
   const onAgentsIndex =
     !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
@@ -343,7 +355,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <span className="block leading-4">{item.label}</span>
                         {item.label === "Agent" && (
                           <span className="mt-0.5 block text-[11px] font-normal leading-3.5 text-muted-foreground/70">
-{agentLabel ?? "Agent"}
+                            {branchName}
                           </span>
                         )}
                       </span>
