@@ -201,6 +201,28 @@ async function resolveKbTenant(
   return { orgId, agentId };
 }
 
+function detectResponseLanguage(query: string, allowedLanguages: string[]): string {
+  const normalized = query.normalize("NFKC").toLowerCase();
+  const allowed = new Set(allowedLanguages.map((value) => value.trim().toLowerCase()).filter(Boolean));
+
+  // Explicit output-language requests override the language of the question.
+  if (allowed.has("ta") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?tamil\b/.test(normalized)) return "ta";
+  if (allowed.has("hi") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?hindi\b/.test(normalized)) return "hi";
+  if (allowed.has("te") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?telugu\b/.test(normalized)) return "te";
+  if (allowed.has("en") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?english\b/.test(normalized)) return "en";
+  if (allowed.has("ta") && /(தமிழில்|தமிழ்ல|தமிழாக)/.test(normalized)) return "ta";
+  if (allowed.has("hi") && /(हिंदी में|हिंदीमे)/.test(normalized)) return "hi";
+  if (allowed.has("te") && /(తెలుగులో|తెలుగులోనే)/.test(normalized)) return "te";
+
+  if (allowed.has("ta") && /[\u0B80-\u0BFF]/.test(normalized)) return "ta";
+  if (allowed.has("hi") && /[\u0900-\u097F]/.test(normalized)) return "hi";
+  if (allowed.has("te") && /[\u0C00-\u0C7F]/.test(normalized)) return "te";
+  if (allowed.has("ta") && /\b(enakku|enna|eppadi|sollu|venum|panna|help)\b/.test(normalized)) return "ta";
+  if (allowed.has("hi") && /\b(mujhe|kaise|batao|chahiye|madad)\b/.test(normalized)) return "hi";
+  if (allowed.has("te") && /\b(naaku|ela|cheppu|kavali|sahayam)\b/.test(normalized)) return "te";
+  return allowed.has("en") ? "en" : allowedLanguages[0]?.trim().toLowerCase() || "en";
+}
+
 function isCapabilityQuery(query: string): boolean {
   const normalized = query.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
   if (!normalized) return false;
