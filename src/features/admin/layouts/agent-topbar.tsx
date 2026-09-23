@@ -7,7 +7,7 @@
  * theme toggle and the profile avatar).
  *
  *   ┌────────────────────────────────────────────────────────────────────────┐
- *   │ Clara · Main        Main v8 · Draft changes · Published v8 ·           │
+ *   │ Clara · Agent       Main v8 · Draft changes · Published v8 ·            │
  *   │ (context label)     Draft saved 18 min ago · Preview · Publish update  │
  *   │                                                 [theme] [avatar]      │
  *   └────────────────────────────────────────────────────────────────────────┘
@@ -38,7 +38,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Check,
   Copy,
@@ -75,7 +75,7 @@ function useAgentRoute(): { orgId: string | null; agentId: string | null } {
 
 /** Short label of the open agent section (sidebar tab name). */
 const SECTION_SEGMENTS: Record<string, string> = {
-  config: "Main",
+  config: "Agent",
   faq: "FAQ",
   knowledge: "Knowledge",
   tools: "Tools",
@@ -146,8 +146,19 @@ export function AgentTopbarProvider({ children }: { children: ReactNode }) {
         })
         .catch(() => undefined);
     };
+    const contextUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string; context?: AgentWorkspaceContextDTO }>).detail;
+      if (!agentId || detail?.agentId !== agentId || !detail.context) return;
+      setContext(detail.context);
+      updateAgentWorkspaceContextCache(agentId, detail.context);
+    };
+
     window.addEventListener("agent-workspace:refresh", refresh);
-    return () => window.removeEventListener("agent-workspace:refresh", refresh);
+    window.addEventListener("agent-workspace:context-updated", contextUpdated);
+    return () => {
+      window.removeEventListener("agent-workspace:refresh", refresh);
+      window.removeEventListener("agent-workspace:context-updated", contextUpdated);
+    };
   }, [agentId]);
 
   const value = useMemo<AgentTopbarValue>(
@@ -221,8 +232,6 @@ export function TopbarContextLabel({ isAdmin }: { isAdmin: boolean }) {
 
 export function AgentTopbarCluster() {
   const { agentId, context, loading } = useAgentTopbar();
-  const router = useRouter();
-
   const [publishing, setPublishing] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
 
@@ -265,14 +274,16 @@ export function AgentTopbarCluster() {
         description: `Production is now running ${result.deployment.branchName} · v${result.deployment.versionNumber}.`,
       });
       setDiffOpen(false);
-      router.refresh();
+      // Do not refresh the Next.js route tree here. The workspace context/cache
+      // event updates only the affected agent surfaces and keeps the sidebar,
+      // navigation state, and local editor state mounted.
       window.dispatchEvent(new CustomEvent("agent-workspace:refresh"));
     } catch (err) {
       toast.error("Publish failed", { description: (err as Error).message });
     } finally {
       setPublishing(false);
     }
-  }, [context, publishing, currentVersion, draftEditedSinceVersion, agentId, deployment?.publicAccess, router]);
+  }, [context, publishing, currentVersion, draftEditedSinceVersion, agentId, deployment?.publicAccess]);
 
   if (!agentId) return null;
 
@@ -284,7 +295,7 @@ export function AgentTopbarCluster() {
           <span className="hidden items-center gap-1.5 md:inline-flex">
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               <GitBranch className="h-3 w-3" />
-              Main
+              {currentVersion?.branchName ?? context.main.name ?? "Main"}
               <span className="text-foreground/70">v{currentVersion?.versionNumber ?? 1}</span>
             </span>
 

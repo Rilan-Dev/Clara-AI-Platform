@@ -58,7 +58,10 @@ import {
   type AgentWorkspaceContextDTO,
   type SemanticDiffDTO,
 } from "@/modules/admin-ui/ai-platform-api";
-import { fetchAgentWorkspaceContextCached } from "@/features/admin/screens/agent-workspace/context-cache";
+import {
+  fetchAgentWorkspaceContextCached,
+  updateAgentWorkspaceContextCache,
+} from "@/features/admin/screens/agent-workspace/context-cache";
 import { DiffViewer, VersionBadge, WorkspaceButton } from "@/components/admin/ai-platform/shared";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
@@ -242,7 +245,15 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
     setContextLoading(true);
     setContextError(null);
     fetchAgentWorkspaceContext(agentId)
-      .then((data) => setContext(data))
+      .then((data) => {
+        setContext(data);
+        updateAgentWorkspaceContextCache(agentId, data);
+        window.dispatchEvent(
+          new CustomEvent("agent-workspace:context-updated", {
+            detail: { agentId, context: data },
+          }),
+        );
+      })
       .catch((e: Error) => setContextError(e.message))
       .finally(() => setContextLoading(false));
   }, [agentId]);
