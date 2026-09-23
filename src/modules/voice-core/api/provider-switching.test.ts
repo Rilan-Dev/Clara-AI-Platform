@@ -47,7 +47,7 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  queryOne: vi.fn(async () => null),
+  queryOne: vi.fn(async () => ({ enabled: true })),
   query: vi.fn(async (sql: string) => {
     if (String(sql).includes("SELECT a.org_id")) return [{ org_id: ORG_ID }];
     return [];
@@ -194,7 +194,7 @@ function elevenlabsResolved() {
     },
     elevenlabs: {
       ttsModel: "eleven_flash_v2_5",
-      sttModel: "scribe_v1",
+      sttModel: "scribe_v2_realtime",
       voiceId: "el-voice-1",
       voiceSettings: {},
       language: "en",
@@ -334,6 +334,22 @@ describe("Task 7.1 — resolve tenant context before provider connection", () =>
     const sarvam = await postSarvamSession(sessionPost({ kbId: KB_ID }));
     expect(sarvam.status).toBe(402);
     expect((await sarvam.json()).stt).toBeUndefined();
+  });
+
+  it("ElevenLabs realtime session declares Clara Mode C and dedicated Scribe model", async () => {
+    elevenlabsResolved();
+    const response = await postElevenLabsSession(sessionPost({ kbId: KB_ID }));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.mode).toBe("clara-stream");
+    expect(payload.stt.model).toBe("scribe_v2_realtime");
+    expect(payload.stt.realtime).toMatchObject({
+      endpoint: "/api/voice/elevenlabs/realtime",
+      ttsEndpoint: "/api/voice/elevenlabs/tts-realtime",
+      model: "scribe_v2_realtime",
+      sampleRate: 16_000,
+      encoding: "linear16",
+    });
   });
 
   it("capability mismatch rejects with 409 before vendor artifacts", async () => {
