@@ -538,10 +538,10 @@ function AISelectionCard({
       </div>
 
       {/* Auto-save footer — provider/model picks persist ~0.8 s after the
-          change; publishing remains the explicit action in the header. */}
+          change; publishing remains the explicit action in the topbar. */}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4">
         <p className="text-[11px] text-muted-foreground/70">
-          Selections save automatically into the draft — publish from the header when ready.
+          Selections save automatically into the draft — publish from the top bar when ready.
         </p>
         <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
       </div>

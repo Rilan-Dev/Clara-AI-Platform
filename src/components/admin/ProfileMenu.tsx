@@ -6,12 +6,15 @@
  * Topbar profile avatar → dropdown menu. One click away from everything
  * a user needs about THEMSELVES:
  *
- *   • Profile & security (name, avatar, password change)
- *   • Account settings    (/settings/account)
- *   • Billing & plan      (org users — the money questions)
+ *   • Usage & plan          (live org usage vs plan limits — meters)
+ *   • Profile & security    (name, avatar, password change)
+ *   • Account settings      (/settings/account)
+ *   • Billing & plan        (org users — the money questions)
  *   • Sign out
  *
- * Goal-oriented ordering: identity → settings → money → exit.
+ * The trigger is the AVATAR ONLY — the username was removed from the navbar
+ * (identity lives inside the menu, the agent workspace cluster takes the
+ * space next to the avatar).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -21,6 +24,8 @@ import {
   ChevronDown, CreditCard, KeyRound, LogOut, Settings, ShieldCheck, UserRound,
 } from "lucide-react";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
+import { fetchOrgUsageLimits, type OrgUsageLimits } from "@/modules/admin-ui/api";
+import { cn } from "@/lib/utils";
 
 export type ProfileMenuUser = {
   id: string;
@@ -30,12 +35,149 @@ export type ProfileMenuUser = {
   isSuperAdmin: boolean;
 };
 
+// ── Usage meter helpers ───────────────────────────────────────────────────────
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function formatLimit(limit: number, unit: string): string {
+  return limit < 0 ? `Unlimited` : `${limit.toLocaleString()}${unit ? ` ${unit}` : ""}`;
+}
+
+/** Meter row: label · current/limit · thin progress bar (amber ≥80%, rose ≥100%). */
+function UsageMeter({
+  label,
+  current,
+  limit,
+  currentLabel,
+  limitLabel,
+}: {
+  label: string;
+  current: number;
+  limit: number;
+  currentLabel: string;
+  limitLabel: string;
+}) {
+  const unlimited = limit < 0;
+  const pct = unlimited || limit === 0 ? 0 : Math.min(100, Math.round((current / limit) * 100));
+  const barTone = pct >= 100
+    ? "bg-rose-500"
+    : pct >= 80
+      ? "bg-amber-500"
+      : "bg-primary/70";
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[11px] font-medium text-foreground/80">{label}</p>
+        <p className="text-[11px] text-muted-foreground">
+          {currentLabel} <span className="text-muted-foreground/50">/ {limitLabel}</span>
+        </p>
+      </div>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+        <div
+          className={cn("h-full rounded-full transition-all", barTone)}
+          style={{ width: `${unlimited ? 100 : pct}%`, opacity: unlimited ? 0.25 : 1 }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function UsageLimitsSection({ orgId }: { orgId: string }) {
+  const [data, setData] = useState<OrgUsageLimits | null>(null);
+  const [error, setError] = useState(false);
+
+  // Lazy — fetched when the section mounts (menu opened), not on page load.
+  useEffect(() => {
+    let cancelled = false;
+    fetchOrgUsageLimits(orgId)
+      .then((d) => !cancelled && setData(d))
+      .catch(() => !cancelled && setError(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
+
+  if (error) {
+    return (
+      <p className="px-4 py-2 text-[11px] text-muted-foreground/60">
+        Usage unavailable right now.
+      </p>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="space-y-2.5 px-4 py-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-4 animate-pulse rounded bg-muted/70" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          Usage this month
+        </p>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+            data.downgraded
+              ? "border-amber-600/30 bg-amber-500/10 text-amber-600"
+              : "border-emerald-600/30 bg-emerald-500/10 text-emerald-600",
+          )}
+          title={data.downgraded ? "Subscription inactive — free-tier limits applied" : `Plan: ${data.plan_name}`}
+        >
+          {data.plan_name}
+          {data.downgraded ? " (free limits)" : ""}
+        </span>
+      </div>
+
+      <UsageMeter
+        label="Requests today"
+        current={data.usage.requests_today}
+        limit={data.limits.max_req_day}
+        currentLabel={data.usage.requests_today.toLocaleString()}
+        limitLabel={formatLimit(data.limits.max_req_day, "")}
+      />
+      <UsageMeter
+        label="Storage"
+        current={data.usage.storage_bytes}
+        limit={data.limits.max_storage_mb * 1024 * 1024}
+        currentLabel={formatBytes(data.usage.storage_bytes)}
+        limitLabel={formatLimit(data.limits.max_storage_mb, "MB")}
+      />
+      <UsageMeter
+        label="Knowledge bases"
+        current={data.usage.kb_count}
+        limit={data.limits.max_kbs}
+        currentLabel={String(data.usage.kb_count)}
+        limitLabel={formatLimit(data.limits.max_kbs, "")}
+      />
+      <UsageMeter
+        label="Docs in largest KB"
+        current={data.usage.max_docs_in_kb}
+        limit={data.limits.max_docs_per_kb}
+        currentLabel={String(data.usage.max_docs_in_kb)}
+        limitLabel={formatLimit(data.limits.max_docs_per_kb, "")}
+      />
+    </div>
+  );
+}
+
 export function ProfileMenu({
-  user, onSignOut, billingHref,
+  user, onSignOut, billingHref, orgId,
 }: {
   user: ProfileMenuUser;
   onSignOut: () => void;
   billingHref?: string | null;
+  /** Org whose usage/limits are shown — null for org-less / platform-admin users. */
+  orgId?: string | null;
 }) {
   const router       = useRouter();
   const [open, setOpen]     = useState(false);
@@ -67,14 +209,15 @@ export function ProfileMenu({
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* Avatar button — the single, obvious "me" affordance */}
+      {/* Avatar button — the single, obvious "me" affordance (no username in
+          the navbar; the name lives inside the menu). */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Open profile menu"
-        className="flex items-center gap-2.5 rounded-xl border border-border bg-card pl-1.5 pr-2.5 py-1.5 hover:bg-muted hover:border-primary/30 transition-all"
+        className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 hover:bg-muted hover:border-primary/30 transition-all"
       >
         {user.avatarUrl ? (
           <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />
@@ -83,9 +226,6 @@ export function ProfileMenu({
             {initials || "U"}
           </div>
         )}
-        <span className="hidden md:block text-sm font-medium text-foreground/80 max-w-[140px] truncate">
-          {user.fullName}
-        </span>
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/70 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -93,7 +233,7 @@ export function ProfileMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-12 w-72 rounded-2xl border border-border bg-popover text-popover-foreground shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 top-12 w-80 rounded-2xl border border-border bg-popover text-popover-foreground shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {/* Identity header */}
           <div className="px-4 py-4 border-b border-border bg-muted/50">
@@ -119,6 +259,13 @@ export function ProfileMenu({
               {user.isSuperAdmin ? "Platform admin" : "Organisation user"}
             </span>
           </div>
+
+          {/* Usage & plan — org users with an org (lazy-loaded meters) */}
+          {orgId && !user.isSuperAdmin && (
+            <div className="border-b border-border">
+              <UsageLimitsSection orgId={orgId} />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="p-1.5">

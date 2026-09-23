@@ -186,12 +186,13 @@ export default function AgentPublishScreen() {
         <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
       )}
 
-      {/* Everyday publishing lives in the header — this page is advanced only. */}
+      {/* Everyday publishing lives in the topbar — this page is advanced only. */}
       <div className="mb-5 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <p className="text-xs leading-relaxed text-muted-foreground">
           <span className="font-medium text-foreground">Publishing is one click.</span> Use the{" "}
-          <span className="font-medium text-primary">Publish</span> button in the workspace header (or the Overview tab) — draft
+          <span className="font-medium text-primary">Publish update</span> button in the top bar next to your profile
+          avatar (or the Overview tab) — draft
           changes are versioned and published automatically. This page keeps the advanced controls: access mode, share links and
           rollback.
         </p>

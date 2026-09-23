@@ -13,7 +13,7 @@
  *     (config-builder) and mirrored in the ConfigEditor prompt preview;
  *   • AUTO-SAVE — no Save button. Edits persist ~1.2 s after typing stops
  *     (discrete add/remove saves immediately), the same policy as the Main
- *     tab. Publishing still happens through the navbar's one-click Publish.
+ *     tab. Publishing still happens through the topbar's one-click Publish.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -245,7 +245,7 @@ export default function AgentFaqScreen() {
             <Plus className="h-3.5 w-3.5" /> Add question
           </button>
           <p className="text-[11px] text-muted-foreground/60">
-            {autoSave.status === "saving" ? "Saving…" : "FAQ entries publish with the agent — use Publish in the header when ready."}
+            {autoSave.status === "saving" ? "Saving…" : "FAQ entries publish with the agent — use Publish update in the top bar when ready."}
           </p>
         </div>
       )}

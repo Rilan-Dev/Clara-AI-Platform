@@ -6,16 +6,22 @@ import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
-  MoreHorizontal, X, Palette, ArrowLeft,
-  Plus, Rocket,
+  MoreHorizontal, X, Palette,
+  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion, Trash2,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
+import { deleteAgent } from "@/modules/admin-ui/api";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   fetchAgentWorkspaceContextCached,
 } from "@/features/admin/screens/agent-workspace/context-cache";
+import {
+  AgentTopbarCluster,
+  AgentTopbarProvider,
+  TopbarContextLabel,
+} from "@/features/admin/layouts/agent-topbar";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -66,9 +72,22 @@ function orgWorkspaceNav(orgId: string) {
   ];
 }
 
-/** Agent workspace sections render in the workspace NAVBAR (one bar per the
- * ElevenLabs mock) — see workspace-shell.tsx. The sidebar only carries agent
- * switching (identity + the org's agents list). */
+/** Agent workspace sections — restored in the SIDEBAR under the "Agents >"
+ * group (they briefly lived in a one-bar workspace navbar). The rail shows
+ * them whenever an agent is open; on the agents index the rail lists the
+ * org's agents themselves instead. */
+function agentSectionNav(orgId: string, agentId: string) {
+  const base = `/orgs/${orgId}/agents/${agentId}`;
+  return [
+    { href: base,                icon: LayoutDashboard,        label: "Overview", exact: true  },
+    { href: `${base}/config`,    icon: Bot,                    label: "Main",     exact: false },
+    { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
+    { href: `${base}/knowledge`, icon: BookOpen,               label: "Knowledge", exact: false },
+    { href: `${base}/tools`,     icon: Wrench,                 label: "Tools",    exact: false },
+    { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
+    { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },
+  ];
+}
 
 // Routes only accessible to super-admins — org users are redirected away from these
 const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics", "/system-status"];
@@ -281,22 +300,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
 
-          {/* Agent workspace navigation lives in the workspace NAVBAR (one
-              bar: identity + tabs + version cluster + Preview/Publish — the
-              ElevenLabs mock). The sidebar only carries agent switching:
-              the back link + identity + the org's agents list. */}
+          {/* Agent open — section navigation back in the rail, under the
+              “Agents >” group: back link, agent identity card, then the seven
+              section tabs. The topbar carries the version/deploy cluster. */}
           {!isAdmin && activeAgentId && activeAgentOrgId && (
             <div className="mt-3 border-t border-border/70 pt-3">
               <Link
                 href={`/orgs/${activeAgentOrgId}/agents`}
-                className="mx-1 mb-1 flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Back to all agents"
+                className="group flex items-center gap-1 rounded-md px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back to agents
+                Agents
+                <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
               </Link>
 
-              {/* Agent identity — name + active branch, links to Branches. */}
+              {/* Agent identity — name + active branch; delete on hover. */}
               <AgentSidebarIdentity orgId={activeAgentOrgId} agentId={activeAgentId} />
+
+              {/* Section tabs (Overview / Main / FAQ / Knowledge / Tools /
+                  Branches / Publish). */}
+              <nav className="space-y-0.5" aria-label="Agent sections">
+                {agentSectionNav(activeAgentOrgId, activeAgentId).map((item) => {
+                  const active = item.exact
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <item.icon
+                        className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground/70"}`}
+                      />
+                      {item.label}
+                      {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
           )}
 
@@ -401,35 +448,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main */}
       <div className="flex-1 md:ml-60 min-h-[100dvh] overflow-x-hidden flex flex-col">
-        {/* ── Topbar — page context + profile menu ──────────────────────────── */}
+        {/* ── Topbar — page context + agent version cluster + profile ─────── */}
+        {/* The username was removed from the navbar: the left slot shows the
+            open agent / page context, and the space next to the profile avatar
+            carries the agent version/deploy cluster (Main · vN, Draft changes,
+            Published vN, Draft saved …, Preview, Publish update). */}
+        <AgentTopbarProvider>
         <header className="sticky top-0 z-30 h-14 md:h-16 border-b border-border bg-background/85 backdrop-blur-md flex items-center justify-between gap-3 px-4 md:pl-6 md:pr-6">
           {/* Context label */}
           <div className="min-w-0 flex items-center gap-2.5">
             <span className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
               <Brain className="w-4 h-4 text-white" />
             </span>
-            <div className="min-w-0 hidden sm:block">
-              <p className="text-sm font-semibold text-foreground truncate leading-tight">
-                {isAdmin ? "Platform Console" : user.fullName}
-              </p>
-              <p className="text-[11px] text-muted-foreground truncate leading-tight">
-                {isAdmin ? "Clara AI administration" : "Clara AI workspace"}
-              </p>
-            </div>
+            <TopbarContextLabel isAdmin={isAdmin} />
           </div>
 
-          {/* Theme switch + profile avatar → menu */}
+          {/* Agent version cluster + theme switch + profile avatar (no name) */}
           <div className="flex items-center gap-2">
+            <AgentTopbarCluster />
             <ThemeToggle />
             {user && (
               <ProfileMenu
                 user={user}
                 onSignOut={handleSignOut}
                 billingHref={!isAdmin && primaryOrgId ? `/orgs/${primaryOrgId}/billing` : null}
+                orgId={!isAdmin ? primaryOrgId : null}
               />
             )}
           </div>
         </header>
+        </AgentTopbarProvider>
 
         {/* Bottom safe area for the tab bar */}
         <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-0">
@@ -572,19 +620,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 // ── Agent workspace sidebar pieces (ElevenLabs layout) ───────────────────────
 
 /**
- * Agent identity block shown at the top of the agent rail: agent avatar +
- * name, active branch ("Main") with a green health dot, chevron into the
- * Branches page. Data comes from the shared workspace-context cache so the
- * sidebar and the workspace shell never double-fetch.
+ * Agent identity block at the top of the agent rail section: agent avatar +
+ * name, active branch ("Main") with a green health dot and the current
+ * version. Clicking opens the agent Overview; the trash icon (hover) deletes
+ * the agent. Data comes from the shared workspace-context cache so the
+ * sidebar, the workspace shell and the topbar cluster never double-fetch.
  */
 function AgentSidebarIdentity({ orgId, agentId }: { orgId: string; agentId: string }) {
+  const router = useRouter();
   const [name, setName] = useState<string | null>(null);
+  const [version, setVersion] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetchAgentWorkspaceContextCached(agentId)
       .then((context) => {
-        if (!cancelled) setName(context.agent.name);
+        if (cancelled) return;
+        setName(context.agent.name);
+        setVersion(context.currentVersion?.versionNumber ?? null);
       })
       .catch(() => {
         if (!cancelled) setName(null);
@@ -594,26 +648,49 @@ function AgentSidebarIdentity({ orgId, agentId }: { orgId: string; agentId: stri
     };
   }, [agentId]);
 
+  async function handleDelete() {
+    if (!agentId || deleting) return;
+    if (!confirm("Delete this agent and every knowledge base inside it?")) return;
+    setDeleting(true);
+    try {
+      await deleteAgent(agentId);
+      router.push(`/orgs/${orgId}/agents`);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <Link
-      href={`/orgs/${orgId}/agents/${agentId}/versions`}
-      title="Agent · branch Main — open Branches"
-      className="mx-1 mb-2 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-2.5 py-2 transition-colors hover:border-primary/30 hover:bg-muted/70"
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
-        <Bot className="h-4 w-4 text-primary" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">
-          {name ?? "Agent"}
+    <div className="mx-1 mb-2 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-2.5 py-2 transition-colors hover:border-primary/30 hover:bg-muted/70">
+      <Link
+        href={`/orgs/${orgId}/agents/${agentId}`}
+        title="Open the agent Overview"
+        className="flex min-w-0 flex-1 items-center gap-2.5"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
+          <Bot className="h-4 w-4 text-primary" />
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-          Main
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">
+            {name ?? "Agent"}
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+            Main{version != null && <span className="text-muted-foreground/60">· v{version}</span>}
+          </span>
         </span>
-      </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-    </Link>
+      </Link>
+      <button
+        type="button"
+        onClick={() => void handleDelete()}
+        disabled={deleting}
+        aria-label={`Delete agent ${name ?? ""}`}
+        title="Delete agent"
+        className="shrink-0 rounded-lg p-1.5 text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 
