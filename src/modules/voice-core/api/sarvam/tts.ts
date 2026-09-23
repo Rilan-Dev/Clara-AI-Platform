@@ -117,8 +117,10 @@ export async function postSarvamTts(request: NextRequest): Promise<NextResponse 
     }
 
     // Server-side re-resolution: client-suggested speaker/model are advisory.
-    // Cached for 5 s — this route fires per sentence.
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "voice_chat" });
+    // Cached for 5 s — this route fires per sentence. Realtime axis: the
+    // pipeline sessions bootstrap on the realtime purpose axis, so the hot
+    // paths must agree or cross-axis orgs 409 on every sentence.
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
     if (
       (resolved.voiceProvider !== "sarvam" && resolved.realtimeProvider !== "sarvam") ||
       !resolved.sarvam

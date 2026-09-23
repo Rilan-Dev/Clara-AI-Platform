@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { query, queryOne, withTransaction } from "@/lib/db";
 import type {
   KnowledgeBase, AssistantConfig, CreateKbInput, UpdateKbInput,
-  PutAssistantConfigInput, PatchAssistantConfigInput,
+  PutAssistantConfigInput, PatchAssistantConfigInput, FaqItem,
 } from "./models";
 import { snapshotConfig } from "./snapshots-db";
 
@@ -35,6 +35,19 @@ function strN(v: unknown): string|null        { return v!=null?String(v):null; }
 function num(v: unknown, fb: number): number  { return v!=null?Number(v):fb; }
 function bool(v: unknown, fb: boolean): boolean { return v!=null?Boolean(v):fb; }
 
+/** Defensive FAQ parse — rows written before 056 (or corrupt blobs) degrade
+ *  to an empty list instead of breaking every assistant-config read. */
+function faqs(v: unknown): FaqItem[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((item): FaqItem[] => {
+    if (!item || typeof item !== "object") return [];
+    const q = (item as Record<string, unknown>).question;
+    const a = (item as Record<string, unknown>).answer;
+    if (typeof q !== "string" || !q.trim() || typeof a !== "string") return [];
+    return [{ id: typeof (item as Record<string, unknown>).id === "string" ? (item as Record<string, unknown>).id as string : randomUUID(), question: q, answer: a }];
+  });
+}
+
 function toConfig(row: Record<string,unknown>): AssistantConfig {
   const rules: string[] = Array.isArray(row.rules)?(row.rules as string[]):[];
   const langs: string[] = Array.isArray(row.allowed_languages)?(row.allowed_languages as string[]):["en"];
@@ -45,7 +58,7 @@ function toConfig(row: Record<string,unknown>): AssistantConfig {
     systemPrompt: str(row.system_prompt,""),
     welcomeMessage: str(row.welcome_message,"Hi! How can I help?"),
     outOfScopeReply: str(row.out_of_scope_reply,"I can only answer questions about this topic."),
-    rules, defaultLanguage: str(row.default_language,"en"),
+    rules, faqItems: faqs(row.faq_items), defaultLanguage: str(row.default_language,"en"),
     allowedLanguages: langs, alwaysRespondIn: strN(row.always_respond_in),
     voiceId: str(row.voice_id,"alloy"), speed: num(row.speed,1),
     temperature: num(row.temperature,0.7), maxTokens: num(row.max_tokens,1000),
@@ -211,18 +224,18 @@ export async function putAssistantConfig(agentId: string, input: PutAssistantCon
   const row = await queryOne<Record<string,unknown>>(
     `UPDATE assistant_configs SET
        assistant_name=$1, avatar_url=$2, system_prompt=$3, welcome_message=$4,
-       out_of_scope_reply=$5, rules=$6::jsonb, default_language=$7,
-       allowed_languages=$8, always_respond_in=$9, voice_id=$10, speed=$11,
-       temperature=$12, max_tokens=$13, cite_sources=$14, strict_mode=$15,
-       primary_colour=$16, accent_colour=$17, launcher_colour=$18,
-       widget_theme=$19, widget_position=$20, widget_button_size=$21,
-       widget_border_radius=$22, widget_font_family=$23, widget_chat_height=$24,
-       widget_show_branding=$25, widget_launcher_label=$26, widget_mode=$27,
-       custom_css=$28, custom_launcher_svg=$29, custom_header_html=$30, custom_powered_by=$31
-     WHERE agent_id=$32 RETURNING *`,
+       out_of_scope_reply=$5, rules=$6::jsonb, faq_items=$7::jsonb, default_language=$8,
+       allowed_languages=$9, always_respond_in=$10, voice_id=$11, speed=$12,
+       temperature=$13, max_tokens=$14, cite_sources=$15, strict_mode=$16,
+       primary_colour=$17, accent_colour=$18, launcher_colour=$19,
+       widget_theme=$20, widget_position=$21, widget_button_size=$22,
+       widget_border_radius=$23, widget_font_family=$24, widget_chat_height=$25,
+       widget_show_branding=$26, widget_launcher_label=$27, widget_mode=$28,
+       custom_css=$29, custom_launcher_svg=$30, custom_header_html=$31, custom_powered_by=$32
+     WHERE agent_id=$33 RETURNING *`,
     [
       input.assistantName, input.avatarUrl??null, input.systemPrompt, input.welcomeMessage,
-      input.outOfScopeReply, JSON.stringify(input.rules), input.defaultLanguage,
+      input.outOfScopeReply, JSON.stringify(input.rules), JSON.stringify(input.faqItems??[]), input.defaultLanguage,
       input.allowedLanguages, input.alwaysRespondIn??null, input.voiceId, input.speed,
       input.temperature, input.maxTokens, input.citeSources, input.strictMode,
       input.primaryColour, input.accentColour, input.launcherColour??input.primaryColour,
@@ -248,7 +261,7 @@ export async function patchAssistantConfig(agentId: string, input: PatchAssistan
   const fieldMap: Record<string,string> = {
     assistantName:"assistant_name", avatarUrl:"avatar_url",
     systemPrompt:"system_prompt", welcomeMessage:"welcome_message",
-    outOfScopeReply:"out_of_scope_reply", rules:"rules",
+    outOfScopeReply:"out_of_scope_reply", rules:"rules", faqItems:"faq_items",
     defaultLanguage:"default_language", allowedLanguages:"allowed_languages",
     alwaysRespondIn:"always_respond_in", voiceId:"voice_id", speed:"speed",
     temperature:"temperature", maxTokens:"max_tokens",
@@ -302,7 +315,7 @@ export async function patchAssistantConfig(agentId: string, input: PatchAssistan
   for (const [key, col] of Object.entries(fieldMap)) {
     const val = (input as Record<string,unknown>)[key];
     if (val===undefined) continue;
-    if (key==="rules")            { sets.push(`${col}=$${i++}::jsonb`); params.push(JSON.stringify(val)); }
+    if (key==="rules"||key==="faqItems") { sets.push(`${col}=$${i++}::jsonb`); params.push(JSON.stringify(val)); }
     else if (key==="allowedLanguages") { sets.push(`${col}=$${i++}`); params.push(val as string[]); }
     else                          { sets.push(`${col}=$${i++}`);        params.push(val); }
   }

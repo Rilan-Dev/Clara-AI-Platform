@@ -94,8 +94,9 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
 
     // Server-side re-resolution — the client-suggested model/language is
     // advisory only, exactly like realtime.ts re-validates the voice.
-    // Cached for 5 s (hot path fires per utterance).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "voice_chat" });
+    // Cached for 5 s (hot path fires per utterance). Realtime axis to match
+    // the session bootstrap (see session.ts).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
     if (

@@ -266,8 +266,8 @@ export function DefaultAssistantWorkspace() {
           {state?.draft && state?.currentVersion != null && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
               <p className="text-xs text-muted-foreground">
-                Draft has unsaved changes
-                {state.draftUpdatedAt ? ` · updated ${timeAgo(state.draftUpdatedAt)}` : ""}.
+                Edits auto-save into the draft
+                {state.draftUpdatedAt ? ` · saved ${timeAgo(state.draftUpdatedAt)}` : ""}.
                 Saving a version makes them the new current default.
               </p>
               <div className="flex flex-wrap items-center gap-2">

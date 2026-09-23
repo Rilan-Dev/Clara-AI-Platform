@@ -5,6 +5,9 @@ import {
   withAuthHeaders,
 } from "@/lib/client-auth";
 import { apiUrl, fetchJsonShared } from "@/lib/runtime";
+import type { FaqItem } from "@/modules/knowledge-bases/core/models";
+
+export type { FaqItem };
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = withAuthHeaders(options.headers ?? {});
   if (!headers.has("Content-Type") && !(options.body instanceof FormData))
@@ -447,6 +450,7 @@ export type AssistantConfig = {
   welcomeMessage: string;
   outOfScopeReply: string;
   rules: string[];
+  faqItems?: FaqItem[];
   defaultLanguage: string;
   allowedLanguages: string[];
   alwaysRespondIn: string | null;

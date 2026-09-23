@@ -104,6 +104,7 @@ export async function projectDraftToLegacyStores(
       welcomeMessage: a.welcomeMessage,
       outOfScopeReply: a.outOfScopeReply,
       rules: a.rules,
+      faqItems: a.faqItems ?? [],
       defaultLanguage: a.defaultLanguage,
       allowedLanguages: a.allowedLanguages,
       alwaysRespondIn: a.alwaysRespondIn,
