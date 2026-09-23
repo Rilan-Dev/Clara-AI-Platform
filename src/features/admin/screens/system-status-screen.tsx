@@ -427,7 +427,7 @@ export function SystemStatusScreen() {
                   {data.services.stripe.priceChecks && Object.entries(data.services.stripe.priceChecks).map(([plan, status]) => (
                     <DetailRow key={plan} label={`${plan} price ID`} value={status} />
                   ))}
-                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground/70">
+                  <p className="mt-2 text-[11px] leading-4 text-muted-foreground/70">
                     This check calls Stripe server-side, so an invalid/revoked secret is detected before checkout.
                   </p>
                 </div>
@@ -454,7 +454,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiOpenai.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiOpenai.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiOpenai.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-destructive/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-all text-destructive/80">
                       {data.services.aiOpenai.error ?? "unreachable"}
                     </p>
                   )}
@@ -471,7 +471,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiGemini.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiGemini.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiGemini.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-destructive/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-all text-destructive/80">
                       {data.services.aiGemini.error ?? "unreachable"}
                     </p>
                   )}
@@ -513,7 +513,7 @@ export function SystemStatusScreen() {
                     {data.services.queues.queues.map((q) => (
                       <div key={q.name} className="rounded-lg bg-muted/50 px-3 py-2">
                         <p className="font-mono text-[11px] text-muted-foreground">{q.name}</p>
-                        <div className="mt-1 grid grid-cols-4 gap-1 text-center text-[10px]">
+                        <div className="mt-1 grid grid-cols-4 gap-1 text-center text-[11px]">
                           <div><p className="text-muted-foreground/70">waiting</p><p className="font-mono text-muted-foreground">{q.waiting}</p></div>
                           <div><p className="text-muted-foreground/70">active</p><p className="font-mono text-muted-foreground">{q.active}</p></div>
                           <div><p className="text-muted-foreground/70">delayed</p><p className="font-mono text-muted-foreground">{q.delayed}</p></div>

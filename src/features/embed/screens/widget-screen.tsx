@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { apiUrl } from "@/lib/runtime";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
 import { sanitizeWidgetHtml } from "@/features/embed/lib/sanitize-html";
+import { ChatAnnouncer } from "@/components/ui/chat-announcer";
 // Note: apiUrl is used for internal admin API calls.
 // Voice runtime uses window.location.origin directly (works for embedded deploy).
 
@@ -439,10 +440,14 @@ function WidgetContent() {
       )}
 
       {/* ── Messages ── */}
-      <div className="cw-msgs clara-messages" style={{
+      <div className="cw-msgs clara-messages" role="log" aria-label="Conversation" aria-live="off" style={{
         flex:1,overflowY:"auto",padding:"16px",
         display:"flex",flexDirection:"column",gap:msgGap,background:chatBg,
       }}>
+        <ChatAnnouncer
+          label={config?.assistantName ?? "Assistant"}
+          messages={messages.map((m, i) => ({ ...m, isStreaming: loading && i === messages.length - 1 }))}
+        />
         {messages.map((msg) => (
           <div key={msg.id} className="cw-msg" style={{
             display:"flex",justifyContent:msg.role==="user"?"flex-end":"flex-start",
@@ -494,7 +499,7 @@ function WidgetContent() {
         background:inputAreaBg,flexShrink:0,
       }}>
         <div style={{display:"flex",alignItems:"flex-end",gap:8}}>
-          <textarea value={input} rows={1}
+          <textarea value={input} rows={1} aria-label={`Message ${config?.assistantName ?? "the assistant"}`}
             onChange={(e)=>setInput(e.target.value)}
             onKeyDown={(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void sendMessage();}}}
             placeholder={`Ask ${config?.assistantName??"the assistant"}…`}
@@ -511,6 +516,8 @@ function WidgetContent() {
           {showVoice && (
             <button
               onClick={() => isVoiceActive ? stopVoice() : startVoice()}
+              aria-label={isVoiceActive ? "Stop voice conversation" : "Start voice conversation"}
+              aria-pressed={isVoiceActive}
               title={isVoiceActive ? (voiceSession.micMuted ? `Voice: ${voiceState} · mic paused` : `Voice: ${voiceState} — click to stop`) : "Start voice"}
               className="clara-voice-btn"
               style={{
@@ -587,7 +594,7 @@ function WidgetContent() {
           )}
 
           {/* Send button */}
-          <button onClick={()=>void sendMessage()}
+          <button onClick={()=>void sendMessage()} aria-label="Send message"
             disabled={!input.trim()||loading}
             onMouseEnter={()=>setSendHov(true)}
             onMouseLeave={()=>setSendHov(false)}

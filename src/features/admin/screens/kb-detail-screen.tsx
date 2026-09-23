@@ -20,6 +20,7 @@ import { PhoneCallPanel } from "@/components/admin/PhoneCallPanel";
 import { Button } from "@/components/ui/button";
 import { apiFetchJson } from "@/lib/runtime";
 import { isPendingDocumentStuck } from "@/modules/knowledge-bases/core/ingest-queue-state";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -97,9 +98,12 @@ export default function KbDashboardPage() {
     if (!kb) return;
     const nextStatus = kb.status === "active" ? "archived" : "active";
     if (nextStatus === "archived") {
-      if (!confirm("Archive this knowledge base? Uploads and voice access will be blocked until restored.")) {
-        return;
-      }
+      const ok = await confirmAction({
+        title: "Archive this knowledge base?",
+        description: "Uploads and voice access are blocked until you restore it. Documents and vectors are kept.",
+        confirmLabel: "Archive",
+      });
+      if (!ok) return;
     }
     setArchiving(true);
     try {

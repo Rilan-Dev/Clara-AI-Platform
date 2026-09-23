@@ -203,17 +203,17 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
       <fieldset disabled={loading} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Organisation name</label>
-            <input
+            <label htmlFor="workspacewizard-organisation-name" className="text-xs font-medium text-muted-foreground mb-1.5 block">Organisation name</label>
+            <input id="workspacewizard-organisation-name"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               placeholder="Acme Corp"
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Plan</label>
-            <select
+            <label htmlFor="workspacewizard-plan" className="text-xs font-medium text-muted-foreground mb-1.5 block">Plan</label>
+            <select id="workspacewizard-plan"
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
               className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary"
@@ -226,22 +226,22 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Admin full name</label>
-            <input
+            <label htmlFor="workspacewizard-admin-full-name" className="text-xs font-medium text-muted-foreground mb-1.5 block">Admin full name</label>
+            <input id="workspacewizard-admin-full-name"
               value={adminFullName}
               onChange={(e) => setAdminFullName(e.target.value)}
               placeholder="Jane Doe"
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Admin email</label>
-            <input
+            <label htmlFor="workspacewizard-admin-email" className="text-xs font-medium text-muted-foreground mb-1.5 block">Admin email</label>
+            <input id="workspacewizard-admin-email"
               type="email"
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
               placeholder="jane@acme.com"
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary"
             />
           </div>
         </div>
@@ -257,24 +257,24 @@ export function WorkspaceWizard({ onCreated }: { onCreated?: (result: CreateWork
         {showAdvanced && (
           <div className="grid gap-4 md:grid-cols-3 rounded-xl border border-border bg-muted/50 p-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Agent name</label>
-              <input
+              <label htmlFor="workspacewizard-agent-name" className="text-xs font-medium text-muted-foreground mb-1.5 block">Agent name</label>
+              <input id="workspacewizard-agent-name"
                 value={agentName}
                 onChange={(e) => setProjectName(e.target.value)}
                 className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Knowledge base name</label>
-              <input
+              <label htmlFor="workspacewizard-knowledge-base-name" className="text-xs font-medium text-muted-foreground mb-1.5 block">Knowledge base name</label>
+              <input id="workspacewizard-knowledge-base-name"
                 value={kbName}
                 onChange={(e) => setKbName(e.target.value)}
                 className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">API key name</label>
-              <input
+              <label htmlFor="workspacewizard-api-key-name" className="text-xs font-medium text-muted-foreground mb-1.5 block">API key name</label>
+              <input id="workspacewizard-api-key-name"
                 value={apiKeyName}
                 onChange={(e) => setApiKeyName(e.target.value)}
                 className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground"

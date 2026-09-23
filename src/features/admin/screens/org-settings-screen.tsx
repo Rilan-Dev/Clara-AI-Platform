@@ -122,7 +122,7 @@ export default function OrgSettingsScreen() {
       </div>
 
       {isAdmin && (
-        <p className="mt-6 text-xs text-muted-foreground/50 flex items-center gap-2">
+        <p className="mt-6 text-xs text-muted-foreground/80 flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5" />
           Platform-admin view · direct plan changes live on the Billing tab
         </p>

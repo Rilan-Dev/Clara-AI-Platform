@@ -160,7 +160,7 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
                 font-medium transition-all
                 ${isSpeaking
                   ? "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 cursor-pointer"
-                  : "border-border text-muted-foreground/50 cursor-not-allowed"
+                  : "border-border text-muted-foreground/80 cursor-not-allowed"
                 }`}>
               <Zap className="h-3 w-3"/>Interrupt
             </button>
@@ -250,8 +250,8 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
             <div key={turn.id}
               className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Turn {i + 1}</span>
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium
+                <span className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Turn {i + 1}</span>
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium
                   ${turn.status === "speaking"
                     ? "border-sky-500/30 bg-sky-500/10 text-sky-600"
                     : turn.status === "pending"
@@ -263,20 +263,20 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
               </div>
               {turn.question && (
                 <div>
-                  <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-0.5">You said</p>
+                  <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-0.5">You said</p>
                   <p className="text-xs text-foreground/80">{turn.question}</p>
                 </div>
               )}
               {turn.answer && (
                 <div>
-                  <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-0.5">{assistantName} replied</p>
+                  <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-0.5">{assistantName} replied</p>
                   <p className={`text-xs text-foreground/80 line-clamp-4 ${turn.status === "speaking" ? "animate-pulse" : ""}`}>
                     {turn.answer}
                   </p>
                 </div>
               )}
               {turn.sources.length > 0 && (
-                <p className="text-[10px] text-muted-foreground/70">{turn.sources.length} source{turn.sources.length !== 1 ? "s" : ""} cited</p>
+                <p className="text-[11px] text-muted-foreground/70">{turn.sources.length} source{turn.sources.length !== 1 ? "s" : ""} cited</p>
               )}
             </div>
           ))
@@ -293,7 +293,7 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
           onKeyDown={e => { if (e.key === "Enter") handleSendText(); }}
           placeholder={connected ? "Or type a message to send via voice…" : "Connect voice to send messages"}
           className="flex-1 min-w-0 rounded-lg border border-input bg-background px-3 py-2
-            text-xs text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/40
+            text-xs text-foreground/80 placeholder:text-muted-foreground/80 focus:border-primary/40
             focus:outline-none disabled:opacity-40"
         />
         <button onClick={handleSendText} disabled={!connected || !textInput.trim()}
@@ -307,12 +307,12 @@ export function VoiceSandboxPreview({ kbId, kbName, primaryColour = "#6366f1", a
 
       {/* ── Provider info ─────────────────────────────────────────────────── */}
       <div className="border-t border-border/70 px-4 py-2.5 flex items-center justify-between">
-        <p className="text-[10px] text-muted-foreground/50">
+        <p className="text-[11px] text-muted-foreground/80">
           {session.provider === "gemini"
             ? "⚡ Gemini Live — low-latency bidirectional audio"
             : "⚡ OpenAI Realtime — WebRTC audio session"}
         </p>
-        {connected && <MicOff className="h-3 w-3 text-muted-foreground/50"/>}
+        {connected && <MicOff className="h-3 w-3 text-muted-foreground/80"/>}
       </div>
     </div>
   );

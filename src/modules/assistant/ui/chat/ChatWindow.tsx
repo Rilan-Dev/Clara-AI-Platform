@@ -116,7 +116,7 @@ export function ChatWindow({ onOpenVoice }: { onOpenVoice?: () => void }) {
                         >
                           {s.title}
                         </div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground">
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
                           {formatRelativeTime(s.updatedAt)}
                         </div>
                       </div>
@@ -127,7 +127,7 @@ export function ChatWindow({ onOpenVoice }: { onOpenVoice?: () => void }) {
                           e.stopPropagation();
                           void deleteSession(s.id);
                         }}
-                        className="rounded p-1 text-muted-foreground/60 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus:opacity-100"
+                        className="rounded p-1 text-muted-foreground/80 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus:opacity-100"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>

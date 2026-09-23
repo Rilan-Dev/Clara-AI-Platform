@@ -198,9 +198,9 @@ export function EmailDeliveryPanel() {
       <div key={field.key} className={`space-y-2 ${field.wide ? "sm:col-span-2" : ""}`}>
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-foreground/80">{field.label}</label>
-          {field.isSecret && <Badge variant="outline" className="text-[10px] py-0">secret</Badge>}
+          {field.isSecret && <Badge variant="outline" className="text-[11px] py-0">secret</Badge>}
           {isConfigured && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+            <span className="flex items-center gap-1 text-[11px] text-emerald-600">
               <CheckCircle2 className="w-3 h-3" /> configured
             </span>
           )}
@@ -211,7 +211,7 @@ export function EmailDeliveryPanel() {
             value={value}
             onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
             placeholder={field.placeholder}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none"
           />
           {field.isSecret && (
             <button
@@ -257,17 +257,17 @@ export function EmailDeliveryPanel() {
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-foreground">{title}</h3>
                 {isActive && (
-                  <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
                     Active
                   </span>
                 )}
                 {!isActive && configured && (
-                  <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                     Standby
                   </span>
                 )}
                 {!configured && (
-                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-600">
+                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-600">
                     Not configured
                   </span>
                 )}
@@ -397,7 +397,7 @@ export function EmailDeliveryPanel() {
               value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
               placeholder="you@example.com"
-              className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+              className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none"
             />
             <Button onClick={() => void sendTest()} disabled={testing || !testTo.trim()} className="shrink-0">
               {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

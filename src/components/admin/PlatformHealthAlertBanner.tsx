@@ -87,7 +87,7 @@ export function PlatformHealthAlertBanner() {
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               <p className="text-sm font-semibold">{countLabel}</p>
-              <span className="hidden rounded-full border border-current/15 px-2 py-0.5 text-[10px] font-medium opacity-70 sm:inline-flex">
+              <span className="hidden rounded-full border border-current/15 px-2 py-0.5 text-[11px] font-medium opacity-70 sm:inline-flex">
                 Platform admin
               </span>
             </div>

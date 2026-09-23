@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Announcement = {
   id: string;
@@ -63,7 +64,7 @@ export function AnnouncementManager() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm("Delete this announcement?")) return;
+    if (!(await confirmAction({ title: "Delete this announcement?", destructive: true }))) return;
     const res = await fetch(`/api/platform/announcements/${id}`, { method: "DELETE" });
     if (res.ok) await load();
   }

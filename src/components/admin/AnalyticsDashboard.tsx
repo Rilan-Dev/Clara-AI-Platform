@@ -73,13 +73,13 @@ export function AnalyticsDashboard({ analytics }: Props) {
               {/* First and last date labels */}
               {bars.length > 0 && (
                 <>
-                  <text x={0} y={CHART_H + 16} className="text-[9px]" fill="hsl(var(--muted-foreground))">
+                  <text x={0} y={CHART_H + 16} className="text-[11px]" fill="hsl(var(--muted-foreground))">
                     {formatDate(bars[0]!.date)}
                   </text>
                   <text
                     x={chartWidth} y={CHART_H + 16}
                     textAnchor="end"
-                    className="text-[9px]"
+                    className="text-[11px]"
                     fill="hsl(var(--muted-foreground))"
                   >
                     {formatDate(bars[bars.length - 1]!.date)}

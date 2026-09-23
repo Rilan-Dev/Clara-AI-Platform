@@ -134,13 +134,13 @@ export function EmbedApiKeyPanel() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground/70">Current Key</span>
             {info?.isSet ? (
-              <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Active</Badge>
+              <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[11px]">Active</Badge>
             ) : (
-              <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]">Not Set</Badge>
+              <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[11px]">Not Set</Badge>
             )}
           </div>
           {info?.updatedAt && (
-            <span className="text-[10px] text-muted-foreground/70">
+            <span className="text-[11px] text-muted-foreground/70">
               Updated {new Date(info.updatedAt).toLocaleDateString()}
             </span>
           )}
@@ -186,7 +186,7 @@ export function EmbedApiKeyPanel() {
             value={newValue}
             onChange={e => setNewValue(e.target.value)}
             placeholder="clr_… or paste an existing API key"
-            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
             autoFocus
           />
 

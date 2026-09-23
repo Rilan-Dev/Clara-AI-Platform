@@ -435,16 +435,16 @@ function AISelectionCard({
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
                     <Icon className="h-4 w-4" />
                   </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/80 transition-transform group-hover:translate-x-0.5" />
                 </div>
                 <p className="mt-3 text-sm font-semibold text-foreground">{card.label}</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">{card.description}</p>
                 <div className="mt-4 rounded-lg border border-border/70 bg-card px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">Provider</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Provider</p>
                   <p className="mt-0.5 truncate text-xs font-medium text-foreground">
                     {prettyProvider(card.provider)}
                   </p>
-                  <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                  <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
                     {card.model ?? "Platform default"}
                   </p>
                 </div>
@@ -464,7 +464,7 @@ function AISelectionCard({
           <aside className="absolute right-0 top-0 flex h-full w-full max-w-2xl flex-col border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-200">
             <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">AI runtime</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">AI runtime</p>
                 <h2 className="mt-1 text-base font-semibold text-foreground">{capabilityLabel(surface)}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Select a provider first, then configure only the models used by this capability.

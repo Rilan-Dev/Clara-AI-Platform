@@ -94,7 +94,7 @@ export async function postContact(request: NextRequest): Promise<NextResponse> {
   if (!recipient) {
     console.error("[contact] CLARA_SUPPORT_EMAIL is not configured — lead not delivered", lead.email);
     return NextResponse.json(
-      { error: "Our contact form is temporarily unavailable. Please email us directly." },
+      { error: "Our contact form is temporarily unavailable." },
       { status: 503 },
     );
   }
@@ -104,7 +104,7 @@ export async function postContact(request: NextRequest): Promise<NextResponse> {
   if (!result.sent) {
     console.error("[contact] delivery failed:", result.error ?? "provider rejected message");
     return NextResponse.json(
-      { error: "We couldn't send your message. Please try again or email us directly." },
+      { error: "We couldn't send your message. Please try again." },
       { status: 502 },
     );
   }

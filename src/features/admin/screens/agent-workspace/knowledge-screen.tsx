@@ -75,7 +75,7 @@ export default function AgentKnowledgeScreen() {
                     <Link href={`${agentKnowledgeBase}/${kb.id}`} className="truncate text-sm font-medium text-foreground hover:text-primary">
                       {kb.name}
                     </Link>
-                    <p className="truncate text-xs text-muted-foreground/60">
+                    <p className="truncate text-xs text-muted-foreground/80">
                       {kb.description ?? "No description"} · {kb.status}
                     </p>
                   </div>

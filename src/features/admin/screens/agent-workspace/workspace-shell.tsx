@@ -769,7 +769,7 @@ function AgentHistoryDrawer({
                           {tags.map((tag) => (
                             <span
                               key={tag}
-                              className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                              className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                             >
                               {tag}
                             </span>
@@ -858,7 +858,7 @@ function AgentHistoryDrawer({
         )}
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-3">
-          <p className="text-[10px] text-muted-foreground/60">
+          <p className="text-[11px] text-muted-foreground/80">
             Immutable history — restoring always creates a new version.
           </p>
           <Link

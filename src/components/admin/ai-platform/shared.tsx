@@ -124,7 +124,7 @@ export function DiffViewer({
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-medium text-muted-foreground">
           <span className="text-foreground/80">{diff.from.label}</span>
-          <span className="mx-2 text-muted-foreground/50">→</span>
+          <span className="mx-2 text-muted-foreground/80">→</span>
           <span className="text-foreground/80">{diff.to.label}</span>
         </p>
         <VersionBadge tone={changed.length > 0 ? "primary" : "muted"}>
@@ -150,12 +150,12 @@ export function DiffViewer({
                 <div className="mt-1.5 space-y-1 text-xs leading-relaxed">
                   {change.kind === "toggled_on" && (
                     <p className="text-emerald-600">
-                      <span className="mr-1.5 text-muted-foreground/60">Off</span>→<span className="ml-1.5 font-medium">On</span>
+                      <span className="mr-1.5 text-muted-foreground/80">Off</span>→<span className="ml-1.5 font-medium">On</span>
                     </p>
                   )}
                   {change.kind === "toggled_off" && (
                     <p className="text-amber-600">
-                      <span className="mr-1.5 text-muted-foreground/60">On</span>→<span className="ml-1.5 font-medium">Off</span>
+                      <span className="mr-1.5 text-muted-foreground/80">On</span>→<span className="ml-1.5 font-medium">Off</span>
                     </p>
                   )}
                   {change.kind !== "toggled_on" && change.kind !== "toggled_off" && change.before != null && (
@@ -170,7 +170,7 @@ export function DiffViewer({
                   {change.removedItems && change.removedItems.length > 0 && (
                     <p className="text-rose-500">− {change.removedItems.join(", ")}</p>
                   )}
-                  {change.kind === "removed" && <p className="text-xs italic text-muted-foreground/60">Removed</p>}
+                  {change.kind === "removed" && <p className="text-xs italic text-muted-foreground/80">Removed</p>}
                 </div>
               </li>
             ))}
@@ -268,7 +268,7 @@ export function WorkspaceTabs<T extends string>({
         >
           <span className="min-w-0 break-words">{tab.label}</span>
           {tab.count != null && (
-            <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold", active === tab.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/70")}>
+            <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-semibold", active === tab.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/70")}>
               {tab.count}
             </span>
           )}
@@ -336,7 +336,7 @@ export function AutoSaveChip({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
         tone,
         className,
       )}

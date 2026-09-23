@@ -324,7 +324,7 @@ export function ConfigEditor({
                     className="min-h-[5.5rem] resize-y border-0 bg-transparent focus-visible:ring-0"
                   />
                   <div className="flex items-center justify-between gap-2 border-t border-border/70 px-3 py-2">
-                    <span className="text-[11px] text-muted-foreground/60">
+                    <span className="text-[11px] text-muted-foreground/80">
                       Empty lets the agent wait for the user to start.
                     </span>
                     <button
@@ -363,7 +363,7 @@ export function ConfigEditor({
                     className="resize-y border-0 bg-transparent font-mono text-[13px] leading-6 focus-visible:ring-0"
                   />
                   <div className="flex items-center justify-between gap-2 border-t border-border/70 px-3 py-2">
-                    <span className="text-[11px] text-muted-foreground/60">
+                    <span className="text-[11px] text-muted-foreground/80">
                       {cfg.systemPrompt.length.toLocaleString()} characters
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -422,12 +422,12 @@ export function ConfigEditor({
                     <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
                     {providerVoiceCatalog ? `Voices · ${providerVoiceCatalog.providerName}` : "Voices"}
                     {providerVoiceCatalog && (
-                      <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                      <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
                         Synced
                       </span>
                     )}
                     {(providerVoiceCatalog?.voices.length ?? voiceCatalog?.voices.length ?? 0) > 0 && (
-                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {providerVoiceCatalog?.voices.length ?? voiceCatalog?.voices.length} voices
                       </span>
                     )}
@@ -485,7 +485,7 @@ export function ConfigEditor({
                                 <span className="block truncate text-sm font-medium text-foreground">
                                   {v.label}
                                   {v.isDefault && (
-                                    <span className="ml-1.5 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                                    <span className="ml-1.5 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                                       Default
                                     </span>
                                   )}
@@ -600,8 +600,8 @@ export function ConfigEditor({
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {languageLabel(cfg.defaultLanguage)}
                       </span>
-                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Default</span>
-                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", languageOpen && "rotate-180")} />
+                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Default</span>
+                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", languageOpen && "rotate-180")} />
                     </button>
                   </li>
                   <li>
@@ -611,14 +611,14 @@ export function ConfigEditor({
                       aria-expanded={languageOpen}
                       className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
                     >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
                         {cfg.allowedLanguages.length}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {cfg.allowedLanguages.map((c) => languageLabel(c)).slice(0, 3).join(" & ")}
                         {cfg.allowedLanguages.length > 3 ? ` +${cfg.allowedLanguages.length - 3}` : ""}
                       </span>
-                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", languageOpen && "rotate-180")} />
+                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", languageOpen && "rotate-180")} />
                     </button>
                   </li>
                 </ul>
@@ -692,13 +692,13 @@ export function ConfigEditor({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {cfg.primaryColour} · {cfg.accentColour}
                   </span>
-                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", brandingOpen && "rotate-180")} />
+                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", brandingOpen && "rotate-180")} />
                 </button>
                 {brandingOpen && (
                   <div className="space-y-4 border-t border-border/60 px-3 py-3">
                     {/* Live mini preview */}
                     <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">Live preview</p>
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">Live preview</p>
                       <div className="mt-2 space-y-2">
                         <div className="flex justify-end">
                           <span className="rounded-2xl rounded-br-sm px-3 py-1.5 text-xs text-white" style={{ backgroundColor: cfg.primaryColour }}>
@@ -741,7 +741,7 @@ export function ConfigEditor({
                               aria-pressed={active}
                               title={`${preset.name} — ${preset.primary} / ${preset.accent}`}
                               className={cn(
-                                "flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-medium transition-colors",
+                                "flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors",
                                 active ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/30 hover:text-foreground",
                               )}
                             >
@@ -788,13 +788,13 @@ export function ConfigEditor({
                   onClick={() => onOpenAISettings?.()}
                   className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
                     AI
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {llmSummary ?? "Platform default"}
                   </span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
                 </button>
               </div>
             </section>
@@ -817,10 +817,10 @@ export function ConfigEditor({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {cfg.strictMode ? "Strict" : "Open"} · {cfg.citeSources ? "cites sources" : "no citations"}
                   </span>
-                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
                     T {cfg.temperature.toFixed(2)}
                   </span>
-                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", behaviorOpen && "rotate-180")} />
+                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", behaviorOpen && "rotate-180")} />
                 </button>
                 {behaviorOpen && (
                   <div className="space-y-5 border-t border-border/60 px-3 py-3">
@@ -1143,7 +1143,7 @@ function relativeTime(iso: string): string {
 function LanguageDot({ code }: { code: string }) {
   const flag = languageFlag(code);
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-[10px]" aria-hidden>
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-[11px]" aria-hidden>
       {flag}
     </span>
   );

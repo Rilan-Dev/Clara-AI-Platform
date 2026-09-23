@@ -18,6 +18,7 @@ import { apiUrl } from "@/lib/runtime";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Member = {
   userId: string; roleName: string; joinedAt: string;
@@ -116,7 +117,13 @@ export default function OrgMembersScreen() {
   }
 
   async function handleRemove(userId: string, email?: string) {
-    if (!confirm(`Remove ${email ?? "this member"} from the organisation? They keep their Clara AI account.`)) return;
+    const ok = await confirmAction({
+      title: `Remove ${email ?? "this member"}?`,
+      description: "They lose access to this organisation but keep their Clara AI account.",
+      confirmLabel: "Remove member",
+      destructive: true,
+    });
+    if (!ok) return;
     setBusyId(userId); setMessage(null);
     try {
       const res = await fetch(apiUrl(`/api/orgs/${id}/members/${userId}`), {
@@ -165,19 +172,19 @@ export default function OrgMembersScreen() {
               the horizontal email+role+button row. */}
           <form onSubmit={handleInvite} className="grid gap-3 sm:grid-cols-[1fr_220px_auto] sm:items-end">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Work email</label>
-              <input
+              <label htmlFor="org-members-screen-work-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Work email</label>
+              <input id="org-members-screen-work-email"
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 required
                 placeholder="teammate@company.com"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Access level</label>
-              <select
+              <label htmlFor="org-members-screen-access-level" className="block text-xs font-medium text-muted-foreground mb-1.5">Access level</label>
+              <select id="org-members-screen-access-level"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
                 className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground focus:outline-none focus:border-primary"
@@ -232,11 +239,11 @@ export default function OrgMembersScreen() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground flex items-center gap-2 truncate">
                         {m.fullName || m.email}
-                        {isSelf && <span className="text-[10px] text-muted-foreground/70">(you)</span>}
+                        {isSelf && <span className="text-[11px] text-muted-foreground/70">(you)</span>}
                       </p>
                       <p className="text-xs text-muted-foreground/70 truncate">{m.email}</p>
                       {/* Joined date — desktop noise, hidden on phones */}
-                      <p className="hidden lg:block text-[11px] text-muted-foreground/50">Joined {formatDate(m.joinedAt)}</p>
+                      <p className="hidden lg:block text-[11px] text-muted-foreground/80">Joined {formatDate(m.joinedAt)}</p>
                     </div>
                   </div>
 

@@ -551,7 +551,7 @@ export function PlatformEnvPanel() {
                   {CATEGORY_LABELS[cat].icon}
                   <span className="font-medium text-xs sm:text-sm">{CATEGORY_LABELS[cat].short}</span>
                   {catDirty.length > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5">{catDirty.length}</Badge>
+                    <Badge variant="secondary" className="text-[11px] px-1.5">{catDirty.length}</Badge>
                   )}
                 </div>
               </TabsTrigger>

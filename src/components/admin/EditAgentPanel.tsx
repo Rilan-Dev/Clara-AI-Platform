@@ -84,15 +84,15 @@ export function EditAgentPanel({
       ) : (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Agent name <span className="text-destructive">*</span></label>
-            <input value={name} onChange={e => setName(e.target.value)}
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+            <label htmlFor="editagentpanel-agent-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Agent name <span className="text-destructive">*</span></label>
+            <input id="editagentpanel-agent-name" value={name} onChange={e => setName(e.target.value)}
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)}
+            <label htmlFor="editagentpanel-description" className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
+            <textarea id="editagentpanel-description" value={description} onChange={e => setDescription(e.target.value)}
               rows={3} placeholder="Describe this agent…"
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary resize-none" />
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary resize-none" />
           </div>
           {error && <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">

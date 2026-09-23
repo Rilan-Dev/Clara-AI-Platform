@@ -141,13 +141,13 @@ export default function ContactPage() {
                       <label htmlFor="contact-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Your name *</label>
                       <input id="contact-name" required type="text" autoComplete="name" value={formData.name} onChange={e => handleChange("name", e.target.value)}
                         placeholder="Jane Smith"
-                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
+                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
                     </div>
                     <div>
                       <label htmlFor="contact-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Work email *</label>
                       <input id="contact-email" required type="email" autoComplete="email" value={formData.email} onChange={e => handleChange("email", e.target.value)}
                         placeholder="jane@company.com"
-                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
+                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
                     </div>
                   </div>
 
@@ -155,7 +155,7 @@ export default function ContactPage() {
                     <label htmlFor="contact-company" className="block text-xs font-medium text-muted-foreground mb-1.5">Company *</label>
                     <input id="contact-company" required type="text" autoComplete="organization" value={formData.company} onChange={e => handleChange("company", e.target.value)}
                       placeholder="Acme Corp"
-                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
+                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
                   </div>
 
                   <div>
@@ -172,7 +172,7 @@ export default function ContactPage() {
                     <label htmlFor="contact-message" className="block text-xs font-medium text-muted-foreground mb-1.5">Use case / message</label>
                     <textarea id="contact-message" rows={4} value={formData.message} onChange={e => handleChange("message", e.target.value)}
                       placeholder="Tell us what kind of documents you want to make searchable and what your team would use the AI for…"
-                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors resize-none" />
+                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors resize-none" />
                   </div>
 
                   <div className="hidden" aria-hidden="true">
@@ -182,7 +182,7 @@ export default function ContactPage() {
 
                   {error && (
                     <div role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                      {error} You can also email <a href="mailto:sales@clara.ai" className="underline">sales@clara.ai</a>.
+                      {error} Reach us at <a href="mailto:sales@clara.ai" className="underline">sales@clara.ai</a>.
                     </div>
                   )}
 

@@ -260,7 +260,7 @@ export default function AgentPublishScreen() {
                     Public
                   </label>
                 </div>
-                <p className="mt-2 text-[11px] text-muted-foreground/60">
+                <p className="mt-2 text-[11px] text-muted-foreground/80">
                   Embed access is governed separately by the embed API key — publishing does not change embed keys.
                 </p>
               </div>
@@ -354,13 +354,13 @@ export default function AgentPublishScreen() {
                       </div>
                     </div>
                     <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{publicPageUrl}</p>
-                    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/60">
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/80">
                       The hosted public experience — chat and realtime voice from the published
                       settings only, with plan quotas and rate limits enforced.
                     </p>
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground/60">
+                  <p className="text-[11px] text-muted-foreground/80">
                     Serving knowledge base “{exploreLink.kbName}”. The unified preview contains both Chat and Voice. The raw key is shown once — regenerate to rotate it
                     (the previous explore key is revoked automatically).
                   </p>
@@ -375,7 +375,7 @@ export default function AgentPublishScreen() {
                 </p>
               )}
               {isAdmin && (
-                <p className="text-[11px] text-muted-foreground/60">
+                <p className="text-[11px] text-muted-foreground/80">
                   Platform admins can view but not generate links — ask the organisation admin.
                 </p>
               )}
@@ -385,7 +385,7 @@ export default function AgentPublishScreen() {
               <p className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700">
                 The published version is PRIVATE — visitors are blocked until you publish with public access ON.
               </p>
-              <p className="text-[11px] text-muted-foreground/60">
+              <p className="text-[11px] text-muted-foreground/80">
                 Organisation members can still explore it from the workspace preview.
               </p>
             </div>

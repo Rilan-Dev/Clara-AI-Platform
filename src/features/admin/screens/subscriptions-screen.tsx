@@ -201,7 +201,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
                 ))}
               </div>
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Admin note (optional)…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none h-16 focus:outline-none focus:border-primary/50" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 resize-none h-16 focus:outline-none focus:border-primary/50" />
               <button disabled={busy || targetPlan === planId} onClick={() => call("PUT", { planId: targetPlan, note })}
                 className="w-full bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl transition-all">
                 {busy ? "Saving…" : targetPlan === planId ? "(already on this plan)" : `Switch to ${plans.find(p=>p.id===targetPlan)?.name ?? targetPlan}`}
@@ -213,7 +213,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
           {tab === "manage" && (
             <div className="space-y-3">
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Reason / admin note (optional)…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none h-16 focus:outline-none focus:border-primary/50" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 resize-none h-16 focus:outline-none focus:border-primary/50" />
 
               <div className="grid grid-cols-2 gap-2">
                 {/* Pause */}
@@ -266,7 +266,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
                 </div>
               </div>
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Note (optional)…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none h-14 focus:outline-none focus:border-primary/50" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 resize-none h-14 focus:outline-none focus:border-primary/50" />
               <div className="grid grid-cols-2 gap-2">
                 <button disabled={busy} onClick={() => call("PATCH", { action:"extend_trial", trialDays, note })}
                   className="flex items-center gap-2 justify-center bg-sky-500/10 hover:bg-sky-500/20 border border-sky-600/30 text-sky-700 text-sm font-medium py-2.5 rounded-xl transition-all disabled:opacity-40">
@@ -631,7 +631,7 @@ export default function AdminSubscriptionsScreen() {
               <h2 className="font-semibold text-foreground text-sm shrink-0">All Organisations</h2>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search…"
-                className="flex-1 min-w-[140px] max-w-xs bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50" />
+                className="flex-1 min-w-[140px] max-w-xs bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary/50" />
               <span className="text-xs text-muted-foreground/70 shrink-0">{filtered.length} orgs</span>
             </div>
 
@@ -658,7 +658,7 @@ export default function AdminSubscriptionsScreen() {
                           <tr key={org.org_id} className="hover:bg-muted/50 transition-colors">
                             <td className="px-5 py-4">
                               <div className="text-sm font-medium text-foreground">{org.name}</div>
-                              <div className="text-xs text-muted-foreground/50 font-mono">{org.slug}</div>
+                              <div className="text-xs text-muted-foreground/80 font-mono">{org.slug}</div>
                             </td>
                             <td className="px-5 py-4">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_BADGE[org.plan_id ?? "free"] ?? PLAN_BADGE.free}`}>
@@ -693,7 +693,7 @@ export default function AdminSubscriptionsScreen() {
                 </tbody>
               </table>
               {!loading && !filtered.length && (
-                <div className="py-12 text-center text-muted-foreground/50 text-sm">No organisations found</div>
+                <div className="py-12 text-center text-muted-foreground/80 text-sm">No organisations found</div>
               )}
             </div>
 
@@ -713,7 +713,7 @@ export default function AdminSubscriptionsScreen() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">{org.name}</p>
-                            <p className="text-[11px] text-muted-foreground/50 font-mono truncate">{org.slug}</p>
+                            <p className="text-[11px] text-muted-foreground/80 font-mono truncate">{org.slug}</p>
                           </div>
                           <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[status] ?? "text-muted-foreground bg-muted/50 border-border"}`}>
                             {status}
@@ -725,7 +725,7 @@ export default function AdminSubscriptionsScreen() {
                           </span>
                           <span className="text-[11px] text-muted-foreground/70">{org.kb_count} KBs</span>
                           <span className="text-[11px] text-muted-foreground/70">{org.query_count.toLocaleString()} queries</span>
-                          <span className="text-[11px] text-muted-foreground/50">{fmtDate(org.created_at)}</span>
+                          <span className="text-[11px] text-muted-foreground/80">{fmtDate(org.created_at)}</span>
                         </div>
                         <div className="mt-3 flex items-center gap-2">
                           <button
@@ -743,7 +743,7 @@ export default function AdminSubscriptionsScreen() {
                     );
                   })}
               {!loading && !filtered.length && (
-                <div className="py-12 text-center text-muted-foreground/50 text-sm">No organisations found</div>
+                <div className="py-12 text-center text-muted-foreground/80 text-sm">No organisations found</div>
               )}
             </div>
           </div>
@@ -803,7 +803,7 @@ export default function AdminSubscriptionsScreen() {
                     }`}
                 >
                   {plan.id === "pro" && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold text-primary uppercase tracking-wider px-2 py-0.5 bg-primary/10 rounded-full">Most Popular</div>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-bold text-primary uppercase tracking-wider px-2 py-0.5 bg-primary/10 rounded-full">Most Popular</div>
                   )}
 
                   <div className="flex items-start justify-between mb-3">
@@ -814,7 +814,7 @@ export default function AdminSubscriptionsScreen() {
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{plan.description}</p>
                     </div>
-                    <span className="text-[10px] text-muted-foreground/70">v{plan.published_version ?? 1} · {plan.version_count ?? 1} versions</span>
+                    <span className="text-[11px] text-muted-foreground/70">v{plan.published_version ?? 1} · {plan.version_count ?? 1} versions</span>
                   </div>
 
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground border-t border-border/70 pt-3">
@@ -853,7 +853,7 @@ export default function AdminSubscriptionsScreen() {
           )}
 
           {!plans.length && !loading && (
-            <div className="text-center py-12 text-muted-foreground/50">
+            <div className="text-center py-12 text-muted-foreground/80">
               <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 mx-auto opacity-30 mb-3" />
               <p>No plans configured yet</p>
               <Button className="mt-4" onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })}>
@@ -1044,7 +1044,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
             <div className="flex items-center justify-center h-40 text-muted-foreground/70 text-sm">Loading…</div>
           ) : tab === "invoices" ? (
             !data?.invoices.length ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/50 text-sm gap-2">
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/80 text-sm gap-2">
                 <Receipt className="w-8 h-8 opacity-30" /> No billing events yet
               </div>
             ) : (
@@ -1077,7 +1077,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
           ) : (
             // Audit log tab
             !data?.auditLog.length ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/50 text-sm gap-2">
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/80 text-sm gap-2">
                 <Shield className="w-8 h-8 opacity-30" /> No audit events yet
               </div>
             ) : (
@@ -1091,7 +1091,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-sm font-medium text-foreground capitalize">{entry.action.replace(/_/g," ")}</span>
-                          <span className="text-xs text-muted-foreground/50 capitalize">by {entry.actor_label}</span>
+                          <span className="text-xs text-muted-foreground/80 capitalize">by {entry.actor_label}</span>
                         </div>
                         {(entry.old_plan_id || entry.new_plan_id) && (
                           <div className="text-xs text-muted-foreground/70 flex items-center gap-1.5 mb-0.5">
@@ -1108,7 +1108,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
                           </div>
                         )}
                         {entry.note && <p className="text-xs text-muted-foreground/70 italic mt-0.5">&ldquo;{entry.note}&rdquo;</p>}
-                        <div className="text-xs text-muted-foreground/50 mt-1">{fmtDateTime(entry.created_at)}</div>
+                        <div className="text-xs text-muted-foreground/80 mt-1">{fmtDateTime(entry.created_at)}</div>
                       </div>
                     </div>
                   </div>

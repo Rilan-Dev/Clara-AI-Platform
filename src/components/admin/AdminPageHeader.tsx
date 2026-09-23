@@ -38,7 +38,7 @@ export function AdminPageHeader({
                 ) : (
                   <span className="text-muted-foreground">{item.label}</span>
                 )}
-                {index < breadcrumbs.length - 1 && <span className="text-muted-foreground/50">/</span>}
+                {index < breadcrumbs.length - 1 && <span className="text-muted-foreground/80">/</span>}
               </span>
             ))}
           </div>

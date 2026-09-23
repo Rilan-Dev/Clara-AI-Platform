@@ -10,6 +10,7 @@ import * as api from "@/modules/admin-ui/api";
 import type { KbDocument, ScrapeSession } from "@/modules/admin-ui/api";
 import { StatusBadge } from "./StatusBadge";
 import { ChunkViewer } from "./ChunkViewer";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Props = {
   kbId:        string;
@@ -81,7 +82,11 @@ function PageRow({ doc, kbId, onDelete, onReprocess }: {
           )}
           <button
             onClick={async () => {
-              if (!confirm("Delete this page and its vectors?")) return;
+              if (!(await confirmAction({
+                title: "Delete this page?",
+                description: "The page and its indexed content are removed from the knowledge base.",
+                destructive: true,
+              }))) return;
               setDeleting(true);
               try { await onDelete(doc.id); } catch { setDeleting(false); }
             }}
@@ -206,9 +211,9 @@ export function WebSourcesPanel({ kbId, docs, onDelete, onReprocess }: Props) {
   if (urlDocs.length === 0 && sessions.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
-        <GlobeIcon className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+        <GlobeIcon className="h-10 w-10 text-muted-foreground/80 mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">No web sources yet.</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">
+        <p className="text-xs text-muted-foreground/80 mt-1">
           Use the Scrape tab to import pages from any website.
         </p>
       </div>

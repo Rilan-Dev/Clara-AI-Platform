@@ -19,7 +19,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink, MailWarning, RefreshCw } from "lucide-react";
+import { CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink, MailWarning, RefreshCw } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 const PLAN_FEATURES: Record<string, string[]> = {
   starter: ["3 Knowledge Bases", "50 docs per KB", "1,000 req/day", "Voice AI", "API access"],
@@ -114,9 +115,7 @@ export default function CheckoutSuccessScreen() {
 
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2 mb-10">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
-          </div>
+          <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
           <span className="font-bold text-foreground text-lg">Clara AI</span>
         </Link>
 
@@ -269,7 +268,7 @@ export default function CheckoutSuccessScreen() {
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground/50 mt-6">
+        <p className="text-xs text-muted-foreground/80 mt-6">
           Invoice will be sent to your registered email address.
         </p>
       </div>

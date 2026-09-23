@@ -177,9 +177,9 @@ export function PaymentGatewayPanel() {
       <div key={field.key} className="space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-foreground/80">{field.label}</label>
-          {field.isSecret && <Badge variant="outline" className="text-[10px] py-0">secret</Badge>}
+          {field.isSecret && <Badge variant="outline" className="text-[11px] py-0">secret</Badge>}
           {isConfigured && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+            <span className="flex items-center gap-1 text-[11px] text-emerald-600">
               <CheckCircle2 className="w-3 h-3" /> configured
             </span>
           )}
@@ -191,7 +191,7 @@ export function PaymentGatewayPanel() {
             value={value}
             onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
             placeholder={field.placeholder}
-            className={`w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-10 ${
+            className={`w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-10 ${
               fieldErrors[field.key]
                 ? "border-destructive/60 focus:border-destructive focus:ring-destructive/30"
                 : "border-input focus:border-primary/50"

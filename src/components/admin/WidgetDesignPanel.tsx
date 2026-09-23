@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { LiveCodeEditor }  from "@/components/admin/live-code-editor";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl }          from "@/lib/runtime";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 // Voice preview — dynamically imported (uses browser APIs, no SSR)
 const VoiceSandboxPreview = dynamic(
@@ -493,7 +494,7 @@ function ColourInput({ value, onChange, placeholder }: {
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "e.g. #6366f1 or leave empty for auto"}
         className="flex-1 min-w-0 rounded-lg border border-input bg-background px-3 py-1.5
-          text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60
+          text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/80
           focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30" />
     </div>
   );
@@ -524,7 +525,7 @@ function TextInput({ value, onChange, placeholder, mono }: {
     <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={`w-full rounded-lg border border-input bg-background px-3 py-2
-        text-sm text-foreground/80 placeholder:text-muted-foreground/60
+        text-sm text-foreground/80 placeholder:text-muted-foreground/80
         focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30
         ${mono ? "font-mono text-xs" : ""}`} />
   );
@@ -1054,7 +1055,7 @@ function FloatingSandboxPreview({ design }: { design: WidgetDesign }) {
           </p>
         </div>
         <div className="flex gap-1.5 items-center">
-          <span className="text-[10px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">
+          <span className="text-[11px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">
             Synced ✓
           </span>
           {["rose-400/70","amber-300/70","emerald-400/70"].map((c) => (
@@ -1149,7 +1150,7 @@ function ControlsPanel({ d, set }: {
             onChange={(e) => set("welcomeMessage", e.target.value)}
             placeholder="Hi! How can I help you today?"
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm
-              text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none resize-none" />
+              text-foreground/80 placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none resize-none" />
         </Field>
         <Field label="Avatar image URL" hint="A direct link to your logo or avatar image (PNG, JPG, WebP). Leave blank to show the initial letter of the assistant name instead.">
           <TextInput value={d.avatarUrl} onChange={(v) => set("avatarUrl", v)}
@@ -1188,7 +1189,7 @@ function ControlsPanel({ d, set }: {
             onChange={(e) => set("customHeaderHtml", e.target.value)}
             placeholder={'Example: <button style="color:#fff;background:none;border:none;cursor:pointer">✕ Close</button>'}
             className="w-full rounded-lg border border-input bg-background px-3 py-2
-              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none" />
+              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50 focus:outline-none resize-none" />
         </Field>
       </div>
 
@@ -1359,7 +1360,7 @@ function ControlsPanel({ d, set }: {
                 onChange={(e) => set("customFooterHtml", e.target.value)}
                 placeholder={'Example: <a href="https://yoursite.com" style="color:#6366f1">My Brand</a>'}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2
-                  text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none" />
+                  text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50 focus:outline-none resize-none" />
             </Field>
           </>
         )}
@@ -1383,7 +1384,7 @@ function ControlsPanel({ d, set }: {
             onChange={(e) => set("customLauncherSvg", e.target.value)}
             placeholder={'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>'}
             className="w-full rounded-lg border border-input bg-background px-3 py-2
-              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none" />
+              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50 focus:outline-none resize-none" />
         </Field>
       </div>
 
@@ -1927,7 +1928,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
                 data-[state=active]:shadow-[inset_0_0_0_1px_rgba(79,70,229,0.3)]
                 text-muted-foreground hover:text-foreground transition-all">
               <span className="text-xs font-semibold">{icon} {label}</span>
-              <span className="text-[10px] opacity-55">{hint}</span>
+              <span className="text-[11px] opacity-55">{hint}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -1991,14 +1992,14 @@ function AdvancedCodePanel({ d, set, kbId }: {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">Live HTML Preview</p>
-                <span className="text-[10px] text-primary/80 bg-primary/10 border border-primary/20 rounded px-2 py-0.5">Tailwind loaded ✓</span>
+                <span className="text-[11px] text-primary/80 bg-primary/10 border border-primary/20 rounded px-2 py-0.5">Tailwind loaded ✓</span>
               </div>
               <div className="overflow-hidden rounded-2xl border border-border bg-card">
                 <div className="flex items-center gap-1.5 border-b border-border/70 bg-muted/50 px-3 py-2">
                   {["rose-400/70","amber-300/70","emerald-400/70"].map((c) => (
                     <span key={c} className={`h-2 w-2 rounded-full bg-${c}`} />
                   ))}
-                  <span className="ml-2 text-[10px] text-muted-foreground/70">widget.html — live render</span>
+                  <span className="ml-2 text-[11px] text-muted-foreground/70">widget.html — live render</span>
                 </div>
                 <iframe
                   title="Widget HTML preview"
@@ -2384,7 +2385,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
 //             <div className="space-y-2">
 //               <div className="flex items-center gap-2">
 //                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">React Preview</p>
-//                 <span className="text-[10px] bg-white/[0.05] border border-input rounded px-2 py-0.5 text-white/40">
+//                 <span className="text-[11px] bg-white/[0.05] border border-input rounded px-2 py-0.5 text-white/40">
 //                   Instant · in-page
 //                 </span>
 //               </div>
@@ -2396,7 +2397,7 @@ function AdvancedCodePanel({ d, set, kbId }: {
 //             <div className="space-y-2">
 //               <div className="flex items-center gap-2">
 //                 <p className="text-xs font-semibold uppercase tracking-widest text-white/30">Embed Preview</p>
-//                 <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 text-emerald-400/80">
+//                 <span className="text-[11px] bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 text-emerald-400/80">
 //                   Public renderer
 //                 </span>
 //               </div>
@@ -2561,7 +2562,7 @@ function ColourPicker({ value, onChange, placeholder }: {
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "e.g. #6366f1"}
         className="flex-1 min-w-0 rounded-lg border border-input bg-background
-          px-3 py-1.5 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60
+          px-3 py-1.5 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/80
           focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30" />
     </div>
   );
@@ -2592,7 +2593,7 @@ function TextBox({ value, onChange, placeholder, mono = false }: {
     <input type="text" value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       className={`w-full rounded-lg border border-input bg-background px-3 py-2
-        text-sm text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50
+        text-sm text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50
         focus:outline-none focus:ring-1 focus:ring-indigo-500/30
         ${mono ? "font-mono text-xs" : ""}`} />
   );
@@ -2995,7 +2996,7 @@ function Controls({ d, set }: {
           onChange={e=>set("welcomeMessage",e.target.value)}
           placeholder="Hi! How can I help you today?"
           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm
-            text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none resize-none"/>
+            text-foreground/80 placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none resize-none"/>
       </Field>
       <Field label="Avatar image URL" hint="A link to your assistant's profile picture. Leave empty to show the first letter of the name instead." example="https://yoursite.com/bot-avatar.png">
         <TextBox value={d.avatarUrl} onChange={v=>set("avatarUrl",v)} placeholder="https://example.com/avatar.png (leave empty for initials)" mono/>
@@ -3030,7 +3031,7 @@ function Controls({ d, set }: {
           onChange={e=>set("customHeaderHtml",e.target.value)}
           placeholder='Leave empty, or try: <span style="font-size:11px;background:#fff2;padding:2px 8px;border-radius:999px">Beta</span>'
           className="w-full rounded-lg border border-input bg-background px-3 py-2
-            text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+            text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50 focus:outline-none resize-none"/>
       </Field>
 
       <Sec icon={MessageSquare} label="User Message Bubble" />
@@ -3178,7 +3179,7 @@ function Controls({ d, set }: {
             onChange={e=>set("customFooterHtml",e.target.value)}
             placeholder='Leave empty, or try: <a href="https://yoursite.com" style="color:inherit">Powered by YourBrand</a>'
             className="w-full rounded-lg border border-input bg-background px-3 py-2
-              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+              text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50 focus:outline-none resize-none"/>
         </Field>
       </>}
 
@@ -3199,7 +3200,7 @@ function Controls({ d, set }: {
           onChange={e=>set("customLauncherSvg",e.target.value)}
           placeholder={"Leave empty for default chat icon.\nOr paste SVG: <svg viewBox=\"0 0 24 24\" ...>...</svg>"}
           className="w-full rounded-lg border border-input bg-background px-3 py-2
-            text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-indigo-500/50 focus:outline-none resize-none"/>
+            text-xs font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:border-indigo-500/50 focus:outline-none resize-none"/>
       </Field>
     </div>
   );
@@ -3260,7 +3261,7 @@ function CodePanel({ d, set, kbId }: {
                 data-[state=active]:shadow-[inset_0_0_0_1px_rgba(79,70,229,0.3)]
                 text-muted-foreground hover:text-foreground transition-all text-left">
               <span className="text-xs font-semibold">{label}</span>
-              <span className="text-[10px] opacity-60 hidden sm:block">{hint}</span>
+              <span className="text-[11px] opacity-60 hidden sm:block">{hint}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -3479,8 +3480,14 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
     } finally { setSaving(false); }
   };
 
-  const reset = () => {
-    if (!confirm("Reset all design settings to factory defaults? Your current design will be lost.")) return;
+  const reset = async () => {
+    const ok = await confirmAction({
+      title: "Reset the widget design?",
+      description: "All design settings go back to factory defaults. Your current design will be lost.",
+      confirmLabel: "Reset design",
+      destructive: true,
+    });
+    if (!ok) return;
     setDesign(D); setSaved(false);
   };
 
@@ -3534,7 +3541,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
                 ? "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_rgba(79,70,229,0.3)]"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
             <span>{label}</span>
-            <span className="text-[10px] opacity-60">{desc}</span>
+            <span className="text-[11px] opacity-60">{desc}</span>
           </button>
         ))}
       </div>

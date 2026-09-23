@@ -230,7 +230,7 @@ export function TopbarContextLabel({ isAdmin }: { isAdmin: boolean }) {
         {agentName}
       </p>
       <p className="text-[11px] text-muted-foreground truncate leading-tight">
-        Agents <span className="mx-0.5 text-muted-foreground/50">·</span> {agentSectionLabel(pathname)}
+        Agents <span className="mx-0.5 text-muted-foreground/80">·</span> {agentSectionLabel(pathname)}
       </p>
     </div>
   );

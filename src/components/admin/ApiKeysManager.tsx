@@ -160,19 +160,19 @@ function CreateKeyModal({ kbId, onClose, onCreated, quota }: { kbId: string; onC
         )}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Key name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Production / Staging / Partner"
+            <label htmlFor="apikeysmanager-key-name" className="block text-sm font-medium mb-1">Key name</label>
+            <input id="apikeysmanager-key-name" value={name} onChange={e => setName(e.target.value)} placeholder="Production / Staging / Partner"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Allowed origins <span className="text-muted-foreground font-normal">(one per line, empty = any)</span></label>
-            <textarea value={origins} onChange={e => setOrigins(e.target.value)} placeholder={"https://yoursite.com\nhttps://app.yoursite.com\n*.yoursite.com"} rows={3}
+            <label htmlFor="apikeysmanager-allowed-origins-one-per-line-e" className="block text-sm font-medium mb-1">Allowed origins <span className="text-muted-foreground font-normal">(one per line, empty = any)</span></label>
+            <textarea id="apikeysmanager-allowed-origins-one-per-line-e" value={origins} onChange={e => setOrigins(e.target.value)} placeholder={"https://yoursite.com\nhttps://app.yoursite.com\n*.yoursite.com"} rows={3}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
             <p className="text-xs text-muted-foreground mt-1">Wildcard: <code>*.example.com</code></p>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
-            <input type="number" min={0} value={rateLimit} onChange={e => setRateLimit(Number(e.target.value))}
+            <label htmlFor="apikeysmanager-rate-limit-req-hour-0-unlimite" className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
+            <input id="apikeysmanager-rate-limit-req-hour-0-unlimite" type="number" min={0} value={rateLimit} onChange={e => setRateLimit(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
         </div>
@@ -235,20 +235,20 @@ function EditKeyModal({ kbId, apiKey, onClose, onUpdated }: {
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Key name</label>
-            <input value={name} onChange={e => setName(e.target.value)}
+            <label htmlFor="apikeysmanager-key-name-2" className="block text-sm font-medium mb-1">Key name</label>
+            <input id="apikeysmanager-key-name-2" value={name} onChange={e => setName(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Allowed origins <span className="font-normal text-muted-foreground">(one per line, empty = any)</span></label>
-            <textarea value={origins} onChange={e => setOrigins(e.target.value)} rows={4}
+            <label htmlFor="apikeysmanager-allowed-origins-one-per-line-e-2" className="block text-sm font-medium mb-1">Allowed origins <span className="font-normal text-muted-foreground">(one per line, empty = any)</span></label>
+            <textarea id="apikeysmanager-allowed-origins-one-per-line-e-2" value={origins} onChange={e => setOrigins(e.target.value)} rows={4}
               placeholder={"https://yoursite.com\nhttp://localhost:8080\n*.yoursite.com"}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
             <p className="text-xs text-muted-foreground mt-1">Include <code className="bg-muted px-1 rounded">http://localhost:PORT</code> for local development.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
-            <input type="number" min={0} value={rateLimit} onChange={e => setRate(Number(e.target.value))}
+            <label htmlFor="apikeysmanager-rate-limit-req-hour-0-unlimite-2" className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
+            <input id="apikeysmanager-rate-limit-req-hour-0-unlimite-2" type="number" min={0} value={rateLimit} onChange={e => setRate(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           {/* ── Design API permission ── */}
@@ -499,7 +499,7 @@ await updateDesign({
               tab === t.id
                 ? "bg-primary text-primary-foreground"
                 : t.locked
-                ? "bg-muted/50 text-muted-foreground/40 cursor-not-allowed"
+                ? "bg-muted/50 text-muted-foreground/80 cursor-not-allowed"
                 : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}
           >
@@ -644,7 +644,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
         <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-20 rounded-xl bg-muted/30 animate-pulse" />)}</div>
       ) : keys.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
-          <KeyIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+          <KeyIcon className="h-8 w-8 text-muted-foreground/80 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No API keys yet.</p>
           <p className="text-xs text-muted-foreground mt-1">Create your first key to start embedding.</p>
           {canCreate && <Button size="sm" variant="outline" className="mt-4" onClick={() => setShowCreate(true)}>Create first key</Button>}
