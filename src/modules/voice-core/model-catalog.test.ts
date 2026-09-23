@@ -70,7 +70,7 @@ describe("ElevenLabs TTS model catalogue", () => {
   it("defaults to flash for latency", () => {
     delete process.env.ELEVENLABS_DEFAULT_TTS_MODEL;
     expect(getPlatformDefaultTTSModel()).toBe("eleven_flash_v2_5");
-    expect(getPlatformDefaultSTTModel()).toBe("scribe_v1");
+    expect(getPlatformDefaultSTTModel()).toBe("scribe_v2");
   });
 
   it("platform default override wins", () => {
