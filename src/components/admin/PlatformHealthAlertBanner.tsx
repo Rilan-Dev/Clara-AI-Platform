@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/modules/admin-ui/hooks";
 import { AlertTriangle, ArrowRight, Clock3, X } from "lucide-react";
 
 type HealthAlert = {
@@ -34,10 +35,16 @@ function isSuppressed(alert: HealthAlert) {
 }
 
 export function PlatformHealthAlertBanner() {
+  const { user, loading } = useAuth();
   const [alerts, setAlerts] = useState<HealthAlert[]>([]);
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
+    if (loading || !user?.isSuperAdmin) {
+      setAlerts([]);
+      return;
+    }
+
     let cancelled = false;
     fetch("/api/platform/health-alerts", { cache: "no-store" })
       .then(async (res) => res.ok ? (await res.json()) as { alerts?: HealthAlert[] } : null)
@@ -46,14 +53,14 @@ export function PlatformHealthAlertBanner() {
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, []);
+  }, [loading, user?.isSuperAdmin]);
 
   const countLabel = useMemo(
     () => `${alerts.length} platform ${alerts.length === 1 ? "issue" : "issues"} need attention`,
     [alerts.length],
   );
 
-  if (hidden || alerts.length === 0) return null;
+  if (loading || !user?.isSuperAdmin || hidden || alerts.length === 0) return null;
 
   const remindTomorrow = () => {
     const until = Date.now() + TOMORROW_HOURS * 60 * 60 * 1000;
