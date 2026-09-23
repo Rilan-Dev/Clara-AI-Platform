@@ -353,9 +353,11 @@ function AISelectionCard({
       next.voiceChatTtsModel = null;
       next.voiceChatVoiceId = null;
     } else {
+      // Realtime Voice provider is the SPEECH transport axis. It must not
+      // overwrite Clara's brain/realtime LLM selection. ElevenLabs realtime
+      // therefore changes STT/TTS/voice transport only; Clara still owns RAG
+      // and the response model.
       next.realtimeVoiceProvider = providerId as never;
-      next.realtimeLlmModel = null;
-      next.realtimeModel = null;
       next.realtimeSttModel = null;
       next.realtimeTtsModel = null;
       next.realtimeVoiceId = null;
@@ -521,6 +523,12 @@ function CapabilityEditor({
   const provider = options?.available.find((p) => p.providerId === selectedProvider) ?? null;
   const providers = options?.available ?? [];
   const models = provider?.models ?? [];
+  // The realtime provider controls speech transport. Clara's configured chat
+  // provider controls the realtime LLM, so selecting ElevenLabs must never
+  // replace the brain provider or make an ElevenLabs TTS model masquerade as
+  // the LLM.
+  const brainProvider = options?.available.find((p) => p.providerId === ai.provider) ?? null;
+  const brainRealtimeModels = brainProvider?.models.filter((m) => m.kind === "realtime" || (ai.provider === "sarvam" && m.kind === "chat")) ?? [];
 
   return (
     <div className="space-y-6">
@@ -569,14 +577,13 @@ function CapabilityEditor({
 
       {capability === "realtime_voice" && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <ModelField label={provider?.providerId === "elevenlabs" ? "Realtime engine" : "Realtime LLM"}
-            value={ai.realtimeModel ?? ai.realtimeLlmModel ?? ""}
-            options={models.filter((m) => provider?.providerId === "elevenlabs"
-              ? m.kind === "realtime"
-              : m.kind === "realtime" || (provider?.providerId === "sarvam" && m.kind === "chat"))}
-            onChange={(value) => provider?.providerId === "elevenlabs"
-              ? onAIChange({ realtimeModel: value || null, realtimeLlmModel: null })
-              : onAIChange({ realtimeLlmModel: value || null, realtimeModel: value || null })} />
+          <ModelField label="Clara Realtime LLM"
+            value={ai.realtimeLlmModel ?? ai.realtimeModel ?? ""}
+            options={brainRealtimeModels}
+            onChange={(value) => onAIChange({
+              realtimeLlmModel: value || null,
+              realtimeModel: value || null,
+            })} />
           <ModelField label="Realtime STT" value={ai.realtimeSttModel ?? ""} options={models.filter((m) => m.kind === "stt" || m.kind === "transcription")}
             onChange={(value) => onAIChange({ realtimeSttModel: value || null })} />
           <ModelField label="Realtime TTS" value={ai.realtimeTtsModel ?? ""} options={models.filter((m) => m.kind === "tts")}
@@ -585,8 +592,8 @@ function CapabilityEditor({
             onChange={(value) => onAIChange({ realtimeVoiceId: value || null })} />
           <div className="sm:col-span-2 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs text-muted-foreground/80">
             {provider?.providerId === "elevenlabs"
-              ? "ElevenLabs owns realtime speech transport and turn-taking; Clara remains responsible for the selected LLM/RAG path."
-              : "Realtime speech settings are stored independently from Chat and Voice Chat."}
+              ? "ElevenLabs is used only for realtime speech transport (Scribe STT + Flash TTS). Clara remains responsible for the realtime LLM, Qdrant knowledge base, memory and tools."
+              : "Realtime speech settings are stored independently from Chat and Voice Chat; the Clara realtime LLM remains a separate selection."}
           </div>
         </div>
       )}

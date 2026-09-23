@@ -105,7 +105,10 @@ export function isConversationalAIEnabled(): boolean {
  * realtime endpoint takes scribe_v2_realtime (NOT the batch scribe_v1).
  */
 export function getElevenLabsRealtimeSttModel(): string {
-  return process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim() || "scribe_v2_realtime";
+  // The realtime WebSocket accepts the dedicated Scribe v2 Realtime model.
+  // Ignore stale batch/deprecated ids rather than shipping an invalid socket
+  // configuration to the relay.
+  return getPlatformDefaultRealtimeSTTModel();
 }
 
 export function isVoiceCloningEnabled(): boolean {
@@ -178,14 +181,35 @@ export function getElevenLabsTimeoutMs(): number {
 // ─── Platform default models / voice ─────────────────────────────────────────
 
 export const DEFAULT_TTS_MODEL = "eleven_flash_v2_5";
-export const DEFAULT_STT_MODEL = "scribe_v1";
+export const DEFAULT_STT_MODEL = "scribe_v2";
 
 export function getPlatformDefaultTTSModel(): string {
   return process.env.ELEVENLABS_DEFAULT_TTS_MODEL?.trim() || DEFAULT_TTS_MODEL;
 }
 
 export function getPlatformDefaultSTTModel(): string {
-  return process.env.ELEVENLABS_DEFAULT_STT_MODEL?.trim() || DEFAULT_STT_MODEL;
+  const configured = process.env.ELEVENLABS_DEFAULT_STT_MODEL?.trim();
+  // scribe_v1 was removed by ElevenLabs in July 2026. Treat an old env value
+  // as a stale configuration rather than sending an invalid vendor request.
+  return configured === "scribe_v1" ? DEFAULT_STT_MODEL : configured || DEFAULT_STT_MODEL;
+}
+
+/** Realtime TTS default is intentionally separate from Voice Chat.
+ * Explicit realtime agent/org settings still win; this fallback stays on
+ * Flash v2.5 so an old Turbo voice-chat setting cannot slow the realtime path.
+ */
+export function getPlatformDefaultRealtimeTTSModel(): string {
+  const configured = process.env.ELEVENLABS_REALTIME_TTS_MODEL?.trim();
+  if (configured && isSupportedTTSModel(configured)) return configured;
+  return DEFAULT_TTS_MODEL;
+}
+
+/** Realtime STT must be the dedicated Scribe v2 Realtime model. */
+export function getPlatformDefaultRealtimeSTTModel(): string {
+  const configured = process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim();
+  return configured === "scribe_v2_realtime"
+    ? configured
+    : "scribe_v2_realtime";
 }
 
 export function getPlatformDefaultVoiceId(): string | null {

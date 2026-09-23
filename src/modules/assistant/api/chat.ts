@@ -56,6 +56,31 @@ const CHAT_MAX_TOKENS: number = (() => {
 // is only appended when the answer is very short AND no valid citation is found.
 const SUBSTANTIAL_ANSWER_THRESHOLD = 60;
 
+/**
+ * Realtime turns repeatedly hit the same KB during a live session. Document
+ * titles are prompt metadata, not retrieval truth, so a short process-local
+ * cache removes one DB round trip per turn without changing Qdrant results.
+ */
+const REALTIME_DOCUMENT_TITLES_TTL_MS = 5_000;
+const realtimeDocumentTitlesCache = new Map<string, { expiresAt: number; titles: string[] }>();
+
+async function getRealtimeDocumentTitles(kbId: string): Promise<string[]> {
+  const cached = realtimeDocumentTitlesCache.get(kbId);
+  if (cached && cached.expiresAt > Date.now()) return cached.titles;
+  const titles = await getKnowledgeBaseDocumentTitles(kbId);
+  realtimeDocumentTitlesCache.set(kbId, {
+    expiresAt: Date.now() + REALTIME_DOCUMENT_TITLES_TTL_MS,
+    titles,
+  });
+  if (realtimeDocumentTitlesCache.size > 512) {
+    const now = Date.now();
+    for (const [key, value] of realtimeDocumentTitlesCache) {
+      if (value.expiresAt <= now) realtimeDocumentTitlesCache.delete(key);
+    }
+  }
+  return titles;
+}
+
 type ClientMessage = {
   role: "user" | "assistant" | "system";
   content: string;
@@ -205,7 +230,7 @@ async function postChatKb(
     // Main-branch draft (persona/models/runtime + LIVE KB collection)
     // instead of the immutable published version.
     resolveAIConfig({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
-    getKnowledgeBaseDocumentTitles(kbId),
+    realtimeVoice ? getRealtimeDocumentTitles(kbId) : getKnowledgeBaseDocumentTitles(kbId),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");
   if (!config) throw new Error("Knowledge base configuration not found.");
@@ -275,13 +300,16 @@ async function postChatKb(
   // brain provider below.
   // Realtime is a transport/surface concern, not a Sarvam-only feature.
   // ElevenLabs Clara realtime also needs the short retrieval + response budget.
-  const realtimeVoice = body?.realtimeVoice === true;
   const providerConfig = {
     ...toProviderConfig(resolved),
     ...(realtimeVoice
       ? {
+          // The realtime speech provider is independent from Clara's brain.
+          // Never inject a Sarvam model merely because the speech transport is
+          // realtime (that broke OpenAI/Gemini brain + ElevenLabs realtime).
           chatModel:
             resolved.realtimeModel ??
+            resolved.chatModel ??
             getPlatformDefaultSarvamRealtimeLlmModel(),
         }
       : {}),

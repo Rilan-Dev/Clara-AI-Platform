@@ -34,7 +34,7 @@ export interface ResolveVoiceConfigInput {
 export interface ElevenLabsResolvedConfig {
   /** TTS model id (eleven_flash_v2_5 | eleven_turbo_v2_5 | eleven_multilingual_v2 | eleven_v3). */
   ttsModel: string;
-  /** STT model id (scribe_v1). */
+  /** STT model id (scribe_v2 for Voice Chat; scribe_v2_realtime for Clara Realtime). */
   sttModel: string;
   /** Voice id — validated against the org catalog or platform default. */
   voiceId: string;

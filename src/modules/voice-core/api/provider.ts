@@ -114,7 +114,18 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
     // so a single provider pick keeps every surface native to it.
     const mode: ElevenLabsMode =
       resolved.realtimeProvider === "elevenlabs"
-        ? await resolveElevenLabsMode(resolved.brain.orgId, resolved.brain.agentId ?? kb.agentId)
+        ? (
+            // An explicit Realtime Voice selection means the operator chose
+            // the Clara-controlled realtime agent, not the separate
+            // ElevenLabs Conversational AI product. Keep legacy Mode-B
+            // bindings only for inherited realtime selections.
+            resolved.realtimeSource !== "voice_chat"
+              ? "clara-stream"
+              : await resolveElevenLabsMode(
+                  resolved.brain.orgId,
+                  resolved.brain.agentId ?? kb.agentId,
+                )
+          )
         : "pipeline";
 
     return NextResponse.json({

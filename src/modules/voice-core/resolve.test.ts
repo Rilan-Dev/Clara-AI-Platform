@@ -83,8 +83,10 @@ vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   listProviderModels: vi.fn(async () => []),
 }));
 vi.mock("./model-catalog", () => ({
-  getPlatformDefaultSTTModel: () => "scribe_v1",
+  getPlatformDefaultSTTModel: () => "scribe_v2",
   getPlatformDefaultTTSModel: () => "eleven_flash_v2_5",
+  getPlatformDefaultRealtimeTTSModel: () => "eleven_flash_v2_5",
+  getPlatformDefaultRealtimeSTTModel: () => "scribe_v2_realtime",
   getPlatformDefaultVoiceId: () => "EXAVITQu4vr4xnSDxMaL",
   isSupportedTTSModel: () => true,
   looksLikeElevenLabsVoiceId: () => true,
@@ -160,7 +162,7 @@ describe("voice resolution — native-by-default", () => {
     expect(r.realtimeSource).toBe("voice_chat");
     expect(r.elevenlabs).not.toBeNull();
     expect(r.elevenlabs?.ttsModel).toBe("eleven_flash_v2_5");
-    expect(r.elevenlabs?.sttModel).toBe("scribe_v1");
+    expect(r.elevenlabs?.sttModel).toBe("scribe_v2");
   });
 });
 
@@ -192,6 +194,96 @@ describe("voice resolution — per-purpose overrides", () => {
     expect(r.voiceProvider).toBe("elevenlabs"); // voice-chat axis untouched
     expect(r.realtimeProvider).toBe("gemini");  // kb override > org > voice-chat
     expect(r.realtimeSource).toBe("kb_override");
+  });
+});
+
+describe("voice resolution — independent ElevenLabs speech settings", () => {
+  it("uses realtime-specific STT/TTS/voice settings when ElevenLabs is selected for realtime", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      voiceProvider: "openai",
+      realtimeVoiceProvider: "elevenlabs",
+      elevenlabsTtsModel: "eleven_multilingual_v2",
+      elevenlabsSttModel: "scribe_v2",
+      defaultElevenlabsVoice: "org-default",
+    } as never);
+    agentSettingsMock.mockResolvedValue({
+      id: "settings-1",
+      agentId: "agent-1",
+      orgId: "org-1",
+      provider: "openai",
+      voiceProvider: "openai",
+      voiceChatSttModel: "voice-chat-stt",
+      voiceChatTtsModel: "eleven_turbo_v2_5",
+      voiceChatVoiceId: "voice-chat-voice",
+      realtimeVoiceProvider: "elevenlabs",
+      realtimeLlmModel: "gpt-realtime-mini",
+      realtimeSttModel: "scribe_v2_realtime",
+      realtimeTtsModel: "eleven_flash_v2_5",
+      realtimeVoiceId: "realtime-voice",
+      chatModel: "gpt-4o-mini",
+      embeddingModel: null,
+      realtimeModel: null,
+      transcriptionModel: null,
+      defaultLanguageId: null,
+      defaultVoiceId: null,
+      languages: [],
+      voices: [
+        { enabled: true, provider: "elevenlabs", voiceId: "realtime-voice", id: "v1", orgId: "org-1", name: "Realtime", metadata: {} },
+      ],
+    } as never);
+
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+
+    expect(r.voiceProvider).toBe("openai");
+    expect(r.realtimeProvider).toBe("elevenlabs");
+    expect(r.elevenlabs?.ttsModel).toBe("eleven_flash_v2_5");
+    expect(r.elevenlabs?.sttModel).toBe("scribe_v2_realtime");
+    expect(r.elevenlabs?.voiceId).toBe("realtime-voice");
+  });
+
+  it("keeps voice-chat ElevenLabs settings independent from realtime settings", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      voiceProvider: "elevenlabs",
+      realtimeVoiceProvider: "openai",
+      elevenlabsTtsModel: "eleven_multilingual_v2",
+      elevenlabsSttModel: "scribe_v2",
+      defaultElevenlabsVoice: "org-default",
+    } as never);
+    agentSettingsMock.mockResolvedValue({
+      id: "settings-1",
+      agentId: "agent-1",
+      orgId: "org-1",
+      provider: "openai",
+      voiceProvider: "elevenlabs",
+      voiceChatSttModel: "scribe_v2",
+      voiceChatTtsModel: "eleven_multilingual_v2",
+      voiceChatVoiceId: "voice-chat-voice",
+      realtimeVoiceProvider: "openai",
+      realtimeLlmModel: "gpt-realtime-mini",
+      realtimeSttModel: "openai-stt",
+      realtimeTtsModel: "openai-tts",
+      realtimeVoiceId: "ash",
+      chatModel: "gpt-4o-mini",
+      embeddingModel: null,
+      realtimeModel: null,
+      transcriptionModel: null,
+      defaultLanguageId: null,
+      defaultVoiceId: null,
+      languages: [],
+      voices: [
+        { enabled: true, provider: "elevenlabs", voiceId: "voice-chat-voice", id: "v1", orgId: "org-1", name: "Voice Chat", metadata: {} },
+      ],
+    } as never);
+
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "voice_chat" });
+
+    expect(r.voiceProvider).toBe("elevenlabs");
+    expect(r.realtimeProvider).toBe("openai");
+    expect(r.elevenlabs?.ttsModel).toBe("eleven_multilingual_v2");
+    expect(r.elevenlabs?.sttModel).toBe("scribe_v2");
+    expect(r.elevenlabs?.voiceId).toBe("voice-chat-voice");
   });
 });
 

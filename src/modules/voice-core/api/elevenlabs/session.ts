@@ -43,6 +43,11 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : null;
     const ragMode = typeof body?.ragMode === "string" ? body.ragMode : "hybrid";
+    // One bootstrap endpoint serves two independent ElevenLabs surfaces:
+    // Voice Chat (turn-based pipeline) and Realtime Voice (Clara Scribe/TTS).
+    // Default to realtime for the existing Clara realtime hook; the legacy
+    // voice-chat hook sends surface:"voice_chat" explicitly.
+    const surface = body?.surface === "voice_chat" ? "voice_chat" : "realtime";
 
     if (!kbId || !isValidUuid(kbId)) {
       return NextResponse.json(
@@ -105,13 +110,15 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const resolved = await resolveVoiceConfig({ kbId, surface, ...(body.scope === "draft" ? { preferDraft: true } : {}) });
     // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
     // as the chat-window voice-chat experience) or the realtime axis (Mode A
     // as the fallback when a realtime=elevenlabs config has no Mode-B
     // binding, and the embed surfaces where Mode B is refused by design).
     const pipelineSelected =
-      resolved.voiceProvider === "elevenlabs" || resolved.realtimeProvider === "elevenlabs";
+      surface === "voice_chat"
+        ? resolved.voiceProvider === "elevenlabs"
+        : resolved.realtimeProvider === "elevenlabs";
     if (!pipelineSelected || !resolved.elevenlabs) {
       // Config raced (provider switched mid-flight) — tell the client to
       // re-resolve rather than silently using the wrong provider.
@@ -136,7 +143,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // descriptor — same HMAC token discipline as the Sarvam V5 relay.
         // Embed sessions get it too: the token is capability-scoped (kb+org),
         // never a vendor credential.
-        ...((await isElevenLabsRealtimeEnabled()) && orgId
+        ...((surface === "realtime" && await isElevenLabsRealtimeEnabled()) && orgId
           ? {
               realtime: {
                 endpoint: "/api/voice/elevenlabs/realtime",
