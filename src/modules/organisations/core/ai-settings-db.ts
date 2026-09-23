@@ -18,7 +18,7 @@ function normalizeProviderList(input: unknown): AIProvider[] {
 }
 
 function normalizeVoiceProviderList(input: unknown): VoiceProvider[] {
-  if (!Array.isArray(input)) return ["openai", "gemini", "elevenlabs"];
+  if (!Array.isArray(input)) return ["openai", "gemini", "elevenlabs", "sarvam"];
   const values = input.filter((value): value is VoiceProvider => isVoiceProvider(value));
   return values.length > 0 ? values : ["openai", "gemini", "elevenlabs"];
 }
@@ -31,7 +31,7 @@ function normalizeProviderScopedList(input: unknown): ProviderScopedList {
   if (!input || typeof input !== "object" || Array.isArray(input)) return {};
   const record = input as Record<string, unknown>;
   const scoped: ProviderScopedList = {};
-  for (const provider of ["openai", "gemini"] as const) {
+  for (const provider of ["openai", "gemini", "sarvam"] as const) {
     const values = record[provider];
     if (!Array.isArray(values)) continue;
     scoped[provider] = values
@@ -171,7 +171,7 @@ export async function upsertOrgAISettings(
       ? input.voiceProvider
       : (current?.voiceProvider ?? null),
     allowedVoiceProviders: input.allowedVoiceProviders ??
-      current?.allowedVoiceProviders ?? ["openai", "gemini", "elevenlabs"],
+      current?.allowedVoiceProviders ?? ["openai", "gemini", "elevenlabs", "sarvam"],
     realtimeVoiceProvider: input.realtimeVoiceProvider !== undefined
       ? input.realtimeVoiceProvider
       : (current?.realtimeVoiceProvider ?? null),
