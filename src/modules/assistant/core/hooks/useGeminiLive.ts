@@ -578,7 +578,7 @@ export function useGeminiLive(opts?: Options) {
               const outOfScopeReply =
                 typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
                   ? payload.outOfScopeReply.trim()
-                  : "I can only answer questions about the topics I have been set up for.";
+                  : "I don't have enough information in the configured knowledge base to answer that accurately.";
 
               // Attach sources to the active history turn.
               if (!activeTurnIdRef.current) {

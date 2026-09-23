@@ -103,7 +103,7 @@ async function seedFromPlatformDefault(): Promise<AgentVersionConfig> {
     avatarUrl: null,
     systemPrompt: "You are Clara, a helpful voice assistant. Answer ONLY using the context provided.",
     welcomeMessage: "Hello! How can I help you today?",
-    outOfScopeReply: "I can only answer questions about the topics I have been set up for.",
+    outOfScopeReply: "I don't have enough information in the configured knowledge base to answer that accurately.",
     rules: [],
     defaultLanguage: "en",
     allowedLanguages: ["en"],
