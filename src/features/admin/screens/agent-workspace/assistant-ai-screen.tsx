@@ -117,6 +117,9 @@ export default function AgentAssistantAIScreen() {
         const saved = await putAgentDraft(agentId, next);
         draftRef.current = saved;
         setDraft(saved);
+        window.dispatchEvent(new CustomEvent("agent-workspace:draft-updated", {
+          detail: { agentId, draftUpdatedAt: saved.updatedAt },
+        }));
         return { ...configValue, ...data };
       });
     },
@@ -135,6 +138,9 @@ export default function AgentAssistantAIScreen() {
         });
         draftRef.current = saved;
         setDraft(saved);
+        window.dispatchEvent(new CustomEvent("agent-workspace:draft-updated", {
+          detail: { agentId, draftUpdatedAt: saved.updatedAt },
+        }));
       });
     },
     [agentId, enqueueDraftSave],
