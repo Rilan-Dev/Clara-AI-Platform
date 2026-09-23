@@ -178,14 +178,17 @@ export function getElevenLabsTimeoutMs(): number {
 // ─── Platform default models / voice ─────────────────────────────────────────
 
 export const DEFAULT_TTS_MODEL = "eleven_flash_v2_5";
-export const DEFAULT_STT_MODEL = "scribe_v1";
+export const DEFAULT_STT_MODEL = "scribe_v2";
 
 export function getPlatformDefaultTTSModel(): string {
   return process.env.ELEVENLABS_DEFAULT_TTS_MODEL?.trim() || DEFAULT_TTS_MODEL;
 }
 
 export function getPlatformDefaultSTTModel(): string {
-  return process.env.ELEVENLABS_DEFAULT_STT_MODEL?.trim() || DEFAULT_STT_MODEL;
+  const configured = process.env.ELEVENLABS_DEFAULT_STT_MODEL?.trim();
+  // scribe_v1 was removed by ElevenLabs in July 2026. Treat an old env value
+  // as a stale configuration rather than sending an invalid vendor request.
+  return configured === "scribe_v1" ? DEFAULT_STT_MODEL : configured || DEFAULT_STT_MODEL;
 }
 
 export function getPlatformDefaultVoiceId(): string | null {
