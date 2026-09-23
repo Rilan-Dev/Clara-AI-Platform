@@ -6,27 +6,26 @@
  * Agents workspace shell for /orgs/[id]/agents/* (ElevenLabs layout).
  *
  *   ┌─ org sidebar ─┬───────────────────────────────────────────────┐
- *   │  (admin-shell │  Navbar: agent · version ·                    │
- *   │   owns this)  │  [Preview][Publish] (agent selected)          │
+ *   │  (admin-shell │  Topbar: page/agent context · version        │
+ *   │   owns this)  │  cluster + Preview/Publish + profile         │
  *   ├───────────────┼───────────────────────────────────────────────┤
- *   │  Agents list  │  content (children)                           │
- *   │  / identity + │                                               │
- *   │  agent tabs   │  + Branch History canvas (?history=1)         │
+ *   │  Agents >     │  content (children)                          │
+ *   │   Overview    │                                               │
+ *   │   Main / FAQ  │  + phone tab strip (md:hidden)                │
+ *   │   Knowledge   │  + Branch History canvas (?history=1)         │
+ *   │   Tools       │                                               │
+ *   │   Branches    │                                               │
+ *   │   Publish     │                                               │
  *   └───────────────┴───────────────────────────────────────────────┘
  *
- * · Navigation lives in the EXISTING organisation sidebar (admin-shell):
- *   agents list on the index, agent identity + tab groups when an agent
- *   is open. This shell adds no second rail — content keeps full width.
- * · The navbar carries Preview / Publish only once an agent is selected.
- *   Preview opens the DEDICATED published preview page (/preview/agents/:id,
- *   new tab, session-authenticated — never the embed/Deploy API key).
- *   Publish is ONE CLICK: draft edits are versioned automatically and the
- *   result goes live immediately; the button is disabled while production
- *   is already up to date. Deep history lives in Versions/branches — there
- *   is no History button in this public bar.
- *
- * All data is shared through AgentsWorkspaceProvider so the screens
- * underneath consume a single fetch instead of re-querying.
+ * · Agent SECTION navigation lives in the organisation sidebar under the
+ *   “Agents >” group (admin-shell.tsx); on phones it is a horizontal tab
+ *   strip rendered here. The version/deploy cluster (Main vN · Draft
+ *   changes · Published vN · Draft saved … · Preview · Publish update)
+ *   lives in the global topbar next to the profile avatar
+ *   (layouts/agent-topbar.tsx).
+ * · All data is shared through AgentsWorkspaceProvider so the screens
+ *   underneath consume a single fetch instead of re-querying.
  */
 
 import {
@@ -41,17 +40,12 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  ExternalLink,
   GitBranch,
   History,
-  Plus,
-  Rocket,
   RotateCcw,
-  Trash2,
   X,
 } from "lucide-react";
-import { toast } from "@/components/ui/sonner";
-import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
+import { useAgents } from "@/modules/admin-ui/hooks";
 import { fetchKbs, type Agent, type KnowledgeBase } from "@/modules/admin-ui/api";
 import {
   checkAgentDefaultUpdate,
@@ -59,16 +53,13 @@ import {
   fetchAgentDiff,
   fetchAgentVersions,
   fetchAgentWorkspaceContext,
-  publishAgentVersion,
   restoreAgentVersion,
-  saveAgentVersion,
   type AgentVersionDTO,
   type AgentWorkspaceContextDTO,
   type SemanticDiffDTO,
 } from "@/modules/admin-ui/ai-platform-api";
 import { fetchAgentWorkspaceContextCached } from "@/features/admin/screens/agent-workspace/context-cache";
-import { DiffViewer, VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
-import { cn } from "@/lib/utils";
+import { DiffViewer, VersionBadge, WorkspaceButton } from "@/components/admin/ai-platform/shared";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
 
@@ -204,8 +195,8 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
   const tab = parseAgentsPath(pathname).tab;
   const { agents, loading: agentsLoading, create, remove, refetch } = useAgents(orgId);
 
-  // "New agent" dialog — owned here so both the sidebar header, the navbar
-  // button and the empty-state CTA can open it.
+  // "New agent" dialog — owned here so the sidebar header, the agents-index
+  // CTAs and the topbar can open it.
   const [createOpen, setCreateOpen] = useState(false);
   const openCreate = useCallback(() => setCreateOpen(true), []);
 
@@ -285,7 +276,7 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
     return () => window.removeEventListener("clara:open-create-agent", open);
   }, []);
 
-  // Cross-screen refresh: one-click publish (navbar, Overview, publish screen)
+  // Cross-screen refresh: one-click publish (topbar cluster, Overview, publish screen)
   // fires this event so every mounted workspace surface re-reads its context.
   useEffect(() => {
     const refresh = () => refetchContext();
@@ -326,46 +317,62 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
   );
 }
 
-// ── Navbar ───────────────────────────────────────────────────────────────────
+// ── Workspace page furniture ─────────────────────────────────────────────────
+// The sidebar owns agent navigation (Agents > Overview / Main / FAQ /
+// Knowledge / Tools / Branches / Publish) and the topbar owns the version /
+// deploy cluster (Main vN · Draft changes · Published vN · Draft saved ·
+// Preview · Publish update) — see admin-shell.tsx and
+// layouts/agent-topbar.tsx. The shell itself only keeps phone navigation
+// (the rail is desktop-only) and the platform-default notice.
 
-function WorkspaceNavbar() {
-  const { agentId, context, contextLoading, openCreate } = useAgentsWorkspace();
-  const { user } = useAuth();
-  const isAdmin = user?.isSuperAdmin ?? false;
+/** Horizontal section tabs for phones — the sidebar rail is desktop-only. */
+function AgentMobileTabs() {
+  const { agentId, orgId } = useAgentsWorkspace();
+  const pathname = usePathname();
+  if (!agentId) return null;
 
-  if (!agentId) {
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="min-w-0">
-          {isAdmin && (
-            <p className="text-[11px] text-muted-foreground/70">
-              <Link href="/orgs" className="hover:text-foreground">Organisations</Link>
-              <span className="mx-1">/</span>Agents
-            </p>
-          )}
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Agents</h1>
-          <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
-            Each agent groups knowledge bases and carries its own assistant configuration — select one on the left.
-          </p>
-        </div>
-        <WorkspaceButton variant="primary" onClick={openCreate} className="shrink-0">
-          <Plus className="h-3.5 w-3.5" /> New Agent
-        </WorkspaceButton>
-      </div>
-    );
-  }
+  const base = `/orgs/${orgId}/agents/${agentId}`;
+  const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
+    { href: base, label: "Overview", exact: true },
+    { href: `${base}/config`, label: "Main" },
+    { href: `${base}/faq`, label: "FAQ" },
+    { href: `${base}/knowledge`, label: "Knowledge" },
+    { href: `${base}/tools`, label: "Tools" },
+    { href: `${base}/versions`, label: "Branches" },
+    { href: `${base}/publish`, label: "Publish" },
+  ];
 
-  return <AgentNavbar context={context} loading={contextLoading} />;
+  return (
+    <nav
+      aria-label="Agent sections"
+      className="sticky top-14 z-20 flex gap-1 overflow-x-auto border-b border-border bg-background/90 px-4 py-2 backdrop-blur-md md:hidden"
+    >
+      {tabs.map((tab) => {
+        const active = tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(tab.href + "/");
+        return (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            aria-current={active ? "page" : undefined}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              active
+                ? "border border-primary/20 bg-primary/10 text-primary"
+                : "border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
-function AgentNavbar({ context, loading }: {
-  context: AgentWorkspaceContextDTO | null;
-  loading: boolean;
-}) {
-  const { agentId, agents, orgId, remove } = useAgentsWorkspace();
-  const router = useRouter();
-  const [deleting, setDeleting] = useState(false);
-  const [publishing, setPublishing] = useState(false);
+/** §22 — new platform default available (explicit review/apply, never silent). */
+function DefaultUpdateBanner() {
+  const { agentId, orgId, context } = useAgentsWorkspace();
   const [defaultUpdate, setDefaultUpdate] = useState<{
     agentDefaultVersion: number | null;
     currentPlatformVersion: number | null;
@@ -388,217 +395,36 @@ function AgentNavbar({ context, loading }: {
       .catch(() => setDefaultUpdate(null));
   }, [agentId, context?.defaultAssistantUpdate?.updateAvailable]);
 
-  const agent = context?.agent;
-  const name = agent?.name ?? agents.find((a) => a.id === agentId)?.name ?? (loading ? "…" : "Agent");
-  const deployment = context?.deployment ?? null;
-  const currentVersion = context?.currentVersion;
-  const draftEditedSinceVersion =
-    context?.draftUpdatedAt != null &&
-    currentVersion != null &&
-    new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime();
-
-  // Live "Draft saved just now" — re-renders on a slow tick so the label
-  // ages naturally (just now → 2m ago → …) without user interaction.
-  const [, setNowTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setNowTick((n) => n + 1), 20_000);
-    return () => clearInterval(t);
-  }, []);
-  const draftSavedLabel = context?.draftUpdatedAt ? timeAgo(context.draftUpdatedAt) : "";
-
-  // Publish is enabled ONLY when there is something to publish:
-  //   • draft edits that are not in a version yet, OR
-  //   • a saved version that production is not running, OR
-  //   • the agent has never been published.
-  const productionUpToDate =
-    !!deployment &&
-    !!currentVersion &&
-    deployment.versionNumber === currentVersion.versionNumber &&
-    !draftEditedSinceVersion;
-  const canPublish = !loading && !!context && !productionUpToDate && !!currentVersion;
-
-  // One-click publish: draft edits are versioned automatically, then the
-  // resulting (or already-saved) version is published. No version picking,
-  // no review screens — just a notification when it is live.
-  const publishNow = useCallback(async () => {
-    if (!context || publishing) return;
-    setPublishing(true);
-    try {
-      let versionId = currentVersion?.id ?? null;
-      if (draftEditedSinceVersion) {
-        const version = await saveAgentVersion(agentId ?? "", null);
-        versionId = version.id;
-      }
-      if (!versionId) {
-        toast.error("Nothing to publish yet", {
-          description: "Save your assistant configuration first — a version is created from the draft.",
-        });
-        return;
-      }
-      const result = await publishAgentVersion(agentId ?? "", versionId, deployment?.publicAccess ?? true);
-      toast.success("Agent published", {
-        description: `Production is now running ${result.deployment.branchName} · v${result.deployment.versionNumber}.`,
-      });
-      router.refresh();
-      window.dispatchEvent(new CustomEvent("agent-workspace:refresh"));
-    } catch (err) {
-      toast.error("Publish failed", { description: (err as Error).message });
-    } finally {
-      setPublishing(false);
-    }
-  }, [context, publishing, currentVersion, draftEditedSinceVersion, agentId, deployment?.publicAccess, router]);
-
-  async function handleDelete() {
-    if (!agentId) return;
-    if (!confirm("Delete this agent and every knowledge base inside it?")) return;
-    setDeleting(true);
-    try {
-      await remove(agentId);
-      router.push(`/orgs/${orgId}/agents`);
-    } finally {
-      setDeleting(false);
-    }
-  }
+  if (!defaultUpdate || dismissing) return null;
 
   return (
-    <div className="px-4 py-3 sm:px-6 lg:px-8">
-      {/* ONE navbar (per the ElevenLabs mock): identity + section tabs on the
-          left, the version/draft cluster and the deploy actions on the right.
-          Everything about the open agent lives on this single bar — the
-          sidebar only carries the agents list for switching agents. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="max-w-[10rem] truncate text-base font-semibold tracking-tight text-foreground sm:max-w-[16rem]" title={name}>
-          {name}
-        </h1>
-
-        <nav className="flex flex-wrap items-center gap-0.5" aria-label="Agent sections">
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}`} exact>Overview</NavbarTab>
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/config`}>Main</NavbarTab>
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/faq`}>FAQ</NavbarTab>
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/knowledge`}>Knowledge</NavbarTab>
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/tools`}>Tools</NavbarTab>
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/versions`}>Branches</NavbarTab>
-          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/publish`}>Publish</NavbarTab>
-        </nav>
-
-        <div className="ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          {context && (
-            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 font-medium">
-                <GitBranch className="h-3 w-3" /> Main
-              </span>
-              <span className="font-medium text-foreground/80">v{currentVersion?.versionNumber ?? 1}</span>
-              {draftEditedSinceVersion && <VersionBadge tone="warning">Draft changes</VersionBadge>}
-              {deployment ? (
-                <VersionBadge tone="success">Published v{deployment.versionNumber}</VersionBadge>
-              ) : (
-                <VersionBadge tone="muted">Not published</VersionBadge>
-              )}
-              {context.draftUpdatedAt && (
-                <span className="hidden items-center gap-1 text-[11px] text-muted-foreground/70 lg:inline-flex">
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      "bg-emerald-500",
-                    )}
-                    aria-hidden
-                  />
-                  Draft saved {draftSavedLabel}
-                </span>
-              )}
-            </span>
-          )}
-
-          {/* One-click deploy actions. Preview opens the DEDICATED published
-              preview page in a new tab (session-authenticated — no embed /
-              Deploy API key involved). Publish stays disabled while production
-              is up to date. Deep history lives in Versions/branches, so there
-              is no History button in this public bar. */}
-          <WorkspaceButton
-            variant="secondary"
-            onClick={() => window.open(`/preview/agents/${agentId}`, "_blank", "noopener")}
-            disabled={!deployment}
-            title={deployment ? "Open the published preview in a new tab" : "Publish first — the preview shows the live version"}
+    <div className="px-4 pt-4 sm:px-6 lg:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-primary">New platform default available.</span>{" "}
+          Your agent was created from v{defaultUpdate.agentDefaultVersion ?? "?"}. Current platform default is
+          v{defaultUpdate.currentPlatformVersion ?? "?"}.
+        </p>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/orgs/${orgId}/agents/${agentId}/versions`}
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/30"
           >
-            <ExternalLink className="h-3.5 w-3.5" /> Preview
-          </WorkspaceButton>
-          <WorkspaceButton
-            variant="primary"
-            onClick={() => void publishNow()}
-            disabled={!canPublish || publishing}
-            title={
-              productionUpToDate
-                ? "Production is up to date — edit the draft to enable publishing"
-                : draftEditedSinceVersion
-                  ? "Saves the draft as a version and publishes it"
-                  : `Publish v${currentVersion?.versionNumber ?? "1"} to production`
-            }
+            Review changes
+          </Link>
+          <button
+            type="button"
+            onClick={() => setDismissing(true)}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
           >
-            <Rocket className={`h-3.5 w-3.5 ${publishing ? "animate-pulse" : ""}`} />
-            <span className="hidden sm:inline">{publishing ? "Publishing…" : deployment ? "Publish update" : "Publish"}</span>
-            <span className="sm:hidden">{publishing ? "…" : deployment ? "Update" : "Publish"}</span>
-          </WorkspaceButton>
-          <span title="Delete agent">
-            <WorkspaceButton
-              variant="danger"
-              onClick={() => void handleDelete()}
-              disabled={deleting}
-              aria-label={`Delete agent ${name}`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </WorkspaceButton>
-          </span>
+            Keep current
+          </button>
         </div>
       </div>
-
-      {/* §22 — new platform default available (explicit review/apply, never silent) */}
-      {defaultUpdate && !dismissing && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-primary">New platform default available.</span>{" "}
-            Your agent was created from v{defaultUpdate.agentDefaultVersion ?? "?"}. Current platform default is
-            v{defaultUpdate.currentPlatformVersion ?? "?"}.
-          </p>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/orgs/${orgId}/agents/${agentId}/versions`}
-              className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/30"
-            >
-              Review changes
-            </Link>
-            <button
-              type="button"
-              onClick={() => setDismissing(true)}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            >
-              Keep current
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-/** Compact navbar section tab — the ONE place agent sections are linked. */
-function NavbarTab({ href, exact, children }: { href: string; exact?: boolean; children: React.ReactNode }) {
-  const pathname = usePathname();
-  const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
-        active
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
 
 // ── Create-agent dialog ──────────────────────────────────────────────────────
 
@@ -701,12 +527,11 @@ function ShellFrame({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-[calc(100dvh-3.5rem)]">
-      {/* The organisation sidebar owns navigation. This shell only supplies
-          the agent header and content, so the page keeps the full width that
-          the old nested sidebar consumed. */}
-      <header className="sticky top-14 z-20 border-b border-border bg-background/90 backdrop-blur-md md:top-16">
-        <WorkspaceNavbar />
-      </header>
+      {/* The organisation sidebar owns agent navigation and the topbar carries
+          the version/deploy cluster — the shell goes straight to content,
+          keeping only the phone tab strip and the platform-default notice. */}
+      <AgentMobileTabs />
+      <DefaultUpdateBanner />
       <main className="p-4 sm:p-6 lg:p-8">{children}</main>
 
       {agentId && (

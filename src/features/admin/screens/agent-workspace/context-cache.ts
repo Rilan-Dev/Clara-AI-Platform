@@ -43,3 +43,16 @@ export function fetchAgentWorkspaceContextCached(agentId: string): Promise<Agent
   inflight.set(agentId, request);
   return request;
 }
+
+/**
+ * Write a freshly-fetched context back into the cache. Explicit refetches
+ * (after publishing, saving a draft, restoring a version) bypass the cache —
+ * this keeps the OTHER cached consumers (sidebar identity, topbar cluster,
+ * context label) from serving the pre-mutation snapshot for up to 60s.
+ */
+export function updateAgentWorkspaceContextCache(
+  agentId: string,
+  value: AgentWorkspaceContextDTO,
+): void {
+  cache.set(agentId, { value, expires: Date.now() + CACHE_TTL_MS });
+}
