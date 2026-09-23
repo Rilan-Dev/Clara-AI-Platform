@@ -22,6 +22,17 @@ describe("CSP header", () => {
     expect(CSP_HEADER_VALUE).toContain("report-uri /api/csp-report");
   });
 
+  it("allows the first-party Vercel toolbar origin on preview deployments", () => {
+    // vercel.live is Vercel's own toolbar/feedback script, injected into
+    // preview deployments only. Allowed in both script-src (the injected
+    // <script>) and connect-src (toolbar signalling) to keep preview
+    // consoles free of CSP violations.
+    expect(CSP_HEADER_VALUE).toContain(
+      "blob: https://checkout.razorpay.com https://vercel.live",
+    );
+    expect(CSP_HEADER_VALUE).toContain("https://api.razorpay.com https://vercel.live");
+  });
+
   it("does not allow blocked analytics domains", () => {
     expect(CSP_HEADER_VALUE).not.toContain("google-analytics.com");
     expect(CSP_HEADER_VALUE).not.toContain("overbridgenet.com");

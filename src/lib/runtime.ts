@@ -6,12 +6,29 @@ function trimTrailingSlash(value: string) {
 
 export function getApiBaseUrl() {
   const envBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (envBase) return trimTrailingSlash(envBase);
+  if (envBase) {
+    const trimmed = trimTrailingSlash(envBase);
 
-  // // Fallback for production if the Vercel environment variable is missing
-  // if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-  //   return "https://clara-backend-production.up.railway.app";
-  // }
+    // Preview/staging deployments must be self-contained. When the page is
+    // served from a DIFFERENT host than the configured API base (a preview
+    // branch domain such as preview.rag.amazetechclans.com, a *.vercel.app
+    // deployment URL, or localhost dev), fall back to same-origin relative
+    // URLs. Every deployment ships its own /api routes, so same-origin is
+    // always correct — while following the absolute base cross-origin would
+    // be blocked by the static CSP connect-src 'self' directive (the console
+    // errors seen on preview deployments) and would split the auth session
+    // across origins. Production pages (hostname === configured base) keep
+    // the absolute URL, and SSR (no window) keeps the configured value.
+    if (typeof window !== "undefined") {
+      try {
+        if (new URL(trimmed).hostname !== window.location.hostname) return "";
+      } catch {
+        // Configured base is not an absolute URL — keep it as-is.
+      }
+    }
+
+    return trimmed;
+  }
 
   return "";
 }
