@@ -152,6 +152,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         headers: pipelineHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           kbId: session.kbId,
+          surface: "voice_chat",
           text,
           model: session.tts.model,
           voiceId: session.tts.voiceId,
