@@ -19,11 +19,9 @@
  *
  * Vendor wire (validated against elevenlabs.io docs, 2026-09-20):
  *   STT  wss://…/v1/speech-to-text/realtime?model_id=scribe_v2_realtime
- *        client→server  {"user_audio_chunk": "<base64>"} … the SDK sends
- *                       base64 PCM via `input_audio_chunk`; the relay accepts
- *                       both envelope names and forwards verbatim.
- *        server→client session_started · partial_transcript ·
- *                       committed_transcript (stable final) · error events.
+ *        client→server  {"message_type":"input_audio_chunk","audio_base_64":"<base64>","sample_rate":16000}
+ *        server→client {"message_type":"session_started"|"partial_transcript"|
+ *                       "committed_transcript"|...} · error events.
  *        Errors arrive as JSON messages with a `type`/`error` field before
  *        the socket closes.
  *   TTS  wss://…/v1/text-to-speech/{voice_id}/stream-input?model_id=…
@@ -104,7 +102,7 @@ export function scribeLanguageCode(language) {
  * committed_transcript (+ _with_timestamps/_entities variants), error types.
  */
 export function translateScribeEvent(event) {
-  const type = String(event.type ?? event.event ?? "");
+  const type = String(event.message_type ?? event.type ?? event.event ?? "");
   const text = String(event.text ?? event.transcript ?? "");
   switch (type) {
     case "session_started":
@@ -119,11 +117,20 @@ export function translateScribeEvent(event) {
       // variants repeat the same committed text — collapse into one frame.
       return { type: "transcript_final", text };
     default: {
-      // Error envelopes: {type:"error",…} or {error:{type,message,…}}.
+      // Current Scribe errors are typed message_type values such as
+      // auth_error, quota_exceeded, rate_limited, input_error, etc. Keep the
+      // browser contract stable and treat all vendor error envelopes as fatal
+      // because Scribe closes the socket after an error.
       const error = event.error && typeof event.error === "object" ? event.error : null;
-      if (type === "error" || error) {
+      const typedError = /(?:^|_)(error|errors|exceeded|limited|throttled|rejected|exhausted)$/.test(type)
+        || type === "error";
+      if (typedError || error || typeof event.error === "string") {
         const message = String(
-          (error && (error.message ?? error.type)) ?? event.message ?? "Scribe realtime error",
+          (error && (error.message ?? error.type)) ??
+          (typeof event.error === "string" ? event.error : null) ??
+          event.message ??
+          type ??
+          "Scribe realtime error",
         );
         return { type: "error", message, fatal: true };
       }
@@ -142,6 +149,21 @@ export function scribeRealtimeUrl(cfg) {
   const params = new URLSearchParams({
     model_id: cfg.sttModel || "scribe_v2_realtime",
     audio_format: "pcm_16000",
+    // Let Scribe own turn detection. A sub-second silence threshold keeps
+    // perceived voice latency low without adding a second client-side VAD.
+    commit_strategy: "vad",
+    vad_silence_threshold_secs: String(
+      Number.isFinite(Number(process.env.ELEVENLABS_REALTIME_VAD_SILENCE_SECS))
+        ? Math.min(3, Math.max(0.3, Number(process.env.ELEVENLABS_REALTIME_VAD_SILENCE_SECS)))
+        : 0.8,
+    ),
+    vad_threshold: String(
+      Number.isFinite(Number(process.env.ELEVENLABS_REALTIME_VAD_THRESHOLD))
+        ? Math.min(0.9, Math.max(0.1, Number(process.env.ELEVENLABS_REALTIME_VAD_THRESHOLD)))
+        : 0.4,
+    ),
+    min_speech_duration_ms: "100",
+    min_silence_duration_ms: "100",
   });
   const language = scribeLanguageCode(cfg.languageCode);
   if (language) params.set("language_code", language);
@@ -230,7 +252,11 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     // A tiny silent frame keeps Scribe's inactivity monitor fed without
     // affecting transcripts (digital silence never commits).
     try {
-      upstream.send(JSON.stringify({ user_audio_chunk: Buffer.from(new Int16Array(160)).toString("base64") }));
+      upstream.send(JSON.stringify({
+        message_type: "input_audio_chunk",
+        audio_base_64: Buffer.from(new Int16Array(160)).toString("base64"),
+        sample_rate: 16_000,
+      }));
     } catch {}
   }, 20_000);
 
@@ -312,11 +338,16 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     let bytes = data.length;
     try {
       const parsed = JSON.parse(data.toString());
-      // Accept {"user_audio_chunk": "<base64>"} (SDK shape) and
-      // {"event":"input_audio_chunk","audio":"<base64>"} (raw API shape).
-      const audio = parsed?.user_audio_chunk ?? parsed?.audio;
+      // Normalize the browser frame to the current Scribe realtime wire.
+      // The browser intentionally sends only PCM; the relay owns the vendor
+      // protocol so a vendor envelope change never leaks into the client.
+      const audio = parsed?.audio_base_64 ?? parsed?.audio ?? parsed?.user_audio_chunk;
       if (typeof audio === "string") {
-        frame = JSON.stringify({ user_audio_chunk: audio });
+        frame = JSON.stringify({
+          message_type: "input_audio_chunk",
+          audio_base_64: audio,
+          sample_rate: Number(parsed?.sample_rate ?? 16_000) || 16_000,
+        });
         bytes = Math.floor((audio.length * 3) / 4); // base64 → raw bytes
       } else {
         frame = data.toString();
