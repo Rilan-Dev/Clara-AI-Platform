@@ -242,6 +242,7 @@ export default function AgentAssistantAIScreen() {
               draft={draft}
               options={options}
               onSave={saveAISelection}
+              onOptionsLoaded={(capability, value) => setOptions((prev) => ({ ...prev, [capability]: value }))}
               realtimeProviderId={realtimeProviderId}
               onRealtimeProviderChange={setRealtimeProviderId}
             />
