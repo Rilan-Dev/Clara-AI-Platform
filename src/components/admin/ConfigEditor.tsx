@@ -222,7 +222,9 @@ export function ConfigEditor({
   // The voice catalog is needed on mount in the agent variant (right-column
   // Voices card) and on Voice-tab entry in the default variant.
   useEffect(() => {
-    const shouldFetch = variant === "agent" || activeTab === "voice";
+    // Agent workspaces receive the selected realtime provider catalog from
+    // the capability resolver. Do not also call the OpenAI catalog endpoint.
+    const shouldFetch = activeTab === "voice" || (variant === "agent" && !providerVoiceCatalog);
     if (!shouldFetch || voiceCatalogRequested.current) return;
     voiceCatalogRequested.current = true;
     let cancelled = false;
