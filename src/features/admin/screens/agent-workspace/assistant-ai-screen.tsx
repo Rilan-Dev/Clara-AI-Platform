@@ -556,7 +556,7 @@ function CapabilityEditor({
           <ModelField label="Chat LLM" value={ai.chatModel ?? ""} options={models.filter((m) => m.kind === "chat")}
             onChange={(value) => onAIChange({ chatModel: value || null })} />
           <InfoBox title="LLM used by Chat and RAG">
-            This selection controls the language model used for text conversations. Knowledge retrieval remains on Clara's existing knowledge-base pipeline.
+            This selection controls the language model used for text conversations. Knowledge retrieval remains on Clara&apos;s existing knowledge-base pipeline.
           </InfoBox>
         </div>
       )}
