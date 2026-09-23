@@ -148,8 +148,10 @@ vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => ({ defaults: [] })),
 }));
 vi.mock("./model-catalog", () => ({
-  getPlatformDefaultSTTModel: () => "scribe_v1",
+  getPlatformDefaultSTTModel: () => "scribe_v2",
   getPlatformDefaultTTSModel: () => "eleven_flash_v2_5",
+  getPlatformDefaultRealtimeTTSModel: () => "eleven_flash_v2_5",
+  getPlatformDefaultRealtimeSTTModel: () => "scribe_v2_realtime",
   getPlatformDefaultVoiceId: () => "EXAVITQu4vr4xnSDxMaL",
   looksLikeElevenLabsVoiceId: () => true,
   isSupportedTTSModel: () => true,
