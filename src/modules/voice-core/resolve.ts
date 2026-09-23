@@ -40,6 +40,8 @@ import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
+  getPlatformDefaultRealtimeTTSModel,
+  getPlatformDefaultRealtimeSTTModel,
   getPlatformDefaultVoiceId,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
@@ -408,7 +410,7 @@ export async function resolveVoiceConfig(
       (isRealtime ? versionRealtimeTtsModel : versionVoiceChatTtsModel) ??
       (isRealtime ? agentSettings?.realtimeTtsModel : agentSettings?.voiceChatTtsModel) ??
       orgSettings?.elevenlabsTtsModel ??
-      getPlatformDefaultTTSModel();
+      (isRealtime ? getPlatformDefaultRealtimeTTSModel() : getPlatformDefaultTTSModel());
 
     if (!isSupportedTTSModel(ttsModel)) {
       throw new VoiceConfigResolutionError(
@@ -422,7 +424,7 @@ export async function resolveVoiceConfig(
       (isRealtime ? versionRealtimeSttModel : versionVoiceChatSttModel) ??
       (isRealtime ? agentSettings?.realtimeSttModel : agentSettings?.voiceChatSttModel) ??
       orgSettings?.elevenlabsSttModel ??
-      getPlatformDefaultSTTModel();
+      (isRealtime ? getPlatformDefaultRealtimeSTTModel() : getPlatformDefaultSTTModel());
 
     const configuredVoiceId =
       (isRealtime ? versionRealtimeVoiceId : versionVoiceChatVoiceId) ??
