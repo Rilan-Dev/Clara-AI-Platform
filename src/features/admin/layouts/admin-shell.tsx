@@ -127,7 +127,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname   = usePathname();
   const router     = useRouter();
   const [moreOpen, setMoreOpen] = useState(false); // mobile "More" bottom sheet
-  const [branchName, setBranchName] = useState("Main");
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
@@ -214,25 +213,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const agentRoute = pathname.match(/^\/orgs\/([^/]+)\/agents\/([^/]+)/);
   const activeAgentOrgId = agentRoute?.[1] ?? null;
   const activeAgentId = agentRoute?.[2] ?? null;
-  useEffect(() => {
-    if (!activeAgentId) {
-      setBranchName("Main");
-      return;
-    }
-    let cancelled = false;
-    fetchAgentWorkspaceContextCached(activeAgentId)
-      .then((context) => {
-        if (!cancelled) {
-          setBranchName(context.currentVersion?.branchName ?? context.main.name ?? "Main");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setBranchName("Main");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeAgentId]);
   const onAgentsIndex =
     !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
   const nav = isAdmin ? ADMIN_NAV : orgNav;
