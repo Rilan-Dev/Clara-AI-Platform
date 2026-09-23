@@ -228,6 +228,7 @@ export function useAgents(orgId: string) {
   const { data, loading, error, refetch } = useAsync(
     () => api.fetchAgents(orgId),
     `agents:${orgId}`,
+    { enabled: Boolean(orgId) },
   );
   const agents = data ?? [];
   const create = useCallback(async (name: string, description?: string) => { const a = await api.createAgent(orgId, name, description); refetch(); return a; }, [orgId, refetch]);

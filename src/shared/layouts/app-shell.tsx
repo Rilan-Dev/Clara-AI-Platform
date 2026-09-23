@@ -31,11 +31,15 @@ function isPublicRoute(pathname: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isEmbedRoute = pathname.startsWith("/embed/");
-  const showFloatingAssistant = !isEmbedRoute && !isPublicRoute(pathname);
+  // Bare chrome routes: /embed/* (public widget/voice surfaces) and the
+  // DEDICATED published-agent preview page. The preview is its own immersive
+  // surface — the floating workspace assistant must never stack on top of the
+  // agent being previewed.
+  const isBareRoute = pathname.startsWith("/embed/") || pathname.startsWith("/preview/");
+  const showFloatingAssistant = !isBareRoute && !isPublicRoute(pathname);
   const shellClassName = "w-full min-h-screen min-h-[100dvh] antialiased";
 
-  if (isEmbedRoute) {
+  if (isBareRoute) {
     return <main className={shellClassName}>{children}</main>;
   }
 

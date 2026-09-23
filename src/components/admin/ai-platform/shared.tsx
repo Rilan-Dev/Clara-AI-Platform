@@ -188,6 +188,7 @@ export function WorkspaceButton({
   disabled,
   type = "button",
   className,
+  title,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -195,6 +196,8 @@ export function WorkspaceButton({
   disabled?: boolean;
   type?: "button" | "submit";
   className?: string;
+  /** Native tooltip text — explains why a button is disabled, etc. */
+  title?: string;
 }) {
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
@@ -207,6 +210,7 @@ export function WorkspaceButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
