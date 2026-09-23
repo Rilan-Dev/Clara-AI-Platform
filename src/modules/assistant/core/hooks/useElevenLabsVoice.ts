@@ -441,6 +441,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         headers: pipelineHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           kbId: options.kbId,
+          surface: "voice_chat",
           ragMode: "hybrid",
           language: options.language?.assistant,
           ...(options.draftMode ? { scope: "draft" } : {}),
