@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { ChevronRight, Cpu, Mic, Radio, Settings2 } from "lucide-react";
-import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
+import { useAuth } from "@/modules/admin-ui/hooks";
 import {
   fetchAgentAIOptions,
   fetchAgentDraft,
@@ -34,7 +34,6 @@ import {
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 import { toast } from "@/components/ui/sonner";
 import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
-import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -67,9 +66,6 @@ export default function AgentAssistantAIScreen() {
     saveQueueRef.current = run.catch(() => undefined);
     return run;
   }, []);
-
-  const { kbs } = useKbs(agentId);
-  const previewKb = kbs[0];
 
   const load = useCallback(async () => {
     if (!agentId) return;
