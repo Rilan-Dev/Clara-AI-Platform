@@ -369,7 +369,9 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           draftScope: options.draftMode === true,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
-          realtimeVoice: false,
+          // This is the realtime turn path: let the shared chat service apply
+          // realtime retrieval/model budgets instead of the full chat profile.
+          realtimeVoice: true,
         },
       );
 

@@ -273,7 +273,9 @@ async function postChatKb(
   // on the embedding backbone (V1 split — a Sarvam brain keeps its Qdrant
   // collections on OpenAI/Gemini embeddings); the answer stream runs on the
   // brain provider below.
-  const realtimeVoice = body?.realtimeVoice === true && resolved.provider === "sarvam";
+  // Realtime is a transport/surface concern, not a Sarvam-only feature.
+  // ElevenLabs Clara realtime also needs the short retrieval + response budget.
+  const realtimeVoice = body?.realtimeVoice === true;
   const providerConfig = {
     ...toProviderConfig(resolved),
     ...(realtimeVoice
@@ -287,9 +289,12 @@ async function postChatKb(
   const embeddingConfig = toProviderConfig(resolved, "embedding");
   let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
   try {
-    results = await searchKbEmbedded(resolved.knowledgeCollection ?? kb.qdrantCollection, retrievalQuery, 6, {
-      providerConfig: embeddingConfig,
-    });
+    results = await searchKbEmbedded(
+      resolved.knowledgeCollection ?? kb.qdrantCollection,
+      retrievalQuery,
+      realtimeVoice ? 4 : 6,
+      { providerConfig: embeddingConfig, realtimeVoice },
+    );
   } catch (searchErr) {
     // Retrieval failed — mark the audit row as an error, then surface it.
     void finalizeQueryEvent(eventId, {
