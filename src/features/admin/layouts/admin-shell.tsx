@@ -633,6 +633,7 @@ function AgentSidebarSwitcher({
 }: {
   orgId: string;
   activeAgentId: string;
+  onBranchNameChange: (branchName: string) => void;
 }) {
   const { agents, loading } = useAgents(orgId);
   const [open, setOpen] = useState(false);
