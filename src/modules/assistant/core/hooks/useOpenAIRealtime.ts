@@ -398,7 +398,7 @@ export function useOpenAIRealtime(opts?: Options) {
       const outOfScopeReply =
         typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
           ? payload.outOfScopeReply.trim()
-          : "I can only answer questions about the topics I have been set up for.";
+          : "I don't have enough information in the configured knowledge base to answer that accurately.";
       const dynamicScope = payload?.scope && typeof payload.scope === "object" ? payload.scope as {
         assistantName?: string;
         welcomeMessage?: string;
@@ -705,7 +705,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         const outOfScopeReply =
           typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
             ? payload.outOfScopeReply.trim()
-            : "I can only answer questions about the topics I have been set up for.";
+            : "I don't have enough information in the configured knowledge base to answer that accurately.";
         const toolContext = grounded
           ? payload.context
           : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say exactly: "${outOfScopeReply}"`;
