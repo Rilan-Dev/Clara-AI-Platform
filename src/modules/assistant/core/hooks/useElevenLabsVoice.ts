@@ -299,6 +299,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     try {
       const form = new FormData();
       form.append("kbId", session.kbId ?? "");
+      form.append("surface", "voice_chat");
       form.append("audio", blob, "utterance.webm");
       form.append("language", session.stt.language ?? "en");
       if (options.draftMode) form.append("scope", "draft");
