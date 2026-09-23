@@ -30,10 +30,14 @@ import {
 
 beforeEach(() => {
   process.env.AUTH_SECRET = "x".repeat(48);
+  process.env.ELEVENLABS_REALTIME_VAD_SILENCE_SECS = "0.8";
+  process.env.ELEVENLABS_REALTIME_VAD_THRESHOLD = "0.4";
 });
 
 afterEach(() => {
   delete process.env.AUTH_SECRET;
+  delete process.env.ELEVENLABS_REALTIME_VAD_SILENCE_SECS;
+  delete process.env.ELEVENLABS_REALTIME_VAD_THRESHOLD;
 });
 
 describe("translateScribeEvent — documented vendor events → browser frames", () => {
