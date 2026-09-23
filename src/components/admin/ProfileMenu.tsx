@@ -26,6 +26,7 @@ import {
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
 import { fetchOrgUsageLimits, type OrgUsageLimits } from "@/modules/admin-ui/api";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export type ProfileMenuUser = {
   id: string;
@@ -307,6 +308,11 @@ export function ProfileMenu({
                 <KeyRound className="w-4 h-4 text-muted-foreground/70" /> Platform settings
               </Link>
             )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground">
+            <span>Theme</span>
+            <ThemeToggle className="h-8 w-8" />
           </div>
 
           {/* Sign out */}
