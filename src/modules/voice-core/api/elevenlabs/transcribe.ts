@@ -103,7 +103,7 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
     if (
-      (resolved.voiceProvider !== "elevenlabs" && resolved.realtimeProvider !== "elevenlabs") ||
+      (resolved.realtimeProvider !== "elevenlabs" && resolved.voiceProvider !== "elevenlabs") ||
       !resolved.elevenlabs
     ) {
       return NextResponse.json(
