@@ -62,6 +62,7 @@ import type {
 } from "./config-types";
 import type { VoiceProvider } from "./types";
 import { query } from "@/lib/db";
+import { VoiceProviderFactory } from "./factory";
 import { isOpenAIRealtimeModel, isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
 
 export class VoiceConfigResolutionError extends Error {
@@ -108,6 +109,34 @@ export function isSarvamRealtimeSttEnabled(): boolean {
 // that operator/provider switches propagate effectively immediately.
 
 const VOICE_CONFIG_CACHE_TTL_MS = 5_000;
+
+// When ElevenLabs is enabled but no organisation voice has been synced yet,
+// resolve the vendor workspace once and use a valid returned voice as a
+// process-local fallback. This removes the accidental "Pro is enabled but
+// voice resolution always fails" dead-end without hardcoding a vendor voice ID.
+// The catalog sync endpoint remains the explicit persistence path.
+const ELEVENLABS_DISCOVERY_TTL_MS = 5 * 60_000;
+let elevenLabsDiscoveredVoice: { voiceId: string; expiresAt: number } | null = null;
+
+async function discoverElevenLabsFallbackVoice(): Promise<string | null> {
+  if (elevenLabsDiscoveredVoice && elevenLabsDiscoveredVoice.expiresAt > Date.now()) {
+    return elevenLabsDiscoveredVoice.voiceId;
+  }
+
+  try {
+    const voices = await VoiceProviderFactory.getVoiceService().listVoices();
+    const usable = voices.find((voice) => Boolean(voice.voiceId));
+    if (!usable) return null;
+
+    elevenLabsDiscoveredVoice = {
+      voiceId: usable.voiceId,
+      expiresAt: Date.now() + ELEVENLABS_DISCOVERY_TTL_MS,
+    };
+    return usable.voiceId;
+  } catch {
+    return null;
+  }
+}
 const voiceConfigCache = new Map<
   string,
   { expiresAt: number; value: VoiceResolution }
@@ -594,8 +623,16 @@ async function resolveElevenLabsVoiceId(params: {
     return catalogVoiceIds[0];
   }
 
+  // 6. Last-resort vendor discovery. This is intentionally process-cached and
+  // read-only: it does not copy the workspace catalog into the organisation.
+  // The admin sync endpoint remains responsible for persistent catalog sync.
+  const discoveredVoice = await discoverElevenLabsFallbackVoice();
+  if (discoveredVoice) {
+    return discoveredVoice;
+  }
+
   throw new VoiceConfigResolutionError(
-    "No ElevenLabs voice is configured for this organisation or platform. Add voices in Settings → AI, or set ELEVENLABS_DEFAULT_VOICE_ID.",
+    "No usable ElevenLabs voice is available. Sync an ElevenLabs voice in Settings → AI, configure ELEVENLABS_DEFAULT_VOICE_ID, or verify the platform ElevenLabs workspace has at least one usable voice.",
   );
 }
 
