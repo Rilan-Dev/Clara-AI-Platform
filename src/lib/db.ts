@@ -17,14 +17,17 @@ import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
-const DATABASE_URL = process.env.DATABASE_URL?.trim();
-
-if (!DATABASE_URL) {
-  throw new Error("[db] DATABASE_URL is required");
+function getDatabaseUrl(): string {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) {
+    throw new Error("[db] DATABASE_URL is required");
+  }
+  return databaseUrl;
 }
 
-const PG_CONFIG = {
-  connectionString: DATABASE_URL,
+function getPgConfig() {
+  return {
+  connectionString: getDatabaseUrl(),
   // Keep enough warm connections for concurrent API work without allowing one
   // request to serialize the entire serverless instance. Override per plan.
   //
@@ -47,7 +50,8 @@ const PG_CONFIG = {
   statement_timeout: 8_000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10_000,
-} as const;
+  } as const;
+}
 
 // ── Singleton pattern safe for Next.js dev hot-reload ─────────────────────────
 
@@ -57,7 +61,8 @@ declare global {
 
 function getPool(): Pool {
   if (globalThis.__pgPool) return globalThis.__pgPool;
-  const pool = new Pool(PG_CONFIG);
+
+  const pool = new Pool(getPgConfig());
 
   pool.on("error", (err) => {
     console.error("[db] unexpected pool error:", err.message);
@@ -67,7 +72,16 @@ function getPool(): Pool {
   return pool;
 }
 
-export const pool = getPool();
+// Keep the exported pool API stable while deferring DATABASE_URL validation
+// and Pool construction until the first actual database operation. Next.js
+// imports route modules during build-time page-data collection, but those
+// imports must not require production runtime secrets.
+export const pool = new Proxy({} as Pool, {
+  get(_target, property) {
+    const value = Reflect.get(getPool(), property, getPool());
+    return typeof value === "function" ? value.bind(getPool()) : value;
+  },
+});
 
 // ── Typed query helpers ───────────────────────────────────────────────────────
 
