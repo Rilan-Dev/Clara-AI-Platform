@@ -68,12 +68,14 @@ import {
 } from "@/modules/admin-ui/ai-platform-api";
 import { fetchAgentWorkspaceContextCached } from "@/features/admin/screens/agent-workspace/context-cache";
 import { DiffViewer, VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
+import { cn } from "@/lib/utils";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
 
 export type AgentWorkspaceTab =
   | "overview"
   | "assistant"
+  | "faq"
   | "knowledge"
   | "tools"
   | "versions"
@@ -81,6 +83,7 @@ export type AgentWorkspaceTab =
 
 const TAB_SEGMENTS: Record<string, AgentWorkspaceTab> = {
   config: "assistant",
+  faq: "faq",
   knowledge: "knowledge",
   tools: "tools",
   versions: "versions",
@@ -394,6 +397,15 @@ function AgentNavbar({ context, loading }: {
     currentVersion != null &&
     new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime();
 
+  // Live "Draft saved just now" — re-renders on a slow tick so the label
+  // ages naturally (just now → 2m ago → …) without user interaction.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => n + 1), 20_000);
+    return () => clearInterval(t);
+  }, []);
+  const draftSavedLabel = context?.draftUpdatedAt ? timeAgo(context.draftUpdatedAt) : "";
+
   // Publish is enabled ONLY when there is something to publish:
   //   • draft edits that are not in a version yet, OR
   //   • a saved version that production is not running, OR
@@ -449,42 +461,59 @@ function AgentNavbar({ context, loading }: {
   }
 
   return (
-    <div className="px-4 py-4 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">{name}</h1>
-            {context && (
-              <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 font-medium">
-                  <GitBranch className="h-3 w-3" /> Main
-                </span>
-                <span className="font-medium text-foreground/80">v{currentVersion?.versionNumber ?? 1}</span>
-                {draftEditedSinceVersion && <VersionBadge tone="warning">Draft changes</VersionBadge>}
-                {deployment ? (
-                  <VersionBadge tone="success">Published v{deployment.versionNumber}</VersionBadge>
-                ) : (
-                  <VersionBadge tone="muted">Not published</VersionBadge>
-                )}
-              </span>
-            )}
-          </div>
-          {context?.draftUpdatedAt && (
-            <p className="mt-1 text-[11px] text-muted-foreground/60">
-              Draft saved {timeAgo(context.draftUpdatedAt)}
-              {deployment && currentVersion && deployment.versionNumber !== currentVersion.versionNumber
-                ? " · production runs an earlier version"
-                : ""}
-            </p>
-          )}
-        </div>
+    <div className="px-4 py-3 sm:px-6 lg:px-8">
+      {/* ONE navbar (per the ElevenLabs mock): identity + section tabs on the
+          left, the version/draft cluster and the deploy actions on the right.
+          Everything about the open agent lives on this single bar — the
+          sidebar only carries the agents list for switching agents. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="max-w-[10rem] truncate text-base font-semibold tracking-tight text-foreground sm:max-w-[16rem]" title={name}>
+          {name}
+        </h1>
 
-        {/* One-click deploy actions. Preview opens the DEDICATED published
-            preview page in a new tab (session-authenticated — no embed /
-            Deploy API key involved). Publish stays disabled while production
-            is up to date. Deep history lives in Versions/branches, so there
-            is no History button in this public bar. */}
-        <div className="flex shrink-0 items-center gap-2">
+        <nav className="flex flex-wrap items-center gap-0.5" aria-label="Agent sections">
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}`} exact>Overview</NavbarTab>
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/config`}>Main</NavbarTab>
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/faq`}>FAQ</NavbarTab>
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/knowledge`}>Knowledge</NavbarTab>
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/tools`}>Tools</NavbarTab>
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/versions`}>Branches</NavbarTab>
+          <NavbarTab href={`/orgs/${orgId}/agents/${agentId}/publish`}>Publish</NavbarTab>
+        </nav>
+
+        <div className="ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          {context && (
+            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 font-medium">
+                <GitBranch className="h-3 w-3" /> Main
+              </span>
+              <span className="font-medium text-foreground/80">v{currentVersion?.versionNumber ?? 1}</span>
+              {draftEditedSinceVersion && <VersionBadge tone="warning">Draft changes</VersionBadge>}
+              {deployment ? (
+                <VersionBadge tone="success">Published v{deployment.versionNumber}</VersionBadge>
+              ) : (
+                <VersionBadge tone="muted">Not published</VersionBadge>
+              )}
+              {context.draftUpdatedAt && (
+                <span className="hidden items-center gap-1 text-[11px] text-muted-foreground/70 lg:inline-flex">
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      "bg-emerald-500",
+                    )}
+                    aria-hidden
+                  />
+                  Draft saved {draftSavedLabel}
+                </span>
+              )}
+            </span>
+          )}
+
+          {/* One-click deploy actions. Preview opens the DEDICATED published
+              preview page in a new tab (session-authenticated — no embed /
+              Deploy API key involved). Publish stays disabled while production
+              is up to date. Deep history lives in Versions/branches, so there
+              is no History button in this public bar. */}
           <WorkspaceButton
             variant="secondary"
             onClick={() => window.open(`/preview/agents/${agentId}`, "_blank", "noopener")}
@@ -548,6 +577,26 @@ function AgentNavbar({ context, loading }: {
         </div>
       )}
     </div>
+  );
+}
+
+/** Compact navbar section tab — the ONE place agent sections are linked. */
+function NavbarTab({ href, exact, children }: { href: string; exact?: boolean; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+      )}
+    >
+      {children}
+    </Link>
   );
 }
 

@@ -8,9 +8,11 @@
  * assistant, version history, diffs).
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { timeAgoShort } from "@/hooks/use-auto-save";
 import type { DiffFieldChangeDTO, ProviderHealthStatus } from "@/modules/admin-ui/ai-platform-api";
 
 // ─── Status primitives ────────────────────────────────────────────────────────
@@ -287,4 +289,71 @@ export function timeAgo(iso: string | null): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+// ─── Auto-save status chip ────────────────────────────────────────────────────
+
+/** Compact auto-save indicator (platform "no Save button" policy): renders
+ *  the shared status copy — Saving… / Saved just now / Save failed — and
+ *  re-renders on a slow tick so relative labels age naturally. */
+export function AutoSaveChip({
+  status,
+  savedAt,
+  className,
+}: {
+  status: "idle" | "pending" | "saving" | "saved" | "error";
+  savedAt: Date | null;
+  className?: string;
+}) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 20_000);
+    return () => clearInterval(t);
+  }, []);
+  void tick;
+
+  const label =
+    status === "pending"
+      ? "Unsaved edits"
+      : status === "saving"
+        ? "Saving…"
+        : status === "saved"
+          ? savedAt
+            ? `Draft saved ${timeAgoShort(savedAt)}`
+            : "Draft saved"
+          : status === "error"
+            ? "Save failed — edits kept"
+            : "All changes saved";
+
+  const tone =
+    status === "error"
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : status === "saved"
+        ? "border-emerald-600/25 bg-emerald-500/10 text-emerald-600"
+        : status === "saving"
+          ? "border-primary/25 bg-primary/5 text-primary"
+          : "border-border bg-muted/40 text-muted-foreground";
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium",
+        tone,
+        className,
+      )}
+      role="status"
+    >
+      {status === "saving" ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            status === "error" ? "bg-destructive" : status === "saved" ? "bg-emerald-500" : "bg-muted-foreground/50",
+          )}
+          aria-hidden
+        />
+      )}
+      {label}
+    </span>
+  );
 }

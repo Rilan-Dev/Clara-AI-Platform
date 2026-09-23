@@ -15,7 +15,7 @@
  * variant="default" → classic tabbed layout (platform defaults, other
  *                     consumers) — unchanged.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +36,8 @@ import {
 } from "lucide-react";
 import { SystemPromptPreview } from "./SystemPromptPreview";
 import { LanguageSelect, LanguageMultiSelect } from "./LanguagePicker";
-import { ContextDrawer } from "./ai-platform/shared";
+import { AutoSaveChip, ContextDrawer } from "./ai-platform/shared";
+import { useAutoSave } from "@/hooks/use-auto-save";
 import type { AssistantConfig } from "@/modules/admin-ui/api";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,9 @@ type Props = {
    *  the organisation's selected Realtime Voice provider — change that
    *  provider in the AI runtime configuration and the list updates). */
   voiceCatalog?: ProviderVoiceCatalog | null;
+  /** Read-only surface (platform admin viewing an org agent): mutations are
+   *  ignored and the auto-save pipeline is disabled. */
+  readOnly?: boolean;
 };
 
 /** Provider-synced voice catalog — supplied by the agent workspace screen. */
@@ -95,10 +99,9 @@ export function ConfigEditor({
   llmSummary,
   onOpenAISettings,
   voiceCatalog: providerVoiceCatalog,
+  readOnly = false,
 }: Props) {
   const [cfg, setCfg] = useState<AssistantConfig>(initial);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newRule, setNewRule] = useState("");
   const [activeTab, setActiveTab] = useState<"agent" | "behaviour" | "voice" | "preview">("agent");
@@ -143,7 +146,78 @@ export function ConfigEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerVoiceCatalog?.providerId, syncedVoices]);
 
-  useEffect(() => { setCfg(initial); }, [initial]);
+  // ── Auto-save (platform "no Save button" policy) ───────────────────────────
+  // The persisted projection of the editor — the exact field list the old
+  // explicit "Save Configuration" button sent. Everything else in `cfg`
+  // (id, timestamps, faqItems…) is metadata the parent owns separately.
+  const savePayload = useMemo<Partial<AssistantConfig>>(() => ({
+    assistantName: cfg.assistantName,
+    systemPrompt: cfg.systemPrompt,
+    welcomeMessage: cfg.welcomeMessage,
+    outOfScopeReply: cfg.outOfScopeReply,
+    rules: cfg.rules,
+    defaultLanguage: cfg.defaultLanguage,
+    allowedLanguages: cfg.allowedLanguages,
+    alwaysRespondIn: cfg.alwaysRespondIn,
+    voiceId: cfg.voiceId,
+    speed: cfg.speed,
+    temperature: cfg.temperature,
+    maxTokens: cfg.maxTokens,
+    citeSources: cfg.citeSources,
+    strictMode: cfg.strictMode,
+    primaryColour: cfg.primaryColour,
+    accentColour: cfg.accentColour,
+  }), [cfg]);
+
+  const persist = useCallback(
+    async (data: Partial<AssistantConfig>) => {
+      await onSave(data);
+    },
+    [onSave],
+  );
+
+  const autoSave = useAutoSave<Partial<AssistantConfig>>({
+    value: savePayload,
+    save: persist,
+    delay: 1500,
+    enabled: !readOnly,
+    onSaved: () => setError(null),
+    onError: (e) => {
+      setError(e.message);
+      toast.error("Could not save automatically", { description: e.message });
+    },
+  });
+
+  const payloadOf = useCallback((config: AssistantConfig): Partial<AssistantConfig> => ({
+    assistantName: config.assistantName,
+    systemPrompt: config.systemPrompt,
+    welcomeMessage: config.welcomeMessage,
+    outOfScopeReply: config.outOfScopeReply,
+    rules: config.rules,
+    defaultLanguage: config.defaultLanguage,
+    allowedLanguages: config.allowedLanguages,
+    alwaysRespondIn: config.alwaysRespondIn,
+    voiceId: config.voiceId,
+    speed: config.speed,
+    temperature: config.temperature,
+    maxTokens: config.maxTokens,
+    citeSources: config.citeSources,
+    strictMode: config.strictMode,
+    primaryColour: config.primaryColour,
+    accentColour: config.accentColour,
+  }), []);
+
+  // Echo-guarded external reset: accept genuine external changes (agent
+  // switch, version restore) but skip the parent's post-save echo — the
+  // refetched draft matches our own last-saved payload, and resetting would
+  // clobber in-flight typing (cursor jumps, lost keystrokes).
+  useEffect(() => {
+    if (autoSave.baselineMatches(payloadOf(initial))) return;
+    setCfg(initial);
+    autoSave.resetBaseline(payloadOf(initial));
+    // `initial` identity is the trigger; payloadOf/autoSave are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
 
   // The voice catalog is needed on mount in the agent variant (right-column
   // Voices card) and on Voice-tab entry in the default variant.
@@ -191,53 +265,19 @@ export function ConfigEditor({
     }
   }, []);
 
-  const set = <K extends keyof AssistantConfig>(key: K, value: AssistantConfig[K]) => {
+  const set = useCallback(<K extends keyof AssistantConfig>(key: K, value: AssistantConfig[K]) => {
+    if (readOnly) return; // read-only viewers never mutate the draft
     setCfg((c) => ({ ...c, [key]: value }));
-    setSaved(false);
-  };
+  }, [readOnly]);
 
   const addRule = useCallback(() => {
     const r = newRule.trim();
     if (!r) return;
     set("rules", [...cfg.rules, r]);
     setNewRule("");
-  }, [newRule, cfg.rules]);
+  }, [newRule, cfg.rules, set]);
 
   const removeRule = (i: number) => set("rules", cfg.rules.filter((_, idx) => idx !== i));
-
-  const save = useCallback(async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await onSave({
-        assistantName: cfg.assistantName,
-        systemPrompt: cfg.systemPrompt,
-        welcomeMessage: cfg.welcomeMessage,
-        outOfScopeReply: cfg.outOfScopeReply,
-        rules: cfg.rules,
-        defaultLanguage: cfg.defaultLanguage,
-        allowedLanguages: cfg.allowedLanguages,
-        alwaysRespondIn: cfg.alwaysRespondIn,
-        voiceId: cfg.voiceId,
-        speed: cfg.speed,
-        temperature: cfg.temperature,
-        maxTokens: cfg.maxTokens,
-        citeSources: cfg.citeSources,
-        strictMode: cfg.strictMode,
-        primaryColour: cfg.primaryColour,
-        accentColour: cfg.accentColour,
-      });
-      setSaved(true);
-      toast.success("Saved assistant configuration", { description: `${cfg.assistantName} is ready for the next chat and voice session.` });
-      setTimeout(() => setSaved(false), 2500);
-    } catch (e) {
-      const message = (e as Error).message;
-      setError(message);
-      toast.error("Could not save assistant configuration", { description: message });
-    } finally {
-      setSaving(false);
-    }
-  }, [cfg, onSave]);
 
   const TABS = [
     { id: "agent", label: "Agent" },
@@ -384,6 +424,11 @@ export function ConfigEditor({
                         Synced
                       </span>
                     )}
+                    {(providerVoiceCatalog?.voices.length ?? voiceCatalog?.voices.length ?? 0) > 0 && (
+                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {providerVoiceCatalog?.voices.length ?? voiceCatalog?.voices.length} voices
+                      </span>
+                    )}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {providerVoiceCatalog
@@ -412,7 +457,9 @@ export function ConfigEditor({
                 )}
                 {providerVoiceCatalog ? (
                   syncedVoices && syncedVoices.length > 0 ? (
-                    <ul>
+                    // Fixed height + scroll: providers with large catalogs
+                    // (Sarvam exposes 20+ voices) must not blow up the card.
+                    <ul className="max-h-72 overflow-y-auto overscroll-contain">
                       {syncedVoices.map((v) => {
                         const selected = cfg.voiceId === v.id;
                         return (
@@ -476,7 +523,7 @@ export function ConfigEditor({
                       </div>
                     )}
                     {voiceCatalog && (
-                      <ul>
+                      <ul className="max-h-72 overflow-y-auto overscroll-contain">
                         {voiceCatalog.voices.map((v) => {
                           const selected = cfg.voiceId === v.id;
                           return (
@@ -810,14 +857,21 @@ export function ConfigEditor({
           </aside>
         </div>
 
-        {/* Save bar */}
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3 shadow-sm">
-          <div className="text-sm">
-            {error && <span className="text-destructive">{error}</span>}
-            {saved && <span className="text-emerald-600">Saved successfully</span>}
-            {!error && !saved && <span className="text-muted-foreground">Unsaved changes</span>}
+        {/* Auto-save status bar — the draft persists itself ~1.5 s after
+            edits stop (debounced, latest-wins, validated by the endpoint).
+            There is no Save button: publishing from the workspace navbar
+            versions + publishes the current draft in one click. */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-5 py-2.5 shadow-sm">
+          <div className="min-w-0 text-xs">
+            {error ? (
+              <span className="text-destructive">{error}</span>
+            ) : (
+              <span className="text-muted-foreground">
+                Edits save automatically into the draft — publish from the header when ready.
+              </span>
+            )}
           </div>
-          <Button onClick={save} disabled={saving} variant="default" size="default">{saving ? "Saving…" : "Save Configuration"}</Button>
+          <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
         </div>
 
         {/* System prompt preview canvas */}
@@ -1036,7 +1090,18 @@ export function ConfigEditor({
 
       {activeTab === "preview" && <div className="space-y-4"><p className="text-sm text-muted-foreground">This is the system prompt that will be sent to the AI on every session.</p><SystemPromptPreview config={cfg} contextName={contextName} /></div>}
 
-      <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3 shadow-soft"><div className="text-sm">{error && <span className="text-destructive">{error}</span>}{saved && <span className="text-success">✓ Saved successfully</span>}{!error && !saved && <span className="text-muted-foreground">Unsaved changes</span>}</div><Button onClick={save} disabled={saving} variant="default" size="default">{saving ? "Saving…" : "Save Configuration"}</Button></div>
+      {/* Auto-save status bar (no Save button — same policy as the agent
+          variant: the draft persists itself, publishing is one click). */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-5 py-2.5 shadow-soft">
+        <div className="min-w-0 text-xs">
+          {error ? (
+            <span className="text-destructive">{error}</span>
+          ) : (
+            <span className="text-muted-foreground">Edits save automatically into the draft.</span>
+          )}
+        </div>
+        <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
+      </div>
     </div>
   );
 }

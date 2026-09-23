@@ -19,7 +19,7 @@
  * header. Platform admins get the same read-only view as before.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
@@ -33,10 +33,12 @@ import {
   type AICapability,
 } from "@/modules/admin-ui/ai-platform-api";
 import type { AssistantConfig } from "@/modules/admin-ui/api";
+import { toast } from "@/components/ui/sonner";
 import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
-import { WorkspaceButton, VersionBadge, timeAgo } from "@/components/admin/ai-platform/shared";
+import { AutoSaveChip, WorkspaceButton, VersionBadge, timeAgo } from "@/components/admin/ai-platform/shared";
+import { useAutoSave } from "@/hooks/use-auto-save";
 
 export default function AgentAssistantAIScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
@@ -48,12 +50,26 @@ export default function AgentAssistantAIScreen() {
   const [options, setOptions] = useState<Partial<Record<AICapability, AgentAIOptionsDTO | null>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [versionSummary, setVersionSummary] = useState("");
+  const [savingVersion, setSavingVersion] = useState(false);
   // Lifted realtime provider selection — drives the ConfigEditor voice list so
   // picking a provider here instantly syncs the voices over there.
   const [realtimeProviderId, setRealtimeProviderId] = useState<string | null>(null);
+
+  // ── Draft write safety ────────────────────────────────────────────────────
+  // Auto-save fires from several editors on this screen (persona fields + AI
+  // selection). Two guards keep them coherent:
+  //   • draftRef — every save builds from the FRESHEST draft, not a stale
+  //     React closure, so one save never reverts another's fields.
+  //   • a serialized write queue — draft PUTs never interleave.
+  const draftRef = useRef<AgentDraftDTO | null>(null);
+  draftRef.current = draft;
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const enqueueDraftSave = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
+    const run = saveQueueRef.current.then(fn, fn);
+    saveQueueRef.current = run.catch(() => undefined);
+    return run;
+  }, []);
 
   const { kbs } = useKbs(agentId);
   const previewKb = kbs[0];
@@ -70,6 +86,7 @@ export default function AgentAssistantAIScreen() {
         fetchAgentAIOptions(agentId, "realtime_voice").catch(() => null),
       ]);
       setDraft(draftResult);
+      draftRef.current = draftResult;
       setOptions({ chat, voice_chat: voice, realtime_voice: realtime });
       setRealtimeProviderId((prev) => prev ?? draftResult.configuration.ai?.realtimeVoiceProvider ?? null);
     } catch (err) {
@@ -100,58 +117,52 @@ export default function AgentAssistantAIScreen() {
 
   const saveDraft = useCallback(
     async (data: Partial<AssistantConfig>): Promise<AssistantConfig> => {
-      if (!draft || !configValue) throw new Error("Draft not loaded");
-      const next = {
-        ...draft.configuration,
-        assistant: { ...draft.configuration.assistant, ...data } as AgentDraftDTO["configuration"]["assistant"],
-      };
-      setSaving(true);
-      try {
+      if (!configValue) throw new Error("Draft not loaded");
+      return enqueueDraftSave(async () => {
+        const current = draftRef.current;
+        if (!current) throw new Error("Draft not loaded");
+        const next = {
+          ...current.configuration,
+          assistant: { ...current.configuration.assistant, ...data } as AgentDraftDTO["configuration"]["assistant"],
+        };
         const saved = await putAgentDraft(agentId, next);
+        draftRef.current = saved;
         setDraft(saved);
-        setMessage(`Draft saved ${new Date().toLocaleTimeString()}`);
         void refetchCtx();
         return { ...configValue, ...data };
-      } finally {
-        setSaving(false);
-      }
+      });
     },
-    [draft, configValue, agentId, refetchCtx],
+    [configValue, agentId, refetchCtx, enqueueDraftSave],
   );
 
   const saveAISelection = useCallback(
     async (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => {
-      if (!draft) return;
-      setSaving(true);
-      try {
+      return enqueueDraftSave(async () => {
+        const current = draftRef.current;
+        if (!current) throw new Error("Draft not loaded");
         const saved = await putAgentDraft(agentId, {
-          ...draft.configuration,
+          ...current.configuration,
           ai,
-          runtime: runtime ?? draft.configuration.runtime,
+          runtime: runtime ?? current.configuration.runtime,
         });
+        draftRef.current = saved;
         setDraft(saved);
-        setMessage(`Draft saved ${new Date().toLocaleTimeString()}`);
         void refetchCtx();
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setSaving(false);
-      }
+      });
     },
-    [draft, agentId, refetchCtx],
+    [agentId, refetchCtx, enqueueDraftSave],
   );
 
   const saveVersion = useCallback(async () => {
-    setSaving(true);
+    setSavingVersion(true);
     try {
       await saveAgentVersion(agentId, versionSummary.trim() || null);
       setVersionSummary("");
-      setMessage(`Version created — review it in History, then publish.`);
       void refetchCtx();
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setSaving(false);
+      setSavingVersion(false);
     }
   }, [agentId, versionSummary, refetchCtx]);
 
@@ -214,7 +225,8 @@ export default function AgentAssistantAIScreen() {
         <p className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
       )}
 
-      {/* Explicit draft state (§24) */}
+      {/* Explicit draft state (§24) — edits auto-save; versions/publishing
+          remain explicit actions (Save version / one-click Publish). */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -224,7 +236,7 @@ export default function AgentAssistantAIScreen() {
             )}
           </p>
           <p className="mt-1 text-xs text-muted-foreground/70">
-            {draft ? `Saved ${timeAgo(draft.updatedAt)} — edits never touch production until you save a version and publish it.` : "…"}
+            {draft ? `Saved ${timeAgo(draft.updatedAt)} — edits auto-save into the draft and never touch production until you publish.` : "…"}
           </p>
         </div>
         {!isAdmin && (
@@ -235,17 +247,13 @@ export default function AgentAssistantAIScreen() {
               placeholder="Change summary (optional)"
               className="w-52 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40"
             />
-            <WorkspaceButton variant="primary" onClick={saveVersion} disabled={saving || !draft}>
+            <WorkspaceButton variant="primary" onClick={saveVersion} disabled={savingVersion || !draft}>
               Save version
             </WorkspaceButton>
             {previewKb && <VoicePreviewButton kbId={previewKb.id} kbName={previewKb.name} />}
           </div>
         )}
       </div>
-
-      {message && (
-        <p className="mb-5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs text-primary">{message}</p>
-      )}
 
       <div className="space-y-6">
         {/* Agent editor first (ElevenLabs "Agent" page): system prompt +
@@ -256,7 +264,7 @@ export default function AgentAssistantAIScreen() {
               <p className="mb-4 text-sm text-muted-foreground">
                 Platform admins can view assistant behavior but cannot edit it.
               </p>
-              <ConfigEditor config={configValue} contextName={context?.agent.name ?? "this agent"} onSave={async () => configValue} />
+              <ConfigEditor config={configValue} contextName={context?.agent.name ?? "this agent"} onSave={async () => configValue} readOnly />
             </div>
           ) : (
             <ConfigEditor
@@ -318,7 +326,7 @@ function AISelectionCard({
 }: {
   draft: AgentDraftDTO | null;
   options: Partial<Record<AICapability, AgentAIOptionsDTO | null>>;
-  onSave: (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => void;
+  onSave: (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => Promise<void>;
   previewKbId?: string;
   /** Lifted realtime provider selection — keeps the ConfigEditor Voices card
    *  synced with the provider picked here, even before the draft is saved. */
@@ -329,9 +337,34 @@ function AISelectionCard({
   const [runtime, setRuntime] = useState(draft?.configuration.runtime ?? null);
   const [surface, setSurface] = useState<AICapability>("chat");
 
+  // ── Auto-save (no Save button): the AI selection persists ~0.8 s after a
+  //    pick — these are discrete selects/sliders, so a shorter debounce than
+  //    the free-text editor is right. Latest-wins, echo-guarded below.
+  const selection = useMemo(
+    () => ({ ai: ai ?? emptyAI(), runtime }),
+    [ai, runtime],
+  );
+
+  const autoSave = useAutoSave({
+    value: selection,
+    save: async (value) => {
+      await onSave(value.ai, value.runtime ?? undefined);
+    },
+    delay: 800,
+    enabled: Boolean(draft),
+    onError: (e) =>
+      toast.error("Could not save the AI selection", { description: e.message }),
+  });
+
+  // Echo-guarded external reset — skip the parent's post-save echo so a
+  // provider pick typed while a save is in flight is never reverted.
   useEffect(() => {
+    const incoming = { ai: draft?.configuration.ai ?? emptyAI(), runtime: draft?.configuration.runtime ?? null };
+    if (autoSave.baselineMatches(incoming)) return;
     setAi(draft?.configuration.ai ?? null);
     setRuntime(draft?.configuration.runtime ?? null);
+    autoSave.resetBaseline(incoming);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.configuration.ai, draft?.configuration.runtime]);
 
   const chat = options.chat;
@@ -504,10 +537,13 @@ function AISelectionCard({
         </div>
       </div>
 
-      <div className="mt-5 flex justify-end border-t border-border/60 pt-4">
-        <WorkspaceButton variant="primary" onClick={() => onSave(ai, runtime)} disabled={!ai && !runtime}>
-          Save AI selection to draft
-        </WorkspaceButton>
+      {/* Auto-save footer — provider/model picks persist ~0.8 s after the
+          change; publishing remains the explicit action in the header. */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4">
+        <p className="text-[11px] text-muted-foreground/70">
+          Selections save automatically into the draft — publish from the header when ready.
+        </p>
+        <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
       </div>
     </section>
   );

@@ -21,6 +21,16 @@ export type UpdateKbInput  = Partial<Pick<CreateKbInput, "name" | "description">
 
 // ── Assistant Config ──────────────────────────────────────────────────────────
 
+/** Managed FAQ entry — injected into the system prompt as a canonical Q/A
+ *  block (ElevenLabs-style FAQ tab). Stored on the assistant config so it
+ *  flows through the draft → version → publish pipeline like every other
+ *  persona field. */
+export type FaqItem = {
+  id: string;
+  question: string;
+  answer: string;
+};
+
 export type AssistantConfig = {
   id: string;
   agentId: string;
@@ -34,6 +44,9 @@ export type AssistantConfig = {
   welcomeMessage: string;
   outOfScopeReply: string;
   rules: string[];
+
+  // FAQ (managed canonical Q/A — injected into the system prompt)
+  faqItems?: FaqItem[];
 
   // Language
   defaultLanguage: string;

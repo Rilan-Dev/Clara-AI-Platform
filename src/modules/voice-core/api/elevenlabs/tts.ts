@@ -118,7 +118,8 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     // Cached for 5 s — this route fires per sentence, and the resolution walk
     // (~8 DB round trips) otherwise dominates the latency budget of every
     // short-sentence call (see ELEVENLABS_REALTIME_STREAMING_PLAN.md).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "voice_chat" });
+    // Realtime axis to match the session bootstrap (see session.ts).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
     if (

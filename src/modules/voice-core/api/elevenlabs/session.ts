@@ -95,7 +95,14 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
       }
     }
 
-    const resolved = await resolveVoiceConfig({ kbId, surface: "voice_chat" });
+    // Realtime-axis resolution: every consumer of this pipeline (the voice
+    // modal via /api/voice/provider → useElevenLabsVoice, embed surfaces via
+    // /api/embed/session) routes on the REALTIME purpose axis, so the session
+    // must resolve on the same axis. Resolving on "voice_chat" starved the
+    // ElevenLabs arm for orgs that pin realtime=elevenlabs while voice-chat
+    // runs another provider (the guard accepted both axes, but the resolver
+    // only populated the arm for the surface's own axis → 409).
+    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
     // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
     // as the chat-window voice-chat experience) or the realtime axis (Mode A
     // as the fallback when a realtime=elevenlabs config has no Mode-B

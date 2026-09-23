@@ -6,8 +6,8 @@ import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
-  MoreHorizontal, X, Palette, GitBranch, ArrowLeft,
-  BookOpen, Plus, Rocket, Wrench,
+  MoreHorizontal, X, Palette, ArrowLeft,
+  Plus, Rocket,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
@@ -66,28 +66,9 @@ function orgWorkspaceNav(orgId: string) {
   ];
 }
 
-function agentWorkspaceNav(orgId: string, agentId: string) {
-  const base = `/orgs/${orgId}/agents/${agentId}`;
-  return [
-    { href: base, icon: LayoutDashboard, label: "Overview", exact: true },
-    { href: `${base}/config`, icon: Bot, label: "Agent", exact: false },
-    { href: `${base}/knowledge`, icon: BookOpen, label: "Knowledge", exact: false },
-    { href: `${base}/tools`, icon: Wrench, label: "Tools", exact: false },
-    { href: `${base}/versions`, icon: GitBranch, label: "Branches", exact: false },
-    { href: `${base}/publish`, icon: Rocket, label: "Publish", exact: false },
-  ];
-}
-
-/** Sidebar groups shown while an agent is open (ElevenLabs layout:
- * Overview / Configure / Deploy). */
-function agentWorkspaceNavGroups(orgId: string, agentId: string) {
-  const items = agentWorkspaceNav(orgId, agentId);
-  return [
-    { label: "Overview", items: items.slice(0, 1) },
-    { label: "Configure", items: items.slice(1, 5) },
-    { label: "Deploy", items: items.slice(5) },
-  ];
-}
+/** Agent workspace sections render in the workspace NAVBAR (one bar per the
+ * ElevenLabs mock) — see workspace-shell.tsx. The sidebar only carries agent
+ * switching (identity + the org's agents list). */
 
 // Routes only accessible to super-admins — org users are redirected away from these
 const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics", "/system-status"];
@@ -213,9 +194,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const agentRoute = pathname.match(/^\/orgs\/([^/]+)\/agents\/([^/]+)/);
   const activeAgentOrgId = agentRoute?.[1] ?? null;
   const activeAgentId = agentRoute?.[2] ?? null;
-  const agentNavGroups = activeAgentOrgId && activeAgentId
-    ? agentWorkspaceNavGroups(activeAgentOrgId, activeAgentId)
-    : [];
   const onAgentsIndex =
     !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
   const nav = isAdmin ? ADMIN_NAV : orgNav;
@@ -303,8 +281,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
 
-          {/* Agent workspace navigation lives in this same sidebar. The
-              separate nested agent sidebar was removed to preserve content width. */}
+          {/* Agent workspace navigation lives in the workspace NAVBAR (one
+              bar: identity + tabs + version cluster + Preview/Publish — the
+              ElevenLabs mock). The sidebar only carries agent switching:
+              the back link + identity + the org's agents list. */}
           {!isAdmin && activeAgentId && activeAgentOrgId && (
             <div className="mt-3 border-t border-border/70 pt-3">
               <Link
@@ -317,37 +297,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
               {/* Agent identity — name + active branch, links to Branches. */}
               <AgentSidebarIdentity orgId={activeAgentOrgId} agentId={activeAgentId} />
-
-              {agentNavGroups.map((group) => (
-                <div key={group.label} className="mt-2">
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    {group.label}
-                  </p>
-                  <div className="space-y-0.5">
-                    {group.items.map((item) => {
-                      const active = item.exact
-                        ? pathname === item.href
-                        : pathname === item.href || pathname.startsWith(item.href + "/");
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                            active
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
-                          }`}
-                        >
-                          <item.icon className="w-4 h-4 shrink-0" />
-                          <span className="truncate">{item.label}</span>
-                          {active && <ChevronRight className="w-3 h-3 ml-auto text-primary" />}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
             </div>
           )}
 

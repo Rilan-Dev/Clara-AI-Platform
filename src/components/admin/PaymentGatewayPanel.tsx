@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CreditCard, Eye, EyeOff, Save, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import { CreditCard, Eye, EyeOff, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
@@ -43,21 +43,31 @@ const MASK = "●●●●●●●●";
 
 /* ── helpers ─────────────────────────────────────────────────────────────────── */
 
-async function saveSetting(key: string, value: string): Promise<void> {
+function validateSetting(key: string, value: string): string | null {
   const normalizedValue = value.trim();
 
   // Keep credentials deterministic: accidental leading/trailing whitespace must
   // never reach Stripe/Razorpay and produce a misleading "invalid API key" error.
-  if (key === "STRIPE_SECRET_KEY" && !/^sk_(test|live)_[A-Za-z0-9]+$/.test(normalizedValue)) {
-    throw new Error("Invalid Stripe secret key format. Use the server-side sk_test_… or sk_live_… key from Stripe.");
+  // Empty values pass here (clearing a field is a legal save once configured).
+  if (key === "STRIPE_SECRET_KEY" && normalizedValue && !/^sk_(test|live)_[A-Za-z0-9]+$/.test(normalizedValue)) {
+    return "Invalid Stripe secret key format. Use the server-side sk_test_… or sk_live_… key from Stripe.";
   }
-  if (key === "STRIPE_WEBHOOK_SECRET" && !/^whsec_[A-Za-z0-9]+$/.test(normalizedValue)) {
-    throw new Error("Invalid Stripe webhook secret format. Use the whsec_… signing secret from Stripe Webhooks.");
+  if (key === "STRIPE_WEBHOOK_SECRET" && normalizedValue && !/^whsec_[A-Za-z0-9]+$/.test(normalizedValue)) {
+    return "Invalid Stripe webhook secret format. Use the whsec_… signing secret from Stripe Webhooks.";
   }
   if (key.startsWith("STRIPE_PRICE_") && normalizedValue && !/^price_[A-Za-z0-9]+$/.test(normalizedValue)) {
-    throw new Error("Invalid Stripe Price ID format. Use a price_… ID from the same Stripe account/mode.");
+    return "Invalid Stripe Price ID format. Use a price_… ID from the same Stripe account/mode.";
   }
+  return null;
+}
 
+async function saveSetting(key: string, value: string): Promise<void> {
+  const normalizedValue = value.trim();
+  const invalid = validateSetting(key, normalizedValue);
+  if (invalid) throw new Error(invalid);
+
+  // Keep credentials deterministic: accidental leading/trailing whitespace must
+  // never reach Stripe/Razorpay and produce a misleading "invalid API key" error.
   // Step 1: get HMAC confirmation token
   const tokenRes = await fetch(
     apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(normalizedValue)}`),
@@ -87,9 +97,11 @@ export function PaymentGatewayPanel() {
   const [settings, setSettings] = useState<EnvSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [initialValues, setInitialValues] = useState<Record<string, string>>({});
   const [visibility, setVisibility] = useState<Record<string, boolean>>({});
-  const [saving, setSaving] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
+  const [savedAll, setSavedAll] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [gateway, setGateway] = useState<"stripe" | "razorpay">("stripe");
 
@@ -108,6 +120,7 @@ export function PaymentGatewayPanel() {
         init[s.key] = s.isSecret ? "" : (s.value === MASK ? "" : s.value);
       }
       setValues(init);
+      setInitialValues(init);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -119,20 +132,44 @@ export function PaymentGatewayPanel() {
 
   const getSetting = (key: string) => settings.find(s => s.key === key);
 
-  const handleSave = async (key: string) => {
-    const val = values[key] ?? "";
-    setSaving(key);
+  const ALL_FIELDS = [...STRIPE_FIELDS, ...RAZORPAY_FIELDS, ...GENERAL_FIELDS];
+
+  /** Dirty keys — a blank secret is "unchanged" (masked server-side). */
+  const dirtyKeys = ALL_FIELDS.filter((f) => {
+    const val = values[f.key] ?? "";
+    if (f.isSecret && !val) return false;
+    return val !== (initialValues[f.key] ?? "");
+  });
+
+  /** ONE save for the whole form: validate every dirty field, then persist
+   *  them sequentially through the two-step HMAC env flow. */
+  const handleSaveAll = async () => {
+    if (dirtyKeys.length === 0 || savingAll) return;
+    const errors: Record<string, string> = {};
+    for (const f of dirtyKeys) {
+      const invalid = validateSetting(f.key, values[f.key] ?? "");
+      if (invalid) errors[f.key] = invalid;
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError("Fix the highlighted fields before saving.");
+      return;
+    }
+    setSavingAll(true);
     setError(null);
-    setSaved(null);
+    setSavedAll(false);
     try {
-      await saveSetting(key, val);
-      setSaved(key);
-      setTimeout(() => setSaved(null), 3000);
+      for (const f of dirtyKeys) {
+        await saveSetting(f.key, values[f.key] ?? "");
+      }
+      setSavedAll(true);
+      setFieldErrors({});
+      setTimeout(() => setSavedAll(false), 3000);
       await load();
     } catch (e) {
-      setError(`Failed to save ${key}: ${(e as Error).message}`);
+      setError(`Failed to save: ${(e as Error).message}`);
     } finally {
-      setSaving(null);
+      setSavingAll(false);
     }
   };
 
@@ -173,7 +210,11 @@ export function PaymentGatewayPanel() {
             value={value}
             onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
             placeholder={field.placeholder}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-20"
+            className={`w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-10 ${
+              fieldErrors[field.key]
+                ? "border-destructive/60 focus:border-destructive focus:ring-destructive/30"
+                : "border-input focus:border-primary/50"
+            }`}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {field.isSecret && (
@@ -185,27 +226,14 @@ export function PaymentGatewayPanel() {
                 {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleSave(field.key)}
-              disabled={saving === field.key || !value}
-              className="h-7 px-2 text-xs"
-            >
-              {saving === field.key ? (
-                <span className="animate-spin">⏳</span>
-              ) : saved === field.key ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-            </Button>
           </div>
         </div>
 
-        {field.helpText && (
+        {fieldErrors[field.key] ? (
+          <p className="text-xs text-destructive">{fieldErrors[field.key]}</p>
+        ) : field.helpText ? (
           <p className="text-xs text-muted-foreground/70">{field.helpText}</p>
-        )}
+        ) : null}
       </div>
     );
   };
@@ -220,7 +248,7 @@ export function PaymentGatewayPanel() {
         <div>
           <h2 className="font-semibold text-foreground">Payment Gateway Configuration</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Configure Stripe (USD) and Razorpay (INR) credentials. Changes take effect immediately — no restart required.
+            Configure Stripe (USD) and Razorpay (INR) credentials. Fill in everything, then save once — changes take effect immediately, no restart required.
           </p>
         </div>
       </div>
@@ -297,6 +325,38 @@ export function PaymentGatewayPanel() {
       <div className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-sm">
         <h3 className="text-sm font-semibold text-muted-foreground">General</h3>
         {GENERAL_FIELDS.map(renderField)}
+      </div>
+
+      {/* ONE form-level Save — enter everything, review, save once.
+          Per-input save icons are deliberately gone (platform save policy). */}
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-5 py-3 shadow-lg backdrop-blur">
+        <p className="text-xs text-muted-foreground">
+          {savingAll
+            ? "Saving…"
+            : savedAll
+              ? "All changes saved."
+              : dirtyKeys.length > 0
+                ? `${dirtyKeys.length} unsaved ${dirtyKeys.length === 1 ? "change" : "changes"} — review the highlighted fields, then save once.`
+                : "No pending changes across Stripe, Razorpay and General."}
+        </p>
+        <Button
+          onClick={() => void handleSaveAll()}
+          disabled={dirtyKeys.length === 0 || savingAll}
+          className="shrink-0"
+        >
+          {savingAll ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : savedAll ? (
+            <CheckCircle2 className="w-4 h-4" />
+          ) : null}
+          {savingAll
+            ? "Saving…"
+            : savedAll
+              ? "Saved"
+              : dirtyKeys.length === 1
+                ? "Save 1 change"
+                : `Save ${dirtyKeys.length} changes`}
+        </Button>
       </div>
 
       {/* Info notice */}

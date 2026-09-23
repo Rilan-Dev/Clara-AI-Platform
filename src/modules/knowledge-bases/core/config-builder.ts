@@ -23,6 +23,20 @@ ${config.welcomeMessage.trim()}`);
   else parts.push("IMPORTANT: You MUST answer using the retrieved knowledge-base context provided above. Do not answer factual policy questions from general knowledge. Treat a broad or naturally worded question as in-scope when the retrieved passages contain related facts. Synthesize the relevant passages instead of refusing merely because there is no exact phrase match. For broad questions that match multiple products or coverage areas, ALWAYS give a useful summary of the relevant retrieved facts FIRST. Do not ask the user to choose a policy type before answering. A follow-up question may be offered only AFTER the answer if it would help narrow the discussion. Never fabricate information that is not present in the retrieved context.");
   if (config.rules.length > 0) { parts.push("Behaviour rules — follow these strictly:"); config.rules.forEach((rule, index) => parts.push(`  ${index + 1}. ${rule}`)); }
 
+  // Managed FAQ (ElevenLabs-style FAQ tab): canonical Q/A pairs ride the
+  // assistant config and are injected as a grounded block the assistant
+  // should reuse verbatim when the visitor's question matches.
+  const faqItems = config.faqItems ?? [];
+  if (faqItems.length > 0) {
+    const faqBlock = faqItems
+      .map((item, index) => `  Q${index + 1}: ${item.question.trim()}\n  A${index + 1}: ${item.answer.trim()}`)
+      .join("\n");
+    parts.push(
+      "Frequently asked questions — when the visitor's question matches one of these (including paraphrases), answer using the canonical answer below, lightly adapted to the conversation:\n" +
+        faqBlock,
+    );
+  }
+
   const projectLanguages = [...new Set((ctx.allowedLanguages ?? []).map((language) => language.trim().toLowerCase()).filter(Boolean))];
   const hasProjectBoundary = projectLanguages.length > 0;
   const customerLanguages = hasProjectBoundary ? projectLanguages : config.allowedLanguages;
