@@ -32,6 +32,16 @@ export function SystemPromptPreview({ config, contextName }: Props) {
       lines.push("");
     }
 
+    const faqItems = config.faqItems ?? [];
+    if (faqItems.length > 0) {
+      lines.push("## Frequently Asked Questions");
+      faqItems.forEach((f) => {
+        lines.push(`Q: ${f.question}`);
+        lines.push(`A: ${f.answer}`);
+      });
+      lines.push("");
+    }
+
     lines.push("## Language Policy");
     const langName = LANG_NAMES[config.defaultLanguage] ?? config.defaultLanguage;
     if (config.alwaysRespondIn) {

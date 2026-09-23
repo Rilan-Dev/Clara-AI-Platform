@@ -94,7 +94,12 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       }
     }
 
-    const resolved = await resolveVoiceConfig({ kbId, surface: "voice_chat" });
+    // Realtime-axis resolution: every consumer of this pipeline (the voice
+    // modal via /api/voice/provider, embed surfaces via /api/embed/session)
+    // routes on the REALTIME purpose axis, so the session must resolve on the
+    // same axis. Resolving on "voice_chat" starved the Sarvam arm for orgs
+    // that pin realtime=sarvam while voice-chat runs another provider.
+    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
     const pipelineSelected =
       resolved.voiceProvider === "sarvam" || resolved.realtimeProvider === "sarvam";
     if (!pipelineSelected || !resolved.sarvam) {
@@ -102,6 +107,7 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
         {
           error: "Voice provider resolved to a non-Sarvam provider for this knowledge base.",
           provider: resolved.realtimeProvider,
+          voiceChatProvider: resolved.voiceProvider,
         },
         { status: 409 },
       );

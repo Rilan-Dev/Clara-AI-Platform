@@ -102,8 +102,9 @@ export async function postSarvamTranscribe(request: NextRequest): Promise<NextRe
     }
 
     // Server-side re-resolution — the client-suggested model/language is
-    // advisory only. Cached for 5 s (hot path fires per utterance).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "voice_chat" });
+    // advisory only. Cached for 5 s (hot path fires per utterance). Realtime
+    // axis to match the session bootstrap (see session.ts).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
     if (
       (resolved.voiceProvider !== "sarvam" && resolved.realtimeProvider !== "sarvam") ||
       !resolved.sarvam
