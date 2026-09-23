@@ -26,15 +26,13 @@ function getPgConfig() {
   return {
     connectionString: getDatabaseUrl(),
 
-    // Vercel/serverless: keep the per-instance pool at 1 by default and never
-    // allow an environment mistake such as PG_POOL_MAX=15 to recreate the
-    // Supabase session-mode exhaustion seen in production/preview.
-    //
-    // A second connection is allowed only as an explicit, bounded override
-    // after the database is configured with enough pooled capacity.
-    max: process.env.VERCEL
-      ? Math.min(2, Math.max(1, configuredMax))
-      : Math.max(1, configuredMax),
+    // Vercel/serverless instances multiply this pool across concurrent
+    // functions. Session-mode Postgres/Supabase limits are global to the
+    // database role, so even a "small" per-instance pool can exhaust the
+    // shared limit when several instances are warm at once. Keep Vercel at
+    // exactly one client per runtime; concurrent requests queue in pg instead
+    // of opening additional database sessions.
+    max: process.env.VERCEL ? 1 : Math.max(1, configuredMax),
 
     min: 0,
 
@@ -43,7 +41,7 @@ function getPgConfig() {
     // to release their connection.
     idleTimeoutMillis: 30_000,
 
-    connectionTimeoutMillis: 3_000,
+    connectionTimeoutMillis: 5_000,
     query_timeout: 8_000,
     statement_timeout: 8_000,
     keepAlive: true,

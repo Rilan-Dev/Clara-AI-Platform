@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS platform_assistant_defaults (
   welcome_message    TEXT NOT NULL DEFAULT
     'Hello! How can I help you today?',
   out_of_scope_reply TEXT NOT NULL DEFAULT
-    'I don't have enough information in the configured knowledge base to answer that accurately.',
+    'I don''t have enough information in the configured knowledge base to answer that accurately.',
   rules              JSONB NOT NULL DEFAULT '[]'::jsonb,
 
   -- Language
