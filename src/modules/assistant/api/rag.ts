@@ -22,6 +22,8 @@ type RagPayload = {
   query?: string;
   topK?: number;
   ragMode?: "classic" | "hybrid" | "agentic";
+  /** "draft" — authenticated agent preview grounds against the live draft state. */
+  scope?: "draft" | "live";
 };
 
 export async function postRagSearch(
@@ -46,6 +48,7 @@ export async function postRagSearch(
         surface: "search",
         admission,
         embeddingOverride: providerOverride,
+        ...(body.scope === "draft" ? { preferDraft: true } : {}),
       });
 
       if (!outcome.ok) {

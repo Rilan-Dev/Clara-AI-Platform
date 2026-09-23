@@ -324,7 +324,45 @@ export async function putDraft(input: {
   );
   const draft = await getDraft(input.agentId, input.branchId);
   if (!draft) throw new AgentVersioningError("Failed to save draft.", "DRAFT_SAVE_FAILED");
+  invalidateAgentDraftCache(input.agentId);
   return draft;
+}
+
+// ─── Draft resolution (authenticated preview) ─────────────────────────────────
+//
+// The dedicated preview surface (/preview/agents/:id) tests the CURRENT
+// DRAFT — persona, AI selections, runtime toggles — against the LIVE
+// knowledge base. This read-only accessor resolves the Main-branch draft
+// without creating anything, behind the same short TTL cache discipline as
+// the production version cache so per-request resolution stays cheap while
+// draft edits propagate effectively immediately (writes invalidate).
+
+export async function getAgentDraftConfig(agentId: string): Promise<AgentDraft | null> {
+  const main = await getMainBranch(agentId);
+  if (!main) return null;
+  return getDraft(agentId, main.id);
+}
+
+const DRAFT_CACHE_TTL_MS = 3_000;
+const draftCache = new Map<string, { expiresAt: number; value: AgentDraft | null }>();
+
+export async function getAgentDraftConfigCached(agentId: string): Promise<AgentDraft | null> {
+  const hit = draftCache.get(agentId);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+  const value = await getAgentDraftConfig(agentId);
+  draftCache.set(agentId, { expiresAt: Date.now() + DRAFT_CACHE_TTL_MS, value });
+  if (draftCache.size > 1024) {
+    const now = Date.now();
+    for (const [k, entry] of draftCache) {
+      if (entry.expiresAt <= now) draftCache.delete(k);
+    }
+  }
+  return value;
+}
+
+export function invalidateAgentDraftCache(agentId?: string): void {
+  if (agentId) draftCache.delete(agentId);
+  else draftCache.clear();
 }
 
 // ─── Deployments ──────────────────────────────────────────────────────────────

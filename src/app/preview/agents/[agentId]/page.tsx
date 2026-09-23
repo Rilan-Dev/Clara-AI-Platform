@@ -1,1 +1,1 @@
-export { default } from "@/features/admin/screens/agent-workspace/published-preview-screen";
+export { default } from "@/features/agent-conversation/screens/draft-preview-screen";

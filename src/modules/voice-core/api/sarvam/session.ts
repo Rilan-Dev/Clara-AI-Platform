@@ -99,7 +99,10 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
     // routes on the REALTIME purpose axis, so the session must resolve on the
     // same axis. Resolving on "voice_chat" starved the Sarvam arm for orgs
     // that pin realtime=sarvam while voice-chat runs another provider.
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
     const pipelineSelected =
       resolved.voiceProvider === "sarvam" || resolved.realtimeProvider === "sarvam";
     if (!pipelineSelected || !resolved.sarvam) {

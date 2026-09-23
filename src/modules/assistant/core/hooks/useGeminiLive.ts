@@ -44,6 +44,8 @@ type Options = {
    * platform JWT. Used only by the public embed voice widget.
    */
   embedApiKey?: string;
+  /** Draft-preview mode (agent preview): requests carry scope:"draft". */
+  draftMode?: boolean;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -562,7 +564,9 @@ export function useGeminiLive(opts?: Options) {
                 method: "POST",
                 headers,
                 body: JSON.stringify(
-                  kbIdValue ? { query: q, kbId: kbIdValue } : { query: q, documentId: docId }
+                  kbIdValue
+                    ? { query: q, kbId: kbIdValue, ...(opts?.draftMode ? { scope: "draft" } : {}) }
+                    : { query: q, documentId: docId }
                 ),
               });
               if (!res.ok) throw new Error(`RAG search HTTP ${res.status}`);
@@ -811,6 +815,7 @@ export function useGeminiLive(opts?: Options) {
     voiceGreeting,
     emitLatencyTelemetry,
     // scheduleRag / performRagAndInject intentionally absent (FIX G3/G7)
+    opts?.draftMode,
   ]);
 
   // Keep the ref current so ws.onmessage always calls the latest closure
@@ -818,7 +823,7 @@ export function useGeminiLive(opts?: Options) {
   const handleMessageRef = useRef(handleMessage);
   useEffect(() => {
     handleMessageRef.current = handleMessage;
-  }, [handleMessage]);
+  }, [handleMessage, opts?.draftMode]);
 
   // ── connect ───────────────────────────────────────────────────────────────
 
@@ -858,6 +863,7 @@ export function useGeminiLive(opts?: Options) {
           language:  languagePrefs.assistant,
           languages: languagePrefs.customer,
           ...(kbId ? { kbId } : {}),
+          ...(opts?.draftMode ? { scope: "draft" } : {}),
         }),
       });
       if (!sessRes.ok) throw new Error(await sessRes.text());
@@ -1200,6 +1206,7 @@ export function useGeminiLive(opts?: Options) {
     // flushAudio intentionally omitted: it is only used inside handleMessage
     // (via handleMessageRef) when setupComplete fires, not inside connect().
     // voiceGreeting intentionally omitted: accessed via handleMessageRef.current.
+    opts?.draftMode,
   ]);
 
   // ── disconnect ────────────────────────────────────────────────────────────

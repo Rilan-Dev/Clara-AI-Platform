@@ -59,12 +59,12 @@ type CachedEmbeddingResolution = {
 
 const groundingResolutionCache = new Map<string, CachedEmbeddingResolution>();
 
-async function resolveGroundingAIConfig(kbId: string) {
-  const key = `rag-embedding:${kbId}`;
+async function resolveGroundingAIConfig(kbId: string, preferDraft = false) {
+  const key = `rag-embedding:${kbId}|${preferDraft ? "draft" : "live"}`;
   const cached = groundingResolutionCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
-  const value = await resolveAIConfig({ kbId, surface: "rag-embedding" });
+  const value = await resolveAIConfig({ kbId, surface: "rag-embedding", preferDraft });
   groundingResolutionCache.set(key, {
     expiresAt: Date.now() + GROUNDING_RESOLUTION_CACHE_TTL_MS,
     value,
@@ -112,6 +112,12 @@ export interface GroundingRequest {
    * the tenant/KB/knowledge.
    */
   embeddingOverride?: ProviderConfig;
+  /**
+   * Draft-preview mode (authenticated agent preview): resolve against the
+   * CURRENT Main-branch draft and search the LIVE collection instead of the
+   * published snapshot. Never set on public/embed surfaces.
+   */
+  preferDraft?: boolean;
 }
 
 export interface GroundedSource {
@@ -440,7 +446,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Embedding config: resolved from KB AI policy; the override only pins
   // the embedding transport (public demo), never the knowledge.
-  const resolved = await resolveGroundingAIConfig(kb.id);
+  const resolved = await resolveGroundingAIConfig(kb.id, request.preferDraft === true);
   const providerConfig =
     request.embeddingOverride ?? toProviderConfig(resolved!, "embedding");
 
