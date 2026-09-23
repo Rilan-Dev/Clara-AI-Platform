@@ -102,6 +102,47 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // capability descriptors — no keys ever cross this response.
     if (voiceResolution.realtimeProvider === "elevenlabs" && voiceResolution.elevenlabs) {
       const el = voiceResolution.elevenlabs;
+
+      // An explicit Realtime Voice provider selection means the user chose
+      // Clara's realtime voice-agent architecture: Scribe v2 Realtime →
+      // Clara Qdrant/LLM → ElevenLabs Flash TTS. The browser will call
+      // /api/voice/elevenlabs/session next with the same clr_ credential,
+      // which returns the warm Scribe/TTS relay descriptors.
+      if (voiceResolution.realtimeSource !== "voice_chat") {
+        return NextResponse.json(
+          {
+            provider: voiceResolution.brain.provider,
+            voiceProvider: "elevenlabs",
+            realtimeProvider: "elevenlabs",
+            mode: "clara-stream",
+            kbId: ctx.kbId,
+            orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+            projectId: voiceResolution.brain.agentId,
+            chat: {
+              endpoint: "/api/embed/chat",
+              kbId: ctx.kbId,
+            },
+            welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+            config: {
+              orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+              projectId: voiceResolution.brain.agentId,
+              provider: voiceResolution.brain.provider,
+              voiceProvider: "elevenlabs",
+              realtimeModel: resolved.realtimeModel ?? resolved.chatModel,
+              voiceId: el.voiceId,
+              transcriptionModel: "scribe_v2_realtime",
+              allowedLanguages: resolved.allowedLanguages,
+              defaultLanguage: resolved.defaultLanguage,
+              maxTokens: resolved.maxTokens ?? effectiveConfig.maxTokens,
+              temperature: resolved.temperature ?? effectiveConfig.temperature,
+              sources: resolved.sources,
+              flags: resolved.flags,
+            },
+          },
+          { headers: corsHeaders },
+        );
+      }
+
       const speechEngineReady =
         process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED !== "false" &&
         Boolean(process.env.ELEVENLABS_SPEECH_ENGINE_ID) &&
