@@ -16,11 +16,23 @@ VALUES
 ON CONFLICT (plan_id, provider_id)
 DO UPDATE SET allowed = EXCLUDED.allowed;
 
--- Migrate only the known legacy default; custom organisation allow-lists remain untouched.
+-- Enable providers whose platform credentials are already configured. The platform admin remains the source of truth for credentials.
 UPDATE org_ai_settings
 SET allowed_voice_providers = ARRAY['openai','gemini','elevenlabs','sarvam']::TEXT[],
     updated_at = now()
 WHERE allowed_voice_providers = ARRAY['openai','gemini','elevenlabs']::TEXT[];
+
+UPDATE platform_env_settings
+SET value = 'true', updated_at = now()
+WHERE key IN ('ELEVENLABS_ENABLED','SARVAM_ENABLED')
+  AND EXISTS (
+    SELECT 1 FROM platform_ai_provider_credentials c
+    WHERE c.provider_id = CASE key
+      WHEN 'ELEVENLABS_ENABLED' THEN 'elevenlabs'
+      WHEN 'SARVAM_ENABLED' THEN 'sarvam'
+    END
+      AND c.configured = TRUE
+  );
 
 -- Provider entitlements are the fine-grained provider gate. Surface capability
 -- gates remain explicit so subscription behavior is deterministic.
