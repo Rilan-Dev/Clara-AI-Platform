@@ -391,8 +391,8 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       if (completedAnswer) {
         conversationRef.current = [
           ...priorMessages,
-          { role: "user", content: question },
-          { role: "assistant", content: completedAnswer },
+          { role: "user" as const, content: question },
+          { role: "assistant" as const, content: completedAnswer },
         ].slice(-6);
       }
 

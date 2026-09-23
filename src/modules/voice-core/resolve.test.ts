@@ -162,7 +162,7 @@ describe("voice resolution — native-by-default", () => {
     expect(r.realtimeSource).toBe("voice_chat");
     expect(r.elevenlabs).not.toBeNull();
     expect(r.elevenlabs?.ttsModel).toBe("eleven_flash_v2_5");
-    expect(r.elevenlabs?.sttModel).toBe("scribe_v2");
+    expect(r.elevenlabs?.sttModel).toBe("scribe_v2_realtime");
   });
 });
 
@@ -264,7 +264,8 @@ describe("voice resolution — independent ElevenLabs speech settings", () => {
     const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
 
     expect(r.elevenlabs?.sttModel).toBe("scribe_v2_realtime");
-    expect(r.elevenlabs?.ttsModel).toBe("eleven_flash_v2_5");
+    // An explicit agent Realtime TTS pick wins; only STT is pinned.
+    expect(r.elevenlabs?.ttsModel).toBe("eleven_turbo_v2_5");
   });
 
   it("keeps voice-chat ElevenLabs settings independent from realtime settings", async () => {

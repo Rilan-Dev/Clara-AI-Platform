@@ -102,6 +102,9 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
     const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
+    // The client names the surface it transcribes for; anything else is
+    // treated as realtime (the embed transport).
+    const surface = form.get("surface") === "voice_chat" ? "voice_chat" : "realtime";
     const selectedProvider =
       surface === "voice_chat" ? resolved.voiceProvider : resolved.realtimeProvider;
     if (selectedProvider !== "elevenlabs" || !resolved.elevenlabs) {

@@ -223,6 +223,10 @@ async function postChatKb(
   const latest = messages[messages.length - 1]!;
   if (latest.role !== "user") throw new Error("The final message must come from the user.");
 
+  // Realtime is a transport/surface concern, not a Sarvam-only feature.
+  // Declared before the parallel load so the cached title lookup can use it.
+  const realtimeVoice = body?.realtimeVoice === true;
+
   const [kb, config, resolved, documentTitles] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfigByKb(kbId),

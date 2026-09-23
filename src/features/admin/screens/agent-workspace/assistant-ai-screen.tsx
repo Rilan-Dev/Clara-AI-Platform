@@ -37,6 +37,7 @@ import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/Conf
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
+import { cn } from "@/lib/utils";
 
 export default function AgentAssistantAIScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();

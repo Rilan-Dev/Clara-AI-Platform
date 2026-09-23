@@ -40,6 +40,8 @@ vi.mock("@/modules/voice-core/resolve", () => ({
   resolveVoiceConfig: vi.fn(async () => ({
     realtimeProvider: "elevenlabs",
     voiceProvider: "elevenlabs",
+    // Realtime inherits the Voice Chat pick — the tri-mode selector applies.
+    realtimeSource: "voice_chat",
     brain: {
       provider: "openai",
       orgId: "org-el-1",
@@ -123,6 +125,26 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
     const response = await postVoiceProvider(providerRequest());
     const payload = await response.json();
     expect(payload.mode).toBe("pipeline");
+  });
+
+  it("an explicit Realtime Voice selection always routes to Clara realtime (clara-stream)", async () => {
+    setEnv("ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "true");
+    setEnv("ELEVENLABS_REALTIME_ENABLED", "false");
+    const { resolveVoiceConfig } = await import("@/modules/voice-core/resolve");
+    (resolveVoiceConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      realtimeProvider: "elevenlabs",
+      voiceProvider: "elevenlabs",
+      realtimeSource: "agent",
+      brain: {
+        provider: "openai",
+        orgId: "org-el-1",
+        agentId: "agent-el-1",
+        flags: { voiceEnabled: true, realtimeEnabled: true },
+      },
+    });
+    const response = await postVoiceProvider(providerRequest());
+    const payload = await response.json();
+    expect(payload.mode).toBe("clara-stream");
   });
 
   it("Mode C requires the provider registry gate AND the realtime flag", async () => {

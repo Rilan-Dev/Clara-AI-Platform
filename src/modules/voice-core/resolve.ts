@@ -420,11 +420,14 @@ export async function resolveVoiceConfig(
 
     // Batch voice-chat uses Scribe v2; Clara realtime always uses the
     // dedicated Scribe v2 Realtime model from realtime-init.
-    const sttModel =
-      (isRealtime ? versionRealtimeSttModel : versionVoiceChatSttModel) ??
-      (isRealtime ? agentSettings?.realtimeSttModel : agentSettings?.voiceChatSttModel) ??
-      orgSettings?.elevenlabsSttModel ??
-      (isRealtime ? getPlatformDefaultRealtimeSTTModel() : getPlatformDefaultSTTModel());
+    // The realtime socket only accepts Scribe v2 Realtime, so stale batch ids
+    // stored on the version/agent/org are ignored for that surface.
+    const sttModel = isRealtime
+      ? getPlatformDefaultRealtimeSTTModel()
+      : versionVoiceChatSttModel ??
+        agentSettings?.voiceChatSttModel ??
+        orgSettings?.elevenlabsSttModel ??
+        getPlatformDefaultSTTModel();
 
     const configuredVoiceId =
       (isRealtime ? versionRealtimeVoiceId : versionVoiceChatVoiceId) ??

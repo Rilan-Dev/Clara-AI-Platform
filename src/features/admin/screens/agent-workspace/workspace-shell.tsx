@@ -295,7 +295,8 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
     const draftUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ agentId?: string; draftUpdatedAt?: string }>).detail;
       if (!agentId || detail?.agentId !== agentId || !detail.draftUpdatedAt) return;
-      setContext((current) => current ? { ...current, draftUpdatedAt: detail.draftUpdatedAt } : current);
+      const draftUpdatedAt = detail.draftUpdatedAt;
+      setContext((current) => current ? { ...current, draftUpdatedAt } : current);
     };
     window.addEventListener("agent-workspace:refresh", refresh);
     window.addEventListener("agent-workspace:draft-updated", draftUpdated);

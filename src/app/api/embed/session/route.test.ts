@@ -32,6 +32,7 @@ vi.mock("@/modules/embed/core/validate-embed", () => ({
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: vi.fn(async () => {}) }));
 
 vi.mock("@/modules/knowledge-bases/core/db", () => ({
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
   getKnowledgeBaseById: vi.fn(async (kbId: string) => ({
     id: kbId,
     agentId: "agent-1",
