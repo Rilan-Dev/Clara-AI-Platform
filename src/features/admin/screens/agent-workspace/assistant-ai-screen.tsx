@@ -276,6 +276,7 @@ function AISelectionCard({
   draft,
   options,
   onSave,
+  onOptionsLoaded,
   realtimeProviderId,
   onRealtimeProviderChange,
 }: {
@@ -283,6 +284,7 @@ function AISelectionCard({
   draft: AgentDraftDTO | null;
   options: Partial<Record<AICapability, AgentAIOptionsDTO | null>>;
   onSave: (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => Promise<void>;
+  onOptionsLoaded: (capability: AICapability, value: AgentAIOptionsDTO) => void;
   realtimeProviderId?: string | null;
   onRealtimeProviderChange?: (providerId: string | null) => void;
 }) {
@@ -328,13 +330,14 @@ function AISelectionCard({
     try {
       const result = await fetchAgentAIOptions(agentId, capability);
       setLocalOptions((prev) => ({ ...prev, [capability]: result }));
+      onOptionsLoaded(capability, result);
     } catch (err) {
       setSurface(null);
       toast.error("Could not load providers", { description: (err as Error).message });
     } finally {
       setLoadingCapability(null);
     }
-  }, [localOptions, draft, agentId]);
+  }, [localOptions, draft, agentId, onOptionsLoaded]);
 
   const pickProvider = (providerId: string | null, capability: AICapability) => {
     if (capability === "realtime_voice") onRealtimeProviderChange?.(providerId);
