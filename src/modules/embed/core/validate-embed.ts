@@ -283,9 +283,16 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
   // These guards use independent database operations. Fetch the plan and
   // reserve the hourly counter together so the public embed hot path does not
   // pay two sequential database round trips.
+  // Public session tokens do not have an api_keys row. Their synthetic
+  // "public:<agentId>" keyId is intentionally not a UUID and must never be
+  // sent to api_key_usage.key_id (a UUID FK). Public-token traffic is already
+  // bounded by the per-agent/IP config guard above; keyed embeds continue to
+  // use the persistent hourly counter.
   const [planLimits, withinHourlyLimit] = await Promise.all([
     isPublicToken ? getOrgPlanForOrg(keyCtx.orgId) : getOrgPlanForKey(keyCtx.keyId),
-    checkAndIncrementRateLimit(keyCtx.keyId, keyCtx.rateLimitPerHour),
+    isPublicToken
+      ? Promise.resolve(true)
+      : checkAndIncrementRateLimit(keyCtx.keyId, keyCtx.rateLimitPerHour),
   ]);
 
   if (planLimits) {

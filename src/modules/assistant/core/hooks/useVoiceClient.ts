@@ -168,16 +168,12 @@ export function useVoiceClient(options: VoiceClientOptions) {
     const next = await resolveProvider();
     setProvider(next.provider);
     if (next.provider === "elevenlabs") {
-      // Mode B realtime session; falls back to the Mode A pipeline when the
-      // agent-session route refuses (flag off / no binding / no ack).
+      // Mode B is an explicit realtime transport choice. Never silently
+      // downgrade it to batch STT → chat → TTS: doing so makes the UI report
+      // ElevenLabs realtime while actually running a different transport.
       if (next.mode === "conversational") {
-        try {
-          await elevenlabsConvAI.connect();
-          return;
-        } catch (err) {
-          console.warn("[voice] Mode-B session refused, falling back to the hybrid pipeline:", (err as Error).message);
-          setElevenlabsMode("pipeline");
-        }
+        await elevenlabsConvAI.connect();
+        return;
       }
       // Mode C Clara realtime; falls back to the Mode A pipeline when the
       // session bootstrap refuses (flag raced off / no realtime descriptor).
