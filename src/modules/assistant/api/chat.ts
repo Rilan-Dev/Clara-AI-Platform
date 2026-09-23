@@ -273,7 +273,7 @@ async function postChatKb(
   // on the embedding backbone (V1 split — a Sarvam brain keeps its Qdrant
   // collections on OpenAI/Gemini embeddings); the answer stream runs on the
   // brain provider below.
-  const realtimeVoice = body?.realtimeVoice === true && resolved.provider === "sarvam";
+  // Realtime is a transport/surface concern, not a Sarvam-only feature.\n  // ElevenLabs Clara realtime also needs the short retrieval + response budget.\n  const realtimeVoice = body?.realtimeVoice === true;
   const providerConfig = {
     ...toProviderConfig(resolved),
     ...(realtimeVoice
