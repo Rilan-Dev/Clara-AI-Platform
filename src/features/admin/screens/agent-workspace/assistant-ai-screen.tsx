@@ -36,7 +36,7 @@ import { toast } from "@/components/ui/sonner";
 import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
-import { AutoSaveChip, WorkspaceButton } from "@/components/admin/ai-platform/shared";
+import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
 
 export default function AgentAssistantAIScreen() {
@@ -246,7 +246,6 @@ export default function AgentAssistantAIScreen() {
               draft={draft}
               options={options}
               onSave={saveAISelection}
-              previewKbId={previewKb?.id}
               realtimeProviderId={realtimeProviderId}
               onRealtimeProviderChange={setRealtimeProviderId}
             />
@@ -484,7 +483,6 @@ function AISelectionCard({
                   selectedProvider={surface === "chat" ? ai?.provider : surface === "voice_chat" ? ai?.voiceProvider : realtimeProviderId ?? ai?.realtimeVoiceProvider}
                   onProviderChange={pickProvider}
                   onAIChange={setAI}
-                  previewKbId={undefined}
                 />
               )}
             </div>
@@ -516,7 +514,6 @@ function CapabilityEditor({
   selectedProvider?: string | null;
   onProviderChange: (providerId: string | null, capability: AICapability) => void;
   onAIChange: (patch: Partial<NonNullable<AgentDraftDTO["configuration"]["ai"]>>) => void;
-  previewKbId?: string;
 }) {
   const provider = options?.available.find((p) => p.providerId === selectedProvider) ?? null;
   const providers = options?.available ?? [];
