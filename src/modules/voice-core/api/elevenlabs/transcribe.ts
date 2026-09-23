@@ -102,10 +102,9 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
     const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
-    if (
-      (resolved.realtimeProvider !== "elevenlabs" && resolved.voiceProvider !== "elevenlabs") ||
-      !resolved.elevenlabs
-    ) {
+    const selectedProvider =
+      surface === "voice_chat" ? resolved.voiceProvider : resolved.realtimeProvider;
+    if (selectedProvider !== "elevenlabs" || !resolved.elevenlabs) {
       return NextResponse.json(
         { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.realtimeProvider },
         { status: 409 },
