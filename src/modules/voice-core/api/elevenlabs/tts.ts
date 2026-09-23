@@ -41,6 +41,7 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     }
 
     const kbId = typeof body.kbId === "string" ? body.kbId.trim() : null;
+    const surface = body.surface === "voice_chat" ? "voice_chat" : "realtime";
     const text = typeof body.text === "string" ? body.text : "";
     const preview = body.preview === true;
 
@@ -122,13 +123,12 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
+    const resolved = await resolveVoiceConfigCached({ kbId, surface, ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
-    if (
-      (resolved.voiceProvider !== "elevenlabs" && resolved.realtimeProvider !== "elevenlabs") ||
-      !resolved.elevenlabs
-    ) {
+    const selectedProvider =
+      surface === "voice_chat" ? resolved.voiceProvider : resolved.realtimeProvider;
+    if (selectedProvider !== "elevenlabs" || !resolved.elevenlabs) {
       return NextResponse.json(
         { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.realtimeProvider },
         { status: 409 },
