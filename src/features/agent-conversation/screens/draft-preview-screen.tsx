@@ -130,7 +130,7 @@ function PreviewSkeleton() {
         <Shimmer className="h-9 w-56" />
         <Shimmer className="h-9 w-36" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <Shimmer className="h-[34rem] rounded-2xl" />
         <div className="space-y-4">
           <Shimmer className="h-36 rounded-2xl" />
@@ -316,7 +316,7 @@ export default function DraftPreviewScreen() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
             {/* Chat window — voice chat integrated inside it. */}
-            <div className="min-h-[34rem]">
+            <div className="min-h-[34rem] rounded-3xl border border-primary/10 bg-background/60 p-1.5 shadow-2xl shadow-black/[0.07] backdrop-blur-xl">
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
@@ -351,7 +351,7 @@ export default function DraftPreviewScreen() {
             </div>
 
             {/* ── Testing facts sidebar ─────────────────────────────────── */}
-            <aside className="space-y-4">
+            <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
               <section className="rounded-2xl border border-border/70 bg-card p-4">
                 <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
