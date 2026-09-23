@@ -7,7 +7,7 @@
  * theme toggle and the profile avatar).
  *
  *   ┌────────────────────────────────────────────────────────────────────────┐
- *   │ Clara · Main        Main v8 · Draft changes · Published v8 ·           │
+ *   │ Clara · Agent       Main v8 · Draft changes · Published v8 ·            │
  *   │ (context label)     Draft saved 18 min ago · Preview · Publish update  │
  *   │                                                 [theme] [avatar]      │
  *   └────────────────────────────────────────────────────────────────────────┘
@@ -75,7 +75,7 @@ function useAgentRoute(): { orgId: string | null; agentId: string | null } {
 
 /** Short label of the open agent section (sidebar tab name). */
 const SECTION_SEGMENTS: Record<string, string> = {
-  config: "Main",
+  config: "Agent",
   faq: "FAQ",
   knowledge: "Knowledge",
   tools: "Tools",
@@ -284,7 +284,7 @@ export function AgentTopbarCluster() {
           <span className="hidden items-center gap-1.5 md:inline-flex">
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               <GitBranch className="h-3 w-3" />
-              Main
+              {currentVersion?.branchName ?? context.main.name ?? "Main"}
               <span className="text-foreground/70">v{currentVersion?.versionNumber ?? 1}</span>
             </span>
 
