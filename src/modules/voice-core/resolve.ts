@@ -143,7 +143,7 @@ const voiceConfigCache = new Map<
 >();
 
 function voiceConfigCacheKey(input: ResolveVoiceConfigInput): string {
-  return `${input.surface}|${input.kbId ?? ""}|${input.orgId ?? ""}`;
+  return `${input.surface}|${input.kbId ?? ""}|${input.orgId ?? ""}|${input.preferDraft ? "draft" : "live"}`;
 }
 
 /**
@@ -186,6 +186,7 @@ export async function resolveVoiceConfig(
   const brain = input.brainConfig ?? await resolveAIConfig({
     kbId: input.kbId,
     orgId: input.orgId,
+    preferDraft: input.preferDraft,
     // AI config has no separate voice-chat surface; keep its existing
     // realtime/embed flag semantics while the voice resolver tracks the
     // provider purpose independently.
@@ -197,12 +198,20 @@ export async function resolveVoiceConfig(
   const orgId = input.orgId ?? agent?.orgId ?? null;
 
   // Production immutable version preferences (dual-read: new-first).
-  const productionVersionConfig = agent?.id
-    ? await (
-        await import("@/modules/agent-versioning/core/db")
-      ).getProductionVersionConfigCached(agent.id)
+  // Draft-preview mode substitutes the CURRENT Main-branch draft — the
+  // preview must test the voice providers/models the user is editing. KB
+  // overrides (draft-only state) apply in draft mode.
+  const versioningDb = await import("@/modules/agent-versioning/core/db");
+  const draftConfig = input.preferDraft && agent?.id
+    ? await versioningDb.getAgentDraftConfigCached(agent.id)
     : null;
-  const versionAIPreferences = productionVersionConfig?.configuration?.ai ?? null;
+  const productionVersionConfig = agent?.id
+    ? await versioningDb.getProductionVersionConfigCached(agent.id)
+    : null;
+  const versionAIPreferences =
+    draftConfig?.configuration?.ai ??
+    productionVersionConfig?.configuration?.ai ??
+    null;
   const versionVoiceChatSttModel = versionAIPreferences?.voiceChatSttModel ?? null;
   const versionVoiceChatTtsModel = versionAIPreferences?.voiceChatTtsModel ?? null;
   const versionVoiceChatVoiceId = versionAIPreferences?.voiceChatVoiceId ?? null;
@@ -217,7 +226,13 @@ export async function resolveVoiceConfig(
   ]);
 
   // Published versions own their voice configuration; mutable KB overrides are draft-only.
-  const effectiveKbOverrides = productionVersionConfig ? null : kbOverrides;
+  // Draft-preview mode is the deliberate exception: KB overrides apply.
+  const effectiveKbOverrides =
+    input.preferDraft && draftConfig
+      ? kbOverrides
+      : productionVersionConfig
+        ? null
+        : kbOverrides;
 
   // ── Precedence: kb → version config → agent → org → inherit brain ───────
   let voiceProvider: VoiceProvider | null =

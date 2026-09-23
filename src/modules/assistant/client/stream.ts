@@ -24,6 +24,12 @@ export type StreamChatOptions = {
   embedApiKey?: string;
   /** Realtime voice path: selects the configured Sarvam conversational model and latency settings. */
   realtimeVoice?: boolean;
+  /**
+   * Draft-preview mode (authenticated agent preview): the KB-mode payload
+   * carries scope:"draft" so the server resolves the CURRENT Main-branch
+   * draft instead of the immutable published version.
+   */
+  draftScope?: boolean;
 };
 
 const DEFAULT_CHAT_ENDPOINT = apiUrl("/api/chat");
@@ -44,6 +50,7 @@ export async function streamChatCompletion(
         assistantLanguage: options?.assistantLanguage,
         customerLanguages: options?.customerLanguages,
         realtimeVoice: options?.realtimeVoice === true,
+        ...(options?.draftScope ? { scope: "draft" } : {}),
       }
     : {
         // Legacy document mode

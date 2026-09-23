@@ -59,6 +59,10 @@ const PROTECTED_API_PREFIXES = [
 ];
 const PUBLIC_PREFIXES = [
   "/api/auth", "/api/embed", "/api/subscriptions/plans", "/api/health", "/api/gemini", "/_next", "/favicon",
+  // Public PUBLISHED agent page API — serves only the immutable published
+  // state (active deployment + publicAccess) and mints short-lived signed
+  // public session tokens; guarded per-IP at the route level.
+  "/api/public",
 ];
 
 function startsWith(path: string, prefixes: string[]): boolean {

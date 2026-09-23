@@ -121,7 +121,10 @@ export async function postElevenLabsAgentSession(request: NextRequest): Promise<
     // Mode B is a REALTIME-purpose session (true streaming duplex), so the
     // realtime axis selects it — either directly (realtime_voice_provider =
     // 'elevenlabs') or by inheriting the voice-chat axis.
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
     if (resolved.realtimeProvider !== "elevenlabs") {
       return NextResponse.json(
         {

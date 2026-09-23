@@ -59,10 +59,13 @@ vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => []),
 }));
 // Agent-versioning dual-read: no production deployment → legacy chain (the
-// contract this suite pins).
+// contract this suite pins). getAgentDraftConfigCached: null — this suite
+// never resolves in draft-preview mode.
 vi.mock("@/modules/agent-versioning/core/db", () => ({
   getProductionVersionConfigCached: vi.fn(async () => null),
   getActiveDeploymentCached: vi.fn(async () => null),
+  getAgentDraftConfigCached: vi.fn(async () => null),
+  getActiveDeploymentKbCollection: vi.fn(async () => null),
 }));
 // Governance gate: platform allows everything in this suite's scenarios.
 vi.mock("@/modules/ai-governance/core/resolver", () => ({

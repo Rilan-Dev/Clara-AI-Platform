@@ -366,6 +366,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           signal: controller.signal,
           endpoint: apiUrl(session.chat.endpoint),
           embedApiKey: options.embedApiKey,
+          draftScope: options.draftMode === true,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
           realtimeVoice: false,
@@ -402,7 +403,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done", answer: turn.answer } : t)));
     }
-  }, [emitLatencyTelemetry, flushRealtimeTts, options.embedApiKey, options.language?.assistant, options.language?.customer, sendRealtimeTts]);
+  }, [emitLatencyTelemetry, flushRealtimeTts, options.embedApiKey, options.language?.assistant, options.language?.customer, sendRealtimeTts, options.draftMode]);
 
   // ─── Barge-in / interrupt ───────────────────────────────────────────────────
 
@@ -556,6 +557,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           kbId: options.kbId,
           ragMode: "hybrid",
           language: options.language?.assistant,
+          ...(options.draftMode ? { scope: "draft" } : {}),
         }),
       });
       const payload = await response.json().catch(() => ({})) as SessionPayload & { error?: string };
@@ -710,7 +712,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, connectRealtimeTts, emitLatencyTelemetry, flushRealtimeTts, handleRealtimeEvent, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, sendRealtimeTts]);
+  }, [cleanup, connectRealtimeTts, emitLatencyTelemetry, flushRealtimeTts, handleRealtimeEvent, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, sendRealtimeTts, options.draftMode]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;

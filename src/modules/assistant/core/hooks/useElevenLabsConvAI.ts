@@ -427,6 +427,7 @@ export function useElevenLabsConvAI(options: VoiceClientOptions) {
           kbId: options.kbId,
           ragMode: "hybrid",
           language: options.language?.assistant,
+          ...(options.draftMode ? { scope: "draft" } : {}),
         }),
       });
       const payload = await response.json().catch(() => ({})) as AgentSessionPayload;
@@ -507,7 +508,7 @@ export function useElevenLabsConvAI(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, handleServerFrame, options.kbId, options.language?.assistant, startAudioFlush]);
+  }, [cleanup, handleServerFrame, options.kbId, options.language?.assistant, startAudioFlush, options.draftMode]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;

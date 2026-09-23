@@ -96,7 +96,10 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
     // advisory only, exactly like realtime.ts re-validates the voice.
     // Cached for 5 s (hot path fires per utterance). Realtime axis to match
     // the session bootstrap (see session.ts).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
     if (

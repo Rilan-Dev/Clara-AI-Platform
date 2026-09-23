@@ -106,7 +106,10 @@ export async function postGeminiSession(request: NextRequest): Promise<NextRespo
         }
       }
 
-      const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
+          // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+      const resolved = await resolveAIConfig({ kbId, surface: "realtime", ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
       if (resolved.provider !== "gemini") {
         return NextResponse.json(
           {

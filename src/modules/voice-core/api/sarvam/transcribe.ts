@@ -104,7 +104,10 @@ export async function postSarvamTranscribe(request: NextRequest): Promise<NextRe
     // Server-side re-resolution — the client-suggested model/language is
     // advisory only. Cached for 5 s (hot path fires per utterance). Realtime
     // axis to match the session bootstrap (see session.ts).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
     if (
       (resolved.voiceProvider !== "sarvam" && resolved.realtimeProvider !== "sarvam") ||
       !resolved.sarvam

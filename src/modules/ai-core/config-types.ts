@@ -231,6 +231,15 @@ export interface ResolveAIConfigInput {
   kbId?: string;
   orgId?: string;
   surface: AISurface;
+  /**
+   * Draft-preview mode (authenticated preview surface only): resolve against
+   * the CURRENT Main-branch DRAFT instead of the immutable production
+   * version — persona, model selections and runtime toggles come from the
+   * draft, KB overrides apply (they are draft-only state) and retrieval uses
+   * the LIVE knowledge-base collection rather than the published snapshot.
+   * Never set this on public/embed surfaces.
+   */
+  preferDraft?: boolean;
 }
 
 export interface ResolvedAIConfig {

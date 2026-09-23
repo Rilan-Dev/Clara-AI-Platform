@@ -7,6 +7,7 @@ import type { ProviderConfig } from "@/modules/ai-core/types";
 import { looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
 import {
   getActiveDeploymentCached,
+  getAgentDraftConfigCached,
   getProductionVersionConfigCached,
 } from "@/modules/agent-versioning/core/db";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
@@ -203,12 +204,22 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const orgId = input.orgId ?? agent?.orgId ?? null;
 
   // ── Production immutable version (Stage H: new-first dual-read) ──────────
+  // Draft-preview mode (authenticated preview surface) substitutes the
+  // CURRENT Main-branch draft for the immutable production version: the
+  // preview must test exactly what the user is editing — persona, models,
+  // runtime toggles — against the LIVE knowledge-base collection. When no
+  // draft exists yet the resolution falls back to the published version
+  // (deterministic, never fabricated).
+  const draft = input.preferDraft && agent?.id
+    ? await getAgentDraftConfigCached(agent.id)
+    : null;
   const productionVersion = agent?.id ? await getProductionVersionConfigCached(agent.id) : null;
   const deployment = agent?.id ? await getActiveDeploymentCached(agent.id) : null;
-  const knowledgeCollection = agent?.id && input.kbId && deployment
+  const knowledgeCollection = !input.preferDraft && agent?.id && input.kbId && deployment
     ? await (await import("@/modules/agent-versioning/core/db")).getActiveDeploymentKbCollection(agent.id, input.kbId)
     : null;
-  const versionConfig: AgentVersionConfig | null = productionVersion?.configuration ?? null;
+  const versionConfig: AgentVersionConfig | null =
+    draft?.configuration ?? productionVersion?.configuration ?? null;
   const versionAI = versionConfig?.ai ?? null;
   const versionRuntime = versionConfig?.runtime ?? null;
   const [orgSettings, agentSettings, kbOverrides, liveAssistantConfig] = await Promise.all([
@@ -218,8 +229,10 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     agent?.id ? getAssistantConfigByAgent(agent.id) : Promise.resolve(null),
   ]);
 
-  // Published versions are immutable: mutable KB overrides cannot leak into runtime resolution.
-  const effectiveKbOverrides = versionConfig ? null : kbOverrides;
+  // Published versions are immutable: mutable KB overrides cannot leak into
+  // runtime resolution. Draft-preview mode is the deliberate exception — KB
+  // overrides are draft-only state, so they DO apply while previewing.
+  const effectiveKbOverrides = versionConfig && !input.preferDraft ? null : kbOverrides;
 
   if (agentSettings && agent && agentSettings.orgId !== agent.orgId) {
     throw new AIConfigResolutionError("Agent AI configuration belongs to another organisation.");
@@ -227,13 +240,14 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   // The effective persona comes from the deployed immutable version when one
   // exists; unpublished agents keep reading their live config (legacy path).
+  // Draft-preview mode reads the draft persona instead.
   const assistantConfig: AssistantConfig | null = versionConfig && agent
     ? {
         ...versionConfig.assistant,
-        id: `version:${productionVersion!.id}`,
+        id: draft ? `draft:${draft.id}` : `version:${productionVersion!.id}`,
         agentId: agent.id,
-        createdAt: productionVersion!.createdAt,
-        updatedAt: productionVersion!.createdAt,
+        createdAt: draft?.createdAt ?? productionVersion!.createdAt,
+        updatedAt: draft?.updatedAt ?? productionVersion!.createdAt,
       }
     : liveAssistantConfig;
 

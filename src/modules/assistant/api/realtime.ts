@@ -86,7 +86,10 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       ]);
       if (!config) return NextResponse.json({ error: "AssistantConfig not found for this knowledge base" }, { status: 500 });
 
-      const resolved = await resolveAIConfig({ kbId, surface: "realtime" });
+          // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+      const resolved = await resolveAIConfig({ kbId, surface: "realtime", ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
       // ── Voice-axis transport gate ────────────────────────────────────────
       // The OpenAI Realtime transport is selected by the VOICE axis
       // (realtime purpose), not the brain provider: an org may run a Sarvam
@@ -95,7 +98,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       // even though the org explicitly selected OpenAI realtime voice).
       // The voice/model values come from the voice-axis resolver, which
       // validates every fallback against the OpenAI Realtime contract.
-      const voiceResolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+      const voiceResolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
       if (voiceResolved.realtimeProvider !== "openai") {
         return NextResponse.json({
           error: `OpenAI Realtime is not the resolved realtime voice provider for this knowledge base (resolved: ${voiceResolved.realtimeProvider}).`,
