@@ -154,6 +154,10 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
    *  answers) land on the record before the event snapshot is taken. */
   const pendingTurnLatencyRef = useRef<TurnLatencyHandle | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
+  // Bounded conversation memory for Clara realtime turns. Keep it client-side
+  // as transport context only; the server still resolves tenant/KB and performs
+  // the authoritative Qdrant grounding for every turn.
+  const conversationRef = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const answerBufferRef = useRef("");
 
   /** Mark a TURN-scoped stage on the active turn's record (handle), falling
@@ -337,9 +341,15 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     answerBufferRef.current = "";
 
     try {
+      const priorMessages = conversationRef.current.slice(-6);
+      const turnMessages: Array<{ role: "user" | "assistant"; content: string }> = [
+        ...priorMessages,
+        { role: "user", content: question },
+      ];
+
       await streamChatCompletion(
         session.kbId,
-        [{ role: "user", content: question }],
+        turnMessages,
         (event) => {
           if (event.type === "error") {
             const message = String(event.payload ?? "The realtime assistant could not generate a response.");
@@ -374,6 +384,17 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           realtimeVoice: true,
         },
       );
+
+      // Persist only completed turns. Interrupted/stale generations must never
+      // contaminate the next realtime prompt with partial assistant audio/text.
+      const completedAnswer = answerBufferRef.current.trim();
+      if (completedAnswer) {
+        conversationRef.current = [
+          ...priorMessages,
+          { role: "user", content: question },
+          { role: "assistant", content: completedAnswer },
+        ].slice(-8);
+      }
 
       // Flush whatever the vendor still buffers so short answers speak.
       flushRealtimeTts(generationId);
@@ -543,6 +564,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
     micStreamRef.current = null;
     sessionRef.current = null;
+    conversationRef.current = [];
     setIsSpeaking(false);
   }, [closeRealtimeTts, interruptPlayback]);
 
