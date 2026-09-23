@@ -111,6 +111,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
     const resolved = await resolveVoiceConfigCached({ kbId, surface, ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const realtimeEnabled = surface === "realtime" && await isElevenLabsRealtimeEnabled();
     // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
     // as the chat-window voice-chat experience) or the realtime axis (Mode A
     // as the fallback when a realtime=elevenlabs config has no Mode-B
@@ -132,7 +133,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     }
 
     const payload: ElevenLabsSessionPayload = {
-      mode: "pipeline",
+      mode: realtimeEnabled && orgId ? "clara-stream" : "pipeline",
       stt: {
         endpoint: "/api/voice/elevenlabs/transcribe",
         model: resolved.elevenlabs.sttModel,
@@ -143,7 +144,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // descriptor — same HMAC token discipline as the Sarvam V5 relay.
         // Embed sessions get it too: the token is capability-scoped (kb+org),
         // never a vendor credential.
-        ...((surface === "realtime" && await isElevenLabsRealtimeEnabled()) && orgId
+        ...((realtimeEnabled) && orgId
           ? {
               realtime: {
                 endpoint: "/api/voice/elevenlabs/realtime",
