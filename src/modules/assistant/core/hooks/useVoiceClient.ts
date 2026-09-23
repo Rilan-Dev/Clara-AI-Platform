@@ -185,13 +185,11 @@ export function useVoiceClient(options: VoiceClientOptions) {
         return;
       }
       if (next.mode === "clara-stream") {
-        try {
-          await elevenlabsClaraStream.connect();
-          return;
-        } catch (err) {
-          console.warn("[voice] Mode-C session refused, falling back to the hybrid pipeline:", (err as Error).message);
-          setElevenlabsMode("pipeline");
-        }
+        // Explicit Realtime Voice selection is a hard transport choice.
+        // Never silently downgrade it to batch STT → chat → TTS: that would
+        // make the UI report ElevenLabs realtime while actually using Mode A.
+        await elevenlabsClaraStream.connect();
+        return;
       }
       await elevenlabs.connect();
       return;

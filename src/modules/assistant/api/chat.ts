@@ -223,6 +223,11 @@ async function postChatKb(
   const latest = messages[messages.length - 1]!;
   if (latest.role !== "user") throw new Error("The final message must come from the user.");
 
+  // Realtime is a transport/surface concern, not a Sarvam-only feature.
+  // Keep this flag local to the KB chat path so realtime retrieval/model
+  // budgets are applied consistently for every Clara brain provider.
+  const realtimeVoice = body?.realtimeVoice === true;
+
   const [kb, config, resolved, documentTitles] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfigByKb(kbId),

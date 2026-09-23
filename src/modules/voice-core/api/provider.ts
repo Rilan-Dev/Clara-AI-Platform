@@ -36,7 +36,7 @@ import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
 import {
   isConversationalAIEnabled,
 } from "../model-catalog";
-import { resolveVoiceConfig } from "../resolve";
+import { resolveVoiceConfigCached } from "../resolve";
 import { query as dbQuery } from "@/lib/db";
 
 export type ElevenLabsMode = "pipeline" | "conversational" | "clara-stream";
@@ -106,7 +106,7 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
 
     // The voice modal IS the real-time voice assistant surface, so it routes
     // on the REALTIME purpose axis. That axis inherits the voice-chat axis
