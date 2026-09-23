@@ -3,23 +3,30 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Content-Security-Policy directives + security headers.
  *
- * Base directives are STATIC (audited surface, covered by tests). The single
- * runtime-conditional extension is the ElevenLabs Conversational AI (Mode B)
- * websocket origin: the browser connects DIRECTLY to the vendor with a
- * server-minted signed URL, so `wss://api.elevenlabs.io` must be reachable
- * — but ONLY while Mode B is platform-enabled
- * (ELEVENLABS_CONVERSATIONAL_AI_ENABLED, plan §11.2). Mode A (hybrid
- * pipeline) keeps CSP untouched: all vendor traffic is proxied by platform
- * routes.
+ * Base directives are STATIC (audited surface, covered by tests). The two
+ * runtime-conditional extensions are:
+ *   1. The ElevenLabs Conversational AI (Mode B) websocket origin: the browser
+ *      connects DIRECTLY to the vendor with a server-minted signed URL, so
+ *      `wss://api.elevenlabs.io` must be reachable — but ONLY while Mode B is
+ *      platform-enabled (ELEVENLABS_CONVERSATIONAL_AI_ENABLED, plan §11.2).
+ *      Mode A (hybrid pipeline) keeps CSP untouched: all vendor traffic is
+ *      proxied by platform routes.
+ *   2. `https://vercel.live` (script-src + connect-src, static): Vercel's
+ *      first-party toolbar/feedback script is injected into PREVIEW
+ *      deployments only (never production). Without it every preview build
+ *      logs a CSP violation for vercel.live/_next-live/feedback/feedback.js.
+ *      vercel.live is owned by Vercel itself — same trust level as the
+ *      platform serving the app — so allowing it does not widen the
+ *      attack surface to any third party.
  */
 
 const BASE_DIRECTIVES: string[] = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://checkout.razorpay.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://checkout.razorpay.com https://vercel.live",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' https: data: blob:",
-  "connect-src 'self' wss: https://*.up.railway.app https://api.openai.com https://realtime.openai.com https://*.vercel.app https://api.razorpay.com",
+  "connect-src 'self' wss: https://*.up.railway.app https://api.openai.com https://realtime.openai.com https://*.vercel.app https://api.razorpay.com https://vercel.live",
   "media-src 'self' blob:",
   "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com",
 ];
