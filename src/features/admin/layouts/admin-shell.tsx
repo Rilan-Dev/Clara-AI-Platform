@@ -7,10 +7,9 @@ import {
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
   MoreHorizontal, X, Palette,
-  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion, Trash2,
+  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
-import { deleteAgent } from "@/modules/admin-ui/api";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -127,6 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname   = usePathname();
   const router     = useRouter();
   const [moreOpen, setMoreOpen] = useState(false); // mobile "More" bottom sheet
+  const [branchName, setBranchName] = useState("Main");
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
@@ -308,6 +308,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <AgentSidebarSwitcher
                 orgId={activeAgentOrgId}
                 activeAgentId={activeAgentId}
+                onBranchNameChange={setBranchName}
               />
 
               <nav className="space-y-0.5" aria-label="Agent sections">
@@ -628,12 +629,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 function AgentSidebarSwitcher({
   orgId,
   activeAgentId,
+  onBranchNameChange,
 }: {
   orgId: string;
   activeAgentId: string;
+  onBranchNameChange: (branchName: string) => void;
 }) {
   const { agents, loading } = useAgents(orgId);
-  const [branchName, setBranchName] = useState("Main");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -641,15 +643,18 @@ function AgentSidebarSwitcher({
 
   useEffect(() => {
     let cancelled = false;
+    onBranchNameChange("Main");
     fetchAgentWorkspaceContextCached(activeAgentId)
       .then((context) => {
-        if (!cancelled) setBranchName(context.currentVersion?.branchName ?? context.main.name ?? "Main");
+        if (!cancelled) {
+          onBranchNameChange(context.currentVersion?.branchName ?? context.main.name ?? "Main");
+        }
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [activeAgentId]);
+  }, [activeAgentId, onBranchNameChange]);
 
   useEffect(() => {
     if (!open) return;
