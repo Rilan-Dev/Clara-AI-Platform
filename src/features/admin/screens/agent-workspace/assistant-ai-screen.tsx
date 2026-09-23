@@ -6,12 +6,17 @@
  * /orgs/[id]/agents/[agentId]/config — the "Assistant & AI" workspace tab.
  *
  *   Assistant & AI
- *   ├── Identity / Behaviour / Language / Voice / Preview  (reused ConfigEditor)
+ *   ├── Agent editor first (ConfigEditor, ElevenLabs "Agent" page)
  *   └── AI models + runtime tools fed by the CAPABILITY RESOLVER (§14/§25)
  *
+ * VOICE SYNC: the Realtime Voice provider chosen in the AI runtime
+ * configuration feeds the ConfigEditor Voices card — the speaker list
+ * always mirrors the selected provider's available voices and updates the
+ * moment the provider changes (even before the draft is saved).
+ *
  * Edits target the mutable Main DRAFT (explicit draft state). "Save version"
- * creates an immutable version; publishing is a separate action. Platform
- * admins get the same read-only view as before.
+ * creates an immutable version; publishing is one click from the workspace
+ * header. Platform admins get the same read-only view as before.
  */
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -28,7 +33,7 @@ import {
   type AICapability,
 } from "@/modules/admin-ui/ai-platform-api";
 import type { AssistantConfig } from "@/modules/admin-ui/api";
-import { ConfigEditor } from "@/components/admin/ConfigEditor";
+import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
 import { VoicePreviewButton } from "@/components/admin/VoicePreviewModal";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { WorkspaceButton, VersionBadge, timeAgo } from "@/components/admin/ai-platform/shared";
@@ -46,6 +51,9 @@ export default function AgentAssistantAIScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [versionSummary, setVersionSummary] = useState("");
+  // Lifted realtime provider selection — drives the ConfigEditor voice list so
+  // picking a provider here instantly syncs the voices over there.
+  const [realtimeProviderId, setRealtimeProviderId] = useState<string | null>(null);
 
   const { kbs } = useKbs(agentId);
   const previewKb = kbs[0];
@@ -63,6 +71,7 @@ export default function AgentAssistantAIScreen() {
       ]);
       setDraft(draftResult);
       setOptions({ chat, voice_chat: voice, realtime_voice: realtime });
+      setRealtimeProviderId((prev) => prev ?? draftResult.configuration.ai?.realtimeVoiceProvider ?? null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -161,6 +170,32 @@ export default function AgentAssistantAIScreen() {
     document.getElementById("ai-runtime-config")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  // ── Provider-synced voice catalog for the ConfigEditor Voices card ──────
+  // Mirrors the organisation's selected Realtime Voice provider (the lift in
+  // pickProvider keeps this live before the draft is even saved).
+  const voiceCatalog = useMemo<ProviderVoiceCatalog | null>(() => {
+    const realtime = options.realtime_voice;
+    if (!realtime) return null; // options not loaded yet → OpenAI fallback inside the editor
+    const provider =
+      realtime.available.find((p) => p.providerId === realtimeProviderId) ??
+      realtime.available.find((p) => p.isDefault) ??
+      realtime.available[0] ??
+      null;
+    if (!provider) {
+      return { providerId: "__none__", providerName: "Realtime Voice", voices: [] };
+    }
+    return {
+      providerId: provider.providerId,
+      providerName: provider.displayName,
+      voices: provider.voices.map((v) => ({
+        id: v.modelId,
+        label: v.displayName,
+        description: v.isDefault ? "Provider default" : undefined,
+        isDefault: v.isDefault,
+      })),
+    };
+  }, [options.realtime_voice, realtimeProviderId]);
+
   if (ctxLoading || loading) {
     return (
       <div>
@@ -231,6 +266,7 @@ export default function AgentAssistantAIScreen() {
               variant="agent"
               llmSummary={llmSummary ?? undefined}
               onOpenAISettings={openAISettings}
+              voiceCatalog={voiceCatalog}
             />
           )
         ) : (
@@ -248,6 +284,8 @@ export default function AgentAssistantAIScreen() {
               options={options}
               onSave={saveAISelection}
               previewKbId={previewKb?.id}
+              realtimeProviderId={realtimeProviderId}
+              onRealtimeProviderChange={setRealtimeProviderId}
             />
           </div>
         )}
@@ -275,11 +313,17 @@ function AISelectionCard({
   options,
   onSave,
   previewKbId,
+  realtimeProviderId,
+  onRealtimeProviderChange,
 }: {
   draft: AgentDraftDTO | null;
   options: Partial<Record<AICapability, AgentAIOptionsDTO | null>>;
   onSave: (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => void;
   previewKbId?: string;
+  /** Lifted realtime provider selection — keeps the ConfigEditor Voices card
+   *  synced with the provider picked here, even before the draft is saved. */
+  realtimeProviderId?: string | null;
+  onRealtimeProviderChange?: (providerId: string | null) => void;
 }) {
   const [ai, setAi] = useState(draft?.configuration.ai ?? null);
   const [runtime, setRuntime] = useState(draft?.configuration.runtime ?? null);
@@ -295,6 +339,11 @@ function AISelectionCard({
   const realtime = options.realtime_voice;
 
   const pickProvider = (providerId: string | null, capability: AICapability) => {
+    // Lift the realtime selection first so the ConfigEditor's Voices card
+    // re-syncs to the newly selected provider immediately.
+    if (capability === "realtime_voice") {
+      onRealtimeProviderChange?.(providerId);
+    }
     const next = { ...(ai ?? emptyAI()) };
     if (capability === "chat") {
       next.provider = providerId as never;
@@ -318,7 +367,9 @@ function AISelectionCard({
     ? ai?.provider
     : surface === "voice_chat"
       ? ai?.voiceProvider
-      : ai?.realtimeVoiceProvider;
+      : // Realtime surface follows the LIFTED selection so the provider list
+        // and its model fields mirror what the Voices card is synced to.
+        (realtimeProviderId ?? ai?.realtimeVoiceProvider);
 
   const selectedOptions =
     surface === "chat" ? chat :
@@ -331,7 +382,6 @@ function AISelectionCard({
     null;
 
   const models = selectedProviderOptions?.models ?? [];
-  const voices = selectedProviderOptions?.voices ?? [];
   const setAI = (patch: Partial<NonNullable<AgentDraftDTO["configuration"]["ai"]>>) =>
     setAi({ ...(ai ?? emptyAI()), ...patch });
 

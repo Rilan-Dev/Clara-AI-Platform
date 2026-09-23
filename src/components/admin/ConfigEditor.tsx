@@ -4,7 +4,14 @@
  *
  * variant="agent"  → ElevenLabs-style two-column layout: system prompt +
  *                     first message editors on the left; Voices / Language /
- *                     LLM / Agent behavior settings cards on the right.
+ *                     Branding / LLM / Agent behavior settings cards on the
+ *                     right. Languages live ONLY in the right-side Language
+ *                     card (the former centre-placed language editors were
+ *                     removed — one language surface, no duplicates). Brand
+ *                     colours live in the dedicated Branding colour studio
+ *                     (presets, hex inputs, live mini preview).
+ *                     The Voices card SYNCs with the organisation's selected
+ *                     Realtime Voice provider when `voiceCatalog` is provided.
  * variant="default" → classic tabbed layout (platform defaults, other
  *                     consumers) — unchanged.
  */
@@ -22,6 +29,8 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Languages,
+  Palette,
   RefreshCw,
   Volume2,
 } from "lucide-react";
@@ -51,7 +60,32 @@ type Props = {
   llmSummary?: string;
   /** Opens the AI runtime configuration surface (agent variant). */
   onOpenAISettings?: () => void;
+  /** When set, the Voices card renders THIS provider's voices (synced with
+   *  the organisation's selected Realtime Voice provider — change that
+   *  provider in the AI runtime configuration and the list updates). */
+  voiceCatalog?: ProviderVoiceCatalog | null;
 };
+
+/** Provider-synced voice catalog — supplied by the agent workspace screen. */
+export type ProviderVoiceCatalog = {
+  providerId: string;
+  providerName: string;
+  voices: Array<{ id: string; label: string; description?: string; isDefault?: boolean }>;
+};
+
+/* ── Curated brand presets for the Branding colour studio ─────────────────── */
+const COLOUR_PRESETS: Array<{ name: string; primary: string; accent: string }> = [
+  { name: "Indigo", primary: "#6366f1", accent: "#a5b4fc" },
+  { name: "Violet", primary: "#8b5cf6", accent: "#c4b5fd" },
+  { name: "Blue", primary: "#3b82f6", accent: "#93c5fd" },
+  { name: "Teal", primary: "#14b8a6", accent: "#99f6e4" },
+  { name: "Emerald", primary: "#10b981", accent: "#a7f3d0" },
+  { name: "Amber", primary: "#f59e0b", accent: "#fde68a" },
+  { name: "Rose", primary: "#f43f5e", accent: "#fecdd3" },
+  { name: "Slate", primary: "#475569", accent: "#cbd5e1" },
+];
+
+const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 export function ConfigEditor({
   config: initial,
@@ -60,6 +94,7 @@ export function ConfigEditor({
   variant = "default",
   llmSummary,
   onOpenAISettings,
+  voiceCatalog: providerVoiceCatalog,
 }: Props) {
   const [cfg, setCfg] = useState<AssistantConfig>(initial);
   const [saving, setSaving] = useState(false);
@@ -76,10 +111,37 @@ export function ConfigEditor({
   // Right-column card expansion (agent variant).
   const [languageOpen, setLanguageOpen] = useState(false);
   const [behaviorOpen, setBehaviorOpen] = useState(false);
+  const [brandingOpen, setBrandingOpen] = useState(false);
   // Guards the fetch-once-per-mount behaviour of the Voice tab: the catalog
   // is served from the Redis cache server-side, so re-entering the tab must
   // not refetch; a failed load retries on the next entry.
   const voiceCatalogRequested = useRef(false);
+
+  // ── Provider-synced voices: keep the selection valid whenever the catalog
+  //    changes (provider switch). Falls back to the provider's default so the
+  //    draft never points at a voice the provider cannot serve.
+  const syncedVoices = providerVoiceCatalog?.voices ?? null;
+  const lastSyncedProviderRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!providerVoiceCatalog || !syncedVoices) {
+      lastSyncedProviderRef.current = null;
+      return;
+    }
+    const providerChanged = lastSyncedProviderRef.current !== providerVoiceCatalog.providerId;
+    lastSyncedProviderRef.current = providerVoiceCatalog.providerId;
+    if (!providerChanged) return;
+    const currentValid = syncedVoices.some((v) => v.id === cfg.voiceId);
+    if (!currentValid) {
+      const next =
+        syncedVoices.find((v) => v.isDefault)?.id ??
+        syncedVoices[0]?.id ??
+        "";
+      if (next) set("voiceId", next);
+    }
+    // cfg.voiceId is intentionally NOT a dependency: the effect must run on
+    // provider/catalog changes, not on every keystroke elsewhere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerVoiceCatalog?.providerId, syncedVoices]);
 
   useEffect(() => { setCfg(initial); }, [initial]);
 
@@ -269,58 +331,21 @@ export function ConfigEditor({
                 </div>
               </div>
 
-              <div className="grid gap-5 border-t border-border pt-5 lg:grid-cols-2">
-                <Field label="Default language" hint="The language the agent uses by default.">
-                  <LanguageSelect
-                    value={cfg.defaultLanguage}
-                    onChange={(code) => {
-                      if (!code) return;
-                      set("defaultLanguage", code);
-                      if (!cfg.allowedLanguages.includes(code)) {
-                        set("allowedLanguages", [...cfg.allowedLanguages, code]);
-                      }
-                    }}
-                  />
-                </Field>
-
-                <Field label="Allowed languages" hint="Languages the agent can use during conversations.">
-                  <LanguageMultiSelect
-                    value={cfg.allowedLanguages}
-                    onChange={(codes) => set("allowedLanguages", codes)}
-                    onBlockedMinimum={() =>
-                      toast.info("At least one language is required", {
-                        description: "The assistant always needs a language to chat in.",
-                      })
-                    }
-                  />
-                </Field>
-              </div>
-
-              <Collapsible open={lockLanguageOpen} onOpenChange={setLockLanguageOpen}>
-                <div className="rounded-xl border border-border bg-muted/20">
-                  <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
-                    <span>
-                      <span className="block text-sm font-medium text-foreground">Language behaviour</span>
-                      <span className="block text-xs text-muted-foreground">
-                        Advanced language handling and forced output language.
-                      </span>
-                    </span>
-                    <span className={`text-xs font-medium ${cfg.alwaysRespondIn ? "text-primary" : "text-muted-foreground"}`}>
-                      {cfg.alwaysRespondIn ? "Locked" : "Auto"}
-                    </span>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="px-4 pb-4">
-                    <Field label="Always respond in" hint="Auto mirrors the language used by the customer.">
-                      <LanguageSelect
-                        value={cfg.alwaysRespondIn}
-                        onChange={(code) => set("alwaysRespondIn", code)}
-                        autoLabel="Auto — mirror the customer"
-                        autoDescription="Reply in whatever language the customer writes in."
-                      />
-                    </Field>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
+              {/* Language settings live ONLY in the right-side Language card —
+                  the former centre-placed language editors were removed so
+                  there is exactly one language surface (no duplicate designs). */}
+              <p className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                <Languages className="h-3.5 w-3.5 shrink-0" />
+                Language settings live in the{" "}
+                <button
+                  type="button"
+                  onClick={() => setLanguageOpen(true)}
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Language
+                </button>{" "}
+                card on the right.
+              </p>
 
               <Collapsible>
                 <div className="rounded-xl border border-border bg-muted/20">
@@ -328,7 +353,7 @@ export function ConfigEditor({
                     <span>
                       <span className="block text-sm font-medium text-foreground">Advanced agent settings</span>
                       <span className="block text-xs text-muted-foreground">
-                        Out-of-scope response and widget colours. Existing settings are preserved here.
+                        Out-of-scope response. Brand colours live in the right-side Branding card.
                       </span>
                     </span>
                     <span className="text-xs text-muted-foreground">Advanced</span>
@@ -337,20 +362,6 @@ export function ConfigEditor({
                     <Field label="Out-of-scope reply" hint="Returned when strict mode rejects a question.">
                       <Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." />
                     </Field>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field label="Primary colour">
-                        <div className="flex items-center gap-3">
-                          <input type="color" value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-border p-0.5" />
-                          <Input value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="font-mono text-sm" maxLength={7} />
-                        </div>
-                      </Field>
-                      <Field label="Accent colour">
-                        <div className="flex items-center gap-3">
-                          <input type="color" value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-border p-0.5" />
-                          <Input value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="font-mono text-sm" maxLength={7} />
-                        </div>
-                      </Field>
-                    </div>
                   </CollapsibleContent>
                 </div>
               </Collapsible>
@@ -359,82 +370,148 @@ export function ConfigEditor({
 
           {/* ── Right column — settings cards (image 3) ───────────────────────── */}
           <aside className="space-y-4">
-            {/* Voices */}
+            {/* Voices — provider-synced when the agent workspace supplies a
+                voiceCatalog (mirrors the organisation's selected Realtime
+                Voice provider); OpenAI catalog otherwise. */}
             <section className="rounded-2xl border border-border bg-card shadow-sm">
               <header className="flex items-start justify-between gap-2 px-4 pb-2 pt-4">
                 <div>
-                  <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <Volume2 className="h-3.5 w-3.5 text-muted-foreground" /> Voices
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                    <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    {providerVoiceCatalog ? `Voices · ${providerVoiceCatalog.providerName}` : "Voices"}
+                    {providerVoiceCatalog && (
+                      <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                        Synced
+                      </span>
+                    )}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Select the realtime voices used by this agent.
+                    {providerVoiceCatalog
+                      ? "Mirrors the Realtime Voice provider selected in the AI runtime configuration — switching that provider updates this list automatically."
+                      : "Select the realtime voices used by this agent."}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void refreshVoiceCatalog()}
-                  disabled={voiceCatalogRefreshing}
-                  title="Fetch live from OpenAI and re-cache"
-                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Refresh voice catalog"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${voiceCatalogRefreshing ? "animate-spin" : ""}`} />
-                </button>
+                {!providerVoiceCatalog && (
+                  <button
+                    type="button"
+                    onClick={() => void refreshVoiceCatalog()}
+                    disabled={voiceCatalogRefreshing}
+                    title="Fetch live from OpenAI and re-cache"
+                    className="shrink-0 rounded-lg p-1.5 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="Refresh voice catalog"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${voiceCatalogRefreshing ? "animate-spin" : ""}`} />
+                  </button>
+                )}
               </header>
               <div className="px-2 pb-2">
-                {voiceCatalog && (
+                {!providerVoiceCatalog && voiceCatalog && (
                   <div className="px-2 pb-1">
                     <CacheBadge catalog={voiceCatalog} />
                   </div>
                 )}
-                {voiceCatalogLoading && (
-                  <div className="space-y-1.5 px-2 py-2">
-                    {[1, 2, 3].map((i) => <div key={i} className="h-11 animate-pulse rounded-lg bg-muted/50" />)}
-                  </div>
-                )}
-                {voiceCatalogError && (
-                  <div className="m-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
-                    {voiceCatalogError}
-                    <button type="button" onClick={() => void refreshVoiceCatalog()} className="mt-2 block font-medium text-primary hover:underline">
-                      Retry
-                    </button>
-                  </div>
-                )}
-                {voiceCatalog && (
-                  <ul>
-                    {voiceCatalog.voices.map((v) => {
-                      const selected = cfg.voiceId === v.id;
-                      return (
-                        <li key={v.id}>
-                          <button
-                            type="button"
-                            onClick={() => set("voiceId", v.id)}
-                            aria-pressed={selected}
-                            className={cn(
-                              "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors",
-                              selected ? "bg-primary/5" : "hover:bg-muted/50",
-                            )}
-                          >
-                            <span className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                              selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-                            )}>
-                              {v.label[0]}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-foreground">{v.label}</span>
-                              <span className="block truncate text-[11px] text-muted-foreground/70">{v.description}</span>
-                            </span>
-                            {selected && (
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
-                                <Check className="h-3 w-3" />
+                {providerVoiceCatalog ? (
+                  syncedVoices && syncedVoices.length > 0 ? (
+                    <ul>
+                      {syncedVoices.map((v) => {
+                        const selected = cfg.voiceId === v.id;
+                        return (
+                          <li key={v.id}>
+                            <button
+                              type="button"
+                              onClick={() => set("voiceId", v.id)}
+                              aria-pressed={selected}
+                              className={cn(
+                                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                                selected ? "bg-primary/5" : "hover:bg-muted/50",
+                              )}
+                            >
+                              <span className={cn(
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                                selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                              )}>
+                                {v.label[0]}
                               </span>
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium text-foreground">
+                                  {v.label}
+                                  {v.isDefault && (
+                                    <span className="ml-1.5 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                                      Default
+                                    </span>
+                                  )}
+                                </span>
+                                {v.description && (
+                                  <span className="block truncate text-[11px] text-muted-foreground/70">{v.description}</span>
+                                )}
+                              </span>
+                              {selected && (
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
+                                  <Check className="h-3 w-3" />
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="m-2 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-4 text-center text-[11px] text-muted-foreground/70">
+                      This provider exposes no voices yet — pick another Realtime Voice provider in the AI runtime configuration.
+                    </p>
+                  )
+                ) : (
+                  <>
+                    {voiceCatalogLoading && (
+                      <div className="space-y-1.5 px-2 py-2">
+                        {[1, 2, 3].map((i) => <div key={i} className="h-11 animate-pulse rounded-lg bg-muted/50" />)}
+                      </div>
+                    )}
+                    {voiceCatalogError && (
+                      <div className="m-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+                        {voiceCatalogError}
+                        <button type="button" onClick={() => void refreshVoiceCatalog()} className="mt-2 block font-medium text-primary hover:underline">
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                    {voiceCatalog && (
+                      <ul>
+                        {voiceCatalog.voices.map((v) => {
+                          const selected = cfg.voiceId === v.id;
+                          return (
+                            <li key={v.id}>
+                              <button
+                                type="button"
+                                onClick={() => set("voiceId", v.id)}
+                                aria-pressed={selected}
+                                className={cn(
+                                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                                  selected ? "bg-primary/5" : "hover:bg-muted/50",
+                                )}
+                              >
+                                <span className={cn(
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                                  selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                                )}>
+                                  {v.label[0]}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-medium text-foreground">{v.label}</span>
+                                  <span className="block truncate text-[11px] text-muted-foreground/70">{v.description}</span>
+                                </span>
+                                {selected && (
+                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
+                                    <Check className="h-3 w-3" />
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </>
                 )}
                 <div className="mt-1 flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2.5">
                   <span className="text-[11px] font-medium text-muted-foreground">Speed</span>
@@ -529,6 +606,120 @@ export function ConfigEditor({
                         autoDescription="Reply in whatever language the customer writes in."
                       />
                     </Field>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Branding — the advanced colour studio (moved here from the old
+                "Advanced agent settings" collapsible). Presets, hex inputs and
+                a live mini preview in one dedicated card. */}
+            <section className="rounded-2xl border border-border bg-card shadow-sm">
+              <header className="px-4 pb-2 pt-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Palette className="h-3.5 w-3.5 text-muted-foreground" /> Branding
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Brand colours for the chat widget and voice page.
+                </p>
+              </header>
+              <div className="px-2 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setBrandingOpen((v) => !v)}
+                  aria-expanded={brandingOpen}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
+                >
+                  <span className="flex shrink-0 items-center -space-x-1">
+                    <span
+                      className="h-5 w-5 rounded-full border-2 border-card"
+                      style={{ backgroundColor: cfg.primaryColour }}
+                    />
+                    <span
+                      className="h-5 w-5 rounded-full border-2 border-card"
+                      style={{ backgroundColor: cfg.accentColour }}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                    {cfg.primaryColour} · {cfg.accentColour}
+                  </span>
+                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", brandingOpen && "rotate-180")} />
+                </button>
+                {brandingOpen && (
+                  <div className="space-y-4 border-t border-border/60 px-3 py-3">
+                    {/* Live mini preview */}
+                    <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">Live preview</p>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex justify-end">
+                          <span className="rounded-2xl rounded-br-sm px-3 py-1.5 text-xs text-white" style={{ backgroundColor: cfg.primaryColour }}>
+                            How can I help?
+                          </span>
+                        </div>
+                        <div className="flex justify-start">
+                          <span className="rounded-2xl rounded-bl-sm border px-3 py-1.5 text-xs text-foreground" style={{ borderColor: cfg.accentColour, backgroundColor: `${cfg.accentColour}1a` }}>
+                            Answer my question
+                          </span>
+                        </div>
+                        <div className="flex justify-end">
+                          <span
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-white"
+                            style={{ backgroundColor: cfg.primaryColour }}
+                            aria-hidden
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Curated presets */}
+                    <div>
+                      <p className="text-[11px] font-medium text-muted-foreground">Presets</p>
+                      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+                        {COLOUR_PRESETS.map((preset) => {
+                          const active =
+                            cfg.primaryColour.toLowerCase() === preset.primary.toLowerCase() &&
+                            cfg.accentColour.toLowerCase() === preset.accent.toLowerCase();
+                          return (
+                            <button
+                              key={preset.name}
+                              type="button"
+                              onClick={() => {
+                                set("primaryColour", preset.primary);
+                                set("accentColour", preset.accent);
+                              }}
+                              aria-pressed={active}
+                              title={`${preset.name} — ${preset.primary} / ${preset.accent}`}
+                              className={cn(
+                                "flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-medium transition-colors",
+                                active ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                              )}
+                            >
+                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: preset.primary }} />
+                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: preset.accent }} />
+                              <span className="truncate">{preset.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom hex + pickers */}
+                    <div className="space-y-2.5">
+                      <Field label="Primary colour" hint="Buttons, own bubbles and highlights.">
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={cfg.primaryColour} onChange={(e) => set("primaryColour", e.target.value)} className="h-8 w-11 cursor-pointer rounded border border-border p-0.5" aria-label="Primary colour picker" />
+                          <Input value={cfg.primaryColour} onChange={(e) => { const v = e.target.value; if (HEX_RE.test(v) || v === "#") set("primaryColour", v); }} className="font-mono text-xs" maxLength={7} placeholder="#6366f1" />
+                        </div>
+                      </Field>
+                      <Field label="Accent colour" hint="Borders, links and soft backgrounds.">
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={cfg.accentColour} onChange={(e) => set("accentColour", e.target.value)} className="h-8 w-11 cursor-pointer rounded border border-border p-0.5" aria-label="Accent colour picker" />
+                          <Input value={cfg.accentColour} onChange={(e) => { const v = e.target.value; if (HEX_RE.test(v) || v === "#") set("accentColour", v); }} className="font-mono text-xs" maxLength={7} placeholder="#a5b4fc" />
+                        </div>
+                      </Field>
+                    </div>
                   </div>
                 )}
               </div>

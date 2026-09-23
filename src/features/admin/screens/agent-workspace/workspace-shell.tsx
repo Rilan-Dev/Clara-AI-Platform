@@ -7,7 +7,7 @@
  *
  *   ┌─ org sidebar ─┬───────────────────────────────────────────────┐
  *   │  (admin-shell │  Navbar: agent · version ·                    │
- *   │   owns this)  │  [Preview][History][Publish] (agent selected)  │
+ *   │   owns this)  │  [Preview][Publish] (agent selected)          │
  *   ├───────────────┼───────────────────────────────────────────────┤
  *   │  Agents list  │  content (children)                           │
  *   │  / identity + │                                               │
@@ -17,8 +17,13 @@
  * · Navigation lives in the EXISTING organisation sidebar (admin-shell):
  *   agents list on the index, agent identity + tab groups when an agent
  *   is open. This shell adds no second rail — content keeps full width.
- * · The navbar carries Preview / History / Publish only once an agent is
- *   selected; History opens the branch-history canvas over the current tab.
+ * · The navbar carries Preview / Publish only once an agent is selected.
+ *   Preview opens the DEDICATED published preview page (/preview/agents/:id,
+ *   new tab, session-authenticated — never the embed/Deploy API key).
+ *   Publish is ONE CLICK: draft edits are versioned automatically and the
+ *   result goes live immediately; the button is disabled while production
+ *   is already up to date. Deep history lives in Versions/branches — there
+ *   is no History button in this public bar.
  *
  * All data is shared through AgentsWorkspaceProvider so the screens
  * underneath consume a single fetch instead of re-querying.
@@ -36,6 +41,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  ExternalLink,
   GitBranch,
   History,
   Plus,
@@ -44,6 +50,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { fetchKbs, type Agent, type KnowledgeBase } from "@/modules/admin-ui/api";
 import {
@@ -52,8 +59,9 @@ import {
   fetchAgentDiff,
   fetchAgentVersions,
   fetchAgentWorkspaceContext,
-  generateAgentExploreLink,
+  publishAgentVersion,
   restoreAgentVersion,
+  saveAgentVersion,
   type AgentVersionDTO,
   type AgentWorkspaceContextDTO,
   type SemanticDiffDTO,
@@ -274,6 +282,14 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
     return () => window.removeEventListener("clara:open-create-agent", open);
   }, []);
 
+  // Cross-screen refresh: one-click publish (navbar, Overview, publish screen)
+  // fires this event so every mounted workspace surface re-reads its context.
+  useEffect(() => {
+    const refresh = () => refetchContext();
+    window.addEventListener("agent-workspace:refresh", refresh);
+    return () => window.removeEventListener("agent-workspace:refresh", refresh);
+  }, [refetchContext]);
+
   const value = useMemo<AgentsWorkspaceValue>(
     () => ({
       orgId,
@@ -345,40 +361,13 @@ function AgentNavbar({ context, loading }: {
 }) {
   const { agentId, agents, orgId, remove } = useAgentsWorkspace();
   const router = useRouter();
-  const pathname = usePathname();
   const [deleting, setDeleting] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewBusy, setPreviewBusy] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [defaultUpdate, setDefaultUpdate] = useState<{
     agentDefaultVersion: number | null;
     currentPlatformVersion: number | null;
   } | null>(null);
   const [dismissing, setDismissing] = useState(false);
-
-  useEffect(() => {
-    setPreviewUrl(null);
-  }, [agentId]);
-
-  /** Opens the unified chat + voice preview of the published agent. */
-  async function openPreview() {
-    if (!agentId) return;
-    if (previewUrl) {
-      window.open(previewUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-    setPreviewBusy(true);
-    try {
-      const link = await generateAgentExploreLink(agentId);
-      setPreviewUrl(link.previewUrl);
-      window.open(link.previewUrl, "_blank", "noopener,noreferrer");
-    } catch {
-      // The publish screen carries the full preview/deploy surface — fall
-      // back to it when an explore link cannot be minted right now.
-      router.push(`/orgs/${orgId}/agents/${agentId}/publish`);
-    } finally {
-      setPreviewBusy(false);
-    }
-  }
 
   useEffect(() => {
     if (!context?.defaultAssistantUpdate?.updateAvailable) {
@@ -404,6 +393,48 @@ function AgentNavbar({ context, loading }: {
     context?.draftUpdatedAt != null &&
     currentVersion != null &&
     new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime();
+
+  // Publish is enabled ONLY when there is something to publish:
+  //   • draft edits that are not in a version yet, OR
+  //   • a saved version that production is not running, OR
+  //   • the agent has never been published.
+  const productionUpToDate =
+    !!deployment &&
+    !!currentVersion &&
+    deployment.versionNumber === currentVersion.versionNumber &&
+    !draftEditedSinceVersion;
+  const canPublish = !loading && !!context && !productionUpToDate && !!currentVersion;
+
+  // One-click publish: draft edits are versioned automatically, then the
+  // resulting (or already-saved) version is published. No version picking,
+  // no review screens — just a notification when it is live.
+  const publishNow = useCallback(async () => {
+    if (!context || publishing) return;
+    setPublishing(true);
+    try {
+      let versionId = currentVersion?.id ?? null;
+      if (draftEditedSinceVersion) {
+        const version = await saveAgentVersion(agentId ?? "", null);
+        versionId = version.id;
+      }
+      if (!versionId) {
+        toast.error("Nothing to publish yet", {
+          description: "Save your assistant configuration first — a version is created from the draft.",
+        });
+        return;
+      }
+      const result = await publishAgentVersion(agentId ?? "", versionId, deployment?.publicAccess ?? true);
+      toast.success("Agent published", {
+        description: `Production is now running ${result.deployment.branchName} · v${result.deployment.versionNumber}.`,
+      });
+      router.refresh();
+      window.dispatchEvent(new CustomEvent("agent-workspace:refresh"));
+    } catch (err) {
+      toast.error("Publish failed", { description: (err as Error).message });
+    } finally {
+      setPublishing(false);
+    }
+  }, [context, publishing, currentVersion, draftEditedSinceVersion, agentId, deployment?.publicAccess, router]);
 
   async function handleDelete() {
     if (!agentId) return;
@@ -448,27 +479,35 @@ function AgentNavbar({ context, loading }: {
           )}
         </div>
 
-        {/* Preview opens the unified chat + voice screen. History opens the
-            branch-history canvas OVER the current tab (ElevenLabs keeps you in
-            context); Versions/Publishing live here, only once an agent is
-            selected. */}
+        {/* One-click deploy actions. Preview opens the DEDICATED published
+            preview page in a new tab (session-authenticated — no embed /
+            Deploy API key involved). Publish stays disabled while production
+            is up to date. Deep history lives in Versions/branches, so there
+            is no History button in this public bar. */}
         <div className="flex shrink-0 items-center gap-2">
-          <WorkspaceButton variant="secondary" onClick={() => void openPreview()} disabled={previewBusy}>
-            {previewBusy ? "…" : "Preview"}
-          </WorkspaceButton>
           <WorkspaceButton
             variant="secondary"
-            onClick={() => agentId && router.push(`${pathname}?history=1`, { scroll: false })}
+            onClick={() => window.open(`/preview/agents/${agentId}`, "_blank", "noopener")}
+            disabled={!deployment}
+            title={deployment ? "Open the published preview in a new tab" : "Publish first — the preview shows the live version"}
           >
-            <History className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">History</span>
+            <ExternalLink className="h-3.5 w-3.5" /> Preview
           </WorkspaceButton>
           <WorkspaceButton
-            variant={deployment ? "secondary" : "primary"}
-            onClick={() => agentId && router.push(`/orgs/${orgId}/agents/${agentId}/publish`)}
+            variant="primary"
+            onClick={() => void publishNow()}
+            disabled={!canPublish || publishing}
+            title={
+              productionUpToDate
+                ? "Production is up to date — edit the draft to enable publishing"
+                : draftEditedSinceVersion
+                  ? "Saves the draft as a version and publishes it"
+                  : `Publish v${currentVersion?.versionNumber ?? "1"} to production`
+            }
           >
-            <Rocket className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{deployment ? "Publish update" : "Publish"}</span>
+            <Rocket className={`h-3.5 w-3.5 ${publishing ? "animate-pulse" : ""}`} />
+            <span className="hidden sm:inline">{publishing ? "Publishing…" : deployment ? "Publish update" : "Publish"}</span>
+            <span className="sm:hidden">{publishing ? "…" : deployment ? "Update" : "Publish"}</span>
           </WorkspaceButton>
           <span title="Delete agent">
             <WorkspaceButton
