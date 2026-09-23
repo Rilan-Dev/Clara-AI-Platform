@@ -17,10 +17,16 @@ import {
   validateApiKey,
   checkAndIncrementRateLimit,
   getOrgPlanForKey,
+  getOrgPlanForOrg,
   checkDailyQuota,
   type ValidatedKey,
   type OrgPlanLimits,
 } from "./api-keys-db";
+import {
+  isPublicSessionToken,
+  verifyPublicSessionToken,
+} from "./public-token";
+import { getActiveDeploymentCached } from "@/modules/agent-versioning/core/db";
 
 export type EmbedContext = ValidatedKey & {
   planLimits: OrgPlanLimits | null;
@@ -131,6 +137,61 @@ export function isOriginAllowedForEmbed(
   );
 }
 
+/** Hourly request ceiling for public-session-token traffic (per agent). */
+const PUBLIC_TOKEN_RATE_LIMIT_PER_HOUR = 500;
+
+/**
+ * Validate a public session token (pub_…) bearer credential — the public
+ * PUBLISHED agent page's short-lived, HMAC-signed, deployment-bound token.
+ *
+ * Every use re-verifies the ACTIVE deployment and its publicAccess flag, so
+ * unpublishing or flipping the agent private cuts off existing tokens
+ * immediately. Plan entitlement is resolved from the ORG (no api_keys row
+ * exists for public tokens) and applies the same daily-quota gate as keyed
+ * embeds.
+ */
+async function validatePublicTokenRequest(
+  rawToken: string,
+): Promise<{ ctx: ValidatedKey } | { error: NextResponse }> {
+  const verified = verifyPublicSessionToken(rawToken);
+  if (!verified) {
+    return {
+      error: NextResponse.json(
+        { error: "This public session has expired. Reload the page to continue." },
+        { status: 401 },
+      ),
+    };
+  }
+
+  const { payload } = verified;
+  const deployment = await getActiveDeploymentCached(payload.a);
+  if (
+    !deployment ||
+    !deployment.publicAccess ||
+    deployment.id !== payload.d
+  ) {
+    return {
+      error: NextResponse.json(
+        { error: "This assistant is no longer publicly available." },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return {
+    ctx: {
+      keyId: `public:${payload.a}`,
+      kbId: payload.k,
+      orgId: payload.o,
+      // The public page is same-origin; embed CORS policy stays unrestricted
+      // (the canonical policy allows no-origin/non-browser and same-host).
+      allowedOrigins: ["*"],
+      rateLimitPerHour: PUBLIC_TOKEN_RATE_LIMIT_PER_HOUR,
+      designEditEnabled: false,
+    },
+  };
+}
+
 export async function validateEmbedRequest(req: NextRequest): Promise<ValidationResult> {
   const authHeader = req.headers.get("authorization") ?? "";
   const rawKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -178,7 +239,22 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
     };
   }
 
-  const keyCtx = await validateApiKey(rawKey);
+  // Public session tokens (pub_…) — the public published agent page's
+  // short-lived signed credential. Validated like an embed key but bound to
+  // the agent's active PUBLIC deployment, with the org's plan governing
+  // quota/voice entitlement (no api_keys row exists to look up).
+  const isPublicToken = isPublicSessionToken(rawKey);
+
+  let keyCtx: ValidatedKey | null;
+  if (isPublicToken) {
+    const publicResult = await validatePublicTokenRequest(rawKey);
+    if ("error" in publicResult) {
+      return { ok: false, response: publicResult.error };
+    }
+    keyCtx = publicResult.ctx;
+  } else {
+    keyCtx = await validateApiKey(rawKey);
+  }
   if (!keyCtx) {
     return {
       ok: false,
@@ -208,7 +284,7 @@ export async function validateEmbedRequest(req: NextRequest): Promise<Validation
   // reserve the hourly counter together so the public embed hot path does not
   // pay two sequential database round trips.
   const [planLimits, withinHourlyLimit] = await Promise.all([
-    getOrgPlanForKey(keyCtx.keyId),
+    isPublicToken ? getOrgPlanForOrg(keyCtx.orgId) : getOrgPlanForKey(keyCtx.keyId),
     checkAndIncrementRateLimit(keyCtx.keyId, keyCtx.rateLimitPerHour),
   ]);
 

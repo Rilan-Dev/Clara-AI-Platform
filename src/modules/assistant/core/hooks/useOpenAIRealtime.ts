@@ -69,6 +69,8 @@ type Options = {
    * the public embed voice widget (src/features/embed/screens/voice-screen.tsx).
    */
   embedApiKey?: string;
+  /** Draft-preview mode (agent preview): requests carry scope:"draft". */
+  draftMode?: boolean;
 };
 
 type TurnStatus = "pending" | "speaking" | "done";
@@ -381,7 +383,7 @@ export function useOpenAIRealtime(opts?: Options) {
         headers,
         body: JSON.stringify(
           kbIdVal
-            ? { query, kbId: kbIdVal, language: languagePrefs.assistant } // KB mode
+            ? { query, kbId: kbIdVal, language: languagePrefs.assistant, ...(opts?.draftMode ? { scope: "draft" } : {}) } // KB mode
             : { query, documentId: docId, language: languagePrefs.assistant } // Legacy mode
         ),
         signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
@@ -541,6 +543,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
     languageGuidance.follow,
     opts?.embedApiKey,
     sendJSON,
+    opts?.draftMode,
   ]);
 
   // ── scheduleRag ───────────────────────────────────────────────────────────
@@ -678,7 +681,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
           headers,
           body: JSON.stringify(
             kbIdVal
-              ? { query: q, kbId: kbIdVal }       // KB mode
+              ? { query: q, kbId: kbIdVal, ...(opts?.draftMode ? { scope: "draft" } : {}) }       // KB mode
               : { query: q, documentId: docId }    // Legacy mode
           ),
         });
@@ -749,7 +752,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         }
       }
     },
-    [documentId, kbId, opts?.embedApiKey, sendJSON]
+    [documentId, kbId, opts?.draftMode, opts?.embedApiKey, sendJSON]
   );
 
   // ── connect ───────────────────────────────────────────────────────────────
@@ -812,6 +815,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
           languages: languagePrefs.customer,
           autoDetectLanguage: true,
           ...(kbId ? { kbId } : {}),
+          ...(opts?.draftMode ? { scope: "draft" } : {}),
         }),
       });
       if (!sessRes.ok) throw new Error(await sessRes.text());
@@ -1363,6 +1367,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
     languageGuidance.session,
     languagePrefs.assistant,
     languagePrefs.customer,
+    opts?.draftMode,
     opts?.embedApiKey,
     resolveTurnId,
     scheduleRag,

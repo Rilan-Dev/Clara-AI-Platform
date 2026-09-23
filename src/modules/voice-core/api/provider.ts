@@ -103,7 +103,10 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
 
     // Full voice-surface resolution (kb → agent → org → env, allow-lists,
     // kill switch, surface flags) — same guards the session endpoints apply.
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
 
     // The voice modal IS the real-time voice assistant surface, so it routes
     // on the REALTIME purpose axis. That axis inherits the voice-chat axis

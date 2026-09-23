@@ -201,7 +201,10 @@ async function postChatKb(
   const [kb, config, resolved, documentTitles] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfigByKb(kbId),
-    resolveAIConfig({ kbId, surface: "chat" }),
+    // scope:"draft" — the authenticated agent preview tests the CURRENT
+    // Main-branch draft (persona/models/runtime + LIVE KB collection)
+    // instead of the immutable published version.
+    resolveAIConfig({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
     getKnowledgeBaseDocumentTitles(kbId),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");

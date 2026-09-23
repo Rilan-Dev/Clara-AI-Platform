@@ -76,6 +76,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
     voiceGreeting:    options.voiceGreeting,
     language:         options.language,
     embedApiKey:      options.embedApiKey,
+    draftMode:        options.draftMode,
   };
 
   // Always called — React rules require unconditional hook calls.
@@ -119,7 +120,10 @@ export function useVoiceClient(options: VoiceClientOptions) {
     const res = await fetch(apiUrl(endpoint), {
       method: "POST",
       headers,
-      body: JSON.stringify({ kbId: options.kbId }),
+      body: JSON.stringify({
+        kbId: options.kbId,
+        ...(options.draftMode ? { scope: "draft" } : {}),
+      }),
     });
 
     const payload = (await res.json().catch(() => ({}))) as VoiceProviderResponse;
@@ -158,7 +162,7 @@ export function useVoiceClient(options: VoiceClientOptions) {
     }
     const mode = "pipeline" as const;
     return { provider: resolved === "gemini" ? ("gemini" as const) : ("openai" as const), mode };
-  }, [options.kbId, options.embedApiKey]);
+  }, [options.kbId, options.embedApiKey, options.draftMode]);
 
   const connect = useCallback(async () => {
     const next = await resolveProvider();

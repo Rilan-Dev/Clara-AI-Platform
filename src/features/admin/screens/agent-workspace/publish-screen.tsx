@@ -173,6 +173,12 @@ export default function AgentPublishScreen() {
   }, []);
 
   const previewHref = `/preview/agents/${agentId}`;
+  // Hosted public published page (/agents/:id) — same-origin absolute URL so
+  // it is copy-paste ready behind reverse proxies and custom domains.
+  const [publicPageUrl, setPublicPageUrl] = useState(`/agents/${agentId}`);
+  useEffect(() => {
+    setPublicPageUrl(`${window.location.origin}/agents/${agentId}`);
+  }, [agentId]);
 
   return (
     <div>
@@ -326,6 +332,32 @@ export default function AgentPublishScreen() {
                     </div>
                     <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{exploreLink.previewUrl}</p>
                   </div>
+
+                  {/* Public published page — always on while access is public. */}
+                  <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-600/80">Public page</p>
+                      <div className="flex items-center gap-1.5">
+                        <WorkspaceButton variant="ghost" onClick={() => void copyUrl(publicPageUrl)}>
+                          {copied === publicPageUrl ? "Copied" : "Copy"}
+                        </WorkspaceButton>
+                        <a
+                          href={publicPageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50"
+                        >
+                          Open
+                        </a>
+                      </div>
+                    </div>
+                    <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{publicPageUrl}</p>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/60">
+                      The hosted public experience — chat and realtime voice from the published
+                      settings only, with plan quotas and rate limits enforced.
+                    </p>
+                  </div>
+
                   <p className="text-[11px] text-muted-foreground/60">
                     Serving knowledge base “{exploreLink.kbName}”. The unified preview contains both Chat and Voice. The raw key is shown once — regenerate to rotate it
                     (the previous explore key is revoked automatically).

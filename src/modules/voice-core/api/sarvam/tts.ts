@@ -120,7 +120,10 @@ export async function postSarvamTts(request: NextRequest): Promise<NextResponse 
     // Cached for 5 s — this route fires per sentence. Realtime axis: the
     // pipeline sessions bootstrap on the realtime purpose axis, so the hot
     // paths must agree or cross-axis orgs 409 on every sentence.
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
     if (
       (resolved.voiceProvider !== "sarvam" && resolved.realtimeProvider !== "sarvam") ||
       !resolved.sarvam

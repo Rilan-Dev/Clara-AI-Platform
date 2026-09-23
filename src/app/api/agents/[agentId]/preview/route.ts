@@ -5,22 +5,30 @@ import { getAgentById } from "@/modules/organisations/core/db";
 import { queryOne } from "@/lib/db";
 import {
   getActiveDeployment,
+  getAgentDraftConfig,
   getProductionVersionConfig,
 } from "@/modules/agent-versioning/core/db";
+import { buildVersionConfigFromLive } from "@/modules/agent-versioning/core/projection";
+import type { AgentVersionConfig } from "@/modules/agent-versioning/core/types";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/agents/:agentId/preview
+ * GET /api/agents/:agentId/preview?scope=draft|published
  *
- * Serves the CURRENTLY PUBLISHED agent state for the DEDICATED preview page
- * (/orgs/:orgId/agents/:agentId/preview). Session-authenticated for org
- * members — this endpoint NEVER mints, reads or touches the embed (Deploy)
- * API key. That key is reserved for real site deployments; the preview page
- * is a first-class authenticated surface instead of an embed.
+ * Serves the dedicated preview page (/preview/agents/:agentId).
+ * Session-authenticated for org members — this endpoint NEVER mints, reads or
+ * touches the embed (Deploy) API key. That key is reserved for real site
+ * deployments; the preview page is a first-class authenticated surface.
  *
- * Returns exactly what the published version's immutable configuration says
- * — drafts are never leaked here.
+ *   scope=published (default) — the immutable published version configuration
+ *   scope=draft               — the CURRENT Main-branch DRAFT configuration
+ *                                (persona, AI selections, runtime toggles) plus
+ *                                the LIVE knowledge base, so members can test
+ *                                exactly what they are editing before
+ *                                publishing. Drafts are ONLY served here, to
+ *                                authenticated project readers — never on any
+ *                                public surface.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   try {
@@ -34,15 +42,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
+    const scope = req.nextUrl.searchParams.get("scope") === "draft" ? "draft" : "published";
+    const draft = scope === "draft" ? await getAgentDraftConfig(agentId) : null;
+
     const [deployment, version] = await Promise.all([
       getActiveDeployment(agentId),
       getProductionVersionConfig(agentId),
     ]);
 
-    if (!deployment || !version) {
+    // Draft scope: draft → live projection → published version (deterministic
+    // fallbacks — never fabricated). Published scope: published version only.
+    let configuration: AgentVersionConfig | null = null;
+    let configSource: "draft" | "live" | "published" | null = null;
+    if (scope === "draft") {
+      if (draft) {
+        configuration = draft.configuration;
+        configSource = "draft";
+      } else {
+        const live = await buildVersionConfigFromLive(agentId);
+        if (live) {
+          configuration = live;
+          configSource = "live";
+        } else if (version) {
+          configuration = version.configuration;
+          configSource = "published";
+        }
+      }
+    } else if (version) {
+      configuration = version.configuration;
+      configSource = "published";
+    }
+
+    if (!configuration) {
       return NextResponse.json({
         agent: { id: agent.id, name: agent.name, orgId: agent.orgId },
+        scope,
+        configSource: null,
         deployment: null,
+        draft: null,
         assistant: null,
         ai: null,
         runtime: null,
@@ -50,8 +87,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
       });
     }
 
-    // Primary active knowledge base — powers the functional chat preview via
-    // the internal authenticated /api/chat endpoint (again: no embed key).
+    // Knowledge base — always the LIVE collection in draft scope (members test
+    // current content); the deployment snapshot is used by the public page.
     const kb = await queryOne<{ id: string; name: string }>(
       `SELECT id, name FROM knowledge_bases
         WHERE agent_id = $1 AND status = 'active'
@@ -59,17 +96,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
       [agentId],
     );
 
-    const assistant = version.configuration.assistant as Record<string, unknown> | null;
+    const assistant = configuration.assistant as Record<string, unknown> | null;
     return NextResponse.json({
       agent: { id: agent.id, name: agent.name, orgId: agent.orgId },
-      deployment: {
-        branchName: deployment.branchName,
-        versionNumber: deployment.versionNumber,
-        publicAccess: deployment.publicAccess,
-        publishedAt: deployment.publishedAt,
-        publishedByName: deployment.publishedByName,
-        changeSummary: version.changeSummary ?? null,
-      },
+      scope,
+      configSource,
+      deployment: deployment
+        ? {
+            branchName: deployment.branchName,
+            versionNumber: deployment.versionNumber,
+            publicAccess: deployment.publicAccess,
+            publishedAt: deployment.publishedAt,
+            publishedByName: deployment.publishedByName,
+            changeSummary: version?.changeSummary ?? null,
+          }
+        : null,
+      draft: draft
+        ? {
+            branchName: draft.branchName,
+            updatedAt: draft.updatedAt,
+            parentVersionNumber: draft.parentVersionNumber,
+          }
+        : null,
       assistant: assistant
         ? {
             assistantName: (assistant.assistantName as string) ?? agent.name,
@@ -85,8 +133,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
             citeSources: (assistant.citeSources as boolean) ?? true,
           }
         : null,
-      ai: version.configuration.ai ?? null,
-      runtime: version.configuration.runtime ?? null,
+      ai: configuration.ai ?? null,
+      runtime: configuration.runtime ?? null,
       kb: kb ?? null,
     });
   } catch (err) {

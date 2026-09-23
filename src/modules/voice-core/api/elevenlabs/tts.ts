@@ -119,7 +119,10 @@ export async function postElevenLabsTts(request: NextRequest): Promise<NextRespo
     // (~8 DB round trips) otherwise dominates the latency budget of every
     // short-sentence call (see ELEVENLABS_REALTIME_STREAMING_PLAN.md).
     // Realtime axis to match the session bootstrap (see session.ts).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
+        // scope:"draft" — the authenticated agent preview resolves against
+    // the CURRENT Main-branch draft instead of the immutable published
+    // version (KB overrides apply; the LIVE collection is searched).
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(body?.scope === "draft" ? { preferDraft: true } : {}) });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
     if (

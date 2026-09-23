@@ -105,7 +105,10 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
       const response = await fetch(apiUrl("/api/voice/elevenlabs/speech-engine/session"), {
         method: "POST",
         headers,
-        body: JSON.stringify({ kbId: options.kbId }),
+        body: JSON.stringify({
+          kbId: options.kbId,
+          ...(options.draftMode ? { scope: "draft" } : {}),
+        }),
       });
 
       const payload = (await response.json().catch(() => ({}))) as Partial<SessionResponse> & { error?: string };
@@ -159,7 +162,7 @@ export function useElevenLabsSpeechEngine(options: VoiceClientOptions) {
       }
       throw cause;
     }
-  }, [options.embedApiKey, options.kbId, pushMessage]);
+  }, [options.embedApiKey, options.kbId, pushMessage, options.draftMode]);
 
   const disconnect = useCallback(() => {
     const conversation = conversationRef.current;

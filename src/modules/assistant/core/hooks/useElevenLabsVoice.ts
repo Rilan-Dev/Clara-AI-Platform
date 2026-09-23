@@ -157,6 +157,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
           voiceId: session.tts.voiceId,
           language: session.stt.language,
           voiceSettings: session.tts.voiceSettings,
+          ...(options.draftMode ? { scope: "draft" } : {}),
         }),
         signal: controller.signal,
       });
@@ -184,7 +185,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         console.warn("[elevenlabs] tts failed:", (err as Error).message);
       }
     }
-  }, [enqueueAudio, pipelineHeaders]);
+  }, [enqueueAudio, pipelineHeaders, options.draftMode]);
 
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
@@ -259,6 +260,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
           // sessions, "/api/embed/chat" for embed-key sessions.
           endpoint: apiUrl(session.chat.endpoint),
           embedApiKey: options.embedApiKey,
+          draftScope: options.draftMode === true,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
         },
@@ -287,7 +289,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     } finally {
       currentTurnRef.current = null;
     }
-  }, [options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence]);
+  }, [options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence, options.draftMode]);
 
   // ─── STT: transcribe one utterance blob ─────────────────────────────────────
 
@@ -299,6 +301,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       form.append("kbId", session.kbId ?? "");
       form.append("audio", blob, "utterance.webm");
       form.append("language", session.stt.language ?? "en");
+      if (options.draftMode) form.append("scope", "draft");
       const response = await fetch(apiUrl(session.stt.endpoint), {
         method: "POST",
         headers: pipelineHeaders(),
@@ -315,7 +318,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       setError(`Speech recognition failed: ${(err as Error).message}`);
       return null;
     }
-  }, [pipelineHeaders]);
+  }, [pipelineHeaders, options.draftMode]);
 
   // ─── Playback interruption (barge-in) ─────────────────────────────────────────
 
@@ -440,6 +443,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
           kbId: options.kbId,
           ragMode: "hybrid",
           language: options.language?.assistant,
+          ...(options.draftMode ? { scope: "draft" } : {}),
         }),
       });
       const payload = await response.json().catch(() => ({})) as SessionPayload & { error?: string };
@@ -533,7 +537,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startVad]);
+  }, [cleanup, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startVad, options.draftMode]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;

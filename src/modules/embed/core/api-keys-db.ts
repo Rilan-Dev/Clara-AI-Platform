@@ -176,6 +176,43 @@ export async function validateApiKey(rawKey: string): Promise<ValidatedKey | nul
 // ── Plan limits (Phase 3) ─────────────────────────────────────────────────────
 
 /**
+ * Org-based variant of getOrgPlanForKey — used by public session tokens
+ * (pub_…) which have no api_keys row: the org's subscription governs the
+ * same daily-quota / voice-entitlement gates as keyed embeds.
+ */
+export async function getOrgPlanForOrg(orgId: string): Promise<OrgPlanLimits | null> {
+  const result = await pool.query<{
+    max_req_day:   number;
+    voice_enabled: boolean;
+    plan_id:       string;
+    plan_name:     string;
+  }>(
+    `SELECT
+       COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
+       COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
+       sp.id   AS plan_id,
+       COALESCE(pv.name, sp.name) AS plan_name
+     FROM org_subscriptions  os
+     JOIN subscription_plans sp ON sp.id = os.plan_id
+     LEFT JOIN subscription_plan_versions pv ON pv.id = os.plan_version_id
+     WHERE os.org_id = $1
+       AND os.status IN ('active', 'trialing')
+     LIMIT 1`,
+    [orgId]
+  );
+
+  if (!result.rows[0]) return null;
+  const row = result.rows[0];
+
+  return {
+    maxReqDay:    row.max_req_day,
+    voiceEnabled: row.voice_enabled,
+    planId:       row.plan_id,
+    planName:     row.plan_name,
+  };
+}
+
+/**
  * Fetch the subscription plan limits that are relevant to the embed API layer,
  * looked up via the api_key's org_id → org_subscriptions → subscription_plans.
  *

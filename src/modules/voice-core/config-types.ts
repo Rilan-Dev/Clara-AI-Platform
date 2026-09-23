@@ -20,6 +20,13 @@ export interface ResolveVoiceConfigInput {
   surface: "voice_chat" | "realtime" | "embed";
   /** Optional pre-resolved brain config to avoid duplicate AI resolution in composite callers. */
   brainConfig?: ResolvedAIConfig;
+  /**
+   * Draft-preview mode (authenticated preview surface only): resolve the
+   * voice axes against the CURRENT Main-branch DRAFT instead of the
+   * immutable production version; KB overrides (draft-only state) apply.
+   * Never set this on public/embed surfaces.
+   */
+  preferDraft?: boolean;
 }
 
 // ─── Resolution output ───────────────────────────────────────────────────────

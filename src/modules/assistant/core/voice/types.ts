@@ -25,6 +25,14 @@ export type VoiceClientOptions = {
    * + platform JWT. Used only by the public embed voice widget.
    */
   embedApiKey?: string;
+  /**
+   * Draft-preview mode (authenticated agent preview, /preview/agents/:id):
+   * session/bootstrap, RAG and chat requests carry scope:"draft" so the
+   * server resolves the CURRENT Main-branch draft (persona, models, voice
+   * providers, LIVE KB collection) instead of the published version.
+   * Mutually exclusive with embedApiKey (public pages never preview drafts).
+   */
+  draftMode?: boolean;
   onStatusChange?: (status: VoiceStatus) => void;
   onError?: (error: string | null) => void;
   onHistoryChange?: (history: VoiceTurn[]) => void;

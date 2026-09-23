@@ -324,6 +324,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           model: session.tts.model,
           speaker: session.tts.speaker,
           language: session.tts.language,
+          ...(options.draftMode ? { scope: "draft" } : {}),
         }),
         signal: controller.signal,
       });
@@ -360,7 +361,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         console.warn("[sarvam] tts failed:", (err as Error).message);
       }
     }
-  }, [enqueueAudio, pipelineHeaders, sendRealtimeTts]);
+  }, [enqueueAudio, pipelineHeaders, sendRealtimeTts, options.draftMode]);
 
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
@@ -472,6 +473,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           signal: controller.signal,
           endpoint: apiUrl(session.chat.endpoint),
           embedApiKey: options.embedApiKey,
+          draftScope: options.draftMode === true,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
           realtimeVoice: Boolean(session.stt.realtime),
@@ -516,7 +518,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done", answer: turn.answer } : t)));
     }
-  }, [emitLatencyTelemetry, options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence]);
+  }, [emitLatencyTelemetry, options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence, options.draftMode]);
 
   // ─── Playback interruption (barge-in) ─────────────────────────────────────────
 
@@ -805,6 +807,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       const form = new FormData();
       form.append("kbId", session.kbId ?? "");
       form.append("audio", blob, "utterance.webm");
+      if (options.draftMode) form.append("scope", "draft");
       // Saaras auto-detects the language when omitted — only send a hint when
       // the session resolved a concrete BCP-47 code.
       if (session.stt.language && session.stt.language !== "en-IN") {
@@ -826,7 +829,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       setError(`Speech recognition failed: ${(err as Error).message}`);
       return null;
     }
-  }, [pipelineHeaders]);
+  }, [pipelineHeaders, options.draftMode]);
 
   // ─── Utterance lifecycle (VAD-driven, utterance mode only) ──────────────────
 
@@ -938,6 +941,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           kbId: options.kbId,
           ragMode: "hybrid",
           language: options.language?.assistant,
+          ...(options.draftMode ? { scope: "draft" } : {}),
         }),
       });
       const payload = await response.json().catch(() => ({})) as SessionPayload & { error?: string };
@@ -1059,7 +1063,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, emitLatencyTelemetry, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startRealtimeCapture, startVad]);
+  }, [cleanup, emitLatencyTelemetry, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startRealtimeCapture, startVad, options.draftMode]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;
