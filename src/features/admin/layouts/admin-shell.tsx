@@ -320,16 +320,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       key={item.href}
                       href={item.href}
                       aria-current={active ? "page" : undefined}
-                      className={\`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all \${
+                      className={`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
                         active
                           ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }\`}
+                      }`}
                     >
                       <item.icon
-                        className={\`mt-0.5 h-3.5 w-3.5 shrink-0 \${
+                        className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
                           active ? "text-primary" : "text-muted-foreground/70"
-                        }\`}
+                        }`}
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block leading-4">{item.label}</span>
@@ -620,11 +620,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 // ── Agent workspace sidebar pieces (ElevenLabs layout) ───────────────────────
 
 /**
- * Agent identity block at the top of the agent rail section: agent avatar +
- * name, active branch ("Main") with a green health dot and the current
- * version. Clicking opens the agent Overview; the trash icon (hover) deletes
- * the agent. Data comes from the shared workspace-context cache so the
- * sidebar, the workspace shell and the topbar cluster never double-fetch.
+ * Agent switcher at the top of the agent rail section. The root control is
+ * intentionally only "Agents >"; the selected agent name appears only inside
+ * the switcher menu. The active branch is rendered beneath the Agent menu
+ * item, using the same workspace context as the topbar.
  */
 function AgentSidebarSwitcher({
   orgId,
@@ -682,11 +681,11 @@ function AgentSidebarSwitcher({
       >
         <span>Agents</span>
         <ChevronRight
-          className={\`h-3 w-3 transition-transform duration-200 \${open ? "rotate-90" : ""}\`}
+          className={`h-3 w-3 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
           aria-hidden
         />
         <span className="sr-only">
-          {activeAgent ? \`Current agent: \${activeAgent.name}\` : "Switch agent"}
+          {activeAgent ? `Current agent: ${activeAgent.name}` : "Switch agent"}
         </span>
       </button>
 
@@ -712,15 +711,15 @@ function AgentSidebarSwitcher({
               return (
                 <Link
                   key={agent.id}
-                  href={\`/orgs/\${orgId}/agents/\${agent.id}\`}
+                  href={`/orgs/${orgId}/agents/${agent.id}`}
                   role="menuitem"
                   aria-current={selected ? "page" : undefined}
                   onClick={() => setOpen(false)}
-                  className={\`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs transition-colors \${
+                  className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs transition-colors ${
                     selected
                       ? "bg-primary/10 text-primary font-medium"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }\`}
+                  }`}
                 >
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary/10">
                     <Bot className="h-3.5 w-3.5 text-primary" />
