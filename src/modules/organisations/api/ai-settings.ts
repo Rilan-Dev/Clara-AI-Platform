@@ -51,7 +51,7 @@ function parseProviderScopedList(value: unknown): ProviderScopedList | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   const scoped: ProviderScopedList = {};
-  for (const provider of ["openai", "gemini"] as const) {
+  for (const provider of ["openai", "gemini", "sarvam"] as const) {
     const entries = record[provider];
     if (!Array.isArray(entries)) continue;
     scoped[provider] = entries

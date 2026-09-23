@@ -381,8 +381,8 @@ export function useOpenAIRealtime(opts?: Options) {
         headers,
         body: JSON.stringify(
           kbIdVal
-            ? { query, kbId: kbIdVal }          // KB mode — searches all docs in KB
-            : { query, documentId: docId }       // Legacy mode — single document
+            ? { query, kbId: kbIdVal, language: languagePrefs.assistant } // KB mode
+            : { query, documentId: docId, language: languagePrefs.assistant } // Legacy mode
         ),
         signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
       });
@@ -471,6 +471,21 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         },
       });
 
+      const detectedResponseLanguage =
+        typeof payload?.responseLanguage === "string" &&
+        languagePrefs.customer.includes(payload.responseLanguage)
+          ? payload.responseLanguage
+          : null;
+      const languageNames: Record<string, string> = {
+        en: "English",
+        ta: "Tamil",
+        hi: "Hindi",
+        te: "Telugu",
+      };
+      const dynamicLanguageInstruction = detectedResponseLanguage
+        ? `Respond in ${languageNames[detectedResponseLanguage] ?? detectedResponseLanguage} because that is the customer's detected language. Keep the response concise and natural. This overrides the default realtime language only for this turn and remains within the project allowlist.`
+        : languageGuidance.follow;
+
       // ── Step 4: Single response.create with tool_choice:"none" ─────────
       // FIX V3: tool_choice:"none" prevents the model from calling rag_search
       // again (it already has the context), which would trigger handleToolCall
@@ -486,7 +501,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         response: {
           instructions: [
             assistantPrompts.voice.followUpInstructions,
-            languageGuidance.follow,
+            dynamicLanguageInstruction,
           ].join("\n\n"),
           tool_choice: "none",
         },
@@ -795,6 +810,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         body: JSON.stringify({
           language: languagePrefs.assistant,
           languages: languagePrefs.customer,
+          autoDetectLanguage: true,
           ...(kbId ? { kbId } : {}),
         }),
       });
@@ -1285,10 +1301,9 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
                   typeof sessionTranscription?.model === "string"
                     ? sessionTranscription.model
                     : "gpt-4o-mini-transcribe",
-                language:
-                  typeof sessionTranscription?.language === "string"
-                    ? sessionTranscription.language
-                    : languagePrefs.assistant,
+                ...(typeof sessionTranscription?.language === "string"
+                  ? { language: sessionTranscription.language }
+                  : {}),
               },
             },
           },

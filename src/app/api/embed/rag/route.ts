@@ -80,7 +80,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body: JSON.stringify(body),
     });
 
-    const response = await postRagSearch(modifiedReq, providerConfig);
+    const response = await postRagSearch(modifiedReq, providerConfig, "audit-only");
 
     for (const [key, value] of Object.entries(corsHeaders)) {
       response.headers.set(key, value);

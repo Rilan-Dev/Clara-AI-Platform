@@ -122,7 +122,7 @@ const isSarvamEnabledMock = vi.mocked(isSarvamEnabled);
 const baseOrg = {
   voiceProvider: null as string | null,
   realtimeVoiceProvider: null as string | null,
-  allowedVoiceProviders: ["openai", "gemini", "elevenlabs"],
+  allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
   elevenlabsTtsModel: null,
   elevenlabsSttModel: null,
   defaultElevenlabsVoice: null,
