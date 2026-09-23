@@ -1,53 +1,55 @@
 /**
  * src/lib/db.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * PostgreSQL connection pool — single instance shared across the entire app.
+ * PostgreSQL connection pool — one lazy singleton per runtime instance.
  *
- * Uses the `pg` package (node-postgres). If pg is not yet installed run:
- *   npm install pg @types/pg
- *
- * Connection details are read exclusively from DATABASE_URL.
- * The same variable is used by the app, migrations, seed scripts, and tooling.\n *
- * The pool is lazy-initialised on first use and cached on the global object
- * in development so Next.js hot-reload does not create a new pool per module
- * re-evaluation (which would exhaust PostgreSQL's max_connections quickly).
+ * Serverless runtimes can create many warm instances. Pool size therefore
+ * multiplies across instances and must stay deliberately small; otherwise
+ * Supabase session-mode pools can hit their per-role client limit.
  */
 
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
-const DATABASE_URL = process.env.DATABASE_URL?.trim();
-
-if (!DATABASE_URL) {
-  throw new Error("[db] DATABASE_URL is required");
+function getDatabaseUrl(): string {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) {
+    throw new Error("[db] DATABASE_URL is required");
+  }
+  return databaseUrl;
 }
 
-const PG_CONFIG = {
-  connectionString: DATABASE_URL,
-  // Keep enough warm connections for concurrent API work without allowing one
-  // request to serialize the entire serverless instance. Override per plan.
-  //
-  // max on Vercel: 5 (not 1). With max:1 every Promise.all of queries in a
-  // route serialised through the single connection — "parallel" workloads paid
-  // the full per-query round-trip time sequentially. 5 lets a request fan out.
-  // Supabase direct connections are limited (~60 on the default tier); Vercel
-  // Hobby concurrency keeps simultaneous instances low enough that 5/instance
-  // is safe. Tune with PG_POOL_MAX if the database tier changes.
-  max: process.env.VERCEL ? Math.min(10, Math.max(1, Number(process.env.PG_POOL_MAX ?? "5"))) : Math.max(1, Number(process.env.PG_POOL_MAX ?? "10")),
-  min: 0,
-  // idleTimeoutMillis: 60s (not 5s). A 5s idle timeout dropped the connection
-  // between typical UI interactions, so EVERY request after a brief pause paid
-  // a fresh TCP + TLS + SCRAM handshake to a remote database (~200-700ms per
-  // request of pure overhead). 60s keeps connections warm across clicks,
-  // navigation bursts and polling while still recycling long-idle sockets.
-  idleTimeoutMillis: 60_000,
-  connectionTimeoutMillis: 3_000,
-  query_timeout: 8_000,
-  statement_timeout: 8_000,
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10_000,
-} as const;
+function getPgConfig() {
+  const configuredMax = Number(process.env.PG_POOL_MAX ?? "1");
+
+  return {
+    connectionString: getDatabaseUrl(),
+
+    // Vercel/serverless: keep the per-instance pool at 1 by default and never
+    // allow an environment mistake such as PG_POOL_MAX=15 to recreate the
+    // Supabase session-mode exhaustion seen in production/preview.
+    //
+    // A second connection is allowed only as an explicit, bounded override
+    // after the database is configured with enough pooled capacity.
+    max: process.env.VERCEL
+      ? Math.min(2, Math.max(1, configuredMax))
+      : Math.max(1, configuredMax),
+
+    min: 0,
+
+    // Keep warm connections long enough to avoid repeated TLS/SCRAM setup
+    // during normal UI navigation, while allowing idle serverless instances
+    // to release their connection.
+    idleTimeoutMillis: 30_000,
+
+    connectionTimeoutMillis: 3_000,
+    query_timeout: 8_000,
+    statement_timeout: 8_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+  } as const;
+}
 
 // ── Singleton pattern safe for Next.js dev hot-reload ─────────────────────────
 
@@ -57,7 +59,8 @@ declare global {
 
 function getPool(): Pool {
   if (globalThis.__pgPool) return globalThis.__pgPool;
-  const pool = new Pool(PG_CONFIG);
+
+  const pool = new Pool(getPgConfig());
 
   pool.on("error", (err) => {
     console.error("[db] unexpected pool error:", err.message);
@@ -67,7 +70,17 @@ function getPool(): Pool {
   return pool;
 }
 
-export const pool = getPool();
+// Keep the exported pool API stable while deferring DATABASE_URL validation
+// and Pool construction until the first actual database operation. Next.js
+// imports route modules during build-time page-data collection, but those
+// imports must not require production runtime secrets.
+export const pool = new Proxy({} as Pool, {
+  get(_target, property) {
+    const instance = getPool();
+    const value = Reflect.get(instance, property, instance);
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
 
 // ── Typed query helpers ───────────────────────────────────────────────────────
 
