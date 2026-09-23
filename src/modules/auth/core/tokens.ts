@@ -13,10 +13,14 @@
 
 import { randomBytes, createHmac } from "node:crypto";
 
-const SESSION_SECRET = process.env.AUTH_SECRET;
+function getSessionSecret(): string {
+  const sessionSecret = process.env.AUTH_SECRET?.trim();
 
-if (!SESSION_SECRET || (process.env.NODE_ENV === "production" && SESSION_SECRET.length < 32)) {
-  throw new Error("AUTH_SECRET must be configured with at least 32 characters.");
+  if (!sessionSecret || (process.env.NODE_ENV === "production" && sessionSecret.length < 32)) {
+    throw new Error("AUTH_SECRET must be configured with at least 32 characters.");
+  }
+
+  return sessionSecret;
 }
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -27,7 +31,7 @@ export function generateToken(): string {
 
 /** HMAC-SHA256 the token — this is what gets stored in the database. */
 export function hashToken(token: string): string {
-  return createHmac("sha256", SESSION_SECRET!).update(token).digest("hex");
+  return createHmac("sha256", getSessionSecret()).update(token).digest("hex");
 }
 
 /** Calculate the session expiry timestamp from now. */
