@@ -335,7 +335,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <span className="block leading-4">{item.label}</span>
                         {item.label === "Agent" && (
                           <span className="mt-0.5 block text-[11px] font-normal leading-3.5 text-muted-foreground/70">
-                            Main
+                            {branchName}
                           </span>
                         )}
                       </span>
@@ -634,10 +634,23 @@ function AgentSidebarSwitcher({
   activeAgentId: string;
 }) {
   const { agents, loading } = useAgents(orgId);
+  const [branchName, setBranchName] = useState("Main");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const activeAgent = agents.find((agent) => agent.id === activeAgentId);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAgentWorkspaceContextCached(activeAgentId)
+      .then((context) => {
+        if (!cancelled) setBranchName(context.currentVersion?.branchName ?? context.main.name ?? "Main");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAgentId]);
 
   useEffect(() => {
     if (!open) return;
