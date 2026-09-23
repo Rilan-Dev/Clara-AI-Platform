@@ -152,12 +152,19 @@ export function AgentTopbarProvider({ children }: { children: ReactNode }) {
       setContext(detail.context);
       updateAgentWorkspaceContextCache(agentId, detail.context);
     };
+    const draftUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string; draftUpdatedAt?: string }>).detail;
+      if (!agentId || detail?.agentId !== agentId || !detail.draftUpdatedAt) return;
+      setContext((current) => current ? { ...current, draftUpdatedAt: detail.draftUpdatedAt } : current);
+    };
 
     window.addEventListener("agent-workspace:refresh", refresh);
     window.addEventListener("agent-workspace:context-updated", contextUpdated);
+    window.addEventListener("agent-workspace:draft-updated", draftUpdated);
     return () => {
       window.removeEventListener("agent-workspace:refresh", refresh);
       window.removeEventListener("agent-workspace:context-updated", contextUpdated);
+      window.removeEventListener("agent-workspace:draft-updated", draftUpdated);
     };
   }, [agentId]);
 
