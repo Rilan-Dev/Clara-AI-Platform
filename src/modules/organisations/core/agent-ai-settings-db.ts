@@ -4,8 +4,8 @@ import type { VoiceProvider } from "@/modules/voice-core/types";
 import type { PatchAgentAISettingsInput, AgentAISettings, AgentLanguage, AgentVoice } from "./agent-ai-types";
 
 type Row = Record<string, unknown>;
-function provider(value: unknown): AIProvider | null { return value === "openai" || value === "gemini" ? value : null; }
-function voiceProvider(value: unknown): VoiceProvider | null { return value === "openai" || value === "gemini" || value === "elevenlabs" ? value : null; }
+function provider(value: unknown): AIProvider | null { return value === "openai" || value === "gemini" || value === "sarvam" ? value : null; }
+function voiceProvider(value: unknown): VoiceProvider | null { return value === "openai" || value === "gemini" || value === "elevenlabs" || value === "sarvam" ? value : null; }
 function language(row: Row): AgentLanguage { return { id: String(row.id), orgId: String(row.org_id), code: String(row.code), name: String(row.name), nativeName: row.native_name == null ? null : String(row.native_name), enabled: Boolean(row.enabled) }; }
 function voice(row: Row): AgentVoice { return { id: String(row.id), orgId: String(row.org_id), provider: voiceProvider(row.provider) ?? "openai", voiceId: String(row.voice_id), name: String(row.name), enabled: Boolean(row.enabled), metadata: row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : {} }; }
 
