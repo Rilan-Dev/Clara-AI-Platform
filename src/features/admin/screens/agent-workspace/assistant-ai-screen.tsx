@@ -36,6 +36,7 @@ import { toast } from "@/components/ui/sonner";
 import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
+import { cn } from "@/lib/utils";
 import { useAutoSave } from "@/hooks/use-auto-save";
 
 export default function AgentAssistantAIScreen() {
