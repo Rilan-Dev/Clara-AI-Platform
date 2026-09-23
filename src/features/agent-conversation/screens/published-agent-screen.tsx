@@ -212,75 +212,73 @@ export default function PublishedAgentScreen() {
   // ── Published experience ─────────────────────────────────────────────────
   return (
     <PublicShell primaryColour={primaryColour} accentColour={accentColour}>
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* Hero — assistant identity, published state. */}
-        <header className="mb-6 flex flex-col items-center text-center">
-          <div
-            className="mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full text-2xl font-semibold text-white shadow-xl"
-            style={{
-              background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})`,
-              boxShadow: `0 12px 32px -8px ${primaryColour}55`,
-            }}
-          >
-            {config.assistant?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={config.assistant.avatarUrl}
-                alt={assistantName}
-                className="h-full w-full object-cover"
-                draggable={false}
-              />
-            ) : (
-              (assistantName?.trim()?.charAt(0)?.toUpperCase() ?? "A")
-            )}
+      <div className="flex min-h-screen flex-col px-3 py-3 sm:px-5 sm:py-5">
+        {/* Immersive public chrome — no workspace/sidebar/navigation. */}
+        <header className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-white/10 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-black/20 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
+              style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
+            >
+              {config.assistant?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={config.assistant.avatarUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+              ) : (
+                assistantName.trim().charAt(0).toUpperCase()
+              )}
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold text-foreground">{assistantName}</h1>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {config.kb.name} · Published v{config.published.versionNumber}
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {assistantName}
-          </h1>
-          <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <BookOpen className="h-3.5 w-3.5" />
-            Answers from {config.kb.name}
-          </p>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Published v{config.published.versionNumber}
-            </span>
-            {config.voice.enabled && config.voice.realtime && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-medium text-violet-600">
-                <Sparkles className="h-3 w-3" />
-                Voice enabled
-              </span>
-            )}
-          </div>
+          <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-600 sm:inline-flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Live
+          </span>
         </header>
 
-        {/* Chat window — voice chat integrated inside it. */}
-        <div className="min-h-[32rem]">
-          <ConversationChatWindow
-            assistantName={assistantName}
-            avatarUrl={config.assistant?.avatarUrl ?? null}
-            primaryColour={primaryColour}
-            accentColour={accentColour}
-            welcomeMessage={config.assistant?.welcomeMessage ?? ""}
-            messages={conversation.messages}
-            thinking={conversation.thinking}
-            chatError={conversation.chatError ?? conversation.voiceStartError}
-            input={conversation.input}
-            onInputChange={conversation.setInput}
-            onSend={() => void conversation.sendText()}
-            sendDisabled={!kbId || conversation.voiceActive}
-            placeholder={kbId ? `Ask ${assistantName} anything…` : "Unavailable"}
-            citeSources={config.assistant?.citeSources !== false}
-            voiceAvailable={voiceAvailable}
-            voiceUnavailableReason={voiceUnavailableReason}
-            onVoiceStart={() => void conversation.startVoice()}
-            voiceActive={conversation.voiceActive}
-            voiceSession={conversation.voiceSession}
-            micLevels={conversation.micLevels}
-            onVoiceEnd={conversation.endVoice}
-          />
-        </div>
+        <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col pt-3 sm:pt-4">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/55 shadow-2xl shadow-black/[0.06] backdrop-blur-xl dark:bg-black/20">
+            <ConversationChatWindow
+              assistantName={assistantName}
+              avatarUrl={config.assistant?.avatarUrl ?? null}
+              primaryColour={primaryColour}
+              accentColour={accentColour}
+              headerBadge={
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Published v{config.published.versionNumber}
+                </span>
+              }
+              headerAside={
+                <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
+                  <BookOpen className="h-3 w-3" />
+                  {config.kb.name}
+                </span>
+              }
+              welcomeMessage={config.assistant?.welcomeMessage ?? ""}
+              messages={conversation.messages}
+              thinking={conversation.thinking}
+              chatError={conversation.chatError ?? conversation.voiceStartError}
+              input={conversation.input}
+              onInputChange={conversation.setInput}
+              onSend={() => void conversation.sendText()}
+              sendDisabled={!kbId || conversation.voiceActive}
+              placeholder={kbId ? `Ask ${assistantName} anything…` : "Unavailable"}
+              citeSources={config.assistant?.citeSources !== false}
+              voiceAvailable={voiceAvailable}
+              voiceUnavailableReason={voiceUnavailableReason}
+              onVoiceStart={() => void conversation.startVoice()}
+              voiceActive={conversation.voiceActive}
+              voiceSession={conversation.voiceSession}
+              micLevels={conversation.micLevels}
+              onVoiceEnd={conversation.endVoice}
+            />
+          </div>
+        </main>
 
         {/* Footer — platform credit + privacy note. */}
         <footer className="mt-8 flex flex-col items-center gap-2 pb-6 text-center">
