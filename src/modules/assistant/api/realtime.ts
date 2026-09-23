@@ -121,7 +121,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         assistant: typeof body?.language === "string" ? body.language : undefined,
         customer: Array.isArray(body?.languages) ? body.languages as string[] : undefined,
       });
-      instructions = process.env.OPENAI_REALTIME_INSTRUCTIONS ?? "You are Clara, a voice-first RAG assistant. Answer ONLY using the context provided by the system or rag_search outputs. If you have insufficient information, say so briefly. Be concise, warm, and professionally supportive.";
+      instructions = process.env.OPENAI_REALTIME_INSTRUCTIONS ?? "You are Clara, a natural voice AI assistant. Use rag_search for factual or domain-specific questions and answer those questions only from returned knowledge-base evidence. If rag_search returns no useful evidence, do not invent domain facts; briefly explain that the configured knowledge base does not contain enough information. Ordinary greetings, thanks, pleasantries, and simple conversation should be answered naturally without requiring a knowledge-base hit. Be concise, warm, and professionally supportive.";
       voice = process.env.OPENAI_REALTIME_VOICE ?? DEFAULT_REALTIME_VOICE;
       if (!isSupportedOpenAIRealtimeVoice(voice)) return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400 });
       maxTokens = VOICE_MAX_RESPONSE_TOKENS;
