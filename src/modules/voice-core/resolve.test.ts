@@ -242,6 +242,31 @@ describe("voice resolution — independent ElevenLabs speech settings", () => {
     expect(r.elevenlabs?.voiceId).toBe("realtime-voice");
   });
 
+  it("never inherits a stale Voice Chat STT model into Realtime Voice", async () => {
+    orgSettingsMock.mockResolvedValue({
+      ...baseOrg,
+      voiceProvider: "elevenlabs",
+      realtimeVoiceProvider: "elevenlabs",
+      elevenlabsTtsModel: "eleven_multilingual_v2",
+      elevenlabsSttModel: "scribe_v1",
+      defaultElevenlabsVoice: "voice-chat-org-default",
+    } as never);
+    agentSettingsMock.mockResolvedValue({
+      ...openaiRealtimeAgent,
+      voiceProvider: "elevenlabs",
+      realtimeVoiceProvider: "elevenlabs",
+      realtimeSttModel: "scribe_v1",
+      realtimeTtsModel: "eleven_turbo_v2_5",
+      realtimeVoiceId: null,
+      voices: [],
+    } as never);
+
+    const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+
+    expect(r.elevenlabs?.sttModel).toBe("scribe_v2_realtime");
+    expect(r.elevenlabs?.ttsModel).toBe("eleven_flash_v2_5");
+  });
+
   it("keeps voice-chat ElevenLabs settings independent from realtime settings", async () => {
     orgSettingsMock.mockResolvedValue({
       ...baseOrg,
