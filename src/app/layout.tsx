@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
+import { ConfirmDialogHost } from "@/components/ui/confirm-dialog";
 import { AppShell } from "@/shared/layouts/app-shell";
 import { getPlatformDefaultTheme } from "@/lib/theme-settings";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppShell>
           {children}
           <Toaster position="top-right" richColors closeButton />
+          <ConfirmDialogHost />
           <Analytics />
           <SpeedInsights />
         </AppShell>

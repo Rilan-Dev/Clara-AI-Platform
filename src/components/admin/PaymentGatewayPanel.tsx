@@ -5,6 +5,7 @@ import { CreditCard, Eye, EyeOff, CheckCircle2, AlertCircle, ExternalLink, Loade
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
+import { savePlatformEnvSetting } from "@/lib/platform-env-client";
 import { withAuthHeaders } from "@/lib/client-auth";
 
 /* ── types ──────────────────────────────────────────────────────────────────── */
@@ -68,27 +69,7 @@ async function saveSetting(key: string, value: string): Promise<void> {
 
   // Keep credentials deterministic: accidental leading/trailing whitespace must
   // never reach Stripe/Razorpay and produce a misleading "invalid API key" error.
-  // Step 1: get HMAC confirmation token
-  const tokenRes = await fetch(
-    apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(normalizedValue)}`),
-    { headers: withAuthHeaders() },
-  );
-  const tokenData = await tokenRes.json() as { confirmation_token?: string; timestamp?: number; error?: string };
-  if (!tokenRes.ok || !tokenData.confirmation_token)
-    throw new Error(tokenData.error ?? "Could not create confirmation token");
-
-  // Step 2: save with token
-  const res = await fetch(apiUrl("/api/platform/env"), {
-    method: "POST",
-    headers: withAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({
-      key, value: normalizedValue,
-      confirmation_token: tokenData.confirmation_token,
-      timestamp: tokenData.timestamp,
-    }),
-  });
-  const data = await res.json() as { ok?: boolean; error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Failed to save");
+  await savePlatformEnvSetting(key, normalizedValue);
 }
 
 /* ── component ──────────────────────────────────────────────────────────────── */

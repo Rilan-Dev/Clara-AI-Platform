@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiUrl } from "@/lib/runtime";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
+import { sanitizeWidgetHtml } from "@/features/embed/lib/sanitize-html";
 // Note: apiUrl is used for internal admin API calls.
 // Voice runtime uses window.location.origin directly (works for embedded deploy).
 
@@ -402,7 +403,7 @@ function WidgetContent() {
           )}
         </div>
         {config?.customHeaderHtml && !config.customHeaderHtml.includes("<!DOCTYPE") && config.customHeaderHtml.length < 2000 && (
-          <div dangerouslySetInnerHTML={{ __html: config.customHeaderHtml }} style={{ display:"flex",alignItems:"center" }} />
+          <div dangerouslySetInnerHTML={{ __html: sanitizeWidgetHtml(config.customHeaderHtml) }} style={{ display:"flex",alignItems:"center" }} />
         )}
       </div>
 
@@ -611,7 +612,7 @@ function WidgetContent() {
         {Boolean(config?.widgetShowBranding) && (
           <div className="clara-branding" style={{textAlign:"center",marginTop:8,background:footBg}}>
             {config?.customFooterHtml
-              ? <span dangerouslySetInnerHTML={{__html:config.customFooterHtml}}/>
+              ? <span dangerouslySetInnerHTML={{__html:sanitizeWidgetHtml(config.customFooterHtml)}}/>
               : <span style={{fontSize:10,color:footTxt}}>
                   {(config?.customPoweredBy && config.customPoweredBy.trim())
                     ? config.customPoweredBy.trim() : "Powered by Clara AI"}

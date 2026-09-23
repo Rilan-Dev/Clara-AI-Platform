@@ -253,11 +253,27 @@ export default function SignupScreen() {
       }
     };
 
-    poll();
-    const interval = setInterval(poll, 3000);
+    // Poll every 3 s for the first 2 minutes, then every 15 s; skip ticks
+    // while the tab is hidden and poll immediately when it becomes visible.
+    const startedAt = Date.now();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (cancelled) return;
+      const delay = Date.now() - startedAt < 120_000 ? 3000 : 15_000;
+      timer = setTimeout(async () => {
+        if (document.visibilityState === "visible") await poll();
+        schedule();
+      }, delay);
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") void poll(); };
+
+    void poll();
+    schedule();
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [step, verified]);
 

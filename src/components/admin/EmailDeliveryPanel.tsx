@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
+import { savePlatformEnvSetting } from "@/lib/platform-env-client";
 import { withAuthHeaders } from "@/lib/client-auth";
 
 /**
@@ -56,27 +57,7 @@ const SMTP_FIELDS: FieldDef[] = [
 
 /* ── helpers ────────────────────────────────────────────────────────────────── */
 
-async function saveSetting(key: string, value: string): Promise<void> {
-  const tokenRes = await fetch(
-    apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`),
-    { headers: withAuthHeaders() },
-  );
-  const tokenData = await tokenRes.json() as { confirmation_token?: string; timestamp?: number; error?: string };
-  if (!tokenRes.ok || !tokenData.confirmation_token)
-    throw new Error(tokenData.error ?? "Could not create confirmation token");
-
-  const res = await fetch(apiUrl("/api/platform/env"), {
-    method: "POST",
-    headers: withAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({
-      key, value,
-      confirmation_token: tokenData.confirmation_token,
-      timestamp: tokenData.timestamp,
-    }),
-  });
-  const data = await res.json() as { ok?: boolean; error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Failed to save");
-}
+const saveSetting = savePlatformEnvSetting;
 
 /* ── component ──────────────────────────────────────────────────────────────── */
 

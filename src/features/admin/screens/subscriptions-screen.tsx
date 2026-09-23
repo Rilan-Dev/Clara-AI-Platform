@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { toast } from "@/components/ui/sonner";
+import { LoadError } from "@/components/ui/load-error";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
@@ -300,57 +302,127 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
 
 // ── Notification Panel ──────────────────────────────────────────────────────
 
-function NotificationPanel() {
-  const [data, setData] = useState<{ notifications: unknown[]; summary: {status:string; count:number}[] } | null>(null);
-  const [loading, setLoading] = useState(true);
+type NotificationRow = {
+  id: string; status: string; subject: string; org_name: string;
+  recipient_email: string; notification_type: string; created_at: string;
+  error_message?: string | null;
+};
 
-  useEffect(() => {
-    fetch(apiUrl("/api/admin/notifications?limit=20"), { headers: withAuthHeaders({}) })
-      .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+function NotificationPanel() {
+  const [data, setData] = useState<{ notifications: NotificationRow[]; summary: {status:string; count:number}[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null); // row id, or "all"
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await fetch(apiUrl("/api/admin/notifications?limit=20"), { headers: withAuthHeaders({}) });
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setData(body as { notifications: NotificationRow[]; summary: {status:string; count:number}[] });
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { void load(); }, [load]);
+
+  // Re-send failed emails through the CURRENT email provider — the fix after
+  // correcting SMTP / Resend credentials in Settings → Email Delivery.
+  async function retry(id?: string) {
+    setRetrying(id ?? "all");
+    try {
+      const res = await fetch(apiUrl("/api/admin/notifications/retry"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(id ? { id } : { all: true }),
+      });
+      const result = await res.json().catch(() => ({})) as {
+        error?: string; retried?: number; succeeded?: number; failed?: number;
+        failures?: Array<{ error: string }>;
+      };
+      if (!res.ok) throw new Error(result.error ?? `HTTP ${res.status}`);
+      if (!result.retried) toast.info("No failed emails to retry");
+      else if (result.failed) {
+        toast.warning(`${result.succeeded ?? 0} of ${result.retried} sent`, {
+          description: result.failures?.[0]?.error,
+        });
+      } else toast.success(`${result.succeeded} ${result.succeeded === 1 ? "email" : "emails"} sent`);
+      await load();
+    } catch (e) {
+      toast.error("Retry failed", { description: (e as Error).message });
+    } finally {
+      setRetrying(null);
+    }
+  }
+
+  const failedCount = data?.summary.find(s => s.status === "failed")?.count ?? 0;
+
   const NOTIF_STATUS_ICON: Record<string, React.ReactNode> = {
-    sent:       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-    pending:    <Clock className="w-3.5 h-3.5 text-amber-600" />,
-    failed:     <XCircle className="w-3.5 h-3.5 text-destructive" />,
-    suppressed: <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" />,
+    sent:       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-label="Sent" />,
+    pending:    <Clock className="w-3.5 h-3.5 text-amber-600" aria-label="Pending" />,
+    failed:     <XCircle className="w-3.5 h-3.5 text-destructive" aria-label="Failed" />,
+    suppressed: <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" aria-label="Suppressed" />,
   };
 
   return (
     <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
-      <div className="px-5 py-4 border-b border-border/70 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-border/70 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
           <Bell className="w-4 h-4 text-primary" /> Email Notification Queue
         </h3>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {(data?.summary ?? []).map(s => (
-            <span key={s.status} className="text-xs text-muted-foreground/70 capitalize">
+            <span key={s.status} className="text-xs text-muted-foreground capitalize">
               {s.status}: <span className="text-foreground/80 font-medium">{s.count}</span>
             </span>
           ))}
+          {failedCount > 0 && (
+            <Button size="sm" variant="outline" onClick={() => void retry()} disabled={retrying !== null}>
+              <RotateCcw className={`w-3.5 h-3.5 mr-1.5 ${retrying === "all" ? "animate-spin" : ""}`} />
+              Retry failed ({failedCount})
+            </Button>
+          )}
         </div>
       </div>
       {loading ? (
-        <div className="py-8 text-center text-muted-foreground/50 text-sm">Loading…</div>
+        <div role="status" className="py-8 text-center text-muted-foreground text-sm">Loading…</div>
+      ) : loadError ? (
+        <div className="p-4">
+          <LoadError message="The notification queue couldn't be loaded." detail={loadError} onRetry={() => void load()} />
+        </div>
       ) : !data?.notifications.length ? (
-        <div className="py-8 text-center text-muted-foreground/50 text-sm flex flex-col items-center gap-2">
-          <Mail className="w-7 h-7 opacity-30" />
+        <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
+          <Mail className="w-7 h-7 opacity-30" aria-hidden />
           No notifications queued yet
         </div>
       ) : (
         <div className="divide-y divide-border/70">
-          {(data.notifications as Array<Record<string,unknown>>).map((n) => (
-            <div key={n.id as string} className="px-5 py-3 flex items-center gap-4 hover:bg-muted/50 transition-colors">
-              <div className="shrink-0">{NOTIF_STATUS_ICON[n.status as string] ?? <AlertCircle className="w-3.5 h-3.5 text-muted-foreground/70" />}</div>
+          {data.notifications.map((n) => (
+            <div key={n.id} className="px-5 py-3 flex items-center gap-4 hover:bg-muted/50 transition-colors">
+              <div className="shrink-0">{NOTIF_STATUS_ICON[n.status] ?? <AlertCircle className="w-3.5 h-3.5 text-muted-foreground/70" />}</div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-foreground/80 truncate">{n.subject as string}</div>
-                <div className="text-xs text-muted-foreground/70 mt-0.5">
-                  <span className="text-primary/70">{n.org_name as string}</span>
-                  {" · "}{n.recipient_email as string}
-                  {" · "}{n.notification_type as string}
+                <div className="text-sm text-foreground/80 truncate">{n.subject}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  <span className="text-primary/70">{n.org_name}</span>
+                  {" · "}{n.recipient_email}
+                  {" · "}{n.notification_type}
                 </div>
+                {n.status === "failed" && n.error_message && (
+                  <div className="text-xs text-destructive mt-0.5 truncate" title={n.error_message}>{n.error_message}</div>
+                )}
               </div>
-              <div className="text-xs text-muted-foreground/50 shrink-0">{fmtDateTime(n.created_at as string)}</div>
+              {n.status === "failed" && (
+                <Button size="sm" variant="ghost" onClick={() => void retry(n.id)} disabled={retrying !== null}
+                  aria-label={`Retry email to ${n.recipient_email}`}>
+                  <RotateCcw className={`w-3.5 h-3.5 ${retrying === n.id ? "animate-spin" : ""}`} />
+                </Button>
+              )}
+              <div className="text-xs text-muted-foreground shrink-0">{fmtDateTime(n.created_at)}</div>
             </div>
           ))}
         </div>
@@ -367,18 +439,27 @@ export default function AdminSubscriptionsScreen() {
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState("");
   const [modal,   setModal]   = useState<ModalState>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    const getJson = async (res: Response) => {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      return body as Record<string, unknown> & { plans?: Plan[]; orgs?: Array<Partial<OrgSub> & { id?: string }> };
+    };
     try {
       const [plansData, orgsData] = await Promise.all([
-        fetch(apiUrl("/api/subscriptions/plans")).then(r => r.json()),
-        fetch(apiUrl("/api/platform/orgs?perPage=200"), { headers: withAuthHeaders({}) }).then(r => r.json()),
+        fetch(apiUrl("/api/subscriptions/plans")).then(getJson),
+        fetch(apiUrl("/api/platform/orgs?perPage=200"), { headers: withAuthHeaders({}) }).then(getJson),
       ]);
       setPlans(plansData.plans ?? []);
       // /api/platform/orgs returns rows keyed by "id" but OrgSub expects "org_id" —
       // normalize so table row keys + Manage/History modals receive a real org UUID
-      setOrgs((orgsData.orgs ?? []).map((o: Partial<OrgSub> & { id?: string }) => ({ ...o, org_id: o.org_id ?? o.id ?? "" })));
+      setOrgs((orgsData.orgs ?? []).map((o) => ({ ...o, org_id: o.org_id ?? o.id ?? "" }) as OrgSub));
+    } catch (e) {
+      setLoadError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -474,6 +555,14 @@ export default function AdminSubscriptionsScreen() {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <LoadError
+          message="Subscriptions couldn't be loaded — organisations and revenue below may be incomplete."
+          detail={loadError}
+          onRetry={() => void loadData()}
+        />
+      )}
 
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as typeof activeTab)}>

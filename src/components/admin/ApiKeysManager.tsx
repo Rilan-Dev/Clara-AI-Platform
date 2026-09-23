@@ -9,6 +9,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { confirmAction } from "@/components/ui/confirm-dialog";
+import { toast } from "@/components/ui/sonner";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 
@@ -557,10 +559,14 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
     setLoading(true);
     try {
       const res  = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys`), { headers: withAuthHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { keys?: ApiKey[]; quota?: QuotaInfo };
       setKeys(data.keys ?? []);
       if (data.quota) setQuota(data.quota);
-    } catch { setKeys([]); } finally { setLoading(false); }
+    } catch (e) {
+      setKeys([]);
+      toast.error("Couldn't load API keys", { description: (e as Error).message });
+    } finally { setLoading(false); }
   }, [kbId]);
 
   useEffect(() => { void loadKeys(); }, [loadKeys]);
@@ -578,12 +584,26 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
   }, []);
 
   const handleRevoke = useCallback(async (keyId: string) => {
-    if (!confirm("Revoke this key? Any websites using it will immediately lose access.")) return;
+    const ok = await confirmAction({
+      title: "Revoke this key?",
+      description: "Any websites using it will immediately lose access. This cannot be undone.",
+      confirmLabel: "Revoke key",
+      destructive: true,
+    });
+    if (!ok) return;
     setRevoking(keyId);
     try {
-      await fetch(apiUrl(`/api/kbs/${kbId}/api-keys/${keyId}`), { method: "DELETE", headers: withAuthHeaders() });
+      const res = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys/${keyId}`), { method: "DELETE", headers: withAuthHeaders() });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `Revoke failed (HTTP ${res.status})`);
+      }
+      // Only drop the key once the server confirms it is revoked.
       setKeys(prev => prev.filter(k => k.id !== keyId));
       setQuota(prev => prev ? { ...prev, current: Math.max(0, prev.current - 1) } : prev);
+      toast.success("Key revoked");
+    } catch (e) {
+      toast.error("The key was NOT revoked", { description: (e as Error).message });
     } finally { setRevoking(null); }
   }, [kbId]);
 
