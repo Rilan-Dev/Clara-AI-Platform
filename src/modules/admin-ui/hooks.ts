@@ -60,6 +60,47 @@ function useAsync<T>(
 
 // ── Auth hook ─────────────────────────────────────────────────────────────────
 
+type AuthSession = { user: CurrentUser | null; primaryOrgId: string | null };
+
+// Shared in-flight session loader. The app shell AND every screen mount
+// useAuth() at the same moment, which previously fired one /api/auth/me
+// (plus the follow-up /api/orgs) round trip per instance — the browser
+// waterfall showed both requests duplicated on every navigation. All
+// instances within the same mount wave now share ONE promise. The loader
+// resets once settled, so a later mount always refetches fresh data (no
+// TTL cache, no access-control staleness).
+let authSessionInFlight: Promise<AuthSession> | null = null;
+
+function loadAuthSession(): Promise<AuthSession> {
+  if (!authSessionInFlight) {
+    const pending = (async (): Promise<AuthSession> => {
+      try {
+        const u = await api.fetchMe();
+        // primaryOrgId: the first org the current user belongs to.
+        // Null for super-admins (they see all orgs) or when not yet loaded.
+        let primaryOrgId: string | null = null;
+        if (!u.isSuperAdmin) {
+          try {
+            const orgs = await api.fetchOrgs();
+            primaryOrgId = orgs[0]?.id ?? null;
+          } catch { /* non-critical */ }
+        }
+        return { user: u, primaryOrgId };
+      } catch {
+        return { user: null, primaryOrgId: null };
+      }
+    })();
+    authSessionInFlight = pending;
+    void pending
+      .catch(() => {})
+      .then(() => {
+        if (authSessionInFlight === pending) authSessionInFlight = null;
+      });
+    return pending;
+  }
+  return authSessionInFlight;
+}
+
 export function useAuth() {
   const [user, setUser]               = useState<CurrentUser | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -69,22 +110,20 @@ export function useAuth() {
   const [primaryOrgId, setPrimaryOrgId] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const u = await api.fetchMe();
-        setUser(u);
-        if (!u.isSuperAdmin) {
-          try {
-            const orgs = await api.fetchOrgs();
-            setPrimaryOrgId(orgs[0]?.id ?? null);
-          } catch { /* non-critical */ }
-        }
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    let cancelled = false;
+    loadAuthSession()
+      .then((session) => {
+        if (cancelled) return;
+        setUser(session.user);
+        setPrimaryOrgId(session.primaryOrgId);
+      })
+      // loadAuthSession never rejects (it resolves null on failure), the
+      // catch is a belt-and-braces guard for future edits.
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
