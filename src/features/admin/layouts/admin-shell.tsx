@@ -80,7 +80,7 @@ function agentSectionNav(orgId: string, agentId: string) {
   const base = `/orgs/${orgId}/agents/${agentId}`;
   return [
     { href: base,                icon: LayoutDashboard,        label: "Overview", exact: true  },
-    { href: `${base}/config`,    icon: Bot,                    label: "Main",     exact: false },
+    { href: `${base}/config`,    icon: Bot,                    label: "Agent",   exact: false },
     { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
     { href: `${base}/knowledge`, icon: BookOpen,               label: "Knowledge", exact: false },
     { href: `${base}/tools`,     icon: Wrench,                 label: "Tools",    exact: false },
@@ -300,25 +300,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
 
-          {/* Agent open — section navigation back in the rail, under the
-              “Agents >” group: back link, agent identity card, then the seven
-              section tabs. The topbar carries the version/deploy cluster. */}
+          {/* Agent workspace — one left-rail hierarchy. The root is the
+              clickable "Agents >" switcher; the selected agent name is never
+              rendered as a giant dropdown/header. */}
           {!isAdmin && activeAgentId && activeAgentOrgId && (
             <div className="mt-3 border-t border-border/70 pt-3">
-              <Link
-                href={`/orgs/${activeAgentOrgId}/agents`}
-                title="Back to all agents"
-                className="group flex items-center gap-1 rounded-md px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
-              >
-                Agents
-                <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-              </Link>
+              <AgentSidebarSwitcher
+                orgId={activeAgentOrgId}
+                activeAgentId={activeAgentId}
+              />
 
-              {/* Agent identity — name + active branch; delete on hover. */}
-              <AgentSidebarIdentity orgId={activeAgentOrgId} agentId={activeAgentId} />
-
-              {/* Section tabs (Overview / Main / FAQ / Knowledge / Tools /
-                  Branches / Publish). */}
               <nav className="space-y-0.5" aria-label="Agent sections">
                 {agentSectionNav(activeAgentOrgId, activeAgentId).map((item) => {
                   const active = item.exact
@@ -329,17 +320,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       key={item.href}
                       href={item.href}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                      className={\`flex items-start gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all \${
                         active
                           ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                      }\`}
                     >
                       <item.icon
-                        className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground/70"}`}
+                        className={\`mt-0.5 h-3.5 w-3.5 shrink-0 \${
+                          active ? "text-primary" : "text-muted-foreground/70"
+                        }\`}
                       />
-                      {item.label}
-                      {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+                      <span className="min-w-0 flex-1">
+                        <span className="block leading-4">{item.label}</span>
+                        {item.label === "Agent" && (
+                          <span className="mt-0.5 block text-[11px] font-normal leading-3.5 text-muted-foreground/70">
+                            Main
+                          </span>
+                        )}
+                      </span>
+                      {active && <span className="mt-1.5 ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
                     </Link>
                   );
                 })}
@@ -626,80 +626,104 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
  * the agent. Data comes from the shared workspace-context cache so the
  * sidebar, the workspace shell and the topbar cluster never double-fetch.
  */
-function AgentSidebarIdentity({ orgId, agentId }: { orgId: string; agentId: string }) {
-  const router = useRouter();
-  const [name, setName] = useState<string | null>(null);
-  const [version, setVersion] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
+function AgentSidebarSwitcher({
+  orgId,
+  activeAgentId,
+}: {
+  orgId: string;
+  activeAgentId: string;
+}) {
+  const { agents, loading } = useAgents(orgId);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const activeAgent = agents.find((agent) => agent.id === activeAgentId);
 
   useEffect(() => {
-    let cancelled = false;
-    fetchAgentWorkspaceContextCached(agentId)
-      .then((context) => {
-        if (cancelled) return;
-        setName(context.agent.name);
-        setVersion(context.currentVersion?.versionNumber ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setName(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [agentId]);
+    if (!open) return;
 
-  async function handleDelete() {
-    if (!agentId || deleting) return;
-    if (!confirm("Delete this agent and every knowledge base inside it?")) return;
-    setDeleting(true);
-    try {
-      await deleteAgent(agentId);
-      router.push(`/orgs/${orgId}/agents`);
-    } finally {
-      setDeleting(false);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
     }
-  }
+
+    function onPointerDown(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [open]);
 
   return (
-    <div className="mx-1 mb-2 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-2.5 py-2 transition-colors hover:border-primary/30 hover:bg-muted/70">
-      <Link
-        href={`/orgs/${orgId}/agents/${agentId}`}
-        title="Open the agent Overview"
-        className="flex min-w-0 flex-1 items-center gap-2.5"
-      >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
-          <Bot className="h-4 w-4 text-primary" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">
-            {name ?? "Agent"}
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-            Main{version != null && <span className="text-muted-foreground/60">· v{version}</span>}
-          </span>
-        </span>
-      </Link>
+    <div ref={ref} className="relative mb-1.5">
       <button
         type="button"
-        onClick={() => void handleDelete()}
-        disabled={deleting}
-        aria-label={`Delete agent ${name ?? ""}`}
-        title="Delete agent"
-        className="shrink-0 rounded-lg p-1.5 text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+        onClick={() => setOpen((value) => !value)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="group flex w-full items-center gap-1 rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <span>Agents</span>
+        <ChevronRight
+          className={\`h-3 w-3 transition-transform duration-200 \${open ? "rotate-90" : ""}\`}
+          aria-hidden
+        />
+        <span className="sr-only">
+          {activeAgent ? \`Current agent: \${activeAgent.name}\` : "Switch agent"}
+        </span>
       </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Switch agent"
+          className="absolute left-2 right-2 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl animate-in fade-in slide-in-from-top-1 duration-150"
+        >
+          {loading ? (
+            <div className="space-y-1 p-1.5" aria-busy="true">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="h-8 animate-pulse rounded-lg bg-muted" />
+              ))}
+            </div>
+          ) : agents.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              No agents available.
+            </p>
+          ) : (
+            agents.map((agent) => {
+              const selected = agent.id === activeAgentId;
+              return (
+                <Link
+                  key={agent.id}
+                  href={\`/orgs/\${orgId}/agents/\${agent.id}\`}
+                  role="menuitem"
+                  aria-current={selected ? "page" : undefined}
+                  onClick={() => setOpen(false)}
+                  className={\`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs transition-colors \${
+                    selected
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }\`}
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary/10">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+                  {selected && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                </Link>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-/**
- * Org agents listed directly in the rail on the agents index — the ElevenLabs
- * pattern of browsing agents from the sidebar instead of a second rail.
- * The header "+" opens the shared create-agent dialog (event bridge — the
- * dialog itself is owned by the workspace shell provider).
- */
 function OrgAgentsSidebarSection({ orgId }: { orgId: string }) {
   const { agents, loading } = useAgents(orgId);
 
