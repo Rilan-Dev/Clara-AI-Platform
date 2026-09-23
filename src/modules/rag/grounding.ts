@@ -404,7 +404,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         grounded: false,
         outOfScopeReply:
           assistantConfig?.outOfScopeReply ??
-          "I can only answer questions about the topics I have been set up for.",
+          "I don't have enough information in the configured knowledge base to answer that accurately.",
         sources: [],
         graphSources: [],
         mode: getRagRuntimeConfig({ requestedMode: request.ragMode ?? undefined }).ragMode,
@@ -595,7 +595,7 @@ ${graphContext}`);
       grounded: sources.length > 0 || graphSources.length > 0,
       outOfScopeReply:
         resolved.assistantConfig?.outOfScopeReply ??
-        "I can only answer questions about the topics I have been set up for.",
+        "I don't have enough information in the configured knowledge base to answer that accurately.",
       kb: {
         id: kb.id,
         name: kb.name,
