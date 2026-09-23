@@ -149,9 +149,11 @@ function voiceConfigCacheKey(input: ResolveVoiceConfigInput): string {
 }
 
 /**
- * TTL-cached resolveVoiceConfig for hot per-request routes (tts, transcribe).
+ * TTL-cached resolveVoiceConfig for hot per-request routes (provider lookup,
+ * session bootstrap, TTS, STT and embed session).
  * Errors are NEVER cached — a failed resolution is retried on the next call.
- * Session bootstrap keeps the uncached resolveVoiceConfig for freshness.
+ * The short TTL keeps provider/model changes responsive while avoiding the
+ * repeated multi-query resolver walk on every realtime turn.
  */
 export async function resolveVoiceConfigCached(
   input: ResolveVoiceConfigInput,
