@@ -32,7 +32,7 @@ import {
   getElevenLabsRealtimeSttModel,
   isValidUuid,
 } from "../../model-catalog";
-import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
+import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { mintElevenLabsRealtimeToken } from "./realtime-auth";
 import { embedVoiceGuard } from "./embed-auth";
@@ -110,7 +110,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfig({ kbId, surface, ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const resolved = await resolveVoiceConfigCached({ kbId, surface, ...(body.scope === "draft" ? { preferDraft: true } : {}) });
     // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
     // as the chat-window voice-chat experience) or the realtime axis (Mode A
     // as the fallback when a realtime=elevenlabs config has no Mode-B
