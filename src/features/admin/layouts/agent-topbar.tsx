@@ -155,7 +155,7 @@ export function AgentTopbarProvider({ children }: { children: ReactNode }) {
     const draftUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ agentId?: string; draftUpdatedAt?: string }>).detail;
       if (!agentId || detail?.agentId !== agentId || !detail.draftUpdatedAt) return;
-      setContext((current) => current ? { ...current, draftUpdatedAt: detail.draftUpdatedAt } : current);
+      setContext((current) => current ? { ...current, draftUpdatedAt: detail.draftUpdatedAt ?? null } : current);
     };
 
     window.addEventListener("agent-workspace:refresh", refresh);
