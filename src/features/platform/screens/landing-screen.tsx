@@ -178,8 +178,8 @@ export default function LandingPage() {
             transition={{ delay: 1.2, duration: 0.8 }}
             className="mt-8 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-primary/10"
           >
-            <div className="bg-card dark:bg-[#08081a]/90 rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border dark:border-white/[0.06]">
+            <div className="bg-card dark:bg-card/90 rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-500/60" />
                   <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
