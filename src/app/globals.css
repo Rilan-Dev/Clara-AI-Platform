@@ -324,6 +324,61 @@
   box-shadow: 0 0 60px rgba(99, 102, 241, 0.18);
 }
 
+
+/* Dark-mode counterparts for landing glass surfaces. Keep these explicit so
+   light-mode marketing surfaces never bleed white into the dark theme. */
+.dark .glass {
+  background: rgba(17, 17, 31, 0.62);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.dark .glass-premium {
+  background: rgba(14, 14, 28, 0.78);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.dark .glass-card {
+  background: rgba(17, 17, 31, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .glass-card:hover {
+  background: rgba(24, 24, 42, 0.9);
+  border-color: rgba(129, 140, 248, 0.3);
+  box-shadow: 0 16px 44px rgba(79, 70, 229, 0.18);
+}
+
+.dark .interactive-gradient-background {
+  background:
+    radial-gradient(ellipse at 76% 42%, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.12) 32%, transparent 64%),
+    radial-gradient(ellipse at 26% 52%, rgba(56, 189, 248, 0.1) 0%, transparent 58%),
+    #08081a;
+}
+
+.dark .interactive-gradient-background--fallback {
+  background:
+    radial-gradient(ellipse at 74% 44%, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.14) 36%, transparent 68%),
+    radial-gradient(ellipse at 24% 54%, rgba(56, 189, 248, 0.08) 0%, transparent 58%),
+    #08081a;
+}
+
+.dark .interactive-gradient-background__canvas {
+  mix-blend-mode: screen;
+  filter: saturate(1.15) brightness(0.8);
+  opacity: 0.3;
+}
+
+.dark .interactive-gradient-background__shade {
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(8, 8, 26, 0.12) 0%, rgba(8, 8, 26, 0.2) 34%, rgba(8, 8, 26, 0.8) 100%),
+    linear-gradient(180deg, rgba(8, 8, 26, 0.45) 0%, rgba(8, 8, 26, 0.12) 26%, rgba(8, 8, 26, 0.62) 100%),
+    linear-gradient(90deg, rgba(8, 8, 26, 0.8) 0%, rgba(8, 8, 26, 0.08) 42%, rgba(8, 8, 26, 0.68) 100%);
+}
+
 /* ── Immersive landing-page utilities (light) ──────────────────────────── */
 
 .glass-premium {
