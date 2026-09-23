@@ -341,7 +341,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     answerBufferRef.current = "";
 
     try {
-      const priorMessages = conversationRef.current.slice(-6);
+      const priorMessages = conversationRef.current.slice(-4);
       const turnMessages: Array<{ role: "user" | "assistant"; content: string }> = [
         ...priorMessages,
         { role: "user", content: question },
@@ -393,7 +393,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           ...priorMessages,
           { role: "user", content: question },
           { role: "assistant", content: completedAnswer },
-        ].slice(-8);
+        ].slice(-6);
       }
 
       // Flush whatever the vendor still buffers so short answers speak.
