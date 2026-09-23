@@ -191,6 +191,24 @@ export function getPlatformDefaultSTTModel(): string {
   return configured === "scribe_v1" ? DEFAULT_STT_MODEL : configured || DEFAULT_STT_MODEL;
 }
 
+/** Realtime TTS default is intentionally separate from Voice Chat.
+ * Explicit realtime agent/org settings still win; this fallback stays on
+ * Flash v2.5 so an old Turbo voice-chat setting cannot slow the realtime path.
+ */
+export function getPlatformDefaultRealtimeTTSModel(): string {
+  const configured = process.env.ELEVENLABS_REALTIME_TTS_MODEL?.trim();
+  if (configured && isSupportedTTSModel(configured)) return configured;
+  return DEFAULT_TTS_MODEL;
+}
+
+/** Realtime STT must be the dedicated Scribe v2 Realtime model. */
+export function getPlatformDefaultRealtimeSTTModel(): string {
+  const configured = process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim();
+  return configured === "scribe_v2_realtime"
+    ? configured
+    : "scribe_v2_realtime";
+}
+
 export function getPlatformDefaultVoiceId(): string | null {
   return process.env.ELEVENLABS_DEFAULT_VOICE_ID?.trim() || null;
 }
