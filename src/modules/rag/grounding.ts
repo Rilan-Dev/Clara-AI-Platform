@@ -38,11 +38,9 @@ import {
 } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, type AdmissionDenied, type QuotaWarning } from "@/lib/quota-admission";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
-import { translateQueryForRag } from "@/modules/language-core/pipeline";
 import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
-import { ensureDocumentIdIndex } from "@/modules/admin/core/vector-store-kb";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
@@ -52,7 +50,7 @@ import type { QuerySurface } from "@/modules/knowledge-bases/core/analytics-db";
 const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K = 6;
 const MAX_TOP_K = 20;
-const GROUNDING_RESOLUTION_CACHE_TTL_MS = 5_000;
+const GROUNDING_RESOLUTION_CACHE_TTL_MS = 30_000;
 
 type CachedEmbeddingResolution = {
   expiresAt: number;
@@ -174,6 +172,8 @@ export interface GroundedContext {
   scope: GroundingScope;
   /** Lightweight intent classification performed before retrieval. */
   intent: GroundingIntent;
+  /** Best-effort local language detected from the visitor query. */
+  responseLanguage: string;
   latencyMs: number;
 }
 
@@ -199,6 +199,21 @@ async function resolveKbTenant(
   const orgId = rows[0]?.org_id ?? null;
   const agentId = rows[0]?.agent_id ?? null;
   return { orgId, agentId };
+}
+
+function detectResponseLanguage(query: string, allowedLanguages: string[]): string {
+  const normalized = query.normalize("NFKC").toLowerCase();
+  const allowed = new Set(allowedLanguages.map((value) => value.trim().toLowerCase()).filter(Boolean));
+  if (allowed.has("ta") && /[\u0B80-\u0BFF]/.test(normalized)) return "ta";
+  if (allowed.has("hi") && /[\u0900-\u097F]/.test(normalized)) return "hi";
+  if (allowed.has("te") && /[\u0C00-\u0C7F]/.test(normalized)) return "te";
+
+  // Small, local heuristic for common romanized Indian-language prompts.
+  // It is intentionally conservative: English remains the fallback.
+  if (allowed.has("ta") && /\b(enakku|enna|eppadi|sollu|venum|panna|help)\b/.test(normalized)) return "ta";
+  if (allowed.has("hi") && /\b(mujhe|kaise|batao|chahiye|madad)\b/.test(normalized)) return "hi";
+  if (allowed.has("te") && /\b(naaku|ela|cheppu|kavali|sahayam)\b/.test(normalized)) return "te";
+  return allowed.has("en") ? "en" : allowedLanguages[0]?.trim().toLowerCase() || "en";
 }
 
 function isCapabilityQuery(query: string): boolean {
@@ -227,7 +242,6 @@ function isCapabilityQuery(query: string): boolean {
     /எந்தந்த .*விஷய/,
     /என்ன மாதிரி .*பண்ண முடியும்/,
     /எப்படி .*உதவி/,
-    /எனக்கு .*ஹெல்ப்/,
     /enna .*help/,
     /eppadi .*help/,
     /enna maathiri .*help/,
@@ -252,13 +266,6 @@ async function searchKbCollection(
   providerConfig?: ProviderConfig,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
-  const filterConditions = Array.isArray(filter?.must) ? filter.must : [];
-  if (filterConditions.some((condition: unknown) =>
-    typeof condition === "object" && condition !== null &&
-    (condition as { key?: unknown }).key === "documentId"
-  )) {
-    await ensureDocumentIdIndex(collectionName);
-  }
   const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
 
   // Fetch a wider candidate pool so a document-scoped filter isn't required
@@ -330,10 +337,11 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const topK = Math.min(Number(request.topK ?? DEFAULT_TOP_K), MAX_TOP_K);
 
   const t0 = Date.now();
-  const [kb, assistantConfig, documentTitles] = await Promise.all([
+  const [kb, assistantConfig, documentTitles, tenant] = await Promise.all([
     getKnowledgeBaseById(request.kbId),
     getAssistantConfigByKb(request.kbId),
     getKnowledgeBaseDocumentTitles(request.kbId),
+    resolveKbTenant(request.kbId),
   ]);
   if (!kb) {
     return { ok: false, status: 404, error: "Knowledge base not found" };
@@ -355,7 +363,11 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   };
 
   // ── Tenant binding: derived server-side from the KB row, never from input.
-  const { orgId, agentId } = await resolveKbTenant(kb.id);
+  const { orgId, agentId } = tenant;
+  const responseLanguage = detectResponseLanguage(
+    query,
+    assistantConfig?.allowedLanguages ?? ["en"],
+  );
   // Capability/onboarding turns are intentionally resolved before vector search.
   // They should work even when the KB contains no FAQ phrased like the visitor's
   // question, and their answer is derived from the current assistant/KB config.
@@ -390,6 +402,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         },
         scope,
         intent: "capability",
+        responseLanguage,
         latencyMs: Date.now() - t0,
       },
     };
@@ -429,6 +442,15 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     ? { must: [{ key: "documentId", match: { value: request.documentId } }] }
     : undefined;
 
+  const graphPromise = runtime.enableGraphRag
+    ? retrieveGraphContext({
+        kbId: kb.id,
+        query,
+        topK: Math.min(topK, 4),
+        documentId: request.documentId ?? undefined,
+      })
+    : Promise.resolve([]);
+
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
@@ -452,16 +474,8 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     throw searchErr;
   }
 
-  // Vector and graph retrieval are independent; run them concurrently so
-  // voice turns do not pay both remote retrieval latencies serially.
-  const graphPromise = runtime.enableGraphRag
-    ? retrieveGraphContext({
-        kbId: kb.id,
-        query,
-        topK: Math.min(topK, 4),
-        documentId: request.documentId ?? undefined,
-      })
-    : Promise.resolve([]);
+  // Vector and graph retrieval are independent; the graph request is started
+  // before vector search so hybrid/agentic turns overlap remote latency.
   const graphHits = await graphPromise;
 
   const graphContext = graphHits
@@ -497,7 +511,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   } else {
     // Audit-only: same audit row shape, no quota semantics (§11.10 — query
     // text + snippet count, never snippet bodies).
-    await logQueryEvent({
+    void logQueryEvent({
       kbId: kb.id,
       orgId,
       queryText: query,
@@ -505,6 +519,8 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       surface: request.surface ?? "voice",
       status: "ok",
       answerText: null,
+    }).catch((error) => {
+      console.warn("[grounding] audit-only query event failed:", (error as Error).message);
     });
   }
 
@@ -571,6 +587,7 @@ ${graphContext}`);
       },
       scope,
       intent: "knowledge",
+      responseLanguage,
       binding: {
         tenantId: orgId,
         agentId,
