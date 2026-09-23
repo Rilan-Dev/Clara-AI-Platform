@@ -4,17 +4,22 @@ import {
   setStoredToken,
   withAuthHeaders,
 } from "@/lib/client-auth";
-import { apiUrl } from "@/lib/runtime";
+import { apiUrl, fetchJsonShared } from "@/lib/runtime";
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = withAuthHeaders(options.headers ?? {});
   if (!headers.has("Content-Type") && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
-  const res = await fetch(apiUrl(url), { headers, ...options });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body?.error ?? `HTTP ${res.status} ${res.statusText}`);
+  // fetchJsonShared merges concurrent identical GETs into one round trip and
+  // drops pending GET entries whenever a mutating request is issued.
+  const { ok, status, statusText, body } = await fetchJsonShared(apiUrl(url), {
+    ...options,
+    headers,
+  });
+  if (!ok) {
+    const b = (body ?? {}) as { error?: string };
+    throw new Error(b?.error ?? `HTTP ${status} ${statusText}`);
   }
-  return res.json() as Promise<T>;
+  return body as T;
 }
 export type CurrentUser = {
   id: string;
