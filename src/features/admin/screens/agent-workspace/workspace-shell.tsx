@@ -359,7 +359,7 @@ function AgentMobileTabs() {
     { href: `${base}/config`, label: "Main" },
     { href: `${base}/faq`, label: "FAQ" },
     { href: `${base}/knowledge`, label: "Knowledge" },
-    { href: `${base}/tools`, label: "Tools" },
+    { href: `${base}/tools`, label: "Capabilities" },
     { href: `${base}/versions`, label: "Branches" },
     { href: `${base}/publish`, label: "Publish" },
   ];

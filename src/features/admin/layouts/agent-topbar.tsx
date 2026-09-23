@@ -78,7 +78,7 @@ const SECTION_SEGMENTS: Record<string, string> = {
   config: "Agent",
   faq: "FAQ",
   knowledge: "Knowledge",
-  tools: "Tools",
+  tools: "Capabilities",
   versions: "Branches",
   publish: "Publish",
 };
