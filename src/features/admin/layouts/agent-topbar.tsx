@@ -38,7 +38,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Check,
   Copy,
@@ -221,8 +221,6 @@ export function TopbarContextLabel({ isAdmin }: { isAdmin: boolean }) {
 
 export function AgentTopbarCluster() {
   const { agentId, context, loading } = useAgentTopbar();
-  const router = useRouter();
-
   const [publishing, setPublishing] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
 
@@ -265,14 +263,16 @@ export function AgentTopbarCluster() {
         description: `Production is now running ${result.deployment.branchName} · v${result.deployment.versionNumber}.`,
       });
       setDiffOpen(false);
-      router.refresh();
+      // Do not refresh the Next.js route tree here. The workspace context/cache
+      // event updates only the affected agent surfaces and keeps the sidebar,
+      // navigation state, and local editor state mounted.
       window.dispatchEvent(new CustomEvent("agent-workspace:refresh"));
     } catch (err) {
       toast.error("Publish failed", { description: (err as Error).message });
     } finally {
       setPublishing(false);
     }
-  }, [context, publishing, currentVersion, draftEditedSinceVersion, agentId, deployment?.publicAccess, router]);
+  }, [context, publishing, currentVersion, draftEditedSinceVersion, agentId, deployment?.publicAccess]);
 
   if (!agentId) return null;
 
