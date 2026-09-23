@@ -289,11 +289,21 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
 
   // Cross-screen refresh: one-click publish (topbar cluster, Overview, publish screen)
   // fires this event so every mounted workspace surface re-reads its context.
+  // Draft edits use the lighter draft-updated event and do not refetch workspace.
   useEffect(() => {
     const refresh = () => refetchContext();
+    const draftUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string; draftUpdatedAt?: string }>).detail;
+      if (!agentId || detail?.agentId !== agentId || !detail.draftUpdatedAt) return;
+      setContext((current) => current ? { ...current, draftUpdatedAt: detail.draftUpdatedAt } : current);
+    };
     window.addEventListener("agent-workspace:refresh", refresh);
-    return () => window.removeEventListener("agent-workspace:refresh", refresh);
-  }, [refetchContext]);
+    window.addEventListener("agent-workspace:draft-updated", draftUpdated);
+    return () => {
+      window.removeEventListener("agent-workspace:refresh", refresh);
+      window.removeEventListener("agent-workspace:draft-updated", draftUpdated);
+    };
+  }, [agentId, refetchContext]);
 
   const value = useMemo<AgentsWorkspaceValue>(
     () => ({
