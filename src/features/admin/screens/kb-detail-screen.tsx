@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { KbTabBar, isKbTab, type KbTab } from "@/features/admin/screens/kb-tab-bar";
 import { AlertTriangle, BookOpen, Layers3, RefreshCw } from "lucide-react";
 import { useAnalytics, useAuth, useDocuments, useKb, useOrg, useAgent } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
@@ -41,7 +42,19 @@ export default function KbDashboardPage() {
   const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
 
-  const [tab, setTab] = useState<"documents" | "scrape" | "analytics" | "deploy" | "design" | "phone">("documents");
+  // The active tab lives in the URL (?tab=design) so it survives refresh,
+  // works with Back, and can be linked to from other screens.
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab: KbTab = isKbTab(searchParams.get("tab")) ? (searchParams.get("tab") as KbTab) : "documents";
+  const selectTab = (next: KbTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "documents") params.delete("tab");
+    else params.set("tab", next);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    if (next === "analytics") refetchAnalytics();
+  };
   const [docSubTab, setDocSubTab] = useState<"uploads" | "web">("uploads");
   const [archiving, setArchiving] = useState(false);
   const [draining, setDraining] = useState(false);
@@ -187,31 +200,7 @@ export default function KbDashboardPage() {
           ))}
         </div>
 
-        <div className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
-          {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                setTab(item);
-                if (item === "analytics") refetchAnalytics();
-              }}
-              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              {item === "documents"
-                ? "Documents"
-                : item === "scrape"
-                  ? "Scrape"
-                  : item === "analytics"
-                    ? "Analytics"
-                    : item === "deploy"
-                      ? "Deploy"
-                      : item === "phone"
-                        ? "📞 Phone"
-                        : "Design"}
-            </button>
-          ))}
-        </div>
+        <KbTabBar value={tab} onChange={selectTab} />
 
         {tab === "documents" && (
           <div className="space-y-4">
@@ -419,31 +408,7 @@ export default function KbDashboardPage() {
         ))}
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]">
-        {(["documents", "scrape", "analytics", "deploy", "design", "phone"] as const).map((item) => (
-          <button
-            key={item}
-            onClick={() => {
-              setTab(item);
-              if (item === "analytics") refetchAnalytics();
-            }}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === item ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"
-              }`}
-          >
-            {item === "documents"
-              ? "Documents"
-              : item === "scrape"
-                ? "Scrape"
-                : item === "analytics"
-                  ? "Analytics"
-                  : item === "deploy"
-                    ? "Deploy"
-                    : item === "phone"
-                      ? "📞 Phone"
-                      : "Design"}
-          </button>
-        ))}
-      </div>
+      <KbTabBar value={tab} onChange={selectTab} />
 
       {tab === "documents" && (
         <div className="space-y-4">

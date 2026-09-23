@@ -10,6 +10,7 @@ import {
   KeyRound,
   Mail,
   Palette,
+  SlidersHorizontal,
   UserRound,
 } from "lucide-react";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
@@ -85,7 +86,7 @@ export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
   {
     id: "environment",
     href: "/settings/environment",
-    icon: KeyRound,
+    icon: SlidersHorizontal,
     label: "Environment",
     title: "Platform environment",
     description:

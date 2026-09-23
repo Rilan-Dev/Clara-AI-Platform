@@ -32,7 +32,8 @@ import {
 } from "@/modules/admin-ui/ai-platform-api";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
-import { useAuth } from "@/modules/admin-ui/hooks";
+import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function AgentPublishScreen() {
@@ -433,7 +434,49 @@ export default function AgentPublishScreen() {
             </ul>
           )}
         </aside>
+
+        {/* ── Channels — where the published agent actually shows up ─────────── */}
+        <ChannelLinks orgId={context?.agent.orgId ?? ""} agentId={agentId} />
       </div>
     </div>
+  );
+}
+
+/** Embed keys, widget design and phone live per knowledge base; link straight
+ *  to them from the place people go right after publishing. */
+function ChannelLinks({ orgId, agentId }: { orgId: string; agentId: string }) {
+  const { kbs, loading } = useKbs(agentId);
+  if (!orgId || loading || kbs.length === 0) return null;
+  const links = [
+    { tab: "deploy", label: "Embed & API keys", hint: "Keys, allowed sites and copy-paste snippets" },
+    { tab: "design", label: "Widget design", hint: "Colours, launcher, layout and branding" },
+    { tab: "phone",  label: "Phone",         hint: "Connect a phone number to this assistant" },
+  ];
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm xl:col-span-2" aria-labelledby="publish-channels">
+      <h2 id="publish-channels" className="text-sm font-semibold text-foreground">Put it on your website</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Each knowledge base has its own embed keys, widget look and phone line.
+      </p>
+      <ul className="mt-4 space-y-3">
+        {kbs.map((kb) => (
+          <li key={kb.id} className="rounded-xl border border-border/70 p-3.5">
+            <p className="text-sm font-medium text-foreground">{kb.name}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {links.map((l) => (
+                <Link
+                  key={l.tab}
+                  href={`/orgs/${orgId}/agents/${agentId}/knowledge/${kb.id}?tab=${l.tab}`}
+                  className="rounded-lg border border-border px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <span className="block text-sm font-medium text-foreground">{l.label}</span>
+                  <span className="block text-xs text-muted-foreground">{l.hint}</span>
+                </Link>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

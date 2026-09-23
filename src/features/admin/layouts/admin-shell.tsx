@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
-  UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
+  UserRound, Bot, KeyRound, Mail, Activity, Users, FileText, Building2, SlidersHorizontal,
   MoreHorizontal, X, Palette,
   Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion,
 } from "lucide-react";
@@ -41,7 +41,8 @@ const ADMIN_NAV = [
 const SETTINGS_NAV = [
   { href: "/settings/account",  icon: UserRound, label: "Account"          },
   { href: "/settings/appearance", icon: Palette, label: "Appearance"       },
-  { href: "/settings/ai",       icon: Bot,       label: "AI Configuration" },
+  { href: "/settings/ai",       icon: Bot,       label: "AI Platform"      },
+  { href: "/settings/environment", icon: SlidersHorizontal, label: "Environment" },
   { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
   { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
   { href: "/settings/email",    icon: Mail,      label: "Email Delivery"   },
@@ -51,11 +52,14 @@ const SETTINGS_NAV = [
 
 // Org users have no AI Configuration section any more — assistant persona
 // settings are platform-level defaults; orgs tune their own agents and
-// knowledge bases. Their settings = personal account only (rendered as a
-// plain link, not a one-item dropdown).
-const ORG_SETTINGS_NAV = [
-  { href: "/settings/account", icon: UserRound, label: "Account" },
-];
+// knowledge bases. Their settings = the organisation profile (name, logo,
+// Conversational AI agents) plus their personal account.
+function orgSettingsNav(orgId: string | null) {
+  return [
+    ...(orgId ? [{ href: `/orgs/${orgId}/settings`, icon: Building2, label: "Organisation" }] : []),
+    { href: "/settings/account", icon: UserRound, label: "Account" },
+  ];
+}
 
 // Organisation workspace sections — org users navigate to each of these
 // directly from the sidebar (they used to be horizontal tabs; moving them
@@ -130,7 +134,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
-  const onSettingsRoute = pathname.startsWith("/settings");
+  const onSettingsRoute =
+    pathname.startsWith("/settings") || /^\/orgs\/[^/]+\/settings(\/|$)/.test(pathname);
   const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     if (onSettingsRoute) setSettingsOpen(true);
@@ -216,7 +221,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const onAgentsIndex =
     !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
   const nav = isAdmin ? ADMIN_NAV : orgNav;
-  const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
+  const settingsNav = isAdmin ? SETTINGS_NAV : orgSettingsNav(primaryOrgId);
   // Org users only have Account left — a one-item dropdown would be noise, so
   // render their Settings as a plain link to /settings/account.
   const singleSettingsLink = settingsNav.length === 1 ? settingsNav[0] : null;

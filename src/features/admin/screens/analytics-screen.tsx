@@ -65,6 +65,8 @@ type AuditRow = {
   kb_id: string; kb_name: string | null; user_email: string | null;
   question: string; answer: string | null; surface: string; status: string;
   latency_ms: number | null; created_at: string;
+  /** PII was masked at write time; the original is revealable with a reason. */
+  redacted?: boolean;
 };
 
 type AuditData = {
@@ -825,6 +827,11 @@ export default function AnalyticsScreen() {
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             <div className="flex items-center gap-1.5">
+                              {row.redacted && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded border bg-muted text-muted-foreground border-border" title="Personal data in this conversation was redacted">
+                                  PII redacted
+                                </span>
+                              )}
                               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
                               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
                                 row.status === "ok" ? "bg-emerald-500/10 text-emerald-600 border-emerald-600/20"
@@ -840,13 +847,14 @@ export default function AnalyticsScreen() {
                         </div>
                       </button>
                       {open && (
-                        <div className="mt-3 pt-3 border-t border-border/70 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground/70">
-                          <span>Org: <span className="text-muted-foreground">{row.org_name ?? "—"}</span></span>
-                          <span>KB: <span className="text-muted-foreground">{row.kb_name ?? "—"}</span></span>
-                          <span>User: <span className="text-muted-foreground">{row.user_email ?? "anonymous visitor"}</span></span>
-                          {row.latency_ms != null && <span>Latency: <span className="text-muted-foreground">{row.latency_ms}ms</span></span>}
+                        <div className="mt-3 pt-3 border-t border-border/70 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>Org: <span className="text-foreground/80">{row.org_name ?? "—"}</span></span>
+                          <span>KB: <span className="text-foreground/80">{row.kb_name ?? "—"}</span></span>
+                          <span>User: <span className="text-foreground/80">{row.user_email ?? "anonymous visitor"}</span></span>
+                          {row.latency_ms != null && <span>Latency: <span className="text-foreground/80">{row.latency_ms}ms</span></span>}
                         </div>
                       )}
+                      {open && row.redacted && <AuditRevealPanel eventId={row.id} />}
                     </div>
                   );
                 })}
@@ -870,5 +878,78 @@ export default function AnalyticsScreen() {
       )}
 
     </div>
+  );
+}
+
+// ── Justified PII reveal ───────────────────────────────────────────────────────
+// The reveal is itself written to the audit log with the reason given, so
+// every look at raw personal data is accountable.
+function AuditRevealPanel({ eventId }: { eventId: string }) {
+  const [reason, setReason]     = useState("");
+  const [busy, setBusy]         = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<{ queryText: string; answerText: string | null } | null>(null);
+  const reasonId = `reveal-reason-${eventId}`;
+
+  async function reveal(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(apiUrl("/api/analytics/audit/reveal"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ eventId, justification: reason.trim() }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; queryText?: string; answerText?: string | null };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setRevealed({ queryText: data.queryText ?? "", answerText: data.answerText ?? null });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (revealed) {
+    return (
+      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">
+          Original content — this reveal has been recorded in the audit log.
+        </p>
+        <p className="text-foreground/90 whitespace-pre-wrap"><span className="font-medium text-muted-foreground mr-1.5">Q:</span>{revealed.queryText}</p>
+        {revealed.answerText && (
+          <p className="mt-2 text-foreground/80 whitespace-pre-wrap"><span className="font-medium text-muted-foreground mr-1.5">A:</span>{revealed.answerText}</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={reveal} className="mt-3 rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+      <label htmlFor={reasonId} className="block text-xs font-medium text-foreground">
+        Reveal redacted personal data
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Give a reason (at least 10 characters). It is stored with your name in the audit log.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          id={reasonId}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Customer support ticket #1234 requested their transcript"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        />
+        <button
+          type="submit"
+          disabled={busy || reason.trim().length < 10}
+          className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {busy ? "Revealing…" : "Reveal"}
+        </button>
+      </div>
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    </form>
   );
 }

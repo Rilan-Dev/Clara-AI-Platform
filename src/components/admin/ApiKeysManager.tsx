@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { confirmAction } from "@/components/ui/confirm-dialog";
+import { ApiKeyUsagePanel } from "@/components/admin/ApiKeyUsagePanel";
 import { toast } from "@/components/ui/sonner";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -125,7 +126,7 @@ function RawKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void 
 
 // ── CreateKeyModal ────────────────────────────────────────────────────────────
 
-function CreateKeyModal({ onClose, onCreated, quota }: { onClose: () => void; onCreated: (r: NewKeyResult) => void; quota: QuotaInfo }) {
+function CreateKeyModal({ kbId, onClose, onCreated, quota }: { kbId: string; onClose: () => void; onCreated: (r: NewKeyResult) => void; quota: QuotaInfo }) {
   const [name, setName]           = useState("Production");
   const [origins, setOrigins]     = useState("");
   const [rateLimit, setRateLimit] = useState(500);
@@ -136,7 +137,6 @@ function CreateKeyModal({ onClose, onCreated, quota }: { onClose: () => void; on
   const handleCreate = async () => {
     setCreating(true); setError(null); setIsUpgradeError(false);
     try {
-      const kbId = window.location.pathname.split("/kbs/")[1]?.split("/")[0];
       const res  = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys`), {
         method: "POST",
         headers: withAuthHeaders({ "Content-Type": "application/json" }),
@@ -707,8 +707,11 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
         </div>
       )}
 
+      {/* Usage — per-key request counts and the last-24h trend */}
+      {!loading && keys.length > 0 && <ApiKeyUsagePanel kbId={kbId} />}
+
       {/* Modals */}
-      {showCreate && quota && <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} quota={quota} />}
+      {showCreate && quota && <CreateKeyModal kbId={kbId} onClose={() => setShowCreate(false)} onCreated={handleCreated} quota={quota} />}
       {editingKey && <EditKeyModal kbId={kbId} apiKey={editingKey} onClose={() => setEditingKey(null)} onUpdated={handleUpdated} />}
       {newKeyResult && <RawKeyModal rawKey={newKeyResult.rawKey} onClose={() => setNewKeyResult(null)} />}
     </div>

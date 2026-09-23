@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
+import { RuntimeFlagsPanel } from "@/components/admin/RuntimeFlagsPanel";
 
 /**
  * SystemStatusScreen — /system-status (platform admin)
@@ -540,7 +541,9 @@ export function SystemStatusScreen() {
               </ServiceCard>
             </div>
 
-            <p className="pb-4 text-center text-[11px] text-muted-foreground/50">
+            <RuntimeFlagsPanel />
+
+            <p className="pb-4 text-center text-xs text-muted-foreground">
               Status checks run server-side and never expose provider credentials.
               Enabled provider failures create a persistent platform incident and
               notify active super-admins; repeated refreshes do not spam duplicate alerts.
