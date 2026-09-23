@@ -163,7 +163,15 @@ export function elevenlabsTtsOptions() {
 }
 
 export function elevenlabsSttOptions() {
-  return [{ value: "scribe_v1", label: "Scribe v1" }];
+  return [{ value: "scribe_v2", label: "Scribe v2" }];
+}
+
+export function elevenlabsRealtimeSttOptions() {
+  return [{ value: "scribe_v2_realtime", label: "Scribe v2 Realtime" }];
+}
+
+export function elevenlabsRealtimeTtsOptions() {
+  return [{ value: "eleven_flash_v2_5", label: "Eleven Flash v2.5 (low latency)" }];
 }
 
 // ─── Sarvam (voice axis — pipeline only, static catalogue by design) ────────
