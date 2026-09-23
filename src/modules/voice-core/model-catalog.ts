@@ -105,7 +105,10 @@ export function isConversationalAIEnabled(): boolean {
  * realtime endpoint takes scribe_v2_realtime (NOT the batch scribe_v1).
  */
 export function getElevenLabsRealtimeSttModel(): string {
-  return process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim() || "scribe_v2_realtime";
+  // The realtime WebSocket accepts the dedicated Scribe v2 Realtime model.
+  // Ignore stale batch/deprecated ids rather than shipping an invalid socket
+  // configuration to the relay.
+  return getPlatformDefaultRealtimeSTTModel();
 }
 
 export function isVoiceCloningEnabled(): boolean {
