@@ -242,6 +242,7 @@ export default function AgentAssistantAIScreen() {
         {!isAdmin && (
           <div id="ai-runtime-config" className="scroll-mt-24">
             <AISelectionCard
+              agentId={agentId}
               draft={draft}
               options={options}
               onSave={saveAISelection}
@@ -271,12 +272,14 @@ export default function AgentAssistantAIScreen() {
 // ─── AI provider selection workspace ─────────────────────────────────────────
 
 function AISelectionCard({
+  agentId,
   draft,
   options,
   onSave,
   realtimeProviderId,
   onRealtimeProviderChange,
 }: {
+  agentId: string;
   draft: AgentDraftDTO | null;
   options: Partial<Record<AICapability, AgentAIOptionsDTO | null>>;
   onSave: (ai: AgentDraftDTO["configuration"]["ai"], runtime?: AgentDraftDTO["configuration"]["runtime"]) => Promise<void>;
@@ -309,19 +312,6 @@ function AISelectionCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.configuration.ai, draft?.configuration.runtime]);
 
-  const ensureCapability = useCallback(async (capability: AICapability) => {
-    if (options[capability]) return;
-    setLoadingCapability(capability);
-    try {
-      const result = await fetchAgentAIOptions(agentIdFromDraft(draft), capability);
-      setOptionsLocal(options, capability, result);
-    } catch (err) {
-      toast.error("Could not load providers", { description: (err as Error).message });
-    } finally {
-      setLoadingCapability(null);
-    }
-  }, [options, draft]);
-
   // Local setter is kept in the component so opening one canvas does not
   // trigger a route refresh or reload unrelated sections.
   const [localOptions, setLocalOptions] = useState(options);
@@ -336,7 +326,7 @@ function AISelectionCard({
     setSurface(capability);
     setLoadingCapability(capability);
     try {
-      const result = await fetchAgentAIOptions(draft.agentId ? extractAgentId(draft) : "", capability);
+      const result = await fetchAgentAIOptions(agentId, capability);
       setLocalOptions((prev) => ({ ...prev, [capability]: result }));
     } catch (err) {
       setSurface(null);
@@ -344,7 +334,7 @@ function AISelectionCard({
     } finally {
       setLoadingCapability(null);
     }
-  }, [localOptions, draft]);
+  }, [localOptions, draft, agentId]);
 
   const pickProvider = (providerId: string | null, capability: AICapability) => {
     if (capability === "realtime_voice") onRealtimeProviderChange?.(providerId);
@@ -608,24 +598,6 @@ function capabilityLabel(capability: AICapability): string {
 function prettyProvider(providerId: string | null): string {
   if (!providerId) return "Platform default";
   return providerId.split(/[-_]/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
-}
-
-function agentIdFromDraft(draft: AgentDraftDTO | null): string {
-  // Kept for type-safe callers; draft branch IDs are not agent IDs.
-  return "";
-}
-
-function setOptionsLocal(
-  _options: Partial<Record<AICapability, AgentAIOptionsDTO | null>>,
-  _capability: AICapability,
-  _result: AgentAIOptionsDTO,
-): void {
-  // Deprecated helper retained only to keep the provider loader shape stable.
-}
-
-function extractAgentId(draft: AgentDraftDTO): string {
-  // The draft DTO does not expose agentId. The parent callback owns the real ID.
-  return "";
 }
 
 function ModelField({
