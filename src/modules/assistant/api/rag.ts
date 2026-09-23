@@ -27,6 +27,7 @@ type RagPayload = {
 export async function postRagSearch(
   request: NextRequest,
   providerOverride?: ProviderConfig,
+  admission: "quota" | "audit-only" = "quota",
 ): Promise<NextResponse> {
   try {
     const body = (await request.json()) as RagPayload;
@@ -43,6 +44,7 @@ export async function postRagSearch(
         ragMode: body.ragMode,
         topK: body.topK,
         surface: "search",
+        admission,
         embeddingOverride: providerOverride,
       });
 
@@ -66,6 +68,7 @@ export async function postRagSearch(
         kb: outcome.result.kb,
         scope: outcome.result.scope,
         intent: outcome.result.intent,
+        responseLanguage: outcome.result.responseLanguage,
       });
     }
 

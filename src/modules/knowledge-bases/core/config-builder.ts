@@ -26,18 +26,35 @@ ${config.welcomeMessage.trim()}`);
   const projectLanguages = [...new Set((ctx.allowedLanguages ?? []).map((language) => language.trim().toLowerCase()).filter(Boolean))];
   const hasProjectBoundary = projectLanguages.length > 0;
   const customerLanguages = hasProjectBoundary ? projectLanguages : config.allowedLanguages;
-  const requestedAssistantLanguage = config.alwaysRespondIn ?? ctx.responseLanguage ?? config.defaultLanguage;
-  const assistantLanguageIsAllowed = !hasProjectBoundary || (!!requestedAssistantLanguage && projectLanguages.includes(requestedAssistantLanguage.trim().toLowerCase()));
-  const effectiveAssistantLanguage = assistantLanguageIsAllowed ? requestedAssistantLanguage : projectLanguages[0] ?? "en";
-  const languagePreferences = resolveLanguagePreferences({ assistant: effectiveAssistantLanguage, customer: customerLanguages });
+  const realtimeAdaptiveLanguage =
+    ctx.surface === "realtime" && projectLanguages.length > 1;
+  const requestedAssistantLanguage =
+    realtimeAdaptiveLanguage
+      ? ctx.responseLanguage ?? config.defaultLanguage
+      : config.alwaysRespondIn ?? ctx.responseLanguage ?? config.defaultLanguage;
+  const assistantLanguageIsAllowed =
+    !hasProjectBoundary ||
+    (!!requestedAssistantLanguage &&
+      projectLanguages.includes(requestedAssistantLanguage.trim().toLowerCase()));
+  const effectiveAssistantLanguage = assistantLanguageIsAllowed
+    ? requestedAssistantLanguage
+    : projectLanguages[0] ?? "en";
+  const languagePreferences = resolveLanguagePreferences({
+    assistant: effectiveAssistantLanguage,
+    customer: customerLanguages,
+  });
   const languageGuidance = buildLanguageGuidance(languagePreferences);
-  const configuredLanguages = (hasProjectBoundary ? projectLanguages : languagePreferences.customer).map(describeLanguage).join(", ");
+  const configuredLanguages = (hasProjectBoundary ? projectLanguages : languagePreferences.customer)
+    .map(describeLanguage)
+    .join(", ");
   const forcedLanguage = describeLanguage(languagePreferences.assistant);
   parts.push(
-    `Language policy: Always respond in ${forcedLanguage} and only use these project-approved output languages: ${configuredLanguages}. ` +
-    "The project language assignment is a hard tenant boundary. Never speak, switch, translate, or generate audio in a language outside this allowlist. " +
-    "If the user speaks or requests an unsupported language, continue in the effective default allowed language instead. " +
-    `For the remaining approved languages, ${languageGuidance.session} Do not switch output language unless the project configuration is changed.`,
+    realtimeAdaptiveLanguage
+      ? `Language policy: Default to ${forcedLanguage}, but in realtime voice conversations mirror the customer's spoken language when it is one of the project-approved languages: ${configuredLanguages}. Never switch outside this allowlist. Do not use a translation layer; use the provider's native language handling.`
+      : `Language policy: Always respond in ${forcedLanguage} and only use these project-approved output languages: ${configuredLanguages}. ` +
+        "The project language assignment is a hard tenant boundary. Never speak, switch, translate, or generate audio in a language outside this allowlist. " +
+        "If the user speaks or requests an unsupported language, continue in the effective default allowed language instead. " +
+        `For the remaining approved languages, ${languageGuidance.session} Do not switch output language unless the project configuration is changed.`,
   );
 
   if (config.strictMode) parts.push("Strict mode is ON. Use it as a knowledge-safety rule, not as a trigger for refusing broad questions. If retrieved context contains relevant information, answer the user's question from that context even when the wording is broad, abbreviated, contains spelling mistakes, or does not exactly match a source. Capability/onboarding questions such as what you can do, how you can help, what topics you cover, or what the visitor can ask are NOT out of scope: answer them using the configured welcome/capability guidance and the knowledge-base scope above. Only when the question is genuinely outside the assistant's configured domain AND is not a capability/onboarding request should you refuse. " + `For a genuinely out-of-scope request, say exactly: "${config.outOfScopeReply}"`);
