@@ -842,3 +842,39 @@ export async function retryFailedUrl(
     { method: "POST", body: "{}" },
   );
 }
+
+// ── Org usage limits (profile menu meters) ───────────────────────────────────
+
+/** Live org usage vs effective plan limits (GET /api/orgs/:id/usage-limits). */
+export type OrgUsageLimits = {
+  plan_id: string;
+  plan_name: string;
+  status: string;
+  downgraded: boolean;
+  usage: {
+    kb_count: number;
+    doc_count: number;
+    max_docs_in_kb: number;
+    storage_bytes: number;
+    requests_today: number;
+    requests_24h: number;
+    api_keys_active: number;
+  };
+  limits: {
+    max_kbs: number;
+    max_docs_per_kb: number;
+    max_req_day: number;
+    max_storage_mb: number;
+    voice_enabled: boolean;
+    api_access: boolean;
+    custom_branding: boolean;
+    sso_enabled: boolean;
+    max_tts_chars_day: number;
+    max_stt_audio_sec_day: number;
+    max_translation_chars_day: number;
+  };
+};
+
+export async function fetchOrgUsageLimits(orgId: string): Promise<OrgUsageLimits> {
+  return apiFetch<OrgUsageLimits>(`/api/orgs/${orgId}/usage-limits`);
+}

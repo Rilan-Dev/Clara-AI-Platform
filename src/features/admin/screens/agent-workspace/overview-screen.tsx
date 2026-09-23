@@ -145,7 +145,7 @@ export default function AgentOverviewScreen() {
     void loadHistory();
   }, [agentId, loadHistory]);
 
-  // Keep this screen in sync with header/one-click publishes elsewhere.
+  // Keep this screen in sync with topbar/one-click publishes elsewhere.
   useEffect(() => {
     const handler = () => void loadHistory();
     window.addEventListener("agent-workspace:refresh", handler);
@@ -174,7 +174,7 @@ export default function AgentOverviewScreen() {
 
   const canPublish = !!currentVersion && (!productionUpToDate || !deployment);
 
-  // One-click publish — identical semantics to the header button: draft edits
+  // One-click publish — identical semantics to the topbar cluster button: draft edits
   // become a version automatically, then production is pointed at it.
   const publishNow = useCallback(async () => {
     if (publishing) return;
