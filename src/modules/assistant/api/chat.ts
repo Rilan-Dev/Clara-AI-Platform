@@ -280,8 +280,12 @@ async function postChatKb(
     ...toProviderConfig(resolved),
     ...(realtimeVoice
       ? {
+          // The realtime speech provider is independent from Clara's brain.
+          // Never inject a Sarvam model merely because the speech transport is
+          // realtime (that broke OpenAI/Gemini brain + ElevenLabs realtime).
           chatModel:
             resolved.realtimeModel ??
+            resolved.chatModel ??
             getPlatformDefaultSarvamRealtimeLlmModel(),
         }
       : {}),
