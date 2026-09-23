@@ -37,21 +37,21 @@ afterEach(() => {
 });
 
 describe("translateScribeEvent — documented vendor events → browser frames", () => {
-  it("maps session_started", () => {
-    expect(translateScribeEvent({ type: "session_started" })).toEqual({
+  it("maps the current Scribe message_type session_started envelope", () => {
+    expect(translateScribeEvent({ message_type: "session_started" })).toEqual({
       type: "session_started",
     });
   });
 
-  it("maps partial_transcript to transcript_partial (live captions only)", () => {
-    expect(translateScribeEvent({ type: "partial_transcript", text: "hel" })).toEqual({
+  it("maps the current Scribe partial_transcript envelope to transcript_partial", () => {
+    expect(translateScribeEvent({ message_type: "partial_transcript", text: "hel" })).toEqual({
       type: "transcript_partial",
       text: "hel",
     });
   });
 
-  it("maps committed_transcript to transcript_final — the ONLY turn-creating event", () => {
-    expect(translateScribeEvent({ type: "committed_transcript", text: "hello there" })).toEqual({
+  it("maps the current Scribe committed_transcript envelope to transcript_final", () => {
+    expect(translateScribeEvent({ message_type: "committed_transcript", text: "hello there" })).toEqual({
       type: "transcript_final",
       text: "hello there",
     });
@@ -62,17 +62,17 @@ describe("translateScribeEvent — documented vendor events → browser frames",
     // text — each maps to a final frame; the hook's duplicate-commit guard
     // (same text within 2 s) absorbs the repeats.
     expect(
-      translateScribeEvent({ type: "committed_transcript_with_timestamps", text: "hi", words: [] }),
+      translateScribeEvent({ message_type: "committed_transcript_with_timestamps", text: "hi", words: [] }),
     ).toEqual({ type: "transcript_final", text: "hi" });
     expect(
-      translateScribeEvent({ type: "committed_transcript_entities", text: "hi", entities: [] }),
+      translateScribeEvent({ message_type: "committed_transcript_entities", text: "hi", entities: [] }),
     ).toEqual({ type: "transcript_final", text: "hi" });
   });
 
   it("maps error envelopes as fatal errors", () => {
-    expect(translateScribeEvent({ type: "error", message: "quota_exceeded" })).toEqual({
+    expect(translateScribeEvent({ message_type: "quota_exceeded", error: "You have exceeded your quota." })).toEqual({
       type: "error",
-      message: "quota_exceeded",
+      message: "You have exceeded your quota.",
       fatal: true,
     });
     expect(
@@ -94,10 +94,16 @@ describe("scribeRealtimeUrl — documented connection parameters", () => {
       sttModel: "scribe_v2_realtime",
       languageCode: "en",
     });
-    expect(url).toBe(
-      "https://api.elevenlabs.io/v1/speech-to-text/realtime" +
-        "?model_id=scribe_v2_realtime&audio_format=pcm_16000&language_code=en",
-    );
+    expect(url).toContain("https://api.elevenlabs.io/v1/speech-to-text/realtime?");
+    const params = new URL(url).searchParams;
+    expect(params.get("model_id")).toBe("scribe_v2_realtime");
+    expect(params.get("audio_format")).toBe("pcm_16000");
+    expect(params.get("language_code")).toBe("en");
+    expect(params.get("commit_strategy")).toBe("vad");
+    expect(params.get("vad_silence_threshold_secs")).toBe("0.8");
+    expect(params.get("vad_threshold")).toBe("0.4");
+    expect(params.get("min_speech_duration_ms")).toBe("100");
+    expect(params.get("min_silence_duration_ms")).toBe("100");
   });
 
   it("omits language_code when blank and defaults the model", () => {
