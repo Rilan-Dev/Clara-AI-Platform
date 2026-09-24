@@ -351,7 +351,7 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
 function AgentMobileTabs() {
   const { agentId, orgId } = useAgentsWorkspace();
   const pathname = usePathname();
-  if (!agentId) return null;
+  if (!agentId || !orgId) return null;
 
   const base = `/orgs/${orgId}/agents/${agentId}`;
   const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
