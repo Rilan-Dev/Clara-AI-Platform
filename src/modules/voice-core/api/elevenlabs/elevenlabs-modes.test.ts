@@ -83,6 +83,7 @@ function setEnv(name: string, value: string | undefined) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  realtimeState.value = "false";
   setEnv("ELEVENLABS_ENABLED", "true");
   setEnv("ELEVENLABS_API_KEY", "el-test-key");
 });
