@@ -48,8 +48,11 @@ import WebSocket from "ws";
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
 
-const MAX_LIFETIME_MS = 60 * 60 * 1000; // 60 minutes
-const MAX_IDLE_MS = 120 * 1000;         // 120 seconds without any frame
+// Browser realtime sessions are user-owned. ElevenLabs upstream sockets may
+// rotate/reconnect, but they must never terminate the browser session.
+// Explicit End Session owns teardown.
+const RECONNECT_BASE_DELAY_MS = 250;
+const RECONNECT_MAX_DELAY_MS = 5000;
 
 const TOKEN_VERSION = "v1";
 const RELAY_HEADER_PAYLOAD = "elevenlabs-relay-v1";
@@ -181,6 +184,7 @@ export function ttsStreamInputUrl(cfg) {
   const params = new URLSearchParams({
     model_id: cfg.tts?.model || "eleven_flash_v2_5",
     output_format: "pcm_16000",
+    inactivity_timeout: "180",
   });
   return `${base}/v1/text-to-speech/${voiceId}/stream-input?${params.toString()}`;
 }
@@ -231,26 +235,15 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     return;
   }
 
-  const upstream = new WebSocket(scribeRealtimeUrl(cfg), {
-    headers: { "xi-api-key": cfg.apiKey },
-  });
-
-  const state = { closed: false, upstreamReady: false, bytesSent: 0, lastActivityMs: Date.now() };
+  let upstream = null;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  const state = { closed: false, upstreamReady: false, bytesSent: 0 };
   const audioQueue = [];
   const sampleRate = Number(cfg.sampleRate ?? 16_000) || 16_000;
 
-  const lifetimeTimer = setTimeout(() => closeBoth(1000, "Connection lifetime cap reached"), MAX_LIFETIME_MS);
-  const idleTimer = setInterval(() => {
-    if (state.closed) return;
-    if (Date.now() - state.lastActivityMs > MAX_IDLE_MS) {
-      send(browserWs, { type: "error", message: "Connection idle timeout", fatal: true });
-      closeBoth(1000, "Idle timeout");
-    }
-  }, 5_000);
   const keepAliveTimer = setInterval(() => {
-    if (state.closed || !state.upstreamReady) return;
-    // A tiny silent frame keeps Scribe's inactivity monitor fed without
-    // affecting transcripts (digital silence never commits).
+    if (state.closed || !state.upstreamReady || !upstream) return;
     try {
       upstream.send(JSON.stringify({
         message_type: "input_audio_chunk",
@@ -263,10 +256,9 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
   function closeBoth(code, reason) {
     if (state.closed) return;
     state.closed = true;
-    clearTimeout(lifetimeTimer);
-    clearInterval(idleTimer);
     clearInterval(keepAliveTimer);
-    try { upstream.close(code, reason); } catch {}
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    try { upstream?.close(code, reason); } catch {}
     try { browserWs.close(code, reason); } catch {}
   }
 
@@ -289,15 +281,22 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     }).catch((e) => console.warn("[elevenlabs-relay] stt metering failed:", e.message));
   }
 
-  upstream.on("open", () => {
-    state.upstreamReady = true;
-    for (const frame of audioQueue.splice(0)) upstream.send(frame);
-    send(browserWs, { type: "status", value: "connected" });
-  });
+  const connectUpstream = () => {
+    if (state.closed || upstream?.readyState === WebSocket.OPEN || upstream?.readyState === WebSocket.CONNECTING) return;
+    const socket = new WebSocket(scribeRealtimeUrl(cfg), {
+      headers: { "xi-api-key": cfg.apiKey },
+    });
+    upstream = socket;
+    socket.on("open", () => {
+      if (state.closed) { try { socket.close(); } catch {} ; return; }
+      reconnectAttempts = 0;
+      state.upstreamReady = true;
+      for (const frame of audioQueue.splice(0)) { try { socket.send(frame); } catch {} }
+      send(browserWs, { type: "status", value: "connected" });
+    });
 
-  upstream.on("message", (data) => {
-    state.lastActivityMs = Date.now();
-    let event;
+    socket.on("message", (data) => {
+      let event;
     try {
       event = JSON.parse(data.toString());
     } catch {
@@ -321,19 +320,25 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     send(browserWs, frame);
   });
 
-  upstream.on("close", (code, reason) => {
-    send(browserWs, { type: "status", value: "closed" });
-    closeBoth(code ?? 1000, reason?.toString?.() ?? "Upstream closed");
-  });
+    socket.on("close", (code, reason) => {
+      if (upstream === socket) upstream = null;
+      state.upstreamReady = false;
+      if (state.closed) return;
+      const delay = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * Math.max(1, ++reconnectAttempts));
+      send(browserWs, { type: "status", value: "reconnecting" });
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connectUpstream, delay);
+    });
 
-  upstream.on("error", (err) => {
-    console.error("[elevenlabs-relay] stt upstream error:", err.message);
-    send(browserWs, { type: "error", message: "Upstream connection error", fatal: true });
-    closeBoth(1011, "Upstream error");
-  });
+    socket.on("error", (err) => {
+      console.error("[elevenlabs-relay] stt upstream error:", err.message);
+      // The close event handles recovery. Preserve the browser session.
+    });
+  };
+
+  connectUpstream();
 
   browserWs.on("message", (data) => {
-    state.lastActivityMs = Date.now();
     let frame = data;
     let bytes = data.length;
     try {
