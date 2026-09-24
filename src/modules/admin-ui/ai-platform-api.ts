@@ -40,6 +40,7 @@ export type PlatformAIProviderDTO = {
   description: string | null;
   /** EFFECTIVE enablement (admin switch AND operational kill-switch). */
   enabled: boolean;
+  realtimeEnabled: boolean;
   /** "kill_switch" when the admin switch is on but an env flag is off. */
   disabledReason: "kill_switch" | null;
   configured: boolean;
@@ -114,7 +115,7 @@ export async function fetchProviderWorkspace(providerId: string): Promise<{
 
 export async function patchProvider(
   providerId: string,
-  input: { enabled?: boolean; monthlyBudgetUsd?: number | null; warningThresholdPct?: number },
+  input: { enabled?: boolean; realtimeEnabled?: boolean; monthlyBudgetUsd?: number | null; warningThresholdPct?: number },
 ): Promise<{ provider: PlatformAIProviderDTO | null }> {
   return apiFetch(`/api/platform/ai/providers/${providerId}`, { method: "PATCH", body: JSON.stringify(input) });
 }
