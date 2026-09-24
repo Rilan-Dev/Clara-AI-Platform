@@ -51,7 +51,12 @@ function applyCors(response: NextResponse, origin: string | null): NextResponse 
   return response;
 }
 
-const ADMIN_PAGE_PREFIXES = ["/dashboard", "/orgs", "/subscriptions", "/analytics", "/settings", "/preview"];
+// Signed-in app pages. Missing a prefix here does not open data (every API
+// enforces auth), but it renders the shell before the client redirect runs.
+const ADMIN_PAGE_PREFIXES = [
+  "/dashboard", "/orgs", "/subscriptions", "/analytics", "/settings", "/preview",
+  "/system-status", "/kbs", "/workspace", "/ingest",
+];
 const PROTECTED_API_PREFIXES = [
   "/api/kbs", "/api/orgs", "/api/ingest", "/api/documents", "/api/rag",
   "/api/realtime", "/api/subscriptions/checkout", "/api/platform", "/api/agents",

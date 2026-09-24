@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
-  UserRound, Bot, KeyRound, Mail, Activity, Users, FileText,
+  UserRound, Bot, KeyRound, Mail, Activity, Users, FileText, Building2, SlidersHorizontal,
   MoreHorizontal, X, Palette,
   Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion,
 } from "lucide-react";
@@ -21,6 +21,7 @@ import {
   AgentTopbarProvider,
   TopbarContextLabel,
 } from "@/features/admin/layouts/agent-topbar";
+import { LogoMark } from "@/components/brand/Logo";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -41,7 +42,8 @@ const ADMIN_NAV = [
 const SETTINGS_NAV = [
   { href: "/settings/account",  icon: UserRound, label: "Account"          },
   { href: "/settings/appearance", icon: Palette, label: "Appearance"       },
-  { href: "/settings/ai",       icon: Bot,       label: "AI Configuration" },
+  { href: "/settings/ai",       icon: Bot,       label: "AI Platform"      },
+  { href: "/settings/environment", icon: SlidersHorizontal, label: "Environment" },
   { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
   { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
   { href: "/settings/email",    icon: Mail,      label: "Email Delivery"   },
@@ -51,11 +53,14 @@ const SETTINGS_NAV = [
 
 // Org users have no AI Configuration section any more — assistant persona
 // settings are platform-level defaults; orgs tune their own agents and
-// knowledge bases. Their settings = personal account only (rendered as a
-// plain link, not a one-item dropdown).
-const ORG_SETTINGS_NAV = [
-  { href: "/settings/account", icon: UserRound, label: "Account" },
-];
+// knowledge bases. Their settings = the organisation profile (name, logo,
+// Conversational AI agents) plus their personal account.
+function orgSettingsNav(orgId: string | null) {
+  return [
+    ...(orgId ? [{ href: `/orgs/${orgId}/settings`, icon: Building2, label: "Organisation" }] : []),
+    { href: "/settings/account", icon: UserRound, label: "Account" },
+  ];
+}
 
 // Organisation workspace sections — org users navigate to each of these
 // directly from the sidebar (they used to be horizontal tabs; moving them
@@ -82,7 +87,7 @@ function agentSectionNav(orgId: string, agentId: string) {
     { href: `${base}/config`,    icon: Bot,                    label: "Agent",   exact: false },
     { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
     { href: `${base}/knowledge`, icon: BookOpen,               label: "Knowledge", exact: false },
-    { href: `${base}/tools`,     icon: Wrench,                 label: "Tools",    exact: false },
+    { href: `${base}/tools`,     icon: Wrench,                 label: "Capabilities", exact: false },
     { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
     { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },
   ];
@@ -130,7 +135,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
-  const onSettingsRoute = pathname.startsWith("/settings");
+  const onSettingsRoute =
+    pathname.startsWith("/settings") || /^\/orgs\/[^/]+\/settings(\/|$)/.test(pathname);
   const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     if (onSettingsRoute) setSettingsOpen(true);
@@ -178,9 +184,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    // Platform admins are locked out of organisation-content pages —
-    // they only see counts on the dashboard. The org SETTINGS page is the
-    // exception (AI provider configuration surface).
+    // Platform admins are locked out of organisation-content pages
+    // (including org settings) — they only see counts on the dashboard.
     if (isSuperAdminBlocked(pathname)) {
       router.replace("/dashboard");
     }
@@ -196,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="h-10 w-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+        <div role="status" aria-label="Loading" className="h-10 w-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
       </div>
     );
   }
@@ -216,7 +221,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const onAgentsIndex =
     !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
   const nav = isAdmin ? ADMIN_NAV : orgNav;
-  const settingsNav = isAdmin ? SETTINGS_NAV : ORG_SETTINGS_NAV;
+  const settingsNav = isAdmin ? SETTINGS_NAV : orgSettingsNav(primaryOrgId);
   // Org users only have Account left — a one-item dropdown would be noise, so
   // render their Settings as a plain link to /settings/account.
   const singleSettingsLink = settingsNav.length === 1 ? settingsNav[0] : null;
@@ -241,17 +246,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         {/* Brand */}
         <div className="h-16 px-5 flex items-center gap-3 border-b border-border">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
-            <Brain className="w-4 h-4 text-white" />
-          </div>
+          <LogoMark className="w-8 h-8 rounded-lg shrink-0 shadow-sm" iconClassName="w-4 h-4" />
           <div className="min-w-0">
             <div className="font-bold text-foreground text-sm truncate">Clara AI</div>
             {isAdmin ? (
-              <div className="text-[10px] text-primary font-medium tracking-wide uppercase">
+              <div className="text-[11px] text-primary font-medium tracking-wide uppercase">
                 Platform Admin
               </div>
             ) : (
-              <div className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase truncate">
+              <div className="text-[11px] text-muted-foreground font-medium tracking-wide uppercase truncate">
                 {user.fullName || "Organisation"}
               </div>
             )}
@@ -263,7 +266,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Org workspace group header — separates the org's own screens
               from the personal Settings group below. */}
           {!isAdmin && primaryOrgId && (
-            <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
               My Organisation
             </p>
           )}
@@ -458,9 +461,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="sticky top-0 z-30 h-14 md:h-16 border-b border-border bg-background/85 backdrop-blur-md flex items-center justify-between gap-3 px-4 md:pl-6 md:pr-6">
           {/* Context label */}
           <div className="min-w-0 flex items-center gap-2.5">
-            <span className="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
-              <Brain className="w-4 h-4 text-white" />
-            </span>
+            <LogoMark className="md:hidden w-8 h-8 rounded-lg shrink-0 shadow-sm" iconClassName="w-4 h-4" />
             <TopbarContextLabel isAdmin={isAdmin} />
           </div>
 
@@ -508,7 +509,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }`}
               >
                 <item.icon className={`w-[22px] h-[22px] ${active ? "drop-shadow-[0_0_10px_rgba(79,70,229,0.35)]" : ""}`} strokeWidth={active ? 2.2 : 1.8} />
-                <span className={`text-[10px] font-medium leading-none ${active ? "text-primary" : ""}`}>
+                <span className={`text-[11px] font-medium leading-none ${active ? "text-primary" : ""}`}>
                   {tabLabel(item)}
                 </span>
               </Link>
@@ -526,7 +527,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }`}
           >
             <MoreHorizontal className="w-[22px] h-[22px]" strokeWidth={moreActive ? 2.2 : 1.8} />
-            <span className={`text-[10px] font-medium leading-none ${moreActive ? "text-primary" : ""}`}>
+            <span className={`text-[11px] font-medium leading-none ${moreActive ? "text-primary" : ""}`}>
               More
             </span>
           </button>
@@ -568,7 +569,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Links */}
             <div className="px-3 py-3 max-h-[60dvh] overflow-y-auto overscroll-contain-y space-y-0.5">
-              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                 Settings
               </p>
               {(singleSettingsLink ? [singleSettingsLink] : settingsNav).map((s) => {
@@ -588,7 +589,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               })}
 
-              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <p className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                 General
               </p>
               <Link
@@ -597,7 +598,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Brain className="w-5 h-5 text-muted-foreground shrink-0" />
                 <span className="flex-1">View public site</span>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground/80" />
               </Link>
               <button
                 type="button"
@@ -682,7 +683,7 @@ function AgentSidebarSwitcher({
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="group flex w-full items-center gap-1 rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+        className="group flex w-full items-center gap-1 rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
       >
         <span>Agents</span>
         <ChevronRight
@@ -747,7 +748,7 @@ function OrgAgentsSidebarSection({ orgId }: { orgId: string }) {
   return (
     <div className="mt-3 border-t border-border/70 pt-3">
       <div className="flex items-center justify-between px-3 pb-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
           Agents
         </p>
         <button

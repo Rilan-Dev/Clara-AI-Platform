@@ -62,7 +62,7 @@ export function CatalogSidebar() {
                 <span className="text-xs text-muted-foreground">
                   {subtitle}
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/80">
+                <span className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground/80">
                   Created {new Date(doc.createdAt).toLocaleString()}
                 </span>
               </div>

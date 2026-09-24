@@ -51,7 +51,7 @@ function DepthBadge({ depth }: { depth: number }) {
     "bg-amber-500/15 text-amber-400 border-amber-500/20",
   ];
   return (
-    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${styles[Math.min(depth, styles.length - 1)]}`}>
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium ${styles[Math.min(depth, styles.length - 1)]}`}>
       D{depth}
     </span>
   );
@@ -117,7 +117,7 @@ function DiscoverForm({ onDiscover, discovering }: {
               onChange={(e) => { setUrl(e.target.value); setUrlError(""); }}
               onKeyDown={(e) => e.key === "Enter" && submit()}
               disabled={discovering}
-              className={`w-full rounded-lg border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 transition-colors ${urlError ? "border-destructive" : "border-border"}`}
+              className={`w-full rounded-lg border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 transition-colors ${urlError ? "border-destructive" : "border-border"}`}
             />
           </div>
           <Button onClick={submit} disabled={discovering || !url.trim()} className="shrink-0 gap-2">
@@ -141,15 +141,15 @@ function DiscoverForm({ onDiscover, discovering }: {
         {showAdv && (
           <div className="mt-3 grid grid-cols-1 gap-4 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Max Depth</label>
-              <select value={maxDepth} onChange={(e) => setMaxDepth(Number(e.target.value))}
+              <label htmlFor="scrapewizard-max-depth" className="text-xs font-medium text-foreground">Max Depth</label>
+              <select id="scrapewizard-max-depth" value={maxDepth} onChange={(e) => setMaxDepth(Number(e.target.value))}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                 {[1,2,3,4,5].map((n) => <option key={n} value={n}>Depth {n}{n===3?" (default)":""}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Max Pages</label>
-              <select value={maxUrls} onChange={(e) => setMaxUrls(Number(e.target.value))}
+              <label htmlFor="scrapewizard-max-pages" className="text-xs font-medium text-foreground">Max Pages</label>
+              <select id="scrapewizard-max-pages" value={maxUrls} onChange={(e) => setMaxUrls(Number(e.target.value))}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                 {[50,100,200,500,1000].map((n) => <option key={n} value={n}>{n} pages{n===200?" (default)":""}</option>)}
               </select>
@@ -327,7 +327,7 @@ function UrlReview({ urls, localToggles, selectedCount, totalCount, onToggle, on
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input type="text" placeholder="Filter pages…" value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            className="w-full rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
         <div className="flex gap-1 rounded-lg bg-muted/50 p-1 border border-border">
           {(["all","included","excluded"] as const).map((f) => (
@@ -534,7 +534,7 @@ function ScrapeDone({ scrapedUrls, failedUrls, rootUrl, onReset, onUndo, canceli
           <span className="font-medium text-success">{scrapedUrls} pages</span> scraped and added to the knowledge base.
           {failedUrls > 0 && <span className="ml-1 text-destructive">({failedUrls} failed)</span>}
         </p>
-        <p className="mt-1 font-mono text-xs text-muted-foreground/60 truncate max-w-xs">{rootUrl}</p>
+        <p className="mt-1 font-mono text-xs text-muted-foreground/80 truncate max-w-xs">{rootUrl}</p>
       </div>
       <div className="flex gap-2">
         <Button variant="outline" onClick={onUndo} disabled={canceling}>
@@ -781,7 +781,7 @@ export function FailedUrlPanel({ kbId, sessionId }: FailedUrlPanelProps) {
             ].map(({ label, n, c }) => (
               <div key={label} className="px-4 py-3 text-center">
                 <p className={`text-xl font-bold tabular-nums ${c}`}>{n}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{label}</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide mt-0.5">{label}</p>
               </div>
             ))}
           </div>

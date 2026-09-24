@@ -127,6 +127,7 @@ export interface VoiceResolution {
  * endpoints; it never talks to the voice vendor directly in Mode A.
  */
 export interface ElevenLabsSessionPayload {
+  /** "clara-stream" when the Clara-controlled realtime relay is enabled. */
   mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
@@ -174,7 +175,7 @@ export interface ElevenLabsSessionPayload {
  * browser drives the pipeline through platform endpoints.
  */
 export interface SarvamSessionPayload {
-  mode: "pipeline";
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;

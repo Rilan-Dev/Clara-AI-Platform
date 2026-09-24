@@ -275,7 +275,7 @@ export function DefaultAssistantWorkspace() {
                   value={saveSummary}
                   onChange={(e) => setSaveSummary(e.target.value)}
                   placeholder="Change summary (optional)"
-                  className="w-full max-w-52 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40"
+                  className="w-full max-w-52 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40"
                 />
                 <WorkspaceButton variant="primary" onClick={saveVersion} disabled={busy}>
                   Save version
@@ -314,7 +314,7 @@ export function DefaultAssistantWorkspace() {
                 >
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 text-sm font-medium text-foreground/90">
-                      <span className={isCurrent ? "text-primary" : "text-muted-foreground/50"}>●</span>
+                      <span className={isCurrent ? "text-primary" : "text-muted-foreground/80"}>●</span>
                       v{version.versionNumber}
                       {isCurrent && <VersionBadge tone="success">Current</VersionBadge>}
                       {version.versionNumber === 1 && <VersionBadge tone="muted">Initial</VersionBadge>}

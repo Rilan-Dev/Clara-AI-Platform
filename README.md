@@ -1,118 +1,76 @@
-# Clara Knowledge Assistant
+# Clara AI Platform
 
-Clara is a Next.js + Tailwind application that layers Retrieval Augmented Generation (RAG) on top of your private documents. Each document you ingest is embedded with OpenAI, stored in its own Qdrant collection, and catalogued for quick selection before every chat session.
+Clara is a multi-tenant platform for building AI assistants on top of your own documents. Organisations create **agents**, attach **knowledge bases** (uploaded files and crawled websites), tune the assistant's persona and models, and publish it as a website chat widget, a hosted public page, a realtime voice agent or a phone line.
+
+Built with Next.js 15, TypeScript, Tailwind, PostgreSQL and Qdrant. Chat and voice run on OpenAI, Gemini, Sarvam and ElevenLabs, configured by the platform admin.
+
+## What's in the product
+
+| Area | Where | What it does |
+|------|-------|--------------|
+| Agent workspace | `/orgs/:orgId/agents/:agentId` | Overview, agent persona and AI settings, FAQ, knowledge, capabilities, branches/versions, publish |
+| Knowledge bases | Agent → Knowledge → a knowledge base | Upload documents, crawl websites, analytics, **Embed & API keys** (with usage), **Widget design**, **Phone** |
+| Organisation | Sidebar → Settings → Organisation | Profile, logo, ElevenLabs Conversational AI agents |
+| Platform admin | `/dashboard`, `/subscriptions`, `/analytics`, `/system-status`, `/settings/*` | Plans and billing, Q&A audit trail (PII redacted, audited reveal), service health and runtime configuration, AI providers, payments, email |
+| Public site | `/`, `/features`, `/pricing`, `/contact`, `/docs` | Marketing pages, signup and checkout |
+| Embeds | `/embed/widget`, `/embed/voice`, `public/embed/clara.js` | The widget and voice surfaces customers put on their own sites |
+
+## Getting started
+
+Prerequisites: Node.js 22, PostgreSQL, a Qdrant instance and at least one AI provider key.
+
+```bash
+cp .env.example .env      # fill in DATABASE_URL, QDRANT_URL, AUTH_SECRET, provider keys
+npm install
+npm run db:migrate
+npm run seed:dev          # optional demo organisations, agents and documents
+npm run dev               # http://localhost:3000
+```
+
+Key environment variables (see `.env.example` for the full, commented list):
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string (the only database setting) |
+| `AUTH_SECRET` | Session signing secret, at least 32 characters |
+| `QDRANT_URL`, `QDRANT_API_KEY` | Vector store |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `SARVAM_API_KEY` | AI providers (enable/disable them in Settings → AI Platform) |
+| `CLARA_SUPPORT_EMAIL` | Inbox for contact-form leads and billing reviews |
+| `PLAN_GUARD_FAIL_MODE` | `closed` refuses requests when plan limits can't be verified (default `open`) |
+
+Many runtime switches are env-only; the platform admin can see their effective values under **System status → Runtime configuration**.
+
+## Scripts
+
+| Command | What it does |
+|---------|--------------|
+| `npm run dev` | Start the dev server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run lint` | ESLint |
+| `npm run type-check` | TypeScript (CI runs `npx tsc --noEmit`) |
+| `npm test` | Vitest (use `npm test -- --run` for a single pass) |
+| `npm run db:migrate` | Apply database migrations |
+| `npm run seed:dev` / `seed:reset` / `seed:clean` | Demo data |
+| `npm run ingest <file> "<title>" [source]` | Ingest a file from the CLI |
+| `npm run ingest-web <url> "<title>"` | Ingest a web page from the CLI |
 
 ## Documentation
 
 | Guide | Audience |
 |-------|----------|
-| [SETUP.md](./SETUP.md) | Developers — full local setup, tests, troubleshooting |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Ops — self-host & cloud deployment, env matrix, day-2 runbook |
-| [API.md](./API.md) | Developers — REST reference for every endpoint |
-| [SEED.md](./SEED.md) | Developers — demo data layers, seeding & reset semantics |
-| [TENANT-GUIDE.md](./TENANT-GUIDE.md) | Clients — using the tenant workspace portal |
-| [EMBED-GUIDE.md](./EMBED-GUIDE.md) | Clients — embedding the Clara widget on any website |
-| [DEPLOY.md](./DEPLOY.md) | Docker/TLS specifics · [DEPLOY_RABBITMQ.md](./DEPLOY_RABBITMQ.md) · [Doc/](./Doc/) architecture notes |
-| [Doc/ELEVENLABS_INTEGRATION.md](./Doc/ELEVENLABS_INTEGRATION.md) | Ops — ElevenLabs voice integration runbook: env vars, flags, Mode A/B enablement, alerting, kill switches |
-| [Doc/SARVAM_AI_INTEGRATION.md](./Doc/SARVAM_AI_INTEGRATION.md) | Ops — Sarvam AI integration runbook: Indic brain/voice/language services, cross-lingual RAG, realtime STT relay, env vars, kill switches |
+| [Setup](./Doc/18-09-2026/SETUP.md) | Developers — local setup, tests, troubleshooting |
+| [Deployment](./Doc/18-09-2026/DEPLOYMENT.md) · [Docker/TLS](./Doc/18-09-2026/DEPLOY.md) · [Vercel](./docs/deployment/VERCEL-VPS-CLOUD.md) | Operators |
+| [API reference](./Doc/18-09-2026/API.md) | Developers — REST endpoints |
+| [Seeding](./Doc/18-09-2026/SEED.md) | Developers — demo data layers |
+| [Tenant guide](./Doc/18-09-2026/TENANT-GUIDE.md) | Customers — using the workspace |
+| [Embed guide](./Doc/18-09-2026/EMBED-GUIDE.md) | Customers — adding the widget to a website |
+| [RabbitMQ](./Doc/18-09-2026/DEPLOY_RABBITMQ.md) | Operators — event bridge and DLQ |
+| [ElevenLabs](./Doc/19-09-2026/ELEVENLABS_INTEGRATION.md) · [Sarvam AI](./Doc/19-09-2026/SARVAM_AI_INTEGRATION.md) | Operators — voice and language providers |
 
-## Features
+## Contributing
 
-- **Streaming chat UI** – token-by-token responses, inline citations, and quick prompts.
-- **Per-document isolation** – every upload lives in a dedicated Qdrant collection; Clara only queries the source you pick.
-- **Ingestion workspace** – upload PDFs, Office documents, spreadsheets, markdown, HTML, JSON, or fetch a live URL with automatic chunking.
-- **CLI tooling** – 
-pm run ingest and 
-pm run ingest-web to script bulk imports.
-- **Dynamic PDF fallback** – uses pdf-parse when available and falls back to pdfjs-dist (no worker required) to handle complex PDFs server-side.
-
-## Prerequisites
-
-- Node.js 18+ (Next.js 15 requires the active LTS or later).
-- npm 9+ (or pnpm/yarn if you adjust the scripts).
-- Access to an OpenAI account with the chat and embedding models you configure.
-- A running Qdrant instance (local Docker, managed service, or cloud provider).
-
-## Environment variables
-
-Create an .env file (one is generated in this repository) and provide:
-
-`ini
-OPENAI_API_KEY="sk-..."
-QDRANT_URL="http://localhost:6333"
-QDRANT_API_KEY=""        # optional
-# OPENAI_CHAT_MODEL="gpt-4o-mini"
-# OPENAI_EMBEDDING_MODEL="text-embedding-3-small"
-# OPENAI_EMBEDDING_DIMENSION="1536"
-# QDRANT_CATALOG_COLLECTION="document_catalog"
-`
-
-The defaults expect the lightweight document_catalog collection for metadata. You do **not** need to set a shared QDRANT_COLLECTION; Clara creates a new collection per upload automatically.
-
-## Install & run
-
-`ash
-npm install
-npm run dev
-`
-
-Navigate to <http://localhost:3000>. The landing page lists your documents and lets you choose one prior to chatting. The /ingest route exposes the drag-and-drop workspace for new uploads.
-
-### Production build
-
-`ash
-npm run build
-npm start
-`
-
-## Document ingestion options
-
-### In-app workspace
-
-1. Visit /ingest.
-2. Upload a file **or** provide a Source URL (leave the file blank for URL-only ingestion).
-3. Watch the staged pipeline (Transfer → Extract → Embed → Sync) for progress.
-4. On success, the document appears in the catalog for future chats.
-
-Accepted formats: .pdf, .docx, .xlsx, .xls, .xlsm, .csv, .md, .txt, .html, .htm, .json. PDFs use pdf-parse first, falling back to pdfjs-dist with workers disabled.
-
-### CLI scripts
-
-`ash
-# File ingestion
-npm run ingest ./docs/policies.pdf "Policy Handbook" "https://intranet/policies"
-
-# URL ingestion
-npm run ingest-web https://example.com/insights/latest "Example Insights"
-`
-
-Both scripts chunk the content, call the embedding API, and register the new document in Qdrant’s catalog alongside its dedicated collection name.
-
-## Qdrant layout
-
-- document_catalog (configurable): stores metadata for each ingested document (title, source, created timestamps).
-- collection_<slug>_<uuid>: one per upload, containing the actual embedded chunks.
-
-During chat, Clara loads the catalog, you choose a document, and only that collection is queried for context.
-
-## Troubleshooting
-
-- **401 Unauthorized (OpenAI)** – confirm OPENAI_API_KEY and model access.
-- **ECONNREFUSED (Qdrant)** – verify QDRANT_URL points to a reachable instance.
-- **PDF ingestion fails** – ensure pdf-parse can read the file. The fallback requires pdfjs-dist (already a dependency) and disables workers automatically, so no additional build config is needed.
-- **No documents listed** – refresh the catalog via the sidebar button or check the ingestion logs for errors.
-
-## Useful scripts
-
-- 
-pm run lint – run ESLint.
-- 
-pm run dev – start Next.js with Turbopack.
-- 
-pm run ingest / 
-pm run ingest-web – manual ingestion helpers described above.
+Before pushing, run `npm run lint`, `npx tsc --noEmit` and `npm test -- --run`. CI runs the same checks on `main`, `Vite-Converted` and `Vercel-Prod`; keep them green.
 
 ## License
 
-This project is provided for internal use. Adapt or extend as needed for your organization’s knowledge workflows.
-
+Proprietary — for internal use.

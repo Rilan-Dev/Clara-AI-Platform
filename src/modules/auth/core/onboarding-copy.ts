@@ -30,6 +30,17 @@ export function getVerificationCopy(input: VerificationCopyInput): VerificationC
       };
     }
 
+    // A just-verified signup (free, or paid and already active) goes straight
+    // into the product instead of being told it was "already" verified.
+    if (input.context === "signup" && input.tokenState !== "already_verified") {
+      return {
+        title: "Email verified",
+        description: "Your email is confirmed. Continue to Clara AI to finish setting up your workspace.",
+        nextAction: "Continue to Clara AI",
+        destination: "workspace",
+      };
+    }
+
     return {
       title: "Email already verified",
       description: "Your email address is already confirmed. Return to Clara AI to continue.",

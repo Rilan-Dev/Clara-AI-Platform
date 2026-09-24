@@ -139,7 +139,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         customHeaderHtml: effectiveConfig.customHeaderHtml,
         customFooterHtml: effectiveConfig.customFooterHtml,
         customThemeCss: effectiveConfig.customThemeCss,
-        customInjectJs: effectiveConfig.customInjectJs,
+        // customInjectJs is a copy-paste snippet for the site owner; the
+        // widget never runs it, so it is not published in the public config.
         voiceBtnBg: effectiveConfig.voiceBtnBg,
         voiceBtnSize: effectiveConfig.voiceBtnSize,
         voiceBtnRadius: effectiveConfig.voiceBtnRadius,

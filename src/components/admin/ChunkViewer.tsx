@@ -7,6 +7,7 @@
 import { useState, useCallback } from "react";
 import * as api from "@/modules/admin-ui/api";
 import type { KbChunk } from "@/modules/admin-ui/api";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Props = { kbId: string; docId: string; chunkCount: number | null };
 
@@ -42,7 +43,7 @@ function ChunkRow({ chunk, kbId, docId, onUpdated, onDeleted }: {
   };
 
   const del = async () => {
-    if (!confirm(`Delete chunk #${chunk.chunkIndex + 1}? This cannot be undone.`)) return;
+    if (!(await confirmAction({ title: `Delete chunk #${chunk.chunkIndex + 1}?`, description: "This cannot be undone.", destructive: true }))) return;
     setDeleting(true); setError(null);
     try {
       await api.deleteDocumentChunk(kbId, docId, chunk.pointId);
@@ -53,7 +54,7 @@ function ChunkRow({ chunk, kbId, docId, onUpdated, onDeleted }: {
   return (
     <div className="group border border-border rounded-lg bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+        <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
           #{chunk.chunkIndex + 1}
         </span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -165,7 +166,7 @@ export function ChunkViewer({ kbId, docId, chunkCount }: Props) {
               </svg>
               <input type="text" placeholder="Search chunks…" value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-3 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                className="w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-3 text-xs text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
             <button onClick={load} disabled={loading}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors">

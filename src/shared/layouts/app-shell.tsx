@@ -16,7 +16,6 @@ const PUBLIC_ROUTE_PREFIXES = [
   "/contact",
   "/terms",
   "/privacy",
-  "/sandbox",
   "/signup",
   "/login",
   "/checkout",

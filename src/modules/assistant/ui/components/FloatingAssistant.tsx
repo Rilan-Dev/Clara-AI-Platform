@@ -105,7 +105,7 @@ function KbSelector({
                   }, new Map<string, KbEntry[]>())
                 ).map(([groupLabel, groupKbs]) => (
                   <div key={groupLabel}>
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                       {groupLabel}
                     </div>
                     {groupKbs.map((kb) => {
@@ -133,7 +133,7 @@ function KbSelector({
                             <div className="text-xs font-semibold truncate text-foreground">
                               {kb.assistant.name}
                             </div>
-                            <div className="text-[10px] text-muted-foreground truncate">
+                            <div className="text-[11px] text-muted-foreground truncate">
                               {kb.name}
                               {hasReady
                                 ? ` · ${kb.readyCount} doc${kb.readyCount !== 1 ? "s" : ""}`

@@ -332,7 +332,7 @@ function VoiceModalShell({
 
                 {suggestedPrompts && suggestedPrompts.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-[color:var(--color-muted-foreground)]">
+                    <p className="text-[11px] uppercase tracking-[0.3em] text-[color:var(--color-muted-foreground)]">
                       Suggested starters
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -455,7 +455,7 @@ function VoiceModalShell({
                           <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-[color:var(--color-muted-foreground)]">
                             <span>Turn {index + 1}</span>
                             <span
-                              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badgeClasses}`}
+                              className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badgeClasses}`}
                             >
                               {label}
                             </span>
@@ -463,7 +463,7 @@ function VoiceModalShell({
 
                           <div className="space-y-2">
                             <div>
-                              <p className="text-[10px] uppercase tracking-[0.25em] text-[color:var(--color-muted-foreground)]">
+                              <p className="text-[11px] uppercase tracking-[0.25em] text-[color:var(--color-muted-foreground)]">
                                 Question
                               </p>
                               <p className="mt-1 whitespace-pre-wrap text-sm text-[color:var(--color-foreground)]">
@@ -476,7 +476,7 @@ function VoiceModalShell({
                             </div>
 
                             <div>
-                              <p className="text-[10px] uppercase tracking-[0.25em] text-[color:var(--color-muted-foreground)]">
+                              <p className="text-[11px] uppercase tracking-[0.25em] text-[color:var(--color-muted-foreground)]">
                                 Response
                               </p>
                               <div
@@ -526,7 +526,7 @@ function VoiceModalShell({
                                               href={source.url}
                                               target="_blank"
                                               rel="noreferrer"
-                                              className="text-[10px] text-sky-600 hover:underline dark:text-sky-300"
+                                              className="text-[11px] text-sky-600 hover:underline dark:text-sky-300"
                                             >
                                               View
                                             </a>

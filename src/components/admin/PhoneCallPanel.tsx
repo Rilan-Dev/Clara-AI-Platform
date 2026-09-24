@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge }  from "@/components/ui/badge";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { confirmAction } from "@/components/ui/confirm-dialog";
+import { toast } from "@/components/ui/sonner";
 
 type PhoneVoiceEngine = "openai" | "elevenlabs";
 type PhoneConfig = {
@@ -71,10 +73,15 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
   };
 
   const del = async (id: string) => {
-    if (!confirm("Delete this phone configuration?")) return;
-    await fetch(apiUrl(`/api/kbs/${kbId}/phone?id=${id}`), {
+    if (!(await confirmAction({ title: "Delete this phone configuration?", description: "Calls to this number will no longer reach the assistant.", destructive: true }))) return;
+    const res = await fetch(apiUrl(`/api/kbs/${kbId}/phone?id=${id}`), {
       method: "DELETE", headers: withAuthHeaders(),
     });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      toast.error("Couldn't delete the phone configuration", { description: data.error ?? `HTTP ${res.status}` });
+      return;
+    }
     await load();
   };
 
@@ -118,8 +125,8 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-medium mb-1">Provider</label>
-              <select value={form.provider}
+              <label htmlFor="phonecallpanel-provider" className="block text-xs font-medium mb-1">Provider</label>
+              <select id="phonecallpanel-provider" value={form.provider}
                 onChange={e => {
                   const provider = e.target.value as "twilio"|"vonage";
                   // The ElevenLabs Agents engine rides on the vendor's Twilio
@@ -133,8 +140,8 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
             </div>
             {form.provider === "twilio" && (
               <div>
-                <label className="block text-xs font-medium mb-1">Realtime engine</label>
-                <select value={form.voiceEngine}
+                <label htmlFor="phonecallpanel-realtime-engine" className="block text-xs font-medium mb-1">Realtime engine</label>
+                <select id="phonecallpanel-realtime-engine" value={form.voiceEngine}
                   onChange={e => setForm(f => ({ ...f, voiceEngine: e.target.value as PhoneVoiceEngine }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <option value="openai">OpenAI Realtime (Clara relay)</option>
@@ -148,21 +155,21 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium mb-1">Phone number (E.164)</label>
-              <input value={form.phoneNumber}
+              <label htmlFor="phonecallpanel-phone-number-e-164" className="block text-xs font-medium mb-1">Phone number (E.164)</label>
+              <input id="phonecallpanel-phone-number-e-164" value={form.phoneNumber}
                 onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
                 placeholder="+1234567890"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium mb-1">Greeting message</label>
-              <input value={form.greetingMessage}
+              <label htmlFor="phonecallpanel-greeting-message" className="block text-xs font-medium mb-1">Greeting message</label>
+              <input id="phonecallpanel-greeting-message" value={form.greetingMessage}
                 onChange={e => setForm(f => ({ ...f, greetingMessage: e.target.value }))}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">Max call duration (seconds)</label>
-              <input type="number" min={30} max={3600} value={form.maxCallDurationSec}
+              <label htmlFor="phonecallpanel-max-call-duration-seconds" className="block text-xs font-medium mb-1">Max call duration (seconds)</label>
+              <input id="phonecallpanel-max-call-duration-seconds" type="number" min={30} max={3600} value={form.maxCallDurationSec}
                 onChange={e => setForm(f => ({ ...f, maxCallDurationSec: Number(e.target.value) }))}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             </div>
@@ -248,7 +255,7 @@ export function PhoneCallPanel({ kbId }: { kbId: string }) {
                     <td className="px-3 py-2 font-mono">{l.fromNumber ?? "—"}</td>
                     <td className="px-3 py-2 font-mono">{l.toNumber ?? "—"}</td>
                     <td className="px-3 py-2">
-                      <Badge variant="outline" className={`text-[10px] ${
+                      <Badge variant="outline" className={`text-[11px] ${
                         l.status==="completed" ? "text-success border-success/30" :
                         l.status==="failed"    ? "text-destructive border-destructive/30" : ""
                       }`}>{l.status}</Badge>

@@ -10,6 +10,7 @@ import {
   KeyRound,
   Mail,
   Palette,
+  SlidersHorizontal,
   UserRound,
 } from "lucide-react";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
@@ -85,7 +86,7 @@ export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
   {
     id: "environment",
     href: "/settings/environment",
-    icon: KeyRound,
+    icon: SlidersHorizontal,
     label: "Environment",
     title: "Platform environment",
     description:
@@ -375,7 +376,7 @@ function ProfileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2.5">
             <p className="truncate text-base font-semibold text-foreground">{user.fullName}</p>
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-primary">
               {roleLabel}
             </span>
           </div>

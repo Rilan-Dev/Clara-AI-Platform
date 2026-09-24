@@ -203,12 +203,12 @@ describe("Sarvam dark-launch option gating (V0)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("hides sarvam entries from option lists while the kill switch is off", () => {
+  // SARVAM_ENABLED is no longer a catalogue switch (2b5c6d12): the provider
+  // registry toggle is the sole platform switch, so the env flag is ignored.
+  it("ignores the retired SARVAM_ENABLED env switch when a key is present", () => {
     vi.stubEnv("SARVAM_ENABLED", "false");
     vi.stubEnv("SARVAM_API_KEY", "test-key");
-    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(false);
-    // The provider-filtered view never leaks them either.
-    expect(chatModelOptions("sarvam")).toEqual([]);
+    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(true);
   });
 
   it("shows only stable sarvam models when enabled without the beta flag", () => {

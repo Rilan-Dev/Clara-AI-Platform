@@ -66,7 +66,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       id: string; org_id: string | null; org_name: string | null;
       kb_id: string; kb_name: string | null; user_email: string | null;
       question: string; answer: string | null; surface: string; status: string;
-      latency_ms: number | null; created_at: string;
+      latency_ms: number | null; created_at: string; redacted: boolean;
     }>(`
       SELECT qe.id,
              qe.org_id,
@@ -79,7 +79,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              qe.surface,
              qe.status,
              qe.latency_ms,
-             qe.created_at::text AS created_at
+             qe.created_at::text AS created_at,
+             -- Only whether PII was redacted — the raw values stay behind the
+             -- audited, justified POST /api/analytics/audit/reveal.
+             (qe.query_raw IS NOT NULL OR qe.answer_raw IS NOT NULL) AS redacted
         FROM query_events qe
         LEFT JOIN organisations o  ON o.id  = qe.org_id
         LEFT JOIN knowledge_bases kb ON kb.id = qe.kb_id

@@ -13,7 +13,7 @@
  *     are sent on Save (secrets are only sent when something was typed, or
  *     when explicitly cleared).
  *   • The original security protocol is preserved end-to-end: each saved key
- *     still goes through GET /api/platform/env?token=1 → HMAC confirmation
+ *     still goes through POST /api/platform/env { action: "token" } → HMAC confirmation
  *     token → POST. The per-row "I confirm" checkbox is consolidated into a
  *     single confirmation on the Save bar.
  *   • Secrets never echo back — set secrets render as "Set up" with a blank
@@ -30,6 +30,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 import { apiUrl } from "@/lib/runtime";
+import { savePlatformEnvSetting } from "@/lib/platform-env-client";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
 import {
@@ -491,26 +492,7 @@ export function PlatformEnvPanel() {
       for (const key of keys) {
         const value = display(key);
         try {
-          const tokenRes = await fetch(
-            apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`),
-            { headers: withAuthHeaders() },
-          );
-          const tokenData = (await tokenRes.json()) as { confirmation_token?: string; timestamp?: number; error?: string };
-          if (!tokenRes.ok || !tokenData.confirmation_token) {
-            throw new Error(tokenData.error ?? "Could not create confirmation token");
-          }
-          const res = await fetch(apiUrl("/api/platform/env"), {
-            method: "POST",
-            headers: withAuthHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify({
-              key,
-              value,
-              confirmation_token: tokenData.confirmation_token,
-              timestamp: tokenData.timestamp,
-            }),
-          });
-          const data = (await res.json()) as { ok?: boolean; error?: string };
-          if (!res.ok) throw new Error(data.error ?? `Failed to save ${key}`);
+          await savePlatformEnvSetting(key, value);
           savedNow.push(key);
         } catch (e) {
           failures.push({ key, message: (e as Error).message });
@@ -569,7 +551,7 @@ export function PlatformEnvPanel() {
                   {CATEGORY_LABELS[cat].icon}
                   <span className="font-medium text-xs sm:text-sm">{CATEGORY_LABELS[cat].short}</span>
                   {catDirty.length > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5">{catDirty.length}</Badge>
+                    <Badge variant="secondary" className="text-[11px] px-1.5">{catDirty.length}</Badge>
                   )}
                 </div>
               </TabsTrigger>

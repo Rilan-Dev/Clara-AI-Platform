@@ -21,6 +21,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, CornerDownLeft, Mic, Sparkles } from "lucide-react";
 import { ConversationVoiceStage } from "./conversation-voice-stage";
 import type { ConversationMessage, VoiceClientSession } from "../types";
+import { ChatAnnouncer } from "@/components/ui/chat-announcer";
 
 interface ConversationChatWindowProps {
   assistantName: string;
@@ -158,7 +159,11 @@ export function ConversationChatWindow({
               className="flex min-h-0 flex-1 flex-col"
             >
               {/* Message list */}
-              <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+              <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="off">
+                <ChatAnnouncer
+                  label={assistantName}
+                  messages={messages.map((m) => ({ ...m, isStreaming: thinking && m.id === lastMessage?.id }))}
+                />
                 {/* Welcome bubble */}
                 {welcomeMessage.trim() && (
                   <div className="flex gap-2.5">
@@ -242,6 +247,7 @@ export function ConversationChatWindow({
                 <div className="flex items-end gap-2">
                   <div className="relative flex-1">
                     <textarea
+                      aria-label={`Message ${assistantName}`}
                       value={input}
                       onChange={(e) => onInputChange(e.target.value)}
                       onKeyDown={(e) => {
@@ -379,7 +385,7 @@ function MessageRow({
           </div>
         )}
         {message.origin === "voice" && isLast && (
-          <span className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">spoken</span>
+          <span className="ml-1 text-[11px] uppercase tracking-wider text-muted-foreground/80">spoken</span>
         )}
       </div>
     </div>

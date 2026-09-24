@@ -1048,8 +1048,19 @@
     if (!$toggleBtn) return;
     $toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     $toggleBtn.setAttribute('aria-label', isOpen ? 'Close chat' : 'Open chat');
-    if (isOpen && cfg && cfg.customLauncherSvg) $toggleBtn.innerHTML = svg(I_CLOSE);
-    else $toggleBtn.innerHTML = (cfg && cfg.customLauncherSvg) || svg(I_CHAT);
+    if (isOpen || !(cfg && cfg.customLauncherSvg)) { $toggleBtn.innerHTML = svg(isOpen ? I_CLOSE : I_CHAT); return; }
+    // The custom launcher icon is admin-authored markup running on the HOST
+    // page, so it is never parsed as HTML: an <img> with an SVG data URI
+    // renders it without executing scripts or event handlers.
+    var img = document.createElement('img');
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(String(cfg.customLauncherSvg));
+    var iconPx = Math.round((cfg.widgetButtonSize || 56) * 0.46) + 'px';
+    img.style.width = iconPx;
+    img.style.height = iconPx;
+    $toggleBtn.textContent = '';
+    $toggleBtn.appendChild(img);
   }
 
   function buildFloatingShell(c) {
