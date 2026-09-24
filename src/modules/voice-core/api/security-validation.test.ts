@@ -81,6 +81,13 @@ vi.mock("@/modules/voice-core/api/elevenlabs/embed-auth", () => ({
   embedVoiceGuard: vi.fn(async () => null),
 }));
 
+const requireAuthMock = vi.fn();
+const requireKbPermissionMock = vi.fn();
+vi.mock("@/modules/auth/core/rbac", () => ({
+  requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  requireKbPermission: (...args: unknown[]) => requireKbPermissionMock(...args),
+}));
+
 const createClientSecretMock = vi.fn();
 vi.mock("@/modules/assistant/api/openai-realtime", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/modules/assistant/api/openai-realtime")>();
@@ -159,6 +166,67 @@ afterEach(() => {
   for (const key of ["AUTH_SECRET", "OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "ELEVENLABS_REALTIME_ENABLED", "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_REALTIME_STT_ENABLED"]) {
     delete process.env[key];
   }
+});
+
+describe("ElevenLabs platform session authorization", () => {
+  it("rejects unauthenticated platform session bootstrap without minting a capability", async () => {
+    requireAuthMock.mockRejectedValueOnce(
+      new NextResponse(JSON.stringify({ error: "Authentication required" }), { status: 401 }),
+    );
+
+    resolveVoiceConfigMock.mockResolvedValueOnce({
+      voiceProvider: "elevenlabs",
+      realtimeProvider: "elevenlabs",
+      brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
+      elevenlabs: { ttsModel: "eleven_flash_v2_5", sttModel: "scribe_v2", voiceId: "el-voice", voiceSettings: {}, language: "en" },
+      sarvam: null,
+      openai: null,
+    });
+
+    const response = await postElevenLabsSession(post({ kbId: KB_ID }));
+    expect(response.status).toBe(401);
+    expect(requireKbPermissionMock).not.toHaveBeenCalled();
+    expect(resolveVoiceConfigMock).not.toHaveBeenCalled();
+  });
+
+  it("requires kb:read before resolving the platform voice session", async () => {
+    const auth = { user: { id: "user-sec-1", isSuperAdmin: false }, session: { id: "session-sec-1" } };
+    requireAuthMock.mockResolvedValueOnce(auth);
+    requireKbPermissionMock.mockResolvedValueOnce({
+      orgId: ORG_ID,
+      membership: {},
+      permissions: new Set(["kb:read"]),
+    });
+
+    resolveVoiceConfigMock.mockResolvedValueOnce({
+      voiceProvider: "elevenlabs",
+      realtimeProvider: "elevenlabs",
+      brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
+      elevenlabs: { ttsModel: "eleven_flash_v2_5", sttModel: "scribe_v2", voiceId: "el-voice", voiceSettings: {}, language: "en" },
+      sarvam: null,
+      openai: null,
+    });
+
+    const response = await postElevenLabsSession(post({ kbId: KB_ID }));
+    expect(response.status).toBe(200);
+    expect(requireAuthMock).toHaveBeenCalledTimes(1);
+    expect(requireKbPermissionMock).toHaveBeenCalledWith(auth, KB_ID, "kb:read");
+    expect(resolveVoiceConfigMock).toHaveBeenCalled();
+  });
+
+  it("preserves an RBAC 403 instead of converting it to a 500", async () => {
+    requireAuthMock.mockResolvedValueOnce({
+      user: { id: "user-sec-1", isSuperAdmin: false },
+      session: { id: "session-sec-1" },
+    });
+    requireKbPermissionMock.mockRejectedValueOnce(
+      new NextResponse(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    );
+
+    const response = await postElevenLabsSession(post({ kbId: KB_ID }));
+    expect(response.status).toBe(403);
+    expect(resolveVoiceConfigMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("vendor API keys never reach the browser", () => {
