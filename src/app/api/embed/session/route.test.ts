@@ -106,9 +106,8 @@ vi.mock("@/modules/voice-core/api/gemini/realtime-auth", () => ({
   mintGeminiRealtimeToken: vi.fn(() => "gemini-hmac-token"),
 }));
 
-vi.mock("@/modules/voice-core/resolve", () => ({
-  VoiceConfigResolutionError: class VoiceConfigResolutionError extends Error {},
-  resolveVoiceConfig: vi.fn(async () => ({
+vi.mock("@/modules/voice-core/resolve", () => {
+  const resolveVoiceConfig = vi.fn(async () => ({
     voiceProvider: "sarvam",
     source: "env",
     realtimeProvider: "openai",
@@ -121,8 +120,14 @@ vi.mock("@/modules/voice-core/resolve", () => ({
       realtimeModel: "gpt-realtime-mini",
       transcriptionModel: "gpt-4o-mini-transcribe",
     },
-  })),
-}));
+  }));
+  return {
+    VoiceConfigResolutionError: class VoiceConfigResolutionError extends Error {},
+    resolveVoiceConfig,
+    // The route uses the TTL-cached resolver; route it through the same mock.
+    resolveVoiceConfigCached: (...args: Parameters<typeof resolveVoiceConfig>) => resolveVoiceConfig(...args),
+  };
+});
 
 vi.mock("@/modules/voice-core/model-catalog", () => ({
   STT_MAX_AUDIO_SECONDS: 300,

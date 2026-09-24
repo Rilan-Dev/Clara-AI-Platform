@@ -36,8 +36,8 @@ vi.mock("@/modules/ai-core/resolve", () => ({
   getPlatformAIDefaults: vi.fn(() => ({ provider: "openai" })),
 }));
 
-vi.mock("@/modules/voice-core/resolve", () => ({
-  resolveVoiceConfig: vi.fn(async () => ({
+vi.mock("@/modules/voice-core/resolve", () => {
+  const resolveVoiceConfig = vi.fn(async () => ({
     realtimeProvider: "elevenlabs",
     voiceProvider: "elevenlabs",
     // Realtime inherits the Voice Chat pick — the tri-mode selector applies.
@@ -48,8 +48,13 @@ vi.mock("@/modules/voice-core/resolve", () => ({
       agentId: "agent-el-1",
       flags: { voiceEnabled: true, realtimeEnabled: true },
     },
-  })),
-}));
+  }));
+  return {
+    resolveVoiceConfig,
+    // provider.ts uses the TTL-cached resolver; route it through the same mock.
+    resolveVoiceConfigCached: (...args: Parameters<typeof resolveVoiceConfig>) => resolveVoiceConfig(...args),
+  };
+});
 
 import { postVoiceProvider } from "../provider";
 import { getElevenLabsRealtimeSttModel } from "../../model-catalog";

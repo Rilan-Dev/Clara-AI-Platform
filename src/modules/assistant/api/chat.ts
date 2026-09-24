@@ -318,7 +318,8 @@ async function postChatKb(
             // for their own provider. Never inject a Sarvam model merely
             // because this request is a realtime voice turn.
             resolved.realtimeModel ??
-            resolved.chatModel,
+            resolved.chatModel ??
+            undefined,
         }
       : {}),
   };

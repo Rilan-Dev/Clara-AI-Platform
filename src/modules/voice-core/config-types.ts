@@ -127,7 +127,8 @@ export interface VoiceResolution {
  * endpoints; it never talks to the voice vendor directly in Mode A.
  */
 export interface ElevenLabsSessionPayload {
-  mode: "pipeline";
+  /** "clara-stream" when the Clara-controlled realtime relay is enabled. */
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;
