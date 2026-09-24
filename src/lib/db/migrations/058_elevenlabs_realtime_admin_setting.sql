@@ -7,7 +7,7 @@
 INSERT INTO platform_env_settings
   (key, value, description, category, is_secret, requires_restart)
 VALUES
-  ('ELEVENLABS_REALTIME_ENABLED', 'false',
+  ('ELEVENLABS_REALTIME_ENABLED', 'true',
    'Enable ElevenLabs realtime speech transport (Scribe v2 Realtime + Flash v2.5) for Clara realtime voice.',
    'ai', FALSE, FALSE)
 ON CONFLICT (key) DO NOTHING;
