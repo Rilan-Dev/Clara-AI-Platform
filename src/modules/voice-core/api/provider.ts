@@ -22,7 +22,7 @@ import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voic
  *   • mode "clara-stream"     — Mode C: Clara-controlled realtime — Scribe
  *                              realtime STT relay → Clara turn (RAG+LLM) →
  *                              streaming TTS WebSocket relay, all behind
- *                              ELEVENLABS_REALTIME_ENABLED (plan Phase 6/13).
+ *                              platform-admin realtime setting (plan Phase 6/13).
  *
  * Precedence: an existing Mode-B binding always wins (no behavior change for
  * deployed orgs); Mode C activates only when the realtime flag is on and no
