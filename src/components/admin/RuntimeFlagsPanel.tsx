@@ -16,7 +16,7 @@ import type { RuntimeFlagGroup } from "@/lib/runtime-flags";
 export function RuntimeFlagsPanel() {
   const [groups, setGroups] = useState<RuntimeFlagGroup[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<string | null>("safety");
+  const [open, setOpen] = useState<string | null>("payments");
 
   const load = useCallback(async () => {
     setError(null);

@@ -37,7 +37,7 @@ const RAZORPAY_FIELDS: FieldDef[] = [
 ];
 
 const GENERAL_FIELDS: FieldDef[] = [
-  { key: "NEXT_PUBLIC_APP_URL", label: "Public Application URL", placeholder: "https://app.example.com", isSecret: false, helpText: "Base URL for payment callbacks, success redirects, and webhook endpoints." },
+  { key: "NEXT_PUBLIC_APP_URL", label: "Public Application URL", placeholder: "https://app.example.com", isSecret: false, helpText: "The address customers use. Stripe success/cancel redirects and every link in Clara's emails are built from it — it must match your live domain." },
 ];
 
 const MASK = "●●●●●●●●";
@@ -286,6 +286,12 @@ export function PaymentGatewayPanel() {
                 Open Stripe Dashboard →
               </a>
             </div>
+            <WebhookHint
+              gateway="Stripe"
+              path="/api/webhooks/stripe"
+              where="Stripe → Developers → Webhooks → Add endpoint (in test and live mode separately)"
+              events={["checkout.session.completed", "customer.subscription.updated", "customer.subscription.deleted", "invoice.payment_succeeded", "invoice.payment_failed"]}
+            />
             {STRIPE_FIELDS.map(renderField)}
           </>
         ) : (
@@ -297,6 +303,12 @@ export function PaymentGatewayPanel() {
                 Open Razorpay Dashboard →
               </a>
             </div>
+            <WebhookHint
+              gateway="Razorpay"
+              path="/api/webhooks/razorpay"
+              where="Razorpay → Settings → Webhooks → Add new webhook"
+              events={["payment.captured", "payment.failed", "subscription.charged", "subscription.cancelled", "subscription.halted"]}
+            />
             {RAZORPAY_FIELDS.map(renderField)}
           </>
         )}
@@ -348,6 +360,37 @@ export function PaymentGatewayPanel() {
           take effect on the next API call. The Stripe/Razorpay SDK singletons automatically detect key changes.
         </p>
       </div>
+    </div>
+  );
+}
+
+/** The webhook URL to register with the gateway — without it, payments are
+ *  only confirmed when the customer returns to the success page. */
+function WebhookHint({ gateway, path, where, events }: { gateway: string; path: string; where: string; events: string[] }) {
+  const [copied, setCopied] = useState(false);
+  const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+      <p className="text-sm font-medium text-foreground">Register this webhook in {gateway}</p>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 truncate rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground" title={url}>{url}</code>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void navigator.clipboard?.writeText(url).then(() => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            });
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {where}. Send these events: {events.join(", ")}. Then paste its signing secret below.
+      </p>
     </div>
   );
 }

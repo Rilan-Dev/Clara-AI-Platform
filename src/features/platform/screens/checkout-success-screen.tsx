@@ -52,6 +52,24 @@ export default function CheckoutSuccessScreen() {
     if (isPortal || !orgId) return;
     let cancelled = false;
     let attempts = 0;
+
+    // Confirm the payment with Stripe directly instead of waiting for the
+    // webhook: activation then works even if the webhook is misrouted,
+    // delayed or failing. Safe to call more than once.
+    const verifyStripeSession = async (): Promise<void> => {
+      if (gateway !== "stripe" || !sessionId.startsWith("cs_")) return;
+      try {
+        await fetch("/api/subscriptions/checkout/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, orgId }),
+          cache: "no-store",
+        });
+      } catch {
+        // Fall through to status polling — the webhook may still arrive.
+      }
+    };
+
     const checkStatus = async (): Promise<void> => {
       try {
         const res = await fetch(`/api/subscriptions/onboarding-status?orgId=${encodeURIComponent(orgId)}`, {
@@ -73,18 +91,21 @@ export default function CheckoutSuccessScreen() {
         // Stripe can deliver the webhook just after the browser returns from
         // Checkout. Poll briefly so the success screen moves to the active
         // state without making the user manually revisit the page.
-        if (status === "payment_pending" && attempts < 15) {
+        if (status === "payment_pending" && attempts < 20) {
           attempts += 1;
-          window.setTimeout(checkStatus, 1000);
+          // Re-confirm with Stripe every few tries (async payment methods can
+          // settle a little after the redirect), backing off to 3 s.
+          if (attempts % 5 === 0) await verifyStripeSession();
+          window.setTimeout(checkStatus, attempts < 10 ? 1000 : 3000);
         }
       } catch {
         if (!cancelled) setActivationStatus("payment_review");
       }
     };
 
-    void checkStatus();
+    void verifyStripeSession().then(checkStatus);
     return () => { cancelled = true; };
-  }, [isPortal, orgId]);
+  }, [isPortal, orgId, gateway, sessionId]);
 
   async function handleResendVerification() {
     setResending(true);
