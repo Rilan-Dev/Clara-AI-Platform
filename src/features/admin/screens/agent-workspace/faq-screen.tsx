@@ -150,7 +150,7 @@ export default function AgentFaqScreen() {
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
             <MessageCircleQuestion className="h-4 w-4 text-primary" /> FAQ
-            <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {items.length} {items.length === 1 ? "entry" : "entries"}
               {filledCount !== items.length ? ` · ${filledCount} complete` : ""}
             </span>
@@ -173,7 +173,7 @@ export default function AgentFaqScreen() {
       {/* Items */}
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
-          <HelpCircle className="mx-auto h-8 w-8 text-muted-foreground/40" />
+          <HelpCircle className="mx-auto h-8 w-8 text-muted-foreground/80" />
           <p className="mt-3 text-sm font-medium text-foreground/80">No FAQ entries yet</p>
           <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground/70">
             Add the questions your visitors ask most — pricing, coverage, how to reach a human —
@@ -206,7 +206,7 @@ export default function AgentFaqScreen() {
                     onChange={(e) => patchItem(item.id, { question: e.target.value })}
                     placeholder="Type the question visitors ask…"
                     disabled={isAdmin}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none disabled:opacity-60"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40 focus:outline-none disabled:opacity-60"
                   />
                   <textarea
                     value={item.answer}
@@ -214,7 +214,7 @@ export default function AgentFaqScreen() {
                     placeholder="The canonical answer the assistant should give…"
                     disabled={isAdmin}
                     rows={3}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none disabled:opacity-60"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40 focus:outline-none disabled:opacity-60"
                   />
                 </div>
                 {!isAdmin && (
@@ -223,7 +223,7 @@ export default function AgentFaqScreen() {
                     onClick={() => removeItem(item.id)}
                     aria-label={`Remove FAQ entry ${index + 1}`}
                     title="Remove this entry"
-                    className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="rounded-lg p-1.5 text-muted-foreground/80 transition-colors hover:bg-destructive/10 hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -244,7 +244,7 @@ export default function AgentFaqScreen() {
           >
             <Plus className="h-3.5 w-3.5" /> Add question
           </button>
-          <p className="text-[11px] text-muted-foreground/60">
+          <p className="text-[11px] text-muted-foreground/80">
             {autoSave.status === "saving" ? "Saving…" : "FAQ entries publish with the agent — use Publish update in the top bar when ready."}
           </p>
         </div>

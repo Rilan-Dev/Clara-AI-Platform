@@ -28,6 +28,7 @@ const VENDOR_KEYS = {
 };
 
 vi.mock("@/modules/knowledge-bases/core/db", () => ({
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
   getKnowledgeBaseById: vi.fn(async (kbId: string) =>
     kbId === KB_ID
       ? { id: KB_ID, name: "Security KB", status: "active", agent_id: "agent-sec-1", qdrantCollection: "kb_sec" }
@@ -43,6 +44,8 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => [{ org_id: ORG_ID }]),
+  // AI provider registry row — the platform-level on/off control.
+  queryOne: vi.fn(async () => ({ enabled: true })),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: vi.fn(async () => {}) }));

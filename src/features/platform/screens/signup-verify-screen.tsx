@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, Mail, CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
+import { Mail, CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
+import { LogoMark } from "@/components/brand/Logo";
 
 const PLAN_NAMES: Record<string, string> = {
   free: "Free", starter: "Starter", pro: "Pro",
@@ -47,9 +48,7 @@ export default function SignupVerifyScreen() {
 
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2 mb-10">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
-          </div>
+          <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
           <span className="font-bold text-foreground text-lg">Clara AI</span>
         </Link>
 
@@ -110,7 +109,7 @@ export default function SignupVerifyScreen() {
                 className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 disabled:opacity-50">
                 {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending…</> : "Resend email"}
               </button>
-              <span className="block text-xs text-muted-foreground/50 mt-1">Check your spam folder if it doesn&apos;t arrive within a minute.</span>
+              <span className="block text-xs text-muted-foreground/80 mt-1">Check your spam folder if it doesn&apos;t arrive within a minute.</span>
             </p>
           )}
           {resendError && (

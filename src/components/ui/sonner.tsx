@@ -8,17 +8,21 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
 const Toaster = ({ ...props }: ToasterProps) => {
   const [theme, setTheme] = useState<ToasterProps["theme"]>("light");
 
+  // Follow the app's resolved theme (the "dark" class the theme toggle and
+  // platform default set on <html>), not the OS preference — otherwise a user
+  // who picked light on a dark-mode OS gets dark toasts.
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof document === "undefined") {
       return;
     }
 
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const updateTheme = () => setTheme(mediaQuery.matches ? "dark" : "light");
+    const root = document.documentElement;
+    const updateTheme = () => setTheme(root.classList.contains("dark") ? "dark" : "light");
 
     updateTheme();
-    mediaQuery.addEventListener("change", updateTheme);
-    return () => mediaQuery.removeEventListener("change", updateTheme);
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
   }, []);
 
   return (

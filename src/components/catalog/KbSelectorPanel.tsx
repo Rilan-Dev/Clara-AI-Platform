@@ -151,7 +151,7 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
           })
         )}
         {activeKb && (
-          <span className="text-[10px] text-muted-foreground/70 shrink-0 hidden sm:inline">
+          <span className="text-[11px] text-muted-foreground/70 shrink-0 hidden sm:inline">
             {activeKb.assistant.name}
           </span>
         )}
@@ -249,7 +249,7 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
               <div key={org.orgId}>
                 {/* Org label — only show if multiple orgs */}
                 {grouped.length > 1 && (
-                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                     {org.orgName}
                   </div>
                 )}
@@ -257,7 +257,7 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
                   <div key={proj.projectId}>
                     {/* Project label — only show if multiple projects in org */}
                     {org.projects.length > 1 && (
-                      <div className="px-2 py-0.5 text-[10px] text-muted-foreground/50 italic">
+                      <div className="px-2 py-0.5 text-[11px] text-muted-foreground/80 italic">
                         {proj.projectName}
                       </div>
                     )}
@@ -294,12 +294,12 @@ export function KbSelectorPanel({ variant = "panel" }: { variant?: "panel" | "ch
                                 />
                                 <div className="min-w-0">
                                   <div className="text-xs font-medium truncate">{kb.name}</div>
-                                  <div className={`text-[10px] ${isActive ? "opacity-70" : "text-muted-foreground"}`}>
+                                  <div className={`text-[11px] ${isActive ? "opacity-70" : "text-muted-foreground"}`}>
                                     {kb.assistant.name}
                                   </div>
                                 </div>
                               </div>
-                              <div className={`text-[10px] shrink-0 mt-0.5 ${isActive ? "opacity-70" : "text-muted-foreground"}`}>
+                              <div className={`text-[11px] shrink-0 mt-0.5 ${isActive ? "opacity-70" : "text-muted-foreground"}`}>
                                 {hasReadyDocs ? `${kb.readyCount} docs` : "No docs"}
                               </div>
                             </div>

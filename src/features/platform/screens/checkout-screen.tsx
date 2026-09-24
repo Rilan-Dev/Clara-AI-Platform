@@ -22,11 +22,11 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  Brain, CreditCard, Zap, Check, AlertCircle,
-  ArrowLeft, Shield, Lock, ChevronRight, Info,
+  CreditCard, Zap, Check, AlertCircle, ArrowLeft, Shield, Lock, ChevronRight, Info,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
+import { LogoMark } from "@/components/brand/Logo";
 
 // ── Plan metadata ─────────────────────────────────────────────────────────────
 
@@ -162,9 +162,7 @@ export default function CheckoutScreen() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
+            <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
             <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
           <h1 className="text-2xl font-black text-foreground mb-1">Complete your subscription</h1>
@@ -178,7 +176,7 @@ export default function CheckoutScreen() {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-foreground">{plan.name} Plan</span>
                 {plan.badge && (
-                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                     {plan.badge}
                   </span>
                 )}
@@ -233,7 +231,7 @@ export default function CheckoutScreen() {
                 ${gateway === "stripe"
                   ? "border-primary bg-primary/10 ring-2 ring-primary/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
-              <CreditCard className={`w-6 h-6 ${gateway === "stripe" ? "text-primary" : "text-muted-foreground/50"}`} />
+              <CreditCard className={`w-6 h-6 ${gateway === "stripe" ? "text-primary" : "text-muted-foreground/80"}`} />
               <div className="text-center">
                 <div className={`text-sm font-bold ${gateway === "stripe" ? "text-foreground" : "text-muted-foreground"}`}>
                   Stripe
@@ -253,7 +251,7 @@ export default function CheckoutScreen() {
                 ${gateway === "razorpay"
                   ? "border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
-              <Zap className={`w-6 h-6 ${gateway === "razorpay" ? "text-cyan-600" : "text-muted-foreground/50"}`} />
+              <Zap className={`w-6 h-6 ${gateway === "razorpay" ? "text-cyan-600" : "text-muted-foreground/80"}`} />
               <div className="text-center">
                 <div className={`text-sm font-bold ${gateway === "razorpay" ? "text-foreground" : "text-muted-foreground"}`}>
                   Razorpay
@@ -318,13 +316,13 @@ export default function CheckoutScreen() {
 
         {/* Footer */}
         <div className="text-center mt-5 space-y-2">
-          <p className="text-xs text-muted-foreground/50">
+          <p className="text-xs text-muted-foreground/80">
             By proceeding you agree to our{" "}
             <Link href="/terms" className="text-primary/70 hover:text-primary">Terms</Link>{" "}and{" "}
             <Link href="/privacy" className="text-primary/70 hover:text-primary">Privacy Policy</Link>.
           </p>
           <Link href={`/signup?plan=${planId}`}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground/50 hover:text-foreground/80 transition-colors">
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground/80 hover:text-foreground/80 transition-colors">
             <ArrowLeft className="w-3 h-3" /> Back to signup
           </Link>
         </div>

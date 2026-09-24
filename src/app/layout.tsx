@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "@/components/ui/sonner";
+import { ConfirmDialogHost } from "@/components/ui/confirm-dialog";
 import { AppShell } from "@/shared/layouts/app-shell";
 import { getPlatformDefaultTheme } from "@/lib/theme-settings";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
@@ -18,12 +19,13 @@ export const metadata: Metadata = {
 
 // Mobile app feel: viewport-fit=cover lets us use the full screen and
 // respect the notch / home indicator via env(safe-area-inset-*).
+// Pinch-zoom stays enabled (WCAG 1.4.4); inputs use a 16px font on phones so
+// iOS does not auto-zoom on focus.
 // themeColor follows the OS colour scheme so the browser chrome matches the
 // palette for visitors whose effective theme tracks their device setting.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FCFCFD" },
@@ -60,6 +62,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppShell>
           {children}
           <Toaster position="top-right" richColors closeButton />
+          <ConfirmDialogHost />
           <Analytics />
           <SpeedInsights />
         </AppShell>

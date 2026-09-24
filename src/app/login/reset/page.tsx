@@ -3,7 +3,8 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Brain, ShieldCheck, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ShieldCheck, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   let score = 0;
@@ -108,7 +109,7 @@ function ResetForm() {
               autoFocus
               minLength={8}
               placeholder="At least 8 characters"
-              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
             />
             <button type="button" onClick={() => setShow(!show)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">
@@ -129,14 +130,14 @@ function ResetForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm password</label>
-          <input
+          <label htmlFor="page-confirm-password" className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm password</label>
+          <input id="page-confirm-password"
             type={show ? "text" : "password"}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
             placeholder="Repeat your new password"
-            className={`w-full bg-background border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none transition-colors ${
+            className={`w-full bg-background border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none transition-colors ${
               confirm && confirm !== password
                 ? "border-destructive/50"
                 : "border-border focus:border-primary"
@@ -173,9 +174,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
-            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-          </div>
+          <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Choose a new password</h1>
           <p className="text-muted-foreground text-sm mt-1">Make it strong — you only need to remember one.</p>
         </div>

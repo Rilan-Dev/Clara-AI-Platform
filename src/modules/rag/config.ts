@@ -67,12 +67,6 @@ export function getRagRuntimeConfig(options?: { requestedMode?: unknown }): RagR
     return liveEnv[key] ?? process.env[key];
   };
 
-  console.log("process.env.RAG_MODE (live):", getEnv("RAG_MODE"));
-  console.log("process.env.ENABLE_GRAPH_RAG (live):", getEnv("ENABLE_GRAPH_RAG"));
-  console.log("process.env.ENABLE_AGENT_LOOP (live):", getEnv("ENABLE_AGENT_LOOP"));
-  console.log("process.env.ENABLE_SELF_EVAL (live):", getEnv("ENABLE_SELF_EVAL"));
-  console.log("process.env.ENABLE_MCP (live):", getEnv("ENABLE_MCP"));
-  console.log("process.env.GRAPH_STORE_PROVIDER (live):", getEnv("GRAPH_STORE_PROVIDER"));
 
   const envMode = normalizeRagMode(getEnv("RAG_MODE")) ?? "classic";
   const requestedMode = normalizeRagMode(options?.requestedMode) ?? envMode;

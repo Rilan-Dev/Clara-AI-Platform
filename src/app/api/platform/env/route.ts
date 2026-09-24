@@ -81,18 +81,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     await requireSuperAdmin(auth);
     const { searchParams } = new URL(req.url);
 
+    // Confirmation tokens used to be minted here with the (possibly secret)
+    // value in the query string, which leaks it into access logs and browser
+    // history. They are now requested with POST { action: "token" }.
     if (searchParams.get("token") === "1") {
-      const key = searchParams.get("key") ?? "";
-      const value = searchParams.get("value") ?? "";
-      if (!MANAGED_KEYS.has(key)) {
-        return NextResponse.json({ error: "Setting is not managed by the platform settings page." }, { status: 403 });
-      }
-      const ts = Date.now();
-      return NextResponse.json({
-        confirmation_token: buildToken(key, value, ts),
-        timestamp: ts,
-        expires_in_ms: TOKEN_TTL_MS,
-      });
+      return NextResponse.json(
+        { error: "Request confirmation tokens with POST { action: \"token\", key, value }." },
+        { status: 405 },
+      );
     }
 
     const settings = await getPlatformEnvSettings();
@@ -125,11 +121,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
     const body = await req.json() as {
+      action?: string;
       key?: string;
       value?: string;
       confirmation_token?: string;
       timestamp?: number;
     };
+
+    // Step 1 of a save: mint a short-lived HMAC confirmation token. The value
+    // travels in the request body, never in the URL.
+    if (body.action === "token") {
+      const key = body.key ?? "";
+      if (!MANAGED_KEYS.has(key)) {
+        return NextResponse.json({ error: "Setting is not managed by the platform settings page." }, { status: 403 });
+      }
+      const ts = Date.now();
+      return NextResponse.json({
+        confirmation_token: buildToken(key, body.value ?? "", ts),
+        timestamp: ts,
+        expires_in_ms: TOKEN_TTL_MS,
+      });
+    }
 
     if (!body.key || body.value === undefined) {
       return NextResponse.json({ error: "key and value are required" }, { status: 400 });

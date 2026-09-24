@@ -50,6 +50,18 @@ const nextConfig: NextConfig = {
     webpackMemoryOptimizations: true,
   },
   outputFileTracingRoot: __dirname,
+  // The legacy /admin UI was retired in favour of the main workspace; keep
+  // old bookmarks working. /sandbox was an internal module demo page.
+  redirects: async () => [
+    { source: "/admin", destination: "/dashboard", permanent: true },
+    { source: "/admin/login", destination: "/login", permanent: true },
+    { source: "/admin/settings", destination: "/settings", permanent: true },
+    { source: "/admin/orgs", destination: "/orgs", permanent: true },
+    { source: "/admin/orgs/:orgId", destination: "/orgs/:orgId", permanent: true },
+    { source: "/admin/orgs/:orgId/agents/:agentId", destination: "/orgs/:orgId/agents/:agentId", permanent: true },
+    { source: "/admin/kbs/:kbId", destination: "/kbs/:kbId", permanent: true },
+    { source: "/sandbox", destination: "/", permanent: true },
+  ],
   headers: async () => [
     {
       source: "/worklets/:path*",

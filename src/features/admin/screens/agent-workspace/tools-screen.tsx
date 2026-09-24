@@ -70,7 +70,7 @@ export default function AgentToolsScreen() {
     <div>
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-foreground">Tools</h2>
+        <h2 className="text-sm font-semibold text-foreground">Capabilities</h2>
         <p className="mt-1 text-xs text-muted-foreground/70">
           Runtime capabilities for this agent. Availability comes from the platform and your plan —
           you never have to cross-check other screens.

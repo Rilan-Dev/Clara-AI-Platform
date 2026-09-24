@@ -35,7 +35,7 @@ import {
 import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
 import {
-  resolveVoiceConfig,
+  resolveVoiceConfigCached,
   VoiceConfigResolutionError,
 } from "@/modules/voice-core/resolve";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;

@@ -123,7 +123,7 @@ export default function OrgAgentsScreen() {
                       >
                         {agent.name}
                       </Link>
-                      <p className="truncate text-xs text-muted-foreground/60">
+                      <p className="truncate text-xs text-muted-foreground/80">
                         {agent.description ?? "No description"} · updated {formatDate(agent.updatedAt ?? agent.createdAt)}
                       </p>
                     </div>

@@ -134,7 +134,7 @@ export default function OnboardingGate({ children }: { children: ReactNode }): J
           </Link>
         )}
 
-        <p className="text-xs text-muted-foreground/60 text-center mt-4">
+        <p className="text-xs text-muted-foreground/80 text-center mt-4">
           You can view the workspace shell, but server-side feature actions remain locked until onboarding is complete.
         </p>
       </div>

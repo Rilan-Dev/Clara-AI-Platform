@@ -7,6 +7,7 @@ import { Check, Copy } from "lucide-react";
 import { MarkdownMessage } from "@/modules/assistant/ui/chat/MarkdownMessage";
 import type { AssistantMessageModel } from "@/modules/assistant/core";
 
+import { ChatAnnouncer } from "@/components/ui/chat-announcer";
 import { RoleBadge } from "./RoleBadge";
 
 /** WS-1.5: per-message copy affordance (assistant messages only). */
@@ -50,7 +51,8 @@ export function MessageList({
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex-1 px-6 py-6 space-y-4 overflow-y-auto">
+    <div className="flex-1 px-6 py-6 space-y-4 overflow-y-auto" role="log" aria-label="Conversation" aria-live="off">
+      <ChatAnnouncer messages={messages} />
       {!hasMessages && (
         emptyState ?? (
           <Card className="border border-[color:var(--color-border)] bg-[color:var(--color-card)]/70 text-sm text-muted-foreground">

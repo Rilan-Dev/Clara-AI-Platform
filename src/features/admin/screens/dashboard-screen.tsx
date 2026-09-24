@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import http from "@/lib/http";
+import { LoadError } from "@/components/ui/load-error";
 
 type Stats = {
   totalOrgs: number;
@@ -51,8 +52,10 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [revenue, setRevenue] = useState<Revenue | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       http.get<Stats>("/platform/stats"),
       http.get<Revenue>("/platform/revenue"),
@@ -61,7 +64,7 @@ export default function AdminDashboard() {
         setStats(s.data);
         setRevenue(r.data);
       })
-      .catch(() => {})
+      .catch((err: unknown) => setLoadError((err as Error)?.message ?? "Request failed"))
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
@@ -125,6 +128,13 @@ export default function AdminDashboard() {
         </div>
       </div>
       <div className="space-y-4 sm:space-y-6">
+          {loadError && (
+            <LoadError
+              message="Platform stats couldn't be loaded — the numbers below may be missing."
+              detail={loadError}
+              onRetry={load}
+            />
+          )}
           {/* Mobile: compact 2-col stat grid — tighter padding, label + value
               only; desktop keeps the roomy 5-col layout. */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-4">

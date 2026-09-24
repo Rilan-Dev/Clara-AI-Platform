@@ -29,6 +29,8 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
   getKnowledgeBaseById: vi.fn(async (kbId: string) =>
     kbId === KB_FIXTURE.id ? { ...KB_FIXTURE } : null,
   ),
+  getAssistantConfigByKb: vi.fn(async () => null),
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/db", () => ({

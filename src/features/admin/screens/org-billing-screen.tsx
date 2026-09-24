@@ -475,12 +475,12 @@ export default function OrgBillingScreen() {
                     : "border-border bg-card shadow-sm"
               }`}>
                 {isRenew && (
-                  <span className="absolute -top-2.5 left-4 text-[10px] font-bold uppercase tracking-wide bg-amber-500 text-black px-2 py-0.5 rounded-full">
+                  <span className="absolute -top-2.5 left-4 text-[11px] font-bold uppercase tracking-wide bg-amber-500 text-black px-2 py-0.5 rounded-full">
                     Renew now
                   </span>
                 )}
                 {isUpgrade && !isCurrent && ["starter", "pro"].includes(plan.id) && (
-                  <span className="absolute -top-2.5 left-4 text-[10px] font-bold uppercase tracking-wide bg-violet-500 text-white px-2 py-0.5 rounded-full">
+                  <span className="absolute -top-2.5 left-4 text-[11px] font-bold uppercase tracking-wide bg-violet-500 text-white px-2 py-0.5 rounded-full">
                     Best value
                   </span>
                 )}

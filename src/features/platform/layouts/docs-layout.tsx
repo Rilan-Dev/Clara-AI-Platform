@@ -92,7 +92,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               <div className="space-y-6">
                 {NAV.map((section) => (
                   <div key={section.title}>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2 px-1">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground/80 mb-2 px-1">
                       {section.title}
                     </div>
                     <ul className="space-y-1">
@@ -113,7 +113,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                   <item.icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground/70"}`} />
                                 )}
                                 {!item.icon && (
-                                  <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-primary" : "text-muted-foreground/40"}`} />
+                                  <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-primary" : "text-muted-foreground/80"}`} />
                                 )}
                                 <span className="leading-tight">{item.label}</span>
                               </Link>
@@ -133,7 +133,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
       <aside className="hidden md:flex flex-col w-64 shrink-0 border-r border-border/70 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto pt-8 pb-12 px-5">
         {NAV.map((section) => (
           <div key={section.title} className="mb-7">
-            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2.5 px-2">
+            <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground/80 mb-2.5 px-2">
               {section.title}
             </div>
             <ul className="space-y-0.5">
@@ -153,7 +153,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                         <item.icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground/70"}`} />
                       )}
                       {!item.icon && (
-                        <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-primary" : "text-muted-foreground/40"}`} />
+                        <ChevronRight className={`w-3 h-3 shrink-0 ml-0.5 ${active ? "text-primary" : "text-muted-foreground/80"}`} />
                       )}
                       <span className="leading-tight">{item.label}</span>
                     </Link>

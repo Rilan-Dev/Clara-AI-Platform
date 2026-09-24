@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
@@ -32,21 +32,30 @@ function ctaLabel(plan: Plan): string {
 
 export default function PricingPage() {
   const [plans, setPlans]     = useState<Plan[]>([]);
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(false);
 
-  useEffect(() => {
+  // Checkout only creates monthly prices, so the page shows monthly prices
+  // only — no discount the customer cannot actually be charged.
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     fetch(apiUrl("/api/subscriptions/plans"))
-      .then(r => r.json())
-      .then(d => { setPlans(d.plans ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<{ plans?: Plan[] }>;
+      })
+      .then(d => setPlans(d.plans ?? []))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const price = (p: Plan) => {
     if (p.price_usd === -1) return "Custom";
     if (p.price_usd === 0)  return "Free";
-    const m = billing === "annual" ? Math.round(p.price_usd * 0.8) : p.price_usd;
-    return `$${m}/mo`;
+    return `$${p.price_usd}/mo`;
   };
 
   return (
@@ -57,18 +66,27 @@ export default function PricingPage() {
             Simple, transparent <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">pricing</span>
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg mb-8">Start free, scale as you grow. No hidden fees.</p>
-          <div className="inline-flex items-center border border-border bg-muted/50 rounded-xl p-1 gap-1">
-            {(["monthly", "annual"] as const).map(c => (
-              <button key={c} onClick={() => setBilling(c)}
-                className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${billing === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                {c === "monthly" ? "Monthly" : <><span className="hidden sm:inline">Annual (save 20%)</span><span className="sm:hidden">Annual −20%</span></>}
-              </button>
-            ))}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Billed monthly · cancel anytime · need annual invoicing?{" "}
+            <Link href="/contact" className="text-primary hover:text-primary/80 underline-offset-4 hover:underline">Talk to sales</Link>
+          </p>
         </div>
 
         {loading ? (
-          <div className="text-center text-muted-foreground/70">Loading plans…</div>
+          <div role="status" className="text-center text-muted-foreground">Loading plans…</div>
+        ) : error || plans.length === 0 ? (
+          <div role="alert" className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 text-center">
+            <p className="font-semibold text-foreground">We couldn&apos;t load our plans right now.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Please try again, or contact us for pricing.</p>
+            <div className="mt-4 flex justify-center gap-3">
+              <button type="button" onClick={load} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                Try again
+              </button>
+              <Link href="/contact" className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent">
+                Contact sales
+              </Link>
+            </div>
+          </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map(plan => (
@@ -81,9 +99,6 @@ export default function PricingPage() {
                 <div className="mb-4">
                   <div className="text-sm font-semibold text-primary mb-1">{plan.name}</div>
                   <div className="text-3xl font-black text-foreground mb-1">{price(plan)}</div>
-                  {billing === "annual" && plan.price_usd > 0 && (
-                    <div className="text-xs text-emerald-600">Billed ${Math.round(plan.price_usd * 0.8 * 12)}/year</div>
-                  )}
                   <div className="text-xs text-muted-foreground mt-1">{plan.description}</div>
                 </div>
 

@@ -158,17 +158,17 @@ function QuestionFeedItem({ q }: { q: DashboardData["recentQuestions"][number] }
               {open ? q.answer : q.answer!.replace(/\s+/g, " ").slice(0, 160)}{!open && q.answer!.length > 160 ? "…" : ""}
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground/50 mt-1 italic">
+            <p className="text-xs text-muted-foreground/80 mt-1 italic">
               {q.status === "error" ? "Stream failed — no answer captured" : "Answer pending…"}
             </p>
           )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
-          <span className="text-[10px] text-muted-foreground/50">{timeAgo(q.created_at)}</span>
+          <span className={`text-[11px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
+          <span className="text-[11px] text-muted-foreground/80">{timeAgo(q.created_at)}</span>
         </div>
         {hasAnswer && (
-          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-all shrink-0 mt-0.5 ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/80 group-hover:text-muted-foreground transition-all shrink-0 mt-0.5 ${open ? "rotate-180" : ""}`} />
         )}
       </button>
       {open && (
@@ -379,14 +379,14 @@ export default function OrgOverviewScreen() {
         {kpis.map((kpi) => (
           <div key={kpi.label} className="border border-border bg-card rounded-2xl p-3 sm:p-4 shadow-sm">
             <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-              <div className="text-[10px] sm:text-[11px] text-muted-foreground/70 leading-tight">{kpi.label}</div>
+              <div className="text-[11px] sm:text-[11px] text-muted-foreground/70 leading-tight">{kpi.label}</div>
               <kpi.icon className={`w-4 h-4 ${kpi.color} shrink-0`} />
             </div>
             <div className="text-lg sm:text-xl font-black text-foreground">
               {loading ? <div className="h-5 sm:h-6 w-12 bg-muted rounded animate-pulse" /> : kpi.value}
             </div>
             {kpi.sub && (
-              <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${totals && totals.trendPct >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+              <div className={`text-[11px] sm:text-[11px] mt-0.5 sm:mt-1 ${totals && totals.trendPct >= 0 ? "text-emerald-600" : "text-destructive"}`}>
                 {kpi.sub}
               </div>
             )}
@@ -406,14 +406,14 @@ export default function OrgOverviewScreen() {
               </p>
               {/* WS-1.6 + WS-1.1: metering parity — tokens + estimated cost. */}
               {data?.usageMetering && (data.usageMetering.chat.promptTokens > 0 || data.usageMetering.embedding.promptTokens > 0) && (
-                <p className="hidden sm:block text-xs text-muted-foreground/50 mt-0.5">
+                <p className="hidden sm:block text-xs text-muted-foreground/80 mt-0.5">
                   AI usage · 30d: {((data.usageMetering.chat.promptTokens + data.usageMetering.embedding.promptTokens) / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k tokens
                   {` · ~$${((data.usageMetering.chat.costUsdMicros + data.usageMetering.embedding.costUsdMicros) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} est. cost`}
                 </p>
               )}
               {/* Voice axis (ElevenLabs): TTS/STT/conversation metering + latency. */}
               {data?.usageMetering && data.usageMetering.voice && (data.usageMetering.voice.ttsRequests > 0 || data.usageMetering.voice.sttRequests > 0 || data.usageMetering.voice.conversationCount > 0) && (
-                <p className="hidden sm:block text-xs text-muted-foreground/50 mt-0.5">
+                <p className="hidden sm:block text-xs text-muted-foreground/80 mt-0.5">
                   Voice · 30d: {data.usageMetering.voice.ttsCharacters.toLocaleString()} spoken chars
                   {` · ${Math.round(data.usageMetering.voice.sttAudioSeconds / 60).toLocaleString()} min transcribed`}
                   {data.usageMetering.voice.conversationCount > 0 ? ` · ${Math.round(data.usageMetering.voice.conversationSeconds / 60).toLocaleString()} min conversations` : ""}
@@ -456,9 +456,9 @@ export default function OrgOverviewScreen() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center">
-                <MessageSquare className="w-8 h-8 text-muted-foreground/30 mb-3" />
+                <MessageSquare className="w-8 h-8 text-muted-foreground/80 mb-3" />
                 <p className="text-sm text-muted-foreground/70">No usage yet</p>
-                <p className="text-xs text-muted-foreground/50 mt-1">Chat with your assistant or embed the widget to see activity here.</p>
+                <p className="text-xs text-muted-foreground/80 mt-1">Chat with your assistant or embed the widget to see activity here.</p>
               </div>
             )}
           </div>
@@ -479,7 +479,7 @@ export default function OrgOverviewScreen() {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-bold text-primary">{kb.queries_30d}</div>
-                      <div className="text-[10px] text-muted-foreground/50">queries</div>
+                      <div className="text-[11px] text-muted-foreground/80">queries</div>
                     </div>
                   </div>
                 </Link>
@@ -487,7 +487,7 @@ export default function OrgOverviewScreen() {
             </div>
           ) : (
             <div className="text-center py-10">
-              <Database className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+              <Database className="w-8 h-8 text-muted-foreground/80 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground/70">No knowledge bases yet</p>
               <Link href={`/orgs/${id}/agents`} className="text-xs text-primary hover:text-primary/80 mt-2 inline-block">
                 Create your first agent →
@@ -519,9 +519,9 @@ export default function OrgOverviewScreen() {
             </div>
           ) : (
             <div className="text-center py-10">
-              <HelpCircle className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+              <HelpCircle className="w-8 h-8 text-muted-foreground/80 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground/70">No questions yet</p>
-              <p className="text-xs text-muted-foreground/50 mt-1">
+              <p className="text-xs text-muted-foreground/80 mt-1">
                 When you or your visitors ask the assistant, the question and its answer appear here.
               </p>
             </div>
@@ -594,7 +594,7 @@ export default function OrgOverviewScreen() {
               </ol>
             ) : (
               <div className="text-center py-8">
-                <MessageSquare className="w-7 h-7 text-muted-foreground/30 mx-auto mb-2.5" />
+                <MessageSquare className="w-7 h-7 text-muted-foreground/80 mx-auto mb-2.5" />
                 <p className="text-sm text-muted-foreground/70">No questions in the last 30 days</p>
               </div>
             )}
@@ -622,16 +622,16 @@ export default function OrgOverviewScreen() {
                       <p className="text-sm text-foreground/80 truncate">{event.title}</p>
                       {event.detail && <p className="text-[11px] text-muted-foreground/70 truncate">in {event.detail}</p>}
                     </div>
-                    <span className="text-[11px] text-muted-foreground/50 shrink-0">{timeAgo(event.created_at)}</span>
+                    <span className="text-[11px] text-muted-foreground/80 shrink-0">{timeAgo(event.created_at)}</span>
                   </div>
                 );
               })}
             </div>
           ) : (
             <div className="text-center py-10">
-              <Activity className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+              <Activity className="w-8 h-8 text-muted-foreground/80 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground/70">Nothing yet — activity will appear here</p>
-              <p className="text-xs text-muted-foreground/50 mt-1">Queries, document uploads and conversations.</p>
+              <p className="text-xs text-muted-foreground/80 mt-1">Queries, document uploads and conversations.</p>
             </div>
           )}
         </div>
@@ -650,7 +650,7 @@ export default function OrgOverviewScreen() {
                   <p className="text-sm font-medium text-foreground truncate">{action.label}</p>
                   <p className="text-[11px] text-muted-foreground/70">{action.desc}</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                <ArrowRight className="w-4 h-4 text-muted-foreground/80 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
               </Link>
             ))}
           </div>
@@ -676,7 +676,7 @@ export default function OrgOverviewScreen() {
 
       {/* Super-admin context strip */}
       {isAdmin && data && (
-        <p className="mt-6 text-xs text-muted-foreground/50 flex items-center gap-2">
+        <p className="mt-6 text-xs text-muted-foreground/80 flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5" />
           Platform-admin view · org <span className="font-mono text-muted-foreground/70">{data.org.slug}</span>
           <Link href="/subscriptions" className="text-primary/70 hover:text-primary ml-2">Open billing workspace →</Link>

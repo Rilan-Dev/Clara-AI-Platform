@@ -248,7 +248,7 @@ export default function PublishedAgentScreen() {
               primaryColour={primaryColour}
               accentColour={accentColour}
               headerBadge={
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Published v{config.published.versionNumber}
                 </span>
@@ -286,7 +286,7 @@ export default function PublishedAgentScreen() {
             Powered by{" "}
             <span className="font-semibold text-muted-foreground">Clara AI</span>
           </p>
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80">
             <ShieldCheck className="h-3 w-3" />
             Answers are grounded in the owner&apos;s published knowledge base.
           </p>

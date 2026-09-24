@@ -219,18 +219,18 @@ export function ProvidersWorkspace() {
 
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                   <div>
-                    <dt className="text-muted-foreground/60">Capabilities</dt>
+                    <dt className="text-muted-foreground/80">Capabilities</dt>
                     <dd className="mt-0.5 text-foreground/80">
                       {provider.capabilities.filter((c) => c.supported).map((c) => CAPABILITY_META[c.capability].label).join(" · ") || "—"}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground/60">{CAPABILITY_META[capability].label} models</dt>
+                    <dt className="text-muted-foreground/80">{CAPABILITY_META[capability].label} models</dt>
                     <dd className="mt-0.5 text-foreground/80">{provider.modelCounts[capability] ?? 0} available</dd>
                   </div>
                   {usageReport && usageReport.monthlyBudgetUsd != null && (
                     <div className="col-span-2">
-                      <dt className="text-muted-foreground/60">Usage this month</dt>
+                      <dt className="text-muted-foreground/80">Usage this month</dt>
                       <dd className="mt-0.5 flex items-center gap-2 text-foreground/80">
                         {usageReport.usagePct ?? 0}%
                         {usageReport.rechargeWarning && (
@@ -242,7 +242,7 @@ export function ProvidersWorkspace() {
                 </dl>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                  <span className="text-[11px] text-muted-foreground/60">
+                  <span className="text-[11px] text-muted-foreground/80">
                     {provider.credential?.configured
                       ? `Key ${provider.credential.maskedHint ?? "••••••"}`
                       : "No API key"}
@@ -694,9 +694,9 @@ function ProviderDetailDrawer({
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-…"
                 autoComplete="off"
-                className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40"
+                className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40"
               />
-              <span className="mt-1 block text-[11px] text-muted-foreground/60">
+              <span className="mt-1 block text-[11px] text-muted-foreground/80">
                 Stored server-side only — the browser never receives the value back.
               </span>
             </label>
@@ -708,7 +708,7 @@ function ProviderDetailDrawer({
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
                   placeholder="https://api.vendor.ai"
-                  className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40"
+                  className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40"
                 />
               </label>
             )}
@@ -835,11 +835,11 @@ function ProviderDetailDrawer({
               <p className="text-xs text-muted-foreground/70">Current billing period · since {usage?.periodStart ?? "—"}</p>
               <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60">Requests</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Requests</p>
                   <p className="mt-1 font-medium text-foreground">{(usage?.requests ?? 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60">Cost</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Cost</p>
                   <p className="mt-1 font-medium text-foreground">${(usage?.costUsd ?? 0).toFixed(2)}</p>
                 </div>
               </div>
@@ -867,9 +867,9 @@ function ProviderDetailDrawer({
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="No budget"
-                className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40"
+                className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40"
               />
-              <span className="mt-1 block text-[11px] text-muted-foreground/60">
+              <span className="mt-1 block text-[11px] text-muted-foreground/80">
                 Warnings appear at {provider.warningThresholdPct}% of the budget.
               </span>
             </label>
@@ -905,7 +905,7 @@ function CatalogueRow({
           <span className="break-words text-sm font-medium text-foreground/90">{model.displayName}</span>
           {model.isDefault && <VersionBadge tone="primary">Default</VersionBadge>}\n          {model.metadata?.catalogSource === "vendor_live" && <VersionBadge tone="success">Live</VersionBadge>}\n          {model.metadata?.catalogSource !== "vendor_live" && <VersionBadge tone="muted">Vendor catalog</VersionBadge>}
         </div>
-        <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/60">
+        <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">
           {KIND_LABELS[model.kind] ?? model.kind} · {model.modelId}
         </p>
       </div>

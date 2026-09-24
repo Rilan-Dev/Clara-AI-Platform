@@ -5,6 +5,7 @@ import { CreditCard, Eye, EyeOff, CheckCircle2, AlertCircle, ExternalLink, Loade
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
+import { savePlatformEnvSetting } from "@/lib/platform-env-client";
 import { withAuthHeaders } from "@/lib/client-auth";
 
 /* ── types ──────────────────────────────────────────────────────────────────── */
@@ -68,27 +69,7 @@ async function saveSetting(key: string, value: string): Promise<void> {
 
   // Keep credentials deterministic: accidental leading/trailing whitespace must
   // never reach Stripe/Razorpay and produce a misleading "invalid API key" error.
-  // Step 1: get HMAC confirmation token
-  const tokenRes = await fetch(
-    apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(normalizedValue)}`),
-    { headers: withAuthHeaders() },
-  );
-  const tokenData = await tokenRes.json() as { confirmation_token?: string; timestamp?: number; error?: string };
-  if (!tokenRes.ok || !tokenData.confirmation_token)
-    throw new Error(tokenData.error ?? "Could not create confirmation token");
-
-  // Step 2: save with token
-  const res = await fetch(apiUrl("/api/platform/env"), {
-    method: "POST",
-    headers: withAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({
-      key, value: normalizedValue,
-      confirmation_token: tokenData.confirmation_token,
-      timestamp: tokenData.timestamp,
-    }),
-  });
-  const data = await res.json() as { ok?: boolean; error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Failed to save");
+  await savePlatformEnvSetting(key, normalizedValue);
 }
 
 /* ── component ──────────────────────────────────────────────────────────────── */
@@ -196,9 +177,9 @@ export function PaymentGatewayPanel() {
       <div key={field.key} className="space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-foreground/80">{field.label}</label>
-          {field.isSecret && <Badge variant="outline" className="text-[10px] py-0">secret</Badge>}
+          {field.isSecret && <Badge variant="outline" className="text-[11px] py-0">secret</Badge>}
           {isConfigured && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+            <span className="flex items-center gap-1 text-[11px] text-emerald-600">
               <CheckCircle2 className="w-3 h-3" /> configured
             </span>
           )}
@@ -210,7 +191,7 @@ export function PaymentGatewayPanel() {
             value={value}
             onChange={e => setValues(prev => ({ ...prev, [field.key]: e.target.value }))}
             placeholder={field.placeholder}
-            className={`w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-10 ${
+            className={`w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground/80 placeholder:text-muted-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-10 ${
               fieldErrors[field.key]
                 ? "border-destructive/60 focus:border-destructive focus:ring-destructive/30"
                 : "border-input focus:border-primary/50"

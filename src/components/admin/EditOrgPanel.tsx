@@ -89,9 +89,9 @@ export function EditOrgPanel({
       ) : (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Organisation name <span className="text-destructive">*</span></label>
-            <input value={name} onChange={e => setName(e.target.value)}
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+            <label htmlFor="editorgpanel-organisation-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Organisation name <span className="text-destructive">*</span></label>
+            <input id="editorgpanel-organisation-name" value={name} onChange={e => setName(e.target.value)}
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
           </div>
           {isSuperAdmin && (
             <div>
@@ -101,15 +101,15 @@ export function EditOrgPanel({
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground/70 text-sm">/</span>
                 <input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                  className="flex-1 bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary font-mono" />
+                  className="flex-1 bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary font-mono" />
               </div>
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Logo URL</label>
-            <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
+            <label htmlFor="editorgpanel-logo-url" className="block text-xs font-medium text-muted-foreground mb-1.5">Logo URL</label>
+            <input id="editorgpanel-logo-url" value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
               placeholder="https://example.com/logo.png"
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
           </div>
           {error && <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">

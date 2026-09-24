@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Brain, MailCheck, ArrowLeft } from "lucide-react";
+import { MailCheck, ArrowLeft } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 /**
  * /login/forgot — request a password reset link.
@@ -37,9 +38,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
-            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-          </div>
+          <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Reset your password</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Enter your email — we&apos;ll send a secure one-time link.
@@ -67,15 +66,15 @@ export default function ForgotPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
-                <input
+                <label htmlFor="page-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
+                <input id="page-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoFocus
                   placeholder="you@company.com"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               {error && (

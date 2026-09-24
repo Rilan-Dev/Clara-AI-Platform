@@ -186,7 +186,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-green-500/60" />
                 </div>
                 <span className="text-xs text-muted-foreground ml-2 font-mono">clara — insurance-assistant</span>
-                <div className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400/60">
+                <div className="ml-auto flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400/60">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
                   Connected
                 </div>
@@ -338,7 +338,7 @@ export default function LandingPage() {
                     }`}
                 >
                   {plan.id === "pro" && (
-                    <div className="text-[10px] font-bold text-primary mb-2 uppercase tracking-wider">Most Popular</div>
+                    <div className="text-[11px] font-bold text-primary mb-2 uppercase tracking-wider">Most Popular</div>
                   )}
                   <div className="text-sm font-bold text-primary mb-1">{plan.name}</div>
                   <div className="text-3xl font-black text-foreground mb-3">

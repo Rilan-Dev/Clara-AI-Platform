@@ -82,8 +82,8 @@ export default function DocsSdkScreen() {
               <div key={r.attr} className={`flex flex-col gap-2 px-4 py-2.5 text-xs sm:flex-row sm:items-start sm:gap-3 ${i % 2 === 0 ? "bg-muted/40" : ""}`}>
                 <code className="text-primary font-mono shrink-0 sm:w-44">{r.attr}</code>
                 {r.required
-                  ? <span className="text-destructive shrink-0 text-[10px] font-bold uppercase sm:w-16">required</span>
-                  : <span className="text-muted-foreground/50 shrink-0 text-[10px] uppercase sm:w-16">optional</span>}
+                  ? <span className="text-destructive shrink-0 text-[11px] font-bold uppercase sm:w-16">required</span>
+                  : <span className="text-muted-foreground/80 shrink-0 text-[11px] uppercase sm:w-16">optional</span>}
                 <span className="text-muted-foreground min-w-0">{r.desc}</span>
               </div>
             ))}

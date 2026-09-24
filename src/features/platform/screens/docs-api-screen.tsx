@@ -159,8 +159,8 @@ export default function DocsApiScreen() {
                               <code className="text-primary font-mono shrink-0 sm:w-28">{p.name}</code>
                               <span className="text-muted-foreground/70 shrink-0 sm:w-16">{p.type}</span>
                               {p.required
-                                ? <span className="text-destructive shrink-0 text-[10px] font-bold uppercase">required</span>
-                                : <span className="text-muted-foreground/50 shrink-0 text-[10px] uppercase">optional</span>}
+                                ? <span className="text-destructive shrink-0 text-[11px] font-bold uppercase">required</span>
+                                : <span className="text-muted-foreground/80 shrink-0 text-[11px] uppercase">optional</span>}
                               <span className="text-muted-foreground leading-relaxed min-w-0">{p.desc}</span>
                             </div>
                           ))}

@@ -65,6 +65,8 @@ type AuditRow = {
   kb_id: string; kb_name: string | null; user_email: string | null;
   question: string; answer: string | null; surface: string; status: string;
   latency_ms: number | null; created_at: string;
+  /** PII was masked at write time; the original is revealable with a reason. */
+  redacted?: boolean;
 };
 
 type AuditData = {
@@ -304,7 +306,7 @@ export default function AnalyticsScreen() {
             <div className="text-xl font-black text-foreground mb-0.5">
               {loading ? <div className="h-6 w-16 bg-muted rounded animate-pulse" /> : c.value}
             </div>
-            <div className="text-xs text-muted-foreground/50">{c.sub}</div>
+            <div className="text-xs text-muted-foreground/80">{c.sub}</div>
           </div>
         ))}
       </div>
@@ -374,7 +376,7 @@ export default function AnalyticsScreen() {
               <Activity className="w-4 h-4 text-violet-600" /> Query Volume Over Time
             </h3>
             {loading || !queryData?.timeSeries.length ? (
-              <div className="h-52 flex items-center justify-center text-muted-foreground/50 text-sm">
+              <div className="h-52 flex items-center justify-center text-muted-foreground/80 text-sm">
                 {loading ? "Loading chart…" : "No data for this period"}
               </div>
             ) : (
@@ -409,7 +411,7 @@ export default function AnalyticsScreen() {
               {loading ? (
                 <div className="p-5 space-y-3">{Array(5).fill(0).map((_,i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}</div>
               ) : !queryData?.topQueries.length ? (
-                <div className="px-5 py-12 text-center text-muted-foreground/50 text-sm">No queries in this period</div>
+                <div className="px-5 py-12 text-center text-muted-foreground/80 text-sm">No queries in this period</div>
               ) : (
                 <div className="divide-y divide-border/70">
                   {queryData.topQueries.map((q, i) => {
@@ -420,13 +422,13 @@ export default function AnalyticsScreen() {
                           <span className="text-sm text-foreground/80 truncate flex-1">&quot;{q.query_text}&quot;</span>
                           <div className="text-right shrink-0">
                             <span className="text-sm font-bold text-primary">{q.count}</span>
-                            {q.avg_latency && <span className="text-xs text-muted-foreground/50 ml-2">{q.avg_latency}ms</span>}
+                            {q.avg_latency && <span className="text-xs text-muted-foreground/80 ml-2">{q.avg_latency}ms</span>}
                           </div>
                         </div>
                         <div className="h-1 bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-primary/50 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                        {q.orgs > 1 && <span className="text-xs text-muted-foreground/50">{q.orgs} orgs</span>}
+                        {q.orgs > 1 && <span className="text-xs text-muted-foreground/80">{q.orgs} orgs</span>}
                       </div>
                     );
                   })}
@@ -440,7 +442,7 @@ export default function AnalyticsScreen() {
                 <Clock className="w-4 h-4 text-amber-600" /> Hourly Activity Pattern
               </h3>
               {loading || !queryData?.hourlyDist.length ? (
-                <div className="h-52 flex items-center justify-center text-muted-foreground/50 text-sm">{loading ? "Loading…" : "No data"}</div>
+                <div className="h-52 flex items-center justify-center text-muted-foreground/80 text-sm">{loading ? "Loading…" : "No data"}</div>
               ) : (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={queryData.hourlyDist} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -484,7 +486,7 @@ export default function AnalyticsScreen() {
               <TrendingUp className="w-4 h-4 text-emerald-600" /> MRR Trend
             </h3>
             {loading || !revenueData?.mrrTrend.length ? (
-              <div className="h-52 flex items-center justify-center text-muted-foreground/50 text-sm">{loading ? "Loading…" : "No revenue data"}</div>
+              <div className="h-52 flex items-center justify-center text-muted-foreground/80 text-sm">{loading ? "Loading…" : "No revenue data"}</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={revenueData.mrrTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -536,7 +538,7 @@ export default function AnalyticsScreen() {
                 <ArrowUpRight className="w-4 h-4 text-sky-600" /> Payment Events
               </h3>
               {loading || !revenueData?.billingTimeline.length ? (
-                <div className="h-44 flex items-center justify-center text-muted-foreground/50 text-sm">{loading ? "Loading…" : "No payment events in period"}</div>
+                <div className="h-44 flex items-center justify-center text-muted-foreground/80 text-sm">{loading ? "Loading…" : "No payment events in period"}</div>
               ) : (
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={revenueData.billingTimeline} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -565,7 +567,7 @@ export default function AnalyticsScreen() {
             {loading ? (
               <div className="space-y-2">{Array(4).fill(0).map((_,i) => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}</div>
             ) : !usageData?.topKbs.length ? (
-              <div className="py-8 text-center text-muted-foreground/50 text-sm">No KB activity in this period</div>
+              <div className="py-8 text-center text-muted-foreground/80 text-sm">No KB activity in this period</div>
             ) : (
               <div className="grid md:grid-cols-2 gap-3">
                 {usageData.topKbs.map(kb => {
@@ -579,7 +581,7 @@ export default function AnalyticsScreen() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-bold text-primary">{kb.query_count.toLocaleString()}</div>
-                          {kb.avg_latency && <div className="text-xs text-muted-foreground/50">{kb.avg_latency}ms avg</div>}
+                          {kb.avg_latency && <div className="text-xs text-muted-foreground/80">{kb.avg_latency}ms avg</div>}
                         </div>
                       </div>
                       <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -622,7 +624,7 @@ export default function AnalyticsScreen() {
                         <tr key={org.org_id} className="hover:bg-muted/50 transition-colors">
                           <td className="px-4 py-3">
                             <div className="text-sm font-medium text-foreground">{org.org_name}</div>
-                            <div className="text-xs text-muted-foreground/50 font-mono">{org.org_slug}</div>
+                            <div className="text-xs text-muted-foreground/80 font-mono">{org.org_slug}</div>
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
@@ -641,7 +643,7 @@ export default function AnalyticsScreen() {
                 </tbody>
               </table>
               {!loading && !usageData?.orgUsage.length && (
-                <div className="px-5 py-12 text-center text-muted-foreground/50 text-sm">No usage data found</div>
+                <div className="px-5 py-12 text-center text-muted-foreground/80 text-sm">No usage data found</div>
               )}
             </div>
 
@@ -659,7 +661,7 @@ export default function AnalyticsScreen() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{org.org_name}</p>
-                          <p className="text-[11px] text-muted-foreground/50 font-mono truncate">{org.org_slug}</p>
+                          <p className="text-[11px] text-muted-foreground/80 font-mono truncate">{org.org_slug}</p>
                         </div>
                         <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium capitalize"
                           style={{ backgroundColor: `${PLAN_COLOR[org.plan_id] ?? "#6366f1"}20`, color: PLAN_COLOR[org.plan_id] ?? "#6366f1" }}>
@@ -678,14 +680,14 @@ export default function AnalyticsScreen() {
                         ].map(([label, value]) => (
                           <div key={label as string} className="rounded-lg bg-muted/50 px-2 py-1.5 text-center">
                             <div className="text-[13px] font-semibold text-foreground truncate">{value}</div>
-                            <div className="text-[10px] text-muted-foreground/70">{label}</div>
+                            <div className="text-[11px] text-muted-foreground/70">{label}</div>
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
               {!loading && !usageData?.orgUsage.length && (
-                <div className="px-5 py-12 text-center text-muted-foreground/50 text-sm">No usage data found</div>
+                <div className="px-5 py-12 text-center text-muted-foreground/80 text-sm">No usage data found</div>
               )}
             </div>
           </div>
@@ -704,7 +706,7 @@ export default function AnalyticsScreen() {
                 value={auditSearch}
                 onChange={(e) => setAuditSearch(e.target.value)}
                 placeholder="Search questions, answers, knowledge bases…"
-                className="w-full bg-muted/50 border border-border rounded-xl pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/40 transition-colors"
+                className="w-full bg-muted/50 border border-border rounded-xl pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 outline-none focus:border-primary/40 transition-colors"
               />
             </div>
             <select
@@ -791,9 +793,9 @@ export default function AnalyticsScreen() {
               </div>
             ) : !auditData?.rows.length ? (
               <div className="px-5 py-16 text-center">
-                <FileSearch className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <FileSearch className="w-10 h-10 text-muted-foreground/80 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground/70">No logged conversations in this period</p>
-                <p className="text-xs text-muted-foreground/50 mt-1">
+                <p className="text-xs text-muted-foreground/80 mt-1">
                   Every workspace, widget and voice question is recorded here with its answer.
                 </p>
               </div>
@@ -825,28 +827,34 @@ export default function AnalyticsScreen() {
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                              {row.redacted && (
+                                <span className="text-[11px] px-1.5 py-0.5 rounded border bg-muted text-muted-foreground border-border" title="Personal data in this conversation was redacted">
+                                  PII redacted
+                                </span>
+                              )}
+                              <span className={`text-[11px] px-1.5 py-0.5 rounded border ${surface.cls}`}>{surface.label}</span>
+                              <span className={`text-[11px] px-1.5 py-0.5 rounded border ${
                                 row.status === "ok" ? "bg-emerald-500/10 text-emerald-600 border-emerald-600/20"
                                 : row.status === "error" ? "bg-destructive/10 text-destructive border-destructive/20"
                                 : "bg-amber-500/10 text-amber-600 border-amber-600/20"}`}>
                                 {row.status}
                               </span>
                             </div>
-                            <span className="text-[10px] text-muted-foreground/50">
+                            <span className="text-[11px] text-muted-foreground/80">
                               {new Date(row.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                             </span>
                           </div>
                         </div>
                       </button>
                       {open && (
-                        <div className="mt-3 pt-3 border-t border-border/70 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground/70">
-                          <span>Org: <span className="text-muted-foreground">{row.org_name ?? "—"}</span></span>
-                          <span>KB: <span className="text-muted-foreground">{row.kb_name ?? "—"}</span></span>
-                          <span>User: <span className="text-muted-foreground">{row.user_email ?? "anonymous visitor"}</span></span>
-                          {row.latency_ms != null && <span>Latency: <span className="text-muted-foreground">{row.latency_ms}ms</span></span>}
+                        <div className="mt-3 pt-3 border-t border-border/70 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>Org: <span className="text-foreground/80">{row.org_name ?? "—"}</span></span>
+                          <span>KB: <span className="text-foreground/80">{row.kb_name ?? "—"}</span></span>
+                          <span>User: <span className="text-foreground/80">{row.user_email ?? "anonymous visitor"}</span></span>
+                          {row.latency_ms != null && <span>Latency: <span className="text-foreground/80">{row.latency_ms}ms</span></span>}
                         </div>
                       )}
+                      {open && row.redacted && <AuditRevealPanel eventId={row.id} />}
                     </div>
                   );
                 })}
@@ -870,5 +878,78 @@ export default function AnalyticsScreen() {
       )}
 
     </div>
+  );
+}
+
+// ── Justified PII reveal ───────────────────────────────────────────────────────
+// The reveal is itself written to the audit log with the reason given, so
+// every look at raw personal data is accountable.
+function AuditRevealPanel({ eventId }: { eventId: string }) {
+  const [reason, setReason]     = useState("");
+  const [busy, setBusy]         = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<{ queryText: string; answerText: string | null } | null>(null);
+  const reasonId = `reveal-reason-${eventId}`;
+
+  async function reveal(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(apiUrl("/api/analytics/audit/reveal"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ eventId, justification: reason.trim() }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; queryText?: string; answerText?: string | null };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setRevealed({ queryText: data.queryText ?? "", answerText: data.answerText ?? null });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (revealed) {
+    return (
+      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">
+          Original content — this reveal has been recorded in the audit log.
+        </p>
+        <p className="text-foreground/90 whitespace-pre-wrap"><span className="font-medium text-muted-foreground mr-1.5">Q:</span>{revealed.queryText}</p>
+        {revealed.answerText && (
+          <p className="mt-2 text-foreground/80 whitespace-pre-wrap"><span className="font-medium text-muted-foreground mr-1.5">A:</span>{revealed.answerText}</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={reveal} className="mt-3 rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+      <label htmlFor={reasonId} className="block text-xs font-medium text-foreground">
+        Reveal redacted personal data
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Give a reason (at least 10 characters). It is stored with your name in the audit log.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          id={reasonId}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Customer support ticket #1234 requested their transcript"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        />
+        <button
+          type="submit"
+          disabled={busy || reason.trim().length < 10}
+          className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {busy ? "Revealing…" : "Reveal"}
+        </button>
+      </div>
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    </form>
   );
 }
