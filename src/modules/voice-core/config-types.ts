@@ -175,7 +175,7 @@ export interface ElevenLabsSessionPayload {
  * browser drives the pipeline through platform endpoints.
  */
 export interface SarvamSessionPayload {
-  mode: "pipeline";
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;
