@@ -397,9 +397,13 @@ export default function AgentPublishScreen() {
           <h2 className="text-sm font-semibold text-foreground">Deployments</h2>
           <p className="mt-1 text-xs text-muted-foreground/70">
             Rollback re-publishes a previous immutable version — nothing is deleted. Full version history lives in{" "}
-            <a href={`/orgs/${context?.agent.orgId ?? ""}/agents/${agentId}/versions`} className="font-medium text-primary hover:text-primary/80">
-              Versions &amp; branches
-            </a>
+            {context?.agent.orgId ? (
+              <a href={`/orgs/${context.agent.orgId}/agents/${agentId}/versions`} className="font-medium text-primary hover:text-primary/80">
+                Versions &amp; branches
+              </a>
+            ) : (
+              <span className="font-medium text-muted-foreground">Versions &amp; branches</span>
+            )}
             .
           </p>
           {loading ? (
