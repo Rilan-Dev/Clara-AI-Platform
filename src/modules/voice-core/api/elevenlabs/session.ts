@@ -165,9 +165,9 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         ...((realtimeEnabled) && orgId
           ? {
               realtime: {
-                endpoint: "/api/voice/elevenlabs/realtime",
+                endpoint: "/api/voice-realtime?channel=elevenlabs-stt",
                 token: mintElevenLabsRealtimeToken({ kbId, orgId }),
-                ttsEndpoint: "/api/voice/elevenlabs/tts-realtime",
+                ttsEndpoint: "/api/voice-realtime?channel=elevenlabs-tts",
                 sampleRate: 16_000,
                 encoding: "linear16",
                 model: getElevenLabsRealtimeSttModel(),

@@ -30,7 +30,7 @@ const BASE_DIRECTIVES: string[] = [
   "img-src 'self' https: data: blob:",
   "connect-src 'self' wss: https://*.up.railway.app https://api.openai.com https://realtime.openai.com https://*.vercel.app https://api.razorpay.com https://lumberjack.razorpay.com https://vercel.live",
   "media-src 'self' blob:",
-  "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com",
+  "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://vercel.live",
 ];
 
 const MODE_B_CONNECT_ORIGINS = " wss://api.elevenlabs.io https://api.elevenlabs.io";
