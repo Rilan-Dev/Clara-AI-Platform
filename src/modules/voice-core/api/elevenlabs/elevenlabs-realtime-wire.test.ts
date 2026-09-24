@@ -134,7 +134,7 @@ describe("ttsStreamInputUrl + BOS — streaming TTS contract (Task 6.3)", () => 
     });
     expect(url).toBe(
       "https://api.elevenlabs.io/v1/text-to-speech/Xb7hH8MSUJpSbSDYk0k2/stream-input" +
-        "?model_id=eleven_flash_v2_5&output_format=pcm_16000",
+        "?model_id=eleven_flash_v2_5&output_format=pcm_16000&inactivity_timeout=180",
     );
   });
 
