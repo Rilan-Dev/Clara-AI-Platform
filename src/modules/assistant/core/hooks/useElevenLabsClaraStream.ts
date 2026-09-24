@@ -49,7 +49,7 @@ import { GenerationPlaybackQueue } from "../voice/generation-playback";
 const REALTIME_FLUSH_MS = 100;
 
 type SessionPayload = {
-  mode: "pipeline";
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;
