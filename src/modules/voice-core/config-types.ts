@@ -137,7 +137,7 @@ export interface ElevenLabsSessionPayload {
     maxAudioSeconds: number;
     /**
      * Mode C (Clara realtime, plan Task 6.2): Scribe realtime relay —
-     * present when ELEVENLABS_REALTIME_ENABLED is on for the platform.
+     * present when platform-admin realtime setting is on for the platform.
      * Its presence tells useElevenLabsClaraStream to run the realtime path
      * instead of the Mode A utterance pipeline.
      */
