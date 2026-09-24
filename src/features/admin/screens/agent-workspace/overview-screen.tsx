@@ -243,7 +243,11 @@ export default function AgentOverviewScreen() {
   const activeKbs = kbs.filter((kb) => kb.status === "active").length;
   const archivedKbs = kbs.length - activeKbs;
 
-  const agentBase = `/orgs/${orgId}/agents/${agentId}`;
+  // The provider derives orgId from the URL, but during initial hydration it
+  // can briefly be empty. Prefer the authoritative agent context and never
+  // emit a malformed /orgs/agents/:agentId URL.
+  const resolvedOrgId = orgId || context?.agent.orgId || "";
+  const agentBase = resolvedOrgId ? `/orgs/${resolvedOrgId}/agents/${agentId}` : "/orgs";
   const configHref = `${agentBase}/config`;
   const knowledgeHref = `${agentBase}/knowledge`;
   const versionsHref = `${agentBase}/versions`;
