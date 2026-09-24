@@ -175,8 +175,9 @@ export function useVoiceClient(options: VoiceClientOptions) {
         await elevenlabsConvAI.connect();
         return;
       }
-      // Mode C Clara realtime; falls back to the Mode A pipeline when the
-      // session bootstrap refuses (flag raced off / no realtime descriptor).
+      // Mode C Clara realtime is an explicit transport choice. If bootstrap
+      // refuses it, surface the error from the hook rather than downgrading
+      // to the Mode A batch pipeline.
       if (next.mode === "speech-engine") {
         // An explicit ElevenLabs realtime selection is a hard transport
         // choice. Do not fall back to batch STT/chat/TTS, otherwise the UI
