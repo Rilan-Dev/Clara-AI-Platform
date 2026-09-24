@@ -117,6 +117,13 @@ export async function patchProviderHandler(req: NextRequest, providerId: string)
     if (typeof body.enabled === "boolean") {
       await setProviderEnabled(providerId, body.enabled, auth.user.id);
     }
+    if (providerId === "elevenlabs" && typeof body.realtimeEnabled === "boolean") {
+      await setPlatformEnvSetting(
+        "ELEVENLABS_REALTIME_ENABLED",
+        body.realtimeEnabled ? "true" : "false",
+        auth.user.id,
+      );
+    }
     if (body.monthlyBudgetUsd !== undefined || body.warningThresholdPct !== undefined) {
       const monthlyBudgetUsd =
         body.monthlyBudgetUsd === null
