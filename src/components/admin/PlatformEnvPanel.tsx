@@ -137,6 +137,10 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     isSecret: true,
     helperLink: { label: "Setup guide →", href: "https://github.com/Rilan-Dev/Clara-AI-Platform/blob/Vite-Converted/Doc/MODE_B_AND_WEBHOOK_SECRETS_SETUP.md" },
   },
+  ELEVENLABS_REALTIME_ENABLED: {
+    label: "Enable ElevenLabs realtime voice",
+    hint: "Platform-wide switch for Clara-controlled ElevenLabs realtime voice. Prefer the dedicated toggle in the ElevenLabs AI Platform half-canvas.",
+  },
   ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT: {
     label: "Credit alert threshold (%)",
     hint: "Email super admins when this percent of the monthly ElevenLabs character budget is consumed.",
@@ -319,6 +323,7 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
   ai: [
     "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
     "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
+    , "ELEVENLABS_REALTIME_ENABLED",
     "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
     "ELEVENLABS_DEFAULT_VOICE_ID",
     "SARVAM_TIMEOUT_MS", "SARVAM_BETA_MODELS_ENABLED", "SARVAM_DEFAULT_SPEAKER",
