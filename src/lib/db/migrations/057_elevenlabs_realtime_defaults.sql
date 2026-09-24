@@ -1,4 +1,4 @@
--- 046_elevenlabs_realtime_defaults.sql
+-- 057_elevenlabs_realtime_defaults.sql
 -- ElevenLabs current-model migration and independent realtime defaults.
 -- Keeps Voice Chat and Realtime Voice settings separate while removing
 -- deprecated Scribe v1 defaults from the active configuration surface.
