@@ -47,7 +47,9 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  queryOne: vi.fn(async () => ({ enabled: true })),
+  queryOne: vi.fn(async (sql: string) =>
+    String(sql).includes("platform_env_settings") ? { value: "true" } : { enabled: true },
+  ),
   query: vi.fn(async (sql: string) => {
     if (String(sql).includes("SELECT a.org_id")) return [{ org_id: ORG_ID }];
     return [];
@@ -248,7 +250,6 @@ beforeEach(() => {
   process.env.GEMINI_API_KEY = "gem-switch";
   process.env.ELEVENLABS_ENABLED = "true";
   process.env.ELEVENLABS_API_KEY = "el-switch";
-  process.env.ELEVENLABS_REALTIME_ENABLED = "true";
   process.env.SARVAM_ENABLED = "true";
   process.env.SARVAM_API_KEY = "sv-switch";
   process.env.SARVAM_REALTIME_STT_ENABLED = "true";

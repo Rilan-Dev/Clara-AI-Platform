@@ -7,8 +7,8 @@
  * ONLY platform-level on/off control; the API key is a credential
  * prerequisite — BOTH must be present for the provider to be available.
  *
- * Also pins isElevenLabsRealtimeEnabled: the registry gate AND the explicit
- * realtime feature flag.
+ * Also pins isElevenLabsRealtimeEnabled: the registry gate AND the
+ * DB-backed platform realtime setting.
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
@@ -28,7 +28,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   delete process.env.ELEVENLABS_API_KEY;
-  delete process.env.ELEVENLABS_REALTIME_ENABLED;
   queryOneMock.mockResolvedValue(null as never);
 });
 
@@ -72,19 +71,22 @@ describe("isElevenLabsEnabled", () => {
 });
 
 describe("isElevenLabsRealtimeEnabled", () => {
-  it("requires the provider gate AND the realtime feature flag", async () => {
+  it("requires the provider gate AND the platform realtime setting", async () => {
     registryRow(true);
     vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
 
-    await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false); // flag off
-    vi.stubEnv("ELEVENLABS_REALTIME_ENABLED", "true");
+    queryOneMock.mockResolvedValueOnce({ enabled: true } as never)
+      .mockResolvedValueOnce({ value: "false" } as never);
+    await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
+
+    queryOneMock.mockResolvedValueOnce({ enabled: true } as never)
+      .mockResolvedValueOnce({ value: "true" } as never);
     await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(true);
   });
 
-  it("stays off when the provider gate is off, flag or not", async () => {
+  it("stays off when the provider gate is off", async () => {
     registryRow(false);
     vi.stubEnv("ELEVENLABS_API_KEY", "sk_test_key");
-    vi.stubEnv("ELEVENLABS_REALTIME_ENABLED", "true");
     await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
   });
 });

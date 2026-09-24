@@ -45,7 +45,9 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => [{ org_id: ORG_ID }]),
   // AI provider registry row — the platform-level on/off control.
-  queryOne: vi.fn(async () => ({ enabled: true })),
+  queryOne: vi.fn(async (sql: string) =>
+    String(sql).includes("platform_env_settings") ? { value: "true" } : { enabled: true },
+  ),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: vi.fn(async () => {}) }));
@@ -131,7 +133,6 @@ beforeEach(() => {
   process.env.GEMINI_API_KEY = VENDOR_KEYS.gemini;
   process.env.ELEVENLABS_ENABLED = "true";
   process.env.ELEVENLABS_API_KEY = VENDOR_KEYS.elevenlabs;
-  process.env.ELEVENLABS_REALTIME_ENABLED = "true";
   process.env.SARVAM_ENABLED = "true";
   process.env.SARVAM_API_KEY = VENDOR_KEYS.sarvam;
   process.env.SARVAM_REALTIME_STT_ENABLED = "true";
@@ -163,7 +164,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const key of ["AUTH_SECRET", "OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "ELEVENLABS_REALTIME_ENABLED", "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_REALTIME_STT_ENABLED"]) {
+  for (const key of ["AUTH_SECRET", "OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_REALTIME_STT_ENABLED"]) {
     delete process.env[key];
   }
 });

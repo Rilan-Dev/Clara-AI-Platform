@@ -14,6 +14,13 @@ export async function isElevenLabsEnabled(): Promise<boolean> {
 }
 
 export async function isElevenLabsRealtimeEnabled(): Promise<boolean> {
-  return (await isElevenLabsEnabled())
-    && (process.env.ELEVENLABS_REALTIME_ENABLED ?? "false").toLowerCase() === "true";
+  if (!(await isElevenLabsEnabled())) return false;
+  // Realtime enablement is an operator setting, not a deployment-time env gate.
+  // platform_env_settings is runtime-loaded and can be changed from the
+  // Platform Admin → AI Platform → ElevenLabs half-canvas without redeploying.
+  const row = await queryOne<{ value: string }>(
+    "SELECT value FROM platform_env_settings WHERE key = $1 LIMIT 1",
+    ["ELEVENLABS_REALTIME_ENABLED"],
+  );
+  return (row?.value ?? "").trim().toLowerCase() === "true";
 }

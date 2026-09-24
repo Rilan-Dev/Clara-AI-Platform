@@ -471,10 +471,12 @@ function ProviderDetailDrawer({
   const [message, setMessage] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [enabled, setEnabled] = useState(provider.enabled);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(provider.realtimeEnabled);
   const [budget, setBudget] = useState(provider.monthlyBudgetUsd?.toString() ?? "");
 
   useEffect(() => {
     setEnabled(provider.enabled);
+    setRealtimeEnabled(provider.realtimeEnabled);
     setBudget(provider.monthlyBudgetUsd?.toString() ?? "");
   }, [provider]);
 
@@ -576,6 +578,22 @@ function ProviderDetailDrawer({
     try {
       await patchProvider(provider.providerId, { enabled: !enabled });
       setEnabled(!enabled);
+      onChanged();
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleRealtimeEnabled = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const next = !realtimeEnabled;
+      await patchProvider(provider.providerId, { realtimeEnabled: next });
+      setRealtimeEnabled(next);
+      setMessage(next ? "ElevenLabs realtime voice enabled." : "ElevenLabs realtime voice disabled.");
       onChanged();
     } catch (err) {
       setMessage((err as Error).message);
@@ -720,6 +738,32 @@ function ProviderDetailDrawer({
                 {testing ? "Testing…" : "Test connection"}
               </WorkspaceButton>
             </div>
+            {provider.providerId === "elevenlabs" && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Clara Realtime Voice</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground/80">
+                      Controls the Clara-controlled ElevenLabs realtime transport independently from Voice Chat.
+                      Uses Scribe v2 Realtime for STT and Flash v2.5 streaming TTS; Clara keeps the LLM, RAG,
+                      memory and tools.
+                    </p>
+                  </div>
+                  <WorkspaceButton
+                    variant={realtimeEnabled ? "danger" : "primary"}
+                    onClick={toggleRealtimeEnabled}
+                    disabled={busy || !provider.configured || !enabled}
+                  >
+                    {realtimeEnabled ? "Disable realtime" : "Enable realtime"}
+                  </WorkspaceButton>
+                </div>
+                {!provider.configured && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Configure the ElevenLabs API key before enabling realtime voice.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

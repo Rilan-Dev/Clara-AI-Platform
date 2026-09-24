@@ -22,10 +22,16 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
   ),
 }));
 
+const realtimeState = vi.hoisted(() => ({ value: "false" }));
+
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => [{ id: "binding-1" }]),
-  // AI provider registry row — the platform-level on/off control.
-  queryOne: vi.fn(async () => ({ enabled: true })),
+  // Provider availability and the realtime operator setting are separate DB rows.
+  queryOne: vi.fn(async (sql: string) =>
+    String(sql).includes("platform_env_settings")
+      ? { value: realtimeState.value }
+      : { enabled: true },
+  ),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({
@@ -77,6 +83,7 @@ function setEnv(name: string, value: string | undefined) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  realtimeState.value = "false";
   setEnv("ELEVENLABS_ENABLED", "true");
   setEnv("ELEVENLABS_API_KEY", "el-test-key");
 });
@@ -92,7 +99,7 @@ afterEach(() => {
 describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
   it("standard + elevenlabs (no extra flags) → Mode A pipeline (unchanged)", async () => {
     setEnv("ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "false");
-    setEnv("ELEVENLABS_REALTIME_ENABLED", "false");
+    realtimeState.value = "false";
     const response = await postVoiceProvider(providerRequest());
     expect(response.status).toBe(200);
     const payload = await response.json();
@@ -110,7 +117,7 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
 
   it("realtime + elevenlabs + clara-stream → Mode C clara-stream (flag on, no binding)", async () => {
     setEnv("ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "false");
-    setEnv("ELEVENLABS_REALTIME_ENABLED", "true");
+    realtimeState.value = "true";
     const response = await postVoiceProvider(providerRequest());
     const payload = await response.json();
     expect(payload.mode).toBe("clara-stream");
@@ -126,7 +133,7 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
 
   it("Mode C stays DARK without ELEVENLABS_REALTIME_ENABLED even with the key on", async () => {
     setEnv("ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "false");
-    setEnv("ELEVENLABS_REALTIME_ENABLED", undefined);
+    realtimeState.value = "false";
     const response = await postVoiceProvider(providerRequest());
     const payload = await response.json();
     expect(payload.mode).toBe("pipeline");
@@ -153,14 +160,12 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
   });
 
   it("Mode C requires the provider registry gate AND the realtime flag", async () => {
-    // Registry row is enabled (mocked @/lib/db.queryOne) and the key is set
-    // in beforeEach — so the flag alone decides:
-    setEnv("ELEVENLABS_REALTIME_ENABLED", "true");
+    realtimeState.value = "true";
     await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(true);
-    setEnv("ELEVENLABS_REALTIME_ENABLED", undefined);
+    realtimeState.value = "false";
     await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
     // Credential prerequisite — key missing keeps the gate closed:
-    setEnv("ELEVENLABS_REALTIME_ENABLED", "true");
+    realtimeState.value = "true";
     setEnv("ELEVENLABS_API_KEY", undefined);
     await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
   });
@@ -193,7 +198,7 @@ describe("ElevenLabs tri-mode selector (plan Task 6.1)", () => {
 
 describe("Phase 13 rollout gates — realtime flags stay DARK by default", () => {
   it("ELEVENLABS_REALTIME_ENABLED defaults OFF (rollback is configuration-only)", async () => {
-    setEnv("ELEVENLABS_REALTIME_ENABLED", undefined);
+    realtimeState.value = "false";
     await expect(isElevenLabsRealtimeEnabled()).resolves.toBe(false);
   });
 });

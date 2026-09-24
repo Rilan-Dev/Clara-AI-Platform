@@ -249,9 +249,19 @@ async function syncElevenLabs(): Promise<void> {
     if (!body.has_more || !nextPageToken) break;
   }
 
-  await upsertItems([...modelItems, ...voiceItems]);
+  // The same ElevenLabs workspace voices are valid for both turn-based
+  // Voice Chat and Clara-controlled Realtime Voice. Previously we only
+  // catalogued them under voice_chat, so the Realtime Voice half-canvas saw
+  // zero voices even though /v2/voices returned them successfully.
+  const realtimeVoiceItems = voiceItems.map((item) => ({
+    ...item,
+    capability: "realtime_voice" as const,
+  }));
+
+  await upsertItems([...modelItems, ...voiceItems, ...realtimeVoiceItems]);
   await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.map((item) => item.modelId)));
   await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
 }
 
 async function runSync(): Promise<void> {
