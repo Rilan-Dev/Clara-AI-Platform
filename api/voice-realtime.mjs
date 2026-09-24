@@ -19,7 +19,32 @@ const server = http.createServer((_req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 
-function handlerFor(pathname) {
+function handlerFor(pathname, searchParams) {
+  // Vercel WebSocket Functions expose the exact function pathname
+  // (/api/voice-realtime). The legacy rewrite targets below remain supported
+  // for long-running Node deployments, while Vercel uses a channel query.
+  if (pathname === "/api/voice-realtime") {
+    switch (searchParams?.get("channel")) {
+      case "embed":
+        return handleVoiceConnection;
+      case "twilio":
+        return handleTwilioStream;
+      case "vonage":
+        return handleVonageStream;
+      case "sarvam":
+        return handleSarvamRealtimeConnection;
+      case "sarvam-tts":
+        return handleSarvamTtsRealtimeConnection;
+      case "elevenlabs-stt":
+        return handleElevenLabsRealtimeStt;
+      case "elevenlabs-tts":
+        return handleElevenLabsRealtimeTts;
+      case "gemini":
+        return handleGeminiRealtimeConnection;
+      default:
+        return null;
+    }
+  }
   switch (pathname) {
     case "/api/voice-realtime/embed":
       return handleVoiceConnection;
@@ -43,8 +68,8 @@ function handlerFor(pathname) {
 }
 
 wss.on("connection", (ws, req) => {
-  const pathname = new URL(req.url ?? "/", "http://vercel").pathname;
-  const handler = handlerFor(pathname);
+  const parsed = new URL(req.url ?? "/", "http://vercel");
+  const handler = handlerFor(parsed.pathname, parsed.searchParams);
 
   if (!handler) {
     ws.close(1008, "Unsupported realtime endpoint");
@@ -59,13 +84,14 @@ wss.on("connection", (ws, req) => {
 
 server.on("upgrade", (req, socket, head) => {
   try {
-    const pathname = new URL(req.url ?? "/", "http://vercel").pathname;
+    const parsed = new URL(req.url ?? "/", "http://vercel");
+    const pathname = parsed.pathname;
 
     // ElevenLabs Speech Engine attaches its own upgrade listener. It must see
     // this path before the generic dispatcher claims the socket.
     if (pathname === "/api/voice-realtime/speech-engine") return;
 
-    if (!handlerFor(pathname)) {
+    if (!handlerFor(pathname, parsed.searchParams)) {
       socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
       socket.destroy();
       return;
