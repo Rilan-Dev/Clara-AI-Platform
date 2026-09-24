@@ -71,6 +71,8 @@ export interface PlatformAIProvider {
   description: string | null;
   /** EFFECTIVE enablement (admin switch AND operational kill-switch). */
   enabled: boolean;
+  /** ElevenLabs-only realtime transport switch controlled from Platform Admin. */
+  realtimeEnabled: boolean;
   /** "kill_switch" when the admin switch is on but an env kill-switch is off. */
   disabledReason: "kill_switch" | null;
   configured: boolean;
