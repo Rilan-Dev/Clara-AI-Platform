@@ -80,11 +80,11 @@
     },
     {
       "source": "/api/voice/elevenlabs/realtime",
-      "destination": "/api/voice-realtime/elevenlabs-stt"
+      "destination": "/api/voice-realtime?channel=elevenlabs-stt"
     },
     {
       "source": "/api/voice/elevenlabs/tts-realtime",
-      "destination": "/api/voice-realtime/elevenlabs-tts"
+      "destination": "/api/voice-realtime?channel=elevenlabs-tts"
     },
     {
       "source": "/api/voice/gemini/realtime",
