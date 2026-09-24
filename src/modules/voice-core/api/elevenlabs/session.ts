@@ -36,6 +36,7 @@ import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../reso
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { mintElevenLabsRealtimeToken } from "./realtime-auth";
 import { embedVoiceGuard } from "./embed-auth";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import type { ElevenLabsSessionPayload } from "../../config-types";
 
 export async function postElevenLabsSession(request: NextRequest): Promise<NextResponse> {
@@ -63,7 +64,17 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     // requests keep the historical path.
     const embedDenied = await embedVoiceGuard(request, kbId);
     if (embedDenied) return embedDenied;
+
+    // Platform voice sessions must be tenant-authenticated. Public embed
+    // sessions are the only exception and must carry a scoped clr_ API key.
+    // Without this boundary, knowing a KB UUID would be enough to mint a
+    // realtime capability token and consume ElevenLabs STT/TTS against that
+    // organisation's plan.
     const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
+    if (!isEmbedSession) {
+      const auth = await requireAuth(request);
+      await requireKbPermission(auth, kbId, "kb:read");
+    }
 
     const orgRows = await dbQuery<{ org_id: string }>(
       `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
