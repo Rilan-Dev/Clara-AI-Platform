@@ -34,6 +34,7 @@ import { resolveAvailableAIOptions } from "../core/resolver";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getProviderApiKey } from "@/modules/ai-core/resolve";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { setPlatformEnvSetting } from "@/modules/phone/core/db";
 import type { AICapability, AIModelKind } from "../core/types";
 
 function errorResponse(message: string, status: number, code?: string): NextResponse {
