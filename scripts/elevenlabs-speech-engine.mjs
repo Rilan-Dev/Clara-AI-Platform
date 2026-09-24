@@ -110,11 +110,19 @@ async function* readClaraStream(response, signal, telemetry = {}) {
 }
 
 export async function attachElevenLabsSpeechEngine(httpServer, path = "/api/voice/elevenlabs/speech-engine") {
-  const engineId = process.env.ELEVENLABS_SPEECH_ENGINE_ID;
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const engineId = process.env.ELEVENLABS_SPEECH_ENGINE_ID?.trim();
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const enabled = (process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED ?? "").toLowerCase() === "true";
 
+  // Speech Engine is optional. Stay quiet when it is simply switched off;
+  // only warn when someone turned it on (or set an ID) but it can't start.
+  if (!enabled && !engineId) {
+    console.info("[elevenlabs-speech-engine] off (enable it in Settings → Environment → ElevenLabs)");
+    return null;
+  }
   if (!engineId || !apiKey) {
-    console.warn("[elevenlabs-speech-engine] disabled: configure ELEVENLABS_SPEECH_ENGINE_ID and ELEVENLABS_API_KEY");
+    const missing = [!engineId && "Speech Engine ID", !apiKey && "ElevenLabs API key"].filter(Boolean).join(" and ");
+    console.warn(`[elevenlabs-speech-engine] enabled but not started: set the ${missing} in Settings → Environment → ElevenLabs`);
     return null;
   }
 
