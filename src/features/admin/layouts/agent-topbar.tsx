@@ -78,7 +78,7 @@ const SECTION_SEGMENTS: Record<string, string> = {
   config: "Agent",
   faq: "FAQ",
   knowledge: "Knowledge",
-  tools: "Capabilities",
+  tools: "Tools",
   versions: "Branches",
   publish: "Publish",
 };
@@ -155,8 +155,7 @@ export function AgentTopbarProvider({ children }: { children: ReactNode }) {
     const draftUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ agentId?: string; draftUpdatedAt?: string }>).detail;
       if (!agentId || detail?.agentId !== agentId || !detail.draftUpdatedAt) return;
-      const draftUpdatedAt = detail.draftUpdatedAt;
-      setContext((current) => current ? { ...current, draftUpdatedAt } : current);
+      setContext((current) => current ? { ...current, draftUpdatedAt: detail.draftUpdatedAt ?? null } : current);
     };
 
     window.addEventListener("agent-workspace:refresh", refresh);
@@ -230,7 +229,7 @@ export function TopbarContextLabel({ isAdmin }: { isAdmin: boolean }) {
         {agentName}
       </p>
       <p className="text-[11px] text-muted-foreground truncate leading-tight">
-        Agents <span className="mx-0.5 text-muted-foreground/80">·</span> {agentSectionLabel(pathname)}
+        Agents <span className="mx-0.5 text-muted-foreground/50">·</span> {agentSectionLabel(pathname)}
       </p>
     </div>
   );

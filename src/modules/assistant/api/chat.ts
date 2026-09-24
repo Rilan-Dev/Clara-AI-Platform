@@ -19,7 +19,6 @@ import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentT
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
 import { ensureMigrated } from "@/lib/db/migrate";
@@ -224,7 +223,8 @@ async function postChatKb(
   if (latest.role !== "user") throw new Error("The final message must come from the user.");
 
   // Realtime is a transport/surface concern, not a Sarvam-only feature.
-  // Declared before the parallel load so the cached title lookup can use it.
+  // Keep this flag local to the KB chat path so realtime retrieval/model
+  // budgets are applied consistently for every Clara brain provider.
   const realtimeVoice = body?.realtimeVoice === true;
 
   const [kb, config, resolved, documentTitles] = await Promise.all([
@@ -312,9 +312,13 @@ async function postChatKb(
           // Never inject a Sarvam model merely because the speech transport is
           // realtime (that broke OpenAI/Gemini brain + ElevenLabs realtime).
           chatModel:
+            // Realtime LLM is a brain setting, not a speech-provider setting.
+            // If no explicit realtime model is configured, keep the resolved
+            // brain chat model so OpenAI/Gemini/Sarvam all use a model valid
+            // for their own provider. Never inject a Sarvam model merely
+            // because this request is a realtime voice turn.
             resolved.realtimeModel ??
-            resolved.chatModel ??
-            getPlatformDefaultSarvamRealtimeLlmModel(),
+            resolved.chatModel,
         }
       : {}),
   };

@@ -421,6 +421,15 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
         setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done" } : t)));
         return;
       }
+
+      // A failed realtime turn must not leave its generation current or allow
+      // already-buffered TTS audio to continue speaking after the error.
+      coordinator.cancelCurrent("error");
+      interruptPlayback();
+      turnLatency?.mark("turn.complete");
+      emitLatencyTelemetry();
+      if (turnLatencyRef.current === turnLatency) turnLatencyRef.current = null;
+
       const message = (err as Error).message;
       setError(message);
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";

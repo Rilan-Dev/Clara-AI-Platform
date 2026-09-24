@@ -73,7 +73,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
-    const voiceResolution = await resolveVoiceConfig({
+    const voiceResolution = await resolveVoiceConfigCached({
       kbId: ctx.kbId,
       surface: "embed",
       brainConfig: resolved,

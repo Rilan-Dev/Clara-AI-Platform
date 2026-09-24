@@ -247,7 +247,7 @@ export function ConfigEditor({
         if (!cancelled) setVoiceCatalogLoading(false);
       });
     return () => { cancelled = true; };
-  }, [activeTab, variant]);
+  }, [activeTab, variant, providerVoiceCatalog]);
 
   const refreshVoiceCatalog = useCallback(async () => {
     setVoiceCatalogRefreshing(true);
