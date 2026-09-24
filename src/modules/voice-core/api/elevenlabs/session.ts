@@ -71,15 +71,22 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     // realtime capability token and consume ElevenLabs STT/TTS against that
     // organisation's plan.
     const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
+    let authorizedOrgId: string | null = null;
     if (!isEmbedSession) {
       const auth = await requireAuth(request);
-      await requireKbPermission(auth, kbId, "kb:read");
+      const access = await requireKbPermission(auth, kbId, "kb:read");
+      authorizedOrgId = access.orgId;
     }
 
-    const orgRows = await dbQuery<{ org_id: string }>(
-      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
-      [kbId],
-    );
+    // Public embed sessions are already KB-scoped by embedVoiceGuard. For
+    // authenticated platform sessions, requireKbPermission above also gives
+    // us the authoritative tenant id, avoiding a second KB→agent lookup.
+    const orgRows = authorizedOrgId
+      ? [{ org_id: authorizedOrgId }]
+      : await dbQuery<{ org_id: string }>(
+          `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
+          [kbId],
+        );
     const orgId = orgRows[0]?.org_id ?? null;
 
     // ── Same bucket as the other realtime providers ──
@@ -189,6 +196,10 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
 
     return NextResponse.json(payload);
   } catch (error) {
+    // RBAC helpers intentionally throw NextResponse to preserve the exact
+    // authentication/authorization status. Do not turn a 401/403/404 into
+    // an unrelated 500 at the session boundary.
+    if (error instanceof NextResponse) return error;
     console.error("[elevenlabs-session] post:", error);
     if (error instanceof VoiceConfigResolutionError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
