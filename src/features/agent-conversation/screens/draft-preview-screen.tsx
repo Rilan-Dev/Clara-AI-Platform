@@ -231,7 +231,10 @@ export default function DraftPreviewScreen() {
           ? { label: "Published fallback", tone: "bg-muted text-muted-foreground border-border" }
           : null;
 
+  // The API payload is authoritative; never build a workspace URL from an
+  // empty organisation id while the preview payload is still loading.
   const orgId = data?.agent.orgId ?? "";
+  const workspaceHref = orgId ? `/orgs/${orgId}/agents/${agentId}` : "/orgs";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background">
