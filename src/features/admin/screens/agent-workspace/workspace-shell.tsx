@@ -417,7 +417,7 @@ function DefaultUpdateBanner() {
       .catch(() => setDefaultUpdate(null));
   }, [agentId, context?.defaultAssistantUpdate?.updateAvailable]);
 
-  if (!defaultUpdate || dismissing) return null;
+  if (!defaultUpdate || dismissing || !agentId || !orgId) return null;
 
   return (
     <div className="px-4 pt-4 sm:px-6 lg:px-8">
@@ -556,7 +556,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
       <DefaultUpdateBanner />
       <main className="p-4 sm:p-6 lg:p-8">{children}</main>
 
-      {agentId && (
+      {agentId && orgId && (
         <AgentHistoryDrawer
           agentId={agentId}
           open={historyOpen}
