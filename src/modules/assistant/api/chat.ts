@@ -304,25 +304,16 @@ async function postChatKb(
   // brain provider below.
   // Realtime is a transport/surface concern, not a Sarvam-only feature.
   // ElevenLabs Clara realtime also needs the short retrieval + response budget.
-  const providerConfig = {
-    ...toProviderConfig(resolved),
-    ...(realtimeVoice
-      ? {
-          // The realtime speech provider is independent from Clara's brain.
-          // Never inject a Sarvam model merely because the speech transport is
-          // realtime (that broke OpenAI/Gemini brain + ElevenLabs realtime).
-          chatModel:
-            // Realtime LLM is a brain setting, not a speech-provider setting.
-            // If no explicit realtime model is configured, keep the resolved
-            // brain chat model so OpenAI/Gemini/Sarvam all use a model valid
-            // for their own provider. Never inject a Sarvam model merely
-            // because this request is a realtime voice turn.
-            resolved.realtimeModel ??
-            resolved.chatModel ??
-            undefined,
-        }
-      : {}),
-  };
+  // The speech transport is independent from Clara's brain. ElevenLabs
+  // realtime owns STT/TTS only; the answer still runs through the configured
+  // chat model (OpenAI/Gemini/Sarvam) so a native realtime model can never be
+  // accidentally sent to the Chat Completions API.
+  //
+  // This distinction is critical for providers such as OpenAI: models like
+  // gpt-4o-realtime-preview belong to the Realtime Voice capability and are
+  // not valid Chat Completions models. Realtime speech must therefore NOT
+  // replace resolved.chatModel with resolved.realtimeModel.
+  const providerConfig = toProviderConfig(resolved);
   const embeddingConfig = toProviderConfig(resolved, "embedding");
   let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
   try {
