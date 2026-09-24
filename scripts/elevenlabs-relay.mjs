@@ -402,19 +402,16 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
   let ttsChars = 0; // per-generation character metering (once per generation)
   const pending = [];
   const sampleRate = Number(cfg.tts.sampleRate ?? 16_000) || 16_000;
-  // Bounded reconnect (plan Phase 9 — NO infinite reconnect loops): five
-  // attempts with linear backoff, then a fatal error so the browser can
-  // recover deterministically. A successful reconnect resets the budget.
-  // Mirrors src/modules/voice-core/realtime/reconnect-policy.ts (plain JS —
-  // relay scripts cannot import TS).
+  // Persistent-session reconnect: an upstream TTS socket may rotate or fail
+  // independently of the browser session. Retry with bounded backoff rather
+  // than closing the user's realtime session. A successful reconnect resets
+  // the backoff counter.
   let reconnectAttempts = 0;
-  const MAX_RECONNECT_ATTEMPTS = 5;
   const reconnect = {
     succeeded() { reconnectAttempts = 0; },
     nextDelayMs() {
-      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return null;
       reconnectAttempts += 1;
-      return 250 * reconnectAttempts;
+      return Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * reconnectAttempts);
     },
   };
 
@@ -501,13 +498,9 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
       if (upstream === socket) upstream = null;
       if (!closed) {
         const delay = reconnect.nextDelayMs();
-        if (delay === null) {
-          // Reconnect budget exhausted — surface a FATAL error so the browser
-          // recovers deterministically instead of churning forever.
-          send(browserWs, { type: "error", message: "TTS connection lost after repeated retries", fatal: true });
-          closeBoth(1011, "Reconnect budget exhausted");
-          return;
-        }
+        // Keep the browser WebSocket alive indefinitely; only an explicit
+        // session close should tear it down. The upstream is retried with
+        // bounded backoff until ElevenLabs is reachable again.
         send(browserWs, { type: "status", value: "reconnecting" });
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(openUpstream, delay);
