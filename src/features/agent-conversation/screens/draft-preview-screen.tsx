@@ -242,7 +242,7 @@ export default function DraftPreviewScreen() {
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <Link
-            href={`/orgs/${orgId}/agents/${agentId}`}
+            href={workspaceHref}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
             title="Back to the agent workspace"
           >
@@ -282,7 +282,7 @@ export default function DraftPreviewScreen() {
               Refresh
             </button>
             <Link
-              href={`/orgs/${orgId}/agents/${agentId}`}
+              href={workspaceHref}
               className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -309,7 +309,7 @@ export default function DraftPreviewScreen() {
                 Try again
               </button>
               <Link
-                href={`/orgs/${orgId}/agents/${agentId}`}
+                href={workspaceHref}
                 className="rounded-lg border border-border px-4 py-2 text-xs font-medium hover:bg-muted"
               >
                 Back to workspace
