@@ -5,6 +5,11 @@ import {
   getEmbedWidgetCspHeaderValue,
 } from "../csp";
 
+function directive(name: string): string[] {
+  const part = CSP_HEADER_VALUE.split(";").map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) ?? "";
+  return part.split(/\s+/).slice(1);
+}
+
 describe("CSP header", () => {
   it("keeps connect-src strict", () => {
     expect(CSP_HEADER_VALUE).toContain(
@@ -27,10 +32,13 @@ describe("CSP header", () => {
     // preview deployments only. Allowed in both script-src (the injected
     // <script>) and connect-src (toolbar signalling) to keep preview
     // consoles free of CSP violations.
-    expect(CSP_HEADER_VALUE).toContain(
-      "blob: https://checkout.razorpay.com https://vercel.live",
-    );
-    expect(CSP_HEADER_VALUE).toContain("https://api.razorpay.com https://vercel.live");
+    expect(directive("script-src")).toContain("https://vercel.live");
+    expect(directive("connect-src")).toContain("https://vercel.live");
+  });
+
+  it("allows the origins Razorpay Checkout loads and reports to", () => {
+    expect(directive("script-src")).toEqual(expect.arrayContaining(["https://checkout.razorpay.com", "https://cdn.razorpay.com"]));
+    expect(directive("connect-src")).toEqual(expect.arrayContaining(["https://api.razorpay.com", "https://lumberjack.razorpay.com"]));
   });
 
   it("does not allow blocked analytics domains", () => {

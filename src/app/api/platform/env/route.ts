@@ -212,6 +212,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       resetEmailTransportCache();
     }
 
+    // Speech Engine is attached by the custom server at boot; retry now so a
+    // freshly saved ID/key/switch takes effect without a restart.
+    if (
+      body.key === "ELEVENLABS_SPEECH_ENGINE_ID" ||
+      body.key === "ELEVENLABS_SPEECH_ENGINE_ENABLED" ||
+      body.key === "ELEVENLABS_API_KEY"
+    ) {
+      const attach = (globalThis as { __claraAttachSpeechEngine?: () => Promise<boolean> }).__claraAttachSpeechEngine;
+      if (attach) void attach().catch(() => undefined);
+    }
+
     return NextResponse.json({
       ok: true,
       key: body.key,

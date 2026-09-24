@@ -210,7 +210,15 @@ export async function uploadDocumentsHandler(
     }
 
     if (results.length > 0) {
-      await Promise.all(results.map((result) => enqueueIngestJob(result.jobId)));
+      // The document and its ingest job are already stored; a queueing
+      // failure must not turn a successful upload into a 500. Pending jobs
+      // are also picked up by the ingest poller / maintenance run.
+      const queued = await Promise.allSettled(results.map((result) => enqueueIngestJob(result.jobId)));
+      for (const outcome of queued) {
+        if (outcome.status === "rejected") {
+          console.error("[documents] enqueue ingest failed — job stays pending:", (outcome.reason as Error)?.message ?? outcome.reason);
+        }
+      }
     }
 
     // WS-1.4: mutation audit — every accepted upload is on record.

@@ -63,14 +63,18 @@ http.createServer = (...args) => {
   let speechEngineAttached = false;
 
   const attachSpeechEngine = async () => {
-    if (speechEngineAttached) return;
+    if (speechEngineAttached) return speechEngineAttached;
     try {
       const attachment = await attachElevenLabsSpeechEngine(server);
       speechEngineAttached = Boolean(attachment);
     } catch (error) {
       console.error("[elevenlabs-speech-engine] failed to attach:", error?.message ?? error);
     }
+    return speechEngineAttached;
   };
+  // Saving the Speech Engine settings in Settings → Environment calls this
+  // (same process) so the engine starts without a container restart.
+  globalThis.__claraAttachSpeechEngine = attachSpeechEngine;
 
   server.once("listening", () => {
     const addr = server.address();

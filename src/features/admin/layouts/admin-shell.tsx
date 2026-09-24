@@ -5,11 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Brain, LayoutDashboard, CreditCard,
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
-  UserRound, Bot, KeyRound, Mail, Activity, Users, FileText, Building2, SlidersHorizontal,
-  MoreHorizontal, X, Palette,
+  UserRound, Bot, Activity, Users, Building2,
+  MoreHorizontal, X,
   Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
+import { ADMIN_SETTINGS_PAGES, groupSettingsPages } from "@/features/admin/settings-nav";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -35,27 +36,17 @@ const ADMIN_NAV = [
 ];
 
 // Settings sub-sections rendered as a dropdown group in the sidebar.
-// Mirrors SETTINGS_SECTIONS in the settings screen — keep labels in sync.
-// Platform admins: AI Configuration holds the platform DEFAULT assistant
-// persona (Identity / Behaviour / Language / Voice) for newly onboarding
-// agents and knowledge bases.
-const SETTINGS_NAV = [
-  { href: "/settings/account",  icon: UserRound, label: "Account"          },
-  { href: "/settings/appearance", icon: Palette, label: "Appearance"       },
-  { href: "/settings/ai",       icon: Bot,       label: "AI Platform"      },
-  { href: "/settings/environment", icon: SlidersHorizontal, label: "Environment" },
-  { href: "/settings/embed",    icon: KeyRound,  label: "Embed Key"        },
-  { href: "/settings/payments", icon: CreditCard, label: "Payments"         },
-  { href: "/settings/email",    icon: Mail,      label: "Email Delivery"   },
-  { href: "/settings/templates", icon: FileText,  label: "Email Templates"  },
-  { href: "/settings/announcements", icon: Rocket, label: "Announcements" },
-];
+// Grouped settings pages — the single list shared with the settings screen.
+type SettingsNavItem = { href: string; icon: typeof Bot; label: string; group?: string };
+const SETTINGS_NAV: SettingsNavItem[] = groupSettingsPages(ADMIN_SETTINGS_PAGES).flatMap(({ group, pages }) =>
+  pages.map((p) => ({ href: p.href, icon: p.icon, label: p.label, group })),
+);
 
 // Org users have no AI Configuration section any more — assistant persona
 // settings are platform-level defaults; orgs tune their own agents and
 // knowledge bases. Their settings = the organisation profile (name, logo,
 // Conversational AI agents) plus their personal account.
-function orgSettingsNav(orgId: string | null) {
+function orgSettingsNav(orgId: string | null): SettingsNavItem[] {
   return [
     ...(orgId ? [{ href: `/orgs/${orgId}/settings`, icon: Building2, label: "Organisation" }] : []),
     { href: "/settings/account", icon: UserRound, label: "Account" },
@@ -401,10 +392,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 id="sidebar-settings-group"
                 className="mt-0.5 ml-3 space-y-0.5 border-l border-border pl-3 animate-in fade-in slide-in-from-top-1 duration-200"
               >
-                {settingsNav.map((sub) => {
+                {settingsNav.map((sub, index) => {
                   const subActive = pathname === sub.href;
+                  const showGroup = sub.group && sub.group !== settingsNav[index - 1]?.group;
                   return (
                     <li key={sub.href}>
+                      {showGroup && (
+                        <p className="px-3 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                          {sub.group}
+                        </p>
+                      )}
                       <Link
                         href={sub.href}
                         aria-current={subActive ? "page" : undefined}
@@ -572,11 +569,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                 Settings
               </p>
-              {(singleSettingsLink ? [singleSettingsLink] : settingsNav).map((s) => {
+              {(singleSettingsLink ? [singleSettingsLink] : settingsNav).map((s, index, list) => {
                 const active = pathname === s.href;
+                const showGroup = s.group && s.group !== list[index - 1]?.group;
                 return (
+                  <div key={s.href}>
+                  {showGroup && (
+                    <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                      {s.group}
+                    </p>
+                  )}
                   <Link
-                    key={s.href}
                     href={s.href}
                     className={`flex items-center gap-3.5 px-3 py-3 rounded-xl text-sm active:bg-muted transition-colors ${
                       active ? "text-primary bg-primary/10" : "text-foreground/80"
@@ -586,6 +589,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <span className="flex-1">{s.label}</span>
                     {active && <ChevronRight className="w-4 h-4 text-primary" />}
                   </Link>
+                  </div>
                 );
               })}
 

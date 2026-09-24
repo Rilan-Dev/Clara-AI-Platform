@@ -1,11 +1,12 @@
 import { handleCallback } from "@vercel/queue";
-import { processRetryJobData, type CloudRetryJob } from "@/modules/cloud-jobs/process-retry";
+import { handleRetryMessage } from "@/modules/cloud-jobs/handlers";
 
+// Vercel Queues consumer. The job logic lives in cloud-jobs/handlers.ts so
+// the local (Docker) transport runs exactly the same code.
 export const maxDuration = 60;
 
-const callback = handleCallback(async (message: CloudRetryJob) => {
-  if (!message?.retryRecordId || !message.scrapeUrlId || !message.sessionId) throw new Error("Invalid retry queue message");
-  await processRetryJobData(message);
+const callback = handleCallback(async (message: unknown) => {
+  await handleRetryMessage(message);
 }, { visibilityTimeoutSeconds: 60 });
 
 export async function POST(request: Request) {

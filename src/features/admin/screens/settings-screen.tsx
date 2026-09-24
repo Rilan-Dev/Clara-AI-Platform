@@ -6,11 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   Bot,
   ChevronRight,
-  CreditCard,
-  KeyRound,
-  Mail,
-  Palette,
-  SlidersHorizontal,
   UserRound,
 } from "lucide-react";
 import { EditProfileModal } from "@/components/admin/EditProfileModal";
@@ -22,122 +17,24 @@ import { PlatformAppearancePanel } from "@/components/admin/PlatformAppearancePa
 import { PlatformEnvPanel } from "@/components/admin/PlatformEnvPanel";
 import { AIPlatformSection } from "@/components/admin/ai-platform/AIPlatformSection";
 import { useAuth } from "@/modules/admin-ui/hooks";
+import {
+  ACCOUNT_PAGE,
+  ADMIN_SETTINGS_PAGES,
+  groupSettingsPages,
+  type SettingsPage,
+  type SettingsSection,
+} from "@/features/admin/settings-nav";
 
 // ── Section model ────────────────────────────────────────────────────────────
-// Each entry pairs the sidebar label (what users see in the left rail) with a
-// plain-English title + description shown on the page itself. Copy is written
-// for non-technical readers: short sentences, everyday words, zero jargon.
-//
-// Role split (platform-admin isolation):
-//   - Platform admins: Account / AI Configuration / Embed Key / Payments.
-//     AI Configuration holds the PLATFORM DEFAULT assistant persona
-//     (Identity, Behaviour, Language, Voice) — starting values for newly
-//     onboarding agents. Existing org-owned values are never
-//     rewritten.
-//   - Organisation users: Account only. Identity / Behaviour / Language /
-//     Voice are NOT org-level settings any more — orgs tune their own
-//     agents and knowledge bases.
-
-export type SettingsSection = "account" | "appearance" | "ai" | "environment" | "embed" | "payments" | "email" | "templates";
-
-type SectionDef = {
-  id: SettingsSection;
-  href: string;
-  icon: typeof Bot;
-  label: string;      // shown in the sidebar dropdown
-  title: string;      // page heading — friendly wording
-  description: string; // one-sentence plain-English explainer
-  audience: string;   // who this section is for
-};
-
-const ACCOUNT_SECTION: SectionDef = {
-  id: "account",
-  href: "/settings/account",
-  icon: UserRound,
-  label: "Account",
-  title: "Your account",
-  description: "Update your name, profile photo, and personal details.",
-  audience: "Everyone",
-};
-
-/** Platform admins — onboarding defaults, billing and platform keys. */
-export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = [
-  ACCOUNT_SECTION,
-  {
-    id: "appearance",
-    href: "/settings/appearance",
-    icon: Palette,
-    label: "Appearance",
-    title: "Default theme",
-    description:
-      "Choose the theme new visitors see first — light, dark, or follow their device. People can still switch it themselves.",
-    audience: "Platform admin",
-  },
-  {
-    id: "ai",
-    href: "/settings/ai",
-    icon: Bot,
-    label: "AI Platform",
-    title: "AI Platform",
-    description:
-      "Govern the AI providers behind every conversation — connections, model catalogues, health and usage — plus the Default Assistant every new agent starts from.",
-    audience: "Platform admin",
-  },
-  {
-    id: "environment",
-    href: "/settings/environment",
-    icon: SlidersHorizontal,
-    label: "Environment",
-    title: "Platform environment",
-    description:
-      "Operational switches beyond provider credentials — AI runtime flags, billing, phone and platform keys.",
-    audience: "Platform admin",
-  },
-  {
-    id: "embed",
-    href: "/settings/embed",
-    icon: KeyRound,
-    label: "Embed Key",
-    title: "Website chat key",
-    description:
-      "Manage the security key that lets the chat box on your public website talk to Clara.",
-    audience: "Platform admin",
-  },
-  {
-    id: "payments",
-    href: "/settings/payments",
-    icon: CreditCard,
-    label: "Payments",
-    title: "Payment setup",
-    description:
-      "Connect Stripe or Razorpay so customers can subscribe to your service and pay online.",
-    audience: "Platform admin",
-  },
-  {
-    id: "email",
-    href: "/settings/email",
-    icon: Mail,
-    label: "Email Delivery",
-    title: "Email delivery",
-    description:
-      "Choose how Clara sends email — Resend or your own SMTP server — and test it with one click.",
-    audience: "Platform admin",
-  },
-  {
-    id: "templates",
-    href: "/settings/templates",
-    icon: Mail,
-    label: "Email Templates",
-    title: "Email templates",
-    description:
-      "Design the emails Clara sends — invitations, password resets and subscription notices are fully editable.",
-    audience: "Platform admin",
-  },
-];
+// The page list, labels and grouping live in settings-nav.ts — shared with
+// the sidebar so they can never drift apart.
+type SectionDef = SettingsPage;
+export type { SettingsSection };
+export const ADMIN_SETTINGS_SECTIONS: SectionDef[] = ADMIN_SETTINGS_PAGES;
 
 /** Organisation users — personal account only. Assistant persona settings
  *  are platform-level defaults now; orgs tune their own agents. */
-export const ORG_SETTINGS_SECTIONS: SectionDef[] = [ACCOUNT_SECTION];
+export const ORG_SETTINGS_SECTIONS: SectionDef[] = [ACCOUNT_PAGE];
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
@@ -260,7 +157,13 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
 
         {section === "environment" && (
           <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
-            <PlatformEnvPanel />
+            <PlatformEnvPanel sections={["ai"]} />
+          </div>
+        )}
+
+        {section === "phone" && (
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
+            <PlatformEnvPanel sections={["phone"]} />
           </div>
         )}
 
@@ -425,8 +328,11 @@ function AccountPanel({
     <div className="space-y-6">
       <ProfileCard user={user} onEdit={onEdit} roleLabel="Super Admin" />
 
+      {groupSettingsPages(quickLinks).map(({ group, pages }) => (
+      <section key={group} aria-labelledby={`settings-group-${group}`} className="space-y-3">
+        <h2 id={`settings-group-${group}`} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        {quickLinks.map((s) => (
+        {pages.map((s) => (
           <Link
             key={s.id}
             href={s.href}
@@ -443,6 +349,8 @@ function AccountPanel({
           </Link>
         ))}
       </div>
+      </section>
+      ))}
     </div>
   );
 }
