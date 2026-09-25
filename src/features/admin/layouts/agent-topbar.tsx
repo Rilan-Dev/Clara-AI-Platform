@@ -337,9 +337,9 @@ export function AgentTopbarCluster() {
         {/* Deploy actions — split button: one-click publish + actions dropdown */}
         <WorkspaceButton
           variant="secondary"
-          onClick={() => window.open(`/preview/agents/${agentId}`, "_blank", "noopener")}
+          onClick={() => window.dispatchEvent(new CustomEvent("clara:open-agent-preview", { detail: { agentId } }))}
           disabled={!deployment}
-          title={deployment ? "Open the draft preview in a new tab" : "Publish first — the preview shows the live version"}
+          title={deployment ? "Open the draft preview beside the AI settings" : "Publish first — the preview shows the live version"}
           className="px-2.5 py-1.5 text-xs"
         >
           <ExternalLink className="h-3.5 w-3.5" />
