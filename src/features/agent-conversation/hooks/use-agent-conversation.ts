@@ -129,14 +129,14 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
 
     setMessages((prev) => {
       const liveIds = new Set(liveMessages.map((message) => message.id));
-      const existingById = new Map(prev.map((message) => [message.id, message]));
+      const updates = new Map(liveMessages.map((message) => [message.id, message]));
+      const next = prev.map((message) => updates.get(message.id) ?? message);
       for (const message of liveMessages) {
-        existingById.set(message.id, message);
+        if (!prev.some((existing) => existing.id === message.id)) next.push(message);
       }
-      return [
-        ...prev.filter((message) => !liveIds.has(message.id) || existingById.get(message.id) === message),
-        ...liveMessages.filter((message) => !prev.some((existing) => existing.id === message.id)),
-      ].map((message) => existingById.get(message.id) ?? message);
+      // Keep the existing conversation order and append only newly-created
+      // live turns; subsequent STT/LLM deltas update those same message ids.
+      return next.filter((message) => !liveIds.has(message.id) || updates.has(message.id));
     });
   }, [voiceActive, voiceSession.history]);
 
