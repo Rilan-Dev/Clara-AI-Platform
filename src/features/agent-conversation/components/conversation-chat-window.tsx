@@ -54,6 +54,8 @@ interface ConversationChatWindowProps {
   voiceSession: VoiceClientSession | null;
   micLevels?: number[];
   onVoiceEnd: () => void;
+  /** Published agents start voice-first and expose a single top-right mode toggle. */
+  publishedMode?: boolean;
 }
 
 type ConversationMode = "voice" | "chat";
@@ -84,14 +86,16 @@ export function ConversationChatWindow({
   voiceSession,
   micLevels,
   onVoiceEnd,
+  publishedMode = false,
 }: ConversationChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
   const streaming = thinking || lastMessage?.role === "assistant";
-  const [mode, setMode] = useState<ConversationMode>(voiceAvailable ? "voice" : "chat");
+  const [mode, setMode] = useState<ConversationMode>(publishedMode && voiceAvailable ? "voice" : voiceAvailable ? "voice" : "chat");
 
   useEffect(() => {
     if (!voiceAvailable && !voiceActive) setMode("chat");
+    if (publishedMode && voiceAvailable && !voiceActive && mode !== "chat") setMode("voice");
   }, [voiceAvailable, voiceActive]);
 
   useEffect(() => {
@@ -113,7 +117,7 @@ export function ConversationChatWindow({
   };
 
   return (
-    <section className="flex h-full min-h-[38rem] flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/90 shadow-2xl shadow-black/[0.06]">
+    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-transparent">
       <header className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 py-3 backdrop-blur-xl sm:px-5">
         <div
           className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
@@ -143,33 +147,34 @@ export function ConversationChatWindow({
           </p>
         </div>
 
-        <div className="hidden items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1 sm:flex">
+        {publishedMode ? (
           <button
             type="button"
-            onClick={() => setConversationMode("voice")}
+            onClick={() => setConversationMode(mode === "voice" ? "chat" : "voice")}
             disabled={!voiceAvailable || voiceActive}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "voice" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}
-            aria-pressed={mode === "voice"}
+            className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold text-foreground transition hover:bg-muted/70 disabled:cursor-default disabled:opacity-70"
+            aria-label={mode === "voice" ? "Switch to chat" : "Switch to voice"}
           >
-            <Headphones className="h-3.5 w-3.5" />
-            Voice
+            {mode === "voice" ? <MessageSquare className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
+            <span>{mode === "voice" ? "Switch to chat" : "Switch to voice"}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setConversationMode("chat")}
-            disabled={voiceActive}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "chat" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}
-            aria-pressed={mode === "chat"}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            Chat
-          </button>
-        </div>
+        ) : (
+          <div className="hidden items-center gap-1 rounded-xl bg-muted/40 p-1 sm:flex">
+            <button type="button" onClick={() => setConversationMode("voice")} disabled={!voiceAvailable || voiceActive}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "voice" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
+              <Headphones className="h-3.5 w-3.5" /> Voice
+            </button>
+            <button type="button" onClick={() => setConversationMode("chat")} disabled={voiceActive}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "chat" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
+              <MessageSquare className="h-3.5 w-3.5" /> Chat
+            </button>
+          </div>
+        )}
 
         {headerAside}
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
           {voiceActive && voiceSession ? (
             <motion.div
@@ -177,9 +182,9 @@ export function ConversationChatWindow({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,31rem)]"
+              className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]"
             >
-              <div className="relative min-h-[32rem] overflow-hidden border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-4 py-5 sm:px-8 lg:border-b-0 lg:border-r">
+              <div className="relative min-h-0 overflow-hidden bg-gradient-to-br from-background via-background to-muted/30 px-4 py-5 sm:px-8 lg:border-b-0 lg:border-r">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute inset-0 opacity-70"
@@ -201,6 +206,7 @@ export function ConversationChatWindow({
                 </div>
               </div>
               <ConversationRail
+                liveOnly
                 assistantName={assistantName}
                 primaryColour={primaryColour}
                 accentColour={accentColour}
@@ -284,6 +290,7 @@ export function ConversationChatWindow({
                   )}
                 </div>
               </div>
+              {!(publishedMode && mode === "voice") && (
               <ConversationRail
                 assistantName={assistantName}
                 primaryColour={primaryColour}
@@ -307,7 +314,8 @@ export function ConversationChatWindow({
                 suggestions={suggestions}
                 onSuggestion={onSuggestion}
               />
-            </motion.div>
+ 
+              )}           </motion.div>
           ) : (
             <motion.div
               key="chat"
@@ -432,6 +440,7 @@ function ConversationRail({
   onVoiceStart,
   suggestions,
   onSuggestion,
+  liveOnly = false,
 }: {
   assistantName: string;
   primaryColour: string;
@@ -454,6 +463,7 @@ function ConversationRail({
   onVoiceStart?: () => void;
   suggestions?: string[];
   onSuggestion?: (value: string) => void;
+  liveOnly?: boolean;
 }) {
   return (
     <aside className="flex min-h-0 flex-col bg-background/75">
@@ -474,9 +484,9 @@ function ConversationRail({
         )}
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
+      <div ref={scrollRef} className="min-h-0 max-h-[calc(100vh-7rem)] flex-1 space-y-3 overflow-y-auto px-4 py-4" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
         <WelcomeMessage assistantName={assistantName} primaryColour={primaryColour} accentColour={accentColour} welcomeMessage={welcomeMessage} />
-        {messages.map((message) => (
+        {(liveOnly ? messages.slice(-2) : messages).map((message) => (
           <MessageRow
             key={message.id}
             message={message}
