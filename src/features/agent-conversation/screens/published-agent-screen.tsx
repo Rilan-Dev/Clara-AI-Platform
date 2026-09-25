@@ -212,9 +212,9 @@ export default function PublishedAgentScreen() {
   // ── Published experience ─────────────────────────────────────────────────
   return (
     <PublicShell primaryColour={primaryColour} accentColour={accentColour}>
-      <div className="flex min-h-screen w-full flex-col">
-        <main className="flex h-screen min-h-0 w-full flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-hidden bg-white/35 backdrop-blur-xl dark:bg-black/10">
+      <div className="h-dvh w-full overflow-hidden">
+        <main className="h-dvh min-h-0 w-full">
+          <div className="h-full min-h-0 w-full overflow-hidden bg-white/35 backdrop-blur-xl dark:bg-black/10">
             <ConversationChatWindow
               assistantName={assistantName}
               avatarUrl={config.assistant?.avatarUrl ?? null}
