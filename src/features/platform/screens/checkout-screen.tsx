@@ -32,20 +32,28 @@ import { LogoMark } from "@/components/brand/Logo";
 
 type PlanInfo = {
   name: string; usd: string; inr: string;
+  usdAmount: number; inrAmount: number;
   badge?: string; color: string; features: string[];
 };
 const PLANS: Record<string, PlanInfo> = {
   starter: {
     name: "Starter", usd: "$49/mo", inr: "₹4,000/mo",
+    usdAmount: 49, inrAmount: 4000,
     color: "border-cyan-500/30 bg-cyan-500/[0.06]",
     features: ["3 Knowledge Bases", "50 docs per KB", "1,000 req/day", "Voice AI", "Full analytics"],
   },
   pro: {
     name: "Pro", usd: "$149/mo", inr: "₹12,000/mo", badge: "Most popular",
+    usdAmount: 149, inrAmount: 12000,
     color: "border-primary/40 bg-primary/5",
     features: ["10 KBs", "200 docs/KB", "10,000 req/day", "Advanced analytics", "Custom branding", "Priority support"],
   },
 };
+
+/** Price string for the active gateway, e.g. "$49" / "₹4,000". */
+function priceFor(plan: PlanInfo, gateway: Gateway): string {
+  return gateway === "razorpay" ? `₹${plan.inrAmount.toLocaleString("en-IN")}` : `$${plan.usdAmount}`;
+}
 
 type Gateway = "stripe" | "razorpay";
 
@@ -71,6 +79,16 @@ export default function CheckoutScreen() {
   const [error,   setError]   = useState("");
 
   const plan = PLANS[planId] ?? PLANS.starter!;
+
+  // Geo-aware default gateway: visitors on an Indian locale (en-IN, hi-IN,
+  // …) land on Razorpay (INR / UPI); everyone else on Stripe (USD). The
+  // choice stays manually overridable — this only sets the initial state.
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const langs = [navigator.language, ...(navigator.languages ?? [])];
+    const isIndia = langs.some((l) => l.split("-")[1]?.toUpperCase() === "IN");
+    if (isIndia) setGateway("razorpay");
+  }, []);
 
   // Inject Razorpay Checkout.js once
   useEffect(() => {
@@ -121,11 +139,11 @@ export default function CheckoutScreen() {
         key:         order.keyId,
         amount:      order.amount,
         currency:    order.currency,
-        name:        "Clara AI",
+        name:        "Clara AI Platform",
         description: order.planName,
         order_id:    order.orderId,
         prefill:     { email: order.userEmail ?? "", name: order.userName ?? "" },
-        theme:       { color: "#6366f1" },
+        theme:       { color: "#4F46E5" },
         handler: async (response: {
           razorpay_order_id: string;
           razorpay_payment_id: string;
@@ -138,7 +156,7 @@ export default function CheckoutScreen() {
           });
           const vData = await vRes.json() as { ok?: boolean; error?: string };
           if (!vRes.ok) { setError(vData.error ?? "Verification failed"); setLoading(false); return; }
-          router.push(`/checkout/success?orgId=${orgId}&plan=${planId}&gateway=razorpay`);
+          router.push(`/checkout/success?orgId=${orgId}&plan=${planId}&gateway=razorpay&ref=${encodeURIComponent(response.razorpay_payment_id)}`);
         },
         modal: { ondismiss: () => setLoading(false) },
       });
@@ -184,10 +202,14 @@ export default function CheckoutScreen() {
               <div className="text-xs text-muted-foreground mt-0.5">Clara AI Platform</div>
             </div>
             <div className="text-right">
-              <div className="text-xl font-black text-foreground">
-                {gateway === "razorpay" ? plan.inr : plan.usd}
+              <div className="text-2xl font-black text-foreground leading-none">
+                <span className="text-xs font-semibold text-muted-foreground mr-1">
+                  {gateway === "razorpay" ? "INR" : "USD"}
+                </span>
+                {priceFor(plan, gateway)}
+                <span className="text-sm font-semibold text-muted-foreground">/mo</span>
               </div>
-              <div className="text-xs text-muted-foreground/70">billed now</div>
+              <div className="text-xs text-muted-foreground/70 mt-1">renews monthly · cancel anytime</div>
             </div>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-border">
@@ -224,10 +246,24 @@ export default function CheckoutScreen() {
             Choose payment method
           </p>
 
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div
+            role="radiogroup"
+            aria-label="Payment method"
+            className="grid grid-cols-2 gap-3 mb-5"
+            onKeyDown={(e) => {
+              // Arrow keys move between the two options (radio behaviour).
+              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+                e.preventDefault();
+                setGateway((g) => (g === "stripe" ? "razorpay" : "stripe"));
+              }
+            }}
+          >
             {/* Stripe */}
-            <button onClick={() => setGateway("stripe")}
-              className={`flex flex-col items-center gap-2.5 border rounded-xl p-4 transition-all
+            <button type="button" onClick={() => setGateway("stripe")}
+              role="radio"
+              aria-checked={gateway === "stripe"}
+              tabIndex={gateway === "stripe" ? 0 : -1}
+              className={`flex flex-col items-center justify-center gap-2.5 border rounded-xl p-4 min-h-[88px] transition-all
                 ${gateway === "stripe"
                   ? "border-primary bg-primary/10 ring-2 ring-primary/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
@@ -246,8 +282,11 @@ export default function CheckoutScreen() {
             </button>
 
             {/* Razorpay */}
-            <button onClick={() => setGateway("razorpay")}
-              className={`flex flex-col items-center gap-2.5 border rounded-xl p-4 transition-all
+            <button type="button" onClick={() => setGateway("razorpay")}
+              role="radio"
+              aria-checked={gateway === "razorpay"}
+              tabIndex={gateway === "razorpay" ? 0 : -1}
+              className={`flex flex-col items-center justify-center gap-2.5 border rounded-xl p-4 min-h-[88px] transition-all
                 ${gateway === "razorpay"
                   ? "border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
@@ -278,8 +317,9 @@ export default function CheckoutScreen() {
                   <Shield className="w-3 h-3 text-primary" />
                   Visa · Mastercard · Amex · Apple Pay · Google Pay
                 </div>
-                <div className="text-xs text-muted-foreground pt-1 border-t border-border">
-                  Billed in <span className="text-foreground font-semibold">USD</span> — {plan.usd}
+                <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border">
+                  <span className="text-xs text-muted-foreground">Total due today</span>
+                  <span className="text-xs font-bold text-foreground">{priceFor(plan, gateway)}</span>
                 </div>
               </>
             ) : (
@@ -292,8 +332,9 @@ export default function CheckoutScreen() {
                   <Shield className="w-3 h-3 text-cyan-600" />
                   UPI · Net Banking · Cards · Wallets · EMI
                 </div>
-                <div className="text-xs text-muted-foreground pt-1 border-t border-border">
-                  Billed in <span className="text-foreground font-semibold">INR</span> — {plan.inr}
+                <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border">
+                  <span className="text-xs text-muted-foreground">Total due today</span>
+                  <span className="text-xs font-bold text-foreground">{priceFor(plan, gateway)}</span>
                 </div>
               </>
             )}
@@ -302,16 +343,23 @@ export default function CheckoutScreen() {
           <button
             onClick={handleCheckout}
             disabled={loading || !orgId}
-            className={`w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2
+            className="w-full min-h-[48px] py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2
               transition-all disabled:opacity-50 disabled:cursor-not-allowed
-              ${gateway === "razorpay"
-                ? "bg-cyan-600 hover:bg-cyan-500 text-white"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground"}`}>
+              bg-primary hover:bg-primary/90 text-primary-foreground">
             {loading
-              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing…</>
-              : <>{gateway === "stripe" ? "Continue to Stripe" : "Continue to Razorpay"} <ChevronRight className="w-4 h-4" /></>
+              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {gateway === "stripe" ? "Contacting Stripe…" : "Opening Razorpay…"}</>
+              : <>{gateway === "stripe"
+                  ? `Pay ${priceFor(plan, "stripe")} with Stripe`
+                  : `Pay ${priceFor(plan, "razorpay")} with Razorpay`} <ChevronRight className="w-4 h-4" /></>
             }
           </button>
+
+          {loading && (
+            <p className="text-center text-xs text-muted-foreground mt-2" role="status">
+              Please don&apos;t refresh or press back…
+            </p>
+          )}
         </div>
 
         {/* Footer */}

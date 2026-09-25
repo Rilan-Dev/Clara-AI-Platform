@@ -599,6 +599,16 @@
   .clara-orb-breathe { animation-duration: 0s; animation-iteration-count: 1; }
 }
 
+/* ── Checkout success check (one subtle draw-in, reduced-motion safe) ───── */
+@keyframes clara-check-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.clara-check-in { animation: clara-check-in 300ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .clara-check-in { animation: none; }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
