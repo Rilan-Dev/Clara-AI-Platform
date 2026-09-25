@@ -138,55 +138,32 @@ function usePrefersReducedMotion(): boolean {
 // ─── The orb ────────────────────────────────────────────────────────────────
 
 /**
- * Pure-CSS brand orb — breathing glow, slowly rotating conic shimmer ring and
- * a gradient core, all tinted from the agent's published colours. `active`
- * (assistant is thinking) adds an outward ripple so the orb doubles as a
- * subtle status cue, echoing the realtime voice orb's visual language.
+ * The owner-directed animated orb asset — the exact 21st.dev mirror GIF from
+ * the supplied OrbInput reference example, docked left of the field. A
+ * `clara-orb-ripple` ring overlays it while the assistant is thinking so the
+ * orb doubles as a subtle status cue, echoing the realtime voice orb's visual
+ * language.
  */
-function ComposerOrb({
-  primaryColour,
-  accentColour,
-  active,
-}: {
-  primaryColour: string;
-  accentColour: string;
-  active: boolean;
-}) {
+const ORB_IMAGE_URL =
+  "https://cdn.21st.dev/assets/mirror/1e/1ea795ce563e99649f180625b9008f169bcf63bb1eaecce2c2e01ac1b8b5a09e.gif";
+
+function ComposerOrb({ active }: { active: boolean }) {
   return (
-    <div aria-hidden className="relative h-11 w-11 shrink-0 select-none sm:h-14 sm:w-14">
-      {/* Ambient breathing glow (clara-orb-breathe handles centering). */}
-      <div
-        className="clara-orb-breathe absolute left-1/2 top-1/2 h-[78%] w-[78%] rounded-full blur-lg"
-        style={{
-          background: `radial-gradient(circle, ${primaryColour}59, ${accentColour}26 62%, transparent 78%)`,
-          opacity: active ? 0.95 : 0.55,
-        }}
-      />
-      {/* Rotating conic shimmer ring. */}
-      <div
-        className="clara-orb-spin-cw absolute inset-0 rounded-full"
-        style={{
-          animationDuration: "9s",
-          background: `conic-gradient(from 0deg, ${primaryColour}00, ${primaryColour}b3, ${accentColour}b3, ${primaryColour}00)`,
-          WebkitMaskImage:
-            "radial-gradient(circle, transparent 56%, black 59%, black 78%, transparent 81%)",
-          maskImage:
-            "radial-gradient(circle, transparent 56%, black 59%, black 78%, transparent 81%)",
-        }}
-      />
-      {/* Gradient core. */}
-      <div
-        className="absolute inset-[24%] rounded-full"
-        style={{
-          background: `radial-gradient(circle at 35% 30%, ${accentColour}, ${primaryColour} 72%)`,
-          boxShadow: `inset 0 1px 2px rgba(255,255,255,0.35), 0 2px 10px ${primaryColour}40`,
-        }}
-      />
-      {/* Thinking ripple. */}
+    <div className="relative shrink-0">
+      <div className="h-12 w-12 scale-100 overflow-hidden rounded-full transition-all duration-300 sm:h-16 sm:w-16">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={ORB_IMAGE_URL}
+          alt="Animated orb"
+          className="h-full w-full object-cover"
+          draggable={false}
+        />
+      </div>
       {active && (
         <div
-          className="clara-orb-ripple absolute inset-0 rounded-full border-2"
-          style={{ borderColor: primaryColour }}
+          aria-hidden
+          className="clara-orb-ripple pointer-events-none absolute inset-0 rounded-full border-2"
+          style={{ borderColor: "hsl(var(--primary))" }}
         />
       )}
     </div>
@@ -276,20 +253,11 @@ export function OrbComposer({
             "relative flex w-full items-center gap-2.5 border bg-card px-2.5 py-2 shadow-lg transition-all duration-300 ease-out sm:gap-4 sm:px-4 sm:py-2.5",
             isMultiLine ? "rounded-[1.75rem]" : "rounded-full",
             isFocused
-              ? "scale-[1.01] border-primary/45 shadow-xl"
+              ? "scale-[1.02] border-border/70 shadow-xl"
               : "border-border/70 shadow-black/[0.04] dark:shadow-black/20",
           )}
-          style={
-            isFocused
-              ? { boxShadow: `0 10px 34px ${primaryColour}30` }
-              : undefined
-          }
         >
-          <ComposerOrb
-            primaryColour={primaryColour}
-            accentColour={accentColour}
-            active={thinking}
-          />
+          <ComposerOrb active={thinking} />
 
           <div className="h-9 w-px shrink-0 bg-border/80 sm:h-11" />
 
@@ -307,7 +275,7 @@ export function OrbComposer({
             placeholder={livePlaceholder}
             enterKeyHint="send"
             autoComplete="off"
-            className="min-h-11 max-h-32 w-full flex-1 resize-none self-center bg-transparent px-1.5 text-base leading-6 text-foreground outline-none placeholder:font-light placeholder:text-muted-foreground/75 disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
+            className="min-h-11 max-h-32 w-full flex-1 resize-none self-center bg-transparent px-1.5 text-base leading-6 text-foreground outline-none placeholder:font-light placeholder:text-muted-foreground/75 focus:outline-none focus-visible:outline-none focus:shadow-none focus-visible:shadow-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
           />
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
