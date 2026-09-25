@@ -137,17 +137,60 @@ export function ConversationChatWindow({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6"
+              className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,30rem)]"
             >
-              <ConversationVoiceStage
-                session={voiceSession}
-                micLevels={micLevels ?? []}
-                agentName={assistantName}
-                primaryColour={primaryColour}
-                accentColour={accentColour}
-                avatarUrl={avatarUrl}
-                onEnd={onVoiceEnd}
-              />
+              <div className="min-h-0 border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-4 py-3 sm:px-6 lg:border-b-0 lg:border-r">
+                <ConversationVoiceStage
+                  session={voiceSession}
+                  micLevels={micLevels ?? []}
+                  agentName={assistantName}
+                  primaryColour={primaryColour}
+                  accentColour={accentColour}
+                  avatarUrl={avatarUrl}
+                  onEnd={onVoiceEnd}
+                  showTranscript={false}
+                />
+              </div>
+              <aside className="flex min-h-0 flex-col bg-muted/10">
+                <div className="border-b border-border/70 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Conversation</p>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                      Live
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Your realtime conversation appears here.</p>
+                </div>
+                <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" role="log" aria-label={`Realtime conversation with ${assistantName}`} aria-live="polite">
+                  {messages.length > 0 ? messages.map((message) => (
+                    <MessageRow
+                      key={message.id}
+                      message={message}
+                      assistantName={assistantName}
+                      primaryColour={primaryColour}
+                      accentColour={accentColour}
+                      citeSources={citeSources}
+                      isLast={message.id === lastMessage?.id}
+                      streamingAssistant={false}
+                    />
+                  )) : (
+                    <div className="flex h-full items-center justify-center text-center">
+                      <div>
+                        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                          <Sparkles className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="mt-3 text-xs text-muted-foreground">Speak to {assistantName} to start the live transcript.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-border/70 bg-background/60 px-4 py-3">
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Voice is live. Use the controls on the main stage to mute, interrupt, or end the session.
+                  </p>
+                </div>
+              </aside>
             </motion.div>
           ) : (
             <motion.div
