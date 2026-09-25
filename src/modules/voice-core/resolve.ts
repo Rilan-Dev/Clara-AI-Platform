@@ -450,6 +450,7 @@ export async function resolveVoiceConfig(
       orgId,
       agentId: agent?.id ?? null,
       agentSettings,
+      configuredVoiceId,
       assistantVoiceId: configuredVoiceId ?? brain.assistantConfig?.voiceId ?? null,
       orgDefaultVoice: orgSettings?.defaultElevenlabsVoice ?? null,
     });
@@ -637,7 +638,9 @@ function resolveSarvamSpeaker(params: {
  * fixed enumerable set (unlike OPENAI_REALTIME_VOICES), so validation runs
  * against the org's synced catalog + a shape check. Precedence:
  *
- *   assistant config voiceId (if it is an ElevenLabs voice id in the org catalog)
+ *   voice explicitly selected for this surface (realtime / voice chat) on the
+ *   ElevenLabs axis — honoured even before the org catalog is synced
+ *     → assistant config voiceId (if it is an ElevenLabs voice id in the org catalog)
  *     → agent's assigned ElevenLabs voices (first enabled)
  *       → org default ElevenLabs voice
  *         → platform default (env)
@@ -646,6 +649,8 @@ async function resolveElevenLabsVoiceId(params: {
   orgId: string | null;
   agentId: string | null;
   agentSettings: Awaited<ReturnType<typeof getAgentAISettings>>;
+  /** Voice the admin selected for this surface (version / agent settings). */
+  configuredVoiceId?: string | null;
   assistantVoiceId: string | null;
   orgDefaultVoice: string | null;
 }): Promise<string> {
@@ -654,6 +659,19 @@ async function resolveElevenLabsVoiceId(params: {
   // Org's ElevenLabs catalog (elevenlabs_voices table + organisation_voices
   // rows with provider='elevenlabs').
   const catalogVoiceIds = orgId ? await listOrgElevenLabsVoiceIds(orgId) : [];
+
+  // 0. The voice selected for this surface wins when it is an ElevenLabs
+  //    voice id (in the catalog, or ElevenLabs-shaped). A stale id from
+  //    another provider's axis (e.g. an OpenAI voice name kept after the
+  //    realtime provider changed) falls through to the chain below.
+  const configured = params.configuredVoiceId?.trim();
+  if (
+    configured &&
+    !isSupportedOpenAIRealtimeVoice(configured) &&
+    (catalogVoiceIds.includes(configured) || looksLikeElevenLabsVoiceId(configured))
+  ) {
+    return configured;
+  }
 
   // 1. Assistant-config voice id, when it is a known ElevenLabs voice.
   if (assistantVoiceId && catalogVoiceIds.includes(assistantVoiceId)) {
