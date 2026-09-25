@@ -328,12 +328,17 @@ export function ConversationChatWindow({
                     messages={messages.map((m) => ({ ...m, isStreaming: thinking && m.id === lastMessage?.id }))}
                   />
                   <div className="mx-auto w-full max-w-3xl space-y-4">
-                    <WelcomeMessage
-                      assistantName={assistantName}
-                      primaryColour={primaryColour}
-                      accentColour={accentColour}
-                      welcomeMessage={welcomeMessage}
-                    />
+                    {/* The welcome message is an EMPTY-STATE affordance, not a
+                        permanent fixture: it renders only before the first
+                        message exists and never again afterwards. */}
+                    {messages.length === 0 && (
+                      <WelcomeMessage
+                        assistantName={assistantName}
+                        primaryColour={primaryColour}
+                        accentColour={accentColour}
+                        welcomeMessage={welcomeMessage}
+                      />
+                    )}
                     {messages.map((message) => (
                       <MessageRow
                         key={message.id}
@@ -494,7 +499,12 @@ function ConversationRail({
       </div>
 
       <div ref={scrollRef} className="min-h-0 max-h-[calc(100vh-7rem)] flex-1 space-y-3 overflow-y-auto px-4 py-4" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
-        <WelcomeMessage assistantName={assistantName} primaryColour={primaryColour} accentColour={accentColour} welcomeMessage={welcomeMessage} />
+        {/* Empty-state only — once any message exists (text or folded voice
+            turns) the welcome must not render again. Previously it stayed
+            pinned at the top forever, duplicating the voice greeting. */}
+        {messages.length === 0 && (
+          <WelcomeMessage assistantName={assistantName} primaryColour={primaryColour} accentColour={accentColour} welcomeMessage={welcomeMessage} />
+        )}
         {(liveOnly ? messages.slice(-2) : messages).map((message) => (
           <MessageRow
             key={message.id}
