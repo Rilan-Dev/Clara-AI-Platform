@@ -240,7 +240,7 @@ export default function PublishedAgentScreen() {
           </span>
         </header>
 
-        <main className="flex min-h-0 w-full flex-1 flex-col">
+        <main className="flex h-[calc(100vh-4rem)] min-h-0 w-full flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-hidden bg-white/35 backdrop-blur-xl dark:bg-black/10">
             <ConversationChatWindow
               assistantName={assistantName}
@@ -276,21 +276,11 @@ export default function PublishedAgentScreen() {
               voiceSession={conversation.voiceSession}
               micLevels={conversation.micLevels}
               onVoiceEnd={conversation.endVoice}
+              publishedMode
             />
           </div>
         </main>
 
-        {/* Footer — platform credit + privacy note. */}
-        <footer className="mt-5 flex flex-col items-center gap-2 pb-4 text-center">
-          <p className="text-xs text-muted-foreground/80">
-            Powered by{" "}
-            <span className="font-semibold text-muted-foreground">Clara AI</span>
-          </p>
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80">
-            <ShieldCheck className="h-3 w-3" />
-            Answers are grounded in the owner&apos;s published knowledge base.
-          </p>
-        </footer>
       </div>
     </PublicShell>
   );
