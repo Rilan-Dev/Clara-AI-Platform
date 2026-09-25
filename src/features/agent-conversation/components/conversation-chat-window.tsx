@@ -85,7 +85,7 @@ export function ConversationChatWindow({
   micLevels,
   onVoiceEnd,
 }: ConversationChatWindowProps) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
   const streaming = thinking || lastMessage?.role === "assistant";
   const [mode, setMode] = useState<ConversationMode>(voiceAvailable ? "voice" : "chat");
@@ -439,7 +439,7 @@ function ConversationRail({
   messages: ConversationMessage[];
   citeSources: boolean;
   lastMessage?: ConversationMessage;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
+  scrollRef: React.RefObject<HTMLDivElement>;
   welcomeMessage: string;
   thinking: boolean;
   streaming: boolean;
