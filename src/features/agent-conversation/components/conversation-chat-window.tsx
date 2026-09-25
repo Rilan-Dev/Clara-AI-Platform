@@ -544,8 +544,8 @@ function Composer({
   voiceAvailable,
   voiceUnavailableReason,
   onVoiceStart,
-  primaryColour,
-  accentColour,
+  primaryColour = "var(--primary)",
+  accentColour = "var(--accent)",
   compact = false,
 }: {
   input: string;
@@ -557,8 +557,8 @@ function Composer({
   voiceAvailable: boolean;
   voiceUnavailableReason?: string | null;
   onVoiceStart?: () => void;
-  primaryColour: string;
-  accentColour: string;
+  primaryColour?: string;
+  accentColour?: string;
   compact?: boolean;
 }) {
   return (
