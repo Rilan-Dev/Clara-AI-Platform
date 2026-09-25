@@ -360,7 +360,8 @@ class CallBridge {
     }
 
     // AI audio output → send to phone
-    if (type === "response.audio.delta" && ev.delta) {
+    // GA names (response.output_*) and beta names are both accepted.
+    if ((type === "response.output_audio.delta" || type === "response.audio.delta") && ev.delta) {
       this.sendAudioToPhone(Buffer.from(ev.delta, "base64"));
     }
 
@@ -369,7 +370,8 @@ class CallBridge {
       this._asstTurn = { text: "", ts: new Date().toISOString() };
       this.transcript.push({ speaker: "assistant", text: "", ts: this._asstTurn.ts });
     }
-    if ((type === "response.audio_transcript.delta" || type === "response.text.delta") && ev.delta) {
+    if ((type === "response.output_audio_transcript.delta" || type === "response.output_text.delta" ||
+         type === "response.audio_transcript.delta" || type === "response.text.delta") && ev.delta) {
       const turn = this.transcript.findLast?.(t => t.speaker === "assistant") ?? null;
       if (turn) turn.text += ev.delta;
     }

@@ -61,7 +61,8 @@ export async function postRagSearch(
         );
       }
 
-      return NextResponse.json({
+      const timings = outcome.result.timings;
+      const response = NextResponse.json({
         context: outcome.result.context,
         sources: outcome.result.sources,
         graphSources: outcome.result.graphSources,
@@ -72,7 +73,22 @@ export async function postRagSearch(
         scope: outcome.result.scope,
         intent: outcome.result.intent,
         responseLanguage: outcome.result.responseLanguage,
+        knowledgeLanguage: outcome.result.knowledgeLanguage,
+        retrievalQuery: outcome.result.retrievalQuery ?? null,
+        latencyMs: outcome.result.latencyMs,
+        ...(timings ? { timings } : {}),
       });
+      // Stage timings in the standard Server-Timing header (visible in the
+      // browser devtools Network → Timing tab).
+      if (timings) {
+        response.headers.set(
+          "Server-Timing",
+          Object.entries(timings)
+            .map(([stage, ms]) => `${stage.replace(/Ms$/, "")};dur=${ms}`)
+            .join(", "),
+        );
+      }
+      return response;
     }
 
     if (body.documentId) {
