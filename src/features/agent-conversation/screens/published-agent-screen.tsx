@@ -23,7 +23,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { BookOpen, MessageCircleQuestion, ShieldCheck, Sparkles } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { ConversationChatWindow } from "../components/conversation-chat-window";
@@ -220,18 +220,6 @@ export default function PublishedAgentScreen() {
               avatarUrl={config.assistant?.avatarUrl ?? null}
               primaryColour={primaryColour}
               accentColour={accentColour}
-              headerBadge={
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Published v{config.published.versionNumber}
-                </span>
-              }
-              headerAside={
-                <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
-                  <BookOpen className="h-3 w-3" />
-                  {config.kb.name}
-                </span>
-              }
               welcomeMessage={config.assistant?.welcomeMessage ?? ""}
               messages={conversation.messages}
               thinking={conversation.thinking}
