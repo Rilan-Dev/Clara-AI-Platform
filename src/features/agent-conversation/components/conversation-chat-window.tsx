@@ -303,32 +303,7 @@ export function ConversationChatWindow({
                   )}
                 </div>
               </div>
-              {!(publishedMode && mode === "voice") && (
-              <ConversationRail
-                assistantName={assistantName}
-                primaryColour={primaryColour}
-                accentColour={accentColour}
-                messages={messages}
-                citeSources={citeSources}
-                lastMessage={lastMessage}
-                scrollRef={scrollRef}
-                welcomeMessage={welcomeMessage}
-                thinking={thinking}
-                streaming={streaming}
-                voiceActive={false}
-                input={input}
-                onInputChange={onInputChange}
-                onSend={onSend}
-                canSend={canSend}
-                sendDisabled={sendDisabled}
-                placeholder={placeholder}
-                voiceAvailable={voiceAvailable}
-                onVoiceStart={onVoiceStart}
-                suggestions={suggestions}
-                onSuggestion={onSuggestion}
-              />
- 
-              )}           </motion.div>
+           </motion.div>
           ) : (
             <motion.div
               key="chat"
