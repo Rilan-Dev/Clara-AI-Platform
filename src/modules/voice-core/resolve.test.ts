@@ -606,3 +606,48 @@ describe("voice resolution — OpenAI native-realtime axis", () => {
     expect(r.openai).toBeNull();
   });
 });
+
+describe("voice resolution — realtime transport never replaces the brain provider", () => {
+  const brainProviders = ["openai", "gemini", "sarvam"] as const;
+
+  it.each(brainProviders)(
+    "keeps a %s brain unchanged when ElevenLabs is selected for realtime voice",
+    async (brainProvider) => {
+      resolveAIMock.mockResolvedValue({
+        ...sarvamBrain,
+        provider: brainProvider,
+        chatModel:
+          brainProvider === "openai"
+            ? "gpt-4o-mini"
+            : brainProvider === "gemini"
+              ? "gemini-2.5-flash"
+              : "sarvam-105b",
+      } as never);
+
+      orgSettingsMock.mockResolvedValue({
+        ...baseOrg,
+        allowedVoiceProviders: ["openai", "gemini", "elevenlabs", "sarvam"],
+        voiceProvider: "openai",
+        realtimeVoiceProvider: "elevenlabs",
+        defaultElevenlabsVoice: null,
+      } as never);
+
+      agentSettingsMock.mockResolvedValue({
+        ...openaiRealtimeAgent,
+        voiceProvider: "openai",
+        realtimeVoiceProvider: "elevenlabs",
+        realtimeSttModel: "scribe_v2_realtime",
+        realtimeTtsModel: "eleven_flash_v2_5",
+        realtimeVoiceId: "el-realtime",
+      } as never);
+
+      const r = await resolveVoiceConfig({ kbId: "kb-1", surface: "realtime" });
+
+      expect(r.brain.provider).toBe(brainProvider);
+      expect(r.realtimeProvider).toBe("elevenlabs");
+      expect(r.elevenlabs?.sttModel).toBe("scribe_v2_realtime");
+      expect(r.elevenlabs?.ttsModel).toBe("eleven_flash_v2_5");
+      expect(r.elevenlabs?.voiceId).toBe("el-realtime");
+    },
+  );
+});
