@@ -6,6 +6,8 @@
  *
  *   POST /api/translate        signed-in workspace / draft preview
  *   POST /api/embed/translate  published agent page / embed (public token)
+ *   POST /api/agents/:agentId/translate
+ *                              agent editor (e.g. translate the first message)
  *
  * Body: { kbId?, text, targetLanguage, scope?: "draft" }
  *
@@ -18,13 +20,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
+import { requireAgentPermission, requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { validateEmbedRequest, buildCorsHeaders } from "@/modules/embed/core/validate-embed";
-import { getAssistantConfigByKb } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, listKnowledgeBases } from "@/modules/knowledge-bases/core/db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { hit, rateLimitResponse } from "@/lib/rate-limit";
 import { translateText } from "@/modules/rag/cross-lingual";
 import { baseLanguageCode, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
+import { SUPPORTED_LANGUAGES } from "@/modules/assistant/core/config";
 
 const MAX_TEXT_CHARS = 6000;
 const RATE = { limit: 60, windowMs: 60_000 };
@@ -104,5 +107,48 @@ export async function postEmbedTranslate(request: NextRequest): Promise<NextResp
   } catch (error) {
     console.error("[translate] embed:", error);
     return NextResponse.json({ error: "The translation could not be completed." }, { status: 500, headers });
+  }
+}
+
+/**
+ * Agent editor: translate admin-authored text (the first message) into any
+ * supported language, using the draft's chat model. The admin decides what
+ * to do with the result; nothing is saved here.
+ */
+export async function postAgentTranslate(request: NextRequest, agentId: string): Promise<NextResponse> {
+  try {
+    const auth = await requireAuth(request);
+    const access = await requireAgentPermission(auth, agentId, "project:update");
+    const body = (await request.json().catch(() => ({}))) as Body;
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const target = baseLanguageCode(body.targetLanguage);
+    if (!text) return NextResponse.json({ error: "text is required" }, { status: 400 });
+    if (text.length > MAX_TEXT_CHARS) {
+      return NextResponse.json({ error: `text is limited to ${MAX_TEXT_CHARS} characters` }, { status: 413 });
+    }
+    if (!target || !SUPPORTED_LANGUAGES.some((l) => baseLanguageCode(l.code) === target)) {
+      return NextResponse.json({ error: "Unsupported language." }, { status: 400 });
+    }
+
+    const gate = hit(`translate:${access.orgId}`, RATE.limit, RATE.windowMs);
+    if (!gate.allowed) {
+      const rl = rateLimitResponse(gate.retryAfterSec, "Too many translations. Please try again shortly.");
+      return NextResponse.json(rl.body, { status: rl.status, headers: rl.headers });
+    }
+
+    const kbs = await listKnowledgeBases(agentId);
+    const kbId = kbs.find((kb) => kb.status !== "archived")?.id ?? kbs[0]?.id;
+    const resolved = await resolveAIConfig(
+      kbId ? { kbId, surface: "chat", preferDraft: true } : { orgId: access.orgId, surface: "chat" },
+    );
+    const translated = await translateText(text, target, { providerConfig: toProviderConfig(resolved) });
+    if (!translated) {
+      return NextResponse.json({ error: "The translation could not be completed. Please try again." }, { status: 502 });
+    }
+    return NextResponse.json({ translatedText: translated, language: target });
+  } catch (error) {
+    if (error instanceof NextResponse) return error;
+    console.error("[translate] agent:", error);
+    return NextResponse.json({ error: "The translation could not be completed." }, { status: 500 });
   }
 }

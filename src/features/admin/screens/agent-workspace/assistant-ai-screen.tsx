@@ -28,6 +28,7 @@ import {
   fetchAgentDraft,
   generateAgentSystemPrompt,
   putAgentDraft,
+  translateAgentText,
   type AgentAIOptionsDTO,
   type AgentDraftDTO,
   type AICapability,
@@ -170,6 +171,13 @@ export default function AgentAssistantAIScreen() {
     [agentId],
   );
 
+  /** Translates the first message for review (first-message language menu). */
+  const translateText = useCallback(
+    async (text: string, targetLanguage: string) =>
+      (await translateAgentText(agentId, { text, targetLanguage })).translatedText,
+    [agentId],
+  );
+
   // ── Provider-synced voice catalog for the ConfigEditor Voices card ──────
   // Mirrors the organisation's selected Realtime Voice provider (the lift in
   // pickProvider keeps this live before the draft is even saved).
@@ -241,6 +249,7 @@ export default function AgentAssistantAIScreen() {
               onOpenAISettings={openAISettings}
               voiceCatalog={voiceCatalog}
               onGenerateSystemPrompt={generateSystemPrompt}
+              onTranslateText={translateText}
             />
           )
         ) : (

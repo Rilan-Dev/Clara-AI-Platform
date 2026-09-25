@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronRight,
   Languages,
+  Maximize2,
   Palette,
   RefreshCw,
   Volume2,
@@ -37,6 +38,8 @@ import {
 } from "lucide-react";
 import { SystemPromptPreview } from "./SystemPromptPreview";
 import { SystemPromptGenerator, type GenerateSystemPrompt } from "./SystemPromptGenerator";
+import { FirstMessageTranslator, type TranslateText } from "./FirstMessageTranslator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LanguageSelect, LanguageMultiSelect } from "./LanguagePicker";
 import { AutoSaveChip, ContextDrawer } from "./ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -73,6 +76,8 @@ type Props = {
   /** When set, the system prompt gets a "Generate from knowledge base"
    *  action (template picker → review → replace/append). */
   onGenerateSystemPrompt?: GenerateSystemPrompt;
+  /** When set, the first-message language chip opens a translate menu. */
+  onTranslateText?: TranslateText;
 };
 
 /** Provider-synced voice catalog — supplied by the agent workspace screen. */
@@ -106,6 +111,7 @@ export function ConfigEditor({
   voiceCatalog: providerVoiceCatalog,
   readOnly = false,
   onGenerateSystemPrompt,
+  onTranslateText,
 }: Props) {
   const [cfg, setCfg] = useState<AssistantConfig>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +124,8 @@ export function ConfigEditor({
   const [lockLanguageOpen, setLockLanguageOpen] = useState(false);
   const [promptPreviewOpen, setPromptPreviewOpen] = useState(false);
   const [promptGeneratorOpen, setPromptGeneratorOpen] = useState(false);
+  const [promptFullscreenOpen, setPromptFullscreenOpen] = useState(false);
+  const fullscreenPromptRef = useRef<HTMLTextAreaElement>(null);
   // Right-column card expansion (agent variant).
   const [languageOpen, setLanguageOpen] = useState(false);
   const [behaviorOpen, setBehaviorOpen] = useState(false);
@@ -315,6 +323,62 @@ export function ConfigEditor({
     />
   ) : null;
 
+  // Full-screen editing for long system prompts (same value, same auto-save).
+  const fullscreenPromptButton = (
+    <button
+      type="button"
+      onClick={() => setPromptFullscreenOpen(true)}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+      title="Edit the system prompt in full screen"
+      aria-label="Edit the system prompt in full screen"
+    >
+      <Maximize2 className="h-3.5 w-3.5" /> Full screen
+    </button>
+  );
+  const fullscreenPromptDialog = (
+    <Dialog open={promptFullscreenOpen} onOpenChange={setPromptFullscreenOpen}>
+      <DialogContent
+        className="flex h-[100dvh] max-w-none flex-col gap-3 p-4 sm:h-[94vh] sm:w-[96vw] sm:max-w-[1400px] sm:rounded-xl sm:p-6"
+        onOpenAutoFocus={(event) => {
+          // Continue writing where the prompt ends, not at its first line.
+          event.preventDefault();
+          const el = fullscreenPromptRef.current;
+          if (!el) return;
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+          el.scrollTop = el.scrollHeight;
+        }}
+      >
+        <DialogHeader className="pr-8">
+          <DialogTitle>System prompt</DialogTitle>
+          <DialogDescription>
+            {readOnly ? "Read-only view." : "Changes save automatically into the draft. Press Esc to exit full screen."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-background focus-within:border-primary/40">
+          <Textarea
+            value={cfg.systemPrompt}
+            onChange={(e) => set("systemPrompt", e.target.value)}
+            ref={fullscreenPromptRef}
+            readOnly={readOnly}
+            aria-label="System prompt"
+            placeholder="You are a helpful assistant…"
+            className="min-h-0 flex-1 resize-none rounded-t-xl rounded-b-none border-0 bg-transparent font-mono text-[13px] leading-6 focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2">
+            <span className="text-[11px] text-muted-foreground/80">
+              {cfg.systemPrompt.length.toLocaleString()} characters
+            </span>
+            <div className="flex items-center gap-2">
+              {generatePromptButton}
+              <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   const TABS = [
     { id: "agent", label: "Agent" },
     { id: "behaviour", label: "Behaviour" },
@@ -361,16 +425,36 @@ export function ConfigEditor({
                     <span className="text-[11px] text-muted-foreground/80">
                       Empty lets the agent wait for the user to start.
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setLanguageOpen(true)}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                      title="Language settings"
-                    >
-                      <LanguageDot code={cfg.defaultLanguage} />
-                      {languageLabel(cfg.defaultLanguage)}
-                      <ChevronRight className="h-3 w-3" />
-                    </button>
+                    {onTranslateText && !readOnly ? (
+                      <FirstMessageTranslator
+                        text={cfg.welcomeMessage}
+                        defaultLanguage={cfg.defaultLanguage}
+                        allowedLanguages={cfg.allowedLanguages}
+                        translate={onTranslateText}
+                        onOpenSettings={() => setLanguageOpen(true)}
+                        onReplace={(translated, language, makeDefault) => {
+                          set("welcomeMessage", translated);
+                          if (makeDefault) {
+                            set("defaultLanguage", language);
+                            if (!cfg.allowedLanguages.includes(language)) {
+                              set("allowedLanguages", [...cfg.allowedLanguages, language]);
+                            }
+                          }
+                          toast.success(makeDefault ? `First message translated; ${languageLabel(language)} is now the default language.` : "First message translated.");
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setLanguageOpen(true)}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        title="Language settings"
+                      >
+                        <LanguageDot code={cfg.defaultLanguage} />
+                        {languageLabel(cfg.defaultLanguage)}
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -379,8 +463,9 @@ export function ConfigEditor({
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <Label className="text-sm font-medium">System prompt</Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     {generatePromptButton}
+                    {fullscreenPromptButton}
                     <button
                       type="button"
                       onClick={() => setPromptPreviewOpen(true)}
@@ -924,6 +1009,7 @@ export function ConfigEditor({
           <SystemPromptPreview config={cfg} contextName={contextName} />
         </ContextDrawer>
         {promptGeneratorDialog}
+        {fullscreenPromptDialog}
       </div>
     );
   }
@@ -972,7 +1058,7 @@ export function ConfigEditor({
                 label="System prompt"
                 hint="The core instructions that guide the agent&apos;s behaviour, tasks and personality."
               >
-                {generatePromptButton && <div className="mb-2 flex justify-end">{generatePromptButton}</div>}
+                <div className="mb-2 flex flex-wrap justify-end gap-2">{generatePromptButton}{fullscreenPromptButton}</div>
                 <Textarea
                   value={cfg.systemPrompt}
                   onChange={(e) => set("systemPrompt", e.target.value)}
@@ -1144,6 +1230,7 @@ export function ConfigEditor({
         <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
       </div>
       {promptGeneratorDialog}
+      {fullscreenPromptDialog}
     </div>
   );
 }
