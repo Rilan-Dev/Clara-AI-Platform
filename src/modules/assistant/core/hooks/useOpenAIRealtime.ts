@@ -11,6 +11,7 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
 import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta } from "../realtime-events";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
 import type { LatencyStage, TurnLatencyHandle } from "@/modules/voice-core/realtime/latency-tracker";
 import type { Source } from "../models";
@@ -155,15 +156,6 @@ const RT_EVENTS = {
   // WebRTC: the server started playing model audio on the media track.
   OUTPUT_AUDIO_BUFFER_STARTED: "output_audio_buffer.started",
 } as const;
-
-/** "ta" → "Tamil" for any language code (falls back to the code itself). */
-function languageDisplayName(code: string): string {
-  try {
-    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -392,8 +384,8 @@ export function useOpenAIRealtime(opts?: Options) {
         headers,
         body: JSON.stringify(
           kbIdVal
-            ? { query, kbId: kbIdVal, language: languagePrefs.assistant, ...(opts?.draftMode ? { scope: "draft" } : {}) } // KB mode
-            : { query, documentId: docId, language: languagePrefs.assistant } // Legacy mode
+            ? { query, kbId: kbIdVal, language: languagePrefs.assistant, channel: "voice", ...(opts?.draftMode ? { scope: "draft" } : {}) } // KB mode
+            : { query, documentId: docId, language: languagePrefs.assistant, channel: "voice" } // Legacy mode
         ),
         signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
       });
@@ -424,29 +416,33 @@ export function useOpenAIRealtime(opts?: Options) {
         )
       );
 
-      // ── Step 2: Build full context string ──────────────────────────────
+      // ── Step 2: Build the turn context ──────────────────────────────────
+      // The server's provider-neutral turn guidance (grounded answer /
+      // capability overview / natural no-evidence handling, in the visitor's
+      // language) replaces the old "GROUNDING GUARD … say exactly" text that
+      // opened conversations with a canned topic-restriction refusal.
       const overviewSummary = documentOverview?.trim() ?? "";
-      const redirectLine = assistantPrompts.voice.outOfScopeRedirect?.trim();
+      const detectedResponseLanguage =
+        typeof payload?.responseLanguage === "string" &&
+        languagePrefs.customer.includes(payload.responseLanguage)
+          ? payload.responseLanguage
+          : null;
+      const guidance =
+        typeof payload?.guidance === "string" && payload.guidance.trim()
+          ? payload.guidance.trim()
+          : buildTurnGuidance({
+              grounded,
+              intent: intent === "capability" ? "capability" : grounded ? "knowledge" : "out_of_scope",
+              responseLanguage: detectedResponseLanguage,
+              fallbackReply: outOfScopeReply,
+              topics:
+                (dynamicScope as { topics?: string } | null)?.topics ??
+                (Array.isArray(dynamicScope?.documentTitles) ? dynamicScope.documentTitles.join(", ") : null),
+              channel: "voice",
+            });
 
-      const contextSegments: string[] = [];
-      if (intent === "capability") {
-        const capabilityParts = [
-          dynamicScope?.welcomeMessage?.trim(),
-          dynamicScope?.knowledgeBaseDescription?.trim(),
-          Array.isArray(dynamicScope?.documentTitles) && dynamicScope.documentTitles.length > 0
-            ? `Current knowledge sources: ${dynamicScope.documentTitles.join(", ")}.`
-            : "",
-        ].filter(Boolean);
-        contextSegments.push(
-          "CAPABILITY/ONBOARDING REQUEST: Answer the visitor's question about what this assistant can help with using the dynamically configured scope below. Do not refuse merely because the question did not match a document.",
-          capabilityParts.join("\n\n"),
-        );
-      } else if (!grounded) {
-        contextSegments.push(
-          `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base.
-Do not answer the customer's question from general knowledge. Say this message, in the customer's language: "${outOfScopeReply}"`,
-        );
-      }
+      const contextSegments: string[] = [guidance];
+      if (!detectedResponseLanguage) contextSegments.push(languageGuidance.follow);
       if (overviewSummary && grounded) {
         contextSegments.push(
           `${assistantPrompts.voice.quickResponseContextLabel}\n${overviewSummary}`
@@ -454,11 +450,8 @@ Do not answer the customer's question from general knowledge. Say this message, 
       }
       if (ragContext) {
         contextSegments.push(
-          `${assistantPrompts.voice.followUpContextLabel}\n${ragContext}`
+          `${intent === "capability" ? "Assistant scope:" : assistantPrompts.voice.followUpContextLabel}\n${ragContext}`
         );
-      }
-      if (redirectLine) {
-        contextSegments.push(redirectLine);
       }
 
       // ── Step 3: Inject context + user question as conversation items ────
@@ -482,15 +475,6 @@ Do not answer the customer's question from general knowledge. Say this message, 
         },
       });
 
-      const detectedResponseLanguage =
-        typeof payload?.responseLanguage === "string" &&
-        languagePrefs.customer.includes(payload.responseLanguage)
-          ? payload.responseLanguage
-          : null;
-      const dynamicLanguageInstruction = detectedResponseLanguage
-        ? `Respond in ${languageDisplayName(detectedResponseLanguage)} because that is the customer's detected language. Keep the response concise and natural. This overrides the default realtime language only for this turn and remains within the project allowlist.`
-        : languageGuidance.follow;
-
       // ── Step 4: Single response.create with tool_choice:"none" ─────────
       // FIX V3: tool_choice:"none" prevents the model from calling rag_search
       // again (it already has the context), which would trigger handleToolCall
@@ -501,13 +485,13 @@ Do not answer the customer's question from general knowledge. Say this message, 
       // llm.start and tts.start are the same instant on this provider.
       markTurn("llm.start");
       markTurn("tts.start");
+      // No `instructions` here: response-level instructions REPLACE the
+      // session instructions for that response (OpenAI Realtime reference,
+      // response.create), which silently dropped the operator's system prompt
+      // on every answer. The per-turn guidance rides the system item above.
       sendJSON({
         type: "response.create",
         response: {
-          instructions: [
-            assistantPrompts.voice.followUpInstructions,
-            dynamicLanguageInstruction,
-          ].join("\n\n"),
           tool_choice: "none",
         },
       });
@@ -684,7 +668,7 @@ Do not answer the customer's question from general knowledge. Say this message, 
           headers,
           body: JSON.stringify(
             kbIdVal
-              ? { query: q, kbId: kbIdVal, ...(opts?.draftMode ? { scope: "draft" } : {}) }       // KB mode
+              ? { query: q, kbId: kbIdVal, channel: "voice", ...(opts?.draftMode ? { scope: "draft" } : {}) }       // KB mode
               : { query: q, documentId: docId }    // Legacy mode
           ),
         });
@@ -709,9 +693,20 @@ Do not answer the customer's question from general knowledge. Say this message, 
           typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
             ? payload.outOfScopeReply.trim()
             : "I don't have enough information in the configured knowledge base to answer that accurately.";
-        const toolContext = grounded
-          ? payload.context
-          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say this message, in the customer's language: "${outOfScopeReply}"`;
+        const guidance =
+          typeof payload?.guidance === "string" && payload.guidance.trim()
+            ? payload.guidance.trim()
+            : buildTurnGuidance({
+                grounded,
+                intent: payload?.intent === "capability" ? "capability" : grounded ? "knowledge" : "out_of_scope",
+                responseLanguage: typeof payload?.responseLanguage === "string" ? payload.responseLanguage : null,
+                fallbackReply: outOfScopeReply,
+                topics: typeof payload?.scope?.topics === "string" ? payload.scope.topics : null,
+                channel: "voice",
+              });
+        const toolContext = [guidance, typeof payload?.context === "string" ? payload.context : ""]
+          .filter(Boolean)
+          .join("\n\n");
 
         sendJSON({
           type: "conversation.item.create",

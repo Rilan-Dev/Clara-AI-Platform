@@ -1,5 +1,5 @@
 const OUT_OF_SCOPE_REDIRECT =
-  "If the conversation drifts away from this policy, acknowledge the request and guide the customer back to how you can help with this coverage.";
+  "If the conversation drifts away from what you cover, acknowledge the request and guide the visitor back to how you can help.";
 
 /**
  * Canonical language catalog used by assistant configuration and runtime
@@ -94,34 +94,34 @@ const LANGUAGE_DEFAULTS: LanguagePreferences = {
 };
 
 const SUGGESTED_PROMPT_PRESETS = [
-  "Walk me through the most important coverage benefits.",
-  "What exclusions should the customer know before buying?",
-  "How do I explain the claims process in simple terms?",
-  "Which sections matter for premiums and billing?",
-  "What guidance can I offer about renewals or cancellations?",
-  "How can I reassure a customer who is comparing plans?",
+  "What can you help me with?",
+  "Summarise the most important points for me.",
+  "What should I know before getting started?",
+  "Walk me through the main steps.",
+  "What are the key requirements or conditions?",
+  "Who should I contact for more help?",
 ] as const;
 
 function createFallbackSummary(documentTitle?: string): string {
   const title = documentTitle?.trim();
-  const readableTitle = title ? `"${title}"` : "this policy document";
+  const readableTitle = title ? `"${title}"` : "this document";
   return [
-    `Here is the distilled intent, coverage scope, and obligations described in ${readableTitle}.`,
-    "Focus on the protections offered, clarify notable exclusions, outline the claims journey, and surface any unique benefits that help an advisor serve the customer.",
+    `Here is the purpose, scope, and key points described in ${readableTitle}.`,
+    "Focus on what it covers, clarify important conditions or limits, outline the main steps, and surface anything that helps answer a visitor's question.",
   ].join(" ");
 }
 
 const VOICE_SESSION_INSTRUCTIONS = [
-  "You are Clara, a confident insurance support specialist speaking in real time.",
-  "Use the knowledge you already have about the active policy plus any extra context you receive.",
+  "You are Clara, a helpful assistant speaking in real time.",
+  "Use the knowledge you already have about the active document plus any extra context you receive.",
   "Never mention documents, retrieval, or suggest you might lack information; respond like a well-briefed human advisor.",
   OUT_OF_SCOPE_REDIRECT,
   "Keep answers concise, friendly, and actionable.",
 ].join(" ");
 
 const CHAT_SYSTEM_INSTRUCTIONS = [
-  "You are Clara, an insurance knowledge assistant for a single policy.",
-  "Answer using the supplied context and your retained understanding of the policy while sounding like a human advisor.",
+  "You are Clara, a knowledge assistant for a single document.",
+  "Answer using the supplied context and your retained understanding of the document while sounding like a knowledgeable human.",
   "Never mention documents, retrieval, or imply limited access to information.",
   OUT_OF_SCOPE_REDIRECT,
   "Keep replies warm, concise, and confidence-inspiring.",
@@ -239,7 +239,7 @@ export const assistantPrompts = {
   voice: {
     sessionInstructions: VOICE_SESSION_INSTRUCTIONS,
     quickResponseInstructions:
-      "Answer immediately using the policy highlights you already know. Sound natural and helpful, and offer clear next steps if appropriate.",
+      "Answer immediately using the highlights you already know. Sound natural and helpful, and offer clear next steps if appropriate.",
     followUpInstructions:
       "Build on your earlier answer using these extra details. Invite the customer to explore the highlights further, and suggest practical next steps.",
     quickResponseContextLabel: "Key points already on hand:",

@@ -89,6 +89,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
           kbName: kb.name,
           kbId,
+          // The tenant's own assistant prompt and reply length, instead of a
+          // hardcoded phone prompt and a fixed 180-token cap.
+          systemPrompt: buildSystemPrompt(assistantConfig, {
+            kbName: kb.name,
+            kbDescription: kb.description,
+            surface: "voice",
+            allowedLanguages: resolved.allowedLanguages,
+          }),
+          maxTokens: resolved.maxTokens ?? assistantConfig.maxTokens ?? null,
         },
       });
     }
@@ -114,7 +123,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       model,
       voice,
       instructions,
-      maxOutputTokens: Math.min(resolved.maxTokens ?? 500, 500),
+      // Spoken audio counts against this; a fixed 500 cut phone answers off.
+      maxOutputTokens: resolved.realtimeMaxOutputTokens ?? "inf",
       turnDetection: {
         type:                "server_vad",
         threshold:           0.5,

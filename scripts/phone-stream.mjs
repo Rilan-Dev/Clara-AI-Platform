@@ -606,13 +606,16 @@ class SarvamCallBridge {
         model: this.cfg.realtimeLlmModel || "sarvam-105b-conversations",
         stream: true,
         temperature: 0.4,
-        max_tokens: 180,
+        // Tenant reply length (AI Assistant settings); no hardcoded cap.
+        ...(Number(this.cfg.maxTokens) > 0 ? { max_tokens: Number(this.cfg.maxTokens) } : {}),
         reasoning_effort: null,
         messages: [
           {
             role: "system",
             content:
-              `You are Clara on a live phone call. Answer naturally and concisely in the caller's language. Never use markdown. Keep the response under three short sentences.\n\nKnowledge base context:\n${context || "(no matching KB context)"}`,
+              `${this.cfg.systemPrompt ? `${this.cfg.systemPrompt}\n\n` : ""}` +
+              `You are on a live phone call. Answer naturally in the caller's language. Never use markdown.\n\n` +
+              `Knowledge base context:\n${context || "(no matching KB context)"}`,
           },
           { role: "user", content: query },
         ],

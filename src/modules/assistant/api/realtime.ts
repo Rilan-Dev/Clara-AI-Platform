@@ -16,7 +16,12 @@ import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
 import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
 import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
 
-const VOICE_MAX_RESPONSE_TOKENS = Number(process.env.OPENAI_REALTIME_MAX_TOKENS ?? 500);
+// Legacy document mode only. Unset → no cap (provider default "inf"); the
+// spoken audio counts against this limit, so a small cap truncates answers.
+const VOICE_MAX_RESPONSE_TOKENS: number | "inf" = (() => {
+  const value = Number(process.env.OPENAI_REALTIME_MAX_TOKENS);
+  return Number.isFinite(value) && value > 0 ? value : "inf";
+})();
 const VOICE_VAD = {
   type: "server_vad",
   threshold: Number(process.env.OPENAI_REALTIME_VAD_THRESHOLD ?? 0.5),
@@ -36,7 +41,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
 
     let instructions: string;
     let voice: string;
-    let maxTokens: number;
+    let maxTokens: number | "inf";
     let transcriptionModel: string;
     let transcriptionLanguage: string;
     let toolDescription: string;
@@ -111,7 +116,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       if (!isSupportedOpenAIRealtimeVoice(voice)) {
         return NextResponse.json({ error: `Unsupported OpenAI Realtime voice: ${voice}` }, { status: 400 });
       }
-      maxTokens = resolved.maxTokens ?? config.maxTokens;
+      maxTokens = resolved.realtimeMaxOutputTokens ?? "inf";
       transcriptionModel = voiceResolved.openai?.transcriptionModel ?? TRANSCRIPTION_MODEL;
       transcriptionLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
       model = voiceResolved.openai?.realtimeModel ?? DEFAULT_REALTIME_MODEL;
@@ -128,7 +133,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       transcriptionModel = TRANSCRIPTION_MODEL;
       transcriptionLanguage = languagePreferences.assistant;
       model = DEFAULT_REALTIME_MODEL;
-      toolDescription = "Retrieve relevant snippets from the active insurance policy document. Call this whenever the user asks about coverage details, exclusions, claims, premiums, renewals, or any other policy-specific information.";
+      toolDescription = "Retrieve relevant snippets from the active document. Call this whenever the user asks a question that needs specific information from it.";
     }
 
     const apiKey = process.env.OPENAI_API_KEY;

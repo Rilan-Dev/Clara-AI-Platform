@@ -118,7 +118,8 @@ export class CallHandler {
       model,
       voice,
       instructions,
-      maxOutputTokens: resolved.maxTokens ?? 500,
+      // Spoken audio counts against this; a fixed 500 cut phone answers off.
+      maxOutputTokens: resolved.realtimeMaxOutputTokens ?? "inf",
       turnDetection: {
         type: "server_vad",
         threshold: 0.5,

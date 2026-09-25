@@ -49,6 +49,8 @@ import {
   translateQueryForRetrieval,
   type RetrievalTranslation,
 } from "@/modules/rag/cross-lingual";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
+import { getKnowledgeTopics } from "@/modules/rag/knowledge-topics";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
@@ -57,7 +59,18 @@ import type { QuerySurface } from "@/modules/knowledge-bases/core/analytics-db";
 const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K = 6;
 const MAX_TOP_K = 20;
-const GROUNDING_RESOLUTION_CACHE_TTL_MS = 30_000;
+/**
+ * How long a KB's resolved AI configuration is reused. Resolving it costs
+ * several database round trips (~2.4 s from a cold serverless instance), paid
+ * on every voice turn once the cache expired. Override with
+ * GROUNDING_CONFIG_CACHE_TTL_MS; published-version changes apply after it.
+ */
+const GROUNDING_RESOLUTION_CACHE_TTL_MS = (() => {
+  const value = Number(process.env.GROUNDING_CONFIG_CACHE_TTL_MS);
+  return Number.isFinite(value) && value >= 0 ? value : 120_000;
+})();
+/** Max wait for a not-yet-cached KB topic summary on capability turns. */
+const TOPICS_WAIT_MS = 1_500;
 /**
  * Graph retrieval is optional enrichment. On a realtime voice turn it must
  * never hold the answer back: after this budget the turn continues with the
@@ -118,7 +131,17 @@ export interface GroundingRequest {
    * admission — for surfaces whose quota is metered elsewhere (ElevenLabs
    * Mode B admits its quota at post-call, admitting here would double-bill).
    */
-  admission?: "quota" | "audit-only";
+  admission?: "quota" | "audit-only" | "external";
+  /**
+   * Text to search with, when it differs from the visitor's message (e.g. a
+   * conversation-aware query in chat). `query` stays the visitor's own words
+   * for intent and language detection and for the audit trail.
+   */
+  searchQuery?: string;
+  /** Spoken replies get a "finish your sentences" line in the turn guidance. */
+  channel?: "voice" | "chat";
+  /** The caller already translated `searchQuery` into the KB language. */
+  skipTranslation?: boolean;
   /**
    * Embedding provider override — ONLY for internal flows (public demo) that
    * must pin the embedding backbone. Selects the EMBEDDING transport, never
@@ -181,6 +204,8 @@ export interface GroundingScope {
   knowledgeBaseDescription: string | null;
   documentCount: number;
   documentTitles: string[];
+  /** What this KB covers: admin description or topics derived from its content. */
+  topics?: string;
 }
 
 export type GroundingIntent = "capability" | "knowledge" | "out_of_scope";
@@ -202,6 +227,12 @@ export interface GroundedContext {
   scope: GroundingScope;
   /** Lightweight intent classification performed before retrieval. */
   intent: GroundingIntent;
+  /**
+   * Provider-neutral instructions for answering THIS turn (grounded answer,
+   * capability overview, or natural no-evidence handling). Every channel
+   * injects it alongside the context — see modules/rag/turn-guidance.ts.
+   */
+  guidance: string;
   /** Best-effort local language detected from the visitor query. */
   responseLanguage: string;
   /** Language the KB documents are searched in. */
@@ -293,7 +324,13 @@ function isCapabilityQuery(query: string): boolean {
     /எந்த .*விஷய/,
     /எந்தந்த .*விஷய/,
     /என்ன மாதிரி .*பண்ண முடியும்/,
-    /எப்படி .*உதவி/,
+    /எப்படி .*உதவ/,
+    /உதவ முடியும்/,
+    /என்ன .*டாபிக்/,
+    /(कैसे|क्या) .*मदद/,
+    /किन विषयों/,
+    /ఎలా .*సహాయ/,
+    /ఏ .*విషయాల/,
     /enna .*help/,
     /eppadi .*help/,
     /enna maathiri .*help/,
@@ -448,7 +485,9 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   // The embedding/AI config only depends on kbId — resolve it alongside the
   // KB metadata instead of after it (it is cached for 30 s per KB).
   const resolvedPromise = resolveGroundingAIConfig(request.kbId, request.preferDraft === true);
-  resolvedPromise.catch(() => {});
+  let resolvedEarly: Awaited<typeof resolvedPromise> | null = null;
+  resolvedPromise.then((value) => { resolvedEarly = value; }, () => {});
+  const resolvedSnapshot = (): Awaited<typeof resolvedPromise> | null => resolvedEarly;
   const [kb, assistantConfig, documentTitles, tenant] = await Promise.all([
     getKnowledgeBaseById(request.kbId),
     getAssistantConfigByKb(request.kbId),
@@ -481,13 +520,30 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     query,
     assistantConfig?.allowedLanguages ?? ["en"],
   );
+  const fallbackReply =
+    assistantConfig?.outOfScopeReply ??
+    "I don't have enough information in the configured knowledge base to answer that accurately.";
+  // Topics come from this tenant's own KB (admin description, else a cached
+  // summary of its indexed content, else document titles) — never hardcoded.
+  const topicsFor = (waitMs: number) =>
+    getKnowledgeTopics({
+      collection: kb.qdrantCollection,
+      description: scope.knowledgeBaseDescription,
+      documentTitles,
+      waitMs,
+    }).catch(() => documentTitles.join(", "));
+  // Start (or reuse) the topic summary now so it is ready by the time a
+  // capability or no-evidence turn needs it.
+  void topicsFor(0);
   // Capability/onboarding turns are intentionally resolved before vector search.
   // They should work even when the KB contains no FAQ phrased like the visitor's
   // question, and their answer is derived from the current assistant/KB config.
   if (isCapabilityQuery(query)) {
+    const topics = await topicsFor(TOPICS_WAIT_MS);
+    scope.topics = topics;
     const capabilityLines = [
       scope.welcomeMessage.trim(),
-      scope.knowledgeBaseDescription?.trim(),
+      topics ? `Topics you can help with: ${topics}` : "",
       scope.documentTitles.length > 0
         ? `Available knowledge sources: ${scope.documentTitles.join(", ")}.`
         : "",
@@ -499,9 +555,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       result: {
         context: capabilityLines.join("\n\n"),
         grounded: false,
-        outOfScopeReply:
-          assistantConfig?.outOfScopeReply ??
-          "I don't have enough information in the configured knowledge base to answer that accurately.",
+        outOfScopeReply: fallbackReply,
         sources: [],
         graphSources: [],
         mode: getRagRuntimeConfig({ requestedMode: request.ragMode ?? undefined }).ragMode,
@@ -515,6 +569,14 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         },
         scope,
         intent: "capability",
+        guidance: buildTurnGuidance({
+          grounded: false,
+          intent: "capability",
+          responseLanguage,
+          fallbackReply,
+          topics,
+          channel: request.channel,
+        }),
         responseLanguage,
         latencyMs: Date.now() - t0,
       },
@@ -545,6 +607,31 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   // ── Embedding config: resolved from KB AI policy; the override only pins
   // the embedding transport (public demo), never the knowledge.
   const admissionMs = Date.now() - admissionStarted;
+
+  // ── Cross-lingual retrieval: when the visitor asks in another language
+  // than the KB documents, also search with a KB-language translation. It
+  // starts NOW, in parallel with the AI-config resolution below (which can
+  // take seconds on a cold instance), using the org's configured translation
+  // when that config is already available and the platform model otherwise.
+  const searchText = (request.searchQuery ?? query).trim() || query;
+  const knowledgeLanguage = inferKnowledgeLanguage(documentTitles, assistantConfig?.defaultLanguage);
+  const early = resolvedSnapshot();
+  const translationPromise: Promise<RetrievalTranslation> = !request.skipTranslation && needsRetrievalTranslation({
+    query,
+    kbLanguage: knowledgeLanguage,
+    detectedLanguage: responseLanguage,
+  })
+    ? translateQueryForRetrieval({
+        query: searchText,
+        kbLanguage: knowledgeLanguage,
+        translationMode: early?.translationMode,
+        orgId,
+        kbId: kb.id,
+        agentId,
+        providerConfig: early ? toProviderConfig(early, "embedding") : undefined,
+      })
+    : Promise.resolve({ query: null, method: "none", ms: 0 });
+
   const configStarted = Date.now();
   const resolved = await resolvedPromise;
   const configMs = Date.now() - configStarted;
@@ -574,34 +661,12 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       )
     : Promise.resolve([]);
 
-  // ── Cross-lingual retrieval: when the visitor asks in another language
-  // than the KB documents, also search with a KB-language translation.
-  const knowledgeLanguage = inferKnowledgeLanguage(
-    documentTitles,
-    assistantConfig?.defaultLanguage ?? resolved.defaultLanguage,
-  );
-  const translationPromise: Promise<RetrievalTranslation> = needsRetrievalTranslation({
-    query,
-    kbLanguage: knowledgeLanguage,
-    detectedLanguage: responseLanguage,
-  })
-    ? translateQueryForRetrieval({
-        query,
-        kbLanguage: knowledgeLanguage,
-        translationMode: resolved.translationMode,
-        orgId,
-        kbId: kb.id,
-        agentId,
-        providerConfig,
-      })
-    : Promise.resolve({ query: null, method: "none", ms: 0 });
-
   const retrievalStarted = Date.now();
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
       resolved.knowledgeCollection ?? kb.qdrantCollection,
-      [query, translationPromise.then((t) => t.query)],
+      [searchText, translationPromise.then((t) => t.query)],
       topK,
       filter,
       providerConfig,
@@ -650,7 +715,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     })
     .join("\\n\\n");
 
-  if (admissionMode === "quota") {
+  if (admissionMode === "external") {
+    // The caller owns the query event (it admits and finalises it with the
+    // generated answer) — logging here would count the turn twice.
+  } else if (admissionMode === "quota") {
     void finalizeQueryEvent(admission && admission.admitted ? admission.eventId : null, {
       answerText: "",
       sourceCount: vectorResults.length + graphHits.length,
@@ -717,6 +785,12 @@ ${graphContext}`);
     relations: hit.relations,
   }));
 
+  const grounded = sources.length > 0 || graphSources.length > 0;
+  // Topics only matter when there is no evidence (to steer the visitor to
+  // what the KB covers); the summary is usually cached or already computing.
+  if (!grounded) scope.topics = await topicsFor(TOPICS_WAIT_MS / 2);
+  const outOfScopeReply = resolved.assistantConfig?.outOfScopeReply ?? fallbackReply;
+
   return {
     ok: true,
     warning: admission && admission.admitted ? admission.warning : null,
@@ -725,10 +799,16 @@ ${graphContext}`);
       sources,
       graphSources,
       mode: runtime.ragMode,
-      grounded: sources.length > 0 || graphSources.length > 0,
-      outOfScopeReply:
-        resolved.assistantConfig?.outOfScopeReply ??
-        "I don't have enough information in the configured knowledge base to answer that accurately.",
+      grounded,
+      outOfScopeReply,
+      guidance: buildTurnGuidance({
+        grounded,
+        intent: "knowledge",
+        responseLanguage,
+        fallbackReply: outOfScopeReply,
+        topics: scope.topics,
+        channel: request.channel,
+      }),
       kb: {
         id: kb.id,
         name: kb.name,
