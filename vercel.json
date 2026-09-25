@@ -36,7 +36,7 @@
       "maxDuration": 60
     },
     "api/voice-realtime.mjs": {
-      "maxDuration": 1800
+      "maxDuration": 300
     },
     "src/app/api/queue/scrape/route.ts": {
       "experimentalTriggers": [
