@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Users,
@@ -17,6 +18,7 @@ import {
 import Link from "next/link";
 import http from "@/lib/http";
 import { LoadError } from "@/components/ui/load-error";
+import { useAuth } from "@/modules/admin-ui/hooks";
 
 type Stats = {
   totalOrgs: number;
@@ -49,11 +51,17 @@ const PLAN_BAR: Record<string, string> = {
 };
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { user, loading: authLoading, primaryOrgId } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [revenue, setRevenue] = useState<Revenue | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(() => {
+    if (!user?.isSuperAdmin) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setLoadError(null);
     Promise.all([
@@ -66,10 +74,20 @@ export default function AdminDashboard() {
       })
       .catch((err: unknown) => setLoadError((err as Error)?.message ?? "Request failed"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.isSuperAdmin]);
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+    if (!user.isSuperAdmin) {
+      router.replace(primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings/account");
+      return;
+    }
     load();
-  }, [load]);
+  }, [authLoading, load, primaryOrgId, router, user]);
+  if (authLoading || !user?.isSuperAdmin) {
+    return <div className="min-h-[60vh] bg-background" aria-hidden="true" />;
+  }
+
   const arr = (stats?.mrr ?? 0) * 12;
   const arpu =
     stats && stats.payingOrgs > 0
