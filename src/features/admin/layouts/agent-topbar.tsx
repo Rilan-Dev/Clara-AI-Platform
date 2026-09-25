@@ -17,9 +17,13 @@
  *   removed from the navbar — identity lives in the avatar menu).
  * · AgentTopbarCluster — the RIGHT slot next to the profile avatar: the
  *   branch/version cluster (Main · vN), a "Draft changes" pill that opens the
- *   pending-changes diff drawer (draft ↔ current version), a "Published vN"
- *   pill that opens the published-URL controls, the live "Draft saved …" age,
- *   and the Preview / Publish update actions (one-click publish).
+ *   Review Changes modal (draft ↔ current version, Overview + Raw JSON), a
+ *   "Published vN" pill that opens the published-URL controls, the live
+ *   "Draft saved …" age, and the Preview action plus the split Publish
+ *   button: one-click publish + a chevron dropdown (PublishMenu) with the
+ *   deployment actions — view pending changes, publish to a new branch,
+ *   deploy traffic, view all branches, copy shareable link / version
+ *   permalink, discard changes.
  * · Both slots share ONE workspace-context fetch through AgentTopbarProvider
  *   (the 60s client cache + the agent-workspace:refresh event for forced
  *   refreshes after publish / restore).
@@ -46,23 +50,22 @@ import {
   FileDiff,
   GitBranch,
   Rocket,
-  X,
 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import {
-  fetchAgentDiff,
   fetchAgentWorkspaceContext,
   publishAgentVersion,
   saveAgentVersion,
   type AgentWorkspaceContextDTO,
-  type SemanticDiffDTO,
 } from "@/modules/admin-ui/ai-platform-api";
 import {
   fetchAgentWorkspaceContextCached,
   updateAgentWorkspaceContextCache,
 } from "@/features/admin/screens/agent-workspace/context-cache";
-import { DiffViewer, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
+import { WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
 import { cn } from "@/lib/utils";
+import { PublishMenu } from "./publish-menu";
+import { ReviewChangesDialog } from "./publish-review-dialog";
 
 // ── Agent route detection ────────────────────────────────────────────────────
 
@@ -238,7 +241,7 @@ export function TopbarContextLabel({ isAdmin }: { isAdmin: boolean }) {
 // ── Right slot: version cluster + deploy actions ─────────────────────────────
 
 export function AgentTopbarCluster() {
-  const { agentId, context, loading } = useAgentTopbar();
+  const { orgId, agentId, context, loading } = useAgentTopbar();
   const [publishing, setPublishing] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
 
@@ -331,7 +334,7 @@ export function AgentTopbarCluster() {
         {/* Live draft age — re-renders on a slow tick so the label ages naturally. */}
         <DraftSavedIndicator draftUpdatedAt={context?.draftUpdatedAt ?? null} />
 
-        {/* Deploy actions */}
+        {/* Deploy actions — split button: one-click publish + actions dropdown */}
         <WorkspaceButton
           variant="secondary"
           onClick={() => window.open(`/preview/agents/${agentId}`, "_blank", "noopener")}
@@ -342,35 +345,41 @@ export function AgentTopbarCluster() {
           <ExternalLink className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Preview</span>
         </WorkspaceButton>
-        <WorkspaceButton
-          variant="primary"
-          onClick={() => void publishNow()}
-          disabled={!canPublish || publishing}
-          title={
-            productionUpToDate
-              ? "Production is up to date — edit the draft to enable publishing"
-              : draftEditedSinceVersion
-                ? "Saves the draft as a version and publishes it"
-                : `Publish v${currentVersion?.versionNumber ?? "1"} to production`
-          }
-          className="px-2.5 py-1.5 text-xs"
-        >
-          <Rocket className={cn("h-3.5 w-3.5", publishing && "animate-pulse")} />
-          <span className="hidden sm:inline">
-            {publishing ? "Publishing…" : deployment ? "Publish update" : "Publish"}
-          </span>
-        </WorkspaceButton>
+        <div className="inline-flex">
+          <WorkspaceButton
+            variant="primary"
+            onClick={() => void publishNow()}
+            disabled={!canPublish || publishing}
+            title={
+              productionUpToDate
+                ? "Production is up to date — edit the draft to enable publishing"
+                : draftEditedSinceVersion
+                  ? "Saves the draft as a version and publishes it"
+                  : `Publish v${currentVersion?.versionNumber ?? "1"} to production`
+            }
+            className="rounded-r-none px-2.5 py-1.5 text-xs"
+          >
+            <Rocket className={cn("h-3.5 w-3.5", publishing && "animate-pulse")} />
+            <span className="hidden sm:inline">
+              {publishing ? "Publishing…" : deployment ? "Publish update" : "Publish"}
+            </span>
+          </WorkspaceButton>
+          <PublishMenu
+            agentId={agentId}
+            orgId={orgId}
+            context={context}
+            hasPendingChanges={!!draftEditedSinceVersion}
+            onViewPendingChanges={() => setDiffOpen(true)}
+          />
+        </div>
       </div>
 
-      {/* Pending-changes diff drawer (Draft changes → view pending changes) */}
-      <DraftChangesDrawer
+      {/* Review Changes modal (Draft changes pill / Publish menu → View pending changes) */}
+      <ReviewChangesDialog
         agentId={agentId}
         context={context}
         open={diffOpen}
         onClose={() => setDiffOpen(false)}
-        canPublish={canPublish && draftEditedSinceVersion}
-        publishing={publishing}
-        onPublish={() => void publishNow()}
       />
     </>
   );
@@ -389,123 +398,6 @@ function DraftSavedIndicator({ draftUpdatedAt }: { draftUpdatedAt: string | null
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
       Draft saved {timeAgo(draftUpdatedAt)}
     </span>
-  );
-}
-
-// ── Pending changes drawer (draft ↔ current version) ─────────────────────────
-
-function DraftChangesDrawer({
-  agentId,
-  context,
-  open,
-  onClose,
-  canPublish,
-  publishing,
-  onPublish,
-}: {
-  agentId: string;
-  context: AgentWorkspaceContextDTO | null;
-  open: boolean;
-  onClose: () => void;
-  canPublish: boolean;
-  publishing: boolean;
-  onPublish: () => void;
-}) {
-  const [diff, setDiff] = useState<SemanticDiffDTO | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const currentVersion = context?.currentVersion ?? null;
-
-  // Close on Escape.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  // Fetch draft ↔ current-version diff each time the drawer opens.
-  useEffect(() => {
-    if (!open) return;
-    setDiff(null);
-    setError(null);
-    if (!currentVersion) {
-      setError("No versions yet — publishing will create v1 from this draft.");
-      return;
-    }
-    let cancelled = false;
-    fetchAgentDiff(agentId, currentVersion.id, "draft")
-      .then((d) => !cancelled && setDiff(d))
-      .catch((e: Error) => !cancelled && setError(e.message));
-    return () => {
-      cancelled = true;
-    };
-  }, [open, agentId, currentVersion]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Pending changes">
-      {/* Scrim */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={onClose}
-      />
-      {/* Panel */}
-      <div className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-300">
-        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-foreground">Pending changes</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {currentVersion
-                ? `Draft vs Main · v${currentVersion.versionNumber} — not live yet`
-                : "Draft — nothing published yet"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close pending changes"
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {error ? (
-            <p className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground/80">
-              {error}
-            </p>
-          ) : (
-            <DiffViewer
-              diff={diff}
-              emptyLabel={
-                currentVersion
-                  ? `No pending changes — the draft matches v${currentVersion.versionNumber}.`
-                  : "No pending changes."
-              }
-            />
-          )}
-        </div>
-
-        {canPublish && (
-          <div className="border-t border-border px-5 py-3">
-            <WorkspaceButton
-              variant="primary"
-              onClick={onPublish}
-              disabled={publishing}
-              className="w-full"
-              title="Saves the draft as a version and publishes it"
-            >
-              <Rocket className={cn("h-3.5 w-3.5", publishing && "animate-pulse")} />
-              {publishing ? "Publishing…" : "Publish these changes"}
-            </WorkspaceButton>
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 

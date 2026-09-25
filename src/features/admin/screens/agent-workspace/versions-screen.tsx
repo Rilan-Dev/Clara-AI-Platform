@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   archiveAgentBranch,
   createAgentBranch,
@@ -41,6 +41,7 @@ export default function AgentVersionsScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
   const { context, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
@@ -178,6 +179,16 @@ export default function AgentVersionsScreen() {
     if (!mainCurrentVersionId) return;
     setBranchForm({ name: "", description: "", fromVersionId: mainCurrentVersionId });
   }, [mainCurrentVersionId]);
+
+  // Deep link from the topbar Publish menu ("Publish to a new branch"):
+  // /versions?create=1 opens the create-branch drawer once, then cleans the
+  // URL so cancelling/retrying does not re-open it behind the user's back.
+  const createParam = searchParams.get("create") === "1";
+  useEffect(() => {
+    if (!createParam || loading || !mainCurrentVersionId) return;
+    openCreateBranch();
+    router.replace(pathname);
+  }, [createParam, loading, mainCurrentVersionId, openCreateBranch, router, pathname]);
 
   return (
     <div>
