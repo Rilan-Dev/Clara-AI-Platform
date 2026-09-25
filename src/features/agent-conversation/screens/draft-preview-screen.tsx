@@ -244,8 +244,8 @@ export default function DraftPreviewScreen() {
       }}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur">
+        <div className="flex w-full flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href={workspaceHref}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -298,7 +298,7 @@ export default function DraftPreviewScreen() {
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
-      <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+      <main className="w-full px-0 py-0">
         {loading && !data ? (
           <PreviewSkeleton />
         ) : error ? (
@@ -322,8 +322,8 @@ export default function DraftPreviewScreen() {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur">
+          <div className="space-y-0">
+            <div className="flex flex-wrap items-center gap-2 bg-background/55 px-4 py-3 backdrop-blur sm:px-6">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-600">
                 <History className="h-3 w-3" />
                 Draft preview
@@ -346,7 +346,7 @@ export default function DraftPreviewScreen() {
               )}
             </div>
 
-            <div className="min-h-[calc(100vh-11rem)] rounded-[1.75rem] border border-border/70 bg-background/70 p-1.5 shadow-2xl shadow-black/[0.08] backdrop-blur-xl">
+            <div className="min-h-[calc(100vh-8.5rem)] w-full overflow-hidden bg-background/45 backdrop-blur-xl">
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
