@@ -25,18 +25,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
-  BookOpen,
-  Brain,
-  Cpu,
   ExternalLink,
   GitBranch,
-  Globe2,
   History,
-  Mic,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
-  Workflow,
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -95,18 +88,6 @@ function langLabel(code: string) {
   return LANG_LABELS[code] ?? code.toUpperCase();
 }
 
-function timeAgo(iso: string | null): string {
-  if (!iso) return "—";
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
@@ -222,14 +203,7 @@ export default function DraftPreviewScreen() {
           ? "The resolved provider/plan does not enable voice for this knowledge base."
           : null;
 
-  const configSourceBadge =
-    data?.configSource === "draft"
-      ? { label: "Draft", tone: "bg-amber-500/15 text-amber-600 border-amber-500/30" }
-      : data?.configSource === "live"
-        ? { label: "Live config", tone: "bg-sky-500/15 text-sky-600 border-sky-500/30" }
-        : data?.configSource === "published"
-          ? { label: "Published fallback", tone: "bg-muted text-muted-foreground border-border" }
-          : null;
+
 
   // The API payload is authoritative; never build a workspace URL from an
   // empty organisation id while the preview payload is still loading.
