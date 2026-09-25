@@ -40,6 +40,7 @@ import {
   pcm16ToMulaw, mulawToPcm16, resample8To24kHz, resample24To8kHz,
 } from "../providers/twilio";
 import { resample16To24kHz, resample24To16kHz } from "../providers/vonage";
+import { isAssistantAudioDelta, isAssistantTranscriptDelta } from "@/modules/assistant/core/realtime-events";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? `http://127.0.0.1:${process.env.PORT ?? 3000}`;
 
@@ -261,13 +262,13 @@ export class CallHandler {
     }
 
     // AI audio → forward to phone
-    if (type === "response.audio.delta") {
+    if (isAssistantAudioDelta(type)) {
       const b64 = typeof msg.delta === "string" ? msg.delta : "";
       if (b64) this.forwardAudioToPhone(Buffer.from(b64, "base64"));
     }
 
     // AI text transcript — append to log
-    if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
+    if (isAssistantTranscriptDelta(type)) {
       const d = typeof msg.delta === "string" ? msg.delta : "";
       if (d && this.activeTurnId) {
         const turn = this.transcript.find(t => t.speaker === "assistant" && t.ts === this.activeTurnId);

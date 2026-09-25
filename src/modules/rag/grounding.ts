@@ -41,7 +41,14 @@ import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
-import { ProviderFactory } from "@/modules/ai-core/factory";
+import { embedQueryCached } from "@/modules/rag/query-embedding-cache";
+import {
+  inferKnowledgeLanguage,
+  needsRetrievalTranslation,
+  scriptLanguages,
+  translateQueryForRetrieval,
+  type RetrievalTranslation,
+} from "@/modules/rag/cross-lingual";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
@@ -51,6 +58,12 @@ const SCORE_THRESHOLD = 0.25;
 const DEFAULT_TOP_K = 6;
 const MAX_TOP_K = 20;
 const GROUNDING_RESOLUTION_CACHE_TTL_MS = 30_000;
+/**
+ * Graph retrieval is optional enrichment. On a realtime voice turn it must
+ * never hold the answer back: after this budget the turn continues with the
+ * vector evidence alone. Override with GROUNDING_GRAPH_BUDGET_MS.
+ */
+const DEFAULT_GRAPH_BUDGET_MS = 1200;
 
 type CachedEmbeddingResolution = {
   expiresAt: number;
@@ -120,6 +133,17 @@ export interface GroundingRequest {
   preferDraft?: boolean;
 }
 
+/** Per-stage latency of one grounding call, in milliseconds. */
+export interface GroundingTimings {
+  metadataMs: number;
+  admissionMs: number;
+  configMs: number;
+  translationMs: number;
+  retrievalMs: number;
+  graphMs: number;
+  totalMs: number;
+}
+
 export interface GroundedSource {
   index: number;
   id: string;
@@ -180,7 +204,14 @@ export interface GroundedContext {
   intent: GroundingIntent;
   /** Best-effort local language detected from the visitor query. */
   responseLanguage: string;
+  /** Language the KB documents are searched in. */
+  knowledgeLanguage?: string;
+  /** The query translated into the KB language, when one was needed. */
+  retrievalQuery?: string | null;
+  /** How the retrieval query was produced. */
+  translation?: RetrievalTranslation["method"];
   latencyMs: number;
+  timings?: GroundingTimings;
 }
 
 export type GroundingOutcome =
@@ -223,6 +254,11 @@ function detectResponseLanguage(query: string, allowedLanguages: string[]): stri
   if (allowed.has("ta") && /[\u0B80-\u0BFF]/.test(normalized)) return "ta";
   if (allowed.has("hi") && /[\u0900-\u097F]/.test(normalized)) return "hi";
   if (allowed.has("te") && /[\u0C00-\u0C7F]/.test(normalized)) return "te";
+  // Any other script (Kannada, Malayalam, Bengali, Arabic, CJK, Cyrillic …):
+  // answer in it when the organisation allows that language.
+  const scriptCandidates = scriptLanguages(normalized);
+  const scriptMatch = scriptCandidates?.find((code) => allowed.has(code));
+  if (scriptMatch) return scriptMatch;
 
   // Small, local heuristic for common romanized Indian-language prompts.
   // It is intentionally conservative: English remains the fallback.
@@ -274,15 +310,56 @@ type SearchHit = {
   payload?: Record<string, unknown>;
 };
 
+/**
+ * Search the KB collection with one or more phrasings of the question (the
+ * original, plus its KB-language translation when one is needed). Each
+ * phrasing is embedded and searched as soon as it is available — the
+ * original does not wait for the translation — and hits are merged by best
+ * score per point.
+ */
 async function searchKbCollection(
   collectionName: string,
-  query: string,
+  queries: Array<string | Promise<string | null> | null>,
   topK: number,
   filter?: Record<string, unknown>,
   providerConfig?: ProviderConfig,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
-  const embedding = await ProviderFactory.getProvider(providerConfig).embedText(query);
+  const seen = new Set<string>();
+  const lists = await Promise.all(
+    queries.map(async (input) => {
+      const text = (await input)?.trim();
+      const key = text?.toLowerCase();
+      if (!text || !key || seen.has(key)) return [];
+      seen.add(key);
+      const embedding = await embedQueryCached(providerConfig, text);
+      return searchKbVector(client, collectionName, embedding, topK, filter);
+    }),
+  );
+
+  const best = new Map<string, SearchHit>();
+  for (const hit of lists.flat()) {
+    const current = best.get(hit.id);
+    if (!current || hit.score > current.score) best.set(hit.id, hit);
+  }
+  const mapped = [...best.values()].sort((a, b) => b.score - a.score);
+
+  if (filter) return mapped.slice(0, topK);
+
+  return diversifyByDocument(mapped, {
+    getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
+    getScore: (r) => r.score,
+    topK,
+  });
+}
+
+async function searchKbVector(
+  client: ReturnType<typeof getQdrantClient>,
+  collectionName: string,
+  embedding: number[],
+  topK: number,
+  filter?: Record<string, unknown>,
+): Promise<SearchHit[]> {
 
   // Fetch a wider candidate pool so a document-scoped filter isn't required
   // just to keep a smaller document's chunks from being crowded out by a
@@ -292,7 +369,9 @@ async function searchKbCollection(
   const searchParams: Record<string, unknown> = {
     vector: embedding,
     limit: fetchLimit,
-    with_payload: true,
+    // Only the fields the context builder reads — smaller responses from
+    // Qdrant (https://qdrant.tech/documentation/concepts/payload/).
+    with_payload: ["chunk", "title", "originalFilename", "documentId"],
     score_threshold: SCORE_THRESHOLD,
     ...(filter ? { filter } : {}),
   };
@@ -317,23 +396,36 @@ async function searchKbCollection(
   // Never remove the score threshold as a fallback: weak semantic matches
   // must not become context for an out-of-scope question.
 
-  const mapped = (
+  return (
     results as Array<{ id: string | number; score?: number; payload?: Record<string, unknown> }>
-  )
-    .map((r) => ({
-      id: String(r.id),
-      snippet: r.payload?.chunk ? String(r.payload.chunk) : "",
-      score: r.score ?? 0,
-      payload: r.payload as Record<string, unknown>,
-    }))
-    .sort((a, b) => b.score - a.score);
+  ).map((r) => ({
+    id: String(r.id),
+    snippet: r.payload?.chunk ? String(r.payload.chunk) : "",
+    score: r.score ?? 0,
+    payload: r.payload as Record<string, unknown>,
+  }));
+}
 
-  if (filter) return mapped;
+function graphBudgetMs(): number {
+  const value = Number(process.env.GROUNDING_GRAPH_BUDGET_MS);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_GRAPH_BUDGET_MS;
+}
 
-  return diversifyByDocument(mapped, {
-    getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
-    getScore: (r) => r.score,
-    topK,
+/** Resolve with `fallback` if `promise` has not settled within `ms`. */
+function settleWithin<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn(`[grounding] ${label} exceeded ${ms}ms — continuing without it`);
+      resolve(fallback);
+    }, ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => {
+        clearTimeout(timer);
+        console.warn(`[grounding] ${label} failed:`, (error as Error)?.message ?? error);
+        resolve(fallback);
+      },
+    );
   });
 }
 
@@ -353,6 +445,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const topK = Math.min(Number(request.topK ?? DEFAULT_TOP_K), MAX_TOP_K);
 
   const t0 = Date.now();
+  // The embedding/AI config only depends on kbId — resolve it alongside the
+  // KB metadata instead of after it (it is cached for 30 s per KB).
+  const resolvedPromise = resolveGroundingAIConfig(request.kbId, request.preferDraft === true);
+  resolvedPromise.catch(() => {});
   const [kb, assistantConfig, documentTitles, tenant] = await Promise.all([
     getKnowledgeBaseById(request.kbId),
     getAssistantConfigByKb(request.kbId),
@@ -365,6 +461,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   if (kb.status !== "active") {
     return { ok: false, status: 400, error: "Knowledge base is archived" };
   }
+  const metadataMs = Date.now() - t0;
 
   const scope: GroundingScope = {
     assistantName: assistantConfig?.assistantName ?? kb.name,
@@ -430,6 +527,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   // is metered at a different point in the turn lifecycle).
   const admissionMode = request.admission ?? "quota";
   let admission: Awaited<ReturnType<typeof admitQueryEvent>> | null = null;
+  const admissionStarted = Date.now();
   if (admissionMode === "quota") {
     admission = await admitQueryEvent({
       orgId,
@@ -446,7 +544,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Embedding config: resolved from KB AI policy; the override only pins
   // the embedding transport (public demo), never the knowledge.
-  const resolved = await resolveGroundingAIConfig(kb.id, request.preferDraft === true);
+  const admissionMs = Date.now() - admissionStarted;
+  const configStarted = Date.now();
+  const resolved = await resolvedPromise;
+  const configMs = Date.now() - configStarted;
   const providerConfig =
     request.embeddingOverride ?? toProviderConfig(resolved!, "embedding");
 
@@ -458,20 +559,49 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     ? { must: [{ key: "documentId", match: { value: request.documentId } }] }
     : undefined;
 
+  const graphStarted = Date.now();
   const graphPromise = runtime.enableGraphRag
-    ? retrieveGraphContext({
-        kbId: kb.id,
-        query,
-        topK: Math.min(topK, 4),
-        documentId: request.documentId ?? undefined,
-      })
+    ? settleWithin(
+        retrieveGraphContext({
+          kbId: kb.id,
+          query,
+          topK: Math.min(topK, 4),
+          documentId: request.documentId ?? undefined,
+        }),
+        graphBudgetMs(),
+        [],
+        "graph retrieval",
+      )
     : Promise.resolve([]);
 
+  // ── Cross-lingual retrieval: when the visitor asks in another language
+  // than the KB documents, also search with a KB-language translation.
+  const knowledgeLanguage = inferKnowledgeLanguage(
+    documentTitles,
+    assistantConfig?.defaultLanguage ?? resolved.defaultLanguage,
+  );
+  const translationPromise: Promise<RetrievalTranslation> = needsRetrievalTranslation({
+    query,
+    kbLanguage: knowledgeLanguage,
+    detectedLanguage: responseLanguage,
+  })
+    ? translateQueryForRetrieval({
+        query,
+        kbLanguage: knowledgeLanguage,
+        translationMode: resolved.translationMode,
+        orgId,
+        kbId: kb.id,
+        agentId,
+        providerConfig,
+      })
+    : Promise.resolve({ query: null, method: "none", ms: 0 });
+
+  const retrievalStarted = Date.now();
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
       resolved.knowledgeCollection ?? kb.qdrantCollection,
-      query,
+      [query, translationPromise.then((t) => t.query)],
       topK,
       filter,
       providerConfig,
@@ -492,7 +622,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // Vector and graph retrieval are independent; the graph request is started
   // before vector search so hybrid/agentic turns overlap remote latency.
+  const retrievalMs = Date.now() - retrievalStarted;
+  const translation = await translationPromise;
   const graphHits = await graphPromise;
+  const graphMs = Date.now() - graphStarted;
 
   const graphContext = graphHits
     .map((hit, index) => {
@@ -604,6 +737,9 @@ ${graphContext}`);
       scope,
       intent: "knowledge",
       responseLanguage,
+      knowledgeLanguage,
+      retrievalQuery: translation.query,
+      translation: translation.method,
       binding: {
         tenantId: orgId,
         agentId,
@@ -612,6 +748,20 @@ ${graphContext}`);
         ragMode: runtime.ragMode,
       },
       latencyMs: Date.now() - t0,
+      timings: {
+        metadataMs,
+        admissionMs,
+        configMs,
+        translationMs: translation.ms,
+        retrievalMs,
+        graphMs,
+        totalMs: Date.now() - t0,
+      },
     },
   };
+}
+
+/** Test hook — clears the per-process grounding caches. */
+export function resetGroundingCaches(): void {
+  groundingResolutionCache.clear();
 }

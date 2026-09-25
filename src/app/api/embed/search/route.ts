@@ -10,7 +10,12 @@ import {
   buildCorsHeaders,
   handlePreflight,
 } from "@/modules/embed/core/validate-embed";
-import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { getAssistantConfigByKb, getKnowledgeBaseById, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
+import {
+  inferKnowledgeLanguage,
+  needsRetrievalTranslation,
+  translateQueryForRetrieval,
+} from "@/modules/rag/cross-lingual";
 import { searchKbEmbedded } from "@/modules/embed/core/search";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent } from "@/lib/quota-admission";
@@ -124,13 +129,36 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     //   }
     // }
 
-    const resolved = providerOverride ? null : await resolveAIConfig({ kbId, surface: "chat" });
+    const [resolved, documentTitles, assistantConfig] = await Promise.all([
+      providerOverride ? Promise.resolve(null) : resolveAIConfig({ kbId, surface: "chat" }),
+      getKnowledgeBaseDocumentTitles(kbId).catch(() => [] as string[]),
+      getAssistantConfigByKb(kbId).catch(() => null),
+    ]);
     // Embedding work runs on the embedding backbone (V1 split — a Sarvam
     // brain keeps its Qdrant collections on OpenAI/Gemini embeddings).
     const providerConfig = providerOverride ?? toProviderConfig(resolved!, "embedding");
+
+    // Cross-lingual retrieval: a caller asking in Tamil/Hindi/… about an
+    // English KB is also searched with a KB-language translation.
+    const knowledgeLanguage = inferKnowledgeLanguage(
+      documentTitles,
+      assistantConfig?.defaultLanguage ?? resolved?.defaultLanguage,
+    );
+    const translatedQuery = needsRetrievalTranslation({ query, kbLanguage: knowledgeLanguage })
+      ? translateQueryForRetrieval({
+          query,
+          kbLanguage: knowledgeLanguage,
+          translationMode: resolved?.translationMode,
+          orgId,
+          kbId,
+          agentId: resolved?.agentId ?? null,
+          providerConfig,
+        }).then((t) => t.query)
+      : null;
+
     let results;
     try {
-      results = await searchKbEmbedded(resolved!.knowledgeCollection ?? kb.qdrantCollection, query, limit, { providerConfig });
+      results = await searchKbEmbedded(resolved!.knowledgeCollection ?? kb.qdrantCollection, query, limit, { providerConfig, translatedQuery });
     } catch (searchErr) {
       // Retrieval failed (e.g. embedding provider unreachable). Two duties:
       // 1. Finalise the already-admitted query event so the audit trail never

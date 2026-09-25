@@ -105,6 +105,8 @@ vi.mock("@/modules/auth/core/rbac", () => ({
     }
     return { user: { id: "user-switch-1" }, session: { id: "sess-switch-1" } };
   }),
+  // The ElevenLabs session checks kb:read and takes the tenant from it.
+  requireKbPermission: vi.fn(async () => ({ orgId: ORG_ID })),
 }));
 
 const createClientSecretMock = vi.fn();
@@ -127,6 +129,7 @@ import { postSarvamSession } from "@/modules/voice-core/api/sarvam/session";
 import { planGuard } from "@/lib/plan-guard";
 import { query as dbQuery } from "@/lib/db";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { requireKbPermission } from "@/modules/auth/core/rbac";
 
 
 // ── Provider resolution fixtures (one per realtime provider) ─────────────────
@@ -345,8 +348,8 @@ describe("Task 7.1 — resolve tenant context before provider connection", () =>
     expect(payload.mode).toBe("clara-stream");
     expect(payload.stt.model).toBe("scribe_v2_realtime");
     expect(payload.stt.realtime).toMatchObject({
-      endpoint: "/api/voice/elevenlabs/realtime",
-      ttsEndpoint: "/api/voice/elevenlabs/tts-realtime",
+      endpoint: "/api/voice-realtime?channel=elevenlabs-stt",
+      ttsEndpoint: "/api/voice-realtime?channel=elevenlabs-tts",
       model: "scribe_v2_realtime",
       sampleRate: 16_000,
       encoding: "linear16",
@@ -443,7 +446,11 @@ describe("Task 7.2 — provider switching invariants", () => {
       const orgResolved = (dbQuery as ReturnType<typeof vi.fn>).mock.calls.some(
         (call) => Array.isArray(call[1]) && call[1][0] === KB_ID,
       );
-      expect(kbLookedUp || orgResolved).toBe(true);
+      // ElevenLabs takes the tenant from the kb:read permission check.
+      const permissionChecked = (requireKbPermission as ReturnType<typeof vi.fn>).mock.calls.some(
+        (call) => call[1] === KB_ID,
+      );
+      expect(kbLookedUp || orgResolved || permissionChecked).toBe(true);
     }
   });
 });

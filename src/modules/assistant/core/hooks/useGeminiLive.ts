@@ -598,7 +598,7 @@ export function useGeminiLive(opts?: Options) {
                       output: JSON.stringify({
                         context: grounded
                           ? payload.context
-                          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say exactly: "${outOfScopeReply}"`,
+                          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say this message, in the customer's language: "${outOfScopeReply}"`,
                         sources: payload.sources,
                         grounded,
                         outOfScopeReply,
