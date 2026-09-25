@@ -212,9 +212,9 @@ export default function PublishedAgentScreen() {
   // ── Published experience ─────────────────────────────────────────────────
   return (
     <PublicShell primaryColour={primaryColour} accentColour={accentColour}>
-      <div className="flex min-h-screen flex-col px-2 py-2 sm:px-4 sm:py-4">
+      <div className="flex min-h-screen w-full flex-col">
         {/* Immersive public chrome — no workspace/sidebar/navigation. */}
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-2xl border border-white/10 bg-white/55 px-4 py-3 shadow-lg shadow-black/[0.04] backdrop-blur-xl dark:bg-black/20 sm:px-5">
+        <header className="flex w-full items-center justify-between bg-white/35 px-4 py-3 backdrop-blur-xl dark:bg-black/10 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
@@ -240,8 +240,8 @@ export default function PublishedAgentScreen() {
           </span>
         </header>
 
-        <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col pt-2 sm:pt-3">
-          <div className="min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/60 shadow-2xl shadow-black/[0.08] backdrop-blur-xl dark:bg-black/20">
+        <main className="flex min-h-0 w-full flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-hidden bg-white/35 backdrop-blur-xl dark:bg-black/10">
             <ConversationChatWindow
               assistantName={assistantName}
               avatarUrl={config.assistant?.avatarUrl ?? null}
