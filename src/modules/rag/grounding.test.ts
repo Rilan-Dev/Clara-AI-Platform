@@ -165,11 +165,50 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(archived).toMatchObject({ ok: false, status: 400, error: "Knowledge base is archived" });
   });
 
-  it("admits quota BEFORE any retrieval spend", async () => {
+  it("admits quota on every retrieval turn", async () => {
     await groundClaraContext({ kbId: KB_FIXTURE.id, query: "q", surface: "voice" });
     expect(admitQueryEvent).toHaveBeenCalledWith(
       expect.objectContaining({ orgId: "org-fixture-1", kbId: KB_FIXTURE.id, surface: "voice" }),
     );
+  });
+
+  it("runs quota admission alongside retrieval but answers only once admitted", async () => {
+    let admit!: (value: unknown) => void;
+    (admitQueryEvent as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Promise((resolve) => { admit = resolve; }),
+    );
+    let settled = false;
+    const pending = groundClaraContext({ kbId: KB_FIXTURE.id, query: UNIQUE_KB_FACT_QUERY }).then((outcome) => {
+      settled = true;
+      return outcome;
+    });
+    // Retrieval (query embedding + vector search) has already started while
+    // the admission transaction is pending…
+    await vi.waitFor(() => expect(ProviderFactory.getProvider).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // …but nothing is returned before the turn is admitted.
+    expect(settled).toBe(false);
+    admit({ admitted: true, eventId: "evt-1", warning: null, used: 1, limit: 100 });
+    const outcome = await pending;
+    expect(outcome.ok).toBe(true);
+  });
+
+  it("reuses KB metadata across turns instead of re-reading it every time", async () => {
+    await groundClaraContext({ kbId: KB_FIXTURE.id, query: "first question" });
+    await groundClaraContext({ kbId: KB_FIXTURE.id, query: "second question" });
+    expect(getKnowledgeBaseById).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes cached KB metadata in the background once it is older than the refresh window", async () => {
+    process.env.GROUNDING_METADATA_REFRESH_MS = "0";
+    try {
+      await groundClaraContext({ kbId: KB_FIXTURE.id, query: "first question" });
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      await groundClaraContext({ kbId: KB_FIXTURE.id, query: "second question" });
+      await vi.waitFor(() => expect(getKnowledgeBaseById).toHaveBeenCalledTimes(2));
+    } finally {
+      delete process.env.GROUNDING_METADATA_REFRESH_MS;
+    }
   });
 
   it("surfaces the 402 plan-limit contract when admission is denied", async () => {

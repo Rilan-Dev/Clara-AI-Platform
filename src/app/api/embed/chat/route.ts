@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
-import { groundClaraContext } from "@/modules/rag/grounding";
+import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
@@ -74,6 +74,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Conversation-aware search text; nothing tenant- or domain-specific.
     const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
     const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
+    // Realtime voice is a transport concern: every brain provider gets the
+    // spoken-reply guidance, the short retrieval width and the fast-turn
+    // model mode (previously only Sarvam did).
+    const realtimeVoice = body.realtimeVoice === true;
+
+    // Retrieval starts NOW, alongside the configuration lookups and quota
+    // admission below, instead of after them. It reads only the KB bound to
+    // the embed credential; nothing is returned to the visitor unless the
+    // turn is admitted. This route owns the query event (admitted below,
+    // finalised with the answer), so grounding must not log it again.
+    const t0 = Date.now();
+    const retrievalStart = t0;
+    const groundingPromise = groundClaraContext({
+      kbId: ctx.kbId,
+      query,
+      searchQuery: retrievalQuery,
+      topK: realtimeVoice ? 4 : 8,
+      surface: "embed",
+      admission: "external",
+      sessionId: body.sessionId ?? null,
+      channel: realtimeVoice ? "voice" : "chat",
+    }).catch((error: unknown) => {
+      console.error("[embed/chat] RAG search failed", error);
+      return null;
+    });
 
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
@@ -103,10 +128,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const realtimeVoice = body.realtimeVoice === true && resolved.provider === "sarvam";
+    // Sarvam has a dedicated low-latency realtime LLM; other providers keep
+    // their configured chat model (a native realtime model is not a chat model).
+    const sarvamRealtime = realtimeVoice && resolved.provider === "sarvam";
     const providerConfig = {
       ...toProviderConfig(resolved),
-      ...(realtimeVoice
+      ...(sarvamRealtime
         ? {
             chatModel:
               resolved.realtimeModel ??
@@ -143,9 +170,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       realtimeVoice,
     });
 
-    const t0 = Date.now();
-    const retrievalStart = t0;
-
     const admission = await admitQueryEvent({
       kbId: ctx.kbId,
       queryText: query,
@@ -161,21 +185,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // The same grounding service as the native realtime voices: cross-lingual
     // retrieval, capability handling, KB topics and provider-neutral turn
-    // guidance. This route owns the query event (admitted above, finalised
-    // with the answer below), so grounding must not log it again.
-    const grounding = await groundClaraContext({
-      kbId: ctx.kbId,
-      query,
-      searchQuery: retrievalQuery,
-      topK: realtimeVoice ? 4 : 8,
-      surface: "embed",
-      admission: "external",
-      sessionId: body.sessionId ?? null,
-      channel: realtimeVoice ? "voice" : "chat",
-    }).catch((error: unknown) => {
-      console.error("[embed/chat] RAG search failed", error);
-      return null;
-    });
+    // guidance — started above, in parallel with admission.
+    const grounding = await groundingPromise;
     if (grounding && !grounding.ok && (grounding.status === 404 || grounding.status === 400)) {
       void finalizeQueryEvent(eventId, { answerText: "", status: "error", latencyMs: Date.now() - t0 });
       return NextResponse.json({ error: grounding.error }, { status: grounding.status, headers: corsHeaders });
@@ -341,10 +352,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     });
 
+    const serverTiming = groundingServerTiming(groundedResult?.timings, "rag-");
     return new NextResponse(stream, {
       status: 200,
       headers: {
         ...corsHeaders,
+        ...(serverTiming ? { "Server-Timing": `${serverTiming}, pre-llm;dur=${llmStart - t0}` } : {}),
         "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",

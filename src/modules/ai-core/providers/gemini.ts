@@ -63,20 +63,35 @@ export class GeminiProvider implements LLMProvider {
     const systemInstruction =
       systemParts.length > 0 ? systemParts.join("\n\n") : undefined;
 
-    const chat = this.ai.chats.create({
-      model: this.getChatModelName(),
-      history: conversationHistory,
-      config: {
-        systemInstruction,
-        temperature: options?.temperature ?? 0.2,
-        maxOutputTokens: options?.maxTokens,
-        stopSequences: options?.stop,
-      },
-    });
+    const model = this.getChatModelName();
+    // Fast turns (voice, query translation) ask for no/low reasoning; Gemini
+    // Flash models then skip "thinking", which otherwise delays the first
+    // token by seconds. Other models keep their default.
+    const fastTurn = options?.reasoningEffort === null || options?.reasoningEffort === "low";
+    const thinkingOff = fastTurn && geminiThinkingCanBeDisabled(model);
+    const start = (disableThinking: boolean) =>
+      this.ai.chats
+        .create({
+          model,
+          history: conversationHistory,
+          config: {
+            systemInstruction,
+            temperature: options?.temperature ?? 0.2,
+            maxOutputTokens: options?.maxTokens,
+            stopSequences: options?.stop,
+            ...(disableThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          },
+        })
+        .sendMessageStream({ message: lastUserMessage });
 
-    const response = await chat.sendMessageStream({
-      message: lastUserMessage,
-    });
+    let response;
+    try {
+      response = await start(thinkingOff);
+    } catch (error) {
+      // Never let the latency hint fail a turn: retry with the model default.
+      if (!thinkingOff) throw error;
+      response = await start(false);
+    }
 
     for await (const chunk of response) {
       const text = chunk.text;
@@ -188,4 +203,9 @@ function reportEmbeddingUsage(
   }
   if (chars <= 0) return;
   options.onUsage({ promptTokens: Math.ceil(chars / 4), completionTokens: 0 });
+}
+
+/** Gemini Flash models accept thinkingBudget 0 (thinking off); Pro does not. */
+export function geminiThinkingCanBeDisabled(model: string): boolean {
+  return /gemini-2\.5-flash/i.test(model.trim());
 }

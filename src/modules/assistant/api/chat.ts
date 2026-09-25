@@ -16,7 +16,7 @@ import {
   resolveLanguagePreferences,
 } from "@/modules/assistant/core/config";
 import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
-import { groundClaraContext } from "@/modules/rag/grounding";
+import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
@@ -229,7 +229,8 @@ async function postChatKb(
   // budgets are applied consistently for every Clara brain provider.
   const realtimeVoice = body?.realtimeVoice === true;
 
-  const [kb, config, resolved, documentTitles] = await Promise.all([
+  // One round of independent lookups (they used to run back to back).
+  const [kb, config, resolved, documentTitles, orgRows, authCtx] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfigByKb(kbId),
     // scope:"draft" — the authenticated agent preview tests the CURRENT
@@ -237,6 +238,14 @@ async function postChatKb(
     // instead of the immutable published version.
     resolveAIConfig({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
     realtimeVoice ? getRealtimeDocumentTitles(kbId) : getKnowledgeBaseDocumentTitles(kbId),
+    // (Named dbQuery — `query` below shadows it with the chat question text.)
+    dbQuery<{ org_id: string }>(
+      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
+      [kbId],
+    ),
+    // Audit context — workspace chat is authenticated; the question is still
+    // logged for anonymous surfaces (user_id NULL).
+    getAuthContext(request).catch(() => null),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");
   if (!config) throw new Error("Knowledge base configuration not found.");
@@ -246,22 +255,14 @@ async function postChatKb(
   // ONE transaction: advisory-lock the org, resolve limits, count the window,
   // then INSERT the pending audit row — check-and-increment cannot race, and
   // quota state can never diverge from the audit trail.
-  // Enforced BEFORE any retrieval/LLM work so over-limit orgs cost nothing.
-  // (Named dbQuery — `query` below shadows it with the chat question text.)
-  const orgRows = await dbQuery<{ org_id: string }>(
-    `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
-    [kbId]
-  );
+  // Nothing is streamed to an over-limit org; retrieval runs alongside the
+  // admission transaction (below) so the turn does not wait for both.
   const orgId = orgRows[0]?.org_id ?? null;
 
   // Phase 6.4: per-org chat rate limit — enforced BEFORE the quota admission
   // transaction so over-rate traffic never touches the advisory lock.
   const chatGated = chatRateGate(orgId, request);
   if (chatGated) return chatGated;
-
-  // Audit context — workspace chat is authenticated; the question is still
-  // logged for anonymous surfaces (user_id NULL).
-  const authCtx = await getAuthContext(request).catch(() => null);
 
   const query = latest.content;
   const t0 = Date.now();
@@ -283,6 +284,28 @@ async function postChatKb(
   const sessionId = typeof body?.sessionId === "string" ? body.sessionId : undefined;
 
   console.log(`[chat/kb] kbId=${kbId} query="${query.slice(0, 100)}"`);
+
+  // The same grounding service every voice channel uses: cross-lingual
+  // retrieval, capability handling, KB topics and provider-neutral turn
+  // guidance. It starts NOW, in parallel with the admission transaction;
+  // this route owns the query event (admitted below, finalised with the
+  // answer), so grounding must not log it again.
+  const groundingPromise = groundClaraContext({
+    kbId,
+    query,
+    searchQuery: retrievalQuery,
+    skipTranslation: crossLingual.translated,
+    topK: realtimeVoice ? 4 : 6,
+    surface: "workspace",
+    admission: "external",
+    sessionId: sessionId ?? null,
+    userId: authCtx?.user.id ?? null,
+    channel: realtimeVoice ? "voice" : "chat",
+    ...(body?.scope === "draft" ? { preferDraft: true } : {}),
+  }).then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
 
   // Analytics + audit trail + daily quota, atomically admitted:
   //   • the prompt is audited even when retrieval or the LLM later fails
@@ -316,33 +339,16 @@ async function postChatKb(
   // not valid Chat Completions models. Realtime speech must therefore NOT
   // replace resolved.chatModel with resolved.realtimeModel.
   const providerConfig = toProviderConfig(resolved);
-  // The same grounding service every voice channel uses: cross-lingual
-  // retrieval, capability handling, KB topics and provider-neutral turn
-  // guidance. This route owns the query event (admitted above, finalised
-  // with the answer below), so grounding must not log it again.
-  let grounding: Awaited<ReturnType<typeof groundClaraContext>>;
-  try {
-    grounding = await groundClaraContext({
-      kbId,
-      query,
-      searchQuery: retrievalQuery,
-      skipTranslation: crossLingual.translated,
-      topK: realtimeVoice ? 4 : 6,
-      surface: "workspace",
-      admission: "external",
-      sessionId: sessionId ?? null,
-      userId: authCtx?.user.id ?? null,
-      channel: realtimeVoice ? "voice" : "chat",
-      ...(body?.scope === "draft" ? { preferDraft: true } : {}),
-    });
-  } catch (searchErr) {
+  const groundingSettled = await groundingPromise;
+  if (!groundingSettled.ok) {
     // Retrieval failed — mark the audit row as an error, then surface it.
     void finalizeQueryEvent(eventId, {
       answerText: "", status: "error",
       latencyMs: Date.now() - t0,
     });
-    throw new ChatRetrievalError(searchErr);
+    throw new ChatRetrievalError(groundingSettled.error);
   }
+  const grounding = groundingSettled.value;
   // A KB with no indexed content yet (503) is a no-evidence turn, not an error.
   const groundedResult = grounding.ok ? grounding.result : null;
   const results = groundedResult?.sources ?? [];
@@ -502,7 +508,14 @@ async function postChatKb(
     },
   });
 
-  return new NextResponse(stream, { headers: baseHeaders });
+  // Retrieval stage timings in the standard Server-Timing header (devtools →
+  // Network → Timing) — the streamed body's duration includes the whole answer.
+  const serverTiming = groundingServerTiming(groundedResult?.timings, "rag-");
+  return new NextResponse(stream, {
+    headers: serverTiming
+      ? { ...baseHeaders, "Server-Timing": `${serverTiming}, pre-llm;dur=${Date.now() - t0}` }
+      : baseHeaders,
+  });
 }
 
 export async function postChat(request: NextRequest): Promise<NextResponse> {
