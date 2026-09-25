@@ -26,6 +26,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, Rocket, X } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import {
@@ -176,7 +177,11 @@ export function ReviewChangesDialog({
   const branchName = currentVersion?.branchName ?? context?.main.name ?? "Main";
   const updated = semantic?.hasChanges ?? jsonHasChanges;
 
-  return (
+  // Portal to <body>: the topbar header uses backdrop-blur, which creates a
+  // containing block for fixed-position descendants — a fixed overlay rendered
+  // inside the header would be confined to the 63px header strip instead of
+  // covering the viewport. Portaling escapes that containing block.
+  return createPortal(
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Review changes">
       {/* Scrim */}
       <div
@@ -311,7 +316,8 @@ export function ReviewChangesDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

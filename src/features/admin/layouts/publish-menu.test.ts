@@ -96,6 +96,18 @@ describe("PublishMenu (topbar Publish update dropdown)", () => {
     expect(menuSource).not.toMatch(/from "@\/modules\/(ai-core|voice-core|assistant)/);
     expect(reviewSource).not.toMatch(/from "@\/modules\/(ai-core|voice-core|assistant)/);
   });
+
+  it("renders its dialogs through a portal to document.body (backdrop-blur containing-block escape)", () => {
+    // The topbar header uses backdrop-blur, which creates a containing block
+    // for fixed-position descendants — a fixed overlay rendered inside the
+    // header is confined to the 63px header strip instead of the viewport.
+    // Portaling to document.body escapes it.
+    expect(menuSource).toMatch(/createPortal/);
+    expect(menuSource).toMatch(/document\.body/);
+    expect(reviewSource).toMatch(/createPortal/);
+    expect(reviewSource).toMatch(/document\.body/);
+    expect(menuSource.match(/createPortal/g)?.length ?? 0).toBeGreaterThanOrEqual(2); // Deploy traffic + Discard
+  });
 });
 
 describe("Review Changes dialog (View pending changes)", () => {
