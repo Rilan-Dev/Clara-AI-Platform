@@ -23,7 +23,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { BookOpen, MessageCircleQuestion, ShieldCheck, Sparkles } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { ConversationChatWindow } from "../components/conversation-chat-window";
@@ -213,52 +213,13 @@ export default function PublishedAgentScreen() {
   return (
     <PublicShell primaryColour={primaryColour} accentColour={accentColour}>
       <div className="flex min-h-screen w-full flex-col">
-        {/* Immersive public chrome — no workspace/sidebar/navigation. */}
-        <header className="flex w-full items-center justify-between bg-white/35 px-4 py-3 backdrop-blur-xl dark:bg-black/10 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
-              style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
-            >
-              {config.assistant?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={config.assistant.avatarUrl} alt="" className="h-full w-full object-cover" draggable={false} />
-              ) : (
-                assistantName.trim().charAt(0).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-semibold text-foreground">{assistantName}</h1>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {config.kb.name} · Published v{config.published.versionNumber}
-              </p>
-            </div>
-          </div>
-          <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-600 sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Live
-          </span>
-        </header>
-
-        <main className="flex h-[calc(100vh-4rem)] min-h-0 w-full flex-1 flex-col">
+        <main className="flex h-screen min-h-0 w-full flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-hidden bg-white/35 backdrop-blur-xl dark:bg-black/10">
             <ConversationChatWindow
               assistantName={assistantName}
               avatarUrl={config.assistant?.avatarUrl ?? null}
               primaryColour={primaryColour}
               accentColour={accentColour}
-              headerBadge={
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Published v{config.published.versionNumber}
-                </span>
-              }
-              headerAside={
-                <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
-                  <BookOpen className="h-3 w-3" />
-                  {config.kb.name}
-                </span>
-              }
               welcomeMessage={config.assistant?.welcomeMessage ?? ""}
               messages={conversation.messages}
               thinking={conversation.thinking}
@@ -280,7 +241,6 @@ export default function PublishedAgentScreen() {
             />
           </div>
         </main>
-
       </div>
     </PublicShell>
   );

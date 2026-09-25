@@ -117,63 +117,76 @@ export function ConversationChatWindow({
   };
 
   return (
-    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-transparent">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 py-3 backdrop-blur-xl sm:px-5">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
-          style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
+    <section className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-transparent">
+      {publishedMode ? (
+        <button
+          type="button"
+          onClick={() => setConversationMode(mode === "voice" ? "chat" : "voice")}
+          disabled={!voiceAvailable || voiceActive}
+          className="absolute right-4 top-4 z-30 inline-flex h-9 items-center gap-2 rounded-full bg-background/75 px-3 text-xs font-semibold text-foreground shadow-sm backdrop-blur-xl transition hover:bg-background disabled:cursor-default disabled:opacity-70"
+          aria-label={mode === "voice" ? "Switch to chat" : "Switch to voice"}
         >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarUrl} alt="" className="h-full w-full object-cover" draggable={false} />
-          ) : (
-            assistantName.trim().charAt(0).toUpperCase()
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-sm font-semibold text-foreground">{assistantName}</h2>
-            {headerBadge}
-          </div>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {voiceActive
-              ? "Realtime conversation"
-              : mode === "voice"
-                ? "Talk naturally with your AI agent"
-                : thinking
-                  ? "Searching the knowledge base…"
-                  : "Chat grounded in your knowledge base"}
-          </p>
-        </div>
-
-        {publishedMode ? (
-          <button
-            type="button"
-            onClick={() => setConversationMode(mode === "voice" ? "chat" : "voice")}
-            disabled={!voiceAvailable || voiceActive}
-            className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold text-foreground transition hover:bg-muted/70 disabled:cursor-default disabled:opacity-70"
-            aria-label={mode === "voice" ? "Switch to chat" : "Switch to voice"}
+          {mode === "voice" ? <MessageSquare className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
+          <span>{mode === "voice" ? "Switch to chat" : "Switch to voice"}</span>
+        </button>
+      ) : (
+        <header className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 py-3 backdrop-blur-xl sm:px-5">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
           >
-            {mode === "voice" ? <MessageSquare className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
-            <span>{mode === "voice" ? "Switch to chat" : "Switch to voice"}</span>
-          </button>
-        ) : (
-          <div className="hidden items-center gap-1 rounded-xl bg-muted/40 p-1 sm:flex">
-            <button type="button" onClick={() => setConversationMode("voice")} disabled={!voiceAvailable || voiceActive}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "voice" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
-              <Headphones className="h-3.5 w-3.5" /> Voice
-            </button>
-            <button type="button" onClick={() => setConversationMode("chat")} disabled={voiceActive}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "chat" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
-              <MessageSquare className="h-3.5 w-3.5" /> Chat
-            </button>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+            ) : (
+              assistantName.trim().charAt(0).toUpperCase()
+            )}
           </div>
-        )}
 
-        {headerAside}
-      </header>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-sm font-semibold text-foreground">{assistantName}</h2>
+              {headerBadge}
+            </div>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {voiceActive
+                ? "Realtime conversation"
+                : mode === "voice"
+                  ? "Talk naturally with your AI agent"
+                  : thinking
+                    ? "Searching the knowledge base…"
+                    : "Chat grounded in your knowledge base"}
+            </p>
+          </div>
 
+          {publishedMode ? (
+            <button
+              type="button"
+              onClick={() => setConversationMode(mode === "voice" ? "chat" : "voice")}
+              disabled={!voiceAvailable || voiceActive}
+              className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold text-foreground transition hover:bg-muted/70 disabled:cursor-default disabled:opacity-70"
+              aria-label={mode === "voice" ? "Switch to chat" : "Switch to voice"}
+            >
+              {mode === "voice" ? <MessageSquare className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
+              <span>{mode === "voice" ? "Switch to chat" : "Switch to voice"}</span>
+            </button>
+          ) : (
+            <div className="hidden items-center gap-1 rounded-xl bg-muted/40 p-1 sm:flex">
+              <button type="button" onClick={() => setConversationMode("voice")} disabled={!voiceAvailable || voiceActive}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "voice" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
+                <Headphones className="h-3.5 w-3.5" /> Voice
+              </button>
+              <button type="button" onClick={() => setConversationMode("chat")} disabled={voiceActive}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "chat" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
+                <MessageSquare className="h-3.5 w-3.5" /> Chat
+              </button>
+            </div>
+          )}
+
+          {headerAside}
+        </header>
+
+      )}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
           {voiceActive && voiceSession ? (
