@@ -310,9 +310,9 @@ export function ConversationChatWindow({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="flex h-full min-h-0 flex-col items-center justify-end px-3 pb-5 pt-3 sm:px-6 sm:pb-8"
+              className="flex h-full min-h-0 flex-col items-center px-3 pb-4 pt-3 sm:px-6 sm:pb-6"
             >
-              <div className="flex h-[min(68vh,44rem)] min-h-[24rem] w-full max-w-4xl sm:min-h-[26rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/60 bg-background/85 shadow-[0_24px_80px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+              <div className="flex h-full min-h-0 w-full max-w-4xl min-w-0 flex-col overflow-hidden bg-transparent">
                 <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-7 sm:py-7" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
                   <ChatAnnouncer
                     label={assistantName}
@@ -568,8 +568,8 @@ function Composer({
   compact?: boolean;
 }) {
   return (
-    <div className={compact ? "space-y-2" : "border-t border-border/70 bg-muted/20 px-3 pb-5 pt-3 sm:px-5 sm:pb-6"}>
-      <div className={compact ? "flex items-end gap-2" : "mx-auto flex w-full max-w-2xl items-end gap-2"}>
+    <div className={compact ? "space-y-2" : "px-0 pb-2 pt-3 sm:pb-3"}>
+      <div className={compact ? "flex items-end gap-2" : "mx-auto flex w-full max-w-3xl items-end gap-2"}>
         <div className="relative flex-1">
           <textarea
             aria-label="Message the assistant"
@@ -584,20 +584,20 @@ function Composer({
             rows={1}
             disabled={sendDisabled}
             placeholder={sendDisabled ? "Chat unavailable" : (placeholder ?? "Message the assistant…")}
-            className="max-h-28 min-h-[2.7rem] w-full resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 pr-11 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+            className="max-h-28 min-h-[2.9rem] w-full resize-none rounded-[1.25rem] border border-border/70 bg-background px-4 py-3 pr-12 text-sm text-foreground shadow-none outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
           />
           {canSend && (
-            <button type="button" onClick={onSend} className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-white shadow transition hover:brightness-110" style={{ background: `linear-gradient(135deg, var(--primary), ${accentColour})` }} aria-label="Send message">
+            <button type="button" onClick={onSend} className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-none transition hover:brightness-110" style={{ background: `linear-gradient(135deg, var(--primary), ${accentColour})` }} aria-label="Send message">
               <CornerDownLeft className="h-4 w-4" />
             </button>
           )}
         </div>
         {voiceAvailable && onVoiceStart ? (
-          <button type="button" onClick={onVoiceStart} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/40" style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }} title="Start realtime voice" aria-label="Start realtime voice">
+          <button type="button" onClick={onVoiceStart} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-none transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/40" style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }} title="Start realtime voice" aria-label="Start realtime voice">
             <Mic className="h-5 w-5" />
           </button>
         ) : voiceUnavailableReason ? (
-          <span className="flex h-11 items-center justify-center rounded-xl border border-dashed border-border px-3 text-xs text-muted-foreground" title={voiceUnavailableReason}>
+          <span className="flex h-11 items-center justify-center rounded-full border border-dashed border-border px-3 text-xs text-muted-foreground" title={voiceUnavailableReason}>
             <Mic className="mr-1.5 h-4 w-4 opacity-50" />
             Voice off
           </span>
