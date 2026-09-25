@@ -84,7 +84,7 @@ vi.mock("@/modules/voice-core/api/elevenlabs/embed-auth", () => ({
 }));
 
 const requireAuthMock = vi.fn();
-const requireKbPermissionMock = vi.fn();
+const requireKbPermissionMock = vi.fn(async (..._args: unknown[]): Promise<Record<string, unknown>> => ({ orgId: ORG_ID }));
 vi.mock("@/modules/auth/core/rbac", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
   requireKbPermission: (...args: unknown[]) => requireKbPermissionMock(...args),
@@ -128,6 +128,12 @@ function post(body: Record<string, unknown>): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps queued mockResolvedValueOnce values; a test that
+  // rejects before consuming one must not leak it into the next test.
+  resolveVoiceConfigMock.mockReset();
+  requireKbPermissionMock.mockReset();
+  // Default: the signed-in user may read the KB (tests override per case).
+  requireKbPermissionMock.mockResolvedValue({ orgId: ORG_ID });
   process.env.AUTH_SECRET = "s".repeat(48);
   process.env.OPENAI_API_KEY = VENDOR_KEYS.openai;
   process.env.GEMINI_API_KEY = VENDOR_KEYS.gemini;
