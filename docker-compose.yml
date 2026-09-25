@@ -1,3 +1,30 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Clara AI — self-hosted production stack (VPS / Docker)
+# ═══════════════════════════════════════════════════════════════════════════════
+#   cp .env.example .env            # fill in secrets (CRON_SECRET, REDIS_PASSWORD…)
+#   docker compose up -d --build
+#   docker compose ps               # every service should read "healthy"/"running"
+#   sh scripts/vps-doctor.sh        # full health report
+#
+# Security: the infrastructure ports (Postgres, Redis, Qdrant, RabbitMQ) are
+# bound to 127.0.0.1 by default. Docker-published ports bypass UFW/iptables
+# host rules, so binding them to 0.0.0.0 put an unauthenticated Redis and
+# Qdrant on the public internet. The app reaches them over the Compose
+# network by service name (redis, postgres, qdrant, rabbitmq) — no public
+# port is needed. For remote admin use an SSH tunnel:
+#   ssh -p 2253 -L 5432:127.0.0.1:1234 root@<server>
+# Only if something outside this host must reach them, set
+# INFRA_BIND_ADDRESS=0.0.0.0 in .env (and set passwords/API keys first).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+x-logging: &default-logging
+  # Unbounded json-file logs eventually fill the disk, which is when
+  # Postgres/Redis/Qdrant start failing intermittently.
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   # ───────────────── Infrastructure ─────────────────
 
@@ -5,62 +32,77 @@ services:
     image: redis:7-alpine
     container_name: clara-redis
     restart: unless-stopped
+    logging: *default-logging
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
-      - "6379:6379"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:6379:6379"
     volumes:
       - ./infra/redis/data:/data
-    command: redis-server --appendonly yes
+    # requirepass is enabled when REDIS_PASSWORD is set in .env (the app and
+    # worker read the same variable).
+    command: >
+      sh -c 'exec redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}'
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli $${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\"} --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   postgres:
     image: postgres:16-alpine
     container_name: clara-postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-clara}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
       POSTGRES_DB: ${POSTGRES_DB:-clara_platform}
     ports:
-      - "1234:5432"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:1234:5432"
     volumes:
       - ./infra/postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   qdrant:
-    image: qdrant/qdrant:latest
+    # Pin a version (e.g. qdrant/qdrant:v1.15.4) with QDRANT_IMAGE once you
+    # know which one the server runs — `latest` can jump a storage version on
+    # the next pull. Never pin OLDER than the version that wrote the storage.
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
     container_name: clara-qdrant
     restart: unless-stopped
+    logging: *default-logging
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:6333:6333"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:6334:6334"
     volumes:
       - ./infra/qdrant/storage:/qdrant/storage
 
-  # ───────────────── Local RabbitMQ ─────────────────
-
   # ──────────────── Local RabbitMQ ────────────────
-  # RabbitMQ is kept inside the Clara Docker network so the bridge can connect
-  # directly using the service name "rabbitmq". Management UI is available on
-  # localhost:15672 for local administration. No external CloudAMQP is needed.
+  # Kept inside the Clara Docker network so the bridge connects by the
+  # service name "rabbitmq". Management UI: http://127.0.0.1:15672 (tunnel).
   rabbitmq:
     image: rabbitmq:4-management-alpine
     container_name: clara-rabbitmq
     restart: unless-stopped
+    logging: *default-logging
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-clara}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-clara-rabbitmq-local}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:5672:5672"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:15672:15672"
     volumes:
       - ./infra/rabbitmq/data:/var/lib/rabbitmq
     healthcheck:
-      test:
-        [
-          "CMD",
-          "rabbitmq-diagnostics",
-          "-q",
-          "ping"
-        ]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -74,23 +116,34 @@ services:
       dockerfile: Dockerfile
     container_name: clara-backend
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SKIP_AUTH: "false"
+    # Published for Nginx Proxy Manager. If NPM proxies to the container name
+    # (clara-backend:3000 on the nginx-proxy_default network) you can bind
+    # this to 127.0.0.1 as well.
     ports:
-      - "3000:3000"
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:3000:3000"
     depends_on:
-      - postgres
-      - qdrant
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
     networks:
       - default
       - npm-proxy
-
-  # ───────────────── Clara Worker ──────────────────
 
   # ──────────────── Clara Worker (BullMQ) ────────────────
   clara-worker:
@@ -99,6 +152,7 @@ services:
       dockerfile: Dockerfile.worker
     container_name: clara-worker
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -107,23 +161,26 @@ services:
       CRAWL_WORKER_CONCURRENCY: 2
       RETRY_WORKER_CONCURRENCY: 3
     depends_on:
-      - redis
-      - postgres
-      - qdrant
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     networks:
       - default
       - npm-proxy
 
   # ──────────────── Clara RabbitMQ Bridge ────────────────
   # Relays the PostgreSQL transactional outbox to local RabbitMQ and delivers
-  # webhook events. RabbitMQ runs inside this Compose project; no CloudAMQP is
-  # required for local/self-hosted deployment. Keep this bridge private.
+  # webhook events. Keep this bridge private.
   clara-rabbitmq-bridge:
     build:
       context: ./services/rabbitmq-bridge
       dockerfile: Dockerfile
     container_name: clara-rabbitmq-bridge
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -138,7 +195,7 @@ services:
       clara-backend:
         condition: service_started
       postgres:
-        condition: service_started
+        condition: service_healthy
     read_only: true
     tmpfs:
       - /tmp
@@ -152,33 +209,3 @@ networks:
   npm-proxy:
     external: true
     name: nginx-proxy_default
-
-  # ─────────────── Clara Omen ──────────────────────
-  #
-  # clara-omen:
-  #   build:
-  #     context: .
-  #     dockerfile: clara-omen-insurance/Dockerfile
-  #   container_name: clara-omen
-  #   restart: unless-stopped
-  #   env_file:
-  #     - clara-omen-insurance/.env
-  #   ports:
-  #     - "3001:3001"
-  #   depends_on:
-  #     - clara-backend
-
-  # ─────────────── Clara TechVision ────────────────
-  #
-  # clara-techvision:
-  #   build:
-  #     context: .
-  #     dockerfile: clara-techvision/Dockerfile
-  #   container_name: clara-techvision
-  #   restart: unless-stopped
-  #   env_file:
-  #     - clara-techvision/.env
-  #   ports:
-  #     - "3002:3002"
-  #   depends_on:
-  #     - clara-backend

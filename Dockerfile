@@ -51,6 +51,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/scripts ./scripts
+# Schema migrations are applied at startup (src/instrumentation.node.ts);
+# the standalone output does not trace these SQL files.
+COPY --from=builder /app/src/lib/db/migrations ./src/lib/db/migrations
 
 USER pwuser
 EXPOSE 3000

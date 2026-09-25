@@ -32,7 +32,7 @@ export async function GET() {
     (async () => {
       try {
         const dbStart = Date.now();
-        await withTimeout(pool.query("SELECT 1"), 700, "database health check timed out");
+        await withTimeout(pool.query("SELECT 1"), 2_000, "database health check timed out");
         return { status: "ok" as const, latencyMs: Date.now() - dbStart };
       } catch (err) {
         return { status: "error" as const, latencyMs: 0, error: (err as Error).message };
@@ -49,7 +49,7 @@ export async function GET() {
         const qdrantApiKey = process.env.QDRANT_API_KEY?.trim();
         const res = await fetch(`${qdrantUrl.replace(/\/$/, "")}/healthz`, {
           headers: qdrantApiKey ? { "api-key": qdrantApiKey } : undefined,
-          signal: AbortSignal.timeout(700),
+          signal: AbortSignal.timeout(2_000),
           cache: "no-store",
         });
         return {
