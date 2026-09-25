@@ -42,6 +42,8 @@ interface ConversationVoiceStageProps {
   accentColour: string;
   avatarUrl?: string | null;
   onEnd: () => void;
+  /** Hide the duplicate transcript when the parent renders the live chat rail. */
+  showTranscript?: boolean;
 }
 
 const STATE_META: Record<
@@ -65,6 +67,7 @@ export function ConversationVoiceStage({
   accentColour,
   avatarUrl,
   onEnd,
+  showTranscript = true,
 }: ConversationVoiceStageProps) {
   // Agent playback levels — analyser fast-path when available, remote stream
   // otherwise (WebRTC transports).
@@ -146,46 +149,38 @@ export function ConversationVoiceStage({
         {session.error ? session.error : meta.hint}
       </p>
 
-      {/* Live transcript — the active turn streams like a chat conversation. */}
-      <div
-        ref={transcriptRef}
-        className="mx-auto mt-3 w-full max-w-xl flex-1 basis-24 overflow-y-auto rounded-xl border border-border/70 bg-muted/25 px-4 py-3 text-sm shadow-inner"
-      >
-        {activeTurn ? (
-          <div className="space-y-3">
-            {activeTurn.question && (
-              <div>
-                <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                  You
-                </p>
-                <p className="text-foreground/85">{activeTurn.question}</p>
-              </div>
-            )}
-            {activeTurn.answer ? (
-              <div>
-                <p
-                  className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider"
-                  style={{ color: accentColour }}
-                >
-                  {agentName}
-                </p>
-                <p className="leading-relaxed text-foreground">
-                  {activeTurn.answer}
-                  {activeTurn.status === "pending" && session.uiState === "speaking" && (
-                    <span className="ml-1 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse rounded-sm" style={{ background: accentColour }} />
-                  )}
-                </p>
-              </div>
-            ) : uiState === "thinking" ? (
-              <p className="text-xs italic text-muted-foreground">Checking the knowledge base…</p>
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-center text-xs text-muted-foreground/70">
-            The conversation transcript will appear here as you talk.
-          </p>
-        )}
-      </div>
+      {showTranscript && (
+        <div
+          ref={transcriptRef}
+          className="mx-auto mt-3 w-full max-w-xl flex-1 basis-24 overflow-y-auto rounded-xl border border-border/70 bg-muted/25 px-4 py-3 text-sm shadow-inner"
+        >
+          {activeTurn ? (
+            <div className="space-y-3">
+              {activeTurn.question && (
+                <div>
+                  <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">You</p>
+                  <p className="text-foreground/85">{activeTurn.question}</p>
+                </div>
+              )}
+              {activeTurn.answer ? (
+                <div>
+                  <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: accentColour }}>{agentName}</p>
+                  <p className="leading-relaxed text-foreground">
+                    {activeTurn.answer}
+                    {activeTurn.status === "pending" && session.uiState === "speaking" && (
+                      <span className="ml-1 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse rounded-sm" style={{ background: accentColour }} />
+                    )}
+                  </p>
+                </div>
+              ) : uiState === "thinking" ? (
+                <p className="text-xs italic text-muted-foreground">Checking the knowledge base…</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground/70">The conversation transcript will appear here as you talk.</p>
+          )}
+        </div>
+      )}
 
       {/* Session controls — mic, interrupt, end. */}
       <div className="mt-4 flex items-center justify-center gap-4 pb-1">

@@ -237,10 +237,15 @@ export default function DraftPreviewScreen() {
   const workspaceHref = orgId ? `/orgs/${orgId}/agents/${agentId}` : "/orgs";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background">
+    <div
+      className="min-h-screen bg-background"
+      style={{
+        backgroundImage: `radial-gradient(55rem 30rem at 48% -8rem, ${primaryColour}18, transparent 68%), radial-gradient(42rem 28rem at 92% 100%, ${accentColour}12, transparent 70%)`,
+      }}
+    >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href={workspaceHref}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -293,7 +298,7 @@ export default function DraftPreviewScreen() {
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {loading && !data ? (
           <PreviewSkeleton />
         ) : error ? (
@@ -317,9 +322,9 @@ export default function DraftPreviewScreen() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
             {/* Chat window — voice chat integrated inside it. */}
-            <div className="min-h-[34rem] rounded-3xl border border-primary/10 bg-background/60 p-1.5 shadow-2xl shadow-black/[0.07] backdrop-blur-xl">
+            <div className="min-h-[calc(100vh-9rem)] rounded-[1.75rem] border border-border/70 bg-background/70 p-1.5 shadow-2xl shadow-black/[0.08] backdrop-blur-xl">
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}

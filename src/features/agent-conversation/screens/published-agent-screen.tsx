@@ -212,9 +212,9 @@ export default function PublishedAgentScreen() {
   // ── Published experience ─────────────────────────────────────────────────
   return (
     <PublicShell primaryColour={primaryColour} accentColour={accentColour}>
-      <div className="flex min-h-screen flex-col px-3 py-3 sm:px-5 sm:py-5">
+      <div className="flex min-h-screen flex-col px-2 py-2 sm:px-4 sm:py-4">
         {/* Immersive public chrome — no workspace/sidebar/navigation. */}
-        <header className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-white/10 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-black/20 sm:px-5">
+        <header className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-2xl border border-white/10 bg-white/55 px-4 py-3 shadow-lg shadow-black/[0.04] backdrop-blur-xl dark:bg-black/20 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
@@ -240,8 +240,8 @@ export default function PublishedAgentScreen() {
           </span>
         </header>
 
-        <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col pt-3 sm:pt-4">
-          <div className="min-h-0 flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/55 shadow-2xl shadow-black/[0.06] backdrop-blur-xl dark:bg-black/20">
+        <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col pt-2 sm:pt-3">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/60 shadow-2xl shadow-black/[0.08] backdrop-blur-xl dark:bg-black/20">
             <ConversationChatWindow
               assistantName={assistantName}
               avatarUrl={config.assistant?.avatarUrl ?? null}
@@ -281,7 +281,7 @@ export default function PublishedAgentScreen() {
         </main>
 
         {/* Footer — platform credit + privacy note. */}
-        <footer className="mt-8 flex flex-col items-center gap-2 pb-6 text-center">
+        <footer className="mt-5 flex flex-col items-center gap-2 pb-4 text-center">
           <p className="text-xs text-muted-foreground/80">
             Powered by{" "}
             <span className="font-semibold text-muted-foreground">Clara AI</span>
