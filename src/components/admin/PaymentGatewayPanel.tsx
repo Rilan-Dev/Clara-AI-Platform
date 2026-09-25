@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CreditCard, Eye, EyeOff, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
+import { CreditCard, Eye, EyeOff, CheckCircle2, AlertCircle, ExternalLink, Loader2, Landmark, PlugZap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
@@ -41,6 +41,32 @@ const GENERAL_FIELDS: FieldDef[] = [
 ];
 
 const MASK = "●●●●●●●●";
+
+/* ── gateway status badge (A1) ───────────────────────────────────────────────── */
+
+type GatewayStatus = "not_configured" | "configured" | "test" | "live";
+
+const STATUS_BADGE: Record<GatewayStatus, { label: string; cls: string }> = {
+  not_configured: { label: "Not configured", cls: "text-muted-foreground bg-muted border-border" },
+  configured:     { label: "Configured",     cls: "text-primary bg-primary/10 border-primary/25" },
+  test:           { label: "Test mode",      cls: "text-amber-600 bg-amber-500/10 border-amber-500/30" },
+  live:           { label: "Live",           cls: "text-emerald-600 bg-emerald-500/10 border-emerald-500/30" },
+};
+
+function GatewayStatusBadge({ status }: { status: GatewayStatus }) {
+  const s = STATUS_BADGE[status];
+  return (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${s.cls}`}>
+      {s.label}
+    </span>
+  );
+}
+
+type TestState = {
+  status: "idle" | "testing" | "ok" | "error";
+  mode?: "test" | "live";
+  message?: string;
+};
 
 /* ── helpers ─────────────────────────────────────────────────────────────────── */
 
@@ -85,6 +111,49 @@ export function PaymentGatewayPanel() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [gateway, setGateway] = useState<"stripe" | "razorpay">("stripe");
+  const [testState, setTestState] = useState<Record<"stripe" | "razorpay", TestState>>({
+    stripe:   { status: "idle" },
+    razorpay: { status: "idle" },
+  });
+
+  /** Live credential check against the gateway itself (A2). Also returns
+   *  the detected test/live mode — the authoritative signal for the badge,
+   *  since secret key prefixes are masked in the settings API. */
+  const runTest = async (g: "stripe" | "razorpay") => {
+    setTestState(prev => ({ ...prev, [g]: { status: "testing" } }));
+    try {
+      const res = await fetch(apiUrl("/api/platform/payments/test"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ gateway: g }),
+      });
+      const data = await res.json() as { ok?: boolean; mode?: "test" | "live"; detail?: string; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setTestState(prev => ({ ...prev, [g]: { status: "ok", mode: data.mode, message: data.detail } }));
+    } catch (e) {
+      setTestState(prev => ({ ...prev, [g]: { status: "error", message: (e as Error).message } }));
+    }
+  };
+
+  /** Badge state: required fields set? + mode (Razorpay key prefix is
+   *  visible; Stripe mode comes from the last test-connection run). */
+  const gatewayStatus = (g: "stripe" | "razorpay"): GatewayStatus => {
+    if (g === "stripe") {
+      const configured = !!(getSetting("STRIPE_SECRET_KEY")?.isSet && getSetting("STRIPE_WEBHOOK_SECRET")?.isSet);
+      if (!configured) return "not_configured";
+      const mode = testState.stripe.mode;
+      return mode === "live" ? "live" : mode === "test" ? "test" : "configured";
+    }
+    const configured = !!(
+      getSetting("RAZORPAY_KEY_ID")?.isSet &&
+      getSetting("RAZORPAY_KEY_SECRET")?.isSet &&
+      getSetting("NEXT_PUBLIC_RAZORPAY_KEY_ID")?.isSet
+    );
+    if (!configured) return "not_configured";
+    const keyId = getSetting("RAZORPAY_KEY_ID")?.value ?? "";
+    const mode = keyId.startsWith("rzp_live_") ? "live" : keyId.startsWith("rzp_test_") ? "test" : testState.razorpay.mode;
+    return mode === "live" ? "live" : mode === "test" ? "test" : "configured";
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,9 +310,10 @@ export function PaymentGatewayPanel() {
         </div>
       )}
 
-      {/* Gateway tabs */}
+      {/* Gateway tabs — SVG icons + live status badges */}
       <div className="flex gap-1 p-1 rounded-xl bg-muted border border-border">
         <button
+          type="button"
           onClick={() => setGateway("stripe")}
           className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
             gateway === "stripe"
@@ -252,13 +322,12 @@ export function PaymentGatewayPanel() {
           }`}
         >
           <span className="flex items-center justify-center gap-2">
-            💳 Stripe (USD)
-            {settings.find(s => s.key === "STRIPE_SECRET_KEY")?.isSet && (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            )}
+            <CreditCard className="w-4 h-4" /> Stripe (USD)
+            <GatewayStatusBadge status={gatewayStatus("stripe")} />
           </span>
         </button>
         <button
+          type="button"
           onClick={() => setGateway("razorpay")}
           className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
             gateway === "razorpay"
@@ -267,10 +336,8 @@ export function PaymentGatewayPanel() {
           }`}
         >
           <span className="flex items-center justify-center gap-2">
-            🏦 Razorpay (INR)
-            {settings.find(s => s.key === "RAZORPAY_KEY_ID")?.isSet && (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            )}
+            <Landmark className="w-4 h-4" /> Razorpay (INR)
+            <GatewayStatusBadge status={gatewayStatus("razorpay")} />
           </span>
         </button>
       </div>
@@ -279,13 +346,33 @@ export function PaymentGatewayPanel() {
       <div className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-sm">
         {gateway === "stripe" ? (
           <>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ExternalLink className="w-3.5 h-3.5" />
-              <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer"
-                 className="text-primary hover:text-primary/80 underline underline-offset-2">
-                Open Stripe Dashboard →
-              </a>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ExternalLink className="w-3.5 h-3.5" />
+                <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer"
+                   className="text-primary hover:text-primary/80 underline underline-offset-2">
+                  Open Stripe Dashboard →
+                </a>
+              </div>
+              <button type="button" onClick={() => void runTest("stripe")}
+                disabled={testState.stripe.status === "testing"}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 hover:text-foreground hover:border-primary/40 transition-colors disabled:opacity-60 min-h-[36px]">
+                {testState.stripe.status === "testing"
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <PlugZap className="w-3.5 h-3.5" />}
+                Test connection
+              </button>
             </div>
+            {testState.stripe.status === "ok" && testState.stripe.message && (
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> {testState.stripe.message}
+              </div>
+            )}
+            {testState.stripe.status === "error" && testState.stripe.message && (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/25 px-3 py-2 text-xs text-destructive">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {testState.stripe.message}
+              </div>
+            )}
             <WebhookHint
               gateway="Stripe"
               path="/api/webhooks/stripe"
@@ -296,13 +383,33 @@ export function PaymentGatewayPanel() {
           </>
         ) : (
           <>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ExternalLink className="w-3.5 h-3.5" />
-              <a href="https://dashboard.razorpay.com/app/keys" target="_blank" rel="noopener noreferrer"
-                 className="text-sky-600 hover:text-sky-500 underline underline-offset-2">
-                Open Razorpay Dashboard →
-              </a>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ExternalLink className="w-3.5 h-3.5" />
+                <a href="https://dashboard.razorpay.com/app/keys" target="_blank" rel="noopener noreferrer"
+                   className="text-sky-600 hover:text-sky-500 underline underline-offset-2">
+                  Open Razorpay Dashboard →
+                </a>
+              </div>
+              <button type="button" onClick={() => void runTest("razorpay")}
+                disabled={testState.razorpay.status === "testing"}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 hover:text-foreground hover:border-primary/40 transition-colors disabled:opacity-60 min-h-[36px]">
+                {testState.razorpay.status === "testing"
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <PlugZap className="w-3.5 h-3.5" />}
+                Test connection
+              </button>
             </div>
+            {testState.razorpay.status === "ok" && testState.razorpay.message && (
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> {testState.razorpay.message}
+              </div>
+            )}
+            {testState.razorpay.status === "error" && testState.razorpay.message && (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/25 px-3 py-2 text-xs text-destructive">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {testState.razorpay.message}
+              </div>
+            )}
             <WebhookHint
               gateway="Razorpay"
               path="/api/webhooks/razorpay"
@@ -354,7 +461,7 @@ export function PaymentGatewayPanel() {
 
       {/* Info notice */}
       <div className="rounded-lg bg-amber-500/5 border border-amber-500/15 px-4 py-3 text-xs text-amber-600">
-        <p className="font-medium">⚡ Live runtime configuration</p>
+        <p className="font-medium flex items-center gap-1.5"><PlugZap className="w-3.5 h-3.5" /> Live runtime configuration</p>
         <p className="mt-1">
           Payment credential changes are applied immediately to <code className="font-mono text-amber-700">process.env</code> and
           take effect on the next API call. The Stripe/Razorpay SDK singletons automatically detect key changes.

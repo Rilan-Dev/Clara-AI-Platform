@@ -19,6 +19,14 @@ const PLAN_COLOURS: Record<string, string> = {
   enterprise: "border-amber-500/30 bg-card",
 };
 
+// INR prices are a business decision (not a USD conversion) and are charged
+// through the Razorpay gateway — shown as the muted second currency so
+// Indian customers see their price before reaching checkout.
+const INR_PRICES: Record<string, string> = {
+  starter: "₹4,000/mo",
+  pro:     "₹12,000/mo",
+};
+
 function ctaHref(plan: Plan): string {
   if (plan.price_usd === -1) return "/contact";
   return `/signup?plan=${plan.id}`;
@@ -99,6 +107,11 @@ export default function PricingPage() {
                 <div className="mb-4">
                   <div className="text-sm font-semibold text-primary mb-1">{plan.name}</div>
                   <div className="text-3xl font-black text-foreground mb-1">{price(plan)}</div>
+                  {INR_PRICES[plan.id] && (
+                    <div className="text-xs text-muted-foreground mb-1">
+                      or <span className="font-semibold text-foreground/70">{INR_PRICES[plan.id]}</span> via Razorpay · UPI
+                    </div>
+                  )}
                   <div className="text-xs text-muted-foreground mt-1">{plan.description}</div>
                 </div>
 
