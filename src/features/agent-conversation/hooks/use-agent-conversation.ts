@@ -77,11 +77,68 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
   // Viz-only mic capture for the user-speaking orb state.
   const { levels: micLevels } = useMicVisualizer(voiceActive);
 
-  // Latest voice history snapshot — folded into messages when the session ends.
+  // Keep the latest provider history available for session teardown and
+  // mirror it into the shared chat list while the realtime session is active.
+  // Provider hooks expose the same VoiceTurn shape, so this stays transport-
+  // agnostic: OpenAI, Gemini, ElevenLabs and Sarvam all stream through the
+  // same UI message surface.
   const voiceHistoryRef = useRef(voiceSession.history);
+  const liveVoiceTurnIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (voiceActive) voiceHistoryRef.current = voiceSession.history;
-  }, [voiceSession.history, voiceActive]);
+    voiceHistoryRef.current = voiceSession.history;
+  }, [voiceSession.history]);
+
+  // Realtime providers update history incrementally (partial STT, committed
+  // user text, then assistant answer tokens). Previously we waited until
+  // disconnect() to fold these turns, which made the Conversation rail look
+  // empty for the entire call. Upsert each turn by its stable id so the rail
+  // renders partial/final user text and assistant answer deltas immediately.
+  useEffect(() => {
+    if (!voiceActive) return;
+
+    const turns = voiceSession.history ?? [];
+    if (turns.length === 0) return;
+
+    const liveMessages: ConversationMessage[] = [];
+    for (const turn of turns) {
+      const question = (turn.question ?? "").trim();
+      const answer = turn.answer ?? "";
+      if (question) {
+        liveMessages.push({
+          id: `v-${turn.id}-q`,
+          role: "user",
+          content: question,
+          origin: "voice",
+        });
+      }
+      if (answer) {
+        liveMessages.push({
+          id: `v-${turn.id}-a`,
+          role: "assistant",
+          content: answer,
+          origin: "voice",
+          sources: (turn.sources ?? []).map((s, i) => ({
+            title: s.title,
+            snippet: s.snippet,
+            index: i + 1,
+          })),
+        });
+      }
+      liveVoiceTurnIdsRef.current.add(turn.id);
+    }
+
+    setMessages((prev) => {
+      const liveIds = new Set(liveMessages.map((message) => message.id));
+      const updates = new Map(liveMessages.map((message) => [message.id, message]));
+      const next = prev.map((message) => updates.get(message.id) ?? message);
+      for (const message of liveMessages) {
+        if (!prev.some((existing) => existing.id === message.id)) next.push(message);
+      }
+      // Keep the existing conversation order and append only newly-created
+      // live turns; subsequent STT/LLM deltas update those same message ids.
+      return next.filter((message) => !liveIds.has(message.id) || updates.has(message.id));
+    });
+  }, [voiceActive, voiceSession.history]);
 
   // Turns already folded into the chat message list. Several provider hooks
   // keep their transcript state across sessions within one hook instance, so
@@ -223,9 +280,7 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     // Fold the spoken turns into the chat message list — only turns that
     // have not been folded before (provider hooks may retain transcript
     // state across sessions within one hook instance).
-    const turns = (voiceHistoryRef.current ?? []).filter(
-      (turn) => !foldedTurnIdsRef.current.has(turn.id),
-    );
+    const turns = voiceHistoryRef.current ?? [];
     const folded: ConversationMessage[] = [];
     for (const turn of turns) {
       foldedTurnIdsRef.current.add(turn.id);
@@ -248,9 +303,16 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
         });
       }
     }
+    // The live effect normally already rendered these messages. Merge by id
+    // rather than appending so ending a call can never duplicate a live turn.
     if (folded.length > 0) {
-      setMessages((prev) => [...prev, ...folded]);
+      setMessages((prev) => {
+        const byId = new Map(prev.map((message) => [message.id, message]));
+        for (const message of folded) byId.set(message.id, message);
+        return Array.from(byId.values());
+      });
     }
+    liveVoiceTurnIdsRef.current.clear();
     setVoiceActive(false);
   }, [voiceSession]);
 
