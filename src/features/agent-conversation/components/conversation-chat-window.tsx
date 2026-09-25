@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
   CornerDownLeft,
+  Languages,
   Headphones,
   Mic,
   MessageSquare,
@@ -58,7 +59,15 @@ interface ConversationChatWindowProps {
   onVoiceEnd: () => void;
   /** Published agents start voice-first and expose a single top-right mode toggle. */
   publishedMode?: boolean;
+  /** Translate any assistant message into one of the assistant's allowed languages. */
+  translation?: MessageTranslation;
 }
+
+export type MessageTranslation = {
+  /** Allowed language codes (the assistant's default first). */
+  languages: string[];
+  translate: (text: string, language: string) => Promise<string>;
+};
 
 type ConversationMode = "voice" | "chat";
 
@@ -89,6 +98,7 @@ export function ConversationChatWindow({
   micLevels,
   onVoiceEnd,
   publishedMode = false,
+  translation,
 }: ConversationChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
@@ -229,6 +239,7 @@ export function ConversationChatWindow({
               </div>
               <ConversationRail
                 liveOnly
+                translation={translation}
                 assistantName={assistantName}
                 primaryColour={primaryColour}
                 accentColour={accentColour}
@@ -349,6 +360,7 @@ export function ConversationChatWindow({
                         citeSources={citeSources}
                         isLast={message.id === lastMessage?.id}
                         streamingAssistant={streaming && message.id === lastMessage?.id}
+                        translation={translation}
                       />
                     ))}
                     {/* The thinking indicator only exists while there is no
@@ -455,7 +467,9 @@ function ConversationRail({
   suggestions,
   onSuggestion,
   liveOnly = false,
+  translation,
 }: {
+  translation?: MessageTranslation;
   assistantName: string;
   primaryColour: string;
   accentColour: string;
@@ -515,6 +529,7 @@ function ConversationRail({
             citeSources={citeSources}
             isLast={message.id === lastMessage?.id}
             streamingAssistant={streaming && message.id === lastMessage?.id}
+            translation={translation}
           />
         ))}
         {thinking && !(lastMessage?.role === "assistant") && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
@@ -677,6 +692,7 @@ function MessageRow({
   citeSources,
   isLast,
   streamingAssistant,
+  translation,
 }: {
   message: ConversationMessage;
   assistantName: string;
@@ -685,6 +701,7 @@ function MessageRow({
   citeSources: boolean;
   isLast: boolean;
   streamingAssistant: boolean;
+  translation?: MessageTranslation;
 }) {
   if (message.role === "user") {
     return (
@@ -741,10 +758,103 @@ function MessageRow({
             )}
           </div>
         )}
+        {translation && translation.languages.length > 0 && !streamingAssistant && message.content.trim() && (
+          <MessageTranslator text={message.content} translation={translation} messageId={message.id} />
+        )}
         {message.origin === "voice" && isLast && (
           <span className="ml-1 text-[11px] uppercase tracking-wider text-muted-foreground/80">spoken</span>
         )}
       </div>
+    </div>
+  );
+}
+
+function languageLabel(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/**
+ * "Translate" on an assistant message: pick one of the assistant's allowed
+ * languages and read the message in it, with a toggle back to the original.
+ */
+function MessageTranslator({
+  text,
+  translation,
+  messageId,
+}: {
+  text: string;
+  translation: MessageTranslation;
+  messageId: string;
+}) {
+  const [language, setLanguage] = useState("");
+  const [result, setResult] = useState<{ language: string; text: string } | null>(null);
+  const [showTranslation, setShowTranslation] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const selectId = `translate-${messageId}`;
+
+  const run = async (target: string) => {
+    setLanguage(target);
+    if (!target) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const translated = await translation.translate(text, target);
+      setResult({ language: target, text: translated });
+      setShowTranslation(true);
+    } catch (err) {
+      setError((err as Error)?.message ?? "The translation could not be completed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-1.5 pl-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={selectId} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+          <Languages className="h-3.5 w-3.5" aria-hidden="true" />
+          Translate
+        </label>
+        <select
+          id={selectId}
+          value={language}
+          disabled={loading}
+          onChange={(event) => void run(event.target.value)}
+          className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <option value="">Choose language…</option>
+          {translation.languages.map((code) => (
+            <option key={code} value={code}>{languageLabel(code)}</option>
+          ))}
+        </select>
+        {loading && <span className="text-[11px] text-muted-foreground" role="status">Translating…</span>}
+        {result && !loading && (
+          <button
+            type="button"
+            onClick={() => setShowTranslation((value) => !value)}
+            className="text-[11px] font-medium text-primary hover:underline"
+          >
+            {showTranslation ? "Hide translation" : `Show ${languageLabel(result.language)}`}
+          </button>
+        )}
+      </div>
+      {error && <p className="mt-1 text-[11px] text-destructive" role="alert">{error}</p>}
+      {result && showTranslation && (
+        <div
+          className="mt-1.5 rounded-xl border border-dashed border-border/80 bg-background/60 px-3 py-2 text-sm leading-relaxed text-foreground"
+          lang={result.language}
+        >
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {languageLabel(result.language)}
+          </span>
+          <AgentMarkdown content={result.text} />
+        </div>
+      )}
     </div>
   );
 }

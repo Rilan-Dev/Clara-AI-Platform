@@ -201,3 +201,15 @@ export function buildConversationAwareSearchQuery(
     .join("\n\n")
     .slice(0, MAX_SEARCH_QUERY_CHARS);
 }
+
+/**
+ * The most recent turns sent to the model. Long conversations used to send
+ * their entire history on every turn — cost and latency grew without bound
+ * and very long chats could overflow the model's context window. Override
+ * with CHAT_HISTORY_MAX_MESSAGES.
+ */
+export function recentMessages<T>(messages: T[]): T[] {
+  const configured = Number(process.env.CHAT_HISTORY_MAX_MESSAGES);
+  const limit = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 20;
+  return messages.length > limit ? messages.slice(-limit) : messages;
+}

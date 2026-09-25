@@ -15,6 +15,7 @@ import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
+  recentMessages,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
 
@@ -238,7 +239,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const completion = provider.chatStream(
       [
         { role: "system", content: systemPrompt },
-        ...messages.map((message): ChatMessage => ({
+        ...recentMessages(messages).map((message): ChatMessage => ({
           role: message.role as ChatMessage["role"],
           content: message.content,
         })),

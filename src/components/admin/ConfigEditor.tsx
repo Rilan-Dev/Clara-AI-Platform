@@ -33,8 +33,10 @@ import {
   Palette,
   RefreshCw,
   Volume2,
+  Wand2,
 } from "lucide-react";
 import { SystemPromptPreview } from "./SystemPromptPreview";
+import { SystemPromptGenerator, type GenerateSystemPrompt } from "./SystemPromptGenerator";
 import { LanguageSelect, LanguageMultiSelect } from "./LanguagePicker";
 import { AutoSaveChip, ContextDrawer } from "./ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -68,6 +70,9 @@ type Props = {
   /** Read-only surface (platform admin viewing an org agent): mutations are
    *  ignored and the auto-save pipeline is disabled. */
   readOnly?: boolean;
+  /** When set, the system prompt gets a "Generate from knowledge base"
+   *  action (template picker → review → replace/append). */
+  onGenerateSystemPrompt?: GenerateSystemPrompt;
 };
 
 /** Provider-synced voice catalog — supplied by the agent workspace screen. */
@@ -100,6 +105,7 @@ export function ConfigEditor({
   onOpenAISettings,
   voiceCatalog: providerVoiceCatalog,
   readOnly = false,
+  onGenerateSystemPrompt,
 }: Props) {
   const [cfg, setCfg] = useState<AssistantConfig>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +117,7 @@ export function ConfigEditor({
   const [voiceCatalogRefreshing, setVoiceCatalogRefreshing] = useState(false);
   const [lockLanguageOpen, setLockLanguageOpen] = useState(false);
   const [promptPreviewOpen, setPromptPreviewOpen] = useState(false);
+  const [promptGeneratorOpen, setPromptGeneratorOpen] = useState(false);
   // Right-column card expansion (agent variant).
   const [languageOpen, setLanguageOpen] = useState(false);
   const [behaviorOpen, setBehaviorOpen] = useState(false);
@@ -281,6 +288,33 @@ export function ConfigEditor({
 
   const removeRule = (i: number) => set("rules", cfg.rules.filter((_, idx) => idx !== i));
 
+  // "Generate from knowledge base" — offered only where a generator is wired
+  // (agent workspace) and the viewer can edit.
+  const canGeneratePrompt = Boolean(onGenerateSystemPrompt) && !readOnly;
+  const generatePromptButton = canGeneratePrompt ? (
+    <button
+      type="button"
+      onClick={() => setPromptGeneratorOpen(true)}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+      title="Draft a system prompt from this agent's knowledge base"
+    >
+      <Wand2 className="h-3.5 w-3.5" /> Generate from knowledge base
+    </button>
+  ) : null;
+  const promptGeneratorDialog = canGeneratePrompt && onGenerateSystemPrompt ? (
+    <SystemPromptGenerator
+      open={promptGeneratorOpen}
+      onOpenChange={setPromptGeneratorOpen}
+      generate={onGenerateSystemPrompt}
+      hasExistingPrompt={cfg.systemPrompt.trim().length > 0}
+      onApply={(prompt, mode) => {
+        const current = cfg.systemPrompt.trim();
+        set("systemPrompt", mode === "append" && current ? `${current}\n\n${prompt}` : prompt);
+        toast.success(mode === "append" ? "Generated prompt appended." : "System prompt updated from the knowledge base.");
+      }}
+    />
+  ) : null;
+
   const TABS = [
     { id: "agent", label: "Agent" },
     { id: "behaviour", label: "Behaviour" },
@@ -345,14 +379,17 @@ export function ConfigEditor({
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <Label className="text-sm font-medium">System prompt</Label>
-                  <button
-                    type="button"
-                    onClick={() => setPromptPreviewOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
-                    title="Preview the full prompt sent to the AI"
-                  >
-                    <BookOpen className="h-3.5 w-3.5" /> Preview
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {generatePromptButton}
+                    <button
+                      type="button"
+                      onClick={() => setPromptPreviewOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+                      title="Preview the full prompt sent to the AI"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" /> Preview
+                    </button>
+                  </div>
                 </div>
                 <div className="rounded-xl border border-border bg-background focus-within:border-primary/40">
                   <Textarea
@@ -886,6 +923,7 @@ export function ConfigEditor({
         >
           <SystemPromptPreview config={cfg} contextName={contextName} />
         </ContextDrawer>
+        {promptGeneratorDialog}
       </div>
     );
   }
@@ -934,6 +972,7 @@ export function ConfigEditor({
                 label="System prompt"
                 hint="The core instructions that guide the agent&apos;s behaviour, tasks and personality."
               >
+                {generatePromptButton && <div className="mb-2 flex justify-end">{generatePromptButton}</div>}
                 <Textarea
                   value={cfg.systemPrompt}
                   onChange={(e) => set("systemPrompt", e.target.value)}
@@ -1104,6 +1143,7 @@ export function ConfigEditor({
         </div>
         <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
       </div>
+      {promptGeneratorDialog}
     </div>
   );
 }

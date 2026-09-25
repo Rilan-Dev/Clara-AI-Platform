@@ -481,7 +481,7 @@ class SarvamCallBridge {
       const sampleRate = isTwilio ? 8000 : 16000;
       const base = String(this.cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "");
       const url =
-        `${base}/speech-to-text-realtime/ws?language_code=${encodeURIComponent(this.cfg.language)}` +
+        `${base}/speech-to-text-realtime/ws?language_code=${encodeURIComponent(this.cfg.sttLanguage || this.cfg.language)}` +
         `&model=${encodeURIComponent(this.cfg.sttModel || "saaras:v3-realtime")}` +
         `&stream_type=fast&mode=transcribe&endpointing=vad&encoding=${encoding}&sample_rate=${sampleRate}` +
         `&threshold=0.3&silence_duration_ms=500&min_speech_duration_ms=250`;

@@ -24,8 +24,10 @@ export type TurnGuidanceInput = {
   grounded: boolean;
   /** "capability" = the visitor asks what the assistant can help with. */
   intent: "knowledge" | "capability" | "out_of_scope";
-  /** Language code detected from the visitor's message (allowed languages only). */
+  /** Language code to reply in (legacy; prefer languageDirective). */
   responseLanguage?: string | null;
+  /** Reply-language directive from the assistant's language policy. */
+  languageDirective?: string | null;
   /** The admin's configured fallback reply for unanswerable questions. */
   fallbackReply?: string | null;
   /** What this knowledge base covers (admin description or derived topics). */
@@ -47,7 +49,9 @@ export function buildTurnGuidance(input: TurnGuidanceInput): string {
   const topics = input.topics?.trim();
   const topicsLine = topics ? `Topics you can help with: ${topics}` : "";
 
-  if (input.responseLanguage) {
+  if (input.languageDirective) {
+    lines.push(`- ${input.languageDirective}`);
+  } else if (input.responseLanguage) {
     lines.push(
       `- Reply in ${languageName(input.responseLanguage)}, the language the visitor is using, even though the knowledge-base passages may be in another language.`,
     );

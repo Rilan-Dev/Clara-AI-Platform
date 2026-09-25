@@ -30,45 +30,14 @@ import type { ProviderConfig } from "@/modules/ai-core/types";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { translateQueryForRag, type TranslationMode } from "@/modules/language-core/pipeline";
 
-// ── Script → language candidates ─────────────────────────────────────────────
-// Order matters: kana is checked before Han so Japanese is not read as Chinese.
-const SCRIPT_LANGUAGES: Array<{ re: RegExp; languages: string[] }> = [
-  { re: /[஀-௿]/, languages: ["ta"] },
-  { re: /[ఀ-౿]/, languages: ["te"] },
-  { re: /[ಀ-೿]/, languages: ["kn"] },
-  { re: /[ഀ-ൿ]/, languages: ["ml"] },
-  { re: /[ঀ-৿]/, languages: ["bn", "as"] },
-  { re: /[઀-૿]/, languages: ["gu"] },
-  { re: /[਀-੿]/, languages: ["pa"] },
-  { re: /[଀-୿]/, languages: ["or"] },
-  { re: /[ऀ-ॿ]/, languages: ["hi", "mr", "ne"] },
-  { re: /[඀-෿]/, languages: ["si"] },
-  { re: /[؀-ۿݐ-ݿ]/, languages: ["ar", "ur", "fa"] },
-  { re: /[֐-׿]/, languages: ["he"] },
-  { re: /[฀-๿]/, languages: ["th"] },
-  { re: /[぀-ヿ]/, languages: ["ja"] },
-  { re: /[가-힯ᄀ-ᇿ]/, languages: ["ko"] },
-  { re: /[一-鿿]/, languages: ["zh", "ja"] },
-  { re: /[Ѐ-ӿ]/, languages: ["ru", "uk", "bg", "sr"] },
-  { re: /[Ͱ-Ͽ]/, languages: ["el"] },
-];
-
-const NON_LATIN_LANGUAGES = new Set(SCRIPT_LANGUAGES.flatMap((s) => s.languages));
+// Script detection lives in the client-safe language policy module so the
+// browser voice hooks and the server share one table.
+import { NON_LATIN_LANGUAGES, detectVisitorLanguage, scriptLanguages } from "@/modules/assistant/core/language-policy";
+export { scriptLanguages };
 
 /** "en-IN" → "en". */
 export function baseLanguage(code: string | null | undefined): string {
   return (code ?? "").trim().toLowerCase().split(/[-_]/)[0] ?? "";
-}
-
-/**
- * Candidate languages for the non-Latin script used in `text`, or null when
- * the text is Latin-script only (English, Spanish, romanized Tamil …).
- */
-export function scriptLanguages(text: string): string[] | null {
-  for (const { re, languages } of SCRIPT_LANGUAGES) {
-    if (re.test(text)) return languages;
-  }
-  return null;
 }
 
 /**
@@ -285,4 +254,76 @@ export async function translateQueryForRetrieval(params: {
 /** Test hook. */
 export function clearRetrievalTranslationCache(): void {
   translationCache.clear();
+}
+
+// ── Text translation (messages, greetings) ─────────────────────────────────
+
+const localizeCache = new Map<string, { value: string; expiresAt: number }>();
+
+/**
+ * Translate `text` into `targetLanguage` with one completion on the given
+ * chat provider (the tenant's own). Markdown, numbers, names and links are
+ * preserved. Returns null on failure or timeout; cached.
+ */
+export async function translateText(
+  text: string,
+  targetLanguage: string,
+  options: { providerConfig?: ProviderConfig; timeoutMs?: number; maxTokens?: number } = {},
+): Promise<string | null> {
+  const source = text.trim();
+  const target = baseLanguage(targetLanguage) || "en";
+  if (!source) return null;
+  const key = `${target}|${source}`;
+  const cached = localizeCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const run = async (): Promise<string | null> => {
+    const provider = ProviderFactory.getProvider(options.providerConfig);
+    let output = "";
+    for await (const chunk of provider.chatStream(
+      [
+        {
+          role: "system",
+          content:
+            `Translate the message into ${languageName(target)} with the same meaning and tone. ` +
+            "Keep Markdown formatting, numbers, names, product terms, links and citation markers such as [S1] unchanged. " +
+            `If it is already in ${languageName(target)}, return it unchanged. Reply with the translation only.`,
+        },
+        { role: "user", content: source },
+      ],
+      { temperature: 0, maxTokens: options.maxTokens ?? Math.min(4000, Math.max(300, Math.ceil(source.length * 1.5))) },
+    )) {
+      output += chunk;
+    }
+    const value = output.trim();
+    return value && value.length <= Math.max(1200, source.length * 6) ? value : null;
+  };
+  const value = await withTimeout(run(), options.timeoutMs ?? 20_000);
+  if (value) localizeCache.set(key, { value, expiresAt: Date.now() + TRANSLATION_CACHE_TTL_MS });
+  return value;
+}
+
+// ── Text localisation (greetings) ────────────────────────────────────────────
+
+/**
+ * `text` in `targetLanguage` — used so voices that speak the welcome message
+ * verbatim (ElevenLabs, Sarvam) still start in the assistant's DEFAULT
+ * language when the admin wrote the welcome in another one. Skips the call
+ * when the text is already in the target language; never throws; cached.
+ */
+export async function localizeText(
+  text: string,
+  targetLanguage: string,
+  providerConfig?: ProviderConfig,
+  timeoutMs = 2500,
+): Promise<string> {
+  const source = text.trim();
+  const target = baseLanguage(targetLanguage) || "en";
+  if (!source) return text;
+  const detected = detectVisitorLanguage(source, [target]);
+  if (detected === target) return text;
+  if (!detected && target === "en") return text; // Latin text, English target
+  if (!translationEnabled()) return text;
+  if (providerConfig?.provider === "sarvam") return text;
+  return (await translateText(source, target, { providerConfig, timeoutMs, maxTokens: 300 })) ?? text;
 }

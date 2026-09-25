@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { greetingInstruction, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
 import {
   assistantPrompts,
   buildLanguageGuidance,
@@ -222,6 +223,9 @@ export function useGeminiLive(opts?: Options) {
   const { documentId, kbId, documentOverview, voiceGreeting } = opts || {};
   const languagePrefs   = resolveLanguagePreferences(opts?.language);
   const languageGuidance = buildLanguageGuidance(languagePrefs);
+  // Read by the (stable) message handler when the greeting turn is sent.
+  const greetingPolicyRef = useRef(normalizeLanguagePolicy({ defaultLanguage: languagePrefs.assistant, allowedLanguages: languagePrefs.customer }));
+  greetingPolicyRef.current = normalizeLanguagePolicy({ defaultLanguage: languagePrefs.assistant, allowedLanguages: languagePrefs.customer });
 
   const [status,             setStatus]             = useState<Status>("idle");
   const [lastError,          setLastError]           = useState<string | null>(null);
@@ -504,7 +508,13 @@ export function useGeminiLive(opts?: Options) {
           latencyTelRef.current?.greetingTurn();
           sendWS({
             clientContent: {
-              turns: [{ role: "user", parts: [{ text: greeting }] }],
+              // Start in the DEFAULT language (language policy).
+              turns: [{
+                role: "user",
+                parts: [{
+                  text: greetingInstruction(greetingPolicyRef.current, greeting),
+                }],
+              }],
               turnComplete: true,
             },
           });

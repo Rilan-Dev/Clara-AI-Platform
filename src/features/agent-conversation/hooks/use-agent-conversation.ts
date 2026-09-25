@@ -270,6 +270,30 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     [input, thinking, kbId, messages, chatEndpoint, chatHeaders, chatExtraBody],
   );
 
+  // ── Message translation (visitor picks a language on a message) ──────────
+  // Signed-in surfaces use /api/translate with the platform session; the
+  // public page uses /api/embed/translate with its public session token.
+  // The server only accepts the assistant's allowed languages.
+  const translateMessage = useCallback(
+    async (text: string, targetLanguage: string): Promise<string> => {
+      if (!kbId) throw new Error("No knowledge base is attached to this agent.");
+      const { apiUrl } = await import("@/lib/runtime");
+      const headers = new Headers({ "Content-Type": "application/json" });
+      if (chatHeaders) new Headers(chatHeaders).forEach((value, key) => headers.set(key, value));
+      const response = await fetch(apiUrl(embedApiKey ? "/api/embed/translate" : "/api/translate"), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kbId, text, targetLanguage, ...(draftMode ? { scope: "draft" } : {}) }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { translatedText?: string; error?: string };
+      if (!response.ok || !payload.translatedText) {
+        throw new Error(payload.error ?? "The translation could not be completed.");
+      }
+      return payload.translatedText;
+    },
+    [kbId, chatHeaders, embedApiKey, draftMode],
+  );
+
   // ── Voice session lifecycle (inside the chat window) ────────────────────
   const startVoice = useCallback(async () => {
     if (!kbId || voiceActive) return;
@@ -347,6 +371,11 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     thinking,
     chatError,
     sendText,
+    // translation
+    translateMessage,
+    translationLanguages: language
+      ? [...new Set([language.assistant, ...(language.customer ?? [])].filter(Boolean))]
+      : [],
     // voice
     voiceSession,
     voiceActive,

@@ -49,6 +49,8 @@ import { GenerationPlaybackQueue } from "../voice/generation-playback";
 const REALTIME_FLUSH_MS = 100;
 
 type SessionPayload = {
+  /** Welcome message localised to the assistant's default language. */
+  greeting?: string;
   mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
@@ -717,8 +719,10 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
 
       // 7. Greet — a system generation that owns playback until the first
       //    committed user turn replaces it (barge-in safe).
-      if (options.voiceGreeting) {
-        const greeting = sanitizeTtsText(options.voiceGreeting);
+      // Server-localised welcome (default language) when available.
+      const greetingSource = sessionRef.current?.greeting || options.voiceGreeting;
+      if (greetingSource) {
+        const greeting = sanitizeTtsText(greetingSource);
         if (greeting) {
           const greetingGeneration = coordinator.beginSystemGeneration();
           turnGenerationRef.current = greetingGeneration.generationId;

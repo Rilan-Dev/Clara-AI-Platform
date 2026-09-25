@@ -1,4 +1,5 @@
 import { isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
+import { localizeText } from "@/modules/rag/cross-lingual";
 /**
  * src/modules/voice-core/api/elevenlabs/session.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -194,6 +195,15 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
       ragMode,
     };
 
+    // The conversation starts in the assistant's DEFAULT language: these
+    // voices speak the welcome verbatim, so localise it when the admin wrote
+    // it in another language (cached; falls back to the original text).
+    const welcome = resolved.brain.assistantConfig?.welcomeMessage?.trim();
+    if (welcome) {
+      const startLanguage =
+        resolved.brain.assistantConfig?.alwaysRespondIn?.trim() || resolved.brain.defaultLanguage || "en";
+      payload.greeting = await localizeText(welcome, startLanguage);
+    }
     return NextResponse.json(payload);
   } catch (error) {
     // RBAC helpers intentionally throw NextResponse to preserve the exact

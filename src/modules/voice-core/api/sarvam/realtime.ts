@@ -87,7 +87,8 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
       apiKey,
       baseUrl: getSarvamBaseUrl(),
       sttModel: resolved.sarvam.realtimeSttModel || getPlatformDefaultSarvamRealtimeSttModel() || toSarvamRealtimeSttModel(resolved.sarvam.sttModel),
-      languageCode: resolved.sarvam.language,
+      // Policy-based: "unknown" (auto-detect) for multi-language assistants.
+      languageCode: resolved.sarvam.sttLanguage ?? resolved.sarvam.language,
       sampleRate: resolved.sarvam.sampleRate,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,
       agentId: resolved.brain.agentId,

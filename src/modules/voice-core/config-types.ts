@@ -41,6 +41,12 @@ export interface ElevenLabsResolvedConfig {
   voiceSettings: ElevenLabsVoiceSettings;
   /** BCP-47-ish language hint derived from the agent language chain. */
   language: string;
+  /**
+   * Speech-recognition language under the assistant's language policy: set
+   * only when replies are pinned to one language; null = auto-detect (a
+   * multi-language assistant must not transcribe everyone as the default).
+   */
+  sttLanguage?: string | null;
 }
 
 /** Sarvam specifics resolved when either voice purpose selects "sarvam". */
@@ -55,6 +61,8 @@ export interface SarvamResolvedConfig {
   voiceChatSpeaker: string;
   /** BCP-47-ish language hint derived from the agent language chain (hi-IN, ta-IN, …). */
   language: string;
+  /** Speech-recognition language code; "unknown" = Sarvam auto-detect (multi-language assistants). */
+  sttLanguage?: string;
   /** Playback sample rate for the shared PCM queue (16000 default). */
   sampleRate: number;
   /** Exact Sarvam realtime WebSocket STT model. */
@@ -127,6 +135,8 @@ export interface VoiceResolution {
  * endpoints; it never talks to the voice vendor directly in Mode A.
  */
 export interface ElevenLabsSessionPayload {
+  /** Welcome message in the assistant's default language (spoken first). */
+  greeting?: string;
   /** "clara-stream" when the Clara-controlled realtime relay is enabled. */
   mode: "pipeline" | "clara-stream";
   stt: {
@@ -175,6 +185,8 @@ export interface ElevenLabsSessionPayload {
  * browser drives the pipeline through platform endpoints.
  */
 export interface SarvamSessionPayload {
+  /** Welcome message in the assistant's default language (spoken first). */
+  greeting?: string;
   mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;

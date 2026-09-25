@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { greetingInstruction, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
 import {
   assistantPrompts,
   buildLanguageGuidance,
@@ -1344,11 +1345,14 @@ export function useOpenAIRealtime(opts?: Options) {
         sendJSON({
           type: "response.create",
           response: {
-            instructions: [
-              "Greet the user using the following script verbatim.",
+            // The conversation always starts in the DEFAULT language.
+            instructions: greetingInstruction(
+              normalizeLanguagePolicy({
+                defaultLanguage: languagePrefs.assistant,
+                allowedLanguages: languagePrefs.customer,
+              }),
               greetingText,
-              languageGuidance.session,
-            ].join("\n\n"),
+            ),
           },
         });
       }

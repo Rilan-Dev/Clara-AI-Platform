@@ -23,6 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { localizeText } from "@/modules/rag/cross-lingual";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
@@ -121,7 +122,8 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       stt: {
         endpoint: "/api/voice/sarvam/transcribe",
         model: resolved.sarvam.sttModel,
-        language: resolved.sarvam.language,
+        // Policy-based: "unknown" (auto-detect) for multi-language assistants.
+        language: resolved.sarvam.sttLanguage ?? resolved.sarvam.language,
         sampleRate: SARVAM_TTS_SAMPLE_RATE_HZ,
         maxAudioSeconds: SARVAM_STT_VENDOR_MAX_AUDIO_SECONDS,
         ...(resolved.sarvam.realtimeSttEnabled && orgId
@@ -164,6 +166,15 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       },
     };
 
+    // The conversation starts in the assistant's DEFAULT language: these
+    // voices speak the welcome verbatim, so localise it when the admin wrote
+    // it in another language (cached; falls back to the original text).
+    const welcome = resolved.brain.assistantConfig?.welcomeMessage?.trim();
+    if (welcome) {
+      const startLanguage =
+        resolved.brain.assistantConfig?.alwaysRespondIn?.trim() || resolved.brain.defaultLanguage || "en";
+      payload.greeting = await localizeText(welcome, startLanguage);
+    }
     return NextResponse.json(payload);
   } catch (error) {
     console.error("[sarvam-session] post:", error);

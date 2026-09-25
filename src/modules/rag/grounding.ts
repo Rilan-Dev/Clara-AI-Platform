@@ -45,12 +45,18 @@ import { embedQueryCached } from "@/modules/rag/query-embedding-cache";
 import {
   inferKnowledgeLanguage,
   needsRetrievalTranslation,
-  scriptLanguages,
   translateQueryForRetrieval,
   type RetrievalTranslation,
 } from "@/modules/rag/cross-lingual";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { getKnowledgeTopics } from "@/modules/rag/knowledge-topics";
+import {
+  detectVisitorLanguage,
+  normalizeLanguagePolicy,
+  replyLanguageDirective,
+  resolveReplyLanguage,
+  type ReplyLanguageDecision,
+} from "@/modules/assistant/core/language-policy";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
@@ -233,8 +239,14 @@ export interface GroundedContext {
    * injects it alongside the context — see modules/rag/turn-guidance.ts.
    */
   guidance: string;
-  /** Best-effort local language detected from the visitor query. */
+  /**
+   * Reply language for this turn under the assistant's language policy:
+   * the visitor's language when it is allowed, otherwise the default
+   * language ("Always respond in" overrides both).
+   */
   responseLanguage: string;
+  /** How responseLanguage was decided (visitor / not-allowed / fixed / undetected). */
+  replyLanguage?: ReplyLanguageDecision;
   /** Language the KB documents are searched in. */
   knowledgeLanguage?: string;
   /** The query translated into the KB language, when one was needed. */
@@ -269,36 +281,6 @@ async function resolveKbTenant(
   return { orgId, agentId };
 }
 
-function detectResponseLanguage(query: string, allowedLanguages: string[]): string {
-  const normalized = query.normalize("NFKC").toLowerCase();
-  const allowed = new Set(allowedLanguages.map((value) => value.trim().toLowerCase()).filter(Boolean));
-
-  // Explicit output-language requests override the language of the question.
-  if (allowed.has("ta") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?tamil\b/.test(normalized)) return "ta";
-  if (allowed.has("hi") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?hindi\b/.test(normalized)) return "hi";
-  if (allowed.has("te") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?telugu\b/.test(normalized)) return "te";
-  if (allowed.has("en") && /\b(answer|reply|respond|speak|talk|tell) (me )?(in )?english\b/.test(normalized)) return "en";
-  if (allowed.has("ta") && /(தமிழில்|தமிழ்ல|தமிழாக)/.test(normalized)) return "ta";
-  if (allowed.has("hi") && /(हिंदी में|हिंदीमे)/.test(normalized)) return "hi";
-  if (allowed.has("te") && /(తెలుగులో|తెలుగులోనే)/.test(normalized)) return "te";
-
-  if (allowed.has("ta") && /[\u0B80-\u0BFF]/.test(normalized)) return "ta";
-  if (allowed.has("hi") && /[\u0900-\u097F]/.test(normalized)) return "hi";
-  if (allowed.has("te") && /[\u0C00-\u0C7F]/.test(normalized)) return "te";
-  // Any other script (Kannada, Malayalam, Bengali, Arabic, CJK, Cyrillic …):
-  // answer in it when the organisation allows that language.
-  const scriptCandidates = scriptLanguages(normalized);
-  const scriptMatch = scriptCandidates?.find((code) => allowed.has(code));
-  if (scriptMatch) return scriptMatch;
-
-  // Small, local heuristic for common romanized Indian-language prompts.
-  // It is intentionally conservative: English remains the fallback.
-  if (allowed.has("ta") && /\b(enakku|enna|eppadi|sollu|venum|panna|help)\b/.test(normalized)) return "ta";
-  if (allowed.has("hi") && /\b(mujhe|kaise|batao|chahiye|madad)\b/.test(normalized)) return "hi";
-  if (allowed.has("te") && /\b(naaku|ela|cheppu|kavali|sahayam)\b/.test(normalized)) return "te";
-  return allowed.has("en") ? "en" : allowedLanguages[0]?.trim().toLowerCase() || "en";
-}
-
 function isCapabilityQuery(query: string): boolean {
   const normalized = query.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
   if (!normalized) return false;
@@ -308,11 +290,11 @@ function isCapabilityQuery(query: string): boolean {
   // and mixed/romanized Tamil formulations so these turns do not depend on
   // semantic retrieval finding a matching FAQ passage.
   const patterns = [
-    /\bwhat (can|do) you (do|help|answer)\\b/,
-    /\bhow can you help\\b/,
-    /\bwhat can i ask\\b/,
-    /\bwhat (topics|questions) (do you|can you) (cover|answer)\\b/,
-    /\bhow do you help\\b/,
+    /\bwhat (can|do) you (do|help|answer)\b/,
+    /\bhow can you help\b/,
+    /\bwhat can i ask\b/,
+    /\bwhat (topics|questions) (do you|can you) (cover|answer)\b/,
+    /\bhow do you help\b/,
     /என்ன மாதிரி .*help/,
     /எந்தந்த .*help/,
     /எப்படி .*help/,
@@ -516,10 +498,17 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Tenant binding: derived server-side from the KB row, never from input.
   const { orgId, agentId } = tenant;
-  const responseLanguage = detectResponseLanguage(
-    query,
-    assistantConfig?.allowedLanguages ?? ["en"],
-  );
+  // ── Language policy: start in the default language; reply in the
+  // visitor's language only when it is allowed; otherwise the default.
+  const languagePolicy = normalizeLanguagePolicy({
+    defaultLanguage: assistantConfig?.defaultLanguage,
+    allowedLanguages: assistantConfig?.allowedLanguages,
+    alwaysRespondIn: assistantConfig?.alwaysRespondIn,
+  });
+  const visitorLanguage = detectVisitorLanguage(query, languagePolicy.allowedLanguages);
+  const replyLanguage = resolveReplyLanguage(languagePolicy, visitorLanguage);
+  const responseLanguage = replyLanguage.language ?? languagePolicy.defaultLanguage;
+  const languageDirective = replyLanguageDirective(languagePolicy, replyLanguage);
   const fallbackReply =
     assistantConfig?.outOfScopeReply ??
     "I don't have enough information in the configured knowledge base to answer that accurately.";
@@ -572,12 +561,13 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         guidance: buildTurnGuidance({
           grounded: false,
           intent: "capability",
-          responseLanguage,
+          languageDirective,
           fallbackReply,
           topics,
           channel: request.channel,
         }),
         responseLanguage,
+        replyLanguage,
         latencyMs: Date.now() - t0,
       },
     };
@@ -619,7 +609,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const translationPromise: Promise<RetrievalTranslation> = !request.skipTranslation && needsRetrievalTranslation({
     query,
     kbLanguage: knowledgeLanguage,
-    detectedLanguage: responseLanguage,
+    detectedLanguage: visitorLanguage,
   })
     ? translateQueryForRetrieval({
         query: searchText,
@@ -804,7 +794,7 @@ ${graphContext}`);
       guidance: buildTurnGuidance({
         grounded,
         intent: "knowledge",
-        responseLanguage,
+        languageDirective,
         fallbackReply: outOfScopeReply,
         topics: scope.topics,
         channel: request.channel,
@@ -817,6 +807,7 @@ ${graphContext}`);
       scope,
       intent: "knowledge",
       responseLanguage,
+      replyLanguage,
       knowledgeLanguage,
       retrievalQuery: translation.query,
       translation: translation.method,
