@@ -8,7 +8,7 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ChatMessage } from "@/modules/ai-core/types";
-import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { AIConfigResolutionError, resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
@@ -16,6 +16,27 @@ import {
   buildRecentConversationContextBlock,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
+
+function publicAIErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (
+    message.includes("credential") ||
+    message.includes("api key") ||
+    message.includes("apikey") ||
+    message.includes("authorization") ||
+    message.includes("bearer ") ||
+    (message.includes("provider") && (message.includes("key") || message.includes("secret") || message.includes("token")))
+  ) {
+    return "This assistant is temporarily unavailable. Please try again later.";
+  }
+  if (message.includes("rate limit") || message.includes("too many requests") || message.includes("quota")) {
+    return "This assistant is busy right now. Please try again in a moment.";
+  }
+  if (message.includes("timeout") || message.includes("timed out")) {
+    return "The assistant took too long to respond. Please try again.";
+  }
+  return "The assistant could not complete that request. Please try again.";
+}
 
 function isBroadCoverageQuery(query: string): boolean {
   const normalized = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -81,7 +102,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    let resolved;
+    try {
+      resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    } catch (error) {
+      if (error instanceof AIConfigResolutionError) {
+        console.error("[embed/chat] AI configuration rejected", error);
+        return NextResponse.json(
+          { error: publicAIErrorMessage(error) },
+          { status: 503, headers: corsHeaders },
+        );
+      }
+      throw error;
+    }
     if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json(
         { error: "Public embed is disabled for this knowledge base" },
@@ -275,7 +308,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             }
           } catch (error) {
             console.error("[embed/chat] provider stream failed", error);
-            streamError = error instanceof Error ? error.message : "AI provider stream failed";
+            streamError = publicAIErrorMessage(error);
             safeWrite({ type: "error", payload: streamError });
           } finally {
             safeWrite({ type: "done" });
@@ -315,8 +348,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error("[embed/chat] request failed", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+      { error: publicAIErrorMessage(error) },
+      { status: error instanceof AIConfigResolutionError ? 503 : 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
