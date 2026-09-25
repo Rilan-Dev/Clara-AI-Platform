@@ -195,7 +195,7 @@ export function ConversationChatWindow({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]"
+              className="grid h-full min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(16rem,42%)] lg:grid-cols-[minmax(0,1fr)_minmax(20rem,32rem)] lg:grid-rows-1"
             >
               <div className="relative min-h-0 overflow-hidden bg-gradient-to-br from-background via-background to-muted/30 px-4 py-5 sm:px-8 lg:border-b-0 lg:border-r">
                 <div
@@ -239,9 +239,9 @@ export function ConversationChatWindow({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,31rem)]"
+              className="grid h-full min-h-0 grid-cols-1"
             >
-              <div className="relative flex min-h-[32rem] flex-col items-center justify-center overflow-hidden border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-6 py-8 lg:border-b-0 lg:border-r">
+              <div className="relative flex min-h-0 h-full flex-col items-center justify-center overflow-hidden border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-6 py-8 lg:border-b-0 lg:border-r">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute inset-0"
@@ -271,7 +271,7 @@ export function ConversationChatWindow({
                       accentColour={accentColour}
                       agentName={assistantName}
                       avatarUrl={avatarUrl}
-                      size={300}
+                      size={360}
                     />
                   </motion.div>
                   <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
@@ -303,32 +303,7 @@ export function ConversationChatWindow({
                   )}
                 </div>
               </div>
-              {!(publishedMode && mode === "voice") && (
-              <ConversationRail
-                assistantName={assistantName}
-                primaryColour={primaryColour}
-                accentColour={accentColour}
-                messages={messages}
-                citeSources={citeSources}
-                lastMessage={lastMessage}
-                scrollRef={scrollRef}
-                welcomeMessage={welcomeMessage}
-                thinking={thinking}
-                streaming={streaming}
-                voiceActive={false}
-                input={input}
-                onInputChange={onInputChange}
-                onSend={onSend}
-                canSend={canSend}
-                sendDisabled={sendDisabled}
-                placeholder={placeholder}
-                voiceAvailable={voiceAvailable}
-                onVoiceStart={onVoiceStart}
-                suggestions={suggestions}
-                onSuggestion={onSuggestion}
-              />
- 
-              )}           </motion.div>
+           </motion.div>
           ) : (
             <motion.div
               key="chat"
@@ -342,6 +317,7 @@ export function ConversationChatWindow({
                   label={assistantName}
                   messages={messages.map((m) => ({ ...m, isStreaming: thinking && m.id === lastMessage?.id }))}
                 />
+                <div className="mx-auto w-full max-w-3xl space-y-4">
                 <WelcomeMessage
                   assistantName={assistantName}
                   primaryColour={primaryColour}
@@ -366,6 +342,7 @@ export function ConversationChatWindow({
                     Start the conversation — ask anything covered by the knowledge base.
                   </p>
                 )}
+                </div>
               </div>
               <Composer
                 input={input}
@@ -585,8 +562,8 @@ function Composer({
   compact?: boolean;
 }) {
   return (
-    <div className={compact ? "space-y-2" : "border-t border-border/70 bg-muted/20 px-3 py-3 sm:px-4"}>
-      <div className="flex items-end gap-2">
+    <div className={compact ? "space-y-2" : "border-t border-border/70 bg-muted/20 px-3 pb-5 pt-3 sm:px-5 sm:pb-6"}>
+      <div className={compact ? "flex items-end gap-2" : "mx-auto flex w-full max-w-2xl items-end gap-2"}>
         <div className="relative flex-1">
           <textarea
             aria-label="Message the assistant"
@@ -621,7 +598,7 @@ function Composer({
         ) : null}
       </div>
       {!compact && (
-        <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
+        <p className="mx-auto mt-1.5 w-full max-w-2xl px-1 text-[11px] text-muted-foreground/70">
           Enter to send · Shift+Enter for a new line · {voiceAvailable ? "Mic for realtime voice" : "Voice unavailable"}
         </p>
       )}
