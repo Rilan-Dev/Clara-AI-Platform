@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ConversationVoiceStage } from "./conversation-voice-stage";
 import { RealtimeVoiceOrb } from "./realtime-voice-orb";
+import { OrbComposer } from "./orb-composer";
 import type { ConversationMessage, VoiceClientSession } from "../types";
 import { ChatAnnouncer } from "@/components/ui/chat-announcer";
 
@@ -347,18 +348,20 @@ export function ConversationChatWindow({
                     )}
                   </div>
                 </div>
-                <Composer
+                <OrbComposer
                   input={input}
                   onInputChange={onInputChange}
                   onSend={onSend}
                   canSend={canSend}
                   sendDisabled={sendDisabled}
                   placeholder={placeholder}
+                  assistantName={assistantName}
                   voiceAvailable={voiceAvailable}
                   voiceUnavailableReason={voiceUnavailableReason}
                   onVoiceStart={onVoiceStart}
                   primaryColour={primaryColour}
                   accentColour={accentColour}
+                  thinking={thinking}
                 />
               </div>
             </motion.div>
