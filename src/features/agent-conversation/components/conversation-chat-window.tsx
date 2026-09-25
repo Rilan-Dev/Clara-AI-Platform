@@ -210,7 +210,7 @@ export function ConversationChatWindow({
                 scrollRef={scrollRef}
                 welcomeMessage={welcomeMessage}
                 thinking={thinking}
-                streaming={false}
+                streaming={true}
                 voiceActive
               />
             </motion.div>
