@@ -238,14 +238,14 @@ export default function DraftPreviewScreen() {
 
   return (
     <div
-      className="min-h-screen bg-background"
+      className="h-dvh overflow-hidden bg-background"
       style={{
         backgroundImage: `radial-gradient(55rem 30rem at 48% -8rem, ${primaryColour}18, transparent 68%), radial-gradient(42rem 28rem at 92% 100%, ${accentColour}12, transparent 70%)`,
       }}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur">
-        <div className="flex w-full flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+      <header className="relative z-20 h-14 shrink-0 border-b border-border/50 bg-background/85 backdrop-blur">
+        <div className="flex h-full w-full items-center gap-3 px-3 sm:px-5">
           <Link
             href={workspaceHref}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -255,12 +255,12 @@ export default function DraftPreviewScreen() {
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-semibold text-foreground">
+              <h1 className="truncate text-sm font-semibold text-foreground">
                 {data?.agent.name ?? "Agent"}
               </h1>
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600">
                 <History className="h-3 w-3" />
-                Draft preview
+                Preview
               </span>
               {configSourceBadge && (
                 <span className={cn("hidden rounded-full border px-2.5 py-0.5 text-[11px] font-medium sm:inline-flex", configSourceBadge.tone)}>
@@ -268,13 +268,7 @@ export default function DraftPreviewScreen() {
                 </span>
               )}
             </div>
-            <p className="truncate text-xs text-muted-foreground">
-              {data?.draft
-                ? `${data.draft.branchName} · draft saved ${timeAgo(data.draft.updatedAt)}${
-                    data.draft.parentVersionNumber ? ` · based on v${data.draft.parentVersionNumber}` : ""
-                  }`
-                : "Testing the current configuration"}
-            </p>
+            <p className="truncate text-[11px] text-muted-foreground">Live draft configuration</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -323,30 +317,7 @@ export default function DraftPreviewScreen() {
           </div>
         ) : (
           <div className="space-y-0">
-            <div className="flex flex-wrap items-center gap-2 bg-background/55 px-4 py-3 backdrop-blur sm:px-6">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-600">
-                <History className="h-3 w-3" />
-                Draft preview
-              </span>
-              {data?.kb && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-600">
-                  <BookOpen className="h-3 w-3" />
-                  {data.kb.name}
-                </span>
-              )}
-              <span className="ml-auto hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
-                <Mic className="h-3.5 w-3.5" />
-                {data?.ai?.realtimeVoiceProvider ?? data?.ai?.voiceProvider ?? "Realtime voice"}
-              </span>
-              {data?.runtime?.enableRealtime !== false && voiceAvailable && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Ready to talk
-                </span>
-              )}
-            </div>
-
-            <div className="h-[calc(100vh-8.5rem)] w-full overflow-hidden bg-background/45 backdrop-blur-xl">
+            <div className="h-[calc(100dvh-3.5rem)] min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-xl">
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
