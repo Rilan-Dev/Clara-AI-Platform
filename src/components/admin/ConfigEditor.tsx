@@ -401,7 +401,7 @@ export function ConfigEditor({
                     <span className="text-xs text-muted-foreground">Advanced</span>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-5 px-4 pb-4">
-                    <Field label="Out-of-scope reply" hint="Returned when strict mode rejects a question.">
+                    <Field label="Out-of-scope reply" hint="What the assistant conveys, in the visitor's language, when a question isn't covered by the knowledge base. It is paraphrased with a pointer to what you do cover, and never used for greetings or &quot;what can you do&quot; questions.">
                       <Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." />
                     </Field>
                   </CollapsibleContent>
@@ -841,7 +841,7 @@ export function ConfigEditor({
                       </div>
                     </Field>
                     <div className="grid grid-cols-2 gap-4">
-                      <SwitchField label="Strict Mode" desc="Reject off-topic questions" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} />
+                      <SwitchField label="Strict Mode" desc="Answer only from the knowledge base; off-topic questions get the out-of-scope reply" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} />
                       <SwitchField label="Cite Sources" desc="Include [S1] citations" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} />
                     </div>
                     <Field label="Temperature" hint={`${cfg.temperature} — response creativity`}>
@@ -1017,7 +1017,7 @@ export function ConfigEditor({
                     <span className="text-xs text-muted-foreground">Advanced</span>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-5 px-4 pb-4">
-                    <Field label="Out-of-scope reply" hint="Returned when strict mode rejects a question.">
+                    <Field label="Out-of-scope reply" hint="What the assistant conveys, in the visitor's language, when a question isn't covered by the knowledge base. It is paraphrased with a pointer to what you do cover, and never used for greetings or &quot;what can you do&quot; questions.">
                       <Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." />
                     </Field>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -1050,7 +1050,7 @@ export function ConfigEditor({
               <div className="flex gap-2"><Input value={newRule} onChange={(e) => setNewRule(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRule()} placeholder="e.g. Always end responses with a follow-up question" className="flex-1" /><Button variant="outline" size="sm" onClick={addRule} disabled={!newRule.trim()}>Add</Button></div>
             </div>
           </Field>
-          <div className="grid grid-cols-2 gap-6"><SwitchField label="Strict Mode" desc="Reject off-topic questions" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} /><SwitchField label="Cite Sources" desc="Include [S1] citations in answers" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} /></div>
+          <div className="grid grid-cols-2 gap-6"><SwitchField label="Strict Mode" desc="Answer only from the knowledge base; off-topic questions get the out-of-scope reply" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} /><SwitchField label="Cite Sources" desc="Include [S1] citations in answers" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} /></div>
           <Field label="Temperature" hint={`${cfg.temperature} — controls response creativity (0 = deterministic, 1 = creative)`}><Slider min={0} max={1} step={0.05} value={[cfg.temperature]} onValueChange={([v]) => set("temperature", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Precise</span><span>Creative</span></div></Field>
           <Field label="Max Response Tokens" hint={`${cfg.maxTokens} tokens`}><Slider min={100} max={2000} step={50} value={[cfg.maxTokens]} onValueChange={([v]) => set("maxTokens", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>100</span><span>2000</span></div></Field>
         </div>

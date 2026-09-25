@@ -579,6 +579,8 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       ? orgSettings?.maxChatTokens ?? defaults.limits.chatMaxTokens
       : orgSettings?.maxRealtimeTokens ?? defaults.limits.realtimeMaxTokens;
   const maxTokens = clampNumber(assistantConfig?.maxTokens ?? maxTokensCap, maxTokensCap);
+  const realtimeMaxOutputTokens =
+    orgSettings?.maxRealtimeTokens ?? defaults.limits.realtimeMaxTokens ?? null;
 
   if (input.surface === "chat" && !chatModel) {
     throw new AIConfigResolutionError("No chat model is configured for this tenant.");
@@ -624,6 +626,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       : null,
     temperature,
     maxTokens,
+    realtimeMaxOutputTokens,
     assistantConfig,
     flags,
     sources: {

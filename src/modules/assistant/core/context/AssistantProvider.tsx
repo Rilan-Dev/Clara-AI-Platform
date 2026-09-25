@@ -463,7 +463,7 @@ export function AssistantProvider({
           voiceIntro:
             typeof payload?.voiceIntro === "string" && payload.voiceIntro.trim()
               ? payload.voiceIntro.trim()
-              : `You're speaking with Clara AI Assistant about the "${document.title}" insurance policy. I can help explain coverage details, claims process, exclusions, and answer any questions about this policy.`,
+              : `You're speaking with Clara AI Assistant about "${document.title}". I can explain what it covers and answer your questions about it.`,
         };
 
         const overviewModel = new DocumentOverviewModel(overview);
@@ -594,7 +594,7 @@ export function AssistantProvider({
         setDocumentsError(
           error instanceof Error
             ? error.message
-            : "Unable to load insurance policy documents. Please try again."
+            : "Unable to load documents. Please try again."
         );
       }
     } finally {

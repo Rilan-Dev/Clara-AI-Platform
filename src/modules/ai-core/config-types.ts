@@ -272,6 +272,14 @@ export interface ResolvedAIConfig {
   translationMode: "off" | "query" | "query+answer";
   temperature: number | null;
   maxTokens: number | null;
+  /**
+   * Output-token cap for native realtime voice (OpenAI Realtime). Counts the
+   * spoken AUDIO tokens as well as text, so the assistant's chat-length
+   * maxTokens must not be reused here — doing so cut spoken answers off
+   * mid-sentence. Org or platform "Max realtime tokens" when set; null means
+   * no cap (the provider default, "inf").
+   */
+  realtimeMaxOutputTokens?: number | null;
   assistantConfig: AssistantConfig | null;
   flags: {
     voiceEnabled: boolean;

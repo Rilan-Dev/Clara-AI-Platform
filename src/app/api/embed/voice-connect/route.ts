@@ -66,7 +66,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       voiceResolved.openai?.transcriptionModel ?? null;
     const allowedLanguages = resolved.allowedLanguages;
     const language = resolved.defaultLanguage;
-    const maxTokens = resolved.maxTokens ?? config.maxTokens ?? 1024;
+    // Realtime cap (org / platform), not the chat-length maxTokens.
+    const maxTokens: number | "inf" = resolved.realtimeMaxOutputTokens ?? "inf";
     const apiKey = getProviderApiKey("openai");
 
     if (!model) return NextResponse.json({ error: "No realtime model is configured for this tenant." }, { status: 400, headers: corsHeaders });

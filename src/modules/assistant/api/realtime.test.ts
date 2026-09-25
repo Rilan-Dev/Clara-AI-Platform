@@ -65,6 +65,9 @@ vi.mock("@/modules/ai-core/resolve", () => ({
     realtimeModel: "gpt-realtime-2.1-mini",
     voiceId: "marin",
     maxTokens: 650,
+    // Org/platform "Max realtime tokens" — the realtime output cap. The chat
+    // maxTokens above must NOT be applied to spoken output.
+    realtimeMaxOutputTokens: 650,
     transcriptionModel: "gpt-4o-mini-transcribe",
   })),
   getProviderApiKey: vi.fn(() => "sk-voice-axis"),
@@ -330,7 +333,9 @@ describe("postRealtimeSession — no-kbId fallback (locked defaults)", () => {
       .calls[0][0].session as Record<string, unknown>;
     expect(session.instructions).toContain("Clara");
     const tools = session.tools as Array<{ description?: string }>;
-    expect(tools[0].description).toContain("insurance policy document");
+    // Domain-neutral: nothing tenant- or industry-specific in platform text.
+    expect(tools[0].description).toContain("active document");
+    expect(tools[0].description).not.toMatch(/insurance/i);
   });
 });
 
@@ -372,5 +377,23 @@ describe("buildOpenAIRealtimeSession — re-locked via route integration", () =>
       max_output_tokens: expected.max_output_tokens,
       audio: expected.audio,
     });
+  });
+});
+
+describe("realtime output cap — spoken audio must not inherit the chat maxTokens", () => {
+  it("sends no cap (provider default \"inf\") when no realtime cap is configured", async () => {
+    const { resolveAIConfig } = await import("@/modules/ai-core/resolve");
+    (resolveAIConfig as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      provider: "openai",
+      realtimeModel: "gpt-realtime-2.1-mini",
+      voiceId: "marin",
+      maxTokens: 650,
+      realtimeMaxOutputTokens: null,
+      transcriptionModel: "gpt-4o-mini-transcribe",
+    });
+    await postRealtimeSession(sessionRequest({ kbId: KB_FIXTURE.id }));
+    const sent = (createOpenAIRealtimeClientSecret as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0]
+      .session as Record<string, unknown>;
+    expect(sent.max_output_tokens).toBe("inf");
   });
 });

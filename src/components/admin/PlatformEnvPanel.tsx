@@ -153,7 +153,7 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   AI_MAX_REALTIME_TOKENS: {
     label: "Max realtime tokens",
-    hint: "The same cap for spoken (voice) conversations. Blank = no platform cap.",
+    hint: "Caps each spoken (realtime voice) reply. Spoken audio counts against it, so a low value cuts answers off mid-sentence. Blank = no cap (recommended); the assistant's reply length setting applies to text chat.",
     validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
   },
   AI_MAX_TEMPERATURE: {

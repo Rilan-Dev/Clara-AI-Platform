@@ -87,7 +87,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       resolved!.temperature ?? config.temperature ?? 0.7,
       maxTokens: 
       // isDemo ? config.maxTokens ?? 1024 : 
-      resolved!.maxTokens ?? config.maxTokens ?? 1024,
+      // Realtime output cap (spoken audio counts too) — org / platform
+      // "Max realtime tokens"; unset → provider default "inf".
+      resolved!.realtimeMaxOutputTokens ?? "inf",
       systemPrompt,
       kbName: kb.name,
       transcriptionModel: 

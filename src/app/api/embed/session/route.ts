@@ -267,6 +267,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const allowedLanguages = resolved.allowedLanguages;
     const defaultLanguage = resolved.defaultLanguage;
     const maxTokens = resolved.maxTokens ?? effectiveConfig.maxTokens;
+    // Native realtime output counts spoken audio tokens too: use the org /
+    // platform realtime cap, never the chat-length maxTokens (that cut spoken
+    // answers off mid-sentence). No cap configured → provider default "inf".
+    const realtimeMaxOutputTokens: number | "inf" = resolved.realtimeMaxOutputTokens ?? "inf";
     const temperature = resolved.temperature ?? effectiveConfig.temperature;
     const audioPolicy = getRealtimeAudioPolicy();
 
@@ -328,7 +332,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         model: oa.realtimeModel,
         voice: oa.voiceId,
         instructions,
-        maxOutputTokens: maxTokens ?? undefined,
+        maxOutputTokens: realtimeMaxOutputTokens,
         turnDetection,
         transcription,
         tools: [],
@@ -367,7 +371,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           ...result.data,
           model: oa.realtimeModel,
           voice: oa.voiceId,
-          max_output_tokens: maxTokens,
+          max_output_tokens: realtimeMaxOutputTokens,
           turn_detection: turnDetection,
           input_audio_transcription: transcription,
           audio_policy: audioPolicy,

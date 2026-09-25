@@ -6,8 +6,17 @@ export type SessionPromptContext = { kbName: string; kbDescription?: string | nu
 export function buildSystemPrompt(config: AssistantConfig, ctx: SessionPromptContext): string {
   const parts: string[] = [];
   const orgPhrase = ctx.orgName ? ` for ${ctx.orgName}` : "";
-  parts.push(`You are ${config.assistantName}, a voice assistant${orgPhrase}.`);
-  if (config.systemPrompt.trim()) parts.push(config.systemPrompt.trim());
+  const operatorPrompt = config.systemPrompt.trim();
+  // The operator's own prompt defines role, tone, rules and persona. The
+  // name line stays neutral so it never contradicts an identity the operator
+  // wrote ("You are <X>, a voice assistant" was also sent to text chat).
+  parts.push(`Your name is ${config.assistantName}${orgPhrase ? `, assisting visitors${orgPhrase}` : ""}.`);
+  if (operatorPrompt) {
+    parts.push(operatorPrompt);
+    parts.push(
+      "The operator instructions above take precedence over the general platform guidance below whenever they conflict, except for the project language allowlist.",
+    );
+  }
   if (ctx.documentCount !== undefined && ctx.documentCount > 0) parts.push(`You have access to the "${ctx.kbName}" knowledge base, which contains ${ctx.documentCount} document${ctx.documentCount === 1 ? "" : "s"}.`); else parts.push(`You have access to the "${ctx.kbName}" knowledge base.`);
   if (ctx.kbDescription?.trim()) parts.push(`Knowledge-base scope and purpose:\n${ctx.kbDescription.trim()}`);
   if (config.welcomeMessage.trim()) parts.push(`Configured visitor welcome/capability guidance:\n${config.welcomeMessage.trim()}`);
@@ -23,7 +32,7 @@ export function buildSystemPrompt(config: AssistantConfig, ctx: SessionPromptCon
   // suppress normal conversation such as greetings, thanks, acknowledgements,
   // or simple conversational follow-ups.
   parts.push(
-    "CORE RESPONSE POLICY: Be a natural AI assistant. Use retrieved knowledge-base evidence whenever the user asks a factual or domain-specific question. Never invent domain facts when evidence is missing. If retrieval returns no relevant evidence, do NOT emit a canned topic-restriction sentence. For ordinary conversation (greetings, thanks, pleasantries, acknowledgements, or simple social conversation), respond naturally and briefly even when the knowledge base has no matching passage. For a domain-specific question with no supporting evidence, say clearly that you do not have enough information in the configured knowledge base to answer accurately, then optionally suggest a useful related question. Never mention retrieval, Qdrant, embeddings, providers, models, or internal context to the visitor.",
+    "CORE RESPONSE POLICY: Be a natural AI assistant. Use the knowledge-base evidence supplied for each turn whenever the visitor asks a factual or domain-specific question, and never invent domain facts when evidence is missing. Greetings, thanks, pleasantries, small talk and questions about what you can help with are always welcome: answer them naturally, then invite a question about what you cover. When a specific question is not covered, say briefly that you don't have that information and steer the visitor to a related topic you can help with. Never open a conversation with, or repeat, a restriction such as \"I can only answer questions about the topics I have been set up for\". Follow the per-turn guidance supplied with the context. Never mention retrieval, Qdrant, embeddings, providers, models, or internal context to the visitor.",
   );
 
   if (ctx.surface !== "embed") {
@@ -82,8 +91,16 @@ export function buildSystemPrompt(config: AssistantConfig, ctx: SessionPromptCon
         `For the remaining approved languages, ${languageGuidance.session} Do not switch output language unless the project configuration is changed.`,
   );
 
-  if (config.strictMode) parts.push("Strict mode is ON. Use it as a knowledge-safety rule, not as a trigger for refusing normal conversation or broad questions. If retrieved context contains relevant information, answer the user's question from that context even when the wording is broad, abbreviated, contains spelling mistakes, or does not exactly match a source. Capability/onboarding questions such as what you can do, how you can help, what topics you cover, or what the visitor can ask are NOT out of scope: answer them using the configured welcome/capability guidance and the knowledge-base scope above. Ordinary greetings, thanks, acknowledgements, and pleasantries are also always allowed. Only a genuinely domain-specific question without supporting evidence should receive the configured knowledge-boundary response. Never use the configured out-of-scope reply for simple conversation. " + `For a genuinely out-of-scope domain request, say exactly: "${config.outOfScopeReply}"`);
-  else parts.push(`If a domain-specific question is outside this knowledge base, acknowledge the limitation and reply: "${config.outOfScopeReply}"`);
+  // The operator's fallback reply is used for its MEANING, in the visitor's
+  // language, with a redirect to what the KB covers — never recited word for
+  // word and never for greetings/capability questions. ("Say exactly" made
+  // the assistant open conversations with a canned restriction.)
+  const fallbackReply = config.outOfScopeReply?.trim();
+  const fallbackRule = fallbackReply
+    ? ` For a specific question the knowledge base does not cover, convey the meaning of this operator message in the visitor's language (do not recite it word for word), then suggest a related topic you can help with: "${fallbackReply}"`
+    : "";
+  if (config.strictMode) parts.push("Strict mode is ON. Use it as a knowledge-safety rule, not as a trigger for refusing normal conversation or broad questions. If the supplied context contains relevant information, answer from it even when the wording is broad, abbreviated, contains spelling mistakes, or does not exactly match a source. Capability/onboarding questions (what you can do, how you can help, what topics you cover, what the visitor can ask) are NOT out of scope: answer them from the configured welcome/capability guidance and the knowledge-base scope above. Greetings, thanks, acknowledgements and pleasantries are always allowed. Do not answer domain questions from general knowledge." + fallbackRule);
+  else parts.push("If a question is outside this knowledge base, you may help briefly from general knowledge when it is safe, making clear it is not from the knowledge base." + fallbackRule);
 
   if (config.citeSources) parts.push("When your answer draws from specific document snippets, append inline source references such as [S1], [S2] at the end of the relevant sentence.");
   parts.push("Keep answers concise, warm, and conversational. Do not mention 'retrieval', 'documents', 'RAG', or 'context' — speak like a well-briefed human expert, not a search engine.");

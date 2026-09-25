@@ -16,7 +16,8 @@ import {
   resolveLanguagePreferences,
 } from "@/modules/assistant/core/config";
 import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
-import { searchKbEmbedded } from "@/modules/embed/core/search";
+import { groundClaraContext } from "@/modules/rag/grounding";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
@@ -314,15 +315,25 @@ async function postChatKb(
   // not valid Chat Completions models. Realtime speech must therefore NOT
   // replace resolved.chatModel with resolved.realtimeModel.
   const providerConfig = toProviderConfig(resolved);
-  const embeddingConfig = toProviderConfig(resolved, "embedding");
-  let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
+  // The same grounding service every voice channel uses: cross-lingual
+  // retrieval, capability handling, KB topics and provider-neutral turn
+  // guidance. This route owns the query event (admitted above, finalised
+  // with the answer below), so grounding must not log it again.
+  let grounding: Awaited<ReturnType<typeof groundClaraContext>>;
   try {
-    results = await searchKbEmbedded(
-      resolved.knowledgeCollection ?? kb.qdrantCollection,
-      retrievalQuery,
-      realtimeVoice ? 4 : 6,
-      { providerConfig: embeddingConfig, realtimeVoice },
-    );
+    grounding = await groundClaraContext({
+      kbId,
+      query,
+      searchQuery: retrievalQuery,
+      skipTranslation: crossLingual.translated,
+      topK: realtimeVoice ? 4 : 6,
+      surface: "workspace",
+      admission: "external",
+      sessionId: sessionId ?? null,
+      userId: authCtx?.user.id ?? null,
+      channel: realtimeVoice ? "voice" : "chat",
+      ...(body?.scope === "draft" ? { preferDraft: true } : {}),
+    });
   } catch (searchErr) {
     // Retrieval failed — mark the audit row as an error, then surface it.
     void finalizeQueryEvent(eventId, {
@@ -331,16 +342,29 @@ async function postChatKb(
     });
     throw new ChatRetrievalError(searchErr);
   }
+  // A KB with no indexed content yet (503) is a no-evidence turn, not an error.
+  const groundedResult = grounding.ok ? grounding.result : null;
+  const results = groundedResult?.sources ?? [];
   const latencyMs = Date.now() - t0;
   void finalizeQueryEvent(eventId, {
     answerText: "", status: "pending", latencyMs, sourceCount: results.length,
   });
 
-  const context = results
-    .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
-    .join("\n\n");
+  const guidance =
+    groundedResult?.guidance ??
+    buildTurnGuidance({
+      grounded: false,
+      intent: "out_of_scope",
+      fallbackReply: config.outOfScopeReply,
+      topics: kb.description ?? documentTitles.join(", "),
+      channel: realtimeVoice ? "voice" : "chat",
+    });
+  const evidence = groundedResult?.intent === "capability"
+    ? groundedResult.context
+    : results.map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`).join("\n\n");
+  const context = [guidance, evidence].filter(Boolean).join("\n\n");
 
-  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "chat" }));
+  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "chat", allowedLanguages: resolved.allowedLanguages, responseLanguage: groundedResult?.responseLanguage ?? null }));
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
@@ -421,9 +445,11 @@ async function postChatKb(
         try {
           const completionStream = provider.chatStream(chatMessages, {
             temperature: resolved.temperature ?? config.temperature,
-            maxTokens: realtimeVoice
-              ? Math.min(resolved.maxTokens ?? config.maxTokens ?? 350, 350)
-              : (resolved.maxTokens ?? config.maxTokens),
+            // The assistant's configured reply length on every surface. A
+            // hardcoded 350-token voice cap cut spoken answers off mid-word
+            // (Tamil/Indic scripts use several tokens per word); brevity for
+            // voice comes from the prompt, not truncation.
+            maxTokens: resolved.maxTokens ?? config.maxTokens,
             reasoningEffort: realtimeVoice ? null : undefined,
             onUsage: (u) => { usageRef.value = u; },
           });
@@ -602,8 +628,8 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     const systemPrompt = [
       assistantPrompts.chat.systemInstructions,
       languageGuidance.chat,
-      "Ground every answer in the provided context and the policy insight you already know.",
-      "If a detail is missing, share the most relevant guidance you can and invite the customer to explore the available highlights with you.",
+      "Ground every answer in the provided context and the document insight you already know.",
+      "If a detail is missing, say so briefly, share the most relevant guidance you can, and invite the visitor to explore the available highlights with you.",
       CHART_RESPONSE_INSTRUCTIONS,
     ].join(" ");
 
@@ -612,7 +638,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
         role: "system",
         content: `${systemPrompt}\n\nContext:\n${
           context ||
-          "Lean on the policy overview above; no additional supporting passages were needed."
+          "Lean on the document overview above; no additional supporting passages were needed."
         }`,
       },
       ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),

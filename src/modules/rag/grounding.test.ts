@@ -108,6 +108,7 @@ vi.mock("@/modules/rag/diversify", () => ({
 import { groundClaraContext, resetGroundingCaches } from "./grounding";
 import { clearQueryEmbeddingCache } from "./query-embedding-cache";
 import { clearRetrievalTranslationCache } from "./cross-lingual";
+import { clearKnowledgeTopicsCache } from "./knowledge-topics";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { admitQueryEvent } from "@/lib/quota-admission";
@@ -122,6 +123,7 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
   });
 
   it("returns grounded context with the server-resolved binding", async () => {
@@ -192,11 +194,18 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
 
   it("maps an empty collection to the 503 no-content contract", async () => {
     const { getQdrantClient } = await import("@/modules/admin/core/vector-store");
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+    const missingCollection = {
       search: vi.fn(async () => {
         throw new Error('Qdrant collection "kb_fixture_1" does not exist.');
       }),
-    });
+      scroll: vi.fn(async () => {
+        throw new Error('Qdrant collection "kb_fixture_1" does not exist.');
+      }),
+    };
+    // Used by the KB topic pre-warm and by the vector search.
+    (getQdrantClient as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(missingCollection)
+      .mockReturnValueOnce(missingCollection);
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "q" });
     expect(outcome).toMatchObject({ ok: false, status: 503 });
   });
@@ -208,6 +217,7 @@ describe("groundClaraContext — Task 3.2 identical knowledge binding across pro
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
   });
 
   it("resolves an IDENTICAL binding for the five provider turn paths", async () => {
@@ -282,6 +292,7 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
   });
 
   it("grounds a Tamil question against an English KB via a translated query", async () => {
@@ -323,5 +334,50 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
     expect(outcome.ok && outcome.result.retrievalQuery).toBeNull();
     expect(chatStream).not.toHaveBeenCalled();
     expect(search).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("groundClaraContext — turn guidance (no canned refusal)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetGroundingCaches();
+    clearQueryEmbeddingCache();
+    clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
+  });
+
+  it("a greeting with no KB hit gets natural-handling guidance, not a restriction", async () => {
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+      embedText: vi.fn(async () => [0]),
+      chatStream: async function* () { yield "Hello"; },
+    });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search: vi.fn(async () => []), scroll: vi.fn(async () => ({ points: [] })) });
+
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "வணக்கம்", admission: "audit-only", channel: "voice" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.grounded).toBe(false);
+    expect(outcome.result.guidance).toMatch(/greeting, thanks, small talk/i);
+    expect(outcome.result.guidance).toMatch(/finish your sentences/);
+    expect(outcome.result.guidance).not.toMatch(/say exactly/i);
+  });
+
+  it("a Tamil capability question returns the KB topics in the guidance", async () => {
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "ஒன்றாலே எனக்கு எப்படி உதவ முடியும்?" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.intent).toBe("capability");
+    expect(outcome.result.guidance).toMatch(/what you can help with/);
+  });
+
+  it("external admission leaves the query event to the caller (no double counting)", async () => {
+    const analytics = await import("@/modules/knowledge-bases/core/analytics-db");
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({ embedText: vi.fn(async () => [1]) });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search: vi.fn(async () => []), scroll: vi.fn(async () => ({ points: [] })) });
+
+    await groundClaraContext({ kbId: KB_FIXTURE.id, query: "home insurance", admission: "external" });
+    expect(admitQueryEvent).not.toHaveBeenCalled();
+    expect(analytics.finalizeQueryEvent).not.toHaveBeenCalled();
+    expect(analytics.logQueryEvent).not.toHaveBeenCalled();
   });
 });

@@ -197,7 +197,7 @@ async function translateWithModel(
         content:
           `Translate the user's question into ${target} so it can be used to search a ${target} knowledge base. ` +
           `Keep product names, brand names, numbers and codes. English words written in another script ` +
-          `(for example "ஹோம் இன்சூரன்ஸ்") must become the English words ("home insurance"). ` +
+          `(transliterated) must become the original words (for example Tamil-script "ஹோம்" → "home"). ` +
           `Reply with the translated question only — no quotes, notes or answer.`,
       },
       { role: "user", content: query },
