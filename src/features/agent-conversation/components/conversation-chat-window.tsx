@@ -26,6 +26,7 @@ import {
 import { ConversationVoiceStage } from "./conversation-voice-stage";
 import { RealtimeVoiceOrb } from "./realtime-voice-orb";
 import { OrbComposer } from "./orb-composer";
+import { AgentMarkdown } from "./agent-markdown";
 import type { ConversationMessage, VoiceClientSession } from "../types";
 import { ChatAnnouncer } from "@/components/ui/chat-announcer";
 
@@ -91,7 +92,14 @@ export function ConversationChatWindow({
 }: ConversationChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
-  const streaming = thinking || lastMessage?.role === "assistant";
+  // A reply is streaming only while tokens can still arrive. Deriving this
+  // from `thinking` alone (instead of `thinking || last is assistant`)
+  // guarantees the trailing caret stops pulsing once the answer completes,
+  // and it lets the ThinkingRow be suppressed while the assistant placeholder
+  // bubble already occupies the "generating" slot — exactly one status box
+  // on screen at any moment (the previous behaviour stacked two).
+  const streaming = thinking && lastMessage?.role === "assistant";
+  const awaitingAssistantBubble = lastMessage?.role === "assistant";
   const [mode, setMode] = useState<ConversationMode>(publishedMode && voiceAvailable ? "voice" : voiceAvailable ? "voice" : "chat");
 
   useEffect(() => {
@@ -338,7 +346,9 @@ export function ConversationChatWindow({
                         streamingAssistant={streaming && message.id === lastMessage?.id}
                       />
                     ))}
-                    {thinking && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
+                    {/* The thinking indicator only exists while there is no
+                        assistant placeholder bubble — never alongside it. */}
+                    {thinking && !awaitingAssistantBubble && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
                     {messages.length === 0 && !welcomeMessage.trim() && (
                       <div className="flex min-h-full items-center justify-center py-12 text-center">
                         <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -393,7 +403,7 @@ function WelcomeMessage({
         <Sparkles className="h-3.5 w-3.5" />
       </div>
       <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-border/60 bg-muted/35 px-4 py-3 text-sm leading-relaxed text-foreground/90">
-        {welcomeMessage}
+        <AgentMarkdown content={welcomeMessage} />
       </div>
     </div>
   );
@@ -497,7 +507,7 @@ function ConversationRail({
             streamingAssistant={streaming && message.id === lastMessage?.id}
           />
         ))}
-        {thinking && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
+        {thinking && !(lastMessage?.role === "assistant") && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
         {messages.length === 0 && !welcomeMessage.trim() && (
           <div className="flex h-full min-h-40 items-center justify-center px-4 text-center">
             <div>
@@ -687,14 +697,18 @@ function MessageRow({
       >
         {(assistantName?.trim()?.charAt(0)?.toUpperCase() ?? "A")}
       </div>
-      <div className="max-w-[85%]">
+      <div className="max-w-[90%]">
         <div className="rounded-2xl rounded-tl-md border border-border/60 bg-muted/30 px-4 py-2.5 text-sm leading-relaxed text-foreground">
-          <span className="whitespace-pre-wrap break-words">{message.content}</span>
-          {streamingAssistant && (
-            <span
-              className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse rounded-sm align-baseline"
-              style={{ background: accentColour }}
-            />
+          {streamingAssistant && !message.content.trim() ? (
+            // Pre-first-token state: the placeholder bubble itself carries the
+            // thinking dots — no second status box is rendered alongside it.
+            <span className="inline-flex items-center gap-1.5 py-0.5" role="status" aria-label="Assistant is composing a reply">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: `${i * 140}ms` }} />
+              ))}
+            </span>
+          ) : (
+            <AgentMarkdown content={message.content} streaming={streamingAssistant} />
           )}
         </div>
         {citeSources && visibleSources.length > 0 && (
