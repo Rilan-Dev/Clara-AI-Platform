@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ExternalLink,
@@ -121,6 +121,8 @@ function PreviewSkeleton() {
 
 export default function DraftPreviewScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
+  const searchParams = useSearchParams();
+  const embedded = searchParams.get("embedded") === "1";
 
   const [data, setData] = useState<DraftPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -269,7 +271,7 @@ export default function DraftPreviewScreen() {
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
-      <main className="w-full px-0 py-0">
+      <main className={cn("w-full px-0 py-0", embedded ? "h-full" : "")}>
         {loading && !data ? (
           <PreviewSkeleton />
         ) : error ? (
@@ -294,7 +296,7 @@ export default function DraftPreviewScreen() {
           </div>
         ) : (
           <div className="space-y-0">
-            <div className="h-[calc(100dvh-3.5rem)] min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-xl">
+            <div className={cn("min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-xl", embedded ? "h-full" : "h-[calc(100dvh-3.5rem)]")} >
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
