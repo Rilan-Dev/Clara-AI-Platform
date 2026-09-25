@@ -1,24 +1,28 @@
 "use client";
 
 /**
- * src/features/agent-conversation/components/conversation-chat-window.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * The chat window shared by the draft preview and the published page.
+ * Shared Clara conversation surface for Draft Preview and Published agents.
  *
- * VOICE CHAT LIVES INSIDE THIS WINDOW (not in a separate modal): the composer
- * carries a mic button that starts the realtime voice session, and while the
- * session is active the message area is replaced — with a cross-fade — by the
- * ConversationVoiceStage. Ending the session folds the spoken turns back into
- * the message list so the conversation continues seamlessly as text.
- *
- * The window is transport-agnostic: the parent screen owns the message state,
- * the chat streaming call and the voice session hook; this component only
- * renders them and reports user intents.
+ * UX model:
+ * - Realtime is the primary experience: a large branded voice stage on the
+ *   left/center and a live conversation rail on the right.
+ * - Text remains a first-class mode and can be switched to without changing
+ *   the underlying agent/provider session.
+ * - The component is deliberately transport/provider agnostic. It only calls
+ *   the existing start/end/send callbacks supplied by useAgentConversation.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, CornerDownLeft, Mic, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  CornerDownLeft,
+  Headphones,
+  Mic,
+  MessageSquare,
+  Phone,
+  Sparkles,
+} from "lucide-react";
 import { ConversationVoiceStage } from "./conversation-voice-stage";
 import type { ConversationMessage, VoiceClientSession } from "../types";
 import { ChatAnnouncer } from "@/components/ui/chat-announcer";
@@ -28,9 +32,7 @@ interface ConversationChatWindowProps {
   avatarUrl?: string | null;
   primaryColour: string;
   accentColour: string;
-  /** Chip rendered in the header (e.g. "Draft · Live KB" / "Published v3"). */
   headerBadge?: React.ReactNode;
-  /** Extra header content (right side). */
   headerAside?: React.ReactNode;
   welcomeMessage: string;
   messages: ConversationMessage[];
@@ -44,7 +46,6 @@ interface ConversationChatWindowProps {
   suggestions?: string[];
   onSuggestion?: (value: string) => void;
   citeSources: boolean;
-  /** Voice integration. */
   voiceAvailable: boolean;
   voiceUnavailableReason?: string | null;
   onVoiceStart: () => void;
@@ -53,6 +54,8 @@ interface ConversationChatWindowProps {
   micLevels?: number[];
   onVoiceEnd: () => void;
 }
+
+type ConversationMode = "voice" | "chat";
 
 export function ConversationChatWindow({
   assistantName,
@@ -84,144 +87,239 @@ export function ConversationChatWindow({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMessage = messages[messages.length - 1];
   const streaming = thinking || lastMessage?.role === "assistant";
+  const [mode, setMode] = useState<ConversationMode>(voiceAvailable ? "voice" : "chat");
+
+  useEffect(() => {
+    if (!voiceAvailable && !voiceActive) setMode("chat");
+  }, [voiceAvailable, voiceActive]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
-    if (nearBottom || thinking) {
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180;
+    if (nearBottom || thinking || voiceActive) {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [messages, thinking, voiceActive]);
 
   const canSend = !sendDisabled && input.trim().length > 0 && !thinking;
 
+  const setConversationMode = (next: ConversationMode) => {
+    if (voiceActive) return;
+    if (next === "voice" && !voiceAvailable) return;
+    setMode(next);
+  };
+
   return (
-    <section className="flex h-full min-h-[36rem] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xl shadow-black/[0.04]">
-      {/* ── Window header ──────────────────────────────────────────────── */}
-      <header className="flex items-center gap-3 border-b border-border/70 bg-gradient-to-r from-muted/40 to-transparent px-4 py-3">
+    <section className="flex h-full min-h-[38rem] flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card/90 shadow-2xl shadow-black/[0.06]">
+      <header className="flex shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 py-3 backdrop-blur-xl sm:px-5">
         <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white shadow-md"
+          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
           style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
         >
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt="" className="h-full w-full object-cover" draggable={false} />
           ) : (
-            (assistantName?.trim()?.charAt(0)?.toUpperCase() ?? "A")
+            assistantName.trim().charAt(0).toUpperCase()
           )}
         </div>
+
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-sm font-semibold text-foreground">{assistantName}</h2>
             {headerBadge}
           </div>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-[11px] text-muted-foreground">
             {voiceActive
-              ? "Realtime voice session in progress"
-              : thinking
-                ? "Searching the knowledge base…"
-                : "Answers grounded in your knowledge base"}
+              ? "Realtime conversation"
+              : mode === "voice"
+                ? "Talk naturally with your AI agent"
+                : thinking
+                  ? "Searching the knowledge base…"
+                  : "Chat grounded in your knowledge base"}
           </p>
         </div>
+
+        <div className="hidden items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1 sm:flex">
+          <button
+            type="button"
+            onClick={() => setConversationMode("voice")}
+            disabled={!voiceAvailable || voiceActive}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "voice" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}
+            aria-pressed={mode === "voice"}
+          >
+            <Headphones className="h-3.5 w-3.5" />
+            Voice
+          </button>
+          <button
+            type="button"
+            onClick={() => setConversationMode("chat")}
+            disabled={voiceActive}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "chat" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}
+            aria-pressed={mode === "chat"}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Chat
+          </button>
+        </div>
+
         {headerAside}
       </header>
 
-      {/* ── Body: chat messages OR the in-window voice stage ───────────── */}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="relative min-h-0 flex-1">
         <AnimatePresence mode="wait" initial={false}>
           {voiceActive && voiceSession ? (
             <motion.div
-              key="voice-stage"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,30rem)]"
+              key="voice-active"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,31rem)]"
             >
-              <div className="min-h-0 border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-4 py-3 sm:px-6 lg:border-b-0 lg:border-r">
-                <ConversationVoiceStage
-                  session={voiceSession}
-                  micLevels={micLevels ?? []}
-                  agentName={assistantName}
-                  primaryColour={primaryColour}
-                  accentColour={accentColour}
-                  avatarUrl={avatarUrl}
-                  onEnd={onVoiceEnd}
-                  showTranscript={false}
+              <div className="relative min-h-[32rem] overflow-hidden border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-4 py-5 sm:px-8 lg:border-b-0 lg:border-r">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-70"
+                  style={{
+                    background: `radial-gradient(32rem 22rem at 50% 45%, ${primaryColour}12, transparent 72%)`,
+                  }}
                 />
-              </div>
-              <aside className="flex min-h-0 flex-col bg-muted/10">
-                <div className="border-b border-border/70 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Conversation</p>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-                      Live
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Your realtime conversation appears here.</p>
+                <div className="relative h-full">
+                  <ConversationVoiceStage
+                    session={voiceSession}
+                    micLevels={micLevels ?? []}
+                    agentName={assistantName}
+                    primaryColour={primaryColour}
+                    accentColour={accentColour}
+                    avatarUrl={avatarUrl}
+                    onEnd={onVoiceEnd}
+                    showTranscript={false}
+                  />
                 </div>
-                <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" role="log" aria-label={`Realtime conversation with ${assistantName}`} aria-live="polite">
-                  {messages.length > 0 ? messages.map((message) => (
-                    <MessageRow
-                      key={message.id}
-                      message={message}
-                      assistantName={assistantName}
+              </div>
+              <ConversationRail
+                assistantName={assistantName}
+                primaryColour={primaryColour}
+                accentColour={accentColour}
+                messages={messages}
+                citeSources={citeSources}
+                lastMessage={lastMessage}
+                scrollRef={scrollRef}
+                welcomeMessage={welcomeMessage}
+                thinking={thinking}
+                streaming={false}
+                voiceActive
+              />
+            </motion.div>
+          ) : mode === "voice" && voiceAvailable ? (
+            <motion.div
+              key="voice-lobby"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,31rem)]"
+            >
+              <div className="relative flex min-h-[32rem] flex-col items-center justify-center overflow-hidden border-b border-border/70 bg-gradient-to-br from-background via-background to-muted/30 px-6 py-8 lg:border-b-0 lg:border-r">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background: `radial-gradient(34rem 24rem at 50% 45%, ${primaryColour}16, transparent 70%), radial-gradient(28rem 18rem at 80% 100%, ${accentColour}10, transparent 72%)`,
+                  }}
+                />
+                <div className="relative flex max-w-xl flex-col items-center text-center">
+                  <span
+                    className="mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium"
+                    style={{ borderColor: `${primaryColour}35`, background: `${primaryColour}0d`, color: primaryColour }}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: primaryColour }} />
+                    Realtime voice ready
+                  </span>
+                  <motion.div
+                    initial={{ scale: 0.94, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.35 }}
+                    className="mb-7"
+                  >
+                    <RealtimeVoiceOrb
+                      state="idle"
+                      micLevels={[]}
+                      agentLevels={[]}
                       primaryColour={primaryColour}
                       accentColour={accentColour}
-                      citeSources={citeSources}
-                      isLast={message.id === lastMessage?.id}
-                      streamingAssistant={false}
+                      agentName={assistantName}
+                      avatarUrl={avatarUrl}
+                      size={300}
                     />
-                  )) : (
-                    <div className="flex h-full items-center justify-center text-center">
-                      <div>
-                        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                          <Sparkles className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <p className="mt-3 text-xs text-muted-foreground">Speak to {assistantName} to start the live transcript.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="border-t border-border/70 bg-background/60 px-4 py-3">
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    Voice is live. Use the controls on the main stage to mute, interrupt, or end the session.
+                  </motion.div>
+                  <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    Talk to {assistantName}
+                  </h3>
+                  <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                    Start a realtime conversation and speak naturally. {assistantName} will listen,
+                    think, and respond using the same knowledge base as chat.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onVoiceStart}
+                    className="mt-7 inline-flex h-12 items-center gap-2.5 rounded-full px-6 text-sm font-semibold text-white shadow-xl transition hover:scale-[1.02] hover:brightness-110 focus:outline-none focus:ring-4"
+                    style={{
+                      background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})`,
+                      boxShadow: `0 12px 36px ${primaryColour}35`,
+                    }}
+                  >
+                    <Phone className="h-4 w-4" />
+                    Start conversation
+                  </button>
+                  <p className="mt-3 text-[11px] text-muted-foreground/70">
+                    Your microphone will be requested when the session starts.
                   </p>
                 </div>
-              </aside>
+              </div>
+              <ConversationRail
+                assistantName={assistantName}
+                primaryColour={primaryColour}
+                accentColour={accentColour}
+                messages={messages}
+                citeSources={citeSources}
+                lastMessage={lastMessage}
+                scrollRef={scrollRef}
+                welcomeMessage={welcomeMessage}
+                thinking={thinking}
+                streaming={streaming}
+                voiceActive={false}
+                input={input}
+                onInputChange={onInputChange}
+                onSend={onSend}
+                canSend={canSend}
+                sendDisabled={sendDisabled}
+                placeholder={placeholder}
+                voiceAvailable={voiceAvailable}
+                onVoiceStart={onVoiceStart}
+                suggestions={suggestions}
+                onSuggestion={onSuggestion}
+              />
             </motion.div>
           ) : (
             <motion.div
-              key="chat-stage"
-              initial={{ opacity: 0, y: 10 }}
+              key="chat"
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="flex min-h-0 flex-1 flex-col"
+              exit={{ opacity: 0, y: -8 }}
+              className="flex h-full min-h-0 flex-col"
             >
-              {/* Message list */}
-              <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="off">
+              <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-7" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
                 <ChatAnnouncer
                   label={assistantName}
                   messages={messages.map((m) => ({ ...m, isStreaming: thinking && m.id === lastMessage?.id }))}
                 />
-                {/* Welcome bubble */}
-                {welcomeMessage.trim() && (
-                  <div className="flex gap-2.5">
-                    <div
-                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                      style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-border/60 bg-muted/40 px-4 py-2.5 text-sm leading-relaxed text-foreground/90">
-                      {welcomeMessage}
-                    </div>
-                  </div>
-                )}
-
+                <WelcomeMessage
+                  assistantName={assistantName}
+                  primaryColour={primaryColour}
+                  accentColour={accentColour}
+                  welcomeMessage={welcomeMessage}
+                />
                 {messages.map((message) => (
                   <MessageRow
                     key={message.id}
@@ -234,121 +332,24 @@ export function ConversationChatWindow({
                     streamingAssistant={streaming && message.id === lastMessage?.id}
                   />
                 ))}
-
-                {thinking && (
-                  <div className="flex gap-2.5">
-                    <div
-                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                      style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
-                    >
-                      {(assistantName?.trim()?.charAt(0)?.toUpperCase() ?? "A")}
-                    </div>
-                    <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-border/60 bg-muted/40 px-4 py-3">
-                      {[0, 1, 2].map((i) => (
-                        <span
-                          key={i}
-                          className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60"
-                          style={{ animationDelay: `${i * 140}ms` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
+                {thinking && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
                 {messages.length === 0 && !welcomeMessage.trim() && (
                   <p className="pt-10 text-center text-sm text-muted-foreground">
                     Start the conversation — ask anything covered by the knowledge base.
                   </p>
                 )}
               </div>
-
-              {/* Chat error */}
-              {chatError && (
-                <div className="mx-4 mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive sm:mx-6">
-                  {chatError}
-                </div>
-              )}
-
-              {/* Suggestions */}
-              {suggestions && suggestions.length > 0 && messages.length === 0 && (
-                <div className="flex flex-wrap gap-2 px-4 pb-2 sm:px-6">
-                  {suggestions.slice(0, 4).map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => onSuggestion?.(suggestion)}
-                      className="rounded-full border border-border/70 bg-muted/30 px-3.5 py-1.5 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Composer: text + voice ──────────────────────────────── */}
-              <div className="border-t border-border/70 bg-muted/20 px-3 py-3 sm:px-4">
-                <div className="flex items-end gap-2">
-                  <div className="relative flex-1">
-                    <textarea
-                      aria-label={`Message ${assistantName}`}
-                      value={input}
-                      onChange={(e) => onInputChange(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (canSend) onSend();
-                        }
-                      }}
-                      rows={1}
-                      disabled={sendDisabled}
-                      placeholder={sendDisabled ? "Chat unavailable" : (placeholder ?? `Message ${assistantName}…`)}
-                      className="max-h-32 min-h-[2.75rem] w-full resize-none rounded-xl border border-border bg-background px-4 py-2.5 pr-11 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                    {canSend && (
-                      <button
-                        type="button"
-                        onClick={onSend}
-                        className="absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-white shadow transition hover:brightness-110"
-                        style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
-                        aria-label="Send message"
-                      >
-                        <CornerDownLeft className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Mic — starts the realtime voice session INSIDE this window. */}
-                  {voiceAvailable ? (
-                    <button
-                      type="button"
-                      onClick={onVoiceStart}
-                      className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
-                      title="Start realtime voice session in this chat window"
-                      aria-label="Start realtime voice session"
-                    >
-                      <Mic className="h-5 w-5" />
-                      <span
-                        className="pointer-events-none absolute inset-0 rounded-xl opacity-0 transition group-hover:opacity-100"
-                        style={{ boxShadow: `0 0 0 4px ${accentColour}33` }}
-                      />
-                    </button>
-                  ) : voiceUnavailableReason ? (
-                    <span
-                      className="flex h-11 items-center justify-center rounded-xl border border-dashed border-border px-3 text-xs text-muted-foreground"
-                      title={voiceUnavailableReason}
-                    >
-                      <Mic className="mr-1.5 h-4 w-4 opacity-50" />
-                      Voice off
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
-                  {voiceAvailable
-                    ? "Enter to send · Shift+Enter for a new line · Mic for realtime voice"
-                    : "Enter to send · Shift+Enter for a new line"}
-                </p>
-              </div>
+              <Composer
+                input={input}
+                onInputChange={onInputChange}
+                onSend={onSend}
+                canSend={canSend}
+                sendDisabled={sendDisabled}
+                placeholder={placeholder}
+                voiceAvailable={voiceAvailable}
+                voiceUnavailableReason={voiceUnavailableReason}
+                onVoiceStart={onVoiceStart}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -357,6 +358,244 @@ export function ConversationChatWindow({
   );
 }
 
+function WelcomeMessage({
+  assistantName,
+  primaryColour,
+  accentColour,
+  welcomeMessage,
+}: {
+  assistantName: string;
+  primaryColour: string;
+  accentColour: string;
+  welcomeMessage: string;
+}) {
+  if (!welcomeMessage.trim()) return null;
+  return (
+    <div className="flex gap-2.5">
+      <div
+        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+        style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+      </div>
+      <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-border/60 bg-muted/35 px-4 py-3 text-sm leading-relaxed text-foreground/90">
+        {welcomeMessage}
+      </div>
+    </div>
+  );
+}
+
+function ThinkingRow({ primaryColour, accentColour }: { primaryColour: string; accentColour: string }) {
+  return (
+    <div className="flex gap-2.5">
+      <div
+        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white"
+        style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+      </div>
+      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-border/60 bg-muted/40 px-4 py-3">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: `${i * 140}ms` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConversationRail({
+  assistantName,
+  primaryColour,
+  accentColour,
+  messages,
+  citeSources,
+  lastMessage,
+  scrollRef,
+  welcomeMessage,
+  thinking,
+  streaming,
+  voiceActive,
+  input,
+  onInputChange,
+  onSend,
+  canSend,
+  sendDisabled,
+  placeholder,
+  voiceAvailable,
+  onVoiceStart,
+  suggestions,
+  onSuggestion,
+}: {
+  assistantName: string;
+  primaryColour: string;
+  accentColour: string;
+  messages: ConversationMessage[];
+  citeSources: boolean;
+  lastMessage?: ConversationMessage;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  welcomeMessage: string;
+  thinking: boolean;
+  streaming: boolean;
+  voiceActive: boolean;
+  input?: string;
+  onInputChange?: (value: string) => void;
+  onSend?: () => void;
+  canSend?: boolean;
+  sendDisabled?: boolean;
+  placeholder?: string;
+  voiceAvailable?: boolean;
+  onVoiceStart?: () => void;
+  suggestions?: string[];
+  onSuggestion?: (value: string) => void;
+}) {
+  return (
+    <aside className="flex min-h-0 flex-col bg-background/75">
+      <div className="flex shrink-0 items-center justify-between border-b border-border/70 px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-foreground/80">Conversation</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {voiceActive ? "Live transcript" : "Continue in chat anytime"}
+          </p>
+        </div>
+        {voiceActive ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-600">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            Live
+          </span>
+        ) : (
+          <MessageSquare className="h-4 w-4 text-muted-foreground/60" />
+        )}
+      </div>
+
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
+        <WelcomeMessage assistantName={assistantName} primaryColour={primaryColour} accentColour={accentColour} welcomeMessage={welcomeMessage} />
+        {messages.map((message) => (
+          <MessageRow
+            key={message.id}
+            message={message}
+            assistantName={assistantName}
+            primaryColour={primaryColour}
+            accentColour={accentColour}
+            citeSources={citeSources}
+            isLast={message.id === lastMessage?.id}
+            streamingAssistant={streaming && message.id === lastMessage?.id}
+          />
+        ))}
+        {thinking && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
+        {messages.length === 0 && !welcomeMessage.trim() && (
+          <div className="flex h-full min-h-40 items-center justify-center px-4 text-center">
+            <div>
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                {voiceActive ? `Speak to ${assistantName} to start the live transcript.` : "Your chat history will appear here."}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!voiceActive && input !== undefined && onInputChange && onSend && (
+        <div className="shrink-0 border-t border-border/70 bg-muted/20 p-3">
+          {suggestions && suggestions.length > 0 && messages.length === 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {suggestions.slice(0, 3).map((suggestion) => (
+                <button key={suggestion} type="button" onClick={() => onSuggestion?.(suggestion)} className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[10px] text-muted-foreground transition hover:text-foreground">
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+          <Composer
+            input={input}
+            onInputChange={onInputChange}
+            onSend={onSend}
+            canSend={Boolean(canSend)}
+            sendDisabled={sendDisabled}
+            placeholder={placeholder}
+            voiceAvailable={Boolean(voiceAvailable)}
+            voiceUnavailableReason={voiceAvailable ? null : "Realtime voice is unavailable for this agent."}
+            onVoiceStart={onVoiceStart}
+            primaryColour={primaryColour}
+            accentColour={accentColour}
+            compact
+          />
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function Composer({
+  input,
+  onInputChange,
+  onSend,
+  canSend,
+  sendDisabled,
+  placeholder,
+  voiceAvailable,
+  voiceUnavailableReason,
+  onVoiceStart,
+  primaryColour,
+  accentColour,
+  compact = false,
+}: {
+  input: string;
+  onInputChange: (value: string) => void;
+  onSend: () => void;
+  canSend: boolean;
+  sendDisabled?: boolean;
+  placeholder?: string;
+  voiceAvailable: boolean;
+  voiceUnavailableReason?: string | null;
+  onVoiceStart?: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "space-y-2" : "border-t border-border/70 bg-muted/20 px-3 py-3 sm:px-4"}>
+      <div className="flex items-end gap-2">
+        <div className="relative flex-1">
+          <textarea
+            aria-label="Message the assistant"
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (canSend) onSend();
+              }
+            }}
+            rows={1}
+            disabled={sendDisabled}
+            placeholder={sendDisabled ? "Chat unavailable" : (placeholder ?? "Message the assistant…")}
+            className="max-h-28 min-h-[2.7rem] w-full resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 pr-11 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          {canSend && (
+            <button type="button" onClick={onSend} className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-white shadow transition hover:brightness-110" style={{ background: `linear-gradient(135deg, var(--primary), ${accentColour})` }} aria-label="Send message">
+              <CornerDownLeft className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {voiceAvailable && onVoiceStart ? (
+          <button type="button" onClick={onVoiceStart} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/40" style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }} title="Start realtime voice" aria-label="Start realtime voice">
+            <Mic className="h-5 w-5" />
+          </button>
+        ) : voiceUnavailableReason ? (
+          <span className="flex h-11 items-center justify-center rounded-xl border border-dashed border-border px-3 text-xs text-muted-foreground" title={voiceUnavailableReason}>
+            <Mic className="mr-1.5 h-4 w-4 opacity-50" />
+            Voice off
+          </span>
+        ) : null}
+      </div>
+      {!compact && (
+        <p className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
+          Enter to send · Shift+Enter for a new line · {voiceAvailable ? "Mic for realtime voice" : "Voice unavailable"}
+        </p>
+      )}
+    </div>
+  );
+}
 // ─── Message row ─────────────────────────────────────────────────────────────
 
 function MessageRow({
