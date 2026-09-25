@@ -28,7 +28,11 @@ export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   stop?: string[];
-  /** Sarvam reasoning effort; null disables reasoning for latency-sensitive voice turns. */
+  /**
+   * Reasoning effort. undefined = model default; null = fastest turn
+   * (Sarvam: reasoning off; OpenAI reasoning models: "low"; Gemini Flash:
+   * thinking off) for latency-sensitive voice turns and query translation.
+   */
   reasoningEffort?: "low" | "medium" | "high" | null;
   /**
    * Called exactly once when the provider reports final usage for the

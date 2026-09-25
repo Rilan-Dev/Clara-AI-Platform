@@ -112,6 +112,78 @@ async function resolveGroundingAIConfig(kbId: string, preferDraft = false) {
   return value;
 }
 
+/**
+ * KB metadata used on every turn (KB row, assistant config, document titles,
+ * owning tenant). Loading it costs four database round trips — and on a
+ * single-connection serverless pool they run one after another — so it is
+ * served stale-while-revalidate: a turn uses the cached copy immediately and,
+ * when it is older than GROUNDING_METADATA_REFRESH_MS (default 15 s),
+ * refreshes it in the background for the next turn. Admin edits therefore
+ * apply within seconds; a copy older than GROUNDING_METADATA_MAX_AGE_MS
+ * (default 10 min) is never used.
+ */
+type GroundingMetadata = {
+  kb: Awaited<ReturnType<typeof getKnowledgeBaseById>>;
+  assistantConfig: Awaited<ReturnType<typeof getAssistantConfigByKb>>;
+  documentTitles: string[];
+  tenant: { orgId: string | null; agentId: string | null };
+};
+
+function envMs(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+const metadataCache = new Map<string, { value: GroundingMetadata; fetchedAt: number }>();
+const metadataInFlight = new Map<string, Promise<GroundingMetadata>>();
+
+function loadGroundingMetadata(kbId: string): Promise<GroundingMetadata> {
+  const pending = metadataInFlight.get(kbId);
+  if (pending) return pending;
+  const load = Promise.all([
+    getKnowledgeBaseById(kbId),
+    getAssistantConfigByKb(kbId),
+    getKnowledgeBaseDocumentTitles(kbId),
+    resolveKbTenant(kbId),
+  ])
+    .then(([kb, assistantConfig, documentTitles, tenant]) => {
+      const value: GroundingMetadata = { kb, assistantConfig, documentTitles, tenant };
+      // Only cache a KB that exists; a missing KB is re-checked every time.
+      if (kb) metadataCache.set(kbId, { value, fetchedAt: Date.now() });
+      else metadataCache.delete(kbId);
+      if (metadataCache.size > 512) {
+        const oldest = metadataCache.keys().next().value;
+        if (oldest !== undefined) metadataCache.delete(oldest);
+      }
+      return value;
+    })
+    .finally(() => metadataInFlight.delete(kbId));
+  metadataInFlight.set(kbId, load);
+  return load;
+}
+
+async function getGroundingMetadata(kbId: string): Promise<{ value: GroundingMetadata; cached: boolean }> {
+  const entry = metadataCache.get(kbId);
+  const age = entry ? Date.now() - entry.fetchedAt : Infinity;
+  if (entry && age <= envMs("GROUNDING_METADATA_MAX_AGE_MS", 600_000)) {
+    if (age > envMs("GROUNDING_METADATA_REFRESH_MS", 15_000)) {
+      loadGroundingMetadata(kbId).catch((error: unknown) => {
+        console.warn("[grounding] metadata refresh failed:", (error as Error)?.message ?? error);
+      });
+    }
+    return { value: entry.value, cached: true };
+  }
+  return { value: await loadGroundingMetadata(kbId), cached: false };
+}
+
+/** Standard Server-Timing header value for grounding stage timings. */
+export function groundingServerTiming(timings: GroundingTimings | undefined, prefix = ""): string | null {
+  if (!timings) return null;
+  return Object.entries(timings)
+    .map(([stage, ms]) => `${prefix}${stage.replace(/Ms$/, "")};dur=${ms}`)
+    .join(", ");
+}
+
 export type GroundingRagMode = "classic" | "hybrid" | "agentic";
 
 export interface GroundingRequest {
@@ -470,12 +542,8 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   let resolvedEarly: Awaited<typeof resolvedPromise> | null = null;
   resolvedPromise.then((value) => { resolvedEarly = value; }, () => {});
   const resolvedSnapshot = (): Awaited<typeof resolvedPromise> | null => resolvedEarly;
-  const [kb, assistantConfig, documentTitles, tenant] = await Promise.all([
-    getKnowledgeBaseById(request.kbId),
-    getAssistantConfigByKb(request.kbId),
-    getKnowledgeBaseDocumentTitles(request.kbId),
-    resolveKbTenant(request.kbId),
-  ]);
+  const { value: metadata } = await getGroundingMetadata(request.kbId);
+  const { kb, assistantConfig, documentTitles, tenant } = metadata;
   if (!kb) {
     return { ok: false, status: 404, error: "Knowledge base not found" };
   }
@@ -574,29 +642,31 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   }
 
 
-  // ── Atomic quota admission (org-wide, rolling 24h) BEFORE retrieval spend.
+  // ── Atomic quota admission (org-wide, rolling 24h). It is a database
+  // transaction, so it runs ALONGSIDE retrieval (embedding + vector search
+  // are network calls) instead of in front of it; nothing is returned until
+  // the turn is admitted, and an over-limit turn still gets the 402.
   // Audit-only surfaces log the event AFTER retrieval instead (their quota
   // is metered at a different point in the turn lifecycle).
   const admissionMode = request.admission ?? "quota";
   let admission: Awaited<ReturnType<typeof admitQueryEvent>> | null = null;
+  let admissionMs = 0;
   const admissionStarted = Date.now();
-  if (admissionMode === "quota") {
-    admission = await admitQueryEvent({
-      orgId,
-      kbId: kb.id,
-      queryText: query,
-      surface: request.surface ?? "search",
-      ...(request.sessionId ? { sessionId: request.sessionId } : {}),
-      ...(request.userId !== undefined ? { userId: request.userId } : {}),
-    });
-    if (!admission.admitted) {
-      return { ok: false, status: 402, error: "plan_limit_exceeded", denied: admission };
-    }
-  }
-
-  // ── Embedding config: resolved from KB AI policy; the override only pins
-  // the embedding transport (public demo), never the knowledge.
-  const admissionMs = Date.now() - admissionStarted;
+  const admissionPromise = admissionMode === "quota"
+    ? admitQueryEvent({
+        orgId,
+        kbId: kb.id,
+        queryText: query,
+        surface: request.surface ?? "search",
+        ...(request.sessionId ? { sessionId: request.sessionId } : {}),
+        ...(request.userId !== undefined ? { userId: request.userId } : {}),
+      }).then((result) => {
+        admissionMs = Date.now() - admissionStarted;
+        return result;
+      })
+    : null;
+  // Observed below; this only keeps an early return from leaving it unhandled.
+  admissionPromise?.catch(() => {});
 
   // ── Cross-lingual retrieval: when the visitor asks in another language
   // than the KB documents, also search with a KB-language translation. It
@@ -682,6 +752,13 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const graphHits = await graphPromise;
   const graphMs = Date.now() - graphStarted;
 
+  if (admissionPromise) {
+    admission = await admissionPromise;
+    if (!admission.admitted) {
+      return { ok: false, status: 402, error: "plan_limit_exceeded", denied: admission };
+    }
+  }
+
   const graphContext = graphHits
     .map((hit, index) => {
       const relations = hit.relations
@@ -701,9 +778,9 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         evidence ? `Evidence: ${evidence}` : "",
       ]
         .filter(Boolean)
-        .join("\\n");
+        .join("\n");
     })
-    .join("\\n\\n");
+    .join("\n\n");
 
   if (admissionMode === "external") {
     // The caller owns the query event (it admits and finalises it with the
@@ -835,4 +912,6 @@ ${graphContext}`);
 /** Test hook — clears the per-process grounding caches. */
 export function resetGroundingCaches(): void {
   groundingResolutionCache.clear();
+  metadataCache.clear();
+  metadataInFlight.clear();
 }
