@@ -100,6 +100,8 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     if (turns.length === 0) return;
 
     const liveMessages: ConversationMessage[] = [];
+    const activeTurnIds = new Set(turns.map((turn) => turn.id));
+    const staleTurnIds = [...liveVoiceTurnIdsRef.current].filter((id) => !activeTurnIds.has(id));
     for (const turn of turns) {
       const question = (turn.question ?? "").trim();
       const answer = turn.answer ?? "";
@@ -130,7 +132,12 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     setMessages((prev) => {
       const liveIds = new Set(liveMessages.map((message) => message.id));
       const updates = new Map(liveMessages.map((message) => [message.id, message]));
-      const next = prev.map((message) => updates.get(message.id) ?? message);
+      const staleIds = new Set(
+        staleTurnIds.flatMap((id) => [`v-${id}-q`, `v-${id}-a`]),
+      );
+      const next = prev
+        .filter((message) => !staleIds.has(message.id))
+        .map((message) => updates.get(message.id) ?? message);
       for (const message of liveMessages) {
         if (!prev.some((existing) => existing.id === message.id)) next.push(message);
       }
