@@ -51,6 +51,40 @@ type PublicAgentConfig = {
   sessionToken: string;
 };
 
+// Public pages must never expose provider credentials, internal provider errors,
+// stack traces, endpoint details, or other backend implementation messages.
+function getPublicConversationError(error: string | null | undefined): string | null {
+  if (!error?.trim()) return null;
+  const normalized = error.toLowerCase();
+  const sensitiveProviderError =
+    normalized.includes("no configured credentials") ||
+    normalized.includes("configured credentials") ||
+    normalized.includes("api key") ||
+    normalized.includes("apikey") ||
+    normalized.includes("credential") ||
+    normalized.includes("authorization") ||
+    normalized.includes("bearer ") ||
+    normalized.includes("provider") && (normalized.includes("key") || normalized.includes("secret") || normalized.includes("token"));
+
+  if (sensitiveProviderError) {
+    return "This assistant is temporarily unavailable. Please try again later.";
+  }
+
+  if (normalized.includes("expired")) {
+    return "Your session has expired. Please try again.";
+  }
+
+  if (normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("quota")) {
+    return "This assistant is busy right now. Please try again in a moment.";
+  }
+
+  if (normalized.includes("timeout") || normalized.includes("timed out")) {
+    return "The assistant took too long to respond. Please try again.";
+  }
+
+  return "The assistant could not complete that request. Please try again.";
+}
+
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
 function Shimmer({ className }: { className?: string }) {
@@ -165,6 +199,8 @@ export default function PublishedAgentScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.chatError]);
 
+  const publicConversationError = getPublicConversationError(conversation.chatError ?? conversation.voiceStartError);
+
   const voiceAvailable = Boolean(kbId) && Boolean(config?.voice.enabled && config?.voice.realtime);
   const voiceUnavailableReason = !kbId
     ? "This assistant has no knowledge base."
@@ -223,7 +259,7 @@ export default function PublishedAgentScreen() {
               welcomeMessage={config.assistant?.welcomeMessage ?? ""}
               messages={conversation.messages}
               thinking={conversation.thinking}
-              chatError={conversation.chatError ?? conversation.voiceStartError}
+              chatError={publicConversationError}
               input={conversation.input}
               onInputChange={conversation.setInput}
               onSend={() => void conversation.sendText()}

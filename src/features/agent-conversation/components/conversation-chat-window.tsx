@@ -567,50 +567,83 @@ function Composer({
   accentColour?: string;
   compact?: boolean;
 }) {
+  const submitOnEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (canSend) onSend();
+    }
+  };
+
   return (
-    <div className={compact ? "space-y-2" : "px-0 pb-2 pt-3 sm:pb-3"}>
-      <div className={compact ? "flex items-end gap-2" : "mx-auto flex w-full max-w-3xl items-end gap-2"}>
-        <div className="relative flex-1">
+    <div className={compact ? "px-0 pb-1 pt-2" : "px-0 pb-2 pt-3 sm:pb-3"}>
+      <div
+        className={
+          compact
+            ? "mx-auto w-full"
+            : "mx-auto w-full max-w-3xl"
+        }
+      >
+        <div className="relative overflow-hidden rounded-[1.5rem] border border-border/70 bg-card shadow-none transition-colors focus-within:border-primary/40">
           <textarea
             aria-label="Message the assistant"
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (canSend) onSend();
-              }
-            }}
+            onKeyDown={submitOnEnter}
             rows={1}
             disabled={sendDisabled}
-            placeholder={sendDisabled ? "Chat unavailable" : (placeholder ?? "Message the assistant…")}
-            className="max-h-28 min-h-[2.9rem] w-full resize-none rounded-[1.25rem] border border-border/70 bg-background px-4 py-3 pr-12 text-sm text-foreground shadow-none outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+            placeholder={sendDisabled ? "Chat unavailable" : (placeholder ?? "Ask anything")}
+            className="min-h-[3.25rem] max-h-32 w-full resize-none bg-transparent px-4 pb-2 pt-3.5 pr-4 text-sm leading-6 text-foreground outline-none placeholder:font-medium placeholder:text-muted-foreground/75 disabled:cursor-not-allowed disabled:opacity-60"
           />
-          {canSend && (
-            <button type="button" onClick={onSend} className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-none transition hover:brightness-110" style={{ background: `linear-gradient(135deg, var(--primary), ${accentColour})` }} aria-label="Send message">
+
+          <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-1">
+            <span className="min-w-0 flex-1 truncate px-1 text-[11px] text-muted-foreground/65">
+              {compact ? "Enter to send · Shift+Enter for a new line" : "Enter to send · Shift+Enter for a new line"}
+            </span>
+
+            {voiceAvailable && onVoiceStart ? (
+              <button
+                type="button"
+                onClick={onVoiceStart}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-foreground/65 transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                title="Start realtime voice"
+                aria-label="Start realtime voice"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+            ) : voiceUnavailableReason ? (
+              <button
+                type="button"
+                disabled
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/35"
+                title={voiceUnavailableReason}
+                aria-label="Voice unavailable"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={!canSend}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ background: canSend ? `linear-gradient(135deg, ${primaryColour}, ${accentColour})` : "var(--muted-foreground)" }}
+              aria-label="Send message"
+            >
               <CornerDownLeft className="h-4 w-4" />
             </button>
-          )}
+          </div>
         </div>
-        {voiceAvailable && onVoiceStart ? (
-          <button type="button" onClick={onVoiceStart} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-none transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/40" style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }} title="Start realtime voice" aria-label="Start realtime voice">
-            <Mic className="h-5 w-5" />
-          </button>
-        ) : voiceUnavailableReason ? (
-          <span className="flex h-11 items-center justify-center rounded-full border border-dashed border-border px-3 text-xs text-muted-foreground" title={voiceUnavailableReason}>
-            <Mic className="mr-1.5 h-4 w-4 opacity-50" />
-            Voice off
-          </span>
-        ) : null}
       </div>
       {!compact && (
-        <p className="mx-auto mt-1.5 w-full max-w-2xl px-1 text-[11px] text-muted-foreground/70">
-          Enter to send · Shift+Enter for a new line · {voiceAvailable ? "Mic for realtime voice" : "Voice unavailable"}
+        <p className="mx-auto mt-1.5 w-full max-w-3xl px-1 text-[11px] text-muted-foreground/60">
+          {voiceAvailable ? "Mic starts realtime voice" : "Voice unavailable"}
         </p>
       )}
     </div>
   );
 }
+
 // ─── Message row ─────────────────────────────────────────────────────────────
 
 function MessageRow({
