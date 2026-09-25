@@ -26,10 +26,8 @@ import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   ExternalLink,
-  GitBranch,
   History,
   RefreshCw,
-  ShieldCheck,
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -83,10 +81,6 @@ const LANG_LABELS: Record<string, string> = {
   ru: "Russian", it: "Italian", ta: "Tamil", te: "Telugu", bn: "Bengali",
   ml: "Malayalam", mr: "Marathi", kn: "Kannada", gu: "Gujarati", pa: "Punjabi",
 };
-
-function langLabel(code: string) {
-  return LANG_LABELS[code] ?? code.toUpperCase();
-}
 
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
@@ -201,6 +195,15 @@ export default function DraftPreviewScreen() {
         ? "Realtime is disabled in the draft runtime settings."
         : availability && (!availability.voiceEnabled || !availability.realtimeEnabled)
           ? "The resolved provider/plan does not enable voice for this knowledge base."
+          : null;
+
+  const configSourceBadge =
+    data?.configSource === "draft"
+      ? { label: "Draft", tone: "bg-amber-500/15 text-amber-600 border-amber-500/30" }
+      : data?.configSource === "live"
+        ? { label: "Live config", tone: "bg-sky-500/15 text-sky-600 border-sky-500/30" }
+        : data?.configSource === "published"
+          ? { label: "Published fallback", tone: "bg-muted text-muted-foreground border-border" }
           : null;
 
 
@@ -331,16 +334,3 @@ export default function DraftPreviewScreen() {
   );
 }
 
-function FactRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {icon}
-        {label}
-      </dt>
-      <dd className="max-w-[55%] truncate text-xs font-medium text-foreground" title={value}>
-        {value}
-      </dd>
-    </div>
-  );
-}
