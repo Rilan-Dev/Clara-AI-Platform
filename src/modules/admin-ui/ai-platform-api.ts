@@ -535,3 +535,14 @@ export async function generateAgentSystemPrompt(
     body: JSON.stringify(input),
   });
 }
+
+/** Translates admin-authored text (e.g. the first message) for review. */
+export async function translateAgentText(
+  agentId: string,
+  input: { text: string; targetLanguage: string },
+): Promise<{ translatedText: string; language: string }> {
+  return apiFetch(`/api/agents/${agentId}/translate`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
