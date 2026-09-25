@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import { query, queryOne, execute } from "@/lib/db";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
 import { syncLiveProviderCatalog } from "./live-catalog";
-import { ensureMigrated } from "@/lib/db/migrate";
+import { ensureMigrated, loadRuntimeSettingsOnStartup } from "@/lib/db/migrate";
 import type {
   AICapability,
   AIModelKind,
@@ -91,6 +91,11 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
   // configured state so Vercel functions do not mistake a saved API key for a
   // missing credential simply because the instance started without env values.
   await ensureMigrated();
+  // Vercel serverless instances do not guarantee Node instrumentation runs before
+  // every function invocation. Hydrate DB-backed platform secrets before deriving
+  // credential state so registry.configured and toProviderConfig() observe the
+  // same authoritative runtime credentials on every cold instance.
+  await loadRuntimeSettingsOnStartup();
   const hit = registryCache;
   if (hit && hit.expiresAt > Date.now()) return hit.value;
 
