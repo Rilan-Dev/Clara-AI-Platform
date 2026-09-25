@@ -517,6 +517,8 @@ function ConversationRail({
             voiceAvailable={Boolean(voiceAvailable)}
             voiceUnavailableReason={voiceAvailable ? null : "Realtime voice is unavailable for this agent."}
             onVoiceStart={onVoiceStart}
+            primaryColour={primaryColour}
+            accentColour={accentColour}
             compact
           />
         </div>
@@ -535,6 +537,8 @@ function Composer({
   voiceAvailable,
   voiceUnavailableReason,
   onVoiceStart,
+  primaryColour,
+  accentColour,
   compact = false,
 }: {
   input: string;
