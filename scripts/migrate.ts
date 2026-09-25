@@ -10,6 +10,10 @@ try {
 }
 
 async function main() {
+  if (process.env.SKIP_DB_MIGRATIONS === "1") {
+    console.log("[db:migrate] SKIP_DB_MIGRATIONS=1 — skipped.");
+    return;
+  }
   const { runMigrationsOnStartup } = await import("../src/lib/db/migrate");
 
   try {
