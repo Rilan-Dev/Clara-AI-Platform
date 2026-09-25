@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
 import { useMicVisualizer } from "./use-mic-visualizer";
 import { streamAgentChat } from "../lib/chat-stream";
+import { isGreetingTurn } from "../lib/voice-turns";
 import type { ChatSource, ConversationMessage, VoiceAvailability } from "../types";
 
 export interface UseAgentConversationOptions {
@@ -103,6 +104,11 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     const activeTurnIds = new Set(turns.map((turn) => turn.id));
     const staleTurnIds = [...liveVoiceTurnIdsRef.current].filter((id) => !activeTurnIds.has(id));
     for (const turn of turns) {
+      // The session greeting is a SYSTEM announcement (the user never spoke).
+      // Folding it would re-inject the welcome text into the chat rail on top
+      // of the static welcome message — the duplication the owner reported.
+      // It still plays audibly; only the transcript folding skips it.
+      if (isGreetingTurn(turn)) continue;
       const question = (turn.question ?? "").trim();
       const answer = turn.answer ?? "";
       if (question) {
@@ -290,6 +296,9 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     const turns = voiceHistoryRef.current ?? [];
     const folded: ConversationMessage[] = [];
     for (const turn of turns) {
+      // Same rule as the live fold: the greeting turn is not a conversational
+      // turn, so it must not persist in the chat transcript after the call.
+      if (isGreetingTurn(turn)) continue;
       foldedTurnIdsRef.current.add(turn.id);
       const question = (turn.question ?? "").trim();
       const answer = (turn.answer ?? "").trim();

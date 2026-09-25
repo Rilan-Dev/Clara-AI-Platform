@@ -31,6 +31,7 @@ import { AudioLines, Loader2, Mic, MicOff, OctagonX, PhoneOff, Radio } from "luc
 import { useAudioVisualizer } from "@/modules/assistant/core/hooks/useAudioVisualizer";
 import { cn } from "@/lib/utils";
 import { RealtimeVoiceOrb } from "./realtime-voice-orb";
+import { isGreetingTurn } from "../lib/voice-turns";
 import type { VoiceClientSession } from "../types";
 
 interface ConversationVoiceStageProps {
@@ -77,10 +78,19 @@ export function ConversationVoiceStage({
   const meta = STATE_META[uiState] ?? STATE_META.idle;
 
   const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const activeTurn = useMemo(
-    () => (session.history.length > 0 ? session.history[session.history.length - 1] : null),
-    [session.history],
-  );
+  // The transcript shows the last turn the USER actually spoke. The session
+  // greeting (a system announcement seeded into history by the provider
+  // hooks — "Welcome message" placeholder for OpenAI/Gemini, empty question
+  // for ElevenLabs/Sarvam) is skipped: rendering it printed a fake
+  // "You: Welcome message" bubble at session start and duplicated the
+  // welcome text. The greeting still plays audibly.
+  const activeTurn = useMemo(() => {
+    const history = session.history ?? [];
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (!isGreetingTurn(history[i])) return history[i];
+    }
+    return null;
+  }, [session.history]);
 
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
