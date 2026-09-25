@@ -13,13 +13,25 @@ const chatWindowSource = readFileSync(
 );
 
 describe("OrbComposer (chat-mode orb input)", () => {
-  it("is fully self-contained — no third-party CDN or remote image asset", () => {
-    // The reference mock loaded an animated GIF from cdn.21st.dev; the
-    // production orb must be pure CSS so a slow/unreachable external CDN
-    // can never break the chat input on any published agent page.
-    expect(orbComposerSource).not.toMatch(/https?:\/\/[^"']+\.(gif|png|jpg|webp|svg)/i);
-    expect(orbComposerSource).not.toContain("21st.dev");
-    expect(orbComposerSource).not.toContain("<img");
+  it("uses the owner-directed animated orb asset from the reference example", () => {
+    // Owner explicitly directed the exact 21st.dev mirror GIF from the
+    // supplied OrbInput example to be the left-side orb of the composer.
+    expect(orbComposerSource).toContain(
+      "https://cdn.21st.dev/assets/mirror/1e/1ea795ce563e99649f180625b9008f169bcf63bb1eaecce2c2e01ac1b8b5a09e.gif",
+    );
+    expect(orbComposerSource).toContain('alt="Animated orb"');
+    expect(orbComposerSource).toMatch(/rounded-full[^"']*transition-all/);
+  });
+
+  it("shows no colored focus border on the pill or the textarea", () => {
+    // The global `*:focus-visible` rule paints a box-shadow ring in
+    // hsl(var(--ring)) (indigo) on the radius-less textarea — a square purple
+    // border while the input is active. The composer must suppress it, and
+    // the pill must keep its neutral border in every state.
+    expect(orbComposerSource).not.toContain("border-primary/45");
+    expect(orbComposerSource).not.toContain("focus-within:border-primary");
+    expect(orbComposerSource).toMatch(/focus:shadow-none focus-visible:shadow-none/);
+    expect(orbComposerSource).toMatch(/isFocused[\s\S]{0,200}border-border\/70/);
   });
 
   it("keeps the voice start affordance wired to the shared onVoiceStart contract", () => {
