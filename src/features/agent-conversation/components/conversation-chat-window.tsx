@@ -195,7 +195,7 @@ export function ConversationChatWindow({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid h-full min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(16rem,42%)] lg:grid-cols-[minmax(0,1fr)_minmax(20rem,32rem)] lg:grid-rows-1"
+              className="grid h-full min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(15rem,38%)] lg:grid-cols-[minmax(0,1fr)_clamp(20rem,30vw,30rem)] lg:grid-rows-1"
             >
               <div className="relative min-h-0 overflow-hidden bg-gradient-to-br from-background via-background to-muted/30 px-4 py-5 sm:px-8 lg:border-b-0 lg:border-r">
                 <div
@@ -310,51 +310,57 @@ export function ConversationChatWindow({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="flex h-full min-h-0 flex-col"
+              className="flex h-full min-h-0 flex-col items-center justify-end px-3 pb-5 pt-3 sm:px-6 sm:pb-8"
             >
-              <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-7" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
-                <ChatAnnouncer
-                  label={assistantName}
-                  messages={messages.map((m) => ({ ...m, isStreaming: thinking && m.id === lastMessage?.id }))}
-                />
-                <div className="mx-auto w-full max-w-3xl space-y-4">
-                <WelcomeMessage
-                  assistantName={assistantName}
+              <div className="flex h-[min(68vh,44rem)] min-h-[24rem] w-full max-w-4xl sm:min-h-[26rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/60 bg-background/85 shadow-[0_24px_80px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+                <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-7 sm:py-7" role="log" aria-label={`Conversation with ${assistantName}`} aria-live="polite">
+                  <ChatAnnouncer
+                    label={assistantName}
+                    messages={messages.map((m) => ({ ...m, isStreaming: thinking && m.id === lastMessage?.id }))}
+                  />
+                  <div className="mx-auto w-full max-w-3xl space-y-4">
+                    <WelcomeMessage
+                      assistantName={assistantName}
+                      primaryColour={primaryColour}
+                      accentColour={accentColour}
+                      welcomeMessage={welcomeMessage}
+                    />
+                    {messages.map((message) => (
+                      <MessageRow
+                        key={message.id}
+                        message={message}
+                        assistantName={assistantName}
+                        primaryColour={primaryColour}
+                        accentColour={accentColour}
+                        citeSources={citeSources}
+                        isLast={message.id === lastMessage?.id}
+                        streamingAssistant={streaming && message.id === lastMessage?.id}
+                      />
+                    ))}
+                    {thinking && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
+                    {messages.length === 0 && !welcomeMessage.trim() && (
+                      <div className="flex min-h-full items-center justify-center py-12 text-center">
+                        <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+                          Ask anything to start the conversation.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Composer
+                  input={input}
+                  onInputChange={onInputChange}
+                  onSend={onSend}
+                  canSend={canSend}
+                  sendDisabled={sendDisabled}
+                  placeholder={placeholder}
+                  voiceAvailable={voiceAvailable}
+                  voiceUnavailableReason={voiceUnavailableReason}
+                  onVoiceStart={onVoiceStart}
                   primaryColour={primaryColour}
                   accentColour={accentColour}
-                  welcomeMessage={welcomeMessage}
                 />
-                {messages.map((message) => (
-                  <MessageRow
-                    key={message.id}
-                    message={message}
-                    assistantName={assistantName}
-                    primaryColour={primaryColour}
-                    accentColour={accentColour}
-                    citeSources={citeSources}
-                    isLast={message.id === lastMessage?.id}
-                    streamingAssistant={streaming && message.id === lastMessage?.id}
-                  />
-                ))}
-                {thinking && <ThinkingRow primaryColour={primaryColour} accentColour={accentColour} />}
-                {messages.length === 0 && !welcomeMessage.trim() && (
-                  <p className="pt-10 text-center text-sm text-muted-foreground">
-                    Start the conversation — ask anything covered by the knowledge base.
-                  </p>
-                )}
-                </div>
               </div>
-              <Composer
-                input={input}
-                onInputChange={onInputChange}
-                onSend={onSend}
-                canSend={canSend}
-                sendDisabled={sendDisabled}
-                placeholder={placeholder}
-                voiceAvailable={voiceAvailable}
-                voiceUnavailableReason={voiceUnavailableReason}
-                onVoiceStart={onVoiceStart}
-              />
             </motion.div>
           )}
         </AnimatePresence>
