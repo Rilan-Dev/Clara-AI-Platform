@@ -322,9 +322,31 @@ export default function DraftPreviewScreen() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            {/* Chat window — voice chat integrated inside it. */}
-            <div className="min-h-[calc(100vh-9rem)] rounded-[1.75rem] border border-border/70 bg-background/70 p-1.5 shadow-2xl shadow-black/[0.08] backdrop-blur-xl">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 shadow-sm backdrop-blur">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-600">
+                <History className="h-3 w-3" />
+                Draft preview
+              </span>
+              {data?.kb && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-600">
+                  <BookOpen className="h-3 w-3" />
+                  {data.kb.name}
+                </span>
+              )}
+              <span className="ml-auto hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
+                <Mic className="h-3.5 w-3.5" />
+                {data?.ai?.realtimeVoiceProvider ?? data?.ai?.voiceProvider ?? "Realtime voice"}
+              </span>
+              {data?.runtime?.enableRealtime !== false && voiceAvailable && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Ready to talk
+                </span>
+              )}
+            </div>
+
+            <div className="min-h-[calc(100vh-11rem)] rounded-[1.75rem] border border-border/70 bg-background/70 p-1.5 shadow-2xl shadow-black/[0.08] backdrop-blur-xl">
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
@@ -357,108 +379,6 @@ export default function DraftPreviewScreen() {
                 onVoiceEnd={conversation.endVoice}
               />
             </div>
-
-            {/* ── Testing facts sidebar ─────────────────────────────────── */}
-            <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  What you&apos;re testing
-                </h2>
-                <dl className="space-y-2.5 text-sm">
-                  <FactRow label="Configuration" value={configSourceBadge?.label ?? "—"} />
-                  <FactRow
-                    label="Knowledge base"
-                    value={data?.kb ? data.kb.name : "None"}
-                    icon={<BookOpen className="h-3.5 w-3.5 text-emerald-500" />}
-                  />
-                  <FactRow
-                    label="Chat model"
-                    value={data?.ai?.chatModel ?? data?.ai?.provider ?? "Platform default"}
-                    icon={<Cpu className="h-3.5 w-3.5 text-primary/70" />}
-                  />
-                  <FactRow
-                    label="Voice provider"
-                    value={
-                      availability?.voiceProvider
-                        ? availability.voiceProvider
-                        : data?.ai?.realtimeVoiceProvider ?? data?.ai?.voiceProvider ?? "Inherited"
-                    }
-                    icon={<Mic className="h-3.5 w-3.5 text-violet-500" />}
-                  />
-                  <FactRow
-                    label="Realtime"
-                    value={runtimeRealtimeOn ? "Enabled" : "Disabled"}
-                    icon={<Workflow className="h-3.5 w-3.5 text-sky-500" />}
-                  />
-                </dl>
-                <p className="mt-3 border-t border-border/60 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-                  Draft edits (persona, models, toggles) apply here immediately — reload after
-                  saving to pick up the latest draft.
-                </p>
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <GitBranch className="h-3.5 w-3.5" />
-                  Published state
-                </h2>
-                {data?.deployment ? (
-                  <dl className="space-y-2.5 text-sm">
-                    <FactRow label="Live version" value={`v${data.deployment.versionNumber} · ${data.deployment.branchName}`} />
-                    <FactRow label="Published" value={timeAgo(data.deployment.publishedAt)} />
-                    <FactRow label="Access" value={data.deployment.publicAccess ? "Public" : "Private"} />
-                  </dl>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Not published yet — everything you test here comes from the working draft.
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Globe2 className="h-3.5 w-3.5" />
-                  Languages
-                </h2>
-                <div className="flex flex-wrap gap-1.5">
-                  {(data?.assistant?.allowedLanguages ?? ["en"]).map((code) => (
-                    <span
-                      key={code}
-                      className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-[11px] text-muted-foreground"
-                    >
-                      {langLabel(code)}
-                    </span>
-                  ))}
-                </div>
-                {data?.assistant?.alwaysRespondIn && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Always responds in {langLabel(data.assistant.alwaysRespondIn)}
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Brain className="h-3.5 w-3.5" />
-                  AI runtime
-                </h2>
-                <dl className="space-y-2.5 text-sm">
-                  <FactRow label="Brain" value={data?.ai?.provider ?? "Platform default"} />
-                  <FactRow label="Voice chat" value={data?.ai?.voiceProvider ?? "Inherited"} />
-                  <FactRow label="Realtime voice" value={data?.ai?.realtimeVoiceProvider ?? "Inherited"} />
-                  {data?.assistant?.voiceId && (
-                    <FactRow label="Voice ID" value={data.assistant.voiceId} />
-                  )}
-                </dl>
-              </section>
-
-              <p className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                Authenticated preview — only organisation members can open this page. It tests
-                draft changes and never exposes them publicly.
-              </p>
-            </aside>
           </div>
         )}
       </main>
