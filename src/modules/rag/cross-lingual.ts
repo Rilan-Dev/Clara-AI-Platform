@@ -171,7 +171,9 @@ async function translateWithModel(
       },
       { role: "user", content: query },
     ],
-    { temperature: 0, maxTokens: 160 },
+    // A mechanical rewrite: no reasoning needed, and it is on the retrieval
+    // critical path — ask every provider for its fastest mode.
+    { temperature: 0, maxTokens: 160, reasoningEffort: null },
   )) {
     output += chunk;
   }
@@ -291,7 +293,11 @@ export async function translateText(
         },
         { role: "user", content: source },
       ],
-      { temperature: 0, maxTokens: options.maxTokens ?? Math.min(4000, Math.max(300, Math.ceil(source.length * 1.5))) },
+      {
+        temperature: 0,
+        maxTokens: options.maxTokens ?? Math.min(4000, Math.max(300, Math.ceil(source.length * 1.5))),
+        reasoningEffort: null,
+      },
     )) {
       output += chunk;
     }

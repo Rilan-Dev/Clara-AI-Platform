@@ -28,6 +28,27 @@ export function usesMaxCompletionTokens(model: string): boolean {
   return REASONING_MODEL_PATTERN.test(model.trim());
 }
 
+/** Models that accept `reasoning_effort` (o-series, GPT-5.x; not the -chat variants). */
+const REASONING_EFFORT_PATTERN = /^(?:o\d|gpt-5)(?!.*chat)/i;
+/** Models that rejected `reasoning_effort` — never sent to them again. */
+const reasoningEffortRejected = new Set<string>();
+
+/**
+ * The `reasoning_effort` to send, or undefined to leave the model default.
+ * A caller asks for a fast turn with `null` (voice turns, query
+ * translation); reasoning models then get "low" — the lowest effort every
+ * reasoning model accepts — instead of their slower default.
+ */
+export function reasoningEffortFor(
+  model: string,
+  requested: ChatOptions["reasoningEffort"],
+): "low" | "medium" | "high" | undefined {
+  if (requested === undefined) return undefined;
+  const id = model.trim();
+  if (!REASONING_EFFORT_PATTERN.test(id) || reasoningEffortRejected.has(id)) return undefined;
+  return requested ?? "low";
+}
+
 export class OpenAIProvider implements LLMProvider {
   private config: ProviderConfig;
   private client: OpenAI;
@@ -93,7 +114,21 @@ export class OpenAIProvider implements LLMProvider {
       request.temperature = options?.temperature ?? 0.2;
     }
 
-    const stream = await this.client.chat.completions.create(request);
+    const effort = reasoningEffortFor(model, options?.reasoningEffort);
+    if (effort) request.reasoning_effort = effort;
+
+    let stream;
+    try {
+      stream = await this.client.chat.completions.create(request);
+    } catch (error) {
+      // A model that does not take reasoning_effort: remember it and retry
+      // once without the field, so a fast-turn hint can never fail a turn.
+      const message = (error as Error)?.message ?? "";
+      if (!request.reasoning_effort || !/reasoning/i.test(message)) throw error;
+      reasoningEffortRejected.add(model.trim());
+      delete request.reasoning_effort;
+      stream = await this.client.chat.completions.create(request);
+    }
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;

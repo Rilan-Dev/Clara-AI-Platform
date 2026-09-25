@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDocumentById } from "@/modules/admin/core";
 import { searchHybrid } from "@/modules/admin/core/hybrid-search";
-import { groundClaraContext } from "@/modules/rag/grounding";
+import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import { admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 
@@ -84,14 +84,8 @@ export async function postRagSearch(
       });
       // Stage timings in the standard Server-Timing header (visible in the
       // browser devtools Network → Timing tab).
-      if (timings) {
-        response.headers.set(
-          "Server-Timing",
-          Object.entries(timings)
-            .map(([stage, ms]) => `${stage.replace(/Ms$/, "")};dur=${ms}`)
-            .join(", "),
-        );
-      }
+      const serverTiming = groundingServerTiming(timings);
+      if (serverTiming) response.headers.set("Server-Timing", serverTiming);
       return response;
     }
 
