@@ -19,8 +19,24 @@ export async function registerNode(): Promise<void> {
   }
 
   try {
-    const { loadRuntimeSettingsOnStartup } = await import("@/lib/db/migrate");
-    await loadRuntimeSettingsOnStartup();
+    const { loadRuntimeSettingsOnStartup, runMigrationsOnStartup } = await import("@/lib/db/migrate");
+    // Self-hosted: apply pending schema migrations before serving (one
+    // process, advisory-locked, already-applied files are skipped). Vercel
+    // applies them in the build step instead (see vercel.json buildCommand).
+    const migrateOnStart =
+      !process.env.VERCEL && (process.env.RUN_MIGRATIONS_ON_START ?? "true").toLowerCase() !== "false";
+    if (migrateOnStart) {
+      try {
+        await runMigrationsOnStartup();
+      } catch (err) {
+        // Keep serving: a crash loop would take the whole platform down. The
+        // System Status page shows the applied-migration count.
+        console.error("[instrumentation] database migrations FAILED — schema may be out of date:", err);
+        await loadRuntimeSettingsOnStartup();
+      }
+    } else {
+      await loadRuntimeSettingsOnStartup();
+    }
 
     // Vercel horizontally scales function instances. Persistent pollers and
     // scheduled DB maintenance must run on a dedicated worker/cron runtime.
@@ -28,6 +44,11 @@ export async function registerNode(): Promise<void> {
       console.info("[instrumentation] Vercel runtime: background DB workers disabled");
       return;
     }
+
+    // Self-hosted: run the vercel.json crons in-process (Vercel Cron does
+    // not exist here).
+    const { startLocalCron } = await import("@/lib/local-cron");
+    startLocalCron();
 
     startIngestPollerIfEnabled().catch((err: unknown) =>
       console.error("[instrumentation] ingest poller failed to start:", err)

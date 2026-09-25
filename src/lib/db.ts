@@ -20,8 +20,24 @@ function getDatabaseUrl(): string {
   return databaseUrl;
 }
 
+/**
+ * Connections per process.
+ *   • Vercel: always 1 — pools multiply across warm serverless instances.
+ *   • VPS / Docker: ONE long-running process serves every request, so a
+ *     single connection serialises all traffic (voice turns, dashboards,
+ *     the ingest poller, health checks). Default 10 against a self-hosted
+ *     Postgres; 3 when DATABASE_URL points at a shared Supabase pooler whose
+ *     client limit is global.
+ * PG_POOL_MAX overrides the non-Vercel default.
+ */
+export function resolvePoolMax(env: Record<string, string | undefined> = process.env): number {
+  if (env.VERCEL) return 1;
+  const configured = Number(env.PG_POOL_MAX);
+  if (Number.isFinite(configured) && configured >= 1) return Math.floor(configured);
+  return /pooler\.supabase\.com/i.test(env.DATABASE_URL ?? "") ? 3 : 10;
+}
+
 function getPgConfig() {
-  const configuredMax = Number(process.env.PG_POOL_MAX ?? "1");
 
   return {
     connectionString: getDatabaseUrl(),
@@ -32,7 +48,7 @@ function getPgConfig() {
     // shared limit when several instances are warm at once. Keep Vercel at
     // exactly one client per runtime; concurrent requests queue in pg instead
     // of opening additional database sessions.
-    max: process.env.VERCEL ? 1 : Math.max(1, configuredMax),
+    max: resolvePoolMax(),
 
     min: 0,
 

@@ -198,10 +198,12 @@ export function SystemStatusScreen() {
   const [secondsLeft, setSecondsLeft] = useState(REFRESH_INTERVAL_MS / 1000);
   const mounted = useRef(true);
 
-  const fetchStatus = useCallback(async () => {
+  // force: re-run the live AI-provider checks (manual Refresh). Auto-refresh
+  // reuses provider results younger than a minute.
+  const fetchStatus = useCallback(async (force = false) => {
     setRefreshing(true);
     try {
-      const res = await fetch(apiUrl("/api/platform/services-status"), { headers: withAuthHeaders() });
+      const res = await fetch(apiUrl(`/api/platform/services-status${force ? "?force=1" : ""}`), { headers: withAuthHeaders() });
       const payload = await res.json() as StatusPayload & { error?: string };
       if (!res.ok) throw new Error(payload.error ?? "Failed to load status");
       if (mounted.current) {
@@ -281,7 +283,7 @@ export function SystemStatusScreen() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void fetchStatus()}
+              onClick={() => void fetchStatus(true)}
               disabled={refreshing}
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
