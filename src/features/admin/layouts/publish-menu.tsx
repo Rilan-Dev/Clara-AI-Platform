@@ -34,6 +34,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -371,7 +372,11 @@ function DeployTrafficDialog({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body> — the topbar header's backdrop-blur creates a containing
+  // block for fixed-position descendants, which would confine this overlay to
+  // the 63px header strip instead of the viewport (same fix as the Review
+  // Changes dialog).
+  return createPortal(
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Deploy traffic">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -475,7 +480,8 @@ function DeployTrafficDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -526,7 +532,8 @@ function DiscardChangesDialog({
 
   if (!open) return null;
 
-  return (
+  // Portal to <body> — same containing-block escape as the other dialogs.
+  return createPortal(
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Discard changes">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -558,6 +565,7 @@ function DiscardChangesDialog({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
