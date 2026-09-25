@@ -557,6 +557,8 @@ function Composer({
   voiceAvailable: boolean;
   voiceUnavailableReason?: string | null;
   onVoiceStart?: () => void;
+  primaryColour: string;
+  accentColour: string;
   compact?: boolean;
 }) {
   return (
