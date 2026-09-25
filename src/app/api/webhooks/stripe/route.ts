@@ -7,8 +7,8 @@
  *   checkout.session.completed       → activate subscription after checkout
  *   customer.subscription.updated   → sync plan changes / status changes
  *   customer.subscription.deleted   → mark subscription as canceled
- *   invoice.payment_succeeded        → log paid billing event + email the org
- *                                       owner a receipt (payment_success)
+ *   invoice.paid / invoice.payment_succeeded → log paid billing event + email
+ *                                       the org owner a receipt (payment_success)
  *   invoice.payment_failed           → mark subscription past_due + email the
  *                                       org owner (payment_failed template)
  *
@@ -89,7 +89,22 @@ async function sendPaymentSuccessEmail(orgId: string, inv: Stripe.Invoice, origi
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  await ensureMigrated();
+  // Keep every pre-dispatch failure observable. Migration/bootstrap failures
+  // previously happened outside the processing try/catch, making a 500 hard
+  // to diagnose from application logs.
+  try {
+    await ensureMigrated();
+  } catch (err) {
+    console.error("[stripe-webhook] database bootstrap failed:", err);
+    await syncPlatformHealthIncidents([{
+      key: "stripe-webhook-bootstrap",
+      serviceName: "Stripe webhook database bootstrap",
+      healthy: false,
+      severity: "critical",
+      message: `Stripe webhook database bootstrap failed: ${sanitizeStripeError(err)}`,
+    }]);
+    return NextResponse.json({ error: "Webhook database unavailable" }, { status: 500 });
+  }
 
   const rawBody  = await req.text();
   const sigHeader = req.headers.get("stripe-signature");
@@ -118,10 +133,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log(`[stripe-webhook] ${event.type} — ${event.id}`);
 
   // ── Idempotency: skip already-processed events ───────────────────────────
-  const existing = await queryOne(
-    "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'stripe'",
-    [event.id]
-  );
+  let existing: unknown;
+  try {
+    existing = await queryOne(
+      "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'stripe'",
+      [event.id]
+    );
+  } catch (err) {
+    console.error("[stripe-webhook] idempotency lookup failed:", err);
+    await syncPlatformHealthIncidents([{
+      key: "stripe-webhook-idempotency",
+      serviceName: "Stripe webhook idempotency store",
+      healthy: false,
+      severity: "critical",
+      message: `Stripe webhook idempotency lookup failed: ${sanitizeStripeError(err)}`,
+    }]);
+    return NextResponse.json({ error: "Webhook storage unavailable" }, { status: 500 });
+  }
   if (existing) {
     return NextResponse.json({ received: true, skipped: "duplicate" });
   }
@@ -199,6 +227,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
 
       // ── Invoice paid → billing event + owner receipt email ────────────────
+      // Stripe supports both event names; the configured endpoint currently
+      // sends invoice.paid. Treat them identically to prevent event/handler drift.
+      case "invoice.paid":
       case "invoice.payment_succeeded": {
         const inv = event.data.object as Stripe.Invoice;
         const subId = invoiceSubscriptionId(inv);
