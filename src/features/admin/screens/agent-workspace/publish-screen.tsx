@@ -173,7 +173,6 @@ export default function AgentPublishScreen() {
     }
   }, []);
 
-  const previewHref = `/preview/agents/${agentId}`;
   // Hosted public published page (/agents/:id) — same-origin absolute URL so
   // it is copy-paste ready behind reverse proxies and custom domains.
   const [publicPageUrl, setPublicPageUrl] = useState(`/agents/${agentId}`);
@@ -194,7 +193,8 @@ export default function AgentPublishScreen() {
           <span className="font-medium text-foreground">Publishing is one click.</span> Use the{" "}
           <span className="font-medium text-primary">Publish update</span> button in the top bar next to your profile
           avatar (or the Overview tab) — draft
-          changes are versioned and published automatically. This page keeps the advanced controls: access mode, share links and
+          changes are versioned and published automatically. The button&apos;s dropdown menu also carries View pending
+          changes, Deploy traffic, share links and Discard changes. This page keeps the advanced controls: access mode, share links and
           rollback.
         </p>
       </div>
@@ -282,18 +282,6 @@ export default function AgentPublishScreen() {
               )}
             </div>
           )}
-
-          {/* Dedicated preview shortcut (session-auth — never the embed key). */}
-          <div className="mt-5 border-t border-border/60 pt-4">
-            <button
-              type="button"
-              onClick={() => window.open(previewHref, "_blank", "noopener")}
-              disabled={!deployment}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:opacity-50"
-            >
-              Open the published preview ↗
-            </button>
-          </div>
         </section>
 
         {/* ── Access the published agent (explore link) ─────────────────────── */}
