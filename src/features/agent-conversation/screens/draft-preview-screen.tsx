@@ -346,7 +346,7 @@ export default function DraftPreviewScreen() {
               )}
             </div>
 
-            <div className="min-h-[calc(100vh-8.5rem)] w-full overflow-hidden bg-background/45 backdrop-blur-xl">
+            <div className="h-[calc(100vh-8.5rem)] w-full overflow-hidden bg-background/45 backdrop-blur-xl">
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
