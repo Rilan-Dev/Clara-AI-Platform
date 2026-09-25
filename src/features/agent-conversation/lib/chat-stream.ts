@@ -49,12 +49,24 @@ export async function streamAgentChat(
     new Headers(options.headers).forEach((value, key) => requestHeaders.set(key, value));
   }
 
-  const response = await fetch(apiUrl(endpoint), {
-    method: "POST",
-    headers: requestHeaders,
-    body: JSON.stringify({ kbId, messages, ...extraBody }),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(endpoint), {
+      method: "POST",
+      headers: requestHeaders,
+      body: JSON.stringify({ kbId, messages, ...extraBody }),
+      signal,
+    });
+  } catch (err) {
+    // A network failure before the stream starts used to reject this
+    // promise, so the caller never cleared its "thinking" state and the chat
+    // stayed stuck. Report it through the same callbacks instead.
+    if ((err as Error)?.name !== "AbortError") {
+      callbacks.onError("Could not reach the assistant. Check your connection and try again.");
+    }
+    callbacks.onDone();
+    return;
+  }
 
   if (!response.ok || !response.body) {
     let message = `Chat request failed (HTTP ${response.status})`;

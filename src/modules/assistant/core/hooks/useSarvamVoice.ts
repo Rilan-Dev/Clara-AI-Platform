@@ -24,6 +24,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { sarvamSpeechLanguage } from "@/modules/assistant/core/language-policy";
 import type { Source } from "../models";
 import type { VoiceStatus, VoiceTurn } from "../voice/types";
 import type { VoiceClientOptions } from "../voice/types";
@@ -50,6 +51,8 @@ const REALTIME_FLUSH_MS = 100;
 const REALTIME_MAX_FRAME_BYTES = 16_000;
 
 type SessionPayload = {
+  /** Welcome message localised to the assistant's default language. */
+  greeting?: string;
   mode: "pipeline";
   stt: {
     endpoint: string;
@@ -323,7 +326,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           text,
           model: session.tts.model,
           speaker: session.tts.speaker,
-          language: session.tts.language,
+          // The reply may be in any allowed language (policy): voice each
+          // sentence in its own language, not the session default.
+          language: sarvamSpeechLanguage(text, session.tts.language),
           ...(options.draftMode ? { scope: "draft" } : {}),
         }),
         signal: controller.signal,
@@ -1032,8 +1037,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       }
 
       // 5. Greet.
-      if (options.voiceGreeting) {
-        const greeting = sanitizeTtsText(options.voiceGreeting);
+      // Server-localised welcome (default language) when available.
+      const greetingSource = sessionRef.current?.greeting || options.voiceGreeting;
+      if (greetingSource) {
+        const greeting = sanitizeTtsText(greetingSource);
         if (greeting) {
           // The greeting is a system generation: it owns playback until the
           // first committed user turn replaces it (barge-in safe).

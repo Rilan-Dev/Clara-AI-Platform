@@ -63,6 +63,7 @@ import type {
   VoiceResolution,
 } from "./config-types";
 import type { VoiceProvider } from "./types";
+import { normalizeLanguagePolicy, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { query } from "@/lib/db";
 import { VoiceProviderFactory } from "./factory";
 import { isOpenAIRealtimeModel, isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
@@ -86,6 +87,15 @@ export type { ResolveVoiceConfigInput };
 const SARVAM_TTS_LANGUAGE_BASES = new Set(
   SARVAM_TTS_LANGUAGES.map((code) => code.split("-")[0]!),
 );
+
+/** The assistant's language policy from a resolved brain config. */
+function brainLanguagePolicy(brain: { defaultLanguage?: string | null; allowedLanguages?: string[] | null; assistantConfig?: { alwaysRespondIn?: string | null } | null }) {
+  return normalizeLanguagePolicy({
+    defaultLanguage: brain.defaultLanguage,
+    allowedLanguages: brain.allowedLanguages,
+    alwaysRespondIn: brain.assistantConfig?.alwaysRespondIn,
+  });
+}
 
 export function toSarvamLanguageCode(language: string | null | undefined): string {
   const base = (language ?? "").trim().toLowerCase().split("-")[0] ?? "";
@@ -453,6 +463,7 @@ export async function resolveVoiceConfig(
         brain.defaultLanguage ??
         brain.assistantConfig?.alwaysRespondIn ??
         "en",
+      sttLanguage: speechRecognitionLanguage(brainLanguagePolicy(brain)),
     };
   }
 
@@ -510,6 +521,11 @@ export async function resolveVoiceConfig(
       language: toSarvamLanguageCode(
         brain.defaultLanguage ?? brain.assistantConfig?.alwaysRespondIn ?? "en",
       ),
+      // "unknown" is Sarvam's auto-detect code (Speech-to-Text WS reference).
+      sttLanguage: (() => {
+        const pinned = speechRecognitionLanguage(brainLanguagePolicy(brain));
+        return pinned ? toSarvamLanguageCode(pinned) : "unknown";
+      })(),
       sampleRate: 16_000,
       realtimeSttEnabled: isSarvamRealtimeSttEnabled(),
     };

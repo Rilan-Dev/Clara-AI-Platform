@@ -88,7 +88,8 @@ export async function postElevenLabsRealtimeInit(request: NextRequest): Promise<
       apiKey,
       baseUrl: getElevenLabsBaseUrl(),
       sttModel: getElevenLabsRealtimeSttModel(),
-      languageCode: resolved.elevenlabs.language ?? null,
+      // Policy-based: pinned only for single-language assistants, else auto.
+      languageCode: resolved.elevenlabs.sttLanguage !== undefined ? resolved.elevenlabs.sttLanguage : (resolved.elevenlabs.language ?? null),
       audioFormat: "pcm_16000",
       sampleRate: 16_000,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,

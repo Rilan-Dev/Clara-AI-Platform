@@ -32,6 +32,7 @@ import {
   CHART_RESPONSE_INSTRUCTIONS,
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
+  recentMessages,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
 
@@ -370,7 +371,7 @@ async function postChatKb(
       role: "system",
       content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
     },
-    ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
+    ...recentMessages(messages).map((m): ChatMessage => ({ role: m.role, content: m.content })),
   ];
   // Cross-lingual context: when the query was translated, give the model
   // the translation it actually retrieved with (the last user message stays
@@ -641,7 +642,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
           "Lean on the document overview above; no additional supporting passages were needed."
         }`,
       },
-      ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
+      ...recentMessages(messages).map((m): ChatMessage => ({ role: m.role, content: m.content })),
     ];
 
     const encoder = new TextEncoder();

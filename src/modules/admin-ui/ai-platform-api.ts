@@ -517,3 +517,21 @@ export type AgentAIOptionsDTO = {
 export async function fetchAgentAIOptions(agentId: string, capability: AICapability): Promise<AgentAIOptionsDTO> {
   return apiFetch(`/api/agents/${agentId}/ai-options?capability=${capability}`);
 }
+
+export type GeneratedSystemPromptDTO = {
+  prompt: string;
+  template: string;
+  reason?: string;
+  documentsSampled: number;
+};
+
+/** Drafts a system prompt from the agent's knowledge base (review before use). */
+export async function generateAgentSystemPrompt(
+  agentId: string,
+  input: { template: string; notes?: string },
+): Promise<GeneratedSystemPromptDTO> {
+  return apiFetch(`/api/agents/${agentId}/system-prompt/generate`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}

@@ -11,6 +11,7 @@
  *             maxCallDurationSec, kbName }
  */
 import { NextRequest, NextResponse } from "next/server";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { ensureMigrated }            from "@/lib/db/migrate";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
@@ -85,6 +86,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           ttsModel: voiceResolved.sarvam.realtimeTtsModel,
           speaker: voiceResolved.sarvam.realtimeSpeaker,
           language: languageCode,
+          // Speech recognition: "unknown" = Sarvam auto-detect for
+          // multi-language assistants (the reply language follows the caller).
+          sttLanguage: voiceResolved.sarvam.sttLanguage ?? languageCode,
           greetingMessage: activeConfig?.greetingMessage ?? assistantConfig.welcomeMessage ?? "Hello! How can I help you today?",
           maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
           kbName: kb.name,
@@ -114,7 +118,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const voice              = voiceResolved.openai?.voiceId ?? "alloy";
     const temperature        = resolved.temperature     ?? assistantConfig.temperature ?? 0.8;
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
-    const language           = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
+    // Recognition language under the language policy (undefined = auto-detect).
+    const language           = speechRecognitionLanguage(policyFromResolvedConfig({
+      defaultLanguage: assistantConfig.defaultLanguage,
+      allowedLanguages: resolved.allowedLanguages ?? assistantConfig.allowedLanguages,
+      assistantConfig: { alwaysRespondIn: assistantConfig.alwaysRespondIn },
+    })) ?? undefined;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY not set" }, { status: 500 });

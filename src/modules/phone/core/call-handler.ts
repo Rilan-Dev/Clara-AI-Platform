@@ -23,6 +23,7 @@
  *   - Max call duration enforced server-side
  */
 import WebSocket from "ws";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import {
   getAssistantConfigByKb,
   getKnowledgeBaseById,
@@ -110,7 +111,12 @@ export class CallHandler {
     const model              = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice              = resolved.voiceId ?? assistantConfig.voiceId ?? "alloy";
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
-    const language           = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
+    // Recognition language under the language policy (undefined = auto-detect).
+    const language           = speechRecognitionLanguage(policyFromResolvedConfig({
+      defaultLanguage: assistantConfig.defaultLanguage,
+      allowedLanguages: resolved.allowedLanguages ?? assistantConfig.allowedLanguages,
+      assistantConfig: { alwaysRespondIn: assistantConfig.alwaysRespondIn },
+    })) ?? undefined;
     const apiKey             = process.env.OPENAI_API_KEY!;
 
     // ── 3. Create OpenAI Realtime session + connect WebSocket ─────────────────

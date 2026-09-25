@@ -118,7 +118,8 @@ async function relayOpenAI(browserWs, cfg, apiKey) {
             },
             transcription: {
               model:    cfg.transcriptionModel,
-              language: cfg.language,
+              // Omitted = auto-detect (multi-language assistants).
+              ...(cfg.language ? { language: cfg.language } : {}),
             },
           },
         },

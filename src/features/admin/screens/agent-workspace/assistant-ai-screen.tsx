@@ -26,6 +26,7 @@ import { useAuth } from "@/modules/admin-ui/hooks";
 import {
   fetchAgentAIOptions,
   fetchAgentDraft,
+  generateAgentSystemPrompt,
   putAgentDraft,
   type AgentAIOptionsDTO,
   type AgentDraftDTO,
@@ -162,6 +163,13 @@ export default function AgentAssistantAIScreen() {
     document.getElementById("ai-runtime-config")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  /** Drafts a system prompt from this agent's knowledge bases (reviewed in
+   *  the ConfigEditor dialog before it touches the draft). */
+  const generateSystemPrompt = useCallback(
+    (template: string, notes: string) => generateAgentSystemPrompt(agentId, { template, notes }),
+    [agentId],
+  );
+
   // ── Provider-synced voice catalog for the ConfigEditor Voices card ──────
   // Mirrors the organisation's selected Realtime Voice provider (the lift in
   // pickProvider keeps this live before the draft is even saved).
@@ -232,6 +240,7 @@ export default function AgentAssistantAIScreen() {
               llmSummary={llmSummary ?? undefined}
               onOpenAISettings={openAISettings}
               voiceCatalog={voiceCatalog}
+              onGenerateSystemPrompt={generateSystemPrompt}
             />
           )
         ) : (

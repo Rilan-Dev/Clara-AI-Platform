@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { resolveLanguagePreferences } from "@/modules/assistant/core/config";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
@@ -43,7 +44,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     let voice: string;
     let maxTokens: number | "inf";
     let transcriptionModel: string;
-    let transcriptionLanguage: string;
+    let transcriptionLanguage: string | undefined;
     let toolDescription: string;
     let model: string;
 
@@ -118,7 +119,13 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       }
       maxTokens = resolved.realtimeMaxOutputTokens ?? "inf";
       transcriptionModel = voiceResolved.openai?.transcriptionModel ?? TRANSCRIPTION_MODEL;
-      transcriptionLanguage = config.alwaysRespondIn ?? config.defaultLanguage;
+      // Language policy: pinned only for a single reply language; otherwise
+      // auto-detect (forcing the default transcribed allowed languages wrong).
+      transcriptionLanguage = speechRecognitionLanguage(policyFromResolvedConfig({
+        defaultLanguage: config.defaultLanguage,
+        allowedLanguages: resolved.allowedLanguages ?? config.allowedLanguages,
+        assistantConfig: { alwaysRespondIn: config.alwaysRespondIn },
+      })) ?? undefined;
       model = voiceResolved.openai?.realtimeModel ?? DEFAULT_REALTIME_MODEL;
       toolDescription = `Retrieve grounded evidence from the "${kb.name}" knowledge base. Use kbId for KB-wide search, documentId only when the user explicitly scopes to one document, and pass ragMode=${requestedRagMode} so the server can use classic, hybrid, or agentic retrieval.`;
     } else {

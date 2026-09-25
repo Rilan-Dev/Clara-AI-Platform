@@ -14,6 +14,8 @@
  * Engine is not configured.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { localizeText } from "@/modules/rag/cross-lingual";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import {
   validateEmbedRequest,
   requireVoiceAccess,
@@ -88,6 +90,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? requestedLanguage
         : null;
     const autoDetectLanguage = sessionBody.autoDetectLanguage === true;
+    // Voices that speak the welcome verbatim (ElevenLabs, Sarvam) start in
+    // the assistant's DEFAULT language: localise it when needed (cached).
+    const localizedGreeting = async (): Promise<string | undefined> => {
+      const welcome = effectiveConfig.welcomeMessage?.trim();
+      if (!welcome) return undefined;
+      return localizeText(
+        welcome,
+        effectiveConfig.alwaysRespondIn?.trim() || resolved.defaultLanguage || "en",
+      );
+    };
     const effectiveResponseLanguage =
       effectiveConfig.alwaysRespondIn?.trim().toLowerCase() ??
       requestedLanguageAllowed ??
@@ -123,6 +135,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               kbId: ctx.kbId,
             },
             welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+            greeting: await localizedGreeting(),
             config: {
               orgId: voiceResolution.brain.orgId ?? ctx.orgId,
               projectId: voiceResolution.brain.agentId,
@@ -165,6 +178,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               kbId: ctx.kbId,
             },
             welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+            greeting: await localizedGreeting(),
             config: {
               orgId: voiceResolution.brain.orgId ?? ctx.orgId,
               projectId: voiceResolution.brain.agentId,
@@ -216,7 +230,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           stt: {
             endpoint: "/api/voice/sarvam/transcribe",
             model: sv.sttModel,
-            language: sv.language,
+            language: sv.sttLanguage ?? sv.language, // policy: "unknown" = auto-detect
             sampleRate: sv.sampleRate,
             maxAudioSeconds: 30,
           },
@@ -232,6 +246,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             kbId: ctx.kbId,
           },
           welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+          greeting: await localizedGreeting(),
           config: {
             orgId: voiceResolution.brain.orgId ?? ctx.orgId,
             projectId: voiceResolution.brain.agentId,
@@ -314,18 +329,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         interrupt_response: false,
       };
 
+      // Language policy: pin recognition only for a single reply language;
+      // otherwise auto-detect so an allowed non-default language (e.g. Tamil
+      // on an English-default assistant) is transcribed correctly.
+      const recognitionLanguage = speechRecognitionLanguage(policyFromResolvedConfig(resolved));
       const transcription = {
         model: oa.transcriptionModel,
-        // Realtime voice defaults to provider-native language detection. An
-        // explicit language is still honored when auto detection is disabled.
-        ...(autoDetectLanguage
-          ? {}
-          : {
-              language:
-                requestedLanguageAllowed ??
-                effectiveResponseLanguage ??
-                undefined,
-            }),
+        ...(recognitionLanguage ? { language: recognitionLanguage } : {}),
       };
 
       const realtimeSession = buildOpenAIRealtimeSession({
