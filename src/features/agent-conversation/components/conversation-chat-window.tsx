@@ -290,6 +290,7 @@ export function ConversationChatWindow({
                   )}
                 </div>
               </div>
+              {!(publishedMode && mode === "voice") && (
               <ConversationRail
                 assistantName={assistantName}
                 primaryColour={primaryColour}
@@ -313,7 +314,8 @@ export function ConversationChatWindow({
                 suggestions={suggestions}
                 onSuggestion={onSuggestion}
               />
-            </motion.div>
+ 
+              )}           </motion.div>
           ) : (
             <motion.div
               key="chat"
