@@ -24,6 +24,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ConversationVoiceStage } from "./conversation-voice-stage";
+import { RealtimeVoiceOrb } from "./realtime-voice-orb";
 import type { ConversationMessage, VoiceClientSession } from "../types";
 import { ChatAnnouncer } from "@/components/ui/chat-announcer";
 
@@ -103,6 +104,7 @@ export function ConversationChatWindow({
   }, [messages, thinking, voiceActive]);
 
   const canSend = !sendDisabled && input.trim().length > 0 && !thinking;
+  const runtimeError = chatError?.trim() || null;
 
   const setConversationMode = (next: ConversationMode) => {
     if (voiceActive) return;
@@ -275,6 +277,11 @@ export function ConversationChatWindow({
                   <p className="mt-3 text-[11px] text-muted-foreground/70">
                     Your microphone will be requested when the session starts.
                   </p>
+                  {runtimeError && (
+                    <p role="alert" className="mt-3 max-w-md rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                      {runtimeError}
+                    </p>
+                  )}
                 </div>
               </div>
               <ConversationRail
