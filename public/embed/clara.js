@@ -616,7 +616,9 @@
             return;
           }
 
-          if (msg.type === 'response.audio_transcript.delta' || msg.type === 'response.text.delta') {
+          // GA names (response.output_*) first; beta names kept for older models.
+          if (msg.type === 'response.output_audio_transcript.delta' || msg.type === 'response.output_text.delta' ||
+              msg.type === 'response.audio_transcript.delta' || msg.type === 'response.text.delta') {
             appendVoiceAssistantDelta(typeof msg.delta === 'string' ? msg.delta : '');
             setVoiceState('speaking');
             return;

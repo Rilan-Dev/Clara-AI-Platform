@@ -16,7 +16,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const KB_ID = "22222222-2222-2222-2222-222222222222";
 const ORG_ID = "org-sec-1";
