@@ -1,7 +1,9 @@
 /**
  * src/modules/voice-core/api/sarvam/transcribe.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * POST /api/voice/sarvam/transcribe — Saaras STT (Mode A speech-in).
+ * POST /api/voice/sarvam/transcribe — Saaras STT for the chat window's
+ * turn-based VOICE CHAT (default surface "voice_chat"; the realtime agent
+ * streams through the Saaras realtime relay instead).
  *
  * The ONLY data that crosses the Sarvam boundary here is the user's spoken
  * audio for this utterance (8 kHz-telephony-tuned Saaras also takes browser
@@ -107,13 +109,14 @@ export async function postSarvamTranscribe(request: NextRequest): Promise<NextRe
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
-    if (
-      (resolved.voiceProvider !== "sarvam" && resolved.realtimeProvider !== "sarvam") ||
-      !resolved.sarvam
-    ) {
+    // Voice Chat (chat window) is the default surface — the realtime agent
+    // streams through the Saaras realtime relay instead.
+    const surface = form.get("surface") === "realtime" ? "realtime" : "voice_chat";
+    const resolved = await resolveVoiceConfigCached({ kbId, surface, ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
+    const surfaceProvider = surface === "voice_chat" ? resolved.voiceProvider : resolved.realtimeProvider;
+    if (surfaceProvider !== "sarvam" || !resolved.sarvam) {
       return NextResponse.json(
-        { error: "Voice provider is not Sarvam for this knowledge base.", provider: resolved.realtimeProvider },
+        { error: "Voice provider is not Sarvam for this knowledge base.", provider: surfaceProvider },
         { status: 409 },
       );
     }

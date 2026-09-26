@@ -328,6 +328,7 @@ export default function DraftPreviewScreen() {
                 micLevels={conversation.micLevels}
                 onVoiceEnd={conversation.endVoice}
                 translation={conversation.translationLanguages.length > 1 ? { languages: conversation.translationLanguages, translate: conversation.translateMessage } : undefined}
+                voiceChat={runtimeVoiceOn ? conversation.voiceChat : null}
               />
             </div>
           </div>

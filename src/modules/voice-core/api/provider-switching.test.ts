@@ -224,7 +224,6 @@ function sarvamResolved() {
       sampleRate: 16_000,
       ttsModel: "bulbul:v3",
       speaker: "shubh",
-      realtimeSttEnabled: true,
       realtimeSttModel: "saaras:v3-realtime",
       realtimeLlmModel: "sarvam-105b-conversations",
       realtimeTtsEnabled: true,

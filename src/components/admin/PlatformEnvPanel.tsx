@@ -240,21 +240,37 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     hint: "FX rate for cost dashboards (Sarvam bills in rupees). Default 0.012.",
     validation: (v) => { const n = parseFloat(v); return (n > 0 && n < 1) ? null : "Must be between 0 and 1"; },
   },
-  SARVAM_REALTIME_STT_ENABLED: {
-    label: "Realtime STT relay",
-    hint: "Enable the low-latency Saaras realtime WebSocket transport for browser and phone voice sessions.",
-  },
   SARVAM_REALTIME_STT_MODEL: {
     label: "Realtime STT model",
-    hint: "Exact Sarvam realtime WebSocket model. Default: saaras:v3-realtime; alternative: saaras:v4.",
+    hint: "Exact Sarvam realtime WebSocket model. Default: saaras:v3-realtime; alternative: saaras:v4-realtime.",
+  },
+  SARVAM_REALTIME_VAD_THRESHOLD: {
+    label: "Speech detection threshold",
+    hint: "Realtime VAD speech probability (0.05–0.95). Lower = more sensitive. Default 0.3.",
+    validation: (v) => { const n = parseFloat(v); return v === "" || (n >= 0.05 && n <= 0.95) ? null : "Must be between 0.05 and 0.95"; },
+  },
+  SARVAM_REALTIME_SILENCE_MS: {
+    label: "End-of-turn silence (ms)",
+    hint: "Silence that ends the caller's turn (100–3000). Lower replies sooner; higher lets people pause. Default 500.",
+    validation: (v) => { const n = Number(v); return v === "" || (Number.isInteger(n) && n >= 100 && n <= 3000) ? null : "Whole number 100–3000"; },
+  },
+  SARVAM_REALTIME_MIN_SPEECH_MS: {
+    label: "Minimum speech (ms)",
+    hint: "Shortest sound treated as speech (50–2000) — filters coughs and clicks. Default 250.",
+    validation: (v) => { const n = Number(v); return v === "" || (Number.isInteger(n) && n >= 50 && n <= 2000) ? null : "Whole number 50–2000"; },
+  },
+  SARVAM_TTS_PACE: {
+    label: "Speaking pace",
+    hint: "Bulbul speaking pace for realtime voice and phone calls (0.5–2.0). Default 1.0.",
+    validation: (v) => { const n = parseFloat(v); return v === "" || (n >= 0.5 && n <= 2) ? null : "Must be between 0.5 and 2.0"; },
   },
   SARVAM_REALTIME_LLM_MODEL: {
     label: "Realtime voice-agent LLM",
     hint: "Dialogue model for realtime phone sessions. Default: sarvam-105b-conversations.",
   },
   SARVAM_REALTIME_TTS_ENABLED: {
-    label: "Realtime streaming TTS",
-    hint: "Enable Bulbul v3 WebSocket streaming for low-latency spoken responses.",
+    label: "Streaming TTS for phone calls",
+    hint: "Bulbul WebSocket streaming on Sarvam phone calls. The browser realtime voice agent always streams.",
   },
 
   // ── Payments ──────────────────────────────────────────────────────
@@ -354,7 +370,8 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
     "ELEVENLABS_DEFAULT_VOICE_ID",
     "SARVAM_TIMEOUT_MS", "SARVAM_BETA_MODELS_ENABLED", "SARVAM_DEFAULT_SPEAKER",
     "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
-    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
+    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
+    "SARVAM_REALTIME_VAD_THRESHOLD", "SARVAM_REALTIME_SILENCE_MS", "SARVAM_REALTIME_MIN_SPEECH_MS", "SARVAM_TTS_PACE",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
     "MULTILINGUAL_EMBEDDINGS_ENABLED", "MULTILINGUAL_EMBEDDINGS_BASE_URL", "MULTILINGUAL_EMBEDDINGS_API_KEY",
     "MULTILINGUAL_EMBEDDINGS_MODEL", "MULTILINGUAL_EMBEDDINGS_DIMENSION",
@@ -633,7 +650,6 @@ type EditorProps = {
 
 function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
   const svTranslationEnabled = display("SARVAM_TRANSLATION_ENABLED") === "true";
-  const svRealtimeEnabled = display("SARVAM_REALTIME_STT_ENABLED") === "true";
   const speechEngineOn = display("ELEVENLABS_SPEECH_ENGINE_ENABLED") === "true";
   const elKeySet = Boolean(isSet?.("ELEVENLABS_API_KEY"));
   const svKeySet = Boolean(isSet?.("SARVAM_API_KEY"));
@@ -776,7 +792,7 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
           items={[
             svKeySet ? { text: "API key set in AI Platform", tone: "ok" } : { text: "API key missing — add it in AI Platform", tone: "bad" },
             svTranslationEnabled ? { text: "Language services on", tone: "ok" } : { text: "Language services off", tone: "neutral" },
-            svRealtimeEnabled ? { text: "Realtime STT relay on", tone: "ok" } : { text: "Realtime STT relay off", tone: "neutral" },
+            { text: "Realtime voice streams (STT + TTS WebSockets)", tone: "ok" },
           ]}
         />
         <div className="grid gap-3 lg:grid-cols-2">
@@ -786,13 +802,6 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             description="Translation, transliteration and language identification. Organisations then choose their translation mode in their AI settings."
             checked={svTranslationEnabled}
             onChange={(checked) => boolToggle("SARVAM_TRANSLATION_ENABLED", checked)}
-          />
-          <FeatureToggle
-            icon={<AudioLines />}
-            label="Realtime STT relay"
-            description="Live partial transcripts and early barge-in through the platform WebSocket relay — the Sarvam key never reaches the browser."
-            checked={svRealtimeEnabled}
-            onChange={(checked) => boolToggle("SARVAM_REALTIME_STT_ENABLED", checked)}
           />
           <FeatureToggle
             icon={<Volume2 />}
@@ -818,10 +827,21 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             onChange={(value) => setDraftValue("SARVAM_REALTIME_STT_MODEL", value)}
             options={[
               { value: "saaras:v3-realtime", label: "Saaras v3 realtime", meta: "default" },
-              { value: "saaras:v4", label: "Saaras v4" },
+              { value: "saaras:v4-realtime", label: "Saaras v4 realtime" },
             ]}
             placeholder="saaras:v3-realtime"
           />
+          {(["SARVAM_REALTIME_SILENCE_MS", "SARVAM_REALTIME_VAD_THRESHOLD", "SARVAM_REALTIME_MIN_SPEECH_MS", "SARVAM_TTS_PACE"] as const).map((key) => (
+            <TextField
+              key={key}
+              label={FIELD_METADATA[key].label}
+              hint={FIELD_METADATA[key].hint}
+              value={display(key)}
+              onChange={(value) => setDraftValue(key, value)}
+              placeholder={{ SARVAM_REALTIME_SILENCE_MS: "500", SARVAM_REALTIME_VAD_THRESHOLD: "0.3", SARVAM_REALTIME_MIN_SPEECH_MS: "250", SARVAM_TTS_PACE: "1.0" }[key]}
+              inputMode="decimal"
+            />
+          ))}
           <ModelSelect
             label={FIELD_METADATA.SARVAM_REALTIME_LLM_MODEL.label}
             hint={FIELD_METADATA.SARVAM_REALTIME_LLM_MODEL.hint}

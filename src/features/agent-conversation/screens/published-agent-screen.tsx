@@ -46,7 +46,7 @@ type PublicAgentConfig = {
     strictMode: boolean;
     citeSources: boolean;
   } | null;
-  voice: { enabled: boolean; realtime: boolean; provider: string | null };
+  voice: { enabled: boolean; realtime: boolean; provider: string | null; voiceChatProvider?: string | null };
   kb: { id: string; name: string };
   sessionToken: string;
 };
@@ -182,6 +182,7 @@ export default function PublishedAgentScreen() {
         ? {
             provider: config.voice.provider ?? "unknown",
             voiceProvider: config.voice.provider ?? undefined,
+            voiceChatProvider: config.voice.voiceChatProvider ?? undefined,
             voiceEnabled: config.voice.enabled,
             realtimeEnabled: config.voice.realtime,
           }
@@ -274,6 +275,7 @@ export default function PublishedAgentScreen() {
               micLevels={conversation.micLevels}
               onVoiceEnd={conversation.endVoice}
               translation={conversation.translationLanguages.length > 1 ? { languages: conversation.translationLanguages, translate: conversation.translateMessage } : undefined}
+              voiceChat={config.voice.enabled ? conversation.voiceChat : null}
               publishedMode
             />
           </div>

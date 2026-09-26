@@ -115,7 +115,7 @@ import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settin
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import { isSarvamEnabled } from "./model-catalog";
 import { isElevenLabsEnabled } from "./server-provider-availability";
-import { isSarvamRealtimeSttEnabled, resolveVoiceConfig } from "./resolve";
+import { resolveVoiceConfig } from "./resolve";
 import type { VoiceResolution } from "./config-types";
 
 const orgSettingsMock = vi.mocked(getOrgAISettings);
@@ -371,18 +371,6 @@ describe("voice resolution — guards", () => {
   });
 });
 
-describe("Phase 13 rollout gate — SARVAM_REALTIME_STT_ENABLED stays DARK by default", () => {
-  it("defaults OFF (unset env)", () => {
-    delete process.env.SARVAM_REALTIME_STT_ENABLED;
-    expect(isSarvamRealtimeSttEnabled()).toBe(false);
-  });
-
-  it("opt-in requires an explicit true", () => {
-    process.env.SARVAM_REALTIME_STT_ENABLED = "true";
-    expect(isSarvamRealtimeSttEnabled()).toBe(true);
-    delete process.env.SARVAM_REALTIME_STT_ENABLED;
-  });
-});
 
 // ── OpenAI native-realtime axis (production incident 2026-09-21) ──────────────
 //

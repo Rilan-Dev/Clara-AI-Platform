@@ -39,6 +39,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CornerDownLeft, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DictateButton, VoiceChatError } from "./voice-chat-controls";
 
 // ─── Typewriter placeholder ─────────────────────────────────────────────────
 
@@ -279,6 +280,8 @@ export function OrbComposer({
           />
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {/* Voice Chat: dictate a turn (one-shot STT on the Voice Chat provider). */}
+            <DictateButton disabled={sendDisabled} />
             {voiceAvailable && onVoiceStart ? (
               <button
                 type="button"
@@ -323,6 +326,7 @@ export function OrbComposer({
             ? "Enter to send · Shift+Enter for a new line · Mic starts realtime voice"
             : "Enter to send · Shift+Enter for a new line"}
         </p>
+        <VoiceChatError />
       </div>
     </div>
   );

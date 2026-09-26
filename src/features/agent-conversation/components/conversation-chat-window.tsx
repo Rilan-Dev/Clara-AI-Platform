@@ -27,6 +27,7 @@ import {
 import { ConversationVoiceStage } from "./conversation-voice-stage";
 import { RealtimeVoiceOrb } from "./realtime-voice-orb";
 import { OrbComposer } from "./orb-composer";
+import { ListenButton, VoiceChatProvider, type VoiceChatControls } from "./voice-chat-controls";
 import { AgentMarkdown } from "./agent-markdown";
 import type { ConversationMessage, VoiceClientSession } from "../types";
 import { ChatAnnouncer } from "@/components/ui/chat-announcer";
@@ -61,6 +62,8 @@ interface ConversationChatWindowProps {
   publishedMode?: boolean;
   /** Translate any assistant message into one of the assistant's allowed languages. */
   translation?: MessageTranslation;
+  /** Voice Chat (turn-based STT → chat → TTS on the Voice Chat provider). */
+  voiceChat?: VoiceChatControls | null;
 }
 
 export type MessageTranslation = {
@@ -99,6 +102,7 @@ export function ConversationChatWindow({
   onVoiceEnd,
   publishedMode = false,
   translation,
+  voiceChat = null,
 }: ConversationChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
@@ -136,6 +140,7 @@ export function ConversationChatWindow({
   };
 
   return (
+    <VoiceChatProvider value={voiceChat}>
     <section className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-transparent">
       {publishedMode ? (
         <button
@@ -396,6 +401,7 @@ export function ConversationChatWindow({
         </AnimatePresence>
       </div>
     </section>
+    </VoiceChatProvider>
   );
 }
 
@@ -758,6 +764,7 @@ function MessageRow({
             )}
           </div>
         )}
+        {!streamingAssistant && <ListenButton messageId={message.id} text={message.content} />}
         {translation && translation.languages.length > 0 && !streamingAssistant && message.content.trim() && (
           <MessageTranslator text={message.content} translation={translation} messageId={message.id} />
         )}
