@@ -947,7 +947,9 @@ function CatalogueRow({
       <div className="min-w-0 sm:flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="break-words text-sm font-medium text-foreground/90">{model.displayName}</span>
-          {model.isDefault && <VersionBadge tone="primary">Default</VersionBadge>}\n          {model.metadata?.catalogSource === "vendor_live" && <VersionBadge tone="success">Live</VersionBadge>}\n          {model.metadata?.catalogSource !== "vendor_live" && <VersionBadge tone="muted">Vendor catalog</VersionBadge>}
+          {model.isDefault && <VersionBadge tone="primary">Default</VersionBadge>}
+          {model.metadata?.catalogSource === "vendor_live" && <VersionBadge tone="success">Live</VersionBadge>}
+          {model.metadata?.catalogSource !== "vendor_live" && <VersionBadge tone="muted">Vendor catalog</VersionBadge>}
         </div>
         <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">
           {KIND_LABELS[model.kind] ?? model.kind} · {model.modelId}
