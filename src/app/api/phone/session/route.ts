@@ -23,6 +23,7 @@ import {
   getSarvamBaseUrl,
   toSarvamRealtimeSttModel,
   getPlatformDefaultSarvamRealtimeLlmModel,
+  getSarvamRealtimeTuning,
 } from "@/modules/voice-core/model-catalog";
 import {
   buildOpenAIRealtimeSession,
@@ -89,6 +90,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           // Speech recognition: "unknown" = Sarvam auto-detect for
           // multi-language assistants (the reply language follows the caller).
           sttLanguage: voiceResolved.sarvam.sttLanguage ?? languageCode,
+          // Platform-configurable endpointing + speaking pace.
+          vad: getSarvamRealtimeTuning().vad,
+          ttsPace: getSarvamRealtimeTuning().ttsPace,
           greetingMessage: activeConfig?.greetingMessage ?? assistantConfig.welcomeMessage ?? "Hello! How can I help you today?",
           maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
           kbName: kb.name,

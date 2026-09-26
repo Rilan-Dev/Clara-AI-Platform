@@ -5,9 +5,25 @@
  * The Sarvam key and vendor endpoint stay server-side.
  * One browser session owns one warm Bulbul connection and can stream
  * multiple generations through it.
+ *
+ * Browser → relay:
+ *   { type: "generation_start", generationId, language? }  — new reply; the
+ *     reply's language (BCP-47, e.g. "hi-IN") re-configures Bulbul when it
+ *     differs from the connection's current target_language_code
+ *   { type: "text", generationId, text, language? }
+ *   { type: "flush", generationId }
+ *   { type: "interrupt" }  — barge-in: drops buffered text + in-flight audio
+ *     by recycling ONLY the upstream socket (the browser socket stays warm)
+ *   { type: "ping" }
+ * Relay → browser:
+ *   { type: "status", value, model, sampleRate }
+ *   { type: "audio", generationId, audio(base64 PCM16), sampleRate }
+ *   { type: "tts_event", generationId, eventType }   ("final" = generation done)
+ *   { type: "error", generationId?, message, fatal }
  */
 import crypto from "node:crypto";
 import WebSocket from "ws";
+import { buildTtsConfig, holdEarlyBrowserFrames, streamingTtsSampleRate, toTtsLanguage } from "./sarvam-wire.mjs";
 
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
@@ -85,6 +101,8 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     return;
   }
 
+  // Frames sent during the bootstrap round trip are held, not dropped.
+  const early = holdEarlyBrowserFrames(browserWs);
   send(browserWs, { type: "status", value: "connecting" });
 
   let cfg;
@@ -110,16 +128,20 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     return;
   }
 
-  if (cfg.tts?.enabled === false) {
-    send(browserWs, { type: "error", message: "Sarvam realtime TTS is disabled in platform settings.", fatal: true });
-    browserWs.close(1008, "Realtime TTS disabled");
-    return;
-  }
+  // Realtime voice ALWAYS streams (the one-shot REST TTS belongs to the
+  // chat-window voice chat) — the phone-only SARVAM_REALTIME_TTS_ENABLED
+  // switch does not downgrade the browser realtime agent.
   const model = cfg.realtime?.ttsModel || cfg.tts?.model || "bulbul:v3";
   const speaker = cfg.tts?.speaker || "shubh";
-  const language = cfg.tts?.language || "en-IN";
+  const sampleRate = streamingTtsSampleRate(cfg.tts?.sampleRate);
+  const pace = cfg.tts?.pace;
+  // The language follows the REPLY (per generation), starting at the
+  // assistant's default language.
+  let language = toTtsLanguage(cfg.tts?.language);
   const upstreamUrl =
     `${String(cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "")}/text-to-speech/ws?model=${encodeURIComponent(model)}&send_completion_event=true`;
+
+  if (early.closed()) return; // browser left during bootstrap — open nothing upstream
 
   let closed = false;
   let generationId = null;
@@ -163,6 +185,23 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     }).catch((e) => console.warn("[sarvam-tts-relay] tts metering failed:", e.message));
   });
 
+  /** A reply in another language re-configures Bulbul. Only at generation
+   *  boundaries: recycling the upstream socket mid-reply would cut audio.
+   *  The config frame is always the FIRST message on a socket (docs), so a
+   *  language change opens a fresh upstream with the new config. */
+  const switchLanguage = (requested) => {
+    if (typeof requested !== "string" || !requested.trim()) return;
+    const next = toTtsLanguage(requested);
+    if (next === language) return;
+    language = next;
+    if (upstream?.readyState === WebSocket.OPEN || upstream?.readyState === WebSocket.CONNECTING) {
+      const previous = upstream;
+      upstream = null;
+      try { previous.close(1000, "language change"); } catch {}
+    }
+    openUpstream();
+  };
+
   const closeBoth = (code = 1000, reason = "closed") => {
     if (closed) return;
     closed = true;
@@ -179,10 +218,10 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     upstream = socket;
     socket.on("open", () => {
       reconnect.succeeded(); // vendor is healthy again — reset the budget
-      socket.send(JSON.stringify({ type: "config", data: {
-        speaker, language_code: language, min_buffer_size: 30, max_chunk_length: 150, output_audio_codec: "linear16",
-      }}));
-      send(browserWs, { type: "status", value: "connected", model, sampleRate: 24000 });
+      // Documented config frame: target_language_code + an explicit
+      // speech_sample_rate so playback never guesses the model default.
+      socket.send(JSON.stringify(buildTtsConfig({ speaker, languageCode: language, codec: "linear16", sampleRate, pace })));
+      send(browserWs, { type: "status", value: "connected", model, sampleRate, language });
       for (const msg of pending.splice(0)) { try { socket.send(msg); } catch {} }
     });
 
@@ -198,7 +237,7 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
         generationId,
         audio: payload.audio ?? "",
         contentType: payload.content_type ?? "audio/linear16",
-        sampleRate: 24000,
+        sampleRate,
       });
       return;
     }
@@ -224,8 +263,11 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     });
 
     socket.on("close", () => {
-      if (upstream === socket) upstream = null;
-      if (!closed) {
+      // Intentional recycles (interrupt / language change) already detached
+      // this socket — only an UNEXPECTED close spends the reconnect budget.
+      const unexpected = upstream === socket;
+      if (unexpected) upstream = null;
+      if (!closed && unexpected) {
         const delay = reconnect.nextDelayMs();
         if (delay === null) {
           // Reconnect budget exhausted — surface a FATAL error so the browser
@@ -250,13 +292,14 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
     }
   }, 20_000);
 
-  browserWs.on("message", (data) => {
+  early.attach((data) => {
     let message;
     try { message = JSON.parse(data.toString()); } catch { return; }
 
     const type = String(message.type ?? "");
     if (type === "generation_start") {
       generationId = String(message.generationId ?? "");
+      switchLanguage(message.language);
       return;
     }
 
@@ -281,8 +324,10 @@ export async function handleSarvamTtsRealtimeConnection(browserWs, req) {
 
     if (type === "interrupt") {
       pending.length = 0;
-      try { upstream?.close(1000, "generation interrupted"); } catch {}
+      generationId = null;
+      const previous = upstream;
       upstream = null;
+      try { previous?.close(1000, "generation interrupted"); } catch {}
       setTimeout(openUpstream, 0);
       return;
     }

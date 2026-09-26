@@ -3,24 +3,21 @@
 /**
  * src/modules/assistant/core/hooks/useSarvamVoice.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Sarvam Indic voice pipeline (Mode A) — Saaras STT + platform RAG/chat +
- * Bulbul TTS, with the V5 REALTIME STT upgrade.
+ * Sarvam REALTIME voice agent — streaming end to end (no one-shot REST hops):
  *
- *   REALTIME mode (session.stt.realtime present — SARVAM_REALTIME_STT_ENABLED):
- *     mic ──(PCM16 frames, base64)──► /api/voice/sarvam/realtime  (platform relay)
- *          relay ⇄ Saaras realtime WS
- *          transcript_partial ──► live captions + EARLY barge-in
- *          transcript_final  ──► chat turn
- *     answer tokens ──(sentence-chunked)──► /api/voice/sarvam/tts (Bulbul PCM16)
- *     PCM16 audio ──► queued AudioBufferSourceNodes ──► speakers
+ *   mic ──(PCM16 frames, base64)──► /api/voice/sarvam/realtime   (STT relay)
+ *        relay ⇄ Saaras realtime WS (saaras:v3-realtime, VAD endpointing)
+ *        vad_speech_start / transcript_partial ──► live captions + barge-in
+ *        transcript_final ──► chat turn (/api/chat · /api/embed/chat, streamed)
+ *   answer tokens ──(phrase-chunked)──► /api/voice/sarvam/tts-realtime
+ *        relay ⇄ Bulbul streaming WS (target_language_code per reply)
+ *   PCM16 audio ──► generation-aware playback queue ──► speakers
  *
- *   UTTERANCE mode (fallback — identical shape to useElevenLabsVoice):
- *     mic ──(webm/opus utterances)──► /api/voice/sarvam/transcribe (Saaras REST)
- *     text ▼ /api/chat ▼ sentence-chunked TTS ▼ playback queue
+ * The turn-based STT → chat → TTS pipeline (Saaras / Bulbul REST) belongs
+ * to the chat window's Voice Chat (useVoiceChatSpeech), not to this agent.
  *
  * Data boundary: only user audio (STT) and answer text (TTS) cross to Sarvam
- * — through platform endpoints only. The vendor key never reaches the
- * browser (the relay holds it server-side). Documents/KBs never leave.
+ * — through platform relays only. The vendor key never reaches the browser.
  */
 
 import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
@@ -40,21 +37,22 @@ import { GenerationCoordinator, LatencyTracker, mintSessionId, mintTurnId } from
 import type { LatencyStage, TurnLatencyHandle } from "@/modules/voice-core/realtime/latency-tracker";
 import { GenerationPlaybackQueue } from "../voice/generation-playback";
 
-// ─── VAD tuning (utterance mode — mirrors useElevenLabsVoice) ──────────────
-const VAD_THRESHOLD = 0.02;
-const VAD_START_FRAMES = 6;
-const VAD_SILENCE_MS = 700;
-
 // ─── Realtime mode tuning ────────────────────────────────────────────────────
 /** How often captured PCM frames are flushed upstream (~100 ms batches). */
 const REALTIME_FLUSH_MS = 100;
 /** Sarvam fast realtime STT rejects a single audio frame above 16000 bytes. */
 const REALTIME_MAX_FRAME_BYTES = 16_000;
+/** Bounded STT relay reconnects (vendor idle close, network blip) before the
+ *  session surfaces a recoverable error — never an infinite loop. */
+const STT_MAX_RECONNECTS = 3;
+/** Early phrase release while a long sentence is still streaming. */
+const EARLY_CHUNK_MIN_CHARS = 30;
+const EARLY_CHUNK_MIN_CUT = 18;
 
 type SessionPayload = {
   /** Welcome message localised to the assistant's default language. */
   greeting?: string;
-  mode: "pipeline";
+  mode: "clara-stream" | "pipeline";
   stt: {
     endpoint: string;
     model: string;
@@ -63,6 +61,7 @@ type SessionPayload = {
     maxAudioSeconds: number;
     realtime?: {
       endpoint: string;
+      ttsEndpoint?: string;
       token: string;
       sampleRate: number;
       encoding: string;
@@ -118,7 +117,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const micStreamRef = useRef<MediaStream | null>(null);
   // ── Microphone mute ("pause") ────────────────────────────────────────────
   // track.enabled=false makes every capture path (AudioWorklet +
-  // ScriptProcessor fallback, MediaRecorder utterances for Mode-A STT) emit
+  // ScriptProcessor fallback) emit
   // digital silence while the realtime WS session stays connected.
   const [micMuted, setMicMutedState] = useState(false);
   const micMutedRef = useRef(false);
@@ -127,15 +126,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     setMicMutedState(muted);
     setMicStreamMuted(micStreamRef.current, muted);
   }, []);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const captureChunksRef = useRef<Blob[]>([]);
   const captureCtxRef = useRef<AudioContext | null>(null);
-  const vadAnalyserRef = useRef<AnalyserNode | null>(null);
-  const vadTimerRef = useRef<number | null>(null);
-  const speechFramesRef = useRef(0);
-  const lastVoiceMsRef = useRef(0);
-  const speakingUserRef = useRef(false);
-  const utteranceActiveRef = useRef(false);
 
   // Realtime mode state
   const realtimeWsRef = useRef<WebSocket | null>(null);
@@ -152,6 +143,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const realtimeTtsGenerationRef = useRef<string | null>(null);
   const realtimeTtsTurnStartRef = useRef<number>(0);
   const realtimeTtsFirstAudioGenerationRef = useRef<string | null>(null);
+  /** Generation whose Bulbul language was announced (generation_start). */
+  const realtimeTtsAnnouncedRef = useRef<string | null>(null);
+  /** STT relay reconnect budget (reset on a successful open). */
+  const sttReconnectsRef = useRef(0);
   /** Duplicate-commit guard for final transcripts (same text within 2 s). */
   const lastFinalRef = useRef<{ text: string; at: number } | null>(null);
 
@@ -177,7 +172,6 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   const pendingTurnLatencyRef = useRef<TurnLatencyHandle | null>(null);
   /** generationId of the turn currently being spoken (TTS tagging). */
   const turnGenerationRef = useRef<string | null>(null);
-  const ttsAbortRef = useRef<AbortController | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
   const answerBufferRef = useRef("");
 
@@ -240,7 +234,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     const realtime = sessionRef.current?.stt.realtime;
     if (!realtime || realtimeTtsWsRef.current || realtimeTtsConnectingRef.current) return;
     realtimeTtsConnectingRef.current = true;
-    const ws = new WebSocket(realtimeWsUrl("/api/voice/sarvam/tts-realtime", realtime.token));
+    const ws = new WebSocket(realtimeWsUrl(realtime.ttsEndpoint ?? "/api/voice/sarvam/tts-realtime", realtime.token));
     realtimeTtsWsRef.current = ws;
     ws.onopen = () => {
       realtimeTtsConnectingRef.current = false;
@@ -271,107 +265,57 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           }
           const pcm = decodeBase64Pcm16(event.audio);
           if (pcm) enqueueAudio(pcm, Number(event.sampleRate) || 24_000, event.generationId ?? null);
-        } else if (event.type === "error" && event.fatal) {
+        } else if (event.type === "error") {
           console.warn("[sarvam-realtime-tts]", event.message);
         }
       } catch {}
     };
     ws.onerror = () => { realtimeTtsConnectingRef.current = false; };
     ws.onclose = () => {
-      if (realtimeTtsWsRef.current === ws) realtimeTtsWsRef.current = null;
+      if (realtimeTtsWsRef.current === ws) {
+        realtimeTtsWsRef.current = null;
+        // The next generation re-announces its language on the new socket.
+        realtimeTtsAnnouncedRef.current = null;
+      }
       realtimeTtsConnectingRef.current = false;
     };
   }, [decodeBase64Pcm16, enqueueAudio]);
 
-  const sendRealtimeTts = useCallback((text: string) => {
-    const realtime = sessionRef.current?.stt.realtime;
-    const cleanText = sanitizeTtsText(text);
-    if (!realtime || !cleanText) return false;
-    markTurn("tts.start");
-
-    // Bulbul v3 buffers text server-side. Every conversational chunk must be
-    // explicitly flushed so short greetings / short sentences do not sit in
-    // the 20-character buffer waiting for another turn.
-    const generationId = realtimeTtsGenerationRef.current;
-    const textMessage = JSON.stringify({ type: "text", generationId, text: cleanText });
-    const flushMessage = JSON.stringify({ type: "flush", generationId });
+  const sendTtsFrame = useCallback((frame: Record<string, unknown>) => {
+    const message = JSON.stringify(frame);
     const ws = realtimeTtsWsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
-      try {
-        ws.send(textMessage);
-        ws.send(flushMessage);
-        return true;
-      } catch {}
+      try { ws.send(message); return; } catch {}
     }
-    realtimeTtsQueueRef.current.push(textMessage, flushMessage);
+    realtimeTtsQueueRef.current.push(message);
     connectRealtimeTts();
-    return true;
-  }, [connectRealtimeTts, markTurn]);
+  }, [connectRealtimeTts]);
 
-  // ─── TTS: speak one sentence (Bulbul via the platform route) ────────────────
-
-  const speakSentence = useCallback(async (rawText: string) => {
-    const realtime = sessionRef.current?.stt.realtime;
-    if (realtime) {
-      sendRealtimeTts(sanitizeTtsText(rawText));
-      return;
-    }
+  /**
+   * Stream one phrase to Bulbul. The FIRST phrase of a generation announces
+   * the reply's language (generation_start) so the relay voices it with the
+   * right target_language_code; `flush` is sent only at sentence boundaries
+   * and the end of the reply, so Bulbul keeps natural prosody across the
+   * early word-boundary chunks instead of synthesising fragments.
+   */
+  const speakSentence = useCallback((rawText: string, flush = true) => {
     const session = sessionRef.current;
-    if (!session) return;
-    const text = sanitizeTtsText(rawText);
-    if (!text) return;
-    const controller = new AbortController();
-    ttsAbortRef.current = controller;
-    try {
-      const response = await fetch(apiUrl(session.tts.endpoint), {
-        method: "POST",
-        headers: pipelineHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          kbId: session.kbId,
-          text,
-          model: session.tts.model,
-          speaker: session.tts.speaker,
-          // The reply may be in any allowed language (policy): voice each
-          // sentence in its own language, not the session default.
-          language: sarvamSpeechLanguage(text, session.tts.language),
-          ...(options.draftMode ? { scope: "draft" } : {}),
-        }),
-        signal: controller.signal,
+    const cleanText = sanitizeTtsText(rawText);
+    if (!session?.stt.realtime || !cleanText) return false;
+    markTurn("tts.start");
+    const generationId = realtimeTtsGenerationRef.current;
+    if (generationId && realtimeTtsAnnouncedRef.current !== generationId) {
+      realtimeTtsAnnouncedRef.current = generationId;
+      sendTtsFrame({
+        type: "generation_start",
+        generationId,
+        language: sarvamSpeechLanguage(cleanText, session.tts.language),
       });
-      if (!response.ok || !response.body) {
-        // Non-fatal: skip this sentence, keep the conversation flowing.
-        return;
-      }
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (value) chunks.push(value);
-      }
-      // Merge PCM16 little-endian byte stream → Int16Array. (The server strips
-      // the WAV container; a fallback WAV response still decodes via the same
-      // PCM path in the overwhelming majority of RIFF files — data chunk
-      // first after fmt — but if the vendor ever returns a non-PCM payload
-      // the queue simply plays static for that sentence, never crashes.)
-      const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const bytes = new Uint8Array(totalBytes);
-      let offset = 0;
-      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-      const sourceSampleRate = Number(session.tts.outputFormat.replace(/[^0-9]/g, "")) || 16_000;
-      const pcmByteLength = totalBytes - (totalBytes % 2);
-      if (pcmByteLength === 0) {
-        console.warn("[sarvam] TTS returned an empty audio payload");
-        return;
-      }
-      const pcm16 = new Int16Array(bytes.buffer, bytes.byteOffset, pcmByteLength / 2);
-      enqueueAudio(pcm16, sourceSampleRate, turnGenerationRef.current);
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        console.warn("[sarvam] tts failed:", (err as Error).message);
-      }
     }
-  }, [enqueueAudio, pipelineHeaders, sendRealtimeTts, options.draftMode]);
+    sendTtsFrame({ type: "text", generationId, text: cleanText });
+    if (flush) sendTtsFrame({ type: "flush", generationId });
+    return true;
+  }, [markTurn, sendTtsFrame]);
 
   // ─── Chat + sentence-chunked TTS loop ───────────────────────────────────────
 
@@ -458,7 +402,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
               answerBufferRef.current = rest;
               for (const sentence of sentences) {
                 if (controller.signal.aborted) break;
-                void speakSentence(sentence);
+                speakSentence(sentence);
               }
             } else {
               answerBufferRef.current += event.payload;
@@ -467,13 +411,14 @@ export function useSarvamVoice(options: VoiceClientOptions) {
               // If the LLM is streaming a long sentence, release a natural
               // word-boundary chunk early so Bulbul can start speaking while
               // the rest of the answer is still being generated.
-              if (answerBufferRef.current.length >= 30) {
+              if (answerBufferRef.current.length >= EARLY_CHUNK_MIN_CHARS) {
                 const cut = answerBufferRef.current.lastIndexOf(" ");
-                if (cut >= 18) {
+                if (cut >= EARLY_CHUNK_MIN_CUT) {
                   const earlyChunk = answerBufferRef.current.slice(0, cut).trim();
                   answerBufferRef.current = answerBufferRef.current.slice(cut + 1);
                   if (earlyChunk && !controller.signal.aborted) {
-                    void speakSentence(earlyChunk);
+                    // Mid-sentence: stream without flushing (prosody).
+                    speakSentence(earlyChunk, false);
                   }
                 }
               }
@@ -488,7 +433,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
           draftScope: options.draftMode === true,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
-          realtimeVoice: Boolean(session.stt.realtime),
+          realtimeVoice: true,
         },
       );
 
@@ -514,9 +459,13 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       }
 
       const unspoken = answerBufferRef.current.trim();
-      if (unspoken && !controller.signal.aborted) {
+      if (!controller.signal.aborted) {
         answerBufferRef.current = "";
-        void speakSentence(unspoken);
+        if (unspoken) speakSentence(unspoken);
+        // End of reply: flush whatever Bulbul still buffers.
+        else if (realtimeTtsAnnouncedRef.current === generationId) {
+          sendTtsFrame({ type: "flush", generationId });
+        }
       }
 
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done" } : t)));
@@ -530,20 +479,27 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";
       setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done", answer: turn.answer } : t)));
     }
-  }, [emitLatencyTelemetry, options.embedApiKey, options.language?.assistant, options.language?.customer, speakSentence, options.draftMode]);
+  }, [emitLatencyTelemetry, options.embedApiKey, options.language?.assistant, options.language?.customer, sendTtsFrame, speakSentence, options.draftMode]);
 
   // ─── Playback interruption (barge-in) ─────────────────────────────────────────
 
   const interruptPlayback = useCallback(() => {
-    ttsAbortRef.current?.abort();
-    ttsAbortRef.current = null;
     // Queue-level interrupt (plan Task 2.3): clears queued audio, stops the
     // playing source, invalidates the generation (chat abort fires via the
     // coordinator's registered aborts), resets speaking.
     playbackRef.current?.interrupt();
     realtimeTtsGenerationRef.current = null;
-    closeRealtimeTts();
-  }, [closeRealtimeTts]);
+    realtimeTtsAnnouncedRef.current = null;
+    // Barge-in keeps the browser ⇄ relay socket WARM: the relay drops
+    // Bulbul's buffered text / in-flight audio by recycling only its vendor
+    // socket. (Closing the relay socket here cost a full re-bootstrap —
+    // realtime-init + two handshakes — on the very next reply.)
+    realtimeTtsQueueRef.current = [];
+    const ws = realtimeTtsWsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: "interrupt" })); } catch {}
+    }
+  }, []);
 
   // ─── REALTIME mode: Saaras relay wiring ─────────────────────────────────────
 
@@ -682,6 +638,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     }
   }, [closeRealtimeTts, interruptPlayback, runAssistantTurn]);
 
+  const startRealtimeCaptureRef = useRef<((mic: MediaStream) => Promise<boolean>) | null>(null);
   const startRealtimeCapture = useCallback(async (mic: MediaStream) => {
     const session = sessionRef.current;
     const realtime = session?.stt.realtime;
@@ -709,11 +666,28 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         handleRealtimeEvent(JSON.parse(message.data as string));
       } catch {}
     };
+    ws.onopen = () => { sttReconnectsRef.current = 0; };
     ws.onerror = () => {
-      setError("Realtime speech connection failed.");
+      console.warn("[sarvam-realtime] speech relay socket error");
     };
     ws.onclose = () => {
-      if (realtimeWsRef.current === ws) realtimeWsRef.current = null;
+      if (realtimeWsRef.current !== ws) return; // intentional teardown
+      realtimeWsRef.current = null;
+      // Unexpected close (vendor idle close, network blip, relay restart):
+      // reconnect the STT leg with a bounded budget — the mic graph, chat and
+      // TTS sockets stay as they are. Never leave the agent silently deaf.
+      if (!sessionRef.current || !micStreamRef.current) return;
+      if (sttReconnectsRef.current >= STT_MAX_RECONNECTS) {
+        setError("The realtime speech connection was lost. Please restart the conversation.");
+        setStatus("error");
+        return;
+      }
+      sttReconnectsRef.current += 1;
+      const delayMs = 400 * sttReconnectsRef.current;
+      window.setTimeout(() => {
+        const mic = micStreamRef.current;
+        if (mic && sessionRef.current && !realtimeWsRef.current) void startRealtimeCaptureRef.current?.(mic);
+      }, delayMs);
     };
 
     // 2. PCM16 capture (plan Task 5.4): the shared AudioWorklet — same
@@ -794,6 +768,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
 
     return true;
   }, [connectRealtimeTts, handleRealtimeEvent]);
+  startRealtimeCaptureRef.current = startRealtimeCapture;
 
   const stopRealtimeCapture = useCallback(() => {
     if (realtimeFlushTimerRef.current) {
@@ -810,106 +785,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     realtimeSilenceWarnedRef.current = false;
   }, []);
 
-  // ─── UTTERANCE mode: Saaras REST STT (fallback) ─────────────────────────────
-
-  const transcribeUtterance = useCallback(async (blob: Blob): Promise<string | null> => {
-    const session = sessionRef.current;
-    if (!session || blob.size === 0) return null;
-    try {
-      const form = new FormData();
-      form.append("kbId", session.kbId ?? "");
-      form.append("audio", blob, "utterance.webm");
-      if (options.draftMode) form.append("scope", "draft");
-      // Saaras auto-detects the language when omitted — only send a hint when
-      // the session resolved a concrete BCP-47 code.
-      if (session.stt.language && session.stt.language !== "en-IN") {
-        form.append("language", session.stt.language);
-      }
-      const response = await fetch(apiUrl(session.stt.endpoint), {
-        method: "POST",
-        headers: pipelineHeaders(),
-        body: form,
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(payload.error ?? `Transcription failed (HTTP ${response.status})`);
-      }
-      const payload = await response.json() as { text?: string };
-      return payload.text?.trim() || null;
-    } catch (err) {
-      console.warn("[sarvam] stt failed:", (err as Error).message);
-      setError(`Speech recognition failed: ${(err as Error).message}`);
-      return null;
-    }
-  }, [pipelineHeaders, options.draftMode]);
-
-  // ─── Utterance lifecycle (VAD-driven, utterance mode only) ──────────────────
-
-  const finishUtterance = useCallback(async () => {
-    utteranceActiveRef.current = false;
-    const recorder = recorderRef.current;
-    if (!recorder || recorder.state === "inactive") return;
-    await new Promise<void>((resolve) => {
-      const onStop = () => {
-        recorder.removeEventListener("stop", onStop);
-        resolve();
-      };
-      recorder.addEventListener("stop", onStop);
-      recorder.stop();
-    });
-    const blob = new Blob(captureChunksRef.current, { type: "audio/webm" });
-    captureChunksRef.current = [];
-    const text = await transcribeUtterance(blob);
-    if (!text) return;
-    if (isNonSpeechTranscript(text)) return;
-    await runAssistantTurn(text);
-  }, [runAssistantTurn, transcribeUtterance]);
-
-  const startUtterance = useCallback(() => {
-    if (utteranceActiveRef.current) return;
-    const recorder = recorderRef.current;
-    if (!recorder || recorder.state !== "inactive") return;
-    utteranceActiveRef.current = true;
-    captureChunksRef.current = [];
-    interruptPlayback();
-    recorder.start(250);
-  }, [interruptPlayback]);
-
-  const startVad = useCallback(() => {
-    const analyser = vadAnalyserRef.current;
-    if (!analyser) return;
-    const data = new Float32Array(analyser.fftSize);
-
-    const tick = () => {
-      analyser.getFloatTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
-      const rms = Math.sqrt(sum / data.length);
-
-      const now = Date.now();
-      if (rms > VAD_THRESHOLD) {
-        speechFramesRef.current++;
-        lastVoiceMsRef.current = now;
-        if (!speakingUserRef.current && speechFramesRef.current >= VAD_START_FRAMES) {
-          speakingUserRef.current = true;
-          startUtterance();
-        }
-      } else {
-        speechFramesRef.current = Math.max(0, speechFramesRef.current - 1);
-        if (speakingUserRef.current && now - lastVoiceMsRef.current > VAD_SILENCE_MS) {
-          speakingUserRef.current = false;
-          void finishUtterance();
-        }
-      }
-      vadTimerRef.current = window.setTimeout(tick, 80);
-    };
-    tick();
-  }, [finishUtterance, startUtterance]);
-
   // ─── Public surface ─────────────────────────────────────────────────────────
 
   const cleanup = useCallback(() => {
-    if (vadTimerRef.current) { clearTimeout(vadTimerRef.current); vadTimerRef.current = null; }
     stopRealtimeCapture();
     closeRealtimeTts();
     interruptPlayback();
@@ -923,8 +801,6 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     lastFinalRef.current = null;
     chatAbortRef.current?.abort();
     chatAbortRef.current = null;
-    try { recorderRef.current?.stop(); } catch {}
-    recorderRef.current = null;
     try { captureCtxRef.current?.close(); } catch {}
     captureCtxRef.current = null;
     try { playbackCtxRef.current?.close(); } catch {}
@@ -932,11 +808,10 @@ export function useSarvamVoice(options: VoiceClientOptions) {
     playbackAnalyserRef.current = null;
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
     micStreamRef.current = null;
-    vadAnalyserRef.current = null;
     sessionRef.current = null;
-    utteranceActiveRef.current = false;
-    speakingUserRef.current = false;
     bargeInArmedRef.current = false;
+    sttReconnectsRef.current = 0;
+    realtimeTtsAnnouncedRef.current = null;
     setIsSpeaking(false);
   }, [closeRealtimeTts, interruptPlayback, stopRealtimeCapture]);
 
@@ -959,8 +834,11 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       const payload = await response.json().catch(() => ({})) as SessionPayload & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? `Sarvam session failed (HTTP ${response.status})`);
       if (myToken !== connectTokenRef.current) return;
+      if (!payload.stt?.realtime) {
+        // The realtime agent never falls back to one-shot REST STT/TTS.
+        throw new Error("Sarvam realtime streaming is unavailable for this assistant.");
+      }
       sessionRef.current = payload;
-      const realtimeMode = Boolean(payload.stt.realtime);
 
       // 2. Microphone.
       const mic = await navigator.mediaDevices.getUserMedia({
@@ -1020,28 +898,9 @@ export function useSarvamVoice(options: VoiceClientOptions) {
         },
       });
 
-      if (realtimeMode) {
-        // 4a. Realtime relay capture (partial transcripts + early barge-in).
-        const started = await startRealtimeCapture(mic);
-        if (!started) throw new Error("Could not start the realtime speech stream.");
-      } else {
-        // 4b. Utterance fallback: recorder + mic VAD analyser.
-        const recorder = new MediaRecorder(mic, {
-          mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-            ? "audio/webm;codecs=opus"
-            : "audio/webm",
-        });
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) captureChunksRef.current.push(event.data);
-        };
-        recorderRef.current = recorder;
-
-        const micSource = captureCtxRef.current.createMediaStreamSource(mic);
-        const vadAnalyser = captureCtxRef.current.createAnalyser();
-        vadAnalyser.fftSize = 1024;
-        micSource.connect(vadAnalyser); // analyse-only
-        vadAnalyserRef.current = vadAnalyser;
-      }
+      // 4. Realtime relay capture (partial transcripts + early barge-in).
+      const started = await startRealtimeCapture(mic);
+      if (!started) throw new Error("Could not start the realtime speech stream.");
 
       // 5. Greet.
       // Server-localised welcome (default language) when available.
@@ -1064,12 +923,11 @@ export function useSarvamVoice(options: VoiceClientOptions) {
               status: "done" as const,
             },
           ]);
-          void speakSentence(greeting);
+          speakSentence(greeting);
         }
       }
 
       setStatus("connected");
-      if (!realtimeMode) startVad();
     } catch (err) {
       if (myToken !== connectTokenRef.current) return;
       const message = (err as Error).message;
@@ -1077,7 +935,7 @@ export function useSarvamVoice(options: VoiceClientOptions) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, emitLatencyTelemetry, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startRealtimeCapture, startVad, options.draftMode]);
+  }, [cleanup, emitLatencyTelemetry, markTurn, options.kbId, options.language?.assistant, options.voiceGreeting, pipelineHeaders, speakSentence, startRealtimeCapture, options.draftMode]);
 
   const disconnect = useCallback(() => {
     connectTokenRef.current++;

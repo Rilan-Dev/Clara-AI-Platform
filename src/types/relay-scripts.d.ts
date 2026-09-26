@@ -16,7 +16,7 @@ declare module "*/scripts/sarvam-relay.mjs" {
   /** Map a resolved Saaras STT id to the vendor realtime-WS model id. */
   export function toRealtimeModel(model: string | null | undefined): string;
 
-  /** Normalize a language code for the realtime endpoint (od-IN → or-IN). */
+  /** Normalize a language code for the realtime endpoint (unknown → auto, od-IN → or-IN). */
   export function normalizeRealtimeLanguage(code: string | null | undefined): string;
 
   /**
@@ -26,6 +26,39 @@ declare module "*/scripts/sarvam-relay.mjs" {
   export function translateUpstreamEvent(
     event: Record<string, unknown>,
   ): { type: string; [key: string]: unknown } | null;
+}
+
+declare module "*/scripts/sarvam-wire.mjs" {
+  export const REALTIME_STT_MODELS: string[];
+  export function toRealtimeModel(model: string | null | undefined): string;
+  export function normalizeRealtimeLanguage(code: string | null | undefined): string;
+  export function realtimeVadTuning(input?: {
+    threshold?: number;
+    silenceMs?: number;
+    minSpeechMs?: number;
+  }): { threshold: number; silenceMs: number; minSpeechMs: number };
+  export function buildRealtimeSttUrl(input: {
+    baseUrl?: string | null;
+    languageCode?: string | null;
+    model?: string | null;
+    sampleRate?: number;
+    encoding?: string;
+    vad?: { threshold?: number; silenceMs?: number; minSpeechMs?: number };
+  }): string;
+  export function streamingTtsSampleRate(value: unknown): number;
+  export function streamingTtsPace(value: unknown): number;
+  export function toTtsLanguage(code: string | null | undefined): string;
+  export function buildTtsConfig(input: {
+    speaker?: string | null;
+    languageCode?: string | null;
+    codec?: string;
+    sampleRate?: number;
+    pace?: number;
+    minBufferSize?: number;
+    maxChunkLength?: number;
+  }): { type: "config"; data: Record<string, unknown> };
+  export function audioBytesOf(frame: unknown): number;
+  export function toUpstreamSttFrame(data: unknown, isBinary: boolean): string | null;
 }
 
 declare module "*/scripts/sarvam-tts-relay.mjs" {

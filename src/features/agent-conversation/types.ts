@@ -34,6 +34,8 @@ export type VoiceClientSession = ReturnType<typeof useVoiceClient>;
 export type VoiceAvailability = {
   provider: string;
   voiceProvider?: string;
+  /** Voice Chat (chat window, turn-based STT → chat → TTS) provider. */
+  voiceChatProvider?: string;
   mode?: string;
   voiceEnabled: boolean;
   realtimeEnabled: boolean;

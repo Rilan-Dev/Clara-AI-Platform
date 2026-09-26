@@ -20,7 +20,9 @@
  *          (PCM16 base64)          (saaras:v3-realtime, vad endpointing)
  *
  * Browser→relay frames:  {"event":"audio_input","audio":"<base64 pcm16>"}
- *                        {"event":"config_update", ...}   (forwarded verbatim)
+ *                        {"event":"ping"}
+ *                        (allow-listed — anything else is dropped; the
+ *                        browser can never reconfigure the vendor session)
  * Relay→browser frames:  {"type":"status","value":"connected"|"connecting"|"closed"}
  *                        {"type":"transcript_partial","text":"…"}
  *                        {"type":"transcript_final","text":"…","audioSeconds":n}
@@ -34,6 +36,18 @@
 
 import crypto from "node:crypto";
 import WebSocket from "ws";
+import {
+  audioBytesOf,
+  buildRealtimeSttUrl,
+  holdEarlyBrowserFrames,
+  normalizeRealtimeLanguage,
+  toRealtimeModel,
+  toUpstreamSttFrame,
+} from "./sarvam-wire.mjs";
+
+// Re-exported for the relay wire tests (the helpers live in sarvam-wire.mjs,
+// shared with the TTS relay and the phone stream).
+export { normalizeRealtimeLanguage, toRealtimeModel };
 
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
@@ -85,27 +99,6 @@ function send(ws, obj) {
  *  vendor's event envelope variants). Exported for relay tests. */
 export function transcriptText(event) {
   return String(event.transcript ?? event.text ?? event.partial ?? "");
-}
-
-/** Map a resolved Saaras STT id to the vendor realtime-WS model id.
- *  realtime-init already translates, but the relay is the LAST line of
- *  defense: the vendor rejects anything but 'saaras:v3-realtime' and
- *  'saaras:v4' with a fatal "Invalid model" error on connect. Idempotent.
- *  Validated against docs.sarvam.ai (August 2026 realtime guide): this
- *  endpoint accepts exactly saaras:v3-realtime (default) and saaras:v4. */
-export function toRealtimeModel(model) {
-  const id = String(model ?? "").trim();
-  if (id === "saaras:v4" || id === "saaras:v3-realtime") return id;
-  return "saaras:v3-realtime"; // saaras:v3 (batch) + anything unknown
-}
-
-/** Normalize the language code for THIS endpoint. Validated against the
- *  current docs: 24 codes accepted; Odia's code changed from the legacy
- *  `od-IN` to `or-IN` here, and blank falls back to en-IN. */
-export function normalizeRealtimeLanguage(code) {
-  const id = String(code ?? "").trim();
-  if (id === "od-IN") return "or-IN";
-  return id || "en-IN";
 }
 
 /**
@@ -177,6 +170,8 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
     return;
   }
   const { kbId, orgId } = claims;
+  // Audio sent during the bootstrap round trip is held, not dropped.
+  const early = holdEarlyBrowserFrames(browserWs);
 
   // ── 1. Config + vendor key, resolved server-side (HMAC-guarded call) ──────
   send(browserWs, { type: "status", value: "connecting" });
@@ -204,32 +199,21 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
     return;
   }
 
+  if (early.closed()) return; // browser left during bootstrap — open nothing upstream
+
   // ── 2. Upstream Saaras realtime socket ─────────────────────────────────────
-  // Batch REST ids (saaras:v3) are invalid here — the vendor only accepts
-  // 'saaras:v3-realtime' and 'saaras:v4'. One canonical realtime model id
-  // feeds BOTH the upstream URL and the metering events below.
-  // Wire parameters validated against docs.sarvam.ai (August 2026 realtime
-  // guide): endpoint /speech-to-text-realtime/ws; query params language_code
-  // (required), model, stream_type (fast|balanced|simulated — fast is the
-  // documented choice for conversational agents), encoding linear16,
-  // sample_rate 8000|16000 (else close 4000), endpointing vad, plus the
-  // millisecond VAD trio threshold/silence_duration_ms/min_speech_duration_ms
-  // — all matching the documented defaults below.
+  // Wire contract (endpoint, query params, "auto" language detection,
+  // realtime model ids, platform-configurable VAD) lives in sarvam-wire.mjs.
+  // One canonical realtime model id feeds BOTH the upstream URL and metering.
   const realtimeModel = toRealtimeModel(cfg.sttModel);
-  const model = encodeURIComponent(realtimeModel);
-  const language = encodeURIComponent(normalizeRealtimeLanguage(cfg.languageCode));
   const sampleRate = Number(cfg.sampleRate ?? 16000) === 8000 ? 8000 : 16000;
-  const upstreamUrl =
-    `${cfg.baseUrl}/speech-to-text-realtime/ws` +
-    `?language_code=${language}` +
-    `&model=${model}` +
-    `&stream_type=fast` +
-    `&encoding=linear16` +
-    `&sample_rate=${sampleRate}` +
-    `&endpointing=vad` +
-    `&threshold=0.3` +
-    `&silence_duration_ms=500` +
-    `&min_speech_duration_ms=250`;
+  const upstreamUrl = buildRealtimeSttUrl({
+    baseUrl: cfg.baseUrl,
+    languageCode: cfg.languageCode,
+    model: realtimeModel,
+    sampleRate,
+    vad: cfg.vad ?? {},
+  });
 
   const upstream = new WebSocket(upstreamUrl, {
     headers: { "api-subscription-key": cfg.apiKey },
@@ -361,20 +345,14 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
   });
 
   // ── 3. Browser → upstream audio piping ─────────────────────────────────────
-  browserWs.on("message", (data) => {
+  early.attach((data, isBinary) => {
     trackActivity();
 
-    let frame;
-    try {
-      const text = data.toString();
-      JSON.parse(text); // validate JSON before forwarding
-      frame = text;
-    } catch {
-      // Raw binary PCM frames are also accepted (typed as audio directly).
-      frame = data;
-    }
-
-    state.bytesSent += data.length;
+    // Allow-list: audio_input + ping only (raw binary PCM is wrapped as
+    // audio_input). Metering counts DECODED audio bytes, not base64 JSON.
+    const frame = toUpstreamSttFrame(data, isBinary === true);
+    if (!frame) return;
+    state.bytesSent += audioBytesOf(frame);
     if (state.upstreamReady) {
       try { upstream.send(frame); } catch (_) {}
     } else {

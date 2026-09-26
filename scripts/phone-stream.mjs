@@ -20,6 +20,7 @@
  */
 
 import WebSocket from "ws";
+import { buildRealtimeSttUrl, buildTtsConfig } from "./sarvam-wire.mjs";
 
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
@@ -479,12 +480,16 @@ class SarvamCallBridge {
       const isTwilio = this.transport === "twilio";
       const encoding = isTwilio ? "mulaw" : "linear16";
       const sampleRate = isTwilio ? 8000 : 16000;
-      const base = String(this.cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "");
-      const url =
-        `${base}/speech-to-text-realtime/ws?language_code=${encodeURIComponent(this.cfg.sttLanguage || this.cfg.language)}` +
-        `&model=${encodeURIComponent(this.cfg.sttModel || "saaras:v3-realtime")}` +
-        `&stream_type=fast&mode=transcribe&endpointing=vad&encoding=${encoding}&sample_rate=${sampleRate}` +
-        `&threshold=0.3&silence_duration_ms=500&min_speech_duration_ms=250`;
+      // Shared wire contract: "unknown" → "auto" language detection,
+      // realtime model ids, platform-configurable VAD tuning.
+      const url = buildRealtimeSttUrl({
+        baseUrl: this.cfg.baseUrl,
+        languageCode: this.cfg.sttLanguage || this.cfg.language,
+        model: this.cfg.sttModel,
+        sampleRate,
+        encoding,
+        vad: this.cfg.vad ?? {},
+      });
       const ws = new WebSocket(url, { headers: { "api-subscription-key": this.cfg.apiKey } });
       this.sttWs = ws;
       ws.once("open", () => resolve());
@@ -511,17 +516,17 @@ class SarvamCallBridge {
     const ws = new WebSocket(url, { headers: { "api-subscription-key": this.cfg.apiKey } });
     this.ttsWs = ws;
     ws.on("open", () => {
-      ws.send(JSON.stringify({
-        type: "config",
-        data: {
-          speaker: this.cfg.speaker || "shubh",
-          language_code: this.cfg.language || "en-IN",
-          min_buffer_size: 50,
-          max_chunk_length: 200,
-          output_audio_codec: codec,
-          speech_sample_rate: sampleRate,
-        },
-      }));
+      // Documented config frame (target_language_code — the vendor ignores
+      // language_code and fell back to its default language).
+      ws.send(JSON.stringify(buildTtsConfig({
+        speaker: this.cfg.speaker,
+        languageCode: this.cfg.language,
+        codec,
+        sampleRate,
+        pace: this.cfg.ttsPace,
+        minBufferSize: 50,
+        maxChunkLength: 200,
+      })));
       for (const text of this.ttsQueue.splice(0)) {
         ws.send(JSON.stringify({ type: "text", data: { text } }));
       }

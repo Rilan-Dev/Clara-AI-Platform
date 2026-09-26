@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useVoiceClient } from "@/modules/assistant/core/hooks/useVoiceClient";
 import { useMicVisualizer } from "./use-mic-visualizer";
 import { streamAgentChat } from "../lib/chat-stream";
+import { useVoiceChatSpeech } from "./use-voice-chat-speech";
 import { isGreetingTurn } from "../lib/voice-turns";
 import type { ChatSource, ConversationMessage, VoiceAvailability } from "../types";
 
@@ -179,6 +180,7 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
         const payload = (await res.json().catch(() => ({}))) as {
           provider?: string;
           voiceProvider?: string;
+          voiceChatProvider?: string;
           mode?: string;
           flags?: { voiceEnabled?: boolean; realtimeEnabled?: boolean };
           error?: string;
@@ -187,6 +189,7 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
         setVoiceAvailability({
           provider: payload.provider ?? "unknown",
           voiceProvider: payload.voiceProvider,
+          voiceChatProvider: payload.voiceChatProvider,
           mode: payload.mode,
           voiceEnabled: payload.flags?.voiceEnabled !== false,
           realtimeEnabled: payload.flags?.realtimeEnabled !== false,
@@ -209,9 +212,9 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
 
   // ── Text chat ────────────────────────────────────────────────────────────
   const sendText = useCallback(
-    async (textOverride?: string) => {
+    async (textOverride?: string): Promise<{ id: string; content: string } | null> => {
       const text = (textOverride ?? input).trim();
-      if (!text || thinking || !kbId) return;
+      if (!text || thinking || !kbId) return null;
       const userMessage: ConversationMessage = {
         id: nextId("m"),
         role: "user",
@@ -219,6 +222,7 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
         origin: "text",
       };
       const assistantId = nextId("m");
+      let replyText = "";
       setMessages((prev) => [...prev, userMessage, { id: assistantId, role: "assistant", content: "", origin: "text" }]);
       setInput("");
       setChatError(null);
@@ -252,6 +256,7 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
             );
           },
           onToken: (token) => {
+            replyText += token;
             setMessages((prev) =>
               prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + token } : m)),
             );
@@ -266,9 +271,38 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
         },
       );
       setThinking(false);
+      return { id: assistantId, content: replyText };
     },
     [input, thinking, kbId, messages, chatEndpoint, chatHeaders, chatExtraBody],
   );
+
+  // ── Voice Chat (chat window): dictate → send → speak the reply ─────────
+  // Turn-based STT → chat → TTS on the agent's Voice Chat provider. The
+  // realtime voice agent (streaming WebSockets) is the separate voice stage.
+  const finishDictationRef = useRef<() => void>(() => {});
+  const voiceChat = useVoiceChatSpeech({
+    kbId,
+    provider: voiceAvailability?.voiceChatProvider,
+    enabled: voiceAvailability?.voiceEnabled !== false && !voiceActive,
+    embedApiKey,
+    draftMode,
+    onDictationLimit: () => finishDictationRef.current(),
+  });
+  const { stopDictation, startDictation, speak } = voiceChat;
+
+  const finishDictation = useCallback(async () => {
+    const text = await stopDictation();
+    if (!text) return;
+    const reply = await sendText(text);
+    // Voice in → voice out: speak the reply this dictated turn produced.
+    if (reply?.content.trim()) void speak(reply.id, reply.content);
+  }, [sendText, speak, stopDictation]);
+  useEffect(() => { finishDictationRef.current = () => { void finishDictation(); }; }, [finishDictation]);
+
+  const toggleDictation = useCallback(() => {
+    if (voiceChat.dictation === "recording") void finishDictation();
+    else if (voiceChat.dictation === "idle") void startDictation();
+  }, [finishDictation, startDictation, voiceChat.dictation]);
 
   // ── Message translation (visitor picks a language on a message) ──────────
   // Signed-in surfaces use /api/translate with the platform session; the
@@ -376,6 +410,8 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
     translationLanguages: language
       ? [...new Set([language.assistant, ...(language.customer ?? [])].filter(Boolean))]
       : [],
+    // voice chat (chat window, turn-based)
+    voiceChat: { ...voiceChat, toggleDictation },
     // voice
     voiceSession,
     voiceActive,

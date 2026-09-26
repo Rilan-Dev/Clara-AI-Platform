@@ -105,10 +105,6 @@ export function toSarvamLanguageCode(language: string | null | undefined): strin
   return "en-IN";
 }
 
-/** V5 realtime STT relay capability flag (off until an operator opts in). */
-export function isSarvamRealtimeSttEnabled(): boolean {
-  return (process.env.SARVAM_REALTIME_STT_ENABLED ?? "false").toLowerCase() === "true";
-}
 
 // ─── Hot-path resolution cache ─────────────────────────────────────────────────
 //
@@ -528,7 +524,6 @@ export async function resolveVoiceConfig(
         return pinned ? toSarvamLanguageCode(pinned) : "unknown";
       })(),
       sampleRate: 16_000,
-      realtimeSttEnabled: isSarvamRealtimeSttEnabled(),
     };
   }
 

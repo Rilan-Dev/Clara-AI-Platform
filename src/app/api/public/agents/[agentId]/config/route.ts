@@ -8,6 +8,7 @@ import {
 } from "@/modules/agent-versioning/core/db";
 import { mintPublicSessionToken } from "@/modules/embed/core/public-token";
 import { hit, rateLimitResponse } from "@/lib/rate-limit";
+import { resolveVoiceConfigCached } from "@/modules/voice-core/resolve";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
     const ai = configuration.ai ?? null;
     const runtime = configuration.runtime ?? null;
 
+    // Voice Chat provider (chat-window dictate / listen) — resolved through
+    // the same inheritance as every voice route (agent → org → platform).
+    let voiceChatProvider: string | null = ai?.voiceProvider ?? null;
+    try {
+      voiceChatProvider = (await resolveVoiceConfigCached({ kbId: kb.id, surface: "voice_chat" })).voiceProvider;
+    } catch {
+      // Unresolvable voice config: the chat window simply shows no Voice Chat controls.
+    }
+
     return NextResponse.json(
       {
         agent: { id: agent.id, name: agent.name },
@@ -119,6 +129,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
           enabled: runtime ? runtime.enableVoice !== false : true,
           realtime: runtime ? runtime.enableRealtime !== false : true,
           provider: ai?.realtimeVoiceProvider ?? ai?.voiceProvider ?? null,
+          voiceChatProvider,
         },
         kb: { id: kb.id, name: kb.name },
         sessionToken,

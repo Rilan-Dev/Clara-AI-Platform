@@ -73,10 +73,9 @@ export interface SarvamResolvedConfig {
   realtimeSpeaker: string;
   /** Exact LLM model used by the realtime voice-agent phone path. */
   realtimeLlmModel: string;
-  /** Whether streaming Bulbul WebSocket TTS is enabled. */
+  /** Phone-call streaming TTS switch (SARVAM_REALTIME_TTS_ENABLED). The
+   *  browser realtime agent always streams. */
   realtimeTtsEnabled: boolean;
-  /** True when the realtime STT relay is available (V5 — capability flag). */
-  realtimeSttEnabled: boolean;
 }
 
 /**
@@ -194,9 +193,11 @@ export interface SarvamSessionPayload {
     language: string;
     sampleRate: number;
     maxAudioSeconds: number;
-    /** V5 realtime relay — present when the relay capability is on. */
-    realtime?: {
+    /** Realtime relays — the realtime voice agent always streams. */
+    realtime: {
       endpoint: string;
+      /** Bulbul streaming TTS relay (same session token). */
+      ttsEndpoint: string;
       /** Session-minted HMAC token (?token= on the WS upgrade). */
       token: string;
       sampleRate: number;
