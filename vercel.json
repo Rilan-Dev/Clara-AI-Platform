@@ -106,5 +106,6 @@
       "Vercel-Preview": true,
       "Vercel-Prod": true
     }
-  }
+  },
+  "fluid": true
 }
