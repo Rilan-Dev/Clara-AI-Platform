@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 
-const DemoAssistantFAB = lazy(() => import("@/features/platform/components/DemoAssistantFAB"));
 const DemoVoiceSection = lazy(() => import("@/features/platform/components/DemoVoiceSection"));
 
 /* ── Data ─────────────────────────────────────────────────────────────────── */
@@ -436,7 +435,6 @@ export default function LandingPage() {
 
       {/* ── Demo Assistant FAB ──────────────────────────────────────────── */}
       <Suspense fallback={null}>
-        <DemoAssistantFAB />
       </Suspense>
     </div>
   );
