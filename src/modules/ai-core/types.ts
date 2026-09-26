@@ -81,9 +81,18 @@ export interface LLMProvider {
   getEmbeddingDimension(): number;
 }
 
+/**
+ * Embedding transports. "tei" is the multilingual knowledge index endpoint
+ * (Text Embeddings Inference / OpenAI-compatible) — embeddings only, never a
+ * chat brain, so it is deliberately NOT part of AIProvider.
+ */
+export type EmbeddingProviderId = AIProvider | "tei";
+
 export interface ProviderConfig {
-  provider: AIProvider;
+  provider: EmbeddingProviderId;
   apiKey?: string;
+  /** Endpoint override (multilingual embeddings); defaults to platform settings. */
+  baseUrl?: string;
   chatModel?: string;
   embeddingModel?: string;
   embeddingDimension?: number;

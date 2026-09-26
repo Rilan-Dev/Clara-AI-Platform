@@ -42,6 +42,8 @@ import { query as dbQuery } from "@/lib/db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { embedQueryCached } from "@/modules/rag/query-embedding-cache";
+import { getCollectionEmbedding, resolveSearchEmbedding } from "@/modules/knowledge-bases/core/embedding-index";
+import { scoreThresholdFor } from "@/modules/ai-core/multilingual-embeddings";
 import {
   inferKnowledgeLanguage,
   needsRetrievalTranslation,
@@ -414,6 +416,7 @@ async function searchKbCollection(
   topK: number,
   filter?: Record<string, unknown>,
   providerConfig?: ProviderConfig,
+  scoreThreshold = SCORE_THRESHOLD,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
   const seen = new Set<string>();
@@ -424,7 +427,7 @@ async function searchKbCollection(
       if (!text || !key || seen.has(key)) return [];
       seen.add(key);
       const embedding = await embedQueryCached(providerConfig, text);
-      return searchKbVector(client, collectionName, embedding, topK, filter);
+      return searchKbVector(client, collectionName, embedding, topK, filter, scoreThreshold);
     }),
   );
 
@@ -450,6 +453,7 @@ async function searchKbVector(
   embedding: number[],
   topK: number,
   filter?: Record<string, unknown>,
+  scoreThreshold = SCORE_THRESHOLD,
 ): Promise<SearchHit[]> {
 
   // Fetch a wider candidate pool so a document-scoped filter isn't required
@@ -463,7 +467,7 @@ async function searchKbVector(
     // Only the fields the context builder reads — smaller responses from
     // Qdrant (https://qdrant.tech/documentation/concepts/payload/).
     with_payload: ["chunk", "title", "originalFilename", "documentId"],
-    score_threshold: SCORE_THRESHOLD,
+    score_threshold: scoreThreshold,
     ...(filter ? { filter } : {}),
   };
 
@@ -676,7 +680,12 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const searchText = (request.searchQuery ?? query).trim() || query;
   const knowledgeLanguage = inferKnowledgeLanguage(documentTitles, assistantConfig?.defaultLanguage);
   const early = resolvedSnapshot();
-  const translationPromise: Promise<RetrievalTranslation> = !request.skipTranslation && needsRetrievalTranslation({
+  // A multilingual index (E5) matches questions across languages by itself —
+  // no translation hop on the critical path, like ElevenLabs' multilingual RAG.
+  const indexHint = await getCollectionEmbedding(early?.knowledgeCollection ?? kb.qdrantCollection).catch(() => null);
+  const multilingualIndex =
+    indexHint?.index === "multilingual" && process.env.RAG_TRANSLATE_WITH_MULTILINGUAL_INDEX !== "true";
+  const translationPromise: Promise<RetrievalTranslation> = !request.skipTranslation && !multilingualIndex && needsRetrievalTranslation({
     query,
     kbLanguage: knowledgeLanguage,
     detectedLanguage: visitorLanguage,
@@ -694,9 +703,14 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   const configStarted = Date.now();
   const resolved = await resolvedPromise;
-  const configMs = Date.now() - configStarted;
+  const searchCollection = resolved.knowledgeCollection ?? kb.qdrantCollection;
+  // Embed the question with the model that BUILT this collection (registry),
+  // never just today's setting — a model change must not break search.
   const providerConfig =
-    request.embeddingOverride ?? toProviderConfig(resolved!, "embedding");
+    request.embeddingOverride ??
+    (await resolveSearchEmbedding(searchCollection, toProviderConfig(resolved!, "embedding"), kb.id));
+  const scoreThreshold = scoreThresholdFor(providerConfig.provider, providerConfig.embeddingModel, SCORE_THRESHOLD);
+  const configMs = Date.now() - configStarted;
 
   const runtime = getRagRuntimeConfig({
     requestedMode: (request.ragMode ?? undefined) as string | undefined,
@@ -725,11 +739,12 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
-      resolved.knowledgeCollection ?? kb.qdrantCollection,
+      searchCollection,
       [searchText, translationPromise.then((t) => t.query)],
       topK,
       filter,
       providerConfig,
+      scoreThreshold,
     );
   } catch (searchErr) {
     const msg = (searchErr as Error).message;

@@ -16,8 +16,16 @@ import { randomUUID } from "node:crypto";
 import { getQdrantClient, ensureCollectionExists } from "./vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import type { ProviderConfig } from "@/modules/ai-core/types";
-import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { logUsageEvent } from "@/modules/knowledge-bases/core/analytics-db";
+import {
+  copyCollectionEmbedding,
+  getActiveReindexJob,
+  getCollectionEmbedding,
+  getKbIndexContext,
+  providerConfigFor,
+  resolveWriteEmbedding,
+  type ReindexJob,
+} from "@/modules/knowledge-bases/core/embedding-index";
 
 // Re-use batch config from env
 const EMBED_BATCH_SIZE = (() => {
@@ -84,7 +92,9 @@ function describeProvider(provider: { getProviderName(): string; getModelName(t:
   const host =
     name === "openai"
       ? process.env.OPENAI_BASE_URL?.replace(/\/v\d+\/?$/, "") || "api.openai.com"
-      : "generativelanguage.googleapis.com";
+      : name === "tei"
+        ? process.env.MULTILINGUAL_EMBEDDINGS_BASE_URL?.trim() || "multilingual embeddings endpoint"
+        : "generativelanguage.googleapis.com";
   return `${name}/${model} @ ${host}`;
 }
 
@@ -134,7 +144,7 @@ async function embedBatchWithRetry(
   }
 }
 
-async function embedBatches(
+export async function embedBatches(
   texts: string[],
   providerConfig: ProviderConfig,
   metering?: {
@@ -208,21 +218,18 @@ export async function upsertDocumentsKb(
 ): Promise<void> {
   if (textChunks.length === 0) return;
 
-  const client = getQdrantClient();
-  const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
-  const providerConfig = toProviderConfig(resolved, "embedding");
-  const provider = ProviderFactory.getProvider(providerConfig);
+  // Write with the model that built THIS collection (kb_vector_collections);
+  // a new collection is built with the KB's chosen index.
+  const [{ config: providerConfig, entry }, context] = await Promise.all([
+    resolveWriteEmbedding(meta.kbId, collectionName),
+    getKbIndexContext(meta.kbId),
+  ]);
 
-  await ensureCollectionExists(collectionName, {
-    vectorSize: provider.getEmbeddingDimension(),
-  });
+  await ensureCollectionExists(collectionName, { vectorSize: entry.dimension });
   await ensureDocumentIdIndex(collectionName);
 
-  const embeddings = await embedBatches(textChunks, providerConfig, {
-    orgId: resolved.orgId,
-    kbId: meta.kbId,
-    documentId: meta.documentId,
-  });
+  const metering = { orgId: context?.orgId ?? null, kbId: meta.kbId, documentId: meta.documentId };
+  const embeddings = await embedBatches(textChunks, providerConfig, metering);
   const uploadedAt = new Date().toISOString();
 
   const points = textChunks.map((chunk, index) => ({
@@ -241,6 +248,25 @@ export async function upsertDocumentsKb(
     },
   }));
 
+  await upsertPointBatches(collectionName, points);
+  console.log(`[vs-kb] ✅ upserted ${points.length} points into "${collectionName}"`);
+
+  // A re-index in progress builds the next collection from a snapshot of
+  // this one — write new chunks there too (same point ids) so nothing added
+  // during the re-index is lost at the swap.
+  await dualWrite(meta.kbId, collectionName, async (job) => {
+    const next = await embedBatches(textChunks, providerConfigFor(job), metering);
+    await upsertPointBatches(
+      job.targetCollection,
+      points.map((point, index) => ({ ...point, vector: next[index]! })),
+    );
+  });
+}
+
+type KbPoint = { id: string; vector: number[]; payload: Record<string, unknown> };
+
+async function upsertPointBatches(collectionName: string, points: KbPoint[]): Promise<void> {
+  const client = getQdrantClient();
   const totalBatches = Math.ceil(points.length / UPSERT_BATCH_SIZE);
   for (let i = 0; i < points.length; i += UPSERT_BATCH_SIZE) {
     const batch   = points.slice(i, i + UPSERT_BATCH_SIZE);
@@ -256,8 +282,26 @@ export async function upsertDocumentsKb(
       );
     }
   }
+}
 
-  console.log(`[vs-kb] ✅ upserted ${points.length} points into "${collectionName}"`);
+/**
+ * Mirror a write into the KB's in-progress re-index target. Failures are
+ * logged, never thrown: the live collection is the source of truth and the
+ * re-index job re-copies anything it has not scrolled past yet.
+ */
+async function dualWrite(
+  kbId: string | null | undefined,
+  liveCollection: string,
+  write: (job: ReindexJob) => Promise<void>,
+): Promise<void> {
+  if (!kbId) return;
+  try {
+    const job = await getActiveReindexJob(kbId);
+    if (!job || job.targetCollection === liveCollection || job.sourceCollection !== liveCollection) return;
+    await write(job);
+  } catch (err) {
+    console.warn(`[vs-kb] re-index mirror write failed for kb=${kbId}:`, (err as Error).message);
+  }
 }
 
 /**
@@ -302,6 +346,9 @@ export async function cloneKbCollection(sourceCollection: string, targetCollecti
         ? page.next_page_offset
         : undefined;
   } while (offset != null);
+
+  // The snapshot is a byte copy: queries against it must use the source's model.
+  await copyCollectionEmbedding(sourceCollection, targetCollection);
 }
 
 // ── Per-chunk operations (for Chunk Viewer UI) ──────────────────────────────
@@ -422,6 +469,10 @@ export async function deleteChunk(
 ): Promise<void> {
   const client = getQdrantClient();
   await client.delete(collectionName, { wait: true, points: [pointId] });
+  const kbId = (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
+  await dualWrite(kbId, collectionName, async (job) => {
+    await client.delete(job.targetCollection, { wait: true, points: [pointId] });
+  });
 }
 
 /**
@@ -435,26 +486,26 @@ export async function updateChunk(
   chunkIndex: number,
   meta: KbChunkMeta
 ): Promise<void> {
-  const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
-  const providerConfig = toProviderConfig(resolved, "embedding");
+  const { config: providerConfig } = await resolveWriteEmbedding(meta.kbId, collectionName);
   const embedding = await embedWithRetry(newText, providerConfig);
 
   const client = getQdrantClient();
+  const payload = {
+    kbId:             meta.kbId,
+    documentId:       meta.documentId,
+    title:            meta.title,
+    originalFilename: meta.originalFilename,
+    chunk:            newText,
+    chunkIndex,
+    uploadedAt:       new Date().toISOString(),
+  };
   await client.upsert(collectionName, {
     wait: true,
-    points: [{
-      id:      pointId,
-      vector:  embedding,
-      payload: {
-        kbId:             meta.kbId,
-        documentId:       meta.documentId,
-        title:            meta.title,
-        originalFilename: meta.originalFilename,
-        chunk:            newText,
-        chunkIndex,
-        uploadedAt:       new Date().toISOString(),
-      },
-    }],
+    points: [{ id: pointId, vector: embedding, payload }],
+  });
+  await dualWrite(meta.kbId, collectionName, async (job) => {
+    const next = await embedWithRetry(newText, providerConfigFor(job));
+    await client.upsert(job.targetCollection, { wait: true, points: [{ id: pointId, vector: next, payload }] });
   });
 }
 
@@ -468,28 +519,28 @@ export async function addChunk(
   chunkIndex: number,
   meta: KbChunkMeta
 ): Promise<string> {
-  const resolved = await resolveAIConfig({ kbId: meta.kbId, surface: "rag-embedding" });
-  const providerConfig = toProviderConfig(resolved, "embedding");
+  const { config: providerConfig } = await resolveWriteEmbedding(meta.kbId, collectionName);
   const embedding = await embedWithRetry(text, providerConfig);
 
   const client = getQdrantClient();
   const pointId = randomUUID();
+  const payload = {
+    kbId:             meta.kbId,
+    documentId:       meta.documentId,
+    title:            meta.title,
+    originalFilename: meta.originalFilename,
+    chunk:            text,
+    chunkIndex,
+    uploadedAt:       new Date().toISOString(),
+  };
 
   await client.upsert(collectionName, {
     wait: true,
-    points: [{
-      id:      pointId,
-      vector:  embedding,
-      payload: {
-        kbId:             meta.kbId,
-        documentId:       meta.documentId,
-        title:            meta.title,
-        originalFilename: meta.originalFilename,
-        chunk:            text,
-        chunkIndex,
-        uploadedAt:       new Date().toISOString(),
-      },
-    }],
+    points: [{ id: pointId, vector: embedding, payload }],
+  });
+  await dualWrite(meta.kbId, collectionName, async (job) => {
+    const next = await embedWithRetry(text, providerConfigFor(job));
+    await client.upsert(job.targetCollection, { wait: true, points: [{ id: pointId, vector: next, payload }] });
   });
 
   return pointId;
@@ -506,13 +557,14 @@ export async function deleteDocumentChunks(
   const client = getQdrantClient();
   try {
     await ensureDocumentIdIndex(collectionName);
-    await client.delete(collectionName, {
-      wait: true,
-      filter: {
-        must: [{ key: "documentId", match: { value: documentId } }],
-      },
-    });
+    const filter = { must: [{ key: "documentId", match: { value: documentId } }] };
+    await client.delete(collectionName, { wait: true, filter });
     console.log(`[vs-kb] deleted chunks for documentId="${documentId}" from "${collectionName}"`);
+    const kbId = (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
+    await dualWrite(kbId, collectionName, async (job) => {
+      await ensureDocumentIdIndex(job.targetCollection);
+      await client.delete(job.targetCollection, { wait: true, filter });
+    });
   } catch (err) {
     console.warn(`[vs-kb] could not delete chunks for documentId=${documentId}:`, (err as Error).message);
   }

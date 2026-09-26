@@ -2,6 +2,7 @@ import { LLMProvider, ProviderConfig } from "./types";
 import { OpenAIProvider } from "./providers/openai";
 import { GeminiProvider } from "./providers/gemini";
 import { SarvamProvider } from "./providers/sarvam";
+import { TeiEmbeddingProvider } from "./providers/tei";
 
 export class ProviderFactory {
   private static defaultInstance: LLMProvider | null = null;
@@ -14,6 +15,7 @@ export class ProviderFactory {
       chatModel: config.chatModel ?? null,
       embeddingModel: config.embeddingModel ?? null,
       embeddingDimension: config.embeddingDimension ?? null,
+      baseUrl: config.baseUrl ?? null,
     });
   }
 
@@ -25,6 +27,8 @@ export class ProviderFactory {
         return new GeminiProvider(config);
       case "sarvam":
         return new SarvamProvider(config);
+      case "tei":
+        return new TeiEmbeddingProvider(config);
       default:
         throw new Error(`Unsupported AI provider: ${config.provider}`);
     }

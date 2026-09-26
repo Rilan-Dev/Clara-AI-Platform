@@ -1,5 +1,6 @@
 "use client";
 
+import { KnowledgeIndexPanel } from "@/components/admin/KnowledgeIndexPanel";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -208,6 +209,7 @@ export default function KbDashboardPage() {
 
         {tab === "documents" && (
           <div className="space-y-4">
+            {!isAdmin && <KnowledgeIndexPanel kbId={kbId} />}
             {stuck > 0 && (
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-600/20 bg-amber-500/10 px-5 py-4">
                 <div>
@@ -416,6 +418,7 @@ export default function KbDashboardPage() {
 
       {tab === "documents" && (
         <div className="space-y-4">
+          {!isAdmin && <KnowledgeIndexPanel kbId={kbId} />}
           {stuck > 0 && (
             <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-600/20 bg-amber-500/10 px-5 py-4">
               <div>

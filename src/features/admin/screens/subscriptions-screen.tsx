@@ -37,6 +37,7 @@ type Plan = {
   voice_enabled: boolean;
   api_access: boolean;
   custom_branding: boolean;
+  multilingual_embeddings?: boolean;
   sso_enabled: boolean;
   analytics_level: string;
   priority_support: boolean;
@@ -778,6 +779,8 @@ export default function AdminSubscriptionsScreen() {
             </Button>
           </div>
 
+          <PlanMultilingualCard plans={plans} onChanged={loadData} />
+
           {planError && <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">{planError}</div>}
           {planSuccess && <div className="rounded-lg border border-emerald-600/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600">{planSuccess}</div>}
 
@@ -1118,6 +1121,65 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Multilingual knowledge index per plan (platform admin). Organisations on a
+ * plan with it enabled can re-index their knowledge bases with the
+ * multilingual E5 model once Settings → AI → Multilingual knowledge index is on.
+ */
+function PlanMultilingualCard({ plans, onChanged }: { plans: Plan[]; onChanged: () => void }) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const toggle = async (plan: Plan, enabled: boolean) => {
+    setSaving(plan.id);
+    setError(null);
+    try {
+      const r = await fetch(apiUrl("/api/platform/subscription-plans"), {
+        method: "PATCH",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ action: "multilingual", planId: plan.id, enabled }),
+      });
+      const data = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(data.error ?? "Could not update the plan");
+      onChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(null);
+    }
+  };
+  if (plans.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <p className="text-sm font-semibold text-foreground">Multilingual knowledge index</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Which plans may re-index knowledge bases with the multilingual E5 model (ElevenLabs-grade multilingual retrieval).
+        The platform switch and endpoint live in Settings → AI.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {plans.map((plan) => {
+          const on = Boolean(plan.multilingual_embeddings);
+          return (
+            <label
+              key={plan.id}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={saving === plan.id}
+                onChange={(e) => void toggle(plan, e.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary/20"
+              />
+              {plan.name}
+            </label>
+          );
+        })}
+      </div>
+      {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
     </div>
   );
 }

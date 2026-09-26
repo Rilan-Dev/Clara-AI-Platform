@@ -17,6 +17,7 @@ export async function GET() {
               COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
               COALESCE(pv.api_access, sp.api_access) AS api_access,
               COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+              COALESCE(pv.multilingual_embeddings, sp.multilingual_embeddings) AS multilingual_embeddings,
               COALESCE(pv.sso_enabled, sp.sso_enabled) AS sso_enabled,
               COALESCE(pv.analytics_level, sp.analytics_level) AS analytics_level,
               COALESCE(pv.priority_support, sp.priority_support) AS priority_support,

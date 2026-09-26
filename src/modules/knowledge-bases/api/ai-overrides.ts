@@ -155,8 +155,9 @@ export async function patchKBAIOverridesHandler(
               (dim ? ` (${dim.dimension}-dimensional vectors)` : "") +
               " requires re-embedding this knowledge base — existing vectors were " +
               "built with a different model and retrieval will silently degrade. " +
-              "Use “Save & Reprocess Docs”, or pass allowEmbeddingReprocess=true if " +
-              "you will trigger the re-index workflow separately.",
+              "Save with allowEmbeddingReprocess=true, then use “Update index” in the " +
+              "knowledge base's Knowledge index panel — search keeps using the current " +
+              "model until the new index is complete.",
           },
           { status: 409 },
         );

@@ -162,6 +162,32 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     validation: (v) => { const n = parseFloat(v); return (n >= 0 && n <= 2) ? null : "Must be between 0 and 2"; },
   },
 
+  // ── Multilingual knowledge index (E5, ElevenLabs-grade RAG) ─────────
+  MULTILINGUAL_EMBEDDINGS_ENABLED: {
+    label: "Multilingual knowledge index",
+    hint: "Offer the multilingual index (true/false) to organisations whose plan includes it.",
+    validation: (v) => (v === "" || v === "true" || v === "false" ? null : "Use true or false"),
+  },
+  MULTILINGUAL_EMBEDDINGS_BASE_URL: {
+    label: "Embeddings endpoint",
+    hint: "Text Embeddings Inference or any OpenAI-compatible /v1/embeddings URL. VPS: http://embeddings:80 (docker-compose profile \"multilingual\"). Vercel: a hosted endpoint serving the same model.",
+    validation: (v) => (v === "" || /^https?:\/\//i.test(v) ? null : "Must start with http:// or https://"),
+  },
+  MULTILINGUAL_EMBEDDINGS_API_KEY: {
+    label: "Embeddings API key",
+    hint: "Bearer token for the endpoint. Leave empty for a private self-hosted server.",
+    isSecret: true,
+  },
+  MULTILINGUAL_EMBEDDINGS_MODEL: {
+    label: "Multilingual model",
+    hint: "intfloat/multilingual-e5-large-instruct (1024-d, ~100 languages — ElevenLabs multilingual_e5_large_instruct). Also: intfloat/multilingual-e5-large, BAAI/bge-m3.",
+  },
+  MULTILINGUAL_EMBEDDINGS_DIMENSION: {
+    label: "Vector size (optional)",
+    hint: "Only for a model the platform does not know. Known models set it automatically.",
+    validation: (v) => (v === "" || /^\d+$/.test(v) ? null : "Must be a whole number"),
+  },
+
   // ── Sarvam (Indic brain + voice + language services) ──────────────
   SARVAM_API_KEY: {
     label: "Sarvam API key",
@@ -330,6 +356,8 @@ const CATEGORY_KEYS: Record<Category, string[]> = {
     "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
     "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
+    "MULTILINGUAL_EMBEDDINGS_ENABLED", "MULTILINGUAL_EMBEDDINGS_BASE_URL", "MULTILINGUAL_EMBEDDINGS_API_KEY",
+    "MULTILINGUAL_EMBEDDINGS_MODEL", "MULTILINGUAL_EMBEDDINGS_DIMENSION",
   ],
   phone: [
     "PHONE_PROVIDER",
@@ -851,6 +879,60 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
         </div>
       </SettingsSection>
 
+      {/* ── Multilingual knowledge index ────────────────────────────────── */}
+      <SettingsSection
+        icon={<Languages />}
+        title="Multilingual knowledge index"
+        description="ElevenLabs-grade multilingual retrieval (E5 embeddings). Organisations whose plan includes it can re-index their knowledge bases so questions in any language match documents in any language — no translation step."
+      >
+        <div className="space-y-4">
+          <FeatureToggle
+            icon={<Languages />}
+            label="Offer the multilingual index"
+            description="Only organisations on plans with “Multilingual knowledge index” see it. Existing indexes keep working when you turn this off."
+            checked={display("MULTILINGUAL_EMBEDDINGS_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("MULTILINGUAL_EMBEDDINGS_ENABLED", checked)}
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <TextField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_BASE_URL.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_BASE_URL.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_BASE_URL")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_BASE_URL", value)}
+              placeholder="http://embeddings:80"
+              inputMode="url"
+              mono
+            />
+            <SecretField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_API_KEY.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_API_KEY.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_API_KEY")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_API_KEY", value)}
+              isSet={Boolean(isSet?.("MULTILINGUAL_EMBEDDINGS_API_KEY"))}
+              placeholder="Optional for self-hosted"
+              onClear={() => clearSecret?.("MULTILINGUAL_EMBEDDINGS_API_KEY")}
+            />
+            <TextField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_MODEL.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_MODEL.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_MODEL")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_MODEL", value)}
+              placeholder="intfloat/multilingual-e5-large-instruct"
+              mono
+            />
+            <TextField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_DIMENSION.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_DIMENSION.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_DIMENSION")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_DIMENSION", value)}
+              placeholder="Automatic"
+              inputMode="numeric"
+            />
+          </div>
+          <MultilingualEndpointTest />
+        </div>
+      </SettingsSection>
+
       {/* ── Limits ─────────────────────────────────────────────────────── */}
       <SettingsSection
         icon={<SlidersHorizontal />}
@@ -885,6 +967,55 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
         </div>
       </SettingsSection>
     </>
+  );
+}
+
+/** Checks the SAVED multilingual endpoint: latency, vector size, cross-lingual match. */
+function MultilingualEndpointTest() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [ok, setOk] = useState<boolean | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await fetch(apiUrl("/api/platform/multilingual-embeddings/test"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean; error?: string; model?: string; dimension?: number; latencyMs?: number;
+        crossLingual?: { matchingPassage: number; unrelatedPassage: number; threshold: number };
+      };
+      setOk(Boolean(body.ok));
+      setResult(
+        body.error
+          ? body.error
+          : `${body.model} · ${body.dimension}-d · ${body.latencyMs} ms · English question ↔ Tamil answer ${body.crossLingual?.matchingPassage} vs unrelated ${body.crossLingual?.unrelatedPassage} (evidence cut-off ${body.crossLingual?.threshold})`,
+      );
+    } catch (error) {
+      setOk(false);
+      setResult((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        onClick={run}
+        disabled={busy}
+        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 disabled:opacity-60"
+      >
+        {busy ? "Testing…" : "Test saved endpoint"}
+      </button>
+      {result && (
+        <span role="status" className={ok ? "text-xs text-emerald-600 dark:text-emerald-400" : "text-xs text-destructive"}>
+          {result}
+        </span>
+      )}
+    </div>
   );
 }
 
