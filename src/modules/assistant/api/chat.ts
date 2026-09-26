@@ -25,7 +25,8 @@ import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
-import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { toProviderConfig } from "@/modules/ai-core/resolve";
+import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { SentenceTranslator, translateQueryForRag } from "@/modules/language-core/pipeline";
 import { toTranslateLanguageCode } from "@/modules/language-core/model-catalog";
 import {
@@ -236,7 +237,7 @@ async function postChatKb(
     // scope:"draft" — the authenticated agent preview tests the CURRENT
     // Main-branch draft (persona/models/runtime + LIVE KB collection)
     // instead of the immutable published version.
-    resolveAIConfig({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
+    resolveAIConfigCached({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
     realtimeVoice ? getRealtimeDocumentTitles(kbId) : getKnowledgeBaseDocumentTitles(kbId),
     // (Named dbQuery — `query` below shadows it with the chat question text.)
     dbQuery<{ org_id: string }>(

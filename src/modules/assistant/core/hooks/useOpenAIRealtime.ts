@@ -1,5 +1,6 @@
 "use client";
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { greetingInstruction, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
 import {
@@ -232,10 +233,14 @@ export function useOpenAIRealtime(opts?: Options) {
     (turnLatencyRef.current ?? latencyRef.current)?.mark(stage);
   }, []);
 
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = turnLatencyRef.current?.telemetry() ?? latencyRef.current?.telemetry();
     if (!event) return;
     console.debug("[openai-realtime] latency", event);
+    logVoiceTurnLatency("openai", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -392,6 +397,7 @@ export function useOpenAIRealtime(opts?: Options) {
       });
       const payload = await res.json();
       markTurn("rag.end");
+      serverTimingRef.current = ragTimings(payload?.timings);
       const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
       const ragContext =
         typeof payload?.context === "string" ? payload.context.trim() : "";
@@ -1478,4 +1484,14 @@ export function useOpenAIRealtime(opts?: Options) {
     // AnalyserNode is needed — the visualiser reads from remoteAudioStream.
     outputAnalyserNode: null as AnalyserNode | null,
   } as const;
+}
+
+/** Grounding stage timings from /api/rag/search ({ retrievalMs: 312 } → { retrieval: 312 }). */
+function ragTimings(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object") return null;
+  const out: Record<string, number> = {};
+  for (const [key, ms] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof ms === "number") out[key.replace(/Ms$/, "")] = ms;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }

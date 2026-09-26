@@ -23,6 +23,7 @@
  * browser (the relay holds it server-side). Documents/KBs never leave.
  */
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sarvamSpeechLanguage } from "@/modules/assistant/core/language-policy";
 import type { Source } from "../models";
@@ -203,10 +204,14 @@ export function useSarvamVoice(options: VoiceClientOptions) {
   /** Emit the per-turn latency record (safe: timings only — plan §11).
    *  Prefers the ACTIVE TURN's handle — the record of the turn that just
    *  completed — falling back to the tracker's current record. */
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = turnLatencyRef.current?.telemetry() ?? latencyRef.current?.telemetry();
     if (!event) return;
     console.debug("[sarvam-voice] latency", event);
+    logVoiceTurnLatency("sarvam", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -435,6 +440,8 @@ export function useSarvamVoice(options: VoiceClientOptions) {
             const message = String(event.payload ?? "The realtime assistant could not generate a response.");
             console.error("[sarvam-voice] chat stream error", message);
             throw new Error(message);
+          } else if (event.type === "timing") {
+            serverTimingRef.current = event.payload;
           } else if (event.type === "sources") {
             turnLatency?.mark("rag.end"); // sources arrive post-retrieval
             turn.sources = event.payload as Source[];

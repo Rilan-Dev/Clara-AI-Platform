@@ -180,7 +180,9 @@ export type StreamEvent =
   | { type: "token"; payload: string }
   | { type: "done" }
   | { type: "error"; payload: string }
-  | { type: "quota_warning"; payload: { limitKey: string; used: number; limit: number; pct: number } };
+  | { type: "quota_warning"; payload: { limitKey: string; used: number; limit: number; pct: number } }
+  /** Client-side: the server's Server-Timing stages for this turn (ms). */
+  | { type: "timing"; payload: Record<string, number> };
 
 type StreamEventWithPayload = Extract<StreamEvent, { payload: unknown }>;
 

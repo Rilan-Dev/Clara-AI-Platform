@@ -51,6 +51,7 @@ const getProvider = vi.fn((config: unknown) => { void config; return { chatStrea
 vi.mock("@/modules/ai-core/factory", () => ({ ProviderFactory: { getProvider: (c: unknown) => getProvider(c) } }));
 
 import { POST } from "./route";
+import { clearResolveAIConfigCache } from "@/modules/ai-core/resolve-cache";
 
 const req = (body: unknown) =>
   new NextRequest("http://localhost/api/embed/chat", {
@@ -61,6 +62,7 @@ const req = (body: unknown) =>
 
 describe("embed chat — realtime voice turns", () => {
   beforeEach(() => {
+    clearResolveAIConfigCache();
     order.length = 0;
     groundClaraContext.mockClear();
     chatStream.mockClear();
