@@ -570,6 +570,19 @@ function ShellFrame({ children }: { children: ReactNode }) {
       <DefaultUpdateBanner />
       <main className="p-4 sm:p-6 lg:p-8">{children}</main>
 
+      {agentId && (
+        <DraftPreviewPanel
+          agentId={agentId}
+          open={previewOpen}
+          expanded={previewExpanded}
+          onExpandedChange={setPreviewExpanded}
+          onClose={() => {
+            setPreviewOpen(false);
+            setPreviewExpanded(false);
+          }}
+        />
+      )}
+
       {agentId && orgId && (
         <AgentHistoryDrawer
           agentId={agentId}
