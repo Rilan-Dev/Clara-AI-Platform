@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   //    dangling chunk path and broke the PDF parse fallback in production.
   //  - pdf-parse's embedded pdfjs v1 mis-parses xref tables when webpack
   //    bundles it ("bad XRef entry"); run externally it parses correctly.
-  serverExternalPackages: ["pg", "resend", "pdfjs-dist", "pdf-parse"],
+  serverExternalPackages: ["pg", "resend", "pdfjs-dist", "pdf-parse", "ws", "bufferutil", "utf-8-validate"],
   // The pdfjs worker (and its own ./chunks/* imports) are loaded via
   // runtime-computed paths that file tracing cannot see — include the whole
   // legacy build directory so the standalone output carries them.
