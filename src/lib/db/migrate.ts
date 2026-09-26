@@ -89,27 +89,50 @@ async function runMigrations(): Promise<void> {
  * the DB is authoritative (it was written by an admin or the production seed),
  * so it intentionally overrides process.env here.
  */
-async function loadRuntimeSettings(): Promise<void> {
+async function loadRuntimeSettings(): Promise<boolean> {
   try {
     const result = await pool.query<{ key: string; value: string }>(
       "SELECT key, value FROM platform_env_settings WHERE value IS NOT NULL AND value <> ''",
     );
     for (const row of result.rows) process.env[row.key] = row.value;
+    return true;
   } catch (err) {
     console.warn("[migrate] runtime settings could not be loaded:", (err as Error).message);
+    return false;
   }
 }
 
+/**
+ * Request-path refresh of the DB-backed runtime settings. The provider
+ * registry calls this on every AI resolution, so without a throttle every
+ * voice/chat turn re-read the whole settings table (on a single-connection
+ * serverless pool, in front of every other query). Saving a setting updates
+ * the saving instance immediately (setPlatformEnvSetting); other instances
+ * pick it up within RUNTIME_SETTINGS_REFRESH_MS (default 30 s).
+ */
+const RUNTIME_SETTINGS_REFRESH_MS = (() => {
+  const value = Number(process.env.RUNTIME_SETTINGS_REFRESH_MS);
+  return Number.isFinite(value) && value >= 0 ? value : 30_000;
+})();
+let runtimeSettingsLoadedAt = 0;
+let runtimeSettingsInFlight: Promise<void> | null = null;
+
 export async function runMigrationsOnStartup(): Promise<void> {
   await runMigrations();
-  await loadRuntimeSettings();
+  if (await loadRuntimeSettings()) runtimeSettingsLoadedAt = Date.now();
 }
 
 /** Compatibility name used by the Node instrumentation bootstrap. */
 export async function loadRuntimeSettingsOnStartup(): Promise<void> {
   // Migrations run in the deployment build. Do not acquire an advisory lock
   // from every Vercel cold start; only load the DB-backed runtime settings.
-  await loadRuntimeSettings();
+  if (Date.now() - runtimeSettingsLoadedAt < RUNTIME_SETTINGS_REFRESH_MS) return;
+  if (!runtimeSettingsInFlight) {
+    runtimeSettingsInFlight = loadRuntimeSettings()
+      .then((ok) => { if (ok) runtimeSettingsLoadedAt = Date.now(); })
+      .finally(() => { runtimeSettingsInFlight = null; });
+  }
+  await runtimeSettingsInFlight;
 }
 
 /**

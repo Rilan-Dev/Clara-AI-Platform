@@ -25,6 +25,7 @@
  * stale audio is discarded at enqueue AND play time.
  */
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Source } from "../models";
 import type { VoiceStatus, VoiceTurn } from "../voice/types";
@@ -194,10 +195,14 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
   /** Emit the per-turn latency record (safe: timings only — plan §11).
    *  Prefers the ACTIVE TURN's handle — the record of the turn that just
    *  completed — falling back to the tracker's current record. */
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = turnLatencyRef.current?.telemetry() ?? latencyRef.current?.telemetry();
     if (!event) return;
     console.debug("[elevenlabs-clara] latency", event);
+    logVoiceTurnLatency("elevenlabs", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -357,6 +362,8 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
             const message = String(event.payload ?? "The realtime assistant could not generate a response.");
             console.error("[elevenlabs-clara] chat stream error", message);
             throw new Error(message);
+          } else if (event.type === "timing") {
+            serverTimingRef.current = event.payload;
           } else if (event.type === "sources") {
             turnLatency?.mark("rag.end"); // sources arrive post-retrieval
             turn.sources = event.payload as Source[];

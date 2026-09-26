@@ -1,5 +1,6 @@
 "use client";
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { greetingInstruction, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
 import {
@@ -271,10 +272,14 @@ export function useGeminiLive(opts?: Options) {
   // identically. Additive-only: the realtime flow below is untouched.
   const latencyTelRef        = useRef<GeminiTurnTelemetry | null>(null);
 
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = latencyTelRef.current?.telemetry();
     if (!event) return;
     console.debug("[gemini-live] latency", event);
+    logVoiceTurnLatency("gemini", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -582,6 +587,13 @@ export function useGeminiLive(opts?: Options) {
               });
               if (!res.ok) throw new Error(`RAG search HTTP ${res.status}`);
               const payload = await res.json();
+              serverTimingRef.current = (() => {
+                const raw = (payload as { timings?: Record<string, unknown> } | null)?.timings;
+                if (!raw || typeof raw !== "object") return null;
+                const out: Record<string, number> = {};
+                for (const [key, value] of Object.entries(raw)) if (typeof value === "number") out[key.replace(/Ms$/, "")] = value;
+                return Object.keys(out).length > 0 ? out : null;
+              })();
               latencyTelRef.current?.ragEnd();
               const sources: Source[] = Array.isArray(payload?.sources)
                 ? payload.sources : [];

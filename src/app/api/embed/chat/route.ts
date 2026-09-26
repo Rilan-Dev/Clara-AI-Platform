@@ -9,7 +9,8 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ChatMessage } from "@/modules/ai-core/types";
-import { AIConfigResolutionError, resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { AIConfigResolutionError, toProviderConfig } from "@/modules/ai-core/resolve";
+import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     let resolved;
     try {
-      resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+      resolved = await resolveAIConfigCached({ kbId: ctx.kbId, surface: "chat" });
     } catch (error) {
       if (error instanceof AIConfigResolutionError) {
         console.error("[embed/chat] AI configuration rejected", error);
