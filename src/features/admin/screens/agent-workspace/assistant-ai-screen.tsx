@@ -37,7 +37,6 @@ import type { AssistantConfig } from "@/modules/admin-ui/api";
 import { toast } from "@/components/ui/sonner";
 import { ConfigEditor, type ProviderVoiceCatalog } from "@/components/admin/ConfigEditor";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
-import { DraftPreviewPanel } from "./draft-preview-panel";
 import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
 import { cn } from "@/lib/utils";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -55,8 +54,6 @@ export default function AgentAssistantAIScreen() {
   // Lifted realtime provider selection — drives the ConfigEditor voice list so
   // picking a provider here instantly syncs the voices over there.
   const [realtimeProviderId, setRealtimeProviderId] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewExpanded, setPreviewExpanded] = useState(false);
 
   // ── Draft write safety ────────────────────────────────────────────────────
   // Auto-save fires from several editors on this screen (persona fields + AI
@@ -94,20 +91,6 @@ export default function AgentAssistantAIScreen() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  // The global agent topbar opens the same draft preview surface. Keep the
-  // preview mounted in the workspace so draft changes can be tested without
-  // publishing or creating a second conversation implementation.
-  useEffect(() => {
-    const openPreview = (event: Event) => {
-      const detail = (event as CustomEvent<{ agentId?: string }>).detail;
-      if (detail?.agentId && detail.agentId !== agentId) return;
-      setPreviewExpanded(false);
-      setPreviewOpen(true);
-    };
-    window.addEventListener("clara:open-agent-preview", openPreview);
-    return () => window.removeEventListener("clara:open-agent-preview", openPreview);
-  }, [agentId]);
 
   // The reused ConfigEditor consumes the legacy AssistantConfig shape — fed
   // from the draft's assistant section (voiceGreeting is legacy and unused by
@@ -302,17 +285,6 @@ export default function AgentAssistantAIScreen() {
             </p>
           </div>
         )}
-
-      <DraftPreviewPanel
-        agentId={agentId}
-        open={previewOpen}
-        expanded={previewExpanded}
-        onExpandedChange={setPreviewExpanded}
-        onClose={() => {
-          setPreviewOpen(false);
-          setPreviewExpanded(false);
-        }}
-      />
       </div>
     </div>
   );

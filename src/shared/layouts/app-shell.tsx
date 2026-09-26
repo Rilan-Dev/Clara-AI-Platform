@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { AssistantProvider } from "@/modules/assistant/core";
-import { FloatingAssistant } from "@/modules/assistant/ui/components";
 
 // Public, pre-authentication marketing / auth routes (the "(platform)"
 // route group's landing, marketing and sign-up pages, plus the top-level
@@ -43,7 +42,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/analytics") ||
     pathname.startsWith("/system-status") ||
     pathname.startsWith("/settings");
-  const showFloatingAssistant = !isBareRoute && !isPublicRoute(pathname) && !isPlatformAdminRoute;
   const shellClassName = "w-full min-h-screen min-h-[100dvh] antialiased";
 
   if (isBareRoute) {
@@ -53,7 +51,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AssistantProvider>
       <main className={shellClassName}>{children}</main>
-      {showFloatingAssistant && <FloatingAssistant />}
     </AssistantProvider>
   );
 }
