@@ -152,8 +152,12 @@ export async function createKnowledgeBase(agentId: string, input: CreateKbInput)
   return withTransaction(async (client) => {
     const kbId = randomUUID();
     const kbResult = await client.query<Record<string,unknown>>(
-      `INSERT INTO knowledge_bases (id, agent_id, name, description, qdrant_collection)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      // New knowledge bases start on the organisation's default knowledge
+      // index (standard | multilingual); entitlement is checked at first ingest.
+      `INSERT INTO knowledge_bases (id, agent_id, name, description, qdrant_collection, embedding_index)
+       VALUES ($1,$2,$3,$4,$5, COALESCE((
+         SELECT s.default_embedding_index FROM org_ai_settings s JOIN agents a ON a.org_id = s.org_id WHERE a.id = $2
+       ), 'standard')) RETURNING *`,
       [kbId, agentId, input.name, input.description??null, makeCollectionName(kbId,input.name)]
     );
     return toKb(kbResult.rows[0]!);

@@ -97,6 +97,11 @@ async function startIngestPollerIfEnabled(): Promise<void> {
     if (running) return;
     running = true;
     try {
+      // Knowledge-index re-index jobs advance in the same background loop
+      // (lease-protected, resumable — see modules/knowledge-bases/core/reindex).
+      await import("@/modules/knowledge-bases/core/reindex")
+        .then(({ advanceAllReindexJobs }) => advanceAllReindexJobs(Math.max(intervalMs * 3, 10_000)))
+        .catch((err: unknown) => console.error("[reindex] background advance failed:", (err as Error).message));
       const stats = await runIngestMaintenance(maxJobsPerTick);
       if (stats.processed > 0 || stats.errors > 0 || stats.recoveredJobs > 0) {
         console.log(

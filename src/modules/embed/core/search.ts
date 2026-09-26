@@ -34,6 +34,8 @@ export async function searchKbEmbedded(
      * Searched in parallel with the original; best score per point wins.
      */
     translatedQuery?: Promise<string | null> | string | null;
+    /** Minimum similarity for this collection's embedding model. */
+    scoreThreshold?: number;
   },
 ): Promise<EmbedSearchResult[]> {
   const phrasings = await Promise.all([
@@ -65,7 +67,7 @@ async function searchOnePhrasing(
   collectionName: string,
   query: string,
   topK: number,
-  options?: { providerConfig?: ProviderConfig; filter?: Record<string, unknown>; realtimeVoice?: boolean },
+  options?: { providerConfig?: ProviderConfig; filter?: Record<string, unknown>; realtimeVoice?: boolean; scoreThreshold?: number },
 ): Promise<EmbedSearchResult[]> {
   const client = getQdrantClient();
   const embeddingStart = Date.now();
@@ -84,7 +86,7 @@ async function searchOnePhrasing(
     vector: embedding,
     limit: fetchLimit,
     with_payload: ["chunk", "title", "documentId"],
-    score_threshold: SCORE_THRESHOLD,
+    score_threshold: options?.scoreThreshold ?? SCORE_THRESHOLD,
     ...(options?.filter ? { filter: options.filter } : {}),
   };
 
