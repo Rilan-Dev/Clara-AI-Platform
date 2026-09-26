@@ -285,17 +285,6 @@ export default function AgentAssistantAIScreen() {
             </p>
           </div>
         )}
-
-      <DraftPreviewPanel
-        agentId={agentId}
-        open={previewOpen}
-        expanded={previewExpanded}
-        onExpandedChange={setPreviewExpanded}
-        onClose={() => {
-          setPreviewOpen(false);
-          setPreviewExpanded(false);
-        }}
-      />
       </div>
     </div>
   );
