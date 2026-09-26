@@ -114,7 +114,7 @@ export function ConversationChatWindow({
   // on screen at any moment (the previous behaviour stacked two).
   const streaming = thinking && lastMessage?.role === "assistant";
   const awaitingAssistantBubble = lastMessage?.role === "assistant";
-  const [mode, setMode] = useState<ConversationMode>(publishedMode && voiceAvailable ? "voice" : voiceAvailable ? "voice" : "chat");
+  const [mode, setMode] = useState<ConversationMode>(voiceAvailable ? "voice" : "chat");
 
   useEffect(() => {
     if (!voiceAvailable && !voiceActive) setMode("chat");
@@ -183,19 +183,7 @@ export function ConversationChatWindow({
             </p>
           </div>
 
-          {publishedMode ? (
-            <button
-              type="button"
-              onClick={() => setConversationMode(mode === "voice" ? "chat" : "voice")}
-              disabled={!voiceAvailable || voiceActive}
-              className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold text-foreground transition hover:bg-muted/70 disabled:cursor-default disabled:opacity-70"
-              aria-label={mode === "voice" ? "Switch to chat" : "Switch to voice"}
-            >
-              {mode === "voice" ? <MessageSquare className="h-4 w-4" /> : <Headphones className="h-4 w-4" />}
-              <span>{mode === "voice" ? "Switch to chat" : "Switch to voice"}</span>
-            </button>
-          ) : (
-            <div className="hidden items-center gap-1 rounded-xl bg-muted/40 p-1 sm:flex">
+          <div className="hidden items-center gap-1 rounded-xl bg-muted/40 p-1 sm:flex">
               <button type="button" onClick={() => setConversationMode("voice")} disabled={!voiceAvailable || voiceActive}
                 className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition ${mode === "voice" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"} disabled:cursor-default`}>
                 <Headphones className="h-3.5 w-3.5" /> Voice
@@ -205,7 +193,6 @@ export function ConversationChatWindow({
                 <MessageSquare className="h-3.5 w-3.5" /> Chat
               </button>
             </div>
-          )}
 
           {headerAside}
         </header>
