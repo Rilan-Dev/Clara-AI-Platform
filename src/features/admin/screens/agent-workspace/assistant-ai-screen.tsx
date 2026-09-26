@@ -92,6 +92,20 @@ export default function AgentAssistantAIScreen() {
     void load();
   }, [load]);
 
+  // The global agent topbar opens the same draft preview surface. Keep the
+  // preview mounted in the workspace so draft changes can be tested without
+  // publishing or creating a second conversation implementation.
+  useEffect(() => {
+    const openPreview = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string }>).detail;
+      if (detail?.agentId && detail.agentId !== agentId) return;
+      setPreviewExpanded(false);
+      setPreviewOpen(true);
+    };
+    window.addEventListener("clara:open-agent-preview", openPreview);
+    return () => window.removeEventListener("clara:open-agent-preview", openPreview);
+  }, [agentId]);
+
   // The reused ConfigEditor consumes the legacy AssistantConfig shape — fed
   // from the draft's assistant section (voiceGreeting is legacy and unused by
   // the editor — carried through untouched).
