@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
+import { RuntimeFlagsPanel } from "@/components/admin/RuntimeFlagsPanel";
 
 /**
  * SystemStatusScreen — /system-status (platform admin)
@@ -197,10 +198,12 @@ export function SystemStatusScreen() {
   const [secondsLeft, setSecondsLeft] = useState(REFRESH_INTERVAL_MS / 1000);
   const mounted = useRef(true);
 
-  const fetchStatus = useCallback(async () => {
+  // force: re-run the live AI-provider checks (manual Refresh). Auto-refresh
+  // reuses provider results younger than a minute.
+  const fetchStatus = useCallback(async (force = false) => {
     setRefreshing(true);
     try {
-      const res = await fetch(apiUrl("/api/platform/services-status"), { headers: withAuthHeaders() });
+      const res = await fetch(apiUrl(`/api/platform/services-status${force ? "?force=1" : ""}`), { headers: withAuthHeaders() });
       const payload = await res.json() as StatusPayload & { error?: string };
       if (!res.ok) throw new Error(payload.error ?? "Failed to load status");
       if (mounted.current) {
@@ -280,7 +283,7 @@ export function SystemStatusScreen() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void fetchStatus()}
+              onClick={() => void fetchStatus(true)}
               disabled={refreshing}
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -426,7 +429,7 @@ export function SystemStatusScreen() {
                   {data.services.stripe.priceChecks && Object.entries(data.services.stripe.priceChecks).map(([plan, status]) => (
                     <DetailRow key={plan} label={`${plan} price ID`} value={status} />
                   ))}
-                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground/70">
+                  <p className="mt-2 text-[11px] leading-4 text-muted-foreground/70">
                     This check calls Stripe server-side, so an invalid/revoked secret is detected before checkout.
                   </p>
                 </div>
@@ -453,7 +456,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiOpenai.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiOpenai.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiOpenai.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-destructive/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-all text-destructive/80">
                       {data.services.aiOpenai.error ?? "unreachable"}
                     </p>
                   )}
@@ -470,7 +473,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiGemini.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiGemini.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiGemini.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[10px] leading-4 break-all text-destructive/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-all text-destructive/80">
                       {data.services.aiGemini.error ?? "unreachable"}
                     </p>
                   )}
@@ -512,7 +515,7 @@ export function SystemStatusScreen() {
                     {data.services.queues.queues.map((q) => (
                       <div key={q.name} className="rounded-lg bg-muted/50 px-3 py-2">
                         <p className="font-mono text-[11px] text-muted-foreground">{q.name}</p>
-                        <div className="mt-1 grid grid-cols-4 gap-1 text-center text-[10px]">
+                        <div className="mt-1 grid grid-cols-4 gap-1 text-center text-[11px]">
                           <div><p className="text-muted-foreground/70">waiting</p><p className="font-mono text-muted-foreground">{q.waiting}</p></div>
                           <div><p className="text-muted-foreground/70">active</p><p className="font-mono text-muted-foreground">{q.active}</p></div>
                           <div><p className="text-muted-foreground/70">delayed</p><p className="font-mono text-muted-foreground">{q.delayed}</p></div>
@@ -540,7 +543,9 @@ export function SystemStatusScreen() {
               </ServiceCard>
             </div>
 
-            <p className="pb-4 text-center text-[11px] text-muted-foreground/50">
+            <RuntimeFlagsPanel />
+
+            <p className="pb-4 text-center text-xs text-muted-foreground">
               Status checks run server-side and never expose provider credentials.
               Enabled provider failures create a persistent platform incident and
               notify active super-admins; repeated refreshes do not spam duplicate alerts.

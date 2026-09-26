@@ -57,12 +57,18 @@ export default function OrgSettingsScreen() {
         <h2 className="text-sm font-semibold text-foreground">Where AI settings live now</h2>
         <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground">
           <li>
-            Providers, models and API keys are managed platform-wide in{" "}
-            <Link href="/settings/ai" className="text-primary hover:underline">Settings → AI Platform</Link>.
+            {isAdmin ? (
+              <>
+                Providers, models and API keys are managed platform-wide in{" "}
+                <Link href="/settings/ai" className="text-primary hover:underline">Settings → AI Platform</Link>.
+              </>
+            ) : (
+              <>Providers, models and API keys are managed for you by the Clara platform team.</>
+            )}
           </li>
           <li>
             Each agent’s model and voice choices are configured inside the agent —{" "}
-            Agents → open an agent → Assistant &amp; AI.
+            <Link href={`/orgs/${id}/agents`} className="text-primary hover:underline">Agents</Link> → open an agent → Agent.
           </li>
         </ul>
       </div>
@@ -116,7 +122,7 @@ export default function OrgSettingsScreen() {
       </div>
 
       {isAdmin && (
-        <p className="mt-6 text-xs text-muted-foreground/50 flex items-center gap-2">
+        <p className="mt-6 text-xs text-muted-foreground/80 flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5" />
           Platform-admin view · direct plan changes live on the Billing tab
         </p>

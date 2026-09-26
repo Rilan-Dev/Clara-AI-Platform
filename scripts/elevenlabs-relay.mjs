@@ -19,11 +19,9 @@
  *
  * Vendor wire (validated against elevenlabs.io docs, 2026-09-20):
  *   STT  wss://…/v1/speech-to-text/realtime?model_id=scribe_v2_realtime
- *        client→server  {"user_audio_chunk": "<base64>"} … the SDK sends
- *                       base64 PCM via `input_audio_chunk`; the relay accepts
- *                       both envelope names and forwards verbatim.
- *        server→client session_started · partial_transcript ·
- *                       committed_transcript (stable final) · error events.
+ *        client→server  {"message_type":"input_audio_chunk","audio_base_64":"<base64>","sample_rate":16000}
+ *        server→client {"message_type":"session_started"|"partial_transcript"|
+ *                       "committed_transcript"|...} · error events.
  *        Errors arrive as JSON messages with a `type`/`error` field before
  *        the socket closes.
  *   TTS  wss://…/v1/text-to-speech/{voice_id}/stream-input?model_id=…
@@ -50,8 +48,11 @@ import WebSocket from "ws";
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
 
-const MAX_LIFETIME_MS = 60 * 60 * 1000; // 60 minutes
-const MAX_IDLE_MS = 120 * 1000;         // 120 seconds without any frame
+// Browser realtime sessions are user-owned. ElevenLabs upstream sockets may
+// rotate/reconnect, but they must never terminate the browser session.
+// Explicit End Session owns teardown.
+const RECONNECT_BASE_DELAY_MS = 250;
+const RECONNECT_MAX_DELAY_MS = 5000;
 
 const TOKEN_VERSION = "v1";
 const RELAY_HEADER_PAYLOAD = "elevenlabs-relay-v1";
@@ -104,7 +105,7 @@ export function scribeLanguageCode(language) {
  * committed_transcript (+ _with_timestamps/_entities variants), error types.
  */
 export function translateScribeEvent(event) {
-  const type = String(event.type ?? event.event ?? "");
+  const type = String(event.message_type ?? event.type ?? event.event ?? "");
   const text = String(event.text ?? event.transcript ?? "");
   switch (type) {
     case "session_started":
@@ -119,11 +120,20 @@ export function translateScribeEvent(event) {
       // variants repeat the same committed text — collapse into one frame.
       return { type: "transcript_final", text };
     default: {
-      // Error envelopes: {type:"error",…} or {error:{type,message,…}}.
+      // Current Scribe errors are typed message_type values such as
+      // auth_error, quota_exceeded, rate_limited, input_error, etc. Keep the
+      // browser contract stable and treat all vendor error envelopes as fatal
+      // because Scribe closes the socket after an error.
       const error = event.error && typeof event.error === "object" ? event.error : null;
-      if (type === "error" || error) {
+      const typedError = /(?:^|_)(error|errors|exceeded|limited|throttled|rejected|exhausted)$/.test(type)
+        || type === "error";
+      if (typedError || error || typeof event.error === "string") {
         const message = String(
-          (error && (error.message ?? error.type)) ?? event.message ?? "Scribe realtime error",
+          (error && (error.message ?? error.type)) ??
+          (typeof event.error === "string" ? event.error : null) ??
+          event.message ??
+          type ??
+          "Scribe realtime error",
         );
         return { type: "error", message, fatal: true };
       }
@@ -142,6 +152,21 @@ export function scribeRealtimeUrl(cfg) {
   const params = new URLSearchParams({
     model_id: cfg.sttModel || "scribe_v2_realtime",
     audio_format: "pcm_16000",
+    // Let Scribe own turn detection. A sub-second silence threshold keeps
+    // perceived voice latency low without adding a second client-side VAD.
+    commit_strategy: "vad",
+    vad_silence_threshold_secs: String(
+      Number.isFinite(Number(process.env.ELEVENLABS_REALTIME_VAD_SILENCE_SECS))
+        ? Math.min(3, Math.max(0.3, Number(process.env.ELEVENLABS_REALTIME_VAD_SILENCE_SECS)))
+        : 0.8,
+    ),
+    vad_threshold: String(
+      Number.isFinite(Number(process.env.ELEVENLABS_REALTIME_VAD_THRESHOLD))
+        ? Math.min(0.9, Math.max(0.1, Number(process.env.ELEVENLABS_REALTIME_VAD_THRESHOLD)))
+        : 0.4,
+    ),
+    min_speech_duration_ms: "100",
+    min_silence_duration_ms: "100",
   });
   const language = scribeLanguageCode(cfg.languageCode);
   if (language) params.set("language_code", language);
@@ -159,6 +184,7 @@ export function ttsStreamInputUrl(cfg) {
   const params = new URLSearchParams({
     model_id: cfg.tts?.model || "eleven_flash_v2_5",
     output_format: "pcm_16000",
+    inactivity_timeout: "180",
   });
   return `${base}/v1/text-to-speech/${voiceId}/stream-input?${params.toString()}`;
 }
@@ -209,38 +235,30 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     return;
   }
 
-  const upstream = new WebSocket(scribeRealtimeUrl(cfg), {
-    headers: { "xi-api-key": cfg.apiKey },
-  });
-
-  const state = { closed: false, upstreamReady: false, bytesSent: 0, lastActivityMs: Date.now() };
+  let upstream = null;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  const state = { closed: false, upstreamReady: false, bytesSent: 0 };
   const audioQueue = [];
   const sampleRate = Number(cfg.sampleRate ?? 16_000) || 16_000;
 
-  const lifetimeTimer = setTimeout(() => closeBoth(1000, "Connection lifetime cap reached"), MAX_LIFETIME_MS);
-  const idleTimer = setInterval(() => {
-    if (state.closed) return;
-    if (Date.now() - state.lastActivityMs > MAX_IDLE_MS) {
-      send(browserWs, { type: "error", message: "Connection idle timeout", fatal: true });
-      closeBoth(1000, "Idle timeout");
-    }
-  }, 5_000);
   const keepAliveTimer = setInterval(() => {
-    if (state.closed || !state.upstreamReady) return;
-    // A tiny silent frame keeps Scribe's inactivity monitor fed without
-    // affecting transcripts (digital silence never commits).
+    if (state.closed || !state.upstreamReady || !upstream) return;
     try {
-      upstream.send(JSON.stringify({ user_audio_chunk: Buffer.from(new Int16Array(160)).toString("base64") }));
+      upstream.send(JSON.stringify({
+        message_type: "input_audio_chunk",
+        audio_base_64: Buffer.from(new Int16Array(160)).toString("base64"),
+        sample_rate: 16_000,
+      }));
     } catch {}
   }, 20_000);
 
   function closeBoth(code, reason) {
     if (state.closed) return;
     state.closed = true;
-    clearTimeout(lifetimeTimer);
-    clearInterval(idleTimer);
     clearInterval(keepAliveTimer);
-    try { upstream.close(code, reason); } catch {}
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    try { upstream?.close(code, reason); } catch {}
     try { browserWs.close(code, reason); } catch {}
   }
 
@@ -263,15 +281,22 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     }).catch((e) => console.warn("[elevenlabs-relay] stt metering failed:", e.message));
   }
 
-  upstream.on("open", () => {
-    state.upstreamReady = true;
-    for (const frame of audioQueue.splice(0)) upstream.send(frame);
-    send(browserWs, { type: "status", value: "connected" });
-  });
+  const connectUpstream = () => {
+    if (state.closed || upstream?.readyState === WebSocket.OPEN || upstream?.readyState === WebSocket.CONNECTING) return;
+    const socket = new WebSocket(scribeRealtimeUrl(cfg), {
+      headers: { "xi-api-key": cfg.apiKey },
+    });
+    upstream = socket;
+    socket.on("open", () => {
+      if (state.closed) { try { socket.close(); } catch {} ; return; }
+      reconnectAttempts = 0;
+      state.upstreamReady = true;
+      for (const frame of audioQueue.splice(0)) { try { socket.send(frame); } catch {} }
+      send(browserWs, { type: "status", value: "connected" });
+    });
 
-  upstream.on("message", (data) => {
-    state.lastActivityMs = Date.now();
-    let event;
+    socket.on("message", (data) => {
+      let event;
     try {
       event = JSON.parse(data.toString());
     } catch {
@@ -295,28 +320,39 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     send(browserWs, frame);
   });
 
-  upstream.on("close", (code, reason) => {
-    send(browserWs, { type: "status", value: "closed" });
-    closeBoth(code ?? 1000, reason?.toString?.() ?? "Upstream closed");
-  });
+    socket.on("close", (code, reason) => {
+      if (upstream === socket) upstream = null;
+      state.upstreamReady = false;
+      if (state.closed) return;
+      const delay = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * Math.max(1, ++reconnectAttempts));
+      send(browserWs, { type: "status", value: "reconnecting" });
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connectUpstream, delay);
+    });
 
-  upstream.on("error", (err) => {
-    console.error("[elevenlabs-relay] stt upstream error:", err.message);
-    send(browserWs, { type: "error", message: "Upstream connection error", fatal: true });
-    closeBoth(1011, "Upstream error");
-  });
+    socket.on("error", (err) => {
+      console.error("[elevenlabs-relay] stt upstream error:", err.message);
+      // The close event handles recovery. Preserve the browser session.
+    });
+  };
+
+  connectUpstream();
 
   browserWs.on("message", (data) => {
-    state.lastActivityMs = Date.now();
     let frame = data;
     let bytes = data.length;
     try {
       const parsed = JSON.parse(data.toString());
-      // Accept {"user_audio_chunk": "<base64>"} (SDK shape) and
-      // {"event":"input_audio_chunk","audio":"<base64>"} (raw API shape).
-      const audio = parsed?.user_audio_chunk ?? parsed?.audio;
+      // Normalize the browser frame to the current Scribe realtime wire.
+      // The browser intentionally sends only PCM; the relay owns the vendor
+      // protocol so a vendor envelope change never leaks into the client.
+      const audio = parsed?.audio_base_64 ?? parsed?.audio ?? parsed?.user_audio_chunk;
       if (typeof audio === "string") {
-        frame = JSON.stringify({ user_audio_chunk: audio });
+        frame = JSON.stringify({
+          message_type: "input_audio_chunk",
+          audio_base_64: audio,
+          sample_rate: Number(parsed?.sample_rate ?? 16_000) || 16_000,
+        });
         bytes = Math.floor((audio.length * 3) / 4); // base64 → raw bytes
       } else {
         frame = data.toString();
@@ -371,19 +407,16 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
   let ttsChars = 0; // per-generation character metering (once per generation)
   const pending = [];
   const sampleRate = Number(cfg.tts.sampleRate ?? 16_000) || 16_000;
-  // Bounded reconnect (plan Phase 9 — NO infinite reconnect loops): five
-  // attempts with linear backoff, then a fatal error so the browser can
-  // recover deterministically. A successful reconnect resets the budget.
-  // Mirrors src/modules/voice-core/realtime/reconnect-policy.ts (plain JS —
-  // relay scripts cannot import TS).
+  // Persistent-session reconnect: an upstream TTS socket may rotate or fail
+  // independently of the browser session. Retry with bounded backoff rather
+  // than closing the user's realtime session. A successful reconnect resets
+  // the backoff counter.
   let reconnectAttempts = 0;
-  const MAX_RECONNECT_ATTEMPTS = 5;
   const reconnect = {
     succeeded() { reconnectAttempts = 0; },
     nextDelayMs() {
-      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return null;
       reconnectAttempts += 1;
-      return 250 * reconnectAttempts;
+      return Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * reconnectAttempts);
     },
   };
 
@@ -470,13 +503,9 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
       if (upstream === socket) upstream = null;
       if (!closed) {
         const delay = reconnect.nextDelayMs();
-        if (delay === null) {
-          // Reconnect budget exhausted — surface a FATAL error so the browser
-          // recovers deterministically instead of churning forever.
-          send(browserWs, { type: "error", message: "TTS connection lost after repeated retries", fatal: true });
-          closeBoth(1011, "Reconnect budget exhausted");
-          return;
-        }
+        // Keep the browser WebSocket alive indefinitely; only an explicit
+        // session close should tear it down. The upstream is retried with
+        // bounded backoff until ElevenLabs is reachable again.
         send(browserWs, { type: "status", value: "reconnecting" });
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(openUpstream, delay);

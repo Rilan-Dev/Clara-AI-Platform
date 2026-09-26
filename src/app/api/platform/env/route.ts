@@ -41,7 +41,7 @@ const MANAGED_KEYS = new Set([
   "AI_PROVIDER",
   "OPENAI_API_KEY", "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL", "OPENAI_DEFAULT_VOICE",
   "GEMINI_API_KEY", "GEMINI_CHAT_MODEL", "GEMINI_EMBEDDING_MODEL", "GEMINI_REALTIME_MODEL", "GEMINI_TRANSCRIPTION_MODEL", "GEMINI_DEFAULT_VOICE",
-  "ELEVENLABS_API_KEY", "ELEVENLABS_DEFAULT_TTS_MODEL", "ELEVENLABS_DEFAULT_STT_MODEL", "ELEVENLABS_DEFAULT_VOICE_ID", "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
+  "ELEVENLABS_API_KEY", "ELEVENLABS_DEFAULT_TTS_MODEL", "ELEVENLABS_DEFAULT_STT_MODEL", "ELEVENLABS_DEFAULT_VOICE_ID", "ELEVENLABS_REALTIME_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
   // ElevenLabs Mode B / studio (V4-V6) — secrets + flags
   "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
   "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
@@ -55,8 +55,12 @@ const MANAGED_KEYS = new Set([
   "SARVAM_CHAT_MODEL", "SARVAM_BETA_MODELS_ENABLED",
   "SARVAM_TTS_MODEL", "SARVAM_STT_MODEL", "SARVAM_DEFAULT_SPEAKER",
   "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
-  "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
+  "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
+  "SARVAM_REALTIME_VAD_THRESHOLD", "SARVAM_REALTIME_SILENCE_MS", "SARVAM_REALTIME_MIN_SPEECH_MS", "SARVAM_TTS_PACE",
   "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
+  // Multilingual knowledge index (migration 059)
+  "MULTILINGUAL_EMBEDDINGS_ENABLED", "MULTILINGUAL_EMBEDDINGS_BASE_URL", "MULTILINGUAL_EMBEDDINGS_API_KEY",
+  "MULTILINGUAL_EMBEDDINGS_MODEL", "MULTILINGUAL_EMBEDDINGS_DIMENSION",
   // Phone Configuration
   "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
   "VONAGE_API_KEY", "VONAGE_API_SECRET", "VONAGE_PHONE_NUMBER",
@@ -81,18 +85,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     await requireSuperAdmin(auth);
     const { searchParams } = new URL(req.url);
 
+    // Confirmation tokens used to be minted here with the (possibly secret)
+    // value in the query string, which leaks it into access logs and browser
+    // history. They are now requested with POST { action: "token" }.
     if (searchParams.get("token") === "1") {
-      const key = searchParams.get("key") ?? "";
-      const value = searchParams.get("value") ?? "";
-      if (!MANAGED_KEYS.has(key)) {
-        return NextResponse.json({ error: "Setting is not managed by the platform settings page." }, { status: 403 });
-      }
-      const ts = Date.now();
-      return NextResponse.json({
-        confirmation_token: buildToken(key, value, ts),
-        timestamp: ts,
-        expires_in_ms: TOKEN_TTL_MS,
-      });
+      return NextResponse.json(
+        { error: "Request confirmation tokens with POST { action: \"token\", key, value }." },
+        { status: 405 },
+      );
     }
 
     const settings = await getPlatformEnvSettings();
@@ -125,11 +125,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
     const body = await req.json() as {
+      action?: string;
       key?: string;
       value?: string;
       confirmation_token?: string;
       timestamp?: number;
     };
+
+    // Step 1 of a save: mint a short-lived HMAC confirmation token. The value
+    // travels in the request body, never in the URL.
+    if (body.action === "token") {
+      const key = body.key ?? "";
+      if (!MANAGED_KEYS.has(key)) {
+        return NextResponse.json({ error: "Setting is not managed by the platform settings page." }, { status: 403 });
+      }
+      const ts = Date.now();
+      return NextResponse.json({
+        confirmation_token: buildToken(key, body.value ?? "", ts),
+        timestamp: ts,
+        expires_in_ms: TOKEN_TTL_MS,
+      });
+    }
 
     if (!body.key || body.value === undefined) {
       return NextResponse.json({ error: "key and value are required" }, { status: 400 });
@@ -198,6 +214,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body.key === "RESEND_API_KEY"
     ) {
       resetEmailTransportCache();
+    }
+
+    // Speech Engine is attached by the custom server at boot; retry now so a
+    // freshly saved ID/key/switch takes effect without a restart.
+    if (
+      body.key === "ELEVENLABS_SPEECH_ENGINE_ID" ||
+      body.key === "ELEVENLABS_SPEECH_ENGINE_ENABLED" ||
+      body.key === "ELEVENLABS_API_KEY"
+    ) {
+      const attach = (globalThis as { __claraAttachSpeechEngine?: () => Promise<boolean> }).__claraAttachSpeechEngine;
+      if (attach) void attach().catch(() => undefined);
     }
 
     return NextResponse.json({

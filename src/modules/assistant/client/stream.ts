@@ -95,6 +95,11 @@ export async function streamChatCompletion(
     throw new Error(message);
   }
 
+  // Retrieval stage timings the server put in Server-Timing (rag-*, pre-llm)
+  // — surfaced so voice hooks can log where each turn's time went.
+  const serverTiming = parseServerTiming(response.headers.get("server-timing"));
+  if (serverTiming) onEvent({ type: "timing", payload: serverTiming });
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
@@ -108,22 +113,36 @@ export async function streamChatCompletion(
     buffer = lines.pop() ?? "";
 
     for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const event = JSON.parse(line) as StreamEvent;
-        onEvent(event);
-      } catch {
-        // ignore parse errors for partial lines
-      }
+      const event = parseEvent(line);
+      // Dispatch OUTSIDE the parse guard: an error thrown by the handler
+      // (e.g. a server "error" event) must reach the caller, not be
+      // swallowed as a parse error.
+      if (event) onEvent(event);
     }
   }
 
-  if (buffer.trim()) {
-    try {
-      const event = JSON.parse(buffer) as StreamEvent;
-      onEvent(event);
-    } catch {
-      // ignore trailing parse errors
-    }
+  const trailing = parseEvent(buffer);
+  if (trailing) onEvent(trailing);
+}
+
+function parseEvent(line: string): StreamEvent | null {
+  if (!line.trim()) return null;
+  try {
+    return JSON.parse(line) as StreamEvent;
+  } catch {
+    return null; // partial / malformed line
   }
+}
+
+/** `rag-retrieval;dur=312, pre-llm;dur=640` → { "rag-retrieval": 312, "pre-llm": 640 }. */
+export function parseServerTiming(header: string | null): Record<string, number> | null {
+  if (!header) return null;
+  const out: Record<string, number> = {};
+  for (const part of header.split(",")) {
+    const [name, ...params] = part.trim().split(";");
+    const dur = params.map((p) => p.trim()).find((p) => p.startsWith("dur="));
+    const value = dur ? Number(dur.slice(4)) : NaN;
+    if (name && Number.isFinite(value)) out[name.trim()] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }

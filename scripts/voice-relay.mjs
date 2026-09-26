@@ -118,7 +118,8 @@ async function relayOpenAI(browserWs, cfg, apiKey) {
             },
             transcription: {
               model:    cfg.transcriptionModel,
-              language: cfg.language,
+              // Omitted = auto-detect (multi-language assistants).
+              ...(cfg.language ? { language: cfg.language } : {}),
             },
           },
         },
@@ -208,12 +209,15 @@ async function handleOpenAIEvent(ev, upstream, browserWs, cfg, apiKey) {
       upstream.send(JSON.stringify({ type: "response.create" }));
       break;
 
-    // AI audio chunk → forward to browser as base64
+    // AI audio chunk → forward to browser as base64.
+    // GA names (response.output_*) and beta names are both accepted.
+    case "response.output_audio.delta":
     case "response.audio.delta":
       send(browserWs, { type: "audio", data: ev.delta });
       send(browserWs, { type: "status", value: "speaking" });
       break;
 
+    case "response.output_audio.done":
     case "response.audio.done":
       send(browserWs, { type: "status", value: "listening" });
       break;
@@ -226,10 +230,12 @@ async function handleOpenAIEvent(ev, upstream, browserWs, cfg, apiKey) {
     }
 
     // AI text transcript streaming → forward to browser
+    case "response.output_audio_transcript.delta":
     case "response.audio_transcript.delta":
       send(browserWs, { type: "transcript.ai.delta", responseId: ev.response_id, delta: ev.delta });
       break;
 
+    case "response.output_audio_transcript.done":
     case "response.audio_transcript.done":
       send(browserWs, { type: "transcript.ai.done", responseId: ev.response_id });
       break;

@@ -23,7 +23,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { BookOpen, MessageCircleQuestion, ShieldCheck, Sparkles } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { ConversationChatWindow } from "../components/conversation-chat-window";
@@ -46,10 +46,44 @@ type PublicAgentConfig = {
     strictMode: boolean;
     citeSources: boolean;
   } | null;
-  voice: { enabled: boolean; realtime: boolean; provider: string | null };
+  voice: { enabled: boolean; realtime: boolean; provider: string | null; voiceChatProvider?: string | null };
   kb: { id: string; name: string };
   sessionToken: string;
 };
+
+// Public pages must never expose provider credentials, internal provider errors,
+// stack traces, endpoint details, or other backend implementation messages.
+function getPublicConversationError(error: string | null | undefined): string | null {
+  if (!error?.trim()) return null;
+  const normalized = error.toLowerCase();
+  const sensitiveProviderError =
+    normalized.includes("no configured credentials") ||
+    normalized.includes("configured credentials") ||
+    normalized.includes("api key") ||
+    normalized.includes("apikey") ||
+    normalized.includes("credential") ||
+    normalized.includes("authorization") ||
+    normalized.includes("bearer ") ||
+    normalized.includes("provider") && (normalized.includes("key") || normalized.includes("secret") || normalized.includes("token"));
+
+  if (sensitiveProviderError) {
+    return "This assistant is temporarily unavailable. Please try again later.";
+  }
+
+  if (normalized.includes("expired")) {
+    return "Your session has expired. Please try again.";
+  }
+
+  if (normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("quota")) {
+    return "This assistant is busy right now. Please try again in a moment.";
+  }
+
+  if (normalized.includes("timeout") || normalized.includes("timed out")) {
+    return "The assistant took too long to respond. Please try again.";
+  }
+
+  return "The assistant could not complete that request. Please try again.";
+}
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
@@ -148,6 +182,7 @@ export default function PublishedAgentScreen() {
         ? {
             provider: config.voice.provider ?? "unknown",
             voiceProvider: config.voice.provider ?? undefined,
+            voiceChatProvider: config.voice.voiceChatProvider ?? undefined,
             voiceEnabled: config.voice.enabled,
             realtimeEnabled: config.voice.realtime,
           }
@@ -164,6 +199,8 @@ export default function PublishedAgentScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.chatError]);
+
+  const publicConversationError = getPublicConversationError(conversation.chatError ?? conversation.voiceStartError);
 
   const voiceAvailable = Boolean(kbId) && Boolean(config?.voice.enabled && config?.voice.realtime);
   const voiceUnavailableReason = !kbId
@@ -212,57 +249,18 @@ export default function PublishedAgentScreen() {
   // ── Published experience ─────────────────────────────────────────────────
   return (
     <PublicShell primaryColour={primaryColour} accentColour={accentColour}>
-      <div className="flex min-h-screen flex-col px-3 py-3 sm:px-5 sm:py-5">
-        {/* Immersive public chrome — no workspace/sidebar/navigation. */}
-        <header className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-white/10 bg-white/50 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-black/20 sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-semibold text-white shadow-lg"
-              style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
-            >
-              {config.assistant?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={config.assistant.avatarUrl} alt="" className="h-full w-full object-cover" draggable={false} />
-              ) : (
-                assistantName.trim().charAt(0).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-semibold text-foreground">{assistantName}</h1>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {config.kb.name} · Published v{config.published.versionNumber}
-              </p>
-            </div>
-          </div>
-          <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-600 sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Live
-          </span>
-        </header>
-
-        <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col pt-3 sm:pt-4">
-          <div className="min-h-0 flex-1 overflow-hidden rounded-3xl border border-white/10 bg-white/55 shadow-2xl shadow-black/[0.06] backdrop-blur-xl dark:bg-black/20">
+      <div className="h-dvh w-full overflow-hidden">
+        <main className="h-dvh min-h-0 w-full">
+          <div className="h-full min-h-0 w-full overflow-hidden bg-white/35 backdrop-blur-xl dark:bg-black/10">
             <ConversationChatWindow
               assistantName={assistantName}
               avatarUrl={config.assistant?.avatarUrl ?? null}
               primaryColour={primaryColour}
               accentColour={accentColour}
-              headerBadge={
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Published v{config.published.versionNumber}
-                </span>
-              }
-              headerAside={
-                <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:inline-flex">
-                  <BookOpen className="h-3 w-3" />
-                  {config.kb.name}
-                </span>
-              }
               welcomeMessage={config.assistant?.welcomeMessage ?? ""}
               messages={conversation.messages}
               thinking={conversation.thinking}
-              chatError={conversation.chatError ?? conversation.voiceStartError}
+              chatError={publicConversationError}
               input={conversation.input}
               onInputChange={conversation.setInput}
               onSend={() => void conversation.sendText()}
@@ -276,21 +274,12 @@ export default function PublishedAgentScreen() {
               voiceSession={conversation.voiceSession}
               micLevels={conversation.micLevels}
               onVoiceEnd={conversation.endVoice}
+              translation={conversation.translationLanguages.length > 1 ? { languages: conversation.translationLanguages, translate: conversation.translateMessage } : undefined}
+              voiceChat={config.voice.enabled ? conversation.voiceChat : null}
+              publishedMode
             />
           </div>
         </main>
-
-        {/* Footer — platform credit + privacy note. */}
-        <footer className="mt-8 flex flex-col items-center gap-2 pb-6 text-center">
-          <p className="text-xs text-muted-foreground/80">
-            Powered by{" "}
-            <span className="font-semibold text-muted-foreground">Clara AI</span>
-          </p>
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-            <ShieldCheck className="h-3 w-3" />
-            Answers are grounded in the owner&apos;s published knowledge base.
-          </p>
-        </footer>
       </div>
     </PublicShell>
   );

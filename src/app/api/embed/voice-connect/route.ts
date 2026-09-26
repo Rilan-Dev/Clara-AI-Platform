@@ -4,6 +4,7 @@
  * The browser never receives an OpenAI API key.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, requireVoiceAccess, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
@@ -65,8 +66,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const transcriptionModel =
       voiceResolved.openai?.transcriptionModel ?? null;
     const allowedLanguages = resolved.allowedLanguages;
-    const language = resolved.defaultLanguage;
-    const maxTokens = resolved.maxTokens ?? config.maxTokens ?? 1024;
+    // Recognition language under the language policy (null = auto-detect).
+    const language = speechRecognitionLanguage(policyFromResolvedConfig(resolved)) ?? undefined;
+    // Realtime cap (org / platform), not the chat-length maxTokens.
+    const maxTokens: number | "inf" = resolved.realtimeMaxOutputTokens ?? "inf";
     const apiKey = getProviderApiKey("openai");
 
     if (!model) return NextResponse.json({ error: "No realtime model is configured for this tenant." }, { status: 400, headers: corsHeaders });

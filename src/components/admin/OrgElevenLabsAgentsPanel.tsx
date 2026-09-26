@@ -36,6 +36,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 // ─── Types (API contracts) ───────────────────────────────────────────────────
 
@@ -276,7 +277,13 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
   }
 
   async function deleteBinding(binding: Binding) {
-    if (!window.confirm(`Delete the Conversational AI agent "${binding.configSnapshot.name ?? binding.elevenlabsAgentId}"? The vendor agent is deleted too.`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${binding.configSnapshot.name ?? binding.elevenlabsAgentId}"?`,
+      description: "The Conversational AI agent is deleted here and at ElevenLabs. This cannot be undone.",
+      confirmLabel: "Delete agent",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(apiUrl(`/api/admin/elevenlabs/agents/${encodeURIComponent(binding.id)}?orgId=${encodeURIComponent(orgId)}`), {
         method: "DELETE",
@@ -431,8 +438,8 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     {binding.orgAcknowledgedDataFlow
-                      ? <Badge className="text-[10px]">Disclosure accepted</Badge>
-                      : <Badge variant="destructive" className="text-[10px]">Disclosure required</Badge>}
+                      ? <Badge className="text-[11px]">Disclosure accepted</Badge>
+                      : <Badge variant="destructive" className="text-[11px]">Disclosure required</Badge>}
                     <Switch checked={binding.enabled} onCheckedChange={(v) => void toggleBinding(binding, v)} />
                     <Button variant="ghost" size="sm" onClick={() => { setAckTarget(binding); setAckConfirmed(false); }}>
                       Disclosure
@@ -564,7 +571,7 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
                       {conversation.language ? ` · ${conversation.language}` : ""}
                     </span>
                   </div>
-                  <Badge variant={conversation.status === "failed" ? "destructive" : "secondary"} className="text-[10px]">
+                  <Badge variant={conversation.status === "failed" ? "destructive" : "secondary"} className="text-[11px]">
                     {conversation.status}
                   </Badge>
                 </div>
@@ -586,8 +593,8 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
                   <CopyPlus className="h-4 w-4 text-primary" />
                   <p className="text-sm font-medium text-foreground">Clone a voice</p>
                 </div>
-                {!flags.voiceCloning && <Badge variant="secondary" className="text-[10px]">Flag off</Badge>}
-                {flags.voiceCloning && flags.canUseInstantCloning === false && <Badge variant="secondary" className="text-[10px]">Tier {flags.tier ?? "?"}</Badge>}
+                {!flags.voiceCloning && <Badge variant="secondary" className="text-[11px]">Flag off</Badge>}
+                {flags.voiceCloning && flags.canUseInstantCloning === false && <Badge variant="secondary" className="text-[11px]">Tier {flags.tier ?? "?"}</Badge>}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Instant cloning from reference audio. Requires an explicit, recorded consent attestation.
@@ -616,7 +623,7 @@ export function OrgElevenLabsAgentsPanel({ orgId }: Props) {
                   <Wand2 className="h-4 w-4 text-primary" />
                   <p className="text-sm font-medium text-foreground">Design a voice</p>
                 </div>
-                {!flags.voiceDesign && <Badge variant="secondary" className="text-[10px]">Flag off</Badge>}
+                {!flags.voiceDesign && <Badge variant="secondary" className="text-[11px]">Flag off</Badge>}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Describe a voice in plain language; ElevenLabs generates it.

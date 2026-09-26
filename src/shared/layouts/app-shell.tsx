@@ -16,7 +16,6 @@ const PUBLIC_ROUTE_PREFIXES = [
   "/contact",
   "/terms",
   "/privacy",
-  "/sandbox",
   "/signup",
   "/login",
   "/checkout",
@@ -35,8 +34,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // DEDICATED published-agent preview page. The preview is its own immersive
   // surface — the floating workspace assistant must never stack on top of the
   // agent being previewed.
-  const isBareRoute = pathname.startsWith("/embed/") || pathname.startsWith("/preview/");
-  const showFloatingAssistant = !isBareRoute && !isPublicRoute(pathname);
+  const isBareRoute = pathname.startsWith("/embed/") || pathname.startsWith("/preview/") || pathname.startsWith("/agents/");
+  // The workspace assistant is intentionally an organisation-workspace feature.
+  // It must not stack over public published agents or the platform-admin portal.
+  const isPlatformAdminRoute =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/subscriptions") ||
+    pathname.startsWith("/analytics") ||
+    pathname.startsWith("/system-status") ||
+    pathname.startsWith("/settings");
+  const showFloatingAssistant = !isBareRoute && !isPublicRoute(pathname) && !isPlatformAdminRoute;
   const shellClassName = "w-full min-h-screen min-h-[100dvh] antialiased";
 
   if (isBareRoute) {

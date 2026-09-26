@@ -153,6 +153,7 @@ export async function postElevenLabsToolRagSearch(request: NextRequest): Promise
       topK,
       surface: "voice",
       admission: "audit-only",
+      channel: "voice",
     });
     if (!outcome.ok) {
       if (outcome.status === 404 || outcome.status === 400) {
@@ -178,6 +179,12 @@ export async function postElevenLabsToolRagSearch(request: NextRequest): Promise
         snippet: hit.snippet,
         score: hit.score,
       })),
+      // How to answer this turn (grounded / capability / natural no-evidence
+      // handling in the caller's language) — the same guidance every Clara
+      // voice channel uses, so the vendor agent never falls back to a canned
+      // topic-restriction refusal.
+      guidance: outcome.result.guidance,
+      ...(outcome.result.intent === "capability" ? { scope: outcome.result.context } : {}),
     });
   } catch (error) {
     console.error("[elevenlabs-tool] post:", error);

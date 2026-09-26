@@ -29,6 +29,8 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
   getKnowledgeBaseById: vi.fn(async (kbId: string) =>
     kbId === KB_FIXTURE.id ? { ...KB_FIXTURE } : null,
   ),
+  getAssistantConfigByKb: vi.fn(async () => null),
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -39,6 +41,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/modules/knowledge-bases/core/analytics-db", () => ({
   finalizeQueryEvent: vi.fn(async () => {}),
+  logQueryEvent: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/quota-admission", () => ({
@@ -102,7 +105,12 @@ vi.mock("@/modules/rag/diversify", () => ({
   diversifyByDocument: (results: unknown[]) => results,
 }));
 
-import { groundClaraContext } from "./grounding";
+import { groundClaraContext, resetGroundingCaches } from "./grounding";
+import { clearQueryEmbeddingCache } from "./query-embedding-cache";
+import { clearRetrievalTranslationCache } from "./cross-lingual";
+import { clearKnowledgeTopicsCache } from "./knowledge-topics";
+import { ProviderFactory } from "@/modules/ai-core/factory";
+import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { admitQueryEvent } from "@/lib/quota-admission";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { query as dbQuery } from "@/lib/db";
@@ -112,6 +120,10 @@ const UNIQUE_KB_FACT_QUERY = "What is the deliberately unique KB fact for bindin
 describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGroundingCaches();
+    clearQueryEmbeddingCache();
+    clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
   });
 
   it("returns grounded context with the server-resolved binding", async () => {
@@ -153,11 +165,50 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(archived).toMatchObject({ ok: false, status: 400, error: "Knowledge base is archived" });
   });
 
-  it("admits quota BEFORE any retrieval spend", async () => {
+  it("admits quota on every retrieval turn", async () => {
     await groundClaraContext({ kbId: KB_FIXTURE.id, query: "q", surface: "voice" });
     expect(admitQueryEvent).toHaveBeenCalledWith(
       expect.objectContaining({ orgId: "org-fixture-1", kbId: KB_FIXTURE.id, surface: "voice" }),
     );
+  });
+
+  it("runs quota admission alongside retrieval but answers only once admitted", async () => {
+    let admit!: (value: unknown) => void;
+    (admitQueryEvent as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Promise((resolve) => { admit = resolve; }),
+    );
+    let settled = false;
+    const pending = groundClaraContext({ kbId: KB_FIXTURE.id, query: UNIQUE_KB_FACT_QUERY }).then((outcome) => {
+      settled = true;
+      return outcome;
+    });
+    // Retrieval (query embedding + vector search) has already started while
+    // the admission transaction is pending…
+    await vi.waitFor(() => expect(ProviderFactory.getProvider).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // …but nothing is returned before the turn is admitted.
+    expect(settled).toBe(false);
+    admit({ admitted: true, eventId: "evt-1", warning: null, used: 1, limit: 100 });
+    const outcome = await pending;
+    expect(outcome.ok).toBe(true);
+  });
+
+  it("reuses KB metadata across turns instead of re-reading it every time", async () => {
+    await groundClaraContext({ kbId: KB_FIXTURE.id, query: "first question" });
+    await groundClaraContext({ kbId: KB_FIXTURE.id, query: "second question" });
+    expect(getKnowledgeBaseById).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes cached KB metadata in the background once it is older than the refresh window", async () => {
+    process.env.GROUNDING_METADATA_REFRESH_MS = "0";
+    try {
+      await groundClaraContext({ kbId: KB_FIXTURE.id, query: "first question" });
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      await groundClaraContext({ kbId: KB_FIXTURE.id, query: "second question" });
+      await vi.waitFor(() => expect(getKnowledgeBaseById).toHaveBeenCalledTimes(2));
+    } finally {
+      delete process.env.GROUNDING_METADATA_REFRESH_MS;
+    }
   });
 
   it("surfaces the 402 plan-limit contract when admission is denied", async () => {
@@ -182,11 +233,18 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
 
   it("maps an empty collection to the 503 no-content contract", async () => {
     const { getQdrantClient } = await import("@/modules/admin/core/vector-store");
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+    const missingCollection = {
       search: vi.fn(async () => {
         throw new Error('Qdrant collection "kb_fixture_1" does not exist.');
       }),
-    });
+      scroll: vi.fn(async () => {
+        throw new Error('Qdrant collection "kb_fixture_1" does not exist.');
+      }),
+    };
+    // Used by the KB topic pre-warm and by the vector search.
+    (getQdrantClient as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(missingCollection)
+      .mockReturnValueOnce(missingCollection);
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "q" });
     expect(outcome).toMatchObject({ ok: false, status: 503 });
   });
@@ -195,6 +253,10 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
 describe("groundClaraContext — Task 3.2 identical knowledge binding across providers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGroundingCaches();
+    clearQueryEmbeddingCache();
+    clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
   });
 
   it("resolves an IDENTICAL binding for the five provider turn paths", async () => {
@@ -260,5 +322,101 @@ describe("groundClaraContext — Task 3.2 identical knowledge binding across pro
   it("does not let a different KB masquerade as this tenant's binding", async () => {
     const foreign = await groundClaraContext({ kbId: "kb-other-tenant", query: "q" });
     expect(foreign).toMatchObject({ ok: false, status: 404 });
+  });
+});
+
+describe("groundClaraContext — cross-lingual retrieval", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetGroundingCaches();
+    clearQueryEmbeddingCache();
+    clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
+  });
+
+  it("grounds a Tamil question against an English KB via a translated query", async () => {
+    const tamil = "எனக்கு ஹோம் இன்சூரன்ஸ் பற்றி கொஞ்சம் டீட்டெயில்ல தெரியணும்.";
+    // English text embeds near the English FAQ; the Tamil text does not.
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+      embedText: vi.fn(async (text: string) => [/insurance/i.test(text) ? 1 : 0]),
+      chatStream: async function* () { yield "I want some details about home insurance."; },
+    });
+    const search = vi.fn(async (_collection: string, params: { vector: number[] }) =>
+      params.vector[0] === 1
+        ? [{ id: "faq-home", score: 0.71, payload: { chunk: "Home insurance covers fire and theft.", title: "FAQs (All)", documentId: "doc-faq" } }]
+        : [],
+    );
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search });
+
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: tamil, admission: "audit-only" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.grounded).toBe(true);
+    expect(outcome.result.retrievalQuery).toBe("I want some details about home insurance.");
+    expect(outcome.result.knowledgeLanguage).toBe("en");
+    expect(outcome.result.sources[0]).toMatchObject({ id: "faq-home", score: 0.71 });
+    // Both phrasings were searched.
+    expect(search).toHaveBeenCalledTimes(2);
+    expect(outcome.result.timings?.totalMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("does not translate a question already in the KB language", async () => {
+    const chatStream = vi.fn();
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+      embedText: vi.fn(async () => [1]),
+      chatStream,
+    });
+    const search = vi.fn(async () => []);
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search });
+
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "home insurance details", admission: "audit-only" });
+    expect(outcome.ok && outcome.result.retrievalQuery).toBeNull();
+    expect(chatStream).not.toHaveBeenCalled();
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("groundClaraContext — turn guidance (no canned refusal)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetGroundingCaches();
+    clearQueryEmbeddingCache();
+    clearRetrievalTranslationCache();
+    clearKnowledgeTopicsCache();
+  });
+
+  it("a greeting with no KB hit gets natural-handling guidance, not a restriction", async () => {
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+      embedText: vi.fn(async () => [0]),
+      chatStream: async function* () { yield "Hello"; },
+    });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search: vi.fn(async () => []), scroll: vi.fn(async () => ({ points: [] })) });
+
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "வணக்கம்", admission: "audit-only", channel: "voice" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.grounded).toBe(false);
+    expect(outcome.result.guidance).toMatch(/greeting, thanks, small talk/i);
+    expect(outcome.result.guidance).toMatch(/finish your sentences/);
+    expect(outcome.result.guidance).not.toMatch(/say exactly/i);
+  });
+
+  it("a Tamil capability question returns the KB topics in the guidance", async () => {
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "ஒன்றாலே எனக்கு எப்படி உதவ முடியும்?" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.intent).toBe("capability");
+    expect(outcome.result.guidance).toMatch(/what you can help with/);
+  });
+
+  it("external admission leaves the query event to the caller (no double counting)", async () => {
+    const analytics = await import("@/modules/knowledge-bases/core/analytics-db");
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({ embedText: vi.fn(async () => [1]) });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search: vi.fn(async () => []), scroll: vi.fn(async () => ({ points: [] })) });
+
+    await groundClaraContext({ kbId: KB_FIXTURE.id, query: "home insurance", admission: "external" });
+    expect(admitQueryEvent).not.toHaveBeenCalled();
+    expect(analytics.finalizeQueryEvent).not.toHaveBeenCalled();
+    expect(analytics.logQueryEvent).not.toHaveBeenCalled();
   });
 });

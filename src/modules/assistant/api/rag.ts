@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDocumentById } from "@/modules/admin/core";
 import { searchHybrid } from "@/modules/admin/core/hybrid-search";
-import { groundClaraContext } from "@/modules/rag/grounding";
+import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import { admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 
@@ -24,6 +24,8 @@ type RagPayload = {
   ragMode?: "classic" | "hybrid" | "agentic";
   /** "draft" — authenticated agent preview grounds against the live draft state. */
   scope?: "draft" | "live";
+  /** "voice" adds spoken-reply guidance (finish sentences, offer to continue). */
+  channel?: "voice" | "chat";
 };
 
 export async function postRagSearch(
@@ -47,6 +49,7 @@ export async function postRagSearch(
         topK: body.topK,
         surface: "search",
         admission,
+        ...(body.channel === "voice" || body.channel === "chat" ? { channel: body.channel } : {}),
         embeddingOverride: providerOverride,
         ...(body.scope === "draft" ? { preferDraft: true } : {}),
       });
@@ -61,7 +64,8 @@ export async function postRagSearch(
         );
       }
 
-      return NextResponse.json({
+      const timings = outcome.result.timings;
+      const response = NextResponse.json({
         context: outcome.result.context,
         sources: outcome.result.sources,
         graphSources: outcome.result.graphSources,
@@ -71,8 +75,18 @@ export async function postRagSearch(
         kb: outcome.result.kb,
         scope: outcome.result.scope,
         intent: outcome.result.intent,
+        guidance: outcome.result.guidance,
         responseLanguage: outcome.result.responseLanguage,
+        knowledgeLanguage: outcome.result.knowledgeLanguage,
+        retrievalQuery: outcome.result.retrievalQuery ?? null,
+        latencyMs: outcome.result.latencyMs,
+        ...(timings ? { timings } : {}),
       });
+      // Stage timings in the standard Server-Timing header (visible in the
+      // browser devtools Network → Timing tab).
+      const serverTiming = groundingServerTiming(timings);
+      if (serverTiming) response.headers.set("Server-Timing", serverTiming);
+      return response;
     }
 
     if (body.documentId) {

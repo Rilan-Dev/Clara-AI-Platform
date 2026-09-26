@@ -25,7 +25,7 @@ import {
   toSarvamRealtimeSttModel,
   getPlatformDefaultSarvamRealtimeSttModel,
   getPlatformDefaultSarvamRealtimeLlmModel,
-  isSarvamRealtimeTtsEnabled,
+  getSarvamRealtimeTuning,
 } from "../../model-catalog";
 import { logSttUsage, logTtsUsage } from "../../metering";
 import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
@@ -83,19 +83,25 @@ export async function postSarvamRealtimeInit(request: NextRequest): Promise<Next
     // (saaras:v3 | saaras:v4); the vendor realtime WS only accepts
     // 'saaras:v3-realtime' | 'saaras:v4', so translate here (the relay also
     // maps defensively for older callers) and meter with the same id.
+    const tuning = getSarvamRealtimeTuning();
     return NextResponse.json({
       apiKey,
       baseUrl: getSarvamBaseUrl(),
+      // Platform-configurable endpointing (Settings → AI → Sarvam).
+      vad: tuning.vad,
       sttModel: resolved.sarvam.realtimeSttModel || getPlatformDefaultSarvamRealtimeSttModel() || toSarvamRealtimeSttModel(resolved.sarvam.sttModel),
-      languageCode: resolved.sarvam.language,
+      // Policy-based: "unknown" (auto-detect) for multi-language assistants.
+      languageCode: resolved.sarvam.sttLanguage ?? resolved.sarvam.language,
       sampleRate: resolved.sarvam.sampleRate,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,
       agentId: resolved.brain.agentId,
       tts: {
         model: resolved.sarvam.realtimeTtsModel,
         speaker: resolved.sarvam.realtimeSpeaker,
+        // Starting language — the relay re-configures per reply language.
         language: resolved.sarvam.language,
-        enabled: resolved.sarvam.realtimeTtsEnabled ?? isSarvamRealtimeTtsEnabled(),
+        sampleRate: 24_000,
+        pace: tuning.ttsPace,
       },
       realtime: {
         sttModel: resolved.sarvam.realtimeSttModel || getPlatformDefaultSarvamRealtimeSttModel(),

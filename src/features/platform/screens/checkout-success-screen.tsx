@@ -19,7 +19,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink, MailWarning, RefreshCw } from "lucide-react";
+import { CheckCircle2, ArrowRight, Zap, CreditCard, ExternalLink, MailWarning, RefreshCw } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 const PLAN_FEATURES: Record<string, string[]> = {
   starter: ["3 Knowledge Bases", "50 docs per KB", "1,000 req/day", "Voice AI", "API access"],
@@ -31,6 +32,13 @@ const GATEWAY_LABELS: Record<string, string> = {
   razorpay: "Razorpay",
 };
 
+// Charged amount per plan and gateway — mirrors PLAN_AMOUNTS_CENTS (Stripe)
+// and PLAN_AMOUNTS_INR_PAISE (Razorpay) on the server.
+const PLAN_AMOUNTS: Record<string, { usd: string; inr: string }> = {
+  starter: { usd: "$49.00", inr: "₹4,000.00" },
+  pro:     { usd: "$149.00", inr: "₹12,000.00" },
+};
+
 export default function CheckoutSuccessScreen() {
   const searchParams = useSearchParams();
   const orgId     = searchParams.get("orgId")    ?? "";
@@ -38,6 +46,7 @@ export default function CheckoutSuccessScreen() {
   const gateway   = searchParams.get("gateway")  ?? "stripe";
   const source    = searchParams.get("source")   ?? "";
   const sessionId = searchParams.get("session_id") ?? "";
+  const payRef    = searchParams.get("ref")       ?? "";   // Razorpay payment id
 
   // Verify-email resend (paid signup funnel — the session identifies the
   // user, so no email address is needed here). Non-blocking by design.
@@ -47,10 +56,39 @@ export default function CheckoutSuccessScreen() {
   const [resendError, setResendError] = useState("");
   const isPortal  = source === "portal";
 
+  // Receipt dates — set after mount so server and client markup match.
+  const [todayStr, setTodayStr]     = useState("");
+  const [renewalStr, setRenewalStr] = useState("");
+  useEffect(() => {
+    const now = new Date();
+    const renewal = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    setTodayStr(fmt(now));
+    setRenewalStr(fmt(renewal));
+  }, []);
+
   useEffect(() => {
     if (isPortal || !orgId) return;
     let cancelled = false;
     let attempts = 0;
+
+    // Confirm the payment with Stripe directly instead of waiting for the
+    // webhook: activation then works even if the webhook is misrouted,
+    // delayed or failing. Safe to call more than once.
+    const verifyStripeSession = async (): Promise<void> => {
+      if (gateway !== "stripe" || !sessionId.startsWith("cs_")) return;
+      try {
+        await fetch("/api/subscriptions/checkout/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, orgId }),
+          cache: "no-store",
+        });
+      } catch {
+        // Fall through to status polling — the webhook may still arrive.
+      }
+    };
+
     const checkStatus = async (): Promise<void> => {
       try {
         const res = await fetch(`/api/subscriptions/onboarding-status?orgId=${encodeURIComponent(orgId)}`, {
@@ -72,18 +110,21 @@ export default function CheckoutSuccessScreen() {
         // Stripe can deliver the webhook just after the browser returns from
         // Checkout. Poll briefly so the success screen moves to the active
         // state without making the user manually revisit the page.
-        if (status === "payment_pending" && attempts < 15) {
+        if (status === "payment_pending" && attempts < 20) {
           attempts += 1;
-          window.setTimeout(checkStatus, 1000);
+          // Re-confirm with Stripe every few tries (async payment methods can
+          // settle a little after the redirect), backing off to 3 s.
+          if (attempts % 5 === 0) await verifyStripeSession();
+          window.setTimeout(checkStatus, attempts < 10 ? 1000 : 3000);
         }
       } catch {
         if (!cancelled) setActivationStatus("payment_review");
       }
     };
 
-    void checkStatus();
+    void verifyStripeSession().then(checkStatus);
     return () => { cancelled = true; };
-  }, [isPortal, orgId]);
+  }, [isPortal, orgId, gateway, sessionId]);
 
   async function handleResendVerification() {
     setResending(true);
@@ -114,14 +155,12 @@ export default function CheckoutSuccessScreen() {
 
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2 mb-10">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
-          </div>
+          <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
           <span className="font-bold text-foreground text-lg">Clara AI</span>
         </Link>
 
         {/* Success icon */}
-        <div className="relative inline-flex mb-6">
+        <div className="relative inline-flex mb-6 clara-check-in">
           <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
             <CheckCircle2 className="w-7 h-7 sm:w-10 sm:h-10 text-emerald-600" />
           </div>
@@ -174,31 +213,58 @@ export default function CheckoutSuccessScreen() {
           </div>
         )}
 
-        {/* Payment meta */}
+        {/* Receipt */}
         {!isPortal && (
-          <div className="border border-border bg-card rounded-xl p-4 mb-6 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Gateway</span>
-              <span className="text-foreground flex items-center gap-1">
-                {gateway === "stripe"
-                  ? <CreditCard className="w-3.5 h-3.5 text-primary" />
-                  : <Zap className="w-3.5 h-3.5 text-cyan-600" />}
-                {GATEWAY_LABELS[gateway] ?? gateway}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Plan</span>
-              <span className="text-foreground">{planName}</span>
-            </div>
-            {sessionId && (
+          <div className="border border-border bg-card rounded-xl p-4 mb-6 text-left">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 pb-2 border-b border-border">
+              Receipt
+            </p>
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Session</span>
-                <span className="text-muted-foreground font-mono text-xs truncate max-w-[180px]">{sessionId.slice(0, 28)}…</span>
+                <span className="text-muted-foreground">Plan</span>
+                <span className="text-foreground font-medium">{planName} · monthly</span>
               </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Status</span>
-              <span className={activationStatus === "active" ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>{activationStatus === "checking" ? "Checking…" : activationStatus.replaceAll("_", " ")}</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="text-foreground font-bold">
+                  {PLAN_AMOUNTS[planId]
+                    ? (gateway === "razorpay" ? PLAN_AMOUNTS[planId]!.inr : PLAN_AMOUNTS[planId]!.usd)
+                    : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Gateway</span>
+                <span className="text-foreground flex items-center gap-1">
+                  {gateway === "stripe"
+                    ? <CreditCard className="w-3.5 h-3.5 text-primary" />
+                    : <Zap className="w-3.5 h-3.5 text-cyan-600" />}
+                  {GATEWAY_LABELS[gateway] ?? gateway}
+                </span>
+              </div>
+              {todayStr && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="text-foreground">{todayStr}</span>
+                </div>
+              )}
+              {(sessionId || payRef) && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Transaction ref</span>
+                  <span className="text-muted-foreground font-mono text-xs truncate max-w-[180px]">
+                    {(payRef || sessionId).slice(0, 24)}…
+                  </span>
+                </div>
+              )}
+              {renewalStr && PLAN_AMOUNTS[planId] && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Renews</span>
+                  <span className="text-foreground">{renewalStr}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 mt-1 border-t border-border">
+                <span className="text-muted-foreground">Status</span>
+                <span className={activationStatus === "active" ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>{activationStatus === "checking" ? "Checking…" : activationStatus.replaceAll("_", " ")}</span>
+              </div>
             </div>
           </div>
         )}
@@ -269,7 +335,7 @@ export default function CheckoutSuccessScreen() {
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground/50 mt-6">
+        <p className="text-xs text-muted-foreground/80 mt-6">
           Invoice will be sent to your registered email address.
         </p>
       </div>

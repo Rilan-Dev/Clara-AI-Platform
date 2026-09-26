@@ -7,8 +7,8 @@
  *   checkout.session.completed       → activate subscription after checkout
  *   customer.subscription.updated   → sync plan changes / status changes
  *   customer.subscription.deleted   → mark subscription as canceled
- *   invoice.payment_succeeded        → log paid billing event + email the org
- *                                       owner a receipt (payment_success)
+ *   invoice.paid / invoice.payment_succeeded → log paid billing event + email
+ *                                       the org owner a receipt (payment_success)
  *   invoice.payment_failed           → mark subscription past_due + email the
  *                                       org owner (payment_failed template)
  *
@@ -32,87 +32,15 @@ import { syncPlatformHealthIncidents } from "@/modules/platform-health/core/inci
 import { appUrlFor } from "@/lib/email";
 import { getOrgOwnerEmail, queueNotification } from "@/lib/subscription-notifications";
 import type Stripe from "stripe";
+import {
+  activateFromCheckoutSession,
+  invoiceOrgId,
+  invoiceSubscriptionId,
+  syncSubscription,
+} from "@/lib/stripe-activation";
 
 // Disable default body parsing — Stripe needs raw bytes
 export const config = { api: { bodyParser: false } };
-
-// Helper: upsert org subscription from Stripe subscription object
-async function syncSubscription(
-  subscription: Stripe.Subscription,
-  orgId?: string,
-  paymentConfirmed = false,
-): Promise<void> {
-  const resolvedOrgId = orgId ?? (subscription.metadata?.orgId as string | undefined);
-  if (!resolvedOrgId) {
-    console.warn("[stripe-webhook] syncSubscription: no orgId in metadata", subscription.id);
-    return;
-  }
-
-  const planId      = (subscription.metadata?.planId as string | undefined) ?? "free";
-  const priceId     = subscription.items.data[0]?.price.id ?? null;
-  const status      = mapStripeStatus(subscription.status);
-  const owner = await queryOne<{ email_verified: boolean }>(
-    `SELECT u.email_verified
-       FROM org_members om
-       JOIN users u ON u.id = om.user_id
-       JOIN roles r ON r.id = om.role_id
-      WHERE om.org_id = $1 AND r.name = 'org_admin'
-      LIMIT 1`,
-    [resolvedOrgId],
-  );
-  const paidEvidence = planId === "free" ? true : !!await queryOne<{ id: string }>(
-    `SELECT id FROM billing_events
-       WHERE org_id = $1 AND plan_id = $2 AND status = 'paid'
-         AND event_type IN ('invoice.payment_succeeded','invoice.paid','payment_intent.succeeded')
-       LIMIT 1`,
-    [resolvedOrgId, planId],
-  );
-  // checkout.session.completed is itself a verified Stripe payment signal when
-  // payment_status === "paid". Do not require a billing_events row that is
-  // inserted later in this same handler; doing so creates an ordering race
-  // where payment_status becomes "paid" while status remains "payment_pending".
-  const effectiveStatus = !owner?.email_verified && status === 'active'
-    ? 'pending_email'
-    : (status === 'active' && !(paymentConfirmed || paidEvidence) ? 'payment_pending' : status);
-  const periodStart = new Date(subscription.current_period_start * 1000);
-  const periodEnd   = new Date(subscription.current_period_end   * 1000);
-  const cancelAtEnd = subscription.cancel_at_period_end;
-  const customerId  = typeof subscription.customer === "string"
-    ? subscription.customer
-    : subscription.customer?.id;
-
-  await query(
-    `INSERT INTO org_subscriptions
-       (org_id, plan_id, status, stripe_customer_id, stripe_subscription_id,
-        stripe_price_id, current_period_start, current_period_end,
-        cancel_at_period_end, gateway)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'stripe')
-     ON CONFLICT (org_id) DO UPDATE SET
-       plan_id                = EXCLUDED.plan_id,
-       status                 = EXCLUDED.status,
-       stripe_customer_id     = EXCLUDED.stripe_customer_id,
-       stripe_subscription_id = EXCLUDED.stripe_subscription_id,
-       stripe_price_id        = EXCLUDED.stripe_price_id,
-       current_period_start   = EXCLUDED.current_period_start,
-       current_period_end     = EXCLUDED.current_period_end,
-       cancel_at_period_end   = EXCLUDED.cancel_at_period_end,
-       gateway                = 'stripe',
-       updated_at             = now()`,
-    [
-      resolvedOrgId, planId, effectiveStatus, customerId, subscription.id,
-      priceId, periodStart.toISOString(), periodEnd.toISOString(), cancelAtEnd,
-    ]
-  );
-}
-
-function mapStripeStatus(
-  s: Stripe.Subscription.Status
-): "active" | "trialing" | "past_due" | "canceled" {
-  if (s === "trialing")  return "trialing";
-  if (s === "active")    return "active";
-  if (s === "past_due")  return "past_due";
-  return "canceled";
-}
 
 // ── Payment receipt email ─────────────────────────────────────────────────
 // Shared by invoice.payment_succeeded (first purchase + every renewal).
@@ -161,7 +89,22 @@ async function sendPaymentSuccessEmail(orgId: string, inv: Stripe.Invoice, origi
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  await ensureMigrated();
+  // Keep every pre-dispatch failure observable. Migration/bootstrap failures
+  // previously happened outside the processing try/catch, making a 500 hard
+  // to diagnose from application logs.
+  try {
+    await ensureMigrated();
+  } catch (err) {
+    console.error("[stripe-webhook] database bootstrap failed:", err);
+    await syncPlatformHealthIncidents([{
+      key: "stripe-webhook-bootstrap",
+      serviceName: "Stripe webhook database bootstrap",
+      healthy: false,
+      severity: "critical",
+      message: `Stripe webhook database bootstrap failed: ${sanitizeStripeError(err)}`,
+    }]);
+    return NextResponse.json({ error: "Webhook database unavailable" }, { status: 500 });
+  }
 
   const rawBody  = await req.text();
   const sigHeader = req.headers.get("stripe-signature");
@@ -190,10 +133,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log(`[stripe-webhook] ${event.type} — ${event.id}`);
 
   // ── Idempotency: skip already-processed events ───────────────────────────
-  const existing = await queryOne(
-    "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'stripe'",
-    [event.id]
-  );
+  let existing: unknown;
+  try {
+    existing = await queryOne(
+      "SELECT id FROM billing_events WHERE event_id = $1 AND gateway = 'stripe'",
+      [event.id]
+    );
+  } catch (err) {
+    console.error("[stripe-webhook] idempotency lookup failed:", err);
+    await syncPlatformHealthIncidents([{
+      key: "stripe-webhook-idempotency",
+      serviceName: "Stripe webhook idempotency store",
+      healthy: false,
+      severity: "critical",
+      message: `Stripe webhook idempotency lookup failed: ${sanitizeStripeError(err)}`,
+    }]);
+    return NextResponse.json({ error: "Webhook storage unavailable" }, { status: 500 });
+  }
   if (existing) {
     return NextResponse.json({ received: true, skipped: "duplicate" });
   }
@@ -207,31 +163,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         const session = event.data.object as Stripe.Checkout.Session;
         const orgId   = session.metadata?.orgId;
         const planId  = session.metadata?.planId ?? "free";
-        const subId   = typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id;
 
-        if (orgId && subId) {
-          const stripe = getStripe();
-          const sub    = await stripe.subscriptions.retrieve(subId);
-          if (session.payment_status === 'paid') {
-            await syncSubscription(sub, orgId, true);
-            await query(
-              "UPDATE org_subscriptions SET payment_status = 'paid', payment_verified_at = now(), pending_plan_id = NULL, payment_session_id = $2, activation_review_reason = NULL, updated_at = now() WHERE org_id = $1",
-              [orgId, session.id],
-            );
-          } else {
-            await query(
-              "UPDATE org_subscriptions SET status = 'payment_pending', payment_status = 'pending', payment_session_id = $2, updated_at = now() WHERE org_id = $1",
-              [orgId, session.id],
-            );
-          }
-        }
+        // Same activation the success page runs on return — whichever
+        // arrives first activates the org; the other is a no-op.
+        const result = await activateFromCheckoutSession(getStripe(), session);
+        console.log(`[stripe-webhook] checkout ${session.id} → ${result.outcome}`, orgId ?? "");
 
         await query(
           `INSERT INTO billing_events (org_id, gateway, event_type, event_id, plan_id,
              amount_cents, currency, status, metadata)
-           VALUES ($1,'stripe',$2,$3,$4,$5,'usd','paid',$6)`,
+           VALUES ($1,'stripe',$2,$3,$4,$5,'usd',$7,$6)`,
           [
             orgId ?? "unknown",
             event.type,
@@ -239,6 +180,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             planId,
             session.amount_total ?? 0,
             JSON.stringify({ sessionId: session.id, customerId: session.customer }),
+            // Only a paid session is payment evidence for syncSubscription.
+            result.outcome === "activated" ? "paid" : "pending",
           ]
         );
         break;
@@ -284,13 +227,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
 
       // ── Invoice paid → billing event + owner receipt email ────────────────
+      // Stripe supports both event names; the configured endpoint currently
+      // sends invoice.paid. Treat them identically to prevent event/handler drift.
+      case "invoice.paid":
       case "invoice.payment_succeeded": {
         const inv = event.data.object as Stripe.Invoice;
-        const subId = typeof inv.subscription === "string"
-          ? inv.subscription
-          : (inv.subscription as Stripe.Subscription | null)?.id;
-        const orgId = (inv.subscription_details?.metadata as Record<string, string> | null)?.orgId
-          ?? (inv as unknown as { metadata?: Record<string, string> }).metadata?.orgId;
+        const subId = invoiceSubscriptionId(inv);
+        const orgId = invoiceOrgId(inv);
 
         if (orgId && orgId !== "unknown") {
           await query(

@@ -20,6 +20,7 @@
  */
 
 import WebSocket from "ws";
+import { buildRealtimeSttUrl, buildTtsConfig } from "./sarvam-wire.mjs";
 
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
@@ -360,7 +361,8 @@ class CallBridge {
     }
 
     // AI audio output → send to phone
-    if (type === "response.audio.delta" && ev.delta) {
+    // GA names (response.output_*) and beta names are both accepted.
+    if ((type === "response.output_audio.delta" || type === "response.audio.delta") && ev.delta) {
       this.sendAudioToPhone(Buffer.from(ev.delta, "base64"));
     }
 
@@ -369,7 +371,8 @@ class CallBridge {
       this._asstTurn = { text: "", ts: new Date().toISOString() };
       this.transcript.push({ speaker: "assistant", text: "", ts: this._asstTurn.ts });
     }
-    if ((type === "response.audio_transcript.delta" || type === "response.text.delta") && ev.delta) {
+    if ((type === "response.output_audio_transcript.delta" || type === "response.output_text.delta" ||
+         type === "response.audio_transcript.delta" || type === "response.text.delta") && ev.delta) {
       const turn = this.transcript.findLast?.(t => t.speaker === "assistant") ?? null;
       if (turn) turn.text += ev.delta;
     }
@@ -477,12 +480,16 @@ class SarvamCallBridge {
       const isTwilio = this.transport === "twilio";
       const encoding = isTwilio ? "mulaw" : "linear16";
       const sampleRate = isTwilio ? 8000 : 16000;
-      const base = String(this.cfg.baseUrl || "https://api.sarvam.ai").replace(/\/+$/, "");
-      const url =
-        `${base}/speech-to-text-realtime/ws?language_code=${encodeURIComponent(this.cfg.language)}` +
-        `&model=${encodeURIComponent(this.cfg.sttModel || "saaras:v3-realtime")}` +
-        `&stream_type=fast&mode=transcribe&endpointing=vad&encoding=${encoding}&sample_rate=${sampleRate}` +
-        `&threshold=0.3&silence_duration_ms=500&min_speech_duration_ms=250`;
+      // Shared wire contract: "unknown" → "auto" language detection,
+      // realtime model ids, platform-configurable VAD tuning.
+      const url = buildRealtimeSttUrl({
+        baseUrl: this.cfg.baseUrl,
+        languageCode: this.cfg.sttLanguage || this.cfg.language,
+        model: this.cfg.sttModel,
+        sampleRate,
+        encoding,
+        vad: this.cfg.vad ?? {},
+      });
       const ws = new WebSocket(url, { headers: { "api-subscription-key": this.cfg.apiKey } });
       this.sttWs = ws;
       ws.once("open", () => resolve());
@@ -509,17 +516,17 @@ class SarvamCallBridge {
     const ws = new WebSocket(url, { headers: { "api-subscription-key": this.cfg.apiKey } });
     this.ttsWs = ws;
     ws.on("open", () => {
-      ws.send(JSON.stringify({
-        type: "config",
-        data: {
-          speaker: this.cfg.speaker || "shubh",
-          language_code: this.cfg.language || "en-IN",
-          min_buffer_size: 50,
-          max_chunk_length: 200,
-          output_audio_codec: codec,
-          speech_sample_rate: sampleRate,
-        },
-      }));
+      // Documented config frame (target_language_code — the vendor ignores
+      // language_code and fell back to its default language).
+      ws.send(JSON.stringify(buildTtsConfig({
+        speaker: this.cfg.speaker,
+        languageCode: this.cfg.language,
+        codec,
+        sampleRate,
+        pace: this.cfg.ttsPace,
+        minBufferSize: 50,
+        maxChunkLength: 200,
+      })));
       for (const text of this.ttsQueue.splice(0)) {
         ws.send(JSON.stringify({ type: "text", data: { text } }));
       }
@@ -604,13 +611,16 @@ class SarvamCallBridge {
         model: this.cfg.realtimeLlmModel || "sarvam-105b-conversations",
         stream: true,
         temperature: 0.4,
-        max_tokens: 180,
+        // Tenant reply length (AI Assistant settings); no hardcoded cap.
+        ...(Number(this.cfg.maxTokens) > 0 ? { max_tokens: Number(this.cfg.maxTokens) } : {}),
         reasoning_effort: null,
         messages: [
           {
             role: "system",
             content:
-              `You are Clara on a live phone call. Answer naturally and concisely in the caller's language. Never use markdown. Keep the response under three short sentences.\n\nKnowledge base context:\n${context || "(no matching KB context)"}`,
+              `${this.cfg.systemPrompt ? `${this.cfg.systemPrompt}\n\n` : ""}` +
+              `You are on a live phone call. Answer naturally in the caller's language. Never use markdown.\n\n` +
+              `Knowledge base context:\n${context || "(no matching KB context)"}`,
           },
           { role: "user", content: query },
         ],

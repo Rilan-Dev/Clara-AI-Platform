@@ -26,6 +26,7 @@ import { withAuthHeaders } from "@/lib/client-auth";
 import {
   CATEGORY_LABELS, VARIABLE_CATEGORY_ORDER, formatDate, type ManagedVariable,
 } from "./shared";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Props = {
   open: boolean;
@@ -156,11 +157,13 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
       const data = await res.json() as { ok?: boolean; error?: string; usedIn?: string[] };
       if (!res.ok) {
         if (res.status === 409 && data.usedIn?.length) {
-          const proceed = window.confirm(
-            `{{${name}}} is still used by ${data.usedIn.length} template(s):\n\n` +
-            data.usedIn.join("\n") +
-            "\n\nDelete anyway? Those placeholders will show up literally in sent emails until removed.",
-          );
+          const proceed = await confirmAction({
+            title: `{{${name}}} is still used by ${data.usedIn.length} template(s)`,
+            description:
+              `Used in: ${data.usedIn.join(", ")}. If you delete it, those placeholders appear literally in sent emails until removed.`,
+            confirmLabel: "Delete anyway",
+            destructive: true,
+          });
           if (proceed) {
             setBusy(false);
             await deleteVariable(name, true);
@@ -214,7 +217,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search variables…"
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/80 focus:outline-none"
             />
           </div>
           <Button
@@ -238,7 +241,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                     value={draft.name}
                     onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.replace(/[^a-zA-Z0-9_]/g, "") }))}
                     placeholder="supportEmail"
-                    className="w-full bg-transparent px-1 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                    className="w-full bg-transparent px-1 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/80 focus:outline-none"
                   />
                   <span className="font-mono text-xs text-muted-foreground/70">{"}}"}</span>
                 </div>
@@ -266,7 +269,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                 value={draft.value}
                 onChange={(e) => setDraft((d) => ({ ...d, value: e.target.value }))}
                 placeholder="support@yourcompany.com"
-                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none"
               />
             </label>
             <label className="block">
@@ -275,7 +278,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                 value={draft.description}
                 onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
                 placeholder="Shown in the variable picker to explain what this holds"
-                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none"
               />
             </label>
             <div className="flex items-center justify-end gap-2">
@@ -304,7 +307,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
           <div className="space-y-4">
             {[...grouped.entries()].map(([cat, items]) => (
               <div key={cat}>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   {CATEGORY_LABELS[cat] ?? cat}
                   <span className="ml-1.5 font-normal normal-case text-muted-foreground/70">({items.length})</span>
                 </p>
@@ -318,7 +321,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                             <div className="flex items-center justify-between">
                               <span className="font-mono text-xs text-primary">{`{{${v.name}}}`}</span>
                               {v.isSystem && (
-                                <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                                   <Lock className="h-3 w-3" /> system — value comes from the platform
                                 </span>
                               )}
@@ -381,7 +384,7 @@ export function VariablesManagerDialog({ open, onClose, onChanged }: Props) {
                                 : `${v.description || "Custom variable"} — “${v.value}”`}
                             </span>
                             <span
-                              className={`shrink-0 text-[10px] ${v.usedIn.length ? "text-muted-foreground" : "text-muted-foreground/70"}`}
+                              className={`shrink-0 text-[11px] ${v.usedIn.length ? "text-muted-foreground" : "text-muted-foreground/70"}`}
                               title={v.usedIn.join(", ") || "Not referenced by any template"}
                             >
                               {v.usedIn.length

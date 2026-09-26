@@ -23,6 +23,7 @@
  *   - Max call duration enforced server-side
  */
 import WebSocket from "ws";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import {
   getAssistantConfigByKb,
   getKnowledgeBaseById,
@@ -40,6 +41,7 @@ import {
   pcm16ToMulaw, mulawToPcm16, resample8To24kHz, resample24To8kHz,
 } from "../providers/twilio";
 import { resample16To24kHz, resample24To16kHz } from "../providers/vonage";
+import { isAssistantAudioDelta, isAssistantTranscriptDelta } from "@/modules/assistant/core/realtime-events";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? `http://127.0.0.1:${process.env.PORT ?? 3000}`;
 
@@ -109,7 +111,12 @@ export class CallHandler {
     const model              = resolved.realtimeModel ?? process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-mini";
     const voice              = resolved.voiceId ?? assistantConfig.voiceId ?? "alloy";
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
-    const language           = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
+    // Recognition language under the language policy (undefined = auto-detect).
+    const language           = speechRecognitionLanguage(policyFromResolvedConfig({
+      defaultLanguage: assistantConfig.defaultLanguage,
+      allowedLanguages: resolved.allowedLanguages ?? assistantConfig.allowedLanguages,
+      assistantConfig: { alwaysRespondIn: assistantConfig.alwaysRespondIn },
+    })) ?? undefined;
     const apiKey             = process.env.OPENAI_API_KEY!;
 
     // ── 3. Create OpenAI Realtime session + connect WebSocket ─────────────────
@@ -117,7 +124,8 @@ export class CallHandler {
       model,
       voice,
       instructions,
-      maxOutputTokens: resolved.maxTokens ?? 500,
+      // Spoken audio counts against this; a fixed 500 cut phone answers off.
+      maxOutputTokens: resolved.realtimeMaxOutputTokens ?? "inf",
       turnDetection: {
         type: "server_vad",
         threshold: 0.5,
@@ -261,13 +269,13 @@ export class CallHandler {
     }
 
     // AI audio → forward to phone
-    if (type === "response.audio.delta") {
+    if (isAssistantAudioDelta(type)) {
       const b64 = typeof msg.delta === "string" ? msg.delta : "";
       if (b64) this.forwardAudioToPhone(Buffer.from(b64, "base64"));
     }
 
     // AI text transcript — append to log
-    if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
+    if (isAssistantTranscriptDelta(type)) {
       const d = typeof msg.delta === "string" ? msg.delta : "";
       if (d && this.activeTurnId) {
         const turn = this.transcript.find(t => t.speaker === "assistant" && t.ts === this.activeTurnId);

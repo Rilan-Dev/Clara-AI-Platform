@@ -14,6 +14,8 @@
  * Engine is not configured.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { localizeText } from "@/modules/rag/cross-lingual";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import {
   validateEmbedRequest,
   requireVoiceAccess,
@@ -35,7 +37,7 @@ import {
 import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
 import {
-  resolveVoiceConfig,
+  resolveVoiceConfigCached,
   VoiceConfigResolutionError,
 } from "@/modules/voice-core/resolve";
 const GEMINI_INPUT_SAMPLE_RATE = 16_000;
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "embed" });
-    const voiceResolution = await resolveVoiceConfig({
+    const voiceResolution = await resolveVoiceConfigCached({
       kbId: ctx.kbId,
       surface: "embed",
       brainConfig: resolved,
@@ -88,6 +90,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? requestedLanguage
         : null;
     const autoDetectLanguage = sessionBody.autoDetectLanguage === true;
+    // Voices that speak the welcome verbatim (ElevenLabs, Sarvam) start in
+    // the assistant's DEFAULT language: localise it when needed (cached).
+    const localizedGreeting = async (): Promise<string | undefined> => {
+      const welcome = effectiveConfig.welcomeMessage?.trim();
+      if (!welcome) return undefined;
+      return localizeText(
+        welcome,
+        effectiveConfig.alwaysRespondIn?.trim() || resolved.defaultLanguage || "en",
+      );
+    };
     const effectiveResponseLanguage =
       effectiveConfig.alwaysRespondIn?.trim().toLowerCase() ??
       requestedLanguageAllowed ??
@@ -102,6 +114,48 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // capability descriptors — no keys ever cross this response.
     if (voiceResolution.realtimeProvider === "elevenlabs" && voiceResolution.elevenlabs) {
       const el = voiceResolution.elevenlabs;
+
+      // An explicit Realtime Voice provider selection means the user chose
+      // Clara's realtime voice-agent architecture: Scribe v2 Realtime →
+      // Clara Qdrant/LLM → ElevenLabs Flash TTS. The browser will call
+      // /api/voice/elevenlabs/session next with the same clr_ credential,
+      // which returns the warm Scribe/TTS relay descriptors.
+      if (voiceResolution.realtimeSource !== "voice_chat") {
+        return NextResponse.json(
+          {
+            provider: voiceResolution.brain.provider,
+            voiceProvider: "elevenlabs",
+            realtimeProvider: "elevenlabs",
+            mode: "clara-stream",
+            kbId: ctx.kbId,
+            orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+            projectId: voiceResolution.brain.agentId,
+            chat: {
+              endpoint: "/api/embed/chat",
+              kbId: ctx.kbId,
+            },
+            welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+            greeting: await localizedGreeting(),
+            config: {
+              orgId: voiceResolution.brain.orgId ?? ctx.orgId,
+              projectId: voiceResolution.brain.agentId,
+              provider: voiceResolution.brain.provider,
+              voiceProvider: "elevenlabs",
+              realtimeModel: resolved.realtimeModel ?? resolved.chatModel,
+              voiceId: el.voiceId,
+              transcriptionModel: "scribe_v2_realtime",
+              allowedLanguages: resolved.allowedLanguages,
+              defaultLanguage: resolved.defaultLanguage,
+              maxTokens: resolved.maxTokens ?? effectiveConfig.maxTokens,
+              temperature: resolved.temperature ?? effectiveConfig.temperature,
+              sources: resolved.sources,
+              flags: resolved.flags,
+            },
+          },
+          { headers: corsHeaders },
+        );
+      }
+
       const speechEngineReady =
         process.env.ELEVENLABS_SPEECH_ENGINE_ENABLED !== "false" &&
         Boolean(process.env.ELEVENLABS_SPEECH_ENGINE_ID) &&
@@ -124,6 +178,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               kbId: ctx.kbId,
             },
             welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+            greeting: await localizedGreeting(),
             config: {
               orgId: voiceResolution.brain.orgId ?? ctx.orgId,
               projectId: voiceResolution.brain.agentId,
@@ -175,7 +230,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           stt: {
             endpoint: "/api/voice/sarvam/transcribe",
             model: sv.sttModel,
-            language: sv.language,
+            language: sv.sttLanguage ?? sv.language, // policy: "unknown" = auto-detect
             sampleRate: sv.sampleRate,
             maxAudioSeconds: 30,
           },
@@ -191,6 +246,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             kbId: ctx.kbId,
           },
           welcomeMessage: effectiveConfig.welcomeMessage ?? "",
+          greeting: await localizedGreeting(),
           config: {
             orgId: voiceResolution.brain.orgId ?? ctx.orgId,
             projectId: voiceResolution.brain.agentId,
@@ -226,6 +282,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const allowedLanguages = resolved.allowedLanguages;
     const defaultLanguage = resolved.defaultLanguage;
     const maxTokens = resolved.maxTokens ?? effectiveConfig.maxTokens;
+    // Native realtime output counts spoken audio tokens too: use the org /
+    // platform realtime cap, never the chat-length maxTokens (that cut spoken
+    // answers off mid-sentence). No cap configured → provider default "inf".
+    const realtimeMaxOutputTokens: number | "inf" = resolved.realtimeMaxOutputTokens ?? "inf";
     const temperature = resolved.temperature ?? effectiveConfig.temperature;
     const audioPolicy = getRealtimeAudioPolicy();
 
@@ -269,25 +329,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         interrupt_response: false,
       };
 
+      // Language policy: pin recognition only for a single reply language;
+      // otherwise auto-detect so an allowed non-default language (e.g. Tamil
+      // on an English-default assistant) is transcribed correctly.
+      const recognitionLanguage = speechRecognitionLanguage(policyFromResolvedConfig(resolved));
       const transcription = {
         model: oa.transcriptionModel,
-        // Realtime voice defaults to provider-native language detection. An
-        // explicit language is still honored when auto detection is disabled.
-        ...(autoDetectLanguage
-          ? {}
-          : {
-              language:
-                requestedLanguageAllowed ??
-                effectiveResponseLanguage ??
-                undefined,
-            }),
+        ...(recognitionLanguage ? { language: recognitionLanguage } : {}),
       };
 
       const realtimeSession = buildOpenAIRealtimeSession({
         model: oa.realtimeModel,
         voice: oa.voiceId,
         instructions,
-        maxOutputTokens: maxTokens ?? undefined,
+        maxOutputTokens: realtimeMaxOutputTokens,
         turnDetection,
         transcription,
         tools: [],
@@ -326,7 +381,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           ...result.data,
           model: oa.realtimeModel,
           voice: oa.voiceId,
-          max_output_tokens: maxTokens,
+          max_output_tokens: realtimeMaxOutputTokens,
           turn_detection: turnDetection,
           input_audio_transcription: transcription,
           audio_policy: audioPolicy,

@@ -146,19 +146,19 @@ export function EditProfileModal({
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Avatar URL</label>
-                  <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
+                  <label htmlFor="editprofilemodal-avatar-url" className="block text-xs font-medium text-muted-foreground mb-1.5">Avatar URL</label>
+                  <input id="editprofilemodal-avatar-url" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)}
                     placeholder="https://example.com/avatar.jpg"
-                    className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+                    className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
                 </div>
               </div>
 
               {/* Full name */}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Full name <span className="text-destructive">*</span></label>
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)}
+                <label htmlFor="editprofilemodal-full-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Full name <span className="text-destructive">*</span></label>
+                <input id="editprofilemodal-full-name" value={fullName} onChange={(e) => setFullName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+                  className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
               </div>
 
               {/* Email (read-only) */}
@@ -180,22 +180,22 @@ export function EditProfileModal({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Current password</label>
-                <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                <label htmlFor="editprofilemodal-current-password" className="block text-xs font-medium text-muted-foreground mb-1.5">Current password</label>
+                <input id="editprofilemodal-current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Your current password"
-                  className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+                  className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">New password</label>
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                <label htmlFor="editprofilemodal-new-password" className="block text-xs font-medium text-muted-foreground mb-1.5">New password</label>
+                <input id="editprofilemodal-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+                  className="w-full bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm new password</label>
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                <label htmlFor="editprofilemodal-confirm-new-password" className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm new password</label>
+                <input id="editprofilemodal-confirm-new-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat your new password"
-                  className={`w-full bg-background border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none ${
+                  className={`w-full bg-background border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none ${
                     confirmPassword && confirmPassword !== newPassword
                       ? "border-destructive/50"
                       : "border-input focus:border-primary"

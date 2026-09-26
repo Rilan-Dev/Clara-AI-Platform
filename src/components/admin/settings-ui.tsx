@@ -92,9 +92,9 @@ export function OptionCardGrid({
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium text-foreground">{option.label}</span>
-              {selected && <Badge variant="default" className="text-[10px]">Active</Badge>}
+              {selected && <Badge variant="default" className="text-[11px]">Active</Badge>}
               {!selected && option.badge && (
-                <Badge variant={option.badge.variant ?? "secondary"} className="text-[10px]">
+                <Badge variant={option.badge.variant ?? "secondary"} className="text-[11px]">
                   {option.badge.text}
                 </Badge>
               )}
@@ -146,7 +146,7 @@ export function ModelSelect({
             <SelectItem key={option.value} value={option.value}>
               <span className="flex items-center justify-between gap-3">
                 <span>{option.label}</span>
-                {option.meta && <span className="text-[10px] text-muted-foreground">{option.meta}</span>}
+                {option.meta && <span className="text-[11px] text-muted-foreground">{option.meta}</span>}
               </span>
             </SelectItem>
           ))}
@@ -198,7 +198,7 @@ export function GroupedModelSelect({
                 <SelectItem key={option.value} value={option.value}>
                   <span className="flex items-center justify-between gap-3">
                     <span>{option.label}</span>
-                    {option.meta && <span className="text-[10px] text-muted-foreground">{option.meta}</span>}
+                    {option.meta && <span className="text-[11px] text-muted-foreground">{option.meta}</span>}
                   </span>
                 </SelectItem>
               ))}

@@ -1,4 +1,5 @@
 import { isElevenLabsRealtimeEnabled } from "@/modules/voice-core/server-provider-availability";
+import { localizeText } from "@/modules/rag/cross-lingual";
 /**
  * src/modules/voice-core/api/elevenlabs/session.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -32,10 +33,11 @@ import {
   getElevenLabsRealtimeSttModel,
   isValidUuid,
 } from "../../model-catalog";
-import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
+import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { mintElevenLabsRealtimeToken } from "./realtime-auth";
 import { embedVoiceGuard } from "./embed-auth";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import type { ElevenLabsSessionPayload } from "../../config-types";
 
 export async function postElevenLabsSession(request: NextRequest): Promise<NextResponse> {
@@ -43,6 +45,11 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : null;
     const ragMode = typeof body?.ragMode === "string" ? body.ragMode : "hybrid";
+    // One bootstrap endpoint serves two independent ElevenLabs surfaces:
+    // Voice Chat (turn-based pipeline) and Realtime Voice (Clara Scribe/TTS).
+    // Default to realtime for the existing Clara realtime hook; the legacy
+    // voice-chat hook sends surface:"voice_chat" explicitly.
+    const surface = body?.surface === "voice_chat" ? "voice_chat" : "realtime";
 
     if (!kbId || !isValidUuid(kbId)) {
       return NextResponse.json(
@@ -58,12 +65,29 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     // requests keep the historical path.
     const embedDenied = await embedVoiceGuard(request, kbId);
     if (embedDenied) return embedDenied;
-    const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
 
-    const orgRows = await dbQuery<{ org_id: string }>(
-      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
-      [kbId],
-    );
+    // Platform voice sessions must be tenant-authenticated. Public embed
+    // sessions are the only exception and must carry a scoped clr_ API key.
+    // Without this boundary, knowing a KB UUID would be enough to mint a
+    // realtime capability token and consume ElevenLabs STT/TTS against that
+    // organisation's plan.
+    const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
+    let authorizedOrgId: string | null = null;
+    if (!isEmbedSession) {
+      const auth = await requireAuth(request);
+      const access = await requireKbPermission(auth, kbId, "kb:read");
+      authorizedOrgId = access.orgId;
+    }
+
+    // Public embed sessions are already KB-scoped by embedVoiceGuard. For
+    // authenticated platform sessions, requireKbPermission above also gives
+    // us the authoritative tenant id, avoiding a second KB→agent lookup.
+    const orgRows = authorizedOrgId
+      ? [{ org_id: authorizedOrgId }]
+      : await dbQuery<{ org_id: string }>(
+          `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
+          [kbId],
+        );
     const orgId = orgRows[0]?.org_id ?? null;
 
     // ── Same bucket as the other realtime providers ──
@@ -105,13 +129,16 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const resolved = await resolveVoiceConfigCached({ kbId, surface, ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const realtimeEnabled = surface === "realtime" && await isElevenLabsRealtimeEnabled();
     // The pipeline serves EITHER voice purpose: the voice-chat axis (Mode A
     // as the chat-window voice-chat experience) or the realtime axis (Mode A
     // as the fallback when a realtime=elevenlabs config has no Mode-B
     // binding, and the embed surfaces where Mode B is refused by design).
     const pipelineSelected =
-      resolved.voiceProvider === "elevenlabs" || resolved.realtimeProvider === "elevenlabs";
+      surface === "voice_chat"
+        ? resolved.voiceProvider === "elevenlabs"
+        : resolved.realtimeProvider === "elevenlabs";
     if (!pipelineSelected || !resolved.elevenlabs) {
       // Config raced (provider switched mid-flight) — tell the client to
       // re-resolve rather than silently using the wrong provider.
@@ -125,7 +152,7 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     }
 
     const payload: ElevenLabsSessionPayload = {
-      mode: "pipeline",
+      mode: realtimeEnabled && orgId ? "clara-stream" : "pipeline",
       stt: {
         endpoint: "/api/voice/elevenlabs/transcribe",
         model: resolved.elevenlabs.sttModel,
@@ -136,12 +163,12 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         // descriptor — same HMAC token discipline as the Sarvam V5 relay.
         // Embed sessions get it too: the token is capability-scoped (kb+org),
         // never a vendor credential.
-        ...((await isElevenLabsRealtimeEnabled()) && orgId
+        ...((realtimeEnabled) && orgId
           ? {
               realtime: {
-                endpoint: "/api/voice/elevenlabs/realtime",
+                endpoint: "/api/voice-realtime?channel=elevenlabs-stt",
                 token: mintElevenLabsRealtimeToken({ kbId, orgId }),
-                ttsEndpoint: "/api/voice/elevenlabs/tts-realtime",
+                ttsEndpoint: "/api/voice-realtime?channel=elevenlabs-tts",
                 sampleRate: 16_000,
                 encoding: "linear16",
                 model: getElevenLabsRealtimeSttModel(),
@@ -168,8 +195,21 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
       ragMode,
     };
 
+    // The conversation starts in the assistant's DEFAULT language: these
+    // voices speak the welcome verbatim, so localise it when the admin wrote
+    // it in another language (cached; falls back to the original text).
+    const welcome = resolved.brain.assistantConfig?.welcomeMessage?.trim();
+    if (welcome) {
+      const startLanguage =
+        resolved.brain.assistantConfig?.alwaysRespondIn?.trim() || resolved.brain.defaultLanguage || "en";
+      payload.greeting = await localizeText(welcome, startLanguage);
+    }
     return NextResponse.json(payload);
   } catch (error) {
+    // RBAC helpers intentionally throw NextResponse to preserve the exact
+    // authentication/authorization status. Do not turn a 401/403/404 into
+    // an unrelated 500 at the session boundary.
+    if (error instanceof NextResponse) return error;
     console.error("[elevenlabs-session] post:", error);
     if (error instanceof VoiceConfigResolutionError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

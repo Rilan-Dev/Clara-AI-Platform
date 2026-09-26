@@ -4,23 +4,12 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Brain,
-  Building2,
-  Check,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-  Mail,
-  RefreshCw,
-  User,
-  Zap,
+  AlertCircle, ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Eye, EyeOff, Mail, RefreshCw, User, Zap,
 } from "lucide-react";
 
 import { setStoredToken } from "@/lib/client-auth";
 import { apiFetchJson, apiUrl } from "@/lib/runtime";
+import { LogoMark } from "@/components/brand/Logo";
 
 type Step = "plan" | "account" | "org" | "review" | "verify";
 
@@ -253,11 +242,27 @@ export default function SignupScreen() {
       }
     };
 
-    poll();
-    const interval = setInterval(poll, 3000);
+    // Poll every 3 s for the first 2 minutes, then every 15 s; skip ticks
+    // while the tab is hidden and poll immediately when it becomes visible.
+    const startedAt = Date.now();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (cancelled) return;
+      const delay = Date.now() - startedAt < 120_000 ? 3000 : 15_000;
+      timer = setTimeout(async () => {
+        if (document.visibilityState === "visible") await poll();
+        schedule();
+      }, delay);
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") void poll(); };
+
+    void poll();
+    schedule();
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [step, verified]);
 
@@ -312,9 +317,7 @@ export default function SignupScreen() {
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
+            <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
             <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
           <h1 className="text-2xl font-black text-foreground mb-1">Create your account</h1>
@@ -341,12 +344,12 @@ export default function SignupScreen() {
                     {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                   </div>
                   <div
-                    className={`text-[10px] mt-1 font-medium ${
+                    className={`text-[11px] mt-1 font-medium ${
                       current
                         ? "text-foreground/80"
                         : done
                           ? "text-emerald-600/70"
-                          : "text-muted-foreground/50"
+                          : "text-muted-foreground/80"
                     }`}
                   >
                     {label}
@@ -401,7 +404,7 @@ export default function SignupScreen() {
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-foreground text-sm">{plan.name}</span>
                             {plan.badge && (
-                              <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              <span className="text-[11px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                 {plan.badge}
                               </span>
                             )}
@@ -442,25 +445,25 @@ export default function SignupScreen() {
               <p className="text-muted-foreground text-sm mb-5">This will be your admin login.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Full name</label>
-                  <input
+                  <label htmlFor="signup-screen-full-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Full name</label>
+                  <input id="signup-screen-full-name"
                     type="text"
                     value={form.fullName}
                     onChange={set("fullName")}
                     placeholder="Jane Smith"
                     autoComplete="name"
-                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Work email</label>
-                  <input
+                  <label htmlFor="signup-screen-work-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Work email</label>
+                  <input id="signup-screen-work-email"
                     type="email"
                     value={form.email}
                     onChange={set("email")}
                     placeholder="jane@company.com"
                     autoComplete="email"
-                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
@@ -472,7 +475,7 @@ export default function SignupScreen() {
                       onChange={set("password")}
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
-                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                     />
                     <button
                       type="button"
@@ -517,7 +520,7 @@ export default function SignupScreen() {
                       onChange={set("confirmPassword")}
                       placeholder="Repeat password"
                       autoComplete="new-password"
-                      className={`w-full bg-muted/50 border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none transition-colors ${
+                      className={`w-full bg-muted/50 border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none transition-colors ${
                         form.confirmPassword && form.confirmPassword !== form.password
                           ? "border-destructive/60"
                           : "border-border focus:border-primary"
@@ -546,14 +549,14 @@ export default function SignupScreen() {
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Organisation name</label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/80" />
                   <input
                     type="text"
                     value={form.orgName}
                     onChange={set("orgName")}
                     placeholder="Acme Corp"
                     autoComplete="organization"
-                    className="w-full bg-muted/50 border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+                    className="w-full bg-muted/50 border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 {form.orgName.trim() && (

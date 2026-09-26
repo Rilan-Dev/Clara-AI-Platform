@@ -77,10 +77,7 @@ export async function postElevenLabsRealtimeInit(request: NextRequest): Promise<
 
     // Server-side re-resolution — the relay never trusts client suggestions.
     const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime" });
-    if (
-      (resolved.voiceProvider !== "elevenlabs" && resolved.realtimeProvider !== "elevenlabs") ||
-      !resolved.elevenlabs
-    ) {
+    if (resolved.realtimeProvider !== "elevenlabs" || !resolved.elevenlabs) {
       return NextResponse.json(
         { error: "Voice provider is not ElevenLabs for this knowledge base." },
         { status: 409 },
@@ -91,7 +88,8 @@ export async function postElevenLabsRealtimeInit(request: NextRequest): Promise<
       apiKey,
       baseUrl: getElevenLabsBaseUrl(),
       sttModel: getElevenLabsRealtimeSttModel(),
-      languageCode: resolved.elevenlabs.language ?? null,
+      // Policy-based: pinned only for single-language assistants, else auto.
+      languageCode: resolved.elevenlabs.sttLanguage !== undefined ? resolved.elevenlabs.sttLanguage : (resolved.elevenlabs.language ?? null),
       audioFormat: "pcm_16000",
       sampleRate: 16_000,
       orgId: resolved.brain.orgId ?? body.orgId ?? null,

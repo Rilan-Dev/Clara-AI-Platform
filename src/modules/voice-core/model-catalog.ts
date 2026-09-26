@@ -105,7 +105,10 @@ export function isConversationalAIEnabled(): boolean {
  * realtime endpoint takes scribe_v2_realtime (NOT the batch scribe_v1).
  */
 export function getElevenLabsRealtimeSttModel(): string {
-  return process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim() || "scribe_v2_realtime";
+  // The realtime WebSocket accepts the dedicated Scribe v2 Realtime model.
+  // Ignore stale batch/deprecated ids rather than shipping an invalid socket
+  // configuration to the relay.
+  return getPlatformDefaultRealtimeSTTModel();
 }
 
 export function isVoiceCloningEnabled(): boolean {
@@ -178,14 +181,35 @@ export function getElevenLabsTimeoutMs(): number {
 // ─── Platform default models / voice ─────────────────────────────────────────
 
 export const DEFAULT_TTS_MODEL = "eleven_flash_v2_5";
-export const DEFAULT_STT_MODEL = "scribe_v1";
+export const DEFAULT_STT_MODEL = "scribe_v2";
 
 export function getPlatformDefaultTTSModel(): string {
   return process.env.ELEVENLABS_DEFAULT_TTS_MODEL?.trim() || DEFAULT_TTS_MODEL;
 }
 
 export function getPlatformDefaultSTTModel(): string {
-  return process.env.ELEVENLABS_DEFAULT_STT_MODEL?.trim() || DEFAULT_STT_MODEL;
+  const configured = process.env.ELEVENLABS_DEFAULT_STT_MODEL?.trim();
+  // scribe_v1 was removed by ElevenLabs in July 2026. Treat an old env value
+  // as a stale configuration rather than sending an invalid vendor request.
+  return configured === "scribe_v1" ? DEFAULT_STT_MODEL : configured || DEFAULT_STT_MODEL;
+}
+
+/** Realtime TTS default is intentionally separate from Voice Chat.
+ * Explicit realtime agent/org settings still win; this fallback stays on
+ * Flash v2.5 so an old Turbo voice-chat setting cannot slow the realtime path.
+ */
+export function getPlatformDefaultRealtimeTTSModel(): string {
+  const configured = process.env.ELEVENLABS_REALTIME_TTS_MODEL?.trim();
+  if (configured && isSupportedTTSModel(configured)) return configured;
+  return DEFAULT_TTS_MODEL;
+}
+
+/** Realtime STT must be the dedicated Scribe v2 Realtime model. */
+export function getPlatformDefaultRealtimeSTTModel(): string {
+  const configured = process.env.ELEVENLABS_REALTIME_STT_MODEL?.trim();
+  return configured === "scribe_v2_realtime"
+    ? configured
+    : "scribe_v2_realtime";
 }
 
 export function getPlatformDefaultVoiceId(): string | null {
@@ -399,7 +423,7 @@ export function isSupportedSarvamSTTModel(modelId: string): boolean {
 // realtime leg must translate before building the upstream URL.
 
 /** Vendor-supported realtime Saaras model ids (in preference order). */
-export const SARVAM_REALTIME_STT_MODEL_IDS: string[] = ["saaras:v3-realtime", "saaras:v4"];
+export const SARVAM_REALTIME_STT_MODEL_IDS: string[] = ["saaras:v3-realtime", "saaras:v4-realtime", "saaras:v4"];
 
 /** Safe fallback when a config carries an unknown/blank STT model. */
 export const SARVAM_REALTIME_STT_MODEL_FALLBACK = "saaras:v3-realtime";
@@ -422,6 +446,34 @@ export function isSarvamRealtimeTtsEnabled(): boolean {
   return (process.env.SARVAM_REALTIME_TTS_ENABLED ?? "true").toLowerCase() === "true";
 }
 
+function clampedEnv(key: string, fallback: number, min: number, max: number): number {
+  const value = Number(process.env[key]);
+  return Number.isFinite(value) && process.env[key]?.trim() ? Math.min(max, Math.max(min, value)) : fallback;
+}
+
+/**
+ * Realtime voice tuning (Settings → AI → Sarvam), shipped to the relays by
+ * realtime-init / the phone session so Vercel's separate WebSocket function
+ * sees the platform admin's values too:
+ *   SARVAM_REALTIME_VAD_THRESHOLD   speech probability threshold (0.3)
+ *   SARVAM_REALTIME_SILENCE_MS      end-of-turn silence (500 ms)
+ *   SARVAM_REALTIME_MIN_SPEECH_MS   minimum speech to open a turn (250 ms)
+ *   SARVAM_TTS_PACE                 Bulbul speaking pace (1.0; v3 0.5–2.0)
+ */
+export function getSarvamRealtimeTuning(): {
+  vad: { threshold: number; silenceMs: number; minSpeechMs: number };
+  ttsPace: number;
+} {
+  return {
+    vad: {
+      threshold: clampedEnv("SARVAM_REALTIME_VAD_THRESHOLD", 0.3, 0.05, 0.95),
+      silenceMs: Math.round(clampedEnv("SARVAM_REALTIME_SILENCE_MS", 500, 100, 3000)),
+      minSpeechMs: Math.round(clampedEnv("SARVAM_REALTIME_MIN_SPEECH_MS", 250, 50, 2000)),
+    },
+    ttsPace: clampedEnv("SARVAM_TTS_PACE", 1, 0.5, 2),
+  };
+}
+
 
 /**
  * Map a catalogued Saaras STT id to the vendor realtime-WebSocket model id.
@@ -429,7 +481,7 @@ export function isSarvamRealtimeTtsEnabled(): boolean {
  */
 export function toSarvamRealtimeSttModel(modelId: string): string {
   const id = modelId.trim();
-  if (id === "saaras:v4" || id === "saaras:v3-realtime") return id;
+  if (SARVAM_REALTIME_STT_MODEL_IDS.includes(id)) return id;
   // saaras:v3 (batch) and anything unknown → the realtime v3 variant.
   return SARVAM_REALTIME_STT_MODEL_FALLBACK;
 }

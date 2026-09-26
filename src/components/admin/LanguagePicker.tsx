@@ -168,7 +168,7 @@ function LanguageMenu({
           <span className="truncate text-sm font-medium">{option.label}</span>
           <span className="truncate text-xs text-muted-foreground">{option.native}</span>
         </span>
-        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] uppercase text-muted-foreground">
           {option.code}
         </span>
         {isSelected && <Check className="h-4 w-4 shrink-0 text-primary" />}

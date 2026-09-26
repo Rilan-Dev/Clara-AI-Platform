@@ -3,6 +3,7 @@
  * Internal server-side voice configuration endpoint.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, requireVoiceAccess, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
@@ -60,9 +61,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const allowedLanguages = 
     // isDemo ? (config.allowedLanguages ?? [config.defaultLanguage ?? "en"]) : 
     resolved!.allowedLanguages;
-    const language = 
-    // isDemo ? config.alwaysRespondIn ?? config.defaultLanguage ?? allowedLanguages[0] ?? "en" : 
-    resolved!.defaultLanguage;
+    // Speech-recognition language under the language policy; null means the
+    // relay lets OpenAI auto-detect (multi-language assistants).
+    const language = speechRecognitionLanguage(policyFromResolvedConfig(resolved!));
 
     if (!voice) return NextResponse.json({ error: "No voice is assigned to this project." }, { status: 400, headers: corsHeaders });
     if (provider === "openai" && !isSupportedOpenAIRealtimeVoice(voice)) {
@@ -87,7 +88,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       resolved!.temperature ?? config.temperature ?? 0.7,
       maxTokens: 
       // isDemo ? config.maxTokens ?? 1024 : 
-      resolved!.maxTokens ?? config.maxTokens ?? 1024,
+      // Realtime output cap (spoken audio counts too) — org / platform
+      // "Max realtime tokens"; unset → provider default "inf".
+      resolved!.realtimeMaxOutputTokens ?? "inf",
       systemPrompt,
       kbName: kb.name,
       transcriptionModel: 

@@ -17,6 +17,7 @@ type PlanInput = {
   voiceEnabled?: boolean;
   apiAccess?: boolean;
   customBranding?: boolean;
+  multilingualEmbeddings?: boolean;
   ssoEnabled?: boolean;
   analyticsLevel?: "basic" | "full" | "advanced" | "custom";
   prioritySupport?: boolean;
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
              COALESCE(pv.api_access, sp.api_access) AS api_access,
              COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
+              COALESCE(pv.multilingual_embeddings, sp.multilingual_embeddings) AS multilingual_embeddings,
              COALESCE(pv.sso_enabled, sp.sso_enabled) AS sso_enabled,
              COALESCE(pv.analytics_level, sp.analytics_level) AS analytics_level,
              COALESCE(pv.priority_support, sp.priority_support) AS priority_support,
@@ -89,8 +91,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       INSERT INTO subscription_plan_versions
         (plan_id, version, name, description, price_usd, max_kbs, max_docs_per_kb,
          max_req_day, max_storage_mb, voice_enabled, api_access, custom_branding,
-         sso_enabled, analytics_level, priority_support, features, status, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft',$17)
+         sso_enabled, analytics_level, priority_support, features, status, created_by, multilingual_embeddings)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft',$17,$18)
       RETURNING *
     `, [
       body.planId, nextVersion,
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body.ssoEnabled ?? base.sso_enabled, body.analyticsLevel ?? base.analytics_level,
       body.prioritySupport ?? base.priority_support, JSON.stringify(body.features ?? base.features ?? []),
       auth.user.id,
+      body.multilingualEmbeddings ?? null,
     ]))[0];
 
     return NextResponse.json({ version }, { status: 201 });
@@ -116,7 +119,26 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
     await requirePlatformAdmin(req);
-    const body = await req.json() as { versionId?: string; action?: "publish" | "archive" | "enable" | "disable"; planId?: string };
+    const body = await req.json() as {
+      versionId?: string;
+      action?: "publish" | "archive" | "enable" | "disable" | "multilingual";
+      planId?: string;
+      enabled?: boolean;
+    };
+    // Multilingual knowledge index entitlement: a plan-wide feature switch.
+    // Versions inherit it (NULL) so every subscriber of the plan follows it.
+    if (body.action === "multilingual") {
+      if (!body.planId || typeof body.enabled !== "boolean") {
+        return NextResponse.json({ error: "planId and enabled are required" }, { status: 400 });
+      }
+      const updated = await query<{ id: string }>(
+        "UPDATE subscription_plans SET multilingual_embeddings = $1 WHERE id = $2 RETURNING id",
+        [body.enabled, body.planId],
+      );
+      if (!updated[0]) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+      await query("UPDATE subscription_plan_versions SET multilingual_embeddings = NULL WHERE plan_id = $1", [body.planId]);
+      return NextResponse.json({ ok: true, planId: body.planId, multilingualEmbeddings: body.enabled });
+    }
     if (body.action === "enable" || body.action === "disable") {
       if (!body.planId) return NextResponse.json({ error: "planId is required" }, { status: 400 });
       if (!["free", "starter", "pro", "enterprise"].includes(body.planId)) {

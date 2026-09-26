@@ -280,7 +280,10 @@
   }
 
   *:focus-visible {
-    outline: none;
+    /* Transparent (not "none") so Windows high-contrast / forced-colors
+       mode, which drops box-shadows, still paints a focus outline. */
+    outline: 2px solid transparent;
+    outline-offset: 2px;
     box-shadow: 0 0 0 2px hsl(var(--ring)), 0 0 0 4px hsl(var(--background));
   }
 
@@ -594,6 +597,16 @@
   .clara-orb-spin-ccw,
   .clara-orb-ripple,
   .clara-orb-breathe { animation-duration: 0s; animation-iteration-count: 1; }
+}
+
+/* ── Checkout success check (one subtle draw-in, reduced-motion safe) ───── */
+@keyframes clara-check-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.clara-check-in { animation: clara-check-in 300ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .clara-check-in { animation: none; }
 }
 
 @keyframes fadeIn {

@@ -47,7 +47,9 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  queryOne: vi.fn(async () => null),
+  queryOne: vi.fn(async (sql: string) =>
+    String(sql).includes("platform_env_settings") ? { value: "true" } : { enabled: true },
+  ),
   query: vi.fn(async (sql: string) => {
     if (String(sql).includes("SELECT a.org_id")) return [{ org_id: ORG_ID }];
     return [];
@@ -103,6 +105,8 @@ vi.mock("@/modules/auth/core/rbac", () => ({
     }
     return { user: { id: "user-switch-1" }, session: { id: "sess-switch-1" } };
   }),
+  // The ElevenLabs session checks kb:read and takes the tenant from it.
+  requireKbPermission: vi.fn(async () => ({ orgId: ORG_ID })),
 }));
 
 const createClientSecretMock = vi.fn();
@@ -125,6 +129,7 @@ import { postSarvamSession } from "@/modules/voice-core/api/sarvam/session";
 import { planGuard } from "@/lib/plan-guard";
 import { query as dbQuery } from "@/lib/db";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
+import { requireKbPermission } from "@/modules/auth/core/rbac";
 
 
 // ── Provider resolution fixtures (one per realtime provider) ─────────────────
@@ -194,7 +199,7 @@ function elevenlabsResolved() {
     },
     elevenlabs: {
       ttsModel: "eleven_flash_v2_5",
-      sttModel: "scribe_v1",
+      sttModel: "scribe_v2_realtime",
       voiceId: "el-voice-1",
       voiceSettings: {},
       language: "en",
@@ -219,7 +224,6 @@ function sarvamResolved() {
       sampleRate: 16_000,
       ttsModel: "bulbul:v3",
       speaker: "shubh",
-      realtimeSttEnabled: true,
       realtimeSttModel: "saaras:v3-realtime",
       realtimeLlmModel: "sarvam-105b-conversations",
       realtimeTtsEnabled: true,
@@ -248,7 +252,6 @@ beforeEach(() => {
   process.env.GEMINI_API_KEY = "gem-switch";
   process.env.ELEVENLABS_ENABLED = "true";
   process.env.ELEVENLABS_API_KEY = "el-switch";
-  process.env.ELEVENLABS_REALTIME_ENABLED = "true";
   process.env.SARVAM_ENABLED = "true";
   process.env.SARVAM_API_KEY = "sv-switch";
   process.env.SARVAM_REALTIME_STT_ENABLED = "true";
@@ -334,6 +337,22 @@ describe("Task 7.1 — resolve tenant context before provider connection", () =>
     const sarvam = await postSarvamSession(sessionPost({ kbId: KB_ID }));
     expect(sarvam.status).toBe(402);
     expect((await sarvam.json()).stt).toBeUndefined();
+  });
+
+  it("ElevenLabs realtime session declares Clara Mode C and dedicated Scribe model", async () => {
+    elevenlabsResolved();
+    const response = await postElevenLabsSession(sessionPost({ kbId: KB_ID }));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.mode).toBe("clara-stream");
+    expect(payload.stt.model).toBe("scribe_v2_realtime");
+    expect(payload.stt.realtime).toMatchObject({
+      endpoint: "/api/voice-realtime?channel=elevenlabs-stt",
+      ttsEndpoint: "/api/voice-realtime?channel=elevenlabs-tts",
+      model: "scribe_v2_realtime",
+      sampleRate: 16_000,
+      encoding: "linear16",
+    });
   });
 
   it("capability mismatch rejects with 409 before vendor artifacts", async () => {
@@ -426,7 +445,11 @@ describe("Task 7.2 — provider switching invariants", () => {
       const orgResolved = (dbQuery as ReturnType<typeof vi.fn>).mock.calls.some(
         (call) => Array.isArray(call[1]) && call[1][0] === KB_ID,
       );
-      expect(kbLookedUp || orgResolved).toBe(true);
+      // ElevenLabs takes the tenant from the kb:read permission check.
+      const permissionChecked = (requireKbPermission as ReturnType<typeof vi.fn>).mock.calls.some(
+        (call) => call[1] === KB_ID,
+      );
+      expect(kbLookedUp || orgResolved || permissionChecked).toBe(true);
     }
   });
 });

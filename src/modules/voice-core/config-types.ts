@@ -34,13 +34,19 @@ export interface ResolveVoiceConfigInput {
 export interface ElevenLabsResolvedConfig {
   /** TTS model id (eleven_flash_v2_5 | eleven_turbo_v2_5 | eleven_multilingual_v2 | eleven_v3). */
   ttsModel: string;
-  /** STT model id (scribe_v1). */
+  /** STT model id (scribe_v2 for Voice Chat; scribe_v2_realtime for Clara Realtime). */
   sttModel: string;
   /** Voice id — validated against the org catalog or platform default. */
   voiceId: string;
   voiceSettings: ElevenLabsVoiceSettings;
   /** BCP-47-ish language hint derived from the agent language chain. */
   language: string;
+  /**
+   * Speech-recognition language under the assistant's language policy: set
+   * only when replies are pinned to one language; null = auto-detect (a
+   * multi-language assistant must not transcribe everyone as the default).
+   */
+  sttLanguage?: string | null;
 }
 
 /** Sarvam specifics resolved when either voice purpose selects "sarvam". */
@@ -55,6 +61,8 @@ export interface SarvamResolvedConfig {
   voiceChatSpeaker: string;
   /** BCP-47-ish language hint derived from the agent language chain (hi-IN, ta-IN, …). */
   language: string;
+  /** Speech-recognition language code; "unknown" = Sarvam auto-detect (multi-language assistants). */
+  sttLanguage?: string;
   /** Playback sample rate for the shared PCM queue (16000 default). */
   sampleRate: number;
   /** Exact Sarvam realtime WebSocket STT model. */
@@ -65,10 +73,9 @@ export interface SarvamResolvedConfig {
   realtimeSpeaker: string;
   /** Exact LLM model used by the realtime voice-agent phone path. */
   realtimeLlmModel: string;
-  /** Whether streaming Bulbul WebSocket TTS is enabled. */
+  /** Phone-call streaming TTS switch (SARVAM_REALTIME_TTS_ENABLED). The
+   *  browser realtime agent always streams. */
   realtimeTtsEnabled: boolean;
-  /** True when the realtime STT relay is available (V5 — capability flag). */
-  realtimeSttEnabled: boolean;
 }
 
 /**
@@ -127,7 +134,10 @@ export interface VoiceResolution {
  * endpoints; it never talks to the voice vendor directly in Mode A.
  */
 export interface ElevenLabsSessionPayload {
-  mode: "pipeline";
+  /** Welcome message in the assistant's default language (spoken first). */
+  greeting?: string;
+  /** "clara-stream" when the Clara-controlled realtime relay is enabled. */
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;
@@ -136,7 +146,7 @@ export interface ElevenLabsSessionPayload {
     maxAudioSeconds: number;
     /**
      * Mode C (Clara realtime, plan Task 6.2): Scribe realtime relay —
-     * present when ELEVENLABS_REALTIME_ENABLED is on for the platform.
+     * present when platform-admin realtime setting is on for the platform.
      * Its presence tells useElevenLabsClaraStream to run the realtime path
      * instead of the Mode A utterance pipeline.
      */
@@ -174,16 +184,20 @@ export interface ElevenLabsSessionPayload {
  * browser drives the pipeline through platform endpoints.
  */
 export interface SarvamSessionPayload {
-  mode: "pipeline";
+  /** Welcome message in the assistant's default language (spoken first). */
+  greeting?: string;
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;
     language: string;
     sampleRate: number;
     maxAudioSeconds: number;
-    /** V5 realtime relay — present when the relay capability is on. */
-    realtime?: {
+    /** Realtime relays — the realtime voice agent always streams. */
+    realtime: {
       endpoint: string;
+      /** Bulbul streaming TTS relay (same session token). */
+      ttsEndpoint: string;
       /** Session-minted HMAC token (?token= on the WS upgrade). */
       token: string;
       sampleRate: number;

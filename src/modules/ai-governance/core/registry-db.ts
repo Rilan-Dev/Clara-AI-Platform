@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import { query, queryOne, execute } from "@/lib/db";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
 import { syncLiveProviderCatalog } from "./live-catalog";
-import { ensureMigrated } from "@/lib/db/migrate";
+import { ensureMigrated, loadRuntimeSettingsOnStartup } from "@/lib/db/migrate";
 import type {
   AICapability,
   AIModelKind,
@@ -91,6 +91,11 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
   // configured state so Vercel functions do not mistake a saved API key for a
   // missing credential simply because the instance started without env values.
   await ensureMigrated();
+  // Vercel serverless instances do not guarantee Node instrumentation runs before
+  // every function invocation. Hydrate DB-backed platform secrets before deriving
+  // credential state so registry.configured and toProviderConfig() observe the
+  // same authoritative runtime credentials on every cold instance.
+  await loadRuntimeSettingsOnStartup();
   const hit = registryCache;
   if (hit && hit.expiresAt > Date.now()) return hit.value;
 
@@ -132,6 +137,12 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
   const credentialByProvider = new Map(credentialRows.map((r) => [String(r.provider_id), r]));
   const healthByProvider = new Map(healthRows.map((r) => [String(r.provider_id), r]));
 
+  const realtimeEnabledRow = await queryOne<{ value: string }>(
+    "SELECT value FROM platform_env_settings WHERE key = $1 LIMIT 1",
+    ["ELEVENLABS_REALTIME_ENABLED"],
+  );
+  const elevenLabsRealtimeEnabled = (realtimeEnabledRow?.value ?? "").trim().toLowerCase() === "true";
+
   const providers: PlatformAIProvider[] = providerRows.map((p) => {
     const providerId = String(p.provider_id) as GovernanceProviderId;
     const credRow = credentialByProvider.get(providerId);
@@ -160,6 +171,7 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
       displayName: String(p.display_name),
       description: typeof p.description === "string" ? p.description : null,
       enabled: rowEnabled,
+      realtimeEnabled: providerId === "elevenlabs" ? elevenLabsRealtimeEnabled : false,
       disabledReason: null,
       configured,
       capabilities: capabilityRows
@@ -210,6 +222,10 @@ export async function getProviderWorkspace(providerId: GovernanceProviderId): Pr
   provider: PlatformAIProvider;
   models: ProviderModelRow[];
 } | null> {
+  // Refresh vendor-owned catalogues before opening the admin half-canvas.
+  // ElevenLabs voices are not static configuration; they come from the
+  // workspace voice catalogue and must be available to Realtime Voice too.
+  await syncLiveProviderCatalog();
   const registry = await getPlatformAIRegistry();
   const provider = registry.providers.find((p) => p.providerId === providerId);
   if (!provider) return null;

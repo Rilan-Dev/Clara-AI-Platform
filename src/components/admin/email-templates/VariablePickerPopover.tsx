@@ -46,7 +46,7 @@ export function VariablePickerPopover({ variables, onInsert }: Props) {
         >
           <Braces className="h-3.5 w-3.5" />
           Insert variable
-          <span className="rounded-full bg-primary/15 px-1.5 text-[10px] text-primary">
+          <span className="rounded-full bg-primary/15 px-1.5 text-[11px] text-primary">
             {variables.length}
           </span>
         </button>
@@ -62,14 +62,14 @@ export function VariablePickerPopover({ variables, onInsert }: Props) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search variables…"
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/80 focus:outline-none"
             />
           </div>
         </div>
         <div className="max-h-72 overflow-y-auto p-1.5">
           {[...grouped.entries()].map(([cat, items]) => (
             <div key={cat} className="mb-1.5">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 {CATEGORY_LABELS[cat] ?? cat}
               </p>
               {items.map((v) => (
@@ -96,7 +96,7 @@ export function VariablePickerPopover({ variables, onInsert }: Props) {
             <p className="px-3 py-6 text-center text-xs text-muted-foreground/70">No variables match “{q}”.</p>
           )}
         </div>
-        <p className="border-t border-border/70 px-3 py-2 text-[10px] text-muted-foreground/70">
+        <p className="border-t border-border/70 px-3 py-2 text-[11px] text-muted-foreground/70">
           System values come from the platform; custom values are inserted as saved.
         </p>
       </PopoverContent>

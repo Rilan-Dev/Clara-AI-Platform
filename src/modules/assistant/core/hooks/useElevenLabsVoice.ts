@@ -152,6 +152,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         headers: pipelineHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           kbId: session.kbId,
+          surface: "voice_chat",
           text,
           model: session.tts.model,
           voiceId: session.tts.voiceId,
@@ -299,6 +300,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
     try {
       const form = new FormData();
       form.append("kbId", session.kbId ?? "");
+      form.append("surface", "voice_chat");
       form.append("audio", blob, "utterance.webm");
       form.append("language", session.stt.language ?? "en");
       if (options.draftMode) form.append("scope", "draft");
@@ -441,6 +443,7 @@ export function useElevenLabsVoice(options: VoiceClientOptions) {
         headers: pipelineHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           kbId: options.kbId,
+          surface: "voice_chat",
           ragMode: "hybrid",
           language: options.language?.assistant,
           ...(options.draftMode ? { scope: "draft" } : {}),

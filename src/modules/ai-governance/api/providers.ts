@@ -34,6 +34,7 @@ import { resolveAvailableAIOptions } from "../core/resolver";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getProviderApiKey } from "@/modules/ai-core/resolve";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { setPlatformEnvSetting } from "@/modules/phone/core/db";
 import type { AICapability, AIModelKind } from "../core/types";
 
 function errorResponse(message: string, status: number, code?: string): NextResponse {
@@ -116,6 +117,13 @@ export async function patchProviderHandler(req: NextRequest, providerId: string)
 
     if (typeof body.enabled === "boolean") {
       await setProviderEnabled(providerId, body.enabled, auth.user.id);
+    }
+    if (providerId === "elevenlabs" && typeof body.realtimeEnabled === "boolean") {
+      await setPlatformEnvSetting(
+        "ELEVENLABS_REALTIME_ENABLED",
+        body.realtimeEnabled ? "true" : "false",
+        auth.user.id,
+      );
     }
     if (body.monthlyBudgetUsd !== undefined || body.warningThresholdPct !== undefined) {
       const monthlyBudgetUsd =

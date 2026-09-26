@@ -22,21 +22,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  BookOpen,
-  Brain,
-  Cpu,
   ExternalLink,
-  GitBranch,
-  Globe2,
   History,
-  Mic,
   RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  Workflow,
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -91,22 +82,6 @@ const LANG_LABELS: Record<string, string> = {
   ml: "Malayalam", mr: "Marathi", kn: "Kannada", gu: "Gujarati", pa: "Punjabi",
 };
 
-function langLabel(code: string) {
-  return LANG_LABELS[code] ?? code.toUpperCase();
-}
-
-function timeAgo(iso: string | null): string {
-  if (!iso) return "—";
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-  return new Date(iso).toLocaleDateString();
-}
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
@@ -146,6 +121,8 @@ function PreviewSkeleton() {
 
 export default function DraftPreviewScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
+  const searchParams = useSearchParams();
+  const embedded = searchParams.get("embedded") === "1";
 
   const [data, setData] = useState<DraftPreviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,15 +208,25 @@ export default function DraftPreviewScreen() {
           ? { label: "Published fallback", tone: "bg-muted text-muted-foreground border-border" }
           : null;
 
+
+
+  // The API payload is authoritative; never build a workspace URL from an
+  // empty organisation id while the preview payload is still loading.
   const orgId = data?.agent.orgId ?? "";
+  const workspaceHref = orgId ? `/orgs/${orgId}/agents/${agentId}` : "/orgs";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/40 via-background to-background">
+    <div
+      className="h-dvh overflow-hidden bg-background"
+      style={{
+        backgroundImage: `radial-gradient(55rem 30rem at 48% -8rem, ${primaryColour}18, transparent 68%), radial-gradient(42rem 28rem at 92% 100%, ${accentColour}12, transparent 70%)`,
+      }}
+    >
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+      <header className="relative z-20 h-14 shrink-0 border-b border-border/50 bg-background/85 backdrop-blur">
+        <div className="flex h-full w-full items-center gap-3 px-3 sm:px-5">
           <Link
-            href={`/orgs/${orgId}/agents/${agentId}`}
+            href={workspaceHref}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
             title="Back to the agent workspace"
           >
@@ -247,12 +234,12 @@ export default function DraftPreviewScreen() {
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-semibold text-foreground">
+              <h1 className="truncate text-sm font-semibold text-foreground">
                 {data?.agent.name ?? "Agent"}
               </h1>
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600">
                 <History className="h-3 w-3" />
-                Draft preview
+                Preview
               </span>
               {configSourceBadge && (
                 <span className={cn("hidden rounded-full border px-2.5 py-0.5 text-[11px] font-medium sm:inline-flex", configSourceBadge.tone)}>
@@ -260,13 +247,7 @@ export default function DraftPreviewScreen() {
                 </span>
               )}
             </div>
-            <p className="truncate text-xs text-muted-foreground">
-              {data?.draft
-                ? `${data.draft.branchName} · draft saved ${timeAgo(data.draft.updatedAt)}${
-                    data.draft.parentVersionNumber ? ` · based on v${data.draft.parentVersionNumber}` : ""
-                  }`
-                : "Testing the current configuration"}
-            </p>
+            <p className="truncate text-[11px] text-muted-foreground">Live draft configuration</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -279,7 +260,7 @@ export default function DraftPreviewScreen() {
               Refresh
             </button>
             <Link
-              href={`/orgs/${orgId}/agents/${agentId}`}
+              href={workspaceHref}
               className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -290,7 +271,7 @@ export default function DraftPreviewScreen() {
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <main className={cn("w-full px-0 py-0", embedded ? "h-full" : "")}>
         {loading && !data ? (
           <PreviewSkeleton />
         ) : error ? (
@@ -306,7 +287,7 @@ export default function DraftPreviewScreen() {
                 Try again
               </button>
               <Link
-                href={`/orgs/${orgId}/agents/${agentId}`}
+                href={workspaceHref}
                 className="rounded-lg border border-border px-4 py-2 text-xs font-medium hover:bg-muted"
               >
                 Back to workspace
@@ -314,9 +295,8 @@ export default function DraftPreviewScreen() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-            {/* Chat window — voice chat integrated inside it. */}
-            <div className="min-h-[34rem] rounded-3xl border border-primary/10 bg-background/60 p-1.5 shadow-2xl shadow-black/[0.07] backdrop-blur-xl">
+          <div className="space-y-0">
+            <div className={cn("min-h-0 w-full overflow-hidden bg-background/45 backdrop-blur-xl", embedded ? "h-full" : "h-[calc(100dvh-3.5rem)]")} >
               <ConversationChatWindow
                 assistantName={assistantName}
                 avatarUrl={data?.assistant?.avatarUrl ?? null}
@@ -324,7 +304,7 @@ export default function DraftPreviewScreen() {
                 accentColour={accentColour}
                 headerBadge={
                   data?.kb ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       Live KB
                     </span>
@@ -347,110 +327,10 @@ export default function DraftPreviewScreen() {
                 voiceSession={conversation.voiceSession}
                 micLevels={conversation.micLevels}
                 onVoiceEnd={conversation.endVoice}
+                translation={conversation.translationLanguages.length > 1 ? { languages: conversation.translationLanguages, translate: conversation.translateMessage } : undefined}
+                voiceChat={runtimeVoiceOn ? conversation.voiceChat : null}
               />
             </div>
-
-            {/* ── Testing facts sidebar ─────────────────────────────────── */}
-            <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  What you&apos;re testing
-                </h2>
-                <dl className="space-y-2.5 text-sm">
-                  <FactRow label="Configuration" value={configSourceBadge?.label ?? "—"} />
-                  <FactRow
-                    label="Knowledge base"
-                    value={data?.kb ? data.kb.name : "None"}
-                    icon={<BookOpen className="h-3.5 w-3.5 text-emerald-500" />}
-                  />
-                  <FactRow
-                    label="Chat model"
-                    value={data?.ai?.chatModel ?? data?.ai?.provider ?? "Platform default"}
-                    icon={<Cpu className="h-3.5 w-3.5 text-primary/70" />}
-                  />
-                  <FactRow
-                    label="Voice provider"
-                    value={
-                      availability?.voiceProvider
-                        ? availability.voiceProvider
-                        : data?.ai?.realtimeVoiceProvider ?? data?.ai?.voiceProvider ?? "Inherited"
-                    }
-                    icon={<Mic className="h-3.5 w-3.5 text-violet-500" />}
-                  />
-                  <FactRow
-                    label="Realtime"
-                    value={runtimeRealtimeOn ? "Enabled" : "Disabled"}
-                    icon={<Workflow className="h-3.5 w-3.5 text-sky-500" />}
-                  />
-                </dl>
-                <p className="mt-3 border-t border-border/60 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-                  Draft edits (persona, models, toggles) apply here immediately — reload after
-                  saving to pick up the latest draft.
-                </p>
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <GitBranch className="h-3.5 w-3.5" />
-                  Published state
-                </h2>
-                {data?.deployment ? (
-                  <dl className="space-y-2.5 text-sm">
-                    <FactRow label="Live version" value={`v${data.deployment.versionNumber} · ${data.deployment.branchName}`} />
-                    <FactRow label="Published" value={timeAgo(data.deployment.publishedAt)} />
-                    <FactRow label="Access" value={data.deployment.publicAccess ? "Public" : "Private"} />
-                  </dl>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Not published yet — everything you test here comes from the working draft.
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Globe2 className="h-3.5 w-3.5" />
-                  Languages
-                </h2>
-                <div className="flex flex-wrap gap-1.5">
-                  {(data?.assistant?.allowedLanguages ?? ["en"]).map((code) => (
-                    <span
-                      key={code}
-                      className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-[11px] text-muted-foreground"
-                    >
-                      {langLabel(code)}
-                    </span>
-                  ))}
-                </div>
-                {data?.assistant?.alwaysRespondIn && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Always responds in {langLabel(data.assistant.alwaysRespondIn)}
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-card p-4">
-                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Brain className="h-3.5 w-3.5" />
-                  AI runtime
-                </h2>
-                <dl className="space-y-2.5 text-sm">
-                  <FactRow label="Brain" value={data?.ai?.provider ?? "Platform default"} />
-                  <FactRow label="Voice chat" value={data?.ai?.voiceProvider ?? "Inherited"} />
-                  <FactRow label="Realtime voice" value={data?.ai?.realtimeVoiceProvider ?? "Inherited"} />
-                  {data?.assistant?.voiceId && (
-                    <FactRow label="Voice ID" value={data.assistant.voiceId} />
-                  )}
-                </dl>
-              </section>
-
-              <p className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                Authenticated preview — only organisation members can open this page. It tests
-                draft changes and never exposes them publicly.
-              </p>
-            </aside>
           </div>
         )}
       </main>
@@ -458,16 +338,3 @@ export default function DraftPreviewScreen() {
   );
 }
 
-function FactRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {icon}
-        {label}
-      </dt>
-      <dd className="max-w-[55%] truncate text-xs font-medium text-foreground" title={value}>
-        {value}
-      </dd>
-    </div>
-  );
-}

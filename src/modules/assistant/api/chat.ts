@@ -16,22 +16,24 @@ import {
   resolveLanguagePreferences,
 } from "@/modules/assistant/core/config";
 import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
-import { searchKbEmbedded } from "@/modules/embed/core/search";
+import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
-import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
-import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { toProviderConfig } from "@/modules/ai-core/resolve";
+import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { SentenceTranslator, translateQueryForRag } from "@/modules/language-core/pipeline";
 import { toTranslateLanguageCode } from "@/modules/language-core/model-catalog";
 import {
   CHART_RESPONSE_INSTRUCTIONS,
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
+  recentMessages,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
 
@@ -55,6 +57,31 @@ const CHAT_MAX_TOKENS: number = (() => {
 // it is treated as a complete response even without citation tags. The fallback
 // is only appended when the answer is very short AND no valid citation is found.
 const SUBSTANTIAL_ANSWER_THRESHOLD = 60;
+
+/**
+ * Realtime turns repeatedly hit the same KB during a live session. Document
+ * titles are prompt metadata, not retrieval truth, so a short process-local
+ * cache removes one DB round trip per turn without changing Qdrant results.
+ */
+const REALTIME_DOCUMENT_TITLES_TTL_MS = 5_000;
+const realtimeDocumentTitlesCache = new Map<string, { expiresAt: number; titles: string[] }>();
+
+async function getRealtimeDocumentTitles(kbId: string): Promise<string[]> {
+  const cached = realtimeDocumentTitlesCache.get(kbId);
+  if (cached && cached.expiresAt > Date.now()) return cached.titles;
+  const titles = await getKnowledgeBaseDocumentTitles(kbId);
+  realtimeDocumentTitlesCache.set(kbId, {
+    expiresAt: Date.now() + REALTIME_DOCUMENT_TITLES_TTL_MS,
+    titles,
+  });
+  if (realtimeDocumentTitlesCache.size > 512) {
+    const now = Date.now();
+    for (const [key, value] of realtimeDocumentTitlesCache) {
+      if (value.expiresAt <= now) realtimeDocumentTitlesCache.delete(key);
+    }
+  }
+  return titles;
+}
 
 type ClientMessage = {
   role: "user" | "assistant" | "system";
@@ -198,14 +225,28 @@ async function postChatKb(
   const latest = messages[messages.length - 1]!;
   if (latest.role !== "user") throw new Error("The final message must come from the user.");
 
-  const [kb, config, resolved, documentTitles] = await Promise.all([
+  // Realtime is a transport/surface concern, not a Sarvam-only feature.
+  // Keep this flag local to the KB chat path so realtime retrieval/model
+  // budgets are applied consistently for every Clara brain provider.
+  const realtimeVoice = body?.realtimeVoice === true;
+
+  // One round of independent lookups (they used to run back to back).
+  const [kb, config, resolved, documentTitles, orgRows, authCtx] = await Promise.all([
     getKnowledgeBaseById(kbId),
     getAssistantConfigByKb(kbId),
     // scope:"draft" — the authenticated agent preview tests the CURRENT
     // Main-branch draft (persona/models/runtime + LIVE KB collection)
     // instead of the immutable published version.
-    resolveAIConfig({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
-    getKnowledgeBaseDocumentTitles(kbId),
+    resolveAIConfigCached({ kbId, surface: "chat", ...(body?.scope === "draft" ? { preferDraft: true } : {}) }),
+    realtimeVoice ? getRealtimeDocumentTitles(kbId) : getKnowledgeBaseDocumentTitles(kbId),
+    // (Named dbQuery — `query` below shadows it with the chat question text.)
+    dbQuery<{ org_id: string }>(
+      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
+      [kbId],
+    ),
+    // Audit context — workspace chat is authenticated; the question is still
+    // logged for anonymous surfaces (user_id NULL).
+    getAuthContext(request).catch(() => null),
   ]);
   if (!kb)     throw new Error("Knowledge base not found.");
   if (!config) throw new Error("Knowledge base configuration not found.");
@@ -215,22 +256,14 @@ async function postChatKb(
   // ONE transaction: advisory-lock the org, resolve limits, count the window,
   // then INSERT the pending audit row — check-and-increment cannot race, and
   // quota state can never diverge from the audit trail.
-  // Enforced BEFORE any retrieval/LLM work so over-limit orgs cost nothing.
-  // (Named dbQuery — `query` below shadows it with the chat question text.)
-  const orgRows = await dbQuery<{ org_id: string }>(
-    `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
-    [kbId]
-  );
+  // Nothing is streamed to an over-limit org; retrieval runs alongside the
+  // admission transaction (below) so the turn does not wait for both.
   const orgId = orgRows[0]?.org_id ?? null;
 
   // Phase 6.4: per-org chat rate limit — enforced BEFORE the quota admission
   // transaction so over-rate traffic never touches the advisory lock.
   const chatGated = chatRateGate(orgId, request);
   if (chatGated) return chatGated;
-
-  // Audit context — workspace chat is authenticated; the question is still
-  // logged for anonymous surfaces (user_id NULL).
-  const authCtx = await getAuthContext(request).catch(() => null);
 
   const query = latest.content;
   const t0 = Date.now();
@@ -253,6 +286,28 @@ async function postChatKb(
 
   console.log(`[chat/kb] kbId=${kbId} query="${query.slice(0, 100)}"`);
 
+  // The same grounding service every voice channel uses: cross-lingual
+  // retrieval, capability handling, KB topics and provider-neutral turn
+  // guidance. It starts NOW, in parallel with the admission transaction;
+  // this route owns the query event (admitted below, finalised with the
+  // answer), so grounding must not log it again.
+  const groundingPromise = groundClaraContext({
+    kbId,
+    query,
+    searchQuery: retrievalQuery,
+    skipTranslation: crossLingual.translated,
+    topK: realtimeVoice ? 4 : 6,
+    surface: "workspace",
+    admission: "external",
+    sessionId: sessionId ?? null,
+    userId: authCtx?.user.id ?? null,
+    channel: realtimeVoice ? "voice" : "chat",
+    ...(body?.scope === "draft" ? { preferDraft: true } : {}),
+  }).then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+
   // Analytics + audit trail + daily quota, atomically admitted:
   //   • the prompt is audited even when retrieval or the LLM later fails
   //   • the daily quota counts immediately (no abort-the-stream bypass)
@@ -273,47 +328,57 @@ async function postChatKb(
   // on the embedding backbone (V1 split — a Sarvam brain keeps its Qdrant
   // collections on OpenAI/Gemini embeddings); the answer stream runs on the
   // brain provider below.
-  const realtimeVoice = body?.realtimeVoice === true && resolved.provider === "sarvam";
-  const providerConfig = {
-    ...toProviderConfig(resolved),
-    ...(realtimeVoice
-      ? {
-          chatModel:
-            resolved.realtimeModel ??
-            getPlatformDefaultSarvamRealtimeLlmModel(),
-        }
-      : {}),
-  };
-  const embeddingConfig = toProviderConfig(resolved, "embedding");
-  let results: Awaited<ReturnType<typeof searchKbEmbedded>>;
-  try {
-    results = await searchKbEmbedded(resolved.knowledgeCollection ?? kb.qdrantCollection, retrievalQuery, 6, {
-      providerConfig: embeddingConfig,
-    });
-  } catch (searchErr) {
+  // Realtime is a transport/surface concern, not a Sarvam-only feature.
+  // ElevenLabs Clara realtime also needs the short retrieval + response budget.
+  // The speech transport is independent from Clara's brain. ElevenLabs
+  // realtime owns STT/TTS only; the answer still runs through the configured
+  // chat model (OpenAI/Gemini/Sarvam) so a native realtime model can never be
+  // accidentally sent to the Chat Completions API.
+  //
+  // This distinction is critical for providers such as OpenAI: models like
+  // gpt-4o-realtime-preview belong to the Realtime Voice capability and are
+  // not valid Chat Completions models. Realtime speech must therefore NOT
+  // replace resolved.chatModel with resolved.realtimeModel.
+  const providerConfig = toProviderConfig(resolved);
+  const groundingSettled = await groundingPromise;
+  if (!groundingSettled.ok) {
     // Retrieval failed — mark the audit row as an error, then surface it.
     void finalizeQueryEvent(eventId, {
       answerText: "", status: "error",
       latencyMs: Date.now() - t0,
     });
-    throw new ChatRetrievalError(searchErr);
+    throw new ChatRetrievalError(groundingSettled.error);
   }
+  const grounding = groundingSettled.value;
+  // A KB with no indexed content yet (503) is a no-evidence turn, not an error.
+  const groundedResult = grounding.ok ? grounding.result : null;
+  const results = groundedResult?.sources ?? [];
   const latencyMs = Date.now() - t0;
   void finalizeQueryEvent(eventId, {
     answerText: "", status: "pending", latencyMs, sourceCount: results.length,
   });
 
-  const context = results
-    .map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`)
-    .join("\n\n");
+  const guidance =
+    groundedResult?.guidance ??
+    buildTurnGuidance({
+      grounded: false,
+      intent: "out_of_scope",
+      fallbackReply: config.outOfScopeReply,
+      topics: kb.description ?? documentTitles.join(", "),
+      channel: realtimeVoice ? "voice" : "chat",
+    });
+  const evidence = groundedResult?.intent === "capability"
+    ? groundedResult.context
+    : results.map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`).join("\n\n");
+  const context = [guidance, evidence].filter(Boolean).join("\n\n");
 
-  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "chat" }));
+  const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "chat", allowedLanguages: resolved.allowedLanguages, responseLanguage: groundedResult?.responseLanguage ?? null }));
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
       content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
     },
-    ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
+    ...recentMessages(messages).map((m): ChatMessage => ({ role: m.role, content: m.content })),
   ];
   // Cross-lingual context: when the query was translated, give the model
   // the translation it actually retrieved with (the last user message stays
@@ -388,9 +453,11 @@ async function postChatKb(
         try {
           const completionStream = provider.chatStream(chatMessages, {
             temperature: resolved.temperature ?? config.temperature,
-            maxTokens: realtimeVoice
-              ? Math.min(resolved.maxTokens ?? config.maxTokens ?? 350, 350)
-              : (resolved.maxTokens ?? config.maxTokens),
+            // The assistant's configured reply length on every surface. A
+            // hardcoded 350-token voice cap cut spoken answers off mid-word
+            // (Tamil/Indic scripts use several tokens per word); brevity for
+            // voice comes from the prompt, not truncation.
+            maxTokens: resolved.maxTokens ?? config.maxTokens,
             reasoningEffort: realtimeVoice ? null : undefined,
             onUsage: (u) => { usageRef.value = u; },
           });
@@ -442,7 +509,14 @@ async function postChatKb(
     },
   });
 
-  return new NextResponse(stream, { headers: baseHeaders });
+  // Retrieval stage timings in the standard Server-Timing header (devtools →
+  // Network → Timing) — the streamed body's duration includes the whole answer.
+  const serverTiming = groundingServerTiming(groundedResult?.timings, "rag-");
+  return new NextResponse(stream, {
+    headers: serverTiming
+      ? { ...baseHeaders, "Server-Timing": `${serverTiming}, pre-llm;dur=${Date.now() - t0}` }
+      : baseHeaders,
+  });
 }
 
 export async function postChat(request: NextRequest): Promise<NextResponse> {
@@ -569,8 +643,8 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     const systemPrompt = [
       assistantPrompts.chat.systemInstructions,
       languageGuidance.chat,
-      "Ground every answer in the provided context and the policy insight you already know.",
-      "If a detail is missing, share the most relevant guidance you can and invite the customer to explore the available highlights with you.",
+      "Ground every answer in the provided context and the document insight you already know.",
+      "If a detail is missing, say so briefly, share the most relevant guidance you can, and invite the visitor to explore the available highlights with you.",
       CHART_RESPONSE_INSTRUCTIONS,
     ].join(" ");
 
@@ -579,10 +653,10 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
         role: "system",
         content: `${systemPrompt}\n\nContext:\n${
           context ||
-          "Lean on the policy overview above; no additional supporting passages were needed."
+          "Lean on the document overview above; no additional supporting passages were needed."
         }`,
       },
-      ...messages.map((m): ChatMessage => ({ role: m.role, content: m.content })),
+      ...recentMessages(messages).map((m): ChatMessage => ({ role: m.role, content: m.content })),
     ];
 
     const encoder = new TextEncoder();

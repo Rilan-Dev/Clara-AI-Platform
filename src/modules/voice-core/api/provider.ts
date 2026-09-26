@@ -22,7 +22,7 @@ import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voic
  *   • mode "clara-stream"     — Mode C: Clara-controlled realtime — Scribe
  *                              realtime STT relay → Clara turn (RAG+LLM) →
  *                              streaming TTS WebSocket relay, all behind
- *                              ELEVENLABS_REALTIME_ENABLED (plan Phase 6/13).
+ *                              platform-admin realtime setting (plan Phase 6/13).
  *
  * Precedence: an existing Mode-B binding always wins (no behavior change for
  * deployed orgs); Mode C activates only when the realtime flag is on and no
@@ -36,7 +36,7 @@ import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
 import {
   isConversationalAIEnabled,
 } from "../model-catalog";
-import { resolveVoiceConfig } from "../resolve";
+import { resolveVoiceConfigCached } from "../resolve";
 import { query as dbQuery } from "@/lib/db";
 
 export type ElevenLabsMode = "pipeline" | "conversational" | "clara-stream";
@@ -106,7 +106,7 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
         // scope:"draft" — the authenticated agent preview resolves against
     // the CURRENT Main-branch draft instead of the immutable published
     // version (KB overrides apply; the LIVE collection is searched).
-    const resolved = await resolveVoiceConfig({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
+    const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(body.scope === "draft" ? { preferDraft: true } : {}) });
 
     // The voice modal IS the real-time voice assistant surface, so it routes
     // on the REALTIME purpose axis. That axis inherits the voice-chat axis
@@ -114,7 +114,18 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
     // so a single provider pick keeps every surface native to it.
     const mode: ElevenLabsMode =
       resolved.realtimeProvider === "elevenlabs"
-        ? await resolveElevenLabsMode(resolved.brain.orgId, resolved.brain.agentId ?? kb.agentId)
+        ? (
+            // An explicit Realtime Voice selection means the operator chose
+            // the Clara-controlled realtime agent, not the separate
+            // ElevenLabs Conversational AI product. Keep legacy Mode-B
+            // bindings only for inherited realtime selections.
+            resolved.realtimeSource !== "voice_chat"
+              ? "clara-stream"
+              : await resolveElevenLabsMode(
+                  resolved.brain.orgId,
+                  resolved.brain.agentId ?? kb.agentId,
+                )
+          )
         : "pipeline";
 
     return NextResponse.json({

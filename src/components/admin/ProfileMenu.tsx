@@ -74,7 +74,7 @@ function UsageMeter({
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-medium text-foreground/80">{label}</p>
         <p className="text-[11px] text-muted-foreground">
-          {currentLabel} <span className="text-muted-foreground/50">/ {limitLabel}</span>
+          {currentLabel} <span className="text-muted-foreground/80">/ {limitLabel}</span>
         </p>
       </div>
       <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
@@ -104,7 +104,7 @@ function UsageLimitsSection({ orgId }: { orgId: string }) {
 
   if (error) {
     return (
-      <p className="px-4 py-2 text-[11px] text-muted-foreground/60">
+      <p className="px-4 py-2 text-[11px] text-muted-foreground/80">
         Usage unavailable right now.
       </p>
     );
@@ -122,12 +122,12 @@ function UsageLimitsSection({ orgId }: { orgId: string }) {
   return (
     <div className="space-y-3 px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
           Usage this month
         </p>
         <span
           className={cn(
-            "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
             data.downgraded
               ? "border-amber-600/30 bg-amber-500/10 text-amber-600"
               : "border-emerald-600/30 bg-emerald-500/10 text-emerald-600",
@@ -251,7 +251,7 @@ export function ProfileMenu({
                 <p className="text-xs text-muted-foreground/70 truncate">{user.email}</p>
               </div>
             </div>
-            <span className={`inline-flex items-center gap-1.5 mt-3 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full border ${
+            <span className={`inline-flex items-center gap-1.5 mt-3 text-[11px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full border ${
               user.isSuperAdmin
                 ? "bg-primary/15 text-primary border-primary/30"
                 : "bg-sky-500/10 text-sky-600 border-sky-500/30"

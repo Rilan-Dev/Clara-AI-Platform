@@ -16,13 +16,19 @@
  *     validated via embedVoiceGuard, and the returned chat descriptor points
  *     at /api/embed/chat so the whole pipeline runs on the embed credential.
  *
- * Returns capability descriptors ONLY — never keys. In Mode A the browser
- * talks exclusively to platform endpoints; CSP is unchanged. When the V5
- * realtime STT relay is enabled the payload carries the relay descriptor
- * (still our own origin — wss: to self is already allowed).
+ * Returns capability descriptors ONLY — never keys. The browser talks
+ * exclusively to platform endpoints; CSP is unchanged.
+ *
+ * The REALTIME voice agent always streams, end to end:
+ *   mic ─► /api/voice/sarvam/realtime      (Saaras realtime STT relay)
+ *   text ─► /api/chat | /api/embed/chat    (RAG + LLM, token stream)
+ *   tokens ─► /api/voice/sarvam/tts-realtime (Bulbul streaming TTS relay)
+ * The one-shot REST STT/TTS routes (transcribe / tts) serve the chat
+ * window's turn-based Voice Chat instead — they are not part of this session.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { localizeText } from "@/modules/rag/cross-lingual";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { planGuard } from "@/lib/plan-guard";
@@ -30,6 +36,7 @@ import { hit, rateLimitResponse, REALTIME_SESSION_RATE } from "@/lib/rate-limit"
 import {
   SARVAM_STT_VENDOR_MAX_AUDIO_SECONDS,
   SARVAM_TTS_SAMPLE_RATE_HZ,
+  getSarvamRealtimeTuning,
   isValidUuid,
 } from "../../model-catalog";
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
@@ -116,34 +123,40 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       );
     }
 
+    if (!orgId) {
+      return NextResponse.json(
+        { error: "This knowledge base is not linked to an organisation, so a realtime voice session cannot start." },
+        { status: 409 },
+      );
+    }
+
     const payload: SarvamSessionPayload = {
-      mode: "pipeline",
+      mode: "clara-stream",
       stt: {
         endpoint: "/api/voice/sarvam/transcribe",
         model: resolved.sarvam.sttModel,
-        language: resolved.sarvam.language,
+        // Policy-based: "unknown" (auto-detect) for multi-language assistants.
+        language: resolved.sarvam.sttLanguage ?? resolved.sarvam.language,
         sampleRate: SARVAM_TTS_SAMPLE_RATE_HZ,
         maxAudioSeconds: SARVAM_STT_VENDOR_MAX_AUDIO_SECONDS,
-        ...(resolved.sarvam.realtimeSttEnabled && orgId
-          ? {
-              realtime: {
-                endpoint: "/api/voice/sarvam/realtime",
-                // Session-minted HMAC token — the relay verifies signature +
-                // expiry in-process (no key, no DB round-trip per connection).
-                token: mintSarvamRealtimeToken({ kbId, orgId }),
-                sampleRate: SARVAM_TTS_SAMPLE_RATE_HZ,
-                encoding: "linear16",
-                vadSilenceMs: 500,
-                model: resolved.sarvam.realtimeSttModel,
-              },
-            }
-          : {}),
+        realtime: {
+          endpoint: "/api/voice/sarvam/realtime",
+          ttsEndpoint: "/api/voice/sarvam/tts-realtime",
+          // Session-minted HMAC token — the relays verify signature + expiry
+          // in-process (no key, no DB round-trip per connection).
+          token: mintSarvamRealtimeToken({ kbId, orgId }),
+          sampleRate: SARVAM_TTS_SAMPLE_RATE_HZ,
+          encoding: "linear16",
+          vadSilenceMs: getSarvamRealtimeTuning().vad.silenceMs,
+          model: resolved.sarvam.realtimeSttModel,
+        },
       },
       tts: {
-        endpoint: "/api/voice/sarvam/tts",
-        model: resolved.sarvam.voiceChatTtsModel,
-        speaker: resolved.sarvam.voiceChatSpeaker,
-        outputFormat: `pcm_${SARVAM_TTS_SAMPLE_RATE_HZ}`,
+        endpoint: "/api/voice/sarvam/tts-realtime",
+        model: resolved.sarvam.realtimeTtsModel,
+        speaker: resolved.sarvam.realtimeSpeaker,
+        outputFormat: "pcm_24000",
+        // Starting language — each reply is voiced in its own language.
         language: resolved.sarvam.language,
       },
       chat: {
@@ -164,6 +177,15 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
       },
     };
 
+    // The conversation starts in the assistant's DEFAULT language: these
+    // voices speak the welcome verbatim, so localise it when the admin wrote
+    // it in another language (cached; falls back to the original text).
+    const welcome = resolved.brain.assistantConfig?.welcomeMessage?.trim();
+    if (welcome) {
+      const startLanguage =
+        resolved.brain.assistantConfig?.alwaysRespondIn?.trim() || resolved.brain.defaultLanguage || "en";
+      payload.greeting = await localizeText(welcome, startLanguage);
+    }
     return NextResponse.json(payload);
   } catch (error) {
     console.error("[sarvam-session] post:", error);

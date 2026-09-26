@@ -37,6 +37,7 @@ import {
   unresolvedVariables, type AuditEntry, type EmailTemplate, type ManagedVariable,
   type TemplateVariable,
 } from "./email-templates/shared";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type TabKey = "overview" | "design" | "settings";
 
@@ -379,7 +380,7 @@ export function EmailTemplatesPanel() {
         >
           <VariableIcon className="mr-1.5 h-3.5 w-3.5" />
           Manage variables
-          <span className="ml-1.5 rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
+          <span className="ml-1.5 rounded-full bg-muted px-1.5 text-[11px] text-muted-foreground">
             {variables.filter((v) => !v.isSystem).length} custom
           </span>
         </Button>
@@ -400,15 +401,15 @@ export function EmailTemplatesPanel() {
               value={railQuery}
               onChange={(e) => setRailQuery(e.target.value)}
               placeholder="Search templates…"
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/80 focus:outline-none"
             />
           </div>
           <div className="max-h-[calc(100dvh-11rem)] space-y-4 overflow-y-auto pr-1">
             {[...grouped.entries()].map(([cat, items]) => (
               <div key={cat}>
-                <h4 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                <h4 className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   {CATEGORY_LABELS[cat] ?? cat}
-                  <span className="ml-1.5 font-normal text-muted-foreground/50">({items.length})</span>
+                  <span className="ml-1.5 font-normal text-muted-foreground/80">({items.length})</span>
                 </h4>
                 <ul className="space-y-1">
                   {items.map((t) => {
@@ -433,12 +434,12 @@ export function EmailTemplatesPanel() {
                           {(t.isCustomized || !t.isActive) && (
                             <span className="mt-0.5 flex items-center gap-1.5">
                               {t.isCustomized && (
-                                <span className="flex items-center gap-0.5 text-[9px] text-amber-600">
+                                <span className="flex items-center gap-0.5 text-[11px] text-amber-600">
                                   <Sparkles className="h-2.5 w-2.5" /> custom
                                 </span>
                               )}
                               {!t.isActive && (
-                                <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70">
+                                <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground/70">
                                   <Ban className="h-2.5 w-2.5" /> not sending
                                 </span>
                               )}
@@ -467,15 +468,15 @@ export function EmailTemplatesPanel() {
                   <FileText className="h-4 w-4 shrink-0 text-primary" />
                   <h3 className="text-sm font-semibold text-foreground">{selected.name}</h3>
                   {selected.draft && (
-                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 py-0 text-[10px] text-amber-600">
+                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 py-0 text-[11px] text-amber-600">
                       <Clock3 className="mr-1 h-2.5 w-2.5" /> draft pending
                     </Badge>
                   )}
                   {selected.isCustomized && (
-                    <Badge variant="outline" className="py-0 text-[10px] text-amber-600">customized</Badge>
+                    <Badge variant="outline" className="py-0 text-[11px] text-amber-600">customized</Badge>
                   )}
                   {!selected.isActive && (
-                    <Badge variant="outline" className="py-0 text-[10px] text-muted-foreground">
+                    <Badge variant="outline" className="py-0 text-[11px] text-muted-foreground">
                       <Ban className="mr-1 h-2.5 w-2.5" /> deactivated — not sent
                     </Badge>
                   )}
@@ -511,14 +512,14 @@ export function EmailTemplatesPanel() {
                 {/* Meta */}
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Live version</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Live version</p>
                     <p className="mt-1.5 text-sm text-foreground/80">
                       {selected.isActive ? "Active — what recipients get" : "Deactivated — no one receives this email"}
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground/70">Published {formatDate(selected.updatedAt)}</p>
                   </div>
                   <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Draft</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Draft</p>
                     <p className="mt-1.5 text-sm text-foreground/80">
                       {selected.draft
                         ? "Pending — not yet sent to anyone"
@@ -531,7 +532,7 @@ export function EmailTemplatesPanel() {
                     </p>
                   </div>
                   <div className="rounded-xl border border-border bg-card p-3.5 shadow-sm">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button size="sm" onClick={() => setTab("design")} className="h-7 bg-primary text-xs hover:bg-primary/90">
                         {selected.draft ? "Review draft" : "Edit"}
@@ -601,7 +602,7 @@ export function EmailTemplatesPanel() {
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Variables</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Variables</span>
                   {selected.variables.map((v) => (
                     <span
                       key={v.name}
@@ -644,12 +645,12 @@ export function EmailTemplatesPanel() {
 
                 {/* Subject */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Subject line</label>
-                  <input
+                  <label htmlFor="emailtemplatespanel-subject-line" className="text-xs font-medium text-muted-foreground">Subject line</label>
+                  <input id="emailtemplatespanel-subject-line"
                     type="text"
                     value={draftSubject}
                     onChange={(e) => { setDraftSubject(e.target.value); setDirty(true); }}
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none"
                   />
                 </div>
 
@@ -738,13 +739,16 @@ export function EmailTemplatesPanel() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
+                      onClick={async () => {
                         const hasDraft = Boolean(selected.draft) || dirty;
                         if (
                           hasDraft &&
-                          !window.confirm(
-                            "Discard the draft and any unsaved edits? The live email stays exactly as it is.",
-                          )
+                          !(await confirmAction({
+                            title: "Discard the draft?",
+                            description: "Your draft and any unsaved edits are thrown away. The live email stays exactly as it is.",
+                            confirmLabel: "Discard draft",
+                            destructive: true,
+                          }))
                         ) return;
                         void discardDraft();
                       }}
@@ -848,7 +852,7 @@ export function EmailTemplatesPanel() {
                       {audit.map((a) => (
                         <li key={a.id} className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2">
                           <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                               a.action === "publish"
                                 ? "bg-emerald-500/15 text-emerald-600"
                                 : a.action === "reset"
@@ -861,7 +865,7 @@ export function EmailTemplatesPanel() {
                           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={a.subject}>
                             {a.subject}
                           </span>
-                          <span className="shrink-0 text-[10px] text-muted-foreground/70">{formatDate(a.createdAt)}</span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground/70">{formatDate(a.createdAt)}</span>
                         </li>
                       ))}
                     </ul>
@@ -978,7 +982,7 @@ export function EmailTemplatesPanel() {
               value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/50 focus:outline-none"
             />
             {testResult && (
               <div className="space-y-1">

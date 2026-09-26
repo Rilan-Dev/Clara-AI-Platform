@@ -16,7 +16,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const KB_ID = "22222222-2222-2222-2222-222222222222";
 const ORG_ID = "org-sec-1";
@@ -28,6 +28,7 @@ const VENDOR_KEYS = {
 };
 
 vi.mock("@/modules/knowledge-bases/core/db", () => ({
+  getKnowledgeBaseDocumentTitles: vi.fn(async () => []),
   getKnowledgeBaseById: vi.fn(async (kbId: string) =>
     kbId === KB_ID
       ? { id: KB_ID, name: "Security KB", status: "active", agent_id: "agent-sec-1", qdrantCollection: "kb_sec" }
@@ -43,6 +44,10 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 
 vi.mock("@/lib/db", () => ({
   query: vi.fn(async () => [{ org_id: ORG_ID }]),
+  // AI provider registry row — the platform-level on/off control.
+  queryOne: vi.fn(async (sql: string) =>
+    String(sql).includes("platform_env_settings") ? { value: "true" } : { enabled: true },
+  ),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: vi.fn(async () => {}) }));
@@ -76,6 +81,13 @@ vi.mock("@/modules/knowledge-bases/core/config-builder", () => ({
 }));
 vi.mock("@/modules/voice-core/api/elevenlabs/embed-auth", () => ({
   embedVoiceGuard: vi.fn(async () => null),
+}));
+
+const requireAuthMock = vi.fn();
+const requireKbPermissionMock = vi.fn(async (..._args: unknown[]): Promise<Record<string, unknown>> => ({ orgId: ORG_ID }));
+vi.mock("@/modules/auth/core/rbac", () => ({
+  requireAuth: (...args: unknown[]) => requireAuthMock(...args),
+  requireKbPermission: (...args: unknown[]) => requireKbPermissionMock(...args),
 }));
 
 const createClientSecretMock = vi.fn();
@@ -116,12 +128,17 @@ function post(body: Record<string, unknown>): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps queued mockResolvedValueOnce values; a test that
+  // rejects before consuming one must not leak it into the next test.
+  resolveVoiceConfigMock.mockReset();
+  requireKbPermissionMock.mockReset();
+  // Default: the signed-in user may read the KB (tests override per case).
+  requireKbPermissionMock.mockResolvedValue({ orgId: ORG_ID });
   process.env.AUTH_SECRET = "s".repeat(48);
   process.env.OPENAI_API_KEY = VENDOR_KEYS.openai;
   process.env.GEMINI_API_KEY = VENDOR_KEYS.gemini;
   process.env.ELEVENLABS_ENABLED = "true";
   process.env.ELEVENLABS_API_KEY = VENDOR_KEYS.elevenlabs;
-  process.env.ELEVENLABS_REALTIME_ENABLED = "true";
   process.env.SARVAM_ENABLED = "true";
   process.env.SARVAM_API_KEY = VENDOR_KEYS.sarvam;
   process.env.SARVAM_REALTIME_STT_ENABLED = "true";
@@ -153,9 +170,70 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const key of ["AUTH_SECRET", "OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "ELEVENLABS_REALTIME_ENABLED", "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_REALTIME_STT_ENABLED"]) {
+  for (const key of ["AUTH_SECRET", "OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_ENABLED", "ELEVENLABS_API_KEY", "SARVAM_ENABLED", "SARVAM_API_KEY", "SARVAM_REALTIME_STT_ENABLED"]) {
     delete process.env[key];
   }
+});
+
+describe("ElevenLabs platform session authorization", () => {
+  it("rejects unauthenticated platform session bootstrap without minting a capability", async () => {
+    requireAuthMock.mockRejectedValueOnce(
+      new NextResponse(JSON.stringify({ error: "Authentication required" }), { status: 401 }),
+    );
+
+    resolveVoiceConfigMock.mockResolvedValueOnce({
+      voiceProvider: "elevenlabs",
+      realtimeProvider: "elevenlabs",
+      brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
+      elevenlabs: { ttsModel: "eleven_flash_v2_5", sttModel: "scribe_v2", voiceId: "el-voice", voiceSettings: {}, language: "en" },
+      sarvam: null,
+      openai: null,
+    });
+
+    const response = await postElevenLabsSession(post({ kbId: KB_ID }));
+    expect(response.status).toBe(401);
+    expect(requireKbPermissionMock).not.toHaveBeenCalled();
+    expect(resolveVoiceConfigMock).not.toHaveBeenCalled();
+  });
+
+  it("requires kb:read before resolving the platform voice session", async () => {
+    const auth = { user: { id: "user-sec-1", isSuperAdmin: false }, session: { id: "session-sec-1" } };
+    requireAuthMock.mockResolvedValueOnce(auth);
+    requireKbPermissionMock.mockResolvedValueOnce({
+      orgId: ORG_ID,
+      membership: {},
+      permissions: new Set(["kb:read"]),
+    });
+
+    resolveVoiceConfigMock.mockResolvedValueOnce({
+      voiceProvider: "elevenlabs",
+      realtimeProvider: "elevenlabs",
+      brain: { provider: "openai", orgId: ORG_ID, agentId: "agent-sec-1", flags: { voiceEnabled: true, realtimeEnabled: true } },
+      elevenlabs: { ttsModel: "eleven_flash_v2_5", sttModel: "scribe_v2", voiceId: "el-voice", voiceSettings: {}, language: "en" },
+      sarvam: null,
+      openai: null,
+    });
+
+    const response = await postElevenLabsSession(post({ kbId: KB_ID }));
+    expect(response.status).toBe(200);
+    expect(requireAuthMock).toHaveBeenCalledTimes(1);
+    expect(requireKbPermissionMock).toHaveBeenCalledWith(auth, KB_ID, "kb:read");
+    expect(resolveVoiceConfigMock).toHaveBeenCalled();
+  });
+
+  it("preserves an RBAC 403 instead of converting it to a 500", async () => {
+    requireAuthMock.mockResolvedValueOnce({
+      user: { id: "user-sec-1", isSuperAdmin: false },
+      session: { id: "session-sec-1" },
+    });
+    requireKbPermissionMock.mockRejectedValueOnce(
+      new NextResponse(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    );
+
+    const response = await postElevenLabsSession(post({ kbId: KB_ID }));
+    expect(response.status).toBe(403);
+    expect(resolveVoiceConfigMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("vendor API keys never reach the browser", () => {
@@ -212,7 +290,6 @@ describe("vendor API keys never reach the browser", () => {
         sampleRate: 16_000,
         ttsModel: "bulbul:v3",
         speaker: "shubh",
-        realtimeSttEnabled: true,
         realtimeSttModel: "saaras:v3-realtime",
         realtimeLlmModel: "sarvam-105b-conversations",
         realtimeTtsEnabled: true,

@@ -13,7 +13,7 @@
  *     are sent on Save (secrets are only sent when something was typed, or
  *     when explicitly cleared).
  *   • The original security protocol is preserved end-to-end: each saved key
- *     still goes through GET /api/platform/env?token=1 → HMAC confirmation
+ *     still goes through POST /api/platform/env { action: "token" } → HMAC confirmation
  *     token → POST. The per-row "I confirm" checkbox is consolidated into a
  *     single confirmation on the Save bar.
  *   • Secrets never echo back — set secrets render as "Set up" with a blank
@@ -24,24 +24,20 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, Bot, CreditCard, Smartphone, Globe, Sparkles, KeyRound, Volume2, AudioLines, SlidersHorizontal, Phone, Building2, Waves, Gauge, Languages } from "lucide-react";
+import { Smartphone, KeyRound, Volume2, AudioLines, SlidersHorizontal, Phone, Building2, Waves, Gauge, Languages } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 import { apiUrl } from "@/lib/runtime";
+import { savePlatformEnvSetting } from "@/lib/platform-env-client";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
 import {
   SettingsSection, OptionCardGrid, ModelSelect, TextField, FeatureToggle, SecretField, SaveBar, StatusPills,
 } from "@/components/admin/settings-ui";
 import {
-  BRAIN_PROVIDERS,
-  openaiChatOptions, geminiChatOptions, sarvamChatOptions,
-  openaiEmbeddingOptions, geminiEmbeddingOptions,
-  realtimeOptions, transcriptionOptions, voiceOptions,
-  elevenlabsTtsOptions, elevenlabsSttOptions,
-  sarvamTtsOptions, sarvamSttOptions, sarvamSpeakerOptions,
+  sarvamChatOptions, sarvamSpeakerOptions,
 } from "@/components/admin/ai-settings-options";
 
 type EnvSetting = {
@@ -141,6 +137,10 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     isSecret: true,
     helperLink: { label: "Setup guide →", href: "https://github.com/Rilan-Dev/Clara-AI-Platform/blob/Vite-Converted/Doc/MODE_B_AND_WEBHOOK_SECRETS_SETUP.md" },
   },
+  ELEVENLABS_REALTIME_ENABLED: {
+    label: "Enable ElevenLabs realtime voice",
+    hint: "Platform-wide switch for Clara-controlled ElevenLabs realtime voice. Prefer the dedicated toggle in the ElevenLabs AI Platform half-canvas.",
+  },
   ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT: {
     label: "Credit alert threshold (%)",
     hint: "Email super admins when this percent of the monthly ElevenLabs character budget is consumed.",
@@ -153,13 +153,39 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   AI_MAX_REALTIME_TOKENS: {
     label: "Max realtime tokens",
-    hint: "The same cap for spoken (voice) conversations. Blank = no platform cap.",
+    hint: "Caps each spoken (realtime voice) reply. Spoken audio counts against it, so a low value cuts answers off mid-sentence. Blank = no cap (recommended); the assistant's reply length setting applies to text chat.",
     validation: (v) => /^\d+$/.test(v) ? null : "Must be a positive integer",
   },
   AI_MAX_TEMPERATURE: {
     label: "Max temperature",
     hint: "How creative replies may get (0 = always the same, 2 = very creative).",
     validation: (v) => { const n = parseFloat(v); return (n >= 0 && n <= 2) ? null : "Must be between 0 and 2"; },
+  },
+
+  // ── Multilingual knowledge index (E5, ElevenLabs-grade RAG) ─────────
+  MULTILINGUAL_EMBEDDINGS_ENABLED: {
+    label: "Multilingual knowledge index",
+    hint: "Offer the multilingual index (true/false) to organisations whose plan includes it.",
+    validation: (v) => (v === "" || v === "true" || v === "false" ? null : "Use true or false"),
+  },
+  MULTILINGUAL_EMBEDDINGS_BASE_URL: {
+    label: "Embeddings endpoint",
+    hint: "Text Embeddings Inference or any OpenAI-compatible /v1/embeddings URL. VPS: http://embeddings:80 (docker-compose profile \"multilingual\"). Vercel: a hosted endpoint serving the same model.",
+    validation: (v) => (v === "" || /^https?:\/\//i.test(v) ? null : "Must start with http:// or https://"),
+  },
+  MULTILINGUAL_EMBEDDINGS_API_KEY: {
+    label: "Embeddings API key",
+    hint: "Bearer token for the endpoint. Leave empty for a private self-hosted server.",
+    isSecret: true,
+  },
+  MULTILINGUAL_EMBEDDINGS_MODEL: {
+    label: "Multilingual model",
+    hint: "intfloat/multilingual-e5-large-instruct (1024-d, ~100 languages — ElevenLabs multilingual_e5_large_instruct). Also: intfloat/multilingual-e5-large, BAAI/bge-m3.",
+  },
+  MULTILINGUAL_EMBEDDINGS_DIMENSION: {
+    label: "Vector size (optional)",
+    hint: "Only for a model the platform does not know. Known models set it automatically.",
+    validation: (v) => (v === "" || /^\d+$/.test(v) ? null : "Must be a whole number"),
   },
 
   // ── Sarvam (Indic brain + voice + language services) ──────────────
@@ -214,21 +240,37 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
     hint: "FX rate for cost dashboards (Sarvam bills in rupees). Default 0.012.",
     validation: (v) => { const n = parseFloat(v); return (n > 0 && n < 1) ? null : "Must be between 0 and 1"; },
   },
-  SARVAM_REALTIME_STT_ENABLED: {
-    label: "Realtime STT relay",
-    hint: "Enable the low-latency Saaras realtime WebSocket transport for browser and phone voice sessions.",
-  },
   SARVAM_REALTIME_STT_MODEL: {
     label: "Realtime STT model",
-    hint: "Exact Sarvam realtime WebSocket model. Default: saaras:v3-realtime; alternative: saaras:v4.",
+    hint: "Exact Sarvam realtime WebSocket model. Default: saaras:v3-realtime; alternative: saaras:v4-realtime.",
+  },
+  SARVAM_REALTIME_VAD_THRESHOLD: {
+    label: "Speech detection threshold",
+    hint: "Realtime VAD speech probability (0.05–0.95). Lower = more sensitive. Default 0.3.",
+    validation: (v) => { const n = parseFloat(v); return v === "" || (n >= 0.05 && n <= 0.95) ? null : "Must be between 0.05 and 0.95"; },
+  },
+  SARVAM_REALTIME_SILENCE_MS: {
+    label: "End-of-turn silence (ms)",
+    hint: "Silence that ends the caller's turn (100–3000). Lower replies sooner; higher lets people pause. Default 500.",
+    validation: (v) => { const n = Number(v); return v === "" || (Number.isInteger(n) && n >= 100 && n <= 3000) ? null : "Whole number 100–3000"; },
+  },
+  SARVAM_REALTIME_MIN_SPEECH_MS: {
+    label: "Minimum speech (ms)",
+    hint: "Shortest sound treated as speech (50–2000) — filters coughs and clicks. Default 250.",
+    validation: (v) => { const n = Number(v); return v === "" || (Number.isInteger(n) && n >= 50 && n <= 2000) ? null : "Whole number 50–2000"; },
+  },
+  SARVAM_TTS_PACE: {
+    label: "Speaking pace",
+    hint: "Bulbul speaking pace for realtime voice and phone calls (0.5–2.0). Default 1.0.",
+    validation: (v) => { const n = parseFloat(v); return v === "" || (n >= 0.5 && n <= 2) ? null : "Must be between 0.5 and 2.0"; },
   },
   SARVAM_REALTIME_LLM_MODEL: {
     label: "Realtime voice-agent LLM",
     hint: "Dialogue model for realtime phone sessions. Default: sarvam-105b-conversations.",
   },
   SARVAM_REALTIME_TTS_ENABLED: {
-    label: "Realtime streaming TTS",
-    hint: "Enable Bulbul v3 WebSocket streaming for low-latency spoken responses.",
+    label: "Streaming TTS for phone calls",
+    hint: "Bulbul WebSocket streaming on Sarvam phone calls. The browser realtime voice agent always streams.",
   },
 
   // ── Payments ──────────────────────────────────────────────────────
@@ -294,65 +336,50 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
-const CATEGORIES = ["ai", "payments", "phone", "platform"] as const;
-type Category = (typeof CATEGORIES)[number];
+// Payments (Settings → Payments), the public URL + landing widget key
+// (Settings → Website & widget) and provider keys/models (Settings → AI
+// Platform) each have ONE home. This panel only holds what lives nowhere else.
+export const ENV_CATEGORIES = ["ai", "phone"] as const;
+export type Category = (typeof ENV_CATEGORIES)[number];
 
 /** Noun used in the per-tab Save button ("Save AI settings"). */
 const CATEGORY_SAVE_NOUN: Record<Category, string> = {
-  ai: "AI",
-  payments: "payments",
+  ai: "voice & AI runtime",
   phone: "phone",
-  platform: "website & app",
 };
 
 const CATEGORY_LABELS: Record<Category, { icon: React.ReactNode; short: string; title: string; description: string }> = {
   ai: {
-    icon: <Bot className="w-4 h-4" />, short: "AI", title: "AI Providers & Models",
-    description: "Platform-wide defaults: which AI company powers thinking (OpenAI or Google Gemini), the keys that connect them, the default models, and the ElevenLabs voice service. Organisations can pick their own provider and models — these are the defaults everything starts from.",
-  },
-  payments: {
-    icon: <CreditCard className="w-4 h-4" />, short: "Payments", title: "Payments",
-    description: "Connect Stripe (for USD) or Razorpay (for INR) so customers can pay online. The plan prices themselves are set on the Subscriptions page — here you only connect the accounts.",
+    icon: <SlidersHorizontal className="w-4 h-4" />, short: "Voice & AI runtime", title: "Voice & AI runtime",
+    description: "Feature switches, secrets and platform-wide limits for the voice providers. Provider API keys, default models and voices are set in AI Platform.",
   },
   phone: {
     icon: <Smartphone className="w-4 h-4" />, short: "Phone calls", title: "Phone calls",
     description: "Connect Twilio or Vonage if you want your assistant to make real voice phone calls. Pick the provider you have an account with, then fill in its details.",
   },
-  platform: {
-    icon: <Globe className="w-4 h-4" />, short: "Website & app", title: "Website & app",
-    description: "Your public website address and the key used by the chat widget on your landing page.",
-  },
 };
 
 const CATEGORY_KEYS: Record<Category, string[]> = {
-  // NOTE (AI configuration migration): provider CREDENTIALS and default
-  // provider/model selections moved to Settings → AI Platform → Providers &
-  // Models (platform_ai_providers registry + platform_ai_defaults). This panel
-  // keeps only the operational AI runtime flags — editing the same key in two
-  // surfaces is the "duplicated provider information" anti-pattern the
-  // migration removes.
+  // Every key shown in the editor below MUST be listed here, or it is
+  // silently dropped on Save.
   ai: [
     "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
     "ELEVENLABS_CONVERSATIONAL_AI_ENABLED", "ELEVENLABS_VOICE_CLONING_ENABLED", "ELEVENLABS_VOICE_DESIGN_ENABLED",
+    "ELEVENLABS_REALTIME_ENABLED",
     "ELEVENLABS_TOOL_HMAC_SECRET", "ELEVENLABS_WEBHOOK_SECRET", "ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT",
-    "SARVAM_TIMEOUT_MS",
-    "SARVAM_BETA_MODELS_ENABLED",
+    "ELEVENLABS_DEFAULT_VOICE_ID",
+    "SARVAM_TIMEOUT_MS", "SARVAM_BETA_MODELS_ENABLED", "SARVAM_DEFAULT_SPEAKER",
     "SARVAM_EMBEDDING_FALLBACK_PROVIDER", "SARVAM_TRANSLATION_ENABLED", "SARVAM_TRANSLATE_MODEL",
-    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_ENABLED", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
+    "SARVAM_INR_TO_USD", "SARVAM_REALTIME_STT_MODEL", "SARVAM_REALTIME_LLM_MODEL", "SARVAM_REALTIME_TTS_ENABLED",
+    "SARVAM_REALTIME_VAD_THRESHOLD", "SARVAM_REALTIME_SILENCE_MS", "SARVAM_REALTIME_MIN_SPEECH_MS", "SARVAM_TTS_PACE",
     "AI_MAX_CHAT_TOKENS", "AI_MAX_REALTIME_TOKENS", "AI_MAX_TEMPERATURE",
-  ],
-  payments: [
-    "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
-    "RAZORPAY_KEY_ID", "NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET",
-    "STRIPE_PRICE_STARTER", "STRIPE_PRICE_PRO",
+    "MULTILINGUAL_EMBEDDINGS_ENABLED", "MULTILINGUAL_EMBEDDINGS_BASE_URL", "MULTILINGUAL_EMBEDDINGS_API_KEY",
+    "MULTILINGUAL_EMBEDDINGS_MODEL", "MULTILINGUAL_EMBEDDINGS_DIMENSION",
   ],
   phone: [
     "PHONE_PROVIDER",
     "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
     "VONAGE_API_KEY", "VONAGE_API_SECRET", "VONAGE_PHONE_NUMBER",
-  ],
-  platform: [
-    "NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_LANDING_EMBED_API_KEY",
   ],
 };
 
@@ -366,10 +393,10 @@ const meta = (key: string): FieldMeta | undefined => FIELD_METADATA[key];
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
-export function PlatformEnvPanel() {
+export function PlatformEnvPanel({ sections = [...ENV_CATEGORIES] }: { sections?: Category[] }) {
   const [settings, setSettings] = useState<EnvSetting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Category>("ai");
+  const [tab, setTab] = useState<Category>(sections[0] ?? "ai");
 
   // Draft state — only the keys the user has touched.
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -491,26 +518,7 @@ export function PlatformEnvPanel() {
       for (const key of keys) {
         const value = display(key);
         try {
-          const tokenRes = await fetch(
-            apiUrl(`/api/platform/env?token=1&key=${encodeURIComponent(key)}&value=${encodeURIComponent(value)}`),
-            { headers: withAuthHeaders() },
-          );
-          const tokenData = (await tokenRes.json()) as { confirmation_token?: string; timestamp?: number; error?: string };
-          if (!tokenRes.ok || !tokenData.confirmation_token) {
-            throw new Error(tokenData.error ?? "Could not create confirmation token");
-          }
-          const res = await fetch(apiUrl("/api/platform/env"), {
-            method: "POST",
-            headers: withAuthHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify({
-              key,
-              value,
-              confirmation_token: tokenData.confirmation_token,
-              timestamp: tokenData.timestamp,
-            }),
-          });
-          const data = (await res.json()) as { ok?: boolean; error?: string };
-          if (!res.ok) throw new Error(data.error ?? `Failed to save ${key}`);
+          await savePlatformEnvSetting(key, value);
           savedNow.push(key);
         } catch (e) {
           failures.push({ key, message: (e as Error).message });
@@ -560,8 +568,8 @@ export function PlatformEnvPanel() {
   return (
     <div className="space-y-6">
       <Tabs value={tab} onValueChange={(value) => { setTab(value as Category); setError(null); setConfirm(false); }} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1">
-          {CATEGORIES.map((cat) => {
+        <TabsList className={`w-full h-auto p-1 grid-cols-2 ${sections.length > 1 ? "grid" : "hidden"}`}>
+          {sections.map((cat) => {
             const catDirty = dirtyKeysFor(CATEGORY_KEYS[cat]);
             return (
               <TabsTrigger key={cat} value={cat} className="data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 py-2">
@@ -569,7 +577,7 @@ export function PlatformEnvPanel() {
                   {CATEGORY_LABELS[cat].icon}
                   <span className="font-medium text-xs sm:text-sm">{CATEGORY_LABELS[cat].short}</span>
                   {catDirty.length > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5">{catDirty.length}</Badge>
+                    <Badge variant="secondary" className="text-[11px] px-1.5">{catDirty.length}</Badge>
                   )}
                 </div>
               </TabsTrigger>
@@ -577,8 +585,8 @@ export function PlatformEnvPanel() {
           })}
         </TabsList>
 
-        {CATEGORIES.map((cat) => (
-          <TabsContent key={cat} value={cat} className="space-y-6 pt-4">
+        {sections.map((cat) => (
+          <TabsContent key={cat} value={cat} className={`space-y-6 ${sections.length > 1 ? "pt-4" : "mt-0"}`}>
             <Card className="border-border shadow-soft">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -596,18 +604,10 @@ export function PlatformEnvPanel() {
                     display={display} setDraftValue={setDraftValue} isSet={isSet} clearSecret={clearSecret}
                   />
                 )}
-                {cat === "payments" && (
-                  <PaymentsCategoryEditor
-                    display={display} setDraftValue={setDraftValue} isSet={isSet} clearSecret={clearSecret}
-                  />
-                )}
                 {cat === "phone" && (
                   <PhoneCategoryEditor
                     display={display} setDraftValue={setDraftValue} isSet={isSet} clearSecret={clearSecret}
                   />
-                )}
-                {cat === "platform" && (
-                  <PlatformCategoryEditor display={display} setDraftValue={setDraftValue} />
                 )}
 
                 <SaveBar
@@ -649,14 +649,8 @@ type EditorProps = {
 };
 
 function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
-  const activeProvider =
-    display("AI_PROVIDER") === "gemini" ? "gemini"
-    : display("AI_PROVIDER") === "sarvam" ? "sarvam"
-    : "openai";
   const svTranslationEnabled = display("SARVAM_TRANSLATION_ENABLED") === "true";
-  const svRealtimeEnabled = display("SARVAM_REALTIME_STT_ENABLED") === "true";
-  const openaiKeySet = Boolean(isSet?.("OPENAI_API_KEY"));
-  const geminiKeySet = Boolean(isSet?.("GEMINI_API_KEY"));
+  const speechEngineOn = display("ELEVENLABS_SPEECH_ENGINE_ENABLED") === "true";
   const elKeySet = Boolean(isSet?.("ELEVENLABS_API_KEY"));
   const svKeySet = Boolean(isSet?.("SARVAM_API_KEY"));
 
@@ -664,304 +658,37 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
 
   return (
     <>
-      {/* ── Thinking provider ──────────────────────────────────────────── */}
-      <SettingsSection
-        icon={<Sparkles />}
-        title="Thinking provider (chat & knowledge)"
-        description="The default for every organisation on the platform. Organisations can still switch to the other provider in their own AI settings — both keys below should be filled in."
-      >
-        <OptionCardGrid
-          options={BRAIN_PROVIDERS.map((p) => ({
-            id: p.id,
-            label: p.label,
-            blurb: p.blurb,
-            badge:
-              p.id === "openai" && !openaiKeySet ? { text: "Key missing", variant: "destructive" as const }
-              : p.id === "gemini" && !geminiKeySet ? { text: "Key missing", variant: "destructive" as const }
-              : p.id === "sarvam" && !svKeySet ? { text: "Key missing", variant: "destructive" as const }
-              : undefined,
-          }))}
-          value={activeProvider}
-          onChange={(id) => {
-            const next = id === "gemini" ? "gemini" : id === "sarvam" ? "sarvam" : "openai";
-            if (next !== activeProvider) setDraftValue("AI_PROVIDER", next);
-          }}
-        />
-      </SettingsSection>
-
-      {/* ── API keys ───────────────────────────────────────────────────── */}
-      <SettingsSection
-        icon={<KeyRound />}
-        title="API keys"
-        description="Platform-wide secret keys. Blank means untouched — type to replace, Clear to remove."
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SecretField
-            label={FIELD_METADATA.OPENAI_API_KEY.label}
-            hint={FIELD_METADATA.OPENAI_API_KEY.hint}
-            helperLink={FIELD_METADATA.OPENAI_API_KEY.helperLink}
-            value={display("OPENAI_API_KEY")}
-            onChange={(value) => setDraftValue("OPENAI_API_KEY", value)}
-            isSet={openaiKeySet}
-            placeholder="sk-…"
-            onClear={() => clearSecret?.("OPENAI_API_KEY")}
-          />
-          <SecretField
-            label={FIELD_METADATA.GEMINI_API_KEY.label}
-            hint={FIELD_METADATA.GEMINI_API_KEY.hint}
-            helperLink={FIELD_METADATA.GEMINI_API_KEY.helperLink}
-            value={display("GEMINI_API_KEY")}
-            onChange={(value) => setDraftValue("GEMINI_API_KEY", value)}
-            isSet={geminiKeySet}
-            placeholder="AIza…"
-            onClear={() => clearSecret?.("GEMINI_API_KEY")}
-          />
-          <SecretField
-            label={FIELD_METADATA.SARVAM_API_KEY.label}
-            hint={FIELD_METADATA.SARVAM_API_KEY.hint}
-            helperLink={FIELD_METADATA.SARVAM_API_KEY.helperLink}
-            value={display("SARVAM_API_KEY")}
-            onChange={(value) => setDraftValue("SARVAM_API_KEY", value)}
-            isSet={svKeySet}
-            placeholder="API subscription key from dashboard.sarvam.ai"
-            onClear={() => clearSecret?.("SARVAM_API_KEY")}
-          />
+      {/* ── Where provider keys & models live ─────────────────────────── */}
+      <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <div>
+            <p className="text-sm font-medium text-foreground">Provider API keys, default models and voices</p>
+            <p className="text-xs text-muted-foreground">
+              OpenAI, Gemini, Sarvam and ElevenLabs keys and model defaults are managed in one place — AI Platform → Providers &amp; Models.
+            </p>
+          </div>
         </div>
-      </SettingsSection>
+        <a
+          href="/settings/ai"
+          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+        >
+          Open AI Platform
+        </a>
+      </div>
 
-      {/* ── OpenAI defaults ────────────────────────────────────────────── */}
-      <SettingsSection
-        title="Default models — OpenAI"
-        description="Starting models for organisations on OpenAI. Organisations and knowledge bases can override them."
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <ModelSelect
-            label={FIELD_METADATA.OPENAI_CHAT_MODEL.label}
-            hint={FIELD_METADATA.OPENAI_CHAT_MODEL.hint}
-            value={display("OPENAI_CHAT_MODEL")}
-            onChange={(value) => setDraftValue("OPENAI_CHAT_MODEL", value)}
-            options={openaiChatOptions()}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.OPENAI_EMBEDDING_MODEL.label}
-            hint={FIELD_METADATA.OPENAI_EMBEDDING_MODEL.hint}
-            value={display("OPENAI_EMBEDDING_MODEL")}
-            onChange={(value) => setDraftValue("OPENAI_EMBEDDING_MODEL", value)}
-            options={openaiEmbeddingOptions()}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.OPENAI_REALTIME_MODEL.label}
-            hint={FIELD_METADATA.OPENAI_REALTIME_MODEL.hint}
-            value={display("OPENAI_REALTIME_MODEL")}
-            onChange={(value) => setDraftValue("OPENAI_REALTIME_MODEL", value)}
-            options={realtimeOptions("openai")}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.OPENAI_TRANSCRIPTION_MODEL.label}
-            hint={FIELD_METADATA.OPENAI_TRANSCRIPTION_MODEL.hint}
-            value={display("OPENAI_TRANSCRIPTION_MODEL")}
-            onChange={(value) => setDraftValue("OPENAI_TRANSCRIPTION_MODEL", value)}
-            options={transcriptionOptions("openai")}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.OPENAI_DEFAULT_VOICE.label}
-            hint={FIELD_METADATA.OPENAI_DEFAULT_VOICE.hint}
-            value={display("OPENAI_DEFAULT_VOICE")}
-            onChange={(value) => setDraftValue("OPENAI_DEFAULT_VOICE", value)}
-            options={voiceOptions("openai")}
-            placeholder="Provider default"
-          />
-        </div>
-      </SettingsSection>
-
-      {/* ── Gemini defaults ────────────────────────────────────────────── */}
-      <SettingsSection
-        title="Default models — Gemini"
-        description="Starting models for organisations on Gemini. Organisations and knowledge bases can override them."
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <ModelSelect
-            label={FIELD_METADATA.GEMINI_CHAT_MODEL.label}
-            hint={FIELD_METADATA.GEMINI_CHAT_MODEL.hint}
-            value={display("GEMINI_CHAT_MODEL")}
-            onChange={(value) => setDraftValue("GEMINI_CHAT_MODEL", value)}
-            options={geminiChatOptions()}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.GEMINI_EMBEDDING_MODEL.label}
-            hint={FIELD_METADATA.GEMINI_EMBEDDING_MODEL.hint}
-            value={display("GEMINI_EMBEDDING_MODEL")}
-            onChange={(value) => setDraftValue("GEMINI_EMBEDDING_MODEL", value)}
-            options={geminiEmbeddingOptions()}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.GEMINI_REALTIME_MODEL.label}
-            hint={FIELD_METADATA.GEMINI_REALTIME_MODEL.hint}
-            value={display("GEMINI_REALTIME_MODEL")}
-            onChange={(value) => setDraftValue("GEMINI_REALTIME_MODEL", value)}
-            options={realtimeOptions("gemini")}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.GEMINI_TRANSCRIPTION_MODEL.label}
-            hint={FIELD_METADATA.GEMINI_TRANSCRIPTION_MODEL.hint}
-            value={display("GEMINI_TRANSCRIPTION_MODEL")}
-            onChange={(value) => setDraftValue("GEMINI_TRANSCRIPTION_MODEL", value)}
-            options={transcriptionOptions("gemini")}
-            placeholder="Provider default"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.GEMINI_DEFAULT_VOICE.label}
-            hint={FIELD_METADATA.GEMINI_DEFAULT_VOICE.hint}
-            value={display("GEMINI_DEFAULT_VOICE")}
-            onChange={(value) => setDraftValue("GEMINI_DEFAULT_VOICE", value)}
-            options={voiceOptions("gemini")}
-            placeholder="Provider default"
-          />
-        </div>
-      </SettingsSection>
-
-      {/* ── Sarvam defaults (brain) ─────────────────────────────────── */}
-      <SettingsSection
-        title="Default models — Sarvam"
-        description="Starting models for organisations on Sarvam. Sarvam is chat-only: embeddings always run on the backbone below, so switching a brain to Sarvam never re-embeds a knowledge base."
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <ModelSelect
-            label={FIELD_METADATA.SARVAM_CHAT_MODEL.label}
-            hint={FIELD_METADATA.SARVAM_CHAT_MODEL.hint}
-            value={display("SARVAM_CHAT_MODEL")}
-            onChange={(value) => setDraftValue("SARVAM_CHAT_MODEL", value)}
-            options={sarvamChatOptions()}
-            placeholder="sarvam-105b"
-          />
-          <ModelSelect
-            label={FIELD_METADATA.SARVAM_EMBEDDING_FALLBACK_PROVIDER.label}
-            hint={FIELD_METADATA.SARVAM_EMBEDDING_FALLBACK_PROVIDER.hint}
-            value={display("SARVAM_EMBEDDING_FALLBACK_PROVIDER")}
-            onChange={(value) => setDraftValue("SARVAM_EMBEDDING_FALLBACK_PROVIDER", value)}
-            options={[
-              { value: "openai", label: "OpenAI embeddings", meta: "1536 / 3072 dims" },
-              { value: "gemini", label: "Gemini embeddings", meta: "768 / 3072 dims" },
-            ]}
-            placeholder="openai"
-          />
-        </div>
-      </SettingsSection>
-
-      {/* ── Voice provider (Sarvam AI) + language services ───────────── */}
+      {/* ── ElevenLabs ─────────────────────────────────────────────────── */}
       <SettingsSection
         icon={<Volume2 />}
-        title="Voice & language provider (Sarvam AI)"
-        description="Sarvam is India's sovereign AI stack: Saaras speech-to-text (23 languages, 8 kHz telephony tuning), Bulbul text-to-speech (11 languages, 37 speakers) and translation services. Pipeline mode only — documents and knowledge bases never leave this platform."
+        title="ElevenLabs voice"
+        description="ElevenLabs speaks and listens while Clara's own AI answers. Documents and knowledge bases never leave this platform."
       >
         <StatusPills
           items={[
-            svKeySet ? { text: "Sarvam key set", tone: "ok" } : { text: "Sarvam key missing", tone: "bad" },
-            svTranslationEnabled ? { text: "Language services on", tone: "ok" } : { text: "Language services off", tone: "neutral" },
-            svRealtimeEnabled ? { text: "Realtime STT relay on", tone: "ok" } : { text: "Realtime STT relay off", tone: "neutral" },
-          ]}
-        />
-        <div className="grid gap-3 lg:grid-cols-2">
-          <FeatureToggle
-            icon={<Languages />}
-            label="Language services (cross-lingual RAG)"
-            description="Translation, transliteration and language identification. Organisations then choose their translation mode (off / query / query+answer) in their AI settings."
-            checked={svTranslationEnabled}
-            onChange={(checked) => boolToggle("SARVAM_TRANSLATION_ENABLED", checked)}
-          />
-          <FeatureToggle
-            icon={<AudioLines />}
-            label="Realtime STT relay"
-            description="Stream partial transcripts for live captions and fire barge-in before the user stops speaking. Runs through the platform WebSocket relay — the Sarvam key never reaches the browser. Requires the custom server (npm run start) and a restart."
-            checked={svRealtimeEnabled}
-            onChange={(checked) => boolToggle("SARVAM_REALTIME_STT_ENABLED", checked)}
-          />
-          <FeatureToggle
-            icon={<Gauge />}
-            label="Beta open-source models"
-            description="Expose gemma4 / deepseekv4-flash / glm5.3 (hosted on the /v2 beta endpoint) in model pickers."
-            checked={display("SARVAM_BETA_MODELS_ENABLED") === "true"}
-            onChange={(checked) => boolToggle("SARVAM_BETA_MODELS_ENABLED", checked)}
-          />
-        </div>
-
-        <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
-          <div className="flex items-center gap-2">
-            <AudioLines className="w-4 h-4 text-primary" />
-            <h4 className="text-sm font-semibold text-foreground">Sarvam voice settings</h4>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ModelSelect
-              label={FIELD_METADATA.SARVAM_TTS_MODEL.label}
-              hint={FIELD_METADATA.SARVAM_TTS_MODEL.hint}
-              value={display("SARVAM_TTS_MODEL")}
-              onChange={(value) => setDraftValue("SARVAM_TTS_MODEL", value)}
-              options={sarvamTtsOptions()}
-              placeholder="bulbul:v3"
-            />
-            <ModelSelect
-              label={FIELD_METADATA.SARVAM_STT_MODEL.label}
-              hint={FIELD_METADATA.SARVAM_STT_MODEL.hint}
-              value={display("SARVAM_STT_MODEL")}
-              onChange={(value) => setDraftValue("SARVAM_STT_MODEL", value)}
-              options={sarvamSttOptions()}
-              placeholder="saaras:v3"
-            />
-            <ModelSelect
-              label={FIELD_METADATA.SARVAM_DEFAULT_SPEAKER.label}
-              hint={FIELD_METADATA.SARVAM_DEFAULT_SPEAKER.hint}
-              value={display("SARVAM_DEFAULT_SPEAKER")}
-              onChange={(value) => setDraftValue("SARVAM_DEFAULT_SPEAKER", value)}
-              options={sarvamSpeakerOptions()}
-              placeholder="shubh"
-            />
-            <ModelSelect
-              label={FIELD_METADATA.SARVAM_TRANSLATE_MODEL.label}
-              hint={FIELD_METADATA.SARVAM_TRANSLATE_MODEL.hint}
-              value={display("SARVAM_TRANSLATE_MODEL")}
-              onChange={(value) => setDraftValue("SARVAM_TRANSLATE_MODEL", value)}
-              options={[
-                { value: "sarvam-translate:v1", label: "Sarvam Translate v1", meta: "22 languages" },
-                { value: "mayura:v1", label: "Mayura v1", meta: "11 languages" },
-              ]}
-              placeholder="sarvam-translate:v1"
-            />
-            <TextField
-              label={FIELD_METADATA.SARVAM_BASE_URL.label}
-              hint={FIELD_METADATA.SARVAM_BASE_URL.hint}
-              value={display("SARVAM_BASE_URL")}
-              onChange={(value) => setDraftValue("SARVAM_BASE_URL", value)}
-              placeholder="https://api.sarvam.ai"
-              mono
-            />
-            <TextField
-              label={FIELD_METADATA.SARVAM_INR_TO_USD.label}
-              hint={FIELD_METADATA.SARVAM_INR_TO_USD.hint}
-              value={display("SARVAM_INR_TO_USD")}
-              onChange={(value) => setDraftValue("SARVAM_INR_TO_USD", value)}
-              placeholder="0.012"
-              inputMode="decimal"
-            />
-          </div>
-        </div>
-      </SettingsSection>
-
-      {/* ── Voice provider (ElevenLabs) ────────────────────────────────── */}
-      <SettingsSection
-        icon={<Volume2 />}
-        title="Voice provider (ElevenLabs)"
-        description="ElevenLabs is a voice-only provider — it speaks and listens, while Clara's own AI answers. Documents and knowledge bases never leave this platform."
-      >
-        <StatusPills
-          items={[
-            elKeySet ? { text: "ElevenLabs key set", tone: "ok" } : { text: "ElevenLabs key missing", tone: "bad" },
+            elKeySet ? { text: "API key set in AI Platform", tone: "ok" } : { text: "API key missing — add it in AI Platform", tone: "bad" },
+            speechEngineOn
+              ? (display("ELEVENLABS_SPEECH_ENGINE_ID") ? { text: "Speech Engine on", tone: "ok" } : { text: "Speech Engine on — ID missing", tone: "bad" })
+              : { text: "Speech Engine off", tone: "neutral" },
           ]}
         />
         <div className="grid gap-3 lg:grid-cols-2">
@@ -988,17 +715,19 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
           />
         </div>
 
-        <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
-          <div className="flex items-center gap-2">
-            <AudioLines className="w-4 h-4 text-primary" />
-            <h4 className="text-sm font-semibold text-foreground">ElevenLabs settings</h4>
-          </div>
+        <div className="space-y-4 rounded-xl border border-border p-4">
+          <h4 className="text-sm font-semibold text-foreground">Speech Engine (realtime)</h4>
+          <p className="text-xs text-muted-foreground">
+            Needs a Speech Engine created in your ElevenLabs dashboard, pointed at
+            {" "}<code className="font-mono">/api/voice/elevenlabs/speech-engine</code> on this domain.
+            Saving here starts it without a restart.
+          </p>
           <div className="grid gap-4 lg:grid-cols-2">
             <FeatureToggle
               icon={<Waves />}
               label={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ENABLED.label}
               description={FIELD_METADATA.ELEVENLABS_SPEECH_ENGINE_ENABLED.hint}
-              checked={display("ELEVENLABS_SPEECH_ENGINE_ENABLED") === "true"}
+              checked={speechEngineOn}
               onChange={(checked) => boolToggle("ELEVENLABS_SPEECH_ENGINE_ENABLED", checked)}
             />
             <TextField
@@ -1009,32 +738,12 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
               placeholder="seng_..."
               mono
             />
-            <ModelSelect
-              label="Default TTS model (speaking)"
-              hint="Flash = lowest latency."
-              value={display("ELEVENLABS_DEFAULT_TTS_MODEL")}
-              onChange={(value) => setDraftValue("ELEVENLABS_DEFAULT_TTS_MODEL", value)}
-              options={elevenlabsTtsOptions()}
-              placeholder="Provider default"
-            />
-            <ModelSelect
-              label="Default STT model (listening)"
-              hint="Scribe transcribes spoken questions."
-              value={display("ELEVENLABS_DEFAULT_STT_MODEL")}
-              onChange={(value) => setDraftValue("ELEVENLABS_DEFAULT_STT_MODEL", value)}
-              options={elevenlabsSttOptions()}
-              placeholder="Provider default"
-            />
-            <SecretField
-              label={FIELD_METADATA.ELEVENLABS_API_KEY.label}
-              hint={FIELD_METADATA.ELEVENLABS_API_KEY.hint}
-              helperLink={FIELD_METADATA.ELEVENLABS_API_KEY.helperLink}
-              value={display("ELEVENLABS_API_KEY")}
-              onChange={(value) => setDraftValue("ELEVENLABS_API_KEY", value)}
-              isSet={elKeySet}
-              placeholder="sk_…"
-              onClear={() => clearSecret?.("ELEVENLABS_API_KEY")}
-            />
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-xl border border-border p-4">
+          <h4 className="text-sm font-semibold text-foreground">Fallbacks, secrets &amp; alerts</h4>
+          <div className="grid gap-4 lg:grid-cols-2">
             <TextField
               label={FIELD_METADATA.ELEVENLABS_DEFAULT_VOICE_ID.label}
               hint={FIELD_METADATA.ELEVENLABS_DEFAULT_VOICE_ID.hint}
@@ -1042,6 +751,14 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
               onChange={(value) => setDraftValue("ELEVENLABS_DEFAULT_VOICE_ID", value)}
               placeholder="e.g. JBFqnCBsd6RMkjVDRZzb"
               mono
+            />
+            <TextField
+              label={FIELD_METADATA.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT.label}
+              hint={FIELD_METADATA.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT.hint}
+              value={display("ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT")}
+              onChange={(value) => setDraftValue("ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT", value)}
+              placeholder="80"
+              inputMode="numeric"
             />
             <SecretField
               label={FIELD_METADATA.ELEVENLABS_TOOL_HMAC_SECRET.label}
@@ -1061,22 +778,185 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
               placeholder="From the ElevenLabs dashboard"
               onClear={() => clearSecret?.("ELEVENLABS_WEBHOOK_SECRET")}
             />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* ── Sarvam ─────────────────────────────────────────────────────── */}
+      <SettingsSection
+        icon={<Languages />}
+        title="Sarvam voice & language"
+        description="Indic speech, realtime relays and translation. Pipeline mode only — documents and knowledge bases never leave this platform."
+      >
+        <StatusPills
+          items={[
+            svKeySet ? { text: "API key set in AI Platform", tone: "ok" } : { text: "API key missing — add it in AI Platform", tone: "bad" },
+            svTranslationEnabled ? { text: "Language services on", tone: "ok" } : { text: "Language services off", tone: "neutral" },
+            { text: "Realtime voice streams (STT + TTS WebSockets)", tone: "ok" },
+          ]}
+        />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <FeatureToggle
+            icon={<Languages />}
+            label="Language services (cross-lingual RAG)"
+            description="Translation, transliteration and language identification. Organisations then choose their translation mode in their AI settings."
+            checked={svTranslationEnabled}
+            onChange={(checked) => boolToggle("SARVAM_TRANSLATION_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<Volume2 />}
+            label={FIELD_METADATA.SARVAM_REALTIME_TTS_ENABLED.label}
+            description={FIELD_METADATA.SARVAM_REALTIME_TTS_ENABLED.hint}
+            checked={display("SARVAM_REALTIME_TTS_ENABLED") !== "false"}
+            onChange={(checked) => boolToggle("SARVAM_REALTIME_TTS_ENABLED", checked)}
+          />
+          <FeatureToggle
+            icon={<Gauge />}
+            label="Beta open-source models"
+            description="Expose the /v2 beta models in model pickers."
+            checked={display("SARVAM_BETA_MODELS_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("SARVAM_BETA_MODELS_ENABLED", checked)}
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_REALTIME_STT_MODEL.label}
+            hint={FIELD_METADATA.SARVAM_REALTIME_STT_MODEL.hint}
+            value={display("SARVAM_REALTIME_STT_MODEL")}
+            onChange={(value) => setDraftValue("SARVAM_REALTIME_STT_MODEL", value)}
+            options={[
+              { value: "saaras:v3-realtime", label: "Saaras v3 realtime", meta: "default" },
+              { value: "saaras:v4-realtime", label: "Saaras v4 realtime" },
+            ]}
+            placeholder="saaras:v3-realtime"
+          />
+          {(["SARVAM_REALTIME_SILENCE_MS", "SARVAM_REALTIME_VAD_THRESHOLD", "SARVAM_REALTIME_MIN_SPEECH_MS", "SARVAM_TTS_PACE"] as const).map((key) => (
             <TextField
-              label={FIELD_METADATA.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT.label}
-              hint={FIELD_METADATA.ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT.hint}
-              value={display("ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT")}
-              onChange={(value) => setDraftValue("ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT", value)}
-              placeholder="80"
+              key={key}
+              label={FIELD_METADATA[key].label}
+              hint={FIELD_METADATA[key].hint}
+              value={display(key)}
+              onChange={(value) => setDraftValue(key, value)}
+              placeholder={{ SARVAM_REALTIME_SILENCE_MS: "500", SARVAM_REALTIME_VAD_THRESHOLD: "0.3", SARVAM_REALTIME_MIN_SPEECH_MS: "250", SARVAM_TTS_PACE: "1.0" }[key]}
+              inputMode="decimal"
+            />
+          ))}
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_REALTIME_LLM_MODEL.label}
+            hint={FIELD_METADATA.SARVAM_REALTIME_LLM_MODEL.hint}
+            value={display("SARVAM_REALTIME_LLM_MODEL")}
+            onChange={(value) => setDraftValue("SARVAM_REALTIME_LLM_MODEL", value)}
+            options={sarvamChatOptions()}
+            placeholder="sarvam-105b-conversations"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_TRANSLATE_MODEL.label}
+            hint={FIELD_METADATA.SARVAM_TRANSLATE_MODEL.hint}
+            value={display("SARVAM_TRANSLATE_MODEL")}
+            onChange={(value) => setDraftValue("SARVAM_TRANSLATE_MODEL", value)}
+            options={[
+              { value: "sarvam-translate:v1", label: "Sarvam Translate v1", meta: "22 languages" },
+              { value: "mayura:v1", label: "Mayura v1", meta: "11 languages" },
+            ]}
+            placeholder="sarvam-translate:v1"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_DEFAULT_SPEAKER.label}
+            hint={FIELD_METADATA.SARVAM_DEFAULT_SPEAKER.hint}
+            value={display("SARVAM_DEFAULT_SPEAKER")}
+            onChange={(value) => setDraftValue("SARVAM_DEFAULT_SPEAKER", value)}
+            options={sarvamSpeakerOptions()}
+            placeholder="shubh"
+          />
+          <ModelSelect
+            label={FIELD_METADATA.SARVAM_EMBEDDING_FALLBACK_PROVIDER.label}
+            hint={FIELD_METADATA.SARVAM_EMBEDDING_FALLBACK_PROVIDER.hint}
+            value={display("SARVAM_EMBEDDING_FALLBACK_PROVIDER")}
+            onChange={(value) => setDraftValue("SARVAM_EMBEDDING_FALLBACK_PROVIDER", value)}
+            options={[
+              { value: "openai", label: "OpenAI embeddings", meta: "1536 / 3072 dims" },
+              { value: "gemini", label: "Gemini embeddings", meta: "768 / 3072 dims" },
+            ]}
+            placeholder="openai"
+          />
+          <TextField
+            label={FIELD_METADATA.SARVAM_TIMEOUT_MS.label}
+            hint={FIELD_METADATA.SARVAM_TIMEOUT_MS.hint}
+            value={display("SARVAM_TIMEOUT_MS")}
+            onChange={(value) => setDraftValue("SARVAM_TIMEOUT_MS", value)}
+            placeholder="30000"
+            inputMode="numeric"
+          />
+          <TextField
+            label={FIELD_METADATA.SARVAM_INR_TO_USD.label}
+            hint={FIELD_METADATA.SARVAM_INR_TO_USD.hint}
+            value={display("SARVAM_INR_TO_USD")}
+            onChange={(value) => setDraftValue("SARVAM_INR_TO_USD", value)}
+            placeholder="0.012"
+            inputMode="decimal"
+          />
+        </div>
+      </SettingsSection>
+
+      {/* ── Multilingual knowledge index ────────────────────────────────── */}
+      <SettingsSection
+        icon={<Languages />}
+        title="Multilingual knowledge index"
+        description="ElevenLabs-grade multilingual retrieval (E5 embeddings). Organisations whose plan includes it can re-index their knowledge bases so questions in any language match documents in any language — no translation step."
+      >
+        <div className="space-y-4">
+          <FeatureToggle
+            icon={<Languages />}
+            label="Offer the multilingual index"
+            description="Only organisations on plans with “Multilingual knowledge index” see it. Existing indexes keep working when you turn this off."
+            checked={display("MULTILINGUAL_EMBEDDINGS_ENABLED") === "true"}
+            onChange={(checked) => boolToggle("MULTILINGUAL_EMBEDDINGS_ENABLED", checked)}
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <TextField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_BASE_URL.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_BASE_URL.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_BASE_URL")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_BASE_URL", value)}
+              placeholder="http://embeddings:80"
+              inputMode="url"
+              mono
+            />
+            <SecretField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_API_KEY.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_API_KEY.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_API_KEY")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_API_KEY", value)}
+              isSet={Boolean(isSet?.("MULTILINGUAL_EMBEDDINGS_API_KEY"))}
+              placeholder="Optional for self-hosted"
+              onClear={() => clearSecret?.("MULTILINGUAL_EMBEDDINGS_API_KEY")}
+            />
+            <TextField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_MODEL.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_MODEL.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_MODEL")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_MODEL", value)}
+              placeholder="intfloat/multilingual-e5-large-instruct"
+              mono
+            />
+            <TextField
+              label={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_DIMENSION.label}
+              hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_DIMENSION.hint}
+              value={display("MULTILINGUAL_EMBEDDINGS_DIMENSION")}
+              onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_DIMENSION", value)}
+              placeholder="Automatic"
               inputMode="numeric"
             />
           </div>
+          <MultilingualEndpointTest />
         </div>
       </SettingsSection>
 
       {/* ── Limits ─────────────────────────────────────────────────────── */}
       <SettingsSection
         icon={<SlidersHorizontal />}
-        title="Limits"
+        title="Platform limits"
         description="Platform-wide ceilings. Organisations can only go lower, never higher. Blank = no platform cap."
       >
         <div className="grid gap-4 lg:grid-cols-3">
@@ -1110,105 +990,52 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
   );
 }
 
-function PaymentsCategoryEditor({ display, setDraftValue, isSet, clearSecret }: EditorProps) {
+/** Checks the SAVED multilingual endpoint: latency, vector size, cross-lingual match. */
+function MultilingualEndpointTest() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [ok, setOk] = useState<boolean | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await fetch(apiUrl("/api/platform/multilingual-embeddings/test"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean; error?: string; model?: string; dimension?: number; latencyMs?: number;
+        crossLingual?: { matchingPassage: number; unrelatedPassage: number; threshold: number };
+      };
+      setOk(Boolean(body.ok));
+      setResult(
+        body.error
+          ? body.error
+          : `${body.model} · ${body.dimension}-d · ${body.latencyMs} ms · English question ↔ Tamil answer ${body.crossLingual?.matchingPassage} vs unrelated ${body.crossLingual?.unrelatedPassage} (evidence cut-off ${body.crossLingual?.threshold})`,
+      );
+    } catch (error) {
+      setOk(false);
+      setResult((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <>
-      <SettingsSection
-        title="Stripe (USD)"
-        description="Connect Stripe so customers can subscribe and pay in US dollars."
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        onClick={run}
+        disabled={busy}
+        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 disabled:opacity-60"
       >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SecretField
-            label={FIELD_METADATA.STRIPE_SECRET_KEY.label}
-            hint={FIELD_METADATA.STRIPE_SECRET_KEY.hint}
-            helperLink={FIELD_METADATA.STRIPE_SECRET_KEY.helperLink}
-            value={display("STRIPE_SECRET_KEY")}
-            onChange={(value) => setDraftValue("STRIPE_SECRET_KEY", value)}
-            isSet={Boolean(isSet?.("STRIPE_SECRET_KEY"))}
-            placeholder="sk_test_… or sk_live_…"
-            onClear={() => clearSecret?.("STRIPE_SECRET_KEY")}
-          />
-          <SecretField
-            label={FIELD_METADATA.STRIPE_WEBHOOK_SECRET.label}
-            hint={FIELD_METADATA.STRIPE_WEBHOOK_SECRET.hint}
-            helperLink={FIELD_METADATA.STRIPE_WEBHOOK_SECRET.helperLink}
-            value={display("STRIPE_WEBHOOK_SECRET")}
-            onChange={(value) => setDraftValue("STRIPE_WEBHOOK_SECRET", value)}
-            isSet={Boolean(isSet?.("STRIPE_WEBHOOK_SECRET"))}
-            placeholder="whsec_…"
-            onClear={() => clearSecret?.("STRIPE_WEBHOOK_SECRET")}
-          />
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Razorpay (INR)"
-        description="Connect Razorpay so customers can subscribe and pay in Indian rupees."
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <TextField
-            label={FIELD_METADATA.RAZORPAY_KEY_ID.label}
-            hint={FIELD_METADATA.RAZORPAY_KEY_ID.hint}
-            helperLink={FIELD_METADATA.RAZORPAY_KEY_ID.helperLink}
-            value={display("RAZORPAY_KEY_ID")}
-            onChange={(value) => setDraftValue("RAZORPAY_KEY_ID", value)}
-            placeholder="rzp_test_… or rzp_live_…"
-            mono
-          />
-          <TextField
-            label={FIELD_METADATA.NEXT_PUBLIC_RAZORPAY_KEY_ID.label}
-            hint={FIELD_METADATA.NEXT_PUBLIC_RAZORPAY_KEY_ID.hint}
-            value={display("NEXT_PUBLIC_RAZORPAY_KEY_ID")}
-            onChange={(value) => setDraftValue("NEXT_PUBLIC_RAZORPAY_KEY_ID", value)}
-            placeholder="Usually identical to the server Key ID"
-            mono
-          />
-          <SecretField
-            label={FIELD_METADATA.RAZORPAY_KEY_SECRET.label}
-            hint={FIELD_METADATA.RAZORPAY_KEY_SECRET.hint}
-            value={display("RAZORPAY_KEY_SECRET")}
-            onChange={(value) => setDraftValue("RAZORPAY_KEY_SECRET", value)}
-            isSet={Boolean(isSet?.("RAZORPAY_KEY_SECRET"))}
-            onClear={() => clearSecret?.("RAZORPAY_KEY_SECRET")}
-          />
-          <SecretField
-            label={FIELD_METADATA.RAZORPAY_WEBHOOK_SECRET.label}
-            hint={FIELD_METADATA.RAZORPAY_WEBHOOK_SECRET.hint}
-            helperLink={FIELD_METADATA.RAZORPAY_WEBHOOK_SECRET.helperLink}
-            value={display("RAZORPAY_WEBHOOK_SECRET")}
-            onChange={(value) => setDraftValue("RAZORPAY_WEBHOOK_SECRET", value)}
-            isSet={Boolean(isSet?.("RAZORPAY_WEBHOOK_SECRET"))}
-            onClear={() => clearSecret?.("RAZORPAY_WEBHOOK_SECRET")}
-          />
-        </div>
-      </SettingsSection>
-
-      {/* Legacy fields — kept for reference, managed elsewhere now. */}
-      <div className="space-y-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 opacity-90">
-        <div className="flex items-center gap-2 text-xs text-amber-400">
-          <AlertCircle className="w-3.5 h-3.5" />
-          <span className="font-medium">Legacy fields (kept for reference)</span>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <TextField
-            label={FIELD_METADATA.STRIPE_PRICE_STARTER.label}
-            hint={FIELD_METADATA.STRIPE_PRICE_STARTER.hint}
-            value={display("STRIPE_PRICE_STARTER")}
-            onChange={(value) => setDraftValue("STRIPE_PRICE_STARTER", value)}
-            placeholder="price_…"
-            mono
-          />
-          <TextField
-            label={FIELD_METADATA.STRIPE_PRICE_PRO.label}
-            hint={FIELD_METADATA.STRIPE_PRICE_PRO.hint}
-            value={display("STRIPE_PRICE_PRO")}
-            onChange={(value) => setDraftValue("STRIPE_PRICE_PRO", value)}
-            placeholder="price_…"
-            mono
-          />
-        </div>
-      </div>
-    </>
+        {busy ? "Testing…" : "Test saved endpoint"}
+      </button>
+      {result && (
+        <span role="status" className={ok ? "text-xs text-emerald-600 dark:text-emerald-400" : "text-xs text-destructive"}>
+          {result}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -1296,34 +1123,5 @@ function PhoneCategoryEditor({ display, setDraftValue, isSet, clearSecret }: Edi
         </div>
       </SettingsSection>
     </>
-  );
-}
-
-function PlatformCategoryEditor({ display, setDraftValue }: EditorProps) {
-  return (
-    <SettingsSection
-      icon={<Globe />}
-      title="Website & app"
-      description="Your public website address and the landing-page chat widget key."
-    >
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TextField
-          label={FIELD_METADATA.NEXT_PUBLIC_APP_URL.label}
-          hint={FIELD_METADATA.NEXT_PUBLIC_APP_URL.hint}
-          value={display("NEXT_PUBLIC_APP_URL")}
-          onChange={(value) => setDraftValue("NEXT_PUBLIC_APP_URL", value)}
-          placeholder="https://your-domain.com"
-          type="url"
-        />
-        <TextField
-          label={FIELD_METADATA.NEXT_PUBLIC_LANDING_EMBED_API_KEY.label}
-          hint={FIELD_METADATA.NEXT_PUBLIC_LANDING_EMBED_API_KEY.hint}
-          value={display("NEXT_PUBLIC_LANDING_EMBED_API_KEY")}
-          onChange={(value) => setDraftValue("NEXT_PUBLIC_LANDING_EMBED_API_KEY", value)}
-          placeholder="clr_…"
-          mono
-        />
-      </div>
-    </SettingsSection>
   );
 }

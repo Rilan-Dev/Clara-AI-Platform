@@ -1,6 +1,8 @@
 "use client";
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { greetingInstruction, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
 import {
   assistantPrompts,
   buildLanguageGuidance,
@@ -10,6 +12,8 @@ import {
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
+import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta } from "../realtime-events";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
 import type { LatencyStage, TurnLatencyHandle } from "@/modules/voice-core/realtime/latency-tracker";
 import type { Source } from "../models";
@@ -144,16 +148,15 @@ const RT_EVENTS = {
   RESPONSE_CREATED: "response.created",
   RESPONSE_DONE:    "response.done",
 
-  // Text / transcript output (model speaking)
-  AUDIO_TRANSCRIPT_DELTA: "response.audio_transcript.delta",
-  TEXT_DELTA:             "response.text.delta",
+  // Text / transcript / audio output (model speaking) — GA and beta names
+  // are matched by the helpers in ../realtime-events.
 
   // Function / tool call
   FUNCTION_ARGS_DELTA: "response.function_call_arguments.delta",
   FUNCTION_ARGS_DONE:  "response.function_call_arguments.done",
 
-  // Streaming model audio (WebRTC media track mirrors these deltas)
-  AUDIO_DELTA: "response.audio.delta",
+  // WebRTC: the server started playing model audio on the media track.
+  OUTPUT_AUDIO_BUFFER_STARTED: "output_audio_buffer.started",
 } as const;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -230,10 +233,14 @@ export function useOpenAIRealtime(opts?: Options) {
     (turnLatencyRef.current ?? latencyRef.current)?.mark(stage);
   }, []);
 
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = turnLatencyRef.current?.telemetry() ?? latencyRef.current?.telemetry();
     if (!event) return;
     console.debug("[openai-realtime] latency", event);
+    logVoiceTurnLatency("openai", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -383,13 +390,14 @@ export function useOpenAIRealtime(opts?: Options) {
         headers,
         body: JSON.stringify(
           kbIdVal
-            ? { query, kbId: kbIdVal, language: languagePrefs.assistant, ...(opts?.draftMode ? { scope: "draft" } : {}) } // KB mode
-            : { query, documentId: docId, language: languagePrefs.assistant } // Legacy mode
+            ? { query, kbId: kbIdVal, language: languagePrefs.assistant, channel: "voice", ...(opts?.draftMode ? { scope: "draft" } : {}) } // KB mode
+            : { query, documentId: docId, language: languagePrefs.assistant, channel: "voice" } // Legacy mode
         ),
         signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
       });
       const payload = await res.json();
       markTurn("rag.end");
+      serverTimingRef.current = ragTimings(payload?.timings);
       const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
       const ragContext =
         typeof payload?.context === "string" ? payload.context.trim() : "";
@@ -415,29 +423,33 @@ export function useOpenAIRealtime(opts?: Options) {
         )
       );
 
-      // ── Step 2: Build full context string ──────────────────────────────
+      // ── Step 2: Build the turn context ──────────────────────────────────
+      // The server's provider-neutral turn guidance (grounded answer /
+      // capability overview / natural no-evidence handling, in the visitor's
+      // language) replaces the old "GROUNDING GUARD … say exactly" text that
+      // opened conversations with a canned topic-restriction refusal.
       const overviewSummary = documentOverview?.trim() ?? "";
-      const redirectLine = assistantPrompts.voice.outOfScopeRedirect?.trim();
+      const detectedResponseLanguage =
+        typeof payload?.responseLanguage === "string" &&
+        languagePrefs.customer.includes(payload.responseLanguage)
+          ? payload.responseLanguage
+          : null;
+      const guidance =
+        typeof payload?.guidance === "string" && payload.guidance.trim()
+          ? payload.guidance.trim()
+          : buildTurnGuidance({
+              grounded,
+              intent: intent === "capability" ? "capability" : grounded ? "knowledge" : "out_of_scope",
+              responseLanguage: detectedResponseLanguage,
+              fallbackReply: outOfScopeReply,
+              topics:
+                (dynamicScope as { topics?: string } | null)?.topics ??
+                (Array.isArray(dynamicScope?.documentTitles) ? dynamicScope.documentTitles.join(", ") : null),
+              channel: "voice",
+            });
 
-      const contextSegments: string[] = [];
-      if (intent === "capability") {
-        const capabilityParts = [
-          dynamicScope?.welcomeMessage?.trim(),
-          dynamicScope?.knowledgeBaseDescription?.trim(),
-          Array.isArray(dynamicScope?.documentTitles) && dynamicScope.documentTitles.length > 0
-            ? `Current knowledge sources: ${dynamicScope.documentTitles.join(", ")}.`
-            : "",
-        ].filter(Boolean);
-        contextSegments.push(
-          "CAPABILITY/ONBOARDING REQUEST: Answer the visitor's question about what this assistant can help with using the dynamically configured scope below. Do not refuse merely because the question did not match a document.",
-          capabilityParts.join("\n\n"),
-        );
-      } else if (!grounded) {
-        contextSegments.push(
-          `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base.
-Do not answer the customer's question from general knowledge. Say exactly: "${outOfScopeReply}"`,
-        );
-      }
+      const contextSegments: string[] = [guidance];
+      if (!detectedResponseLanguage) contextSegments.push(languageGuidance.follow);
       if (overviewSummary && grounded) {
         contextSegments.push(
           `${assistantPrompts.voice.quickResponseContextLabel}\n${overviewSummary}`
@@ -445,11 +457,8 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
       }
       if (ragContext) {
         contextSegments.push(
-          `${assistantPrompts.voice.followUpContextLabel}\n${ragContext}`
+          `${intent === "capability" ? "Assistant scope:" : assistantPrompts.voice.followUpContextLabel}\n${ragContext}`
         );
-      }
-      if (redirectLine) {
-        contextSegments.push(redirectLine);
       }
 
       // ── Step 3: Inject context + user question as conversation items ────
@@ -473,21 +482,6 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         },
       });
 
-      const detectedResponseLanguage =
-        typeof payload?.responseLanguage === "string" &&
-        languagePrefs.customer.includes(payload.responseLanguage)
-          ? payload.responseLanguage
-          : null;
-      const languageNames: Record<string, string> = {
-        en: "English",
-        ta: "Tamil",
-        hi: "Hindi",
-        te: "Telugu",
-      };
-      const dynamicLanguageInstruction = detectedResponseLanguage
-        ? `Respond in ${languageNames[detectedResponseLanguage] ?? detectedResponseLanguage} because that is the customer's detected language. Keep the response concise and natural. This overrides the default realtime language only for this turn and remains within the project allowlist.`
-        : languageGuidance.follow;
-
       // ── Step 4: Single response.create with tool_choice:"none" ─────────
       // FIX V3: tool_choice:"none" prevents the model from calling rag_search
       // again (it already has the context), which would trigger handleToolCall
@@ -498,13 +492,13 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
       // llm.start and tts.start are the same instant on this provider.
       markTurn("llm.start");
       markTurn("tts.start");
+      // No `instructions` here: response-level instructions REPLACE the
+      // session instructions for that response (OpenAI Realtime reference,
+      // response.create), which silently dropped the operator's system prompt
+      // on every answer. The per-turn guidance rides the system item above.
       sendJSON({
         type: "response.create",
         response: {
-          instructions: [
-            assistantPrompts.voice.followUpInstructions,
-            dynamicLanguageInstruction,
-          ].join("\n\n"),
           tool_choice: "none",
         },
       });
@@ -681,7 +675,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
           headers,
           body: JSON.stringify(
             kbIdVal
-              ? { query: q, kbId: kbIdVal, ...(opts?.draftMode ? { scope: "draft" } : {}) }       // KB mode
+              ? { query: q, kbId: kbIdVal, channel: "voice", ...(opts?.draftMode ? { scope: "draft" } : {}) }       // KB mode
               : { query: q, documentId: docId }    // Legacy mode
           ),
         });
@@ -706,9 +700,20 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
           typeof payload?.outOfScopeReply === "string" && payload.outOfScopeReply.trim()
             ? payload.outOfScopeReply.trim()
             : "I don't have enough information in the configured knowledge base to answer that accurately.";
-        const toolContext = grounded
-          ? payload.context
-          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say exactly: "${outOfScopeReply}"`;
+        const guidance =
+          typeof payload?.guidance === "string" && payload.guidance.trim()
+            ? payload.guidance.trim()
+            : buildTurnGuidance({
+                grounded,
+                intent: payload?.intent === "capability" ? "capability" : grounded ? "knowledge" : "out_of_scope",
+                responseLanguage: typeof payload?.responseLanguage === "string" ? payload.responseLanguage : null,
+                fallbackReply: outOfScopeReply,
+                topics: typeof payload?.scope?.topics === "string" ? payload.scope.topics : null,
+                channel: "voice",
+              });
+        const toolContext = [guidance, typeof payload?.context === "string" ? payload.context : ""]
+          .filter(Boolean)
+          .join("\n\n");
 
         sendJSON({
           type: "conversation.item.create",
@@ -932,14 +937,11 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
           }
 
           // ── Model text / audio-transcript output (delta) ──────────────
-          // response.audio_transcript.delta — transcript of what the model
-          //   says; this is the primary source for populating turn.answer.
-          // response.text.delta — plain text modality output (also present
-          //   when both audio + text modalities are active).
-          if (
-            type === RT_EVENTS.AUDIO_TRANSCRIPT_DELTA ||
-            type === RT_EVENTS.TEXT_DELTA
-          ) {
+          // response.output_audio_transcript.delta (GA) /
+          // response.audio_transcript.delta (beta) — transcript of what the
+          //   model says; the primary source for turn.answer.
+          // response.output_text.delta / response.text.delta — text output.
+          if (isAssistantTranscriptDelta(type)) {
             const delta = typeof msg.delta === "string" ? msg.delta : "";
             if (delta) {
               markTurn("llm.first_token");
@@ -960,7 +962,7 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
           // The first audio delta is the provider's first synthesized audio;
           // the browser's WebRTC track starts playing the same frame — the
           // closest observable browser.first_audio instant on this transport.
-          if (type === RT_EVENTS.AUDIO_DELTA) {
+          if (isAssistantAudioDelta(type) || type === RT_EVENTS.OUTPUT_AUDIO_BUFFER_STARTED) {
             markTurn("tts.first_audio");
             markTurn("browser.first_audio");
           }
@@ -1000,13 +1002,18 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
             // must not receive this turn's marks through the fallback path.
             turnLatencyRef.current = null;
             isSpeakingRef.current = false;
+            // Fallback: if no transcript delta arrived, take the answer from
+            // the completed response so it is never missing from the session.
+            const finalText = extractResponseText(msg.response);
             let resolvedId: string | null = null;
             setHistory((prev) => {
               const targetId = resolveTurnId(prev);
               resolvedId = targetId;
               if (!targetId) return prev;
               return prev.map((t) =>
-                t.id === targetId ? { ...t, status: "done" } : t
+                t.id === targetId
+                  ? { ...t, answer: t.answer.trim() ? t.answer : finalText || t.answer, status: "done" }
+                  : t
               );
             });
             if (resolvedId) latestTurnIdRef.current = resolvedId;
@@ -1344,11 +1351,14 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
         sendJSON({
           type: "response.create",
           response: {
-            instructions: [
-              "Greet the user using the following script verbatim.",
+            // The conversation always starts in the DEFAULT language.
+            instructions: greetingInstruction(
+              normalizeLanguagePolicy({
+                defaultLanguage: languagePrefs.assistant,
+                allowedLanguages: languagePrefs.customer,
+              }),
               greetingText,
-              languageGuidance.session,
-            ].join("\n\n"),
+            ),
           },
         });
       }
@@ -1474,4 +1484,14 @@ Do not answer the customer's question from general knowledge. Say exactly: "${ou
     // AnalyserNode is needed — the visualiser reads from remoteAudioStream.
     outputAnalyserNode: null as AnalyserNode | null,
   } as const;
+}
+
+/** Grounding stage timings from /api/rag/search ({ retrievalMs: 312 } → { retrieval: 312 }). */
+function ragTimings(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object") return null;
+  const out: Record<string, number> = {};
+  for (const [key, ms] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof ms === "number") out[key.replace(/Ms$/, "")] = ms;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }

@@ -30,11 +30,16 @@ import {
   ChevronDown,
   ChevronRight,
   Languages,
+  Maximize2,
   Palette,
   RefreshCw,
   Volume2,
+  Wand2,
 } from "lucide-react";
 import { SystemPromptPreview } from "./SystemPromptPreview";
+import { SystemPromptGenerator, type GenerateSystemPrompt } from "./SystemPromptGenerator";
+import { FirstMessageTranslator, type TranslateText } from "./FirstMessageTranslator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LanguageSelect, LanguageMultiSelect } from "./LanguagePicker";
 import { AutoSaveChip, ContextDrawer } from "./ai-platform/shared";
 import { useAutoSave } from "@/hooks/use-auto-save";
@@ -68,6 +73,11 @@ type Props = {
   /** Read-only surface (platform admin viewing an org agent): mutations are
    *  ignored and the auto-save pipeline is disabled. */
   readOnly?: boolean;
+  /** When set, the system prompt gets a "Generate from knowledge base"
+   *  action (template picker → review → replace/append). */
+  onGenerateSystemPrompt?: GenerateSystemPrompt;
+  /** When set, the first-message language chip opens a translate menu. */
+  onTranslateText?: TranslateText;
 };
 
 /** Provider-synced voice catalog — supplied by the agent workspace screen. */
@@ -100,6 +110,8 @@ export function ConfigEditor({
   onOpenAISettings,
   voiceCatalog: providerVoiceCatalog,
   readOnly = false,
+  onGenerateSystemPrompt,
+  onTranslateText,
 }: Props) {
   const [cfg, setCfg] = useState<AssistantConfig>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +123,9 @@ export function ConfigEditor({
   const [voiceCatalogRefreshing, setVoiceCatalogRefreshing] = useState(false);
   const [lockLanguageOpen, setLockLanguageOpen] = useState(false);
   const [promptPreviewOpen, setPromptPreviewOpen] = useState(false);
+  const [promptGeneratorOpen, setPromptGeneratorOpen] = useState(false);
+  const [promptFullscreenOpen, setPromptFullscreenOpen] = useState(false);
+  const fullscreenPromptRef = useRef<HTMLTextAreaElement>(null);
   // Right-column card expansion (agent variant).
   const [languageOpen, setLanguageOpen] = useState(false);
   const [behaviorOpen, setBehaviorOpen] = useState(false);
@@ -222,7 +237,9 @@ export function ConfigEditor({
   // The voice catalog is needed on mount in the agent variant (right-column
   // Voices card) and on Voice-tab entry in the default variant.
   useEffect(() => {
-    const shouldFetch = variant === "agent" || activeTab === "voice";
+    // Agent workspaces receive the selected realtime provider catalog from
+    // the capability resolver. Do not also call the OpenAI catalog endpoint.
+    const shouldFetch = activeTab === "voice" || (variant === "agent" && !providerVoiceCatalog);
     if (!shouldFetch || voiceCatalogRequested.current) return;
     voiceCatalogRequested.current = true;
     let cancelled = false;
@@ -245,7 +262,7 @@ export function ConfigEditor({
         if (!cancelled) setVoiceCatalogLoading(false);
       });
     return () => { cancelled = true; };
-  }, [activeTab, variant]);
+  }, [activeTab, variant, providerVoiceCatalog]);
 
   const refreshVoiceCatalog = useCallback(async () => {
     setVoiceCatalogRefreshing(true);
@@ -278,6 +295,89 @@ export function ConfigEditor({
   }, [newRule, cfg.rules, set]);
 
   const removeRule = (i: number) => set("rules", cfg.rules.filter((_, idx) => idx !== i));
+
+  // "Generate from knowledge base" — offered only where a generator is wired
+  // (agent workspace) and the viewer can edit.
+  const canGeneratePrompt = Boolean(onGenerateSystemPrompt) && !readOnly;
+  const generatePromptButton = canGeneratePrompt ? (
+    <button
+      type="button"
+      onClick={() => setPromptGeneratorOpen(true)}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+      title="Draft a system prompt from this agent's knowledge base"
+    >
+      <Wand2 className="h-3.5 w-3.5" /> Generate from knowledge base
+    </button>
+  ) : null;
+  const promptGeneratorDialog = canGeneratePrompt && onGenerateSystemPrompt ? (
+    <SystemPromptGenerator
+      open={promptGeneratorOpen}
+      onOpenChange={setPromptGeneratorOpen}
+      generate={onGenerateSystemPrompt}
+      hasExistingPrompt={cfg.systemPrompt.trim().length > 0}
+      onApply={(prompt, mode) => {
+        const current = cfg.systemPrompt.trim();
+        set("systemPrompt", mode === "append" && current ? `${current}\n\n${prompt}` : prompt);
+        toast.success(mode === "append" ? "Generated prompt appended." : "System prompt updated from the knowledge base.");
+      }}
+    />
+  ) : null;
+
+  // Full-screen editing for long system prompts (same value, same auto-save).
+  const fullscreenPromptButton = (
+    <button
+      type="button"
+      onClick={() => setPromptFullscreenOpen(true)}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+      title="Edit the system prompt in full screen"
+      aria-label="Edit the system prompt in full screen"
+    >
+      <Maximize2 className="h-3.5 w-3.5" /> Full screen
+    </button>
+  );
+  const fullscreenPromptDialog = (
+    <Dialog open={promptFullscreenOpen} onOpenChange={setPromptFullscreenOpen}>
+      <DialogContent
+        className="flex h-[100dvh] max-w-none flex-col gap-3 p-4 sm:h-[94vh] sm:w-[96vw] sm:max-w-[1400px] sm:rounded-xl sm:p-6"
+        onOpenAutoFocus={(event) => {
+          // Continue writing where the prompt ends, not at its first line.
+          event.preventDefault();
+          const el = fullscreenPromptRef.current;
+          if (!el) return;
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+          el.scrollTop = el.scrollHeight;
+        }}
+      >
+        <DialogHeader className="pr-8">
+          <DialogTitle>System prompt</DialogTitle>
+          <DialogDescription>
+            {readOnly ? "Read-only view." : "Changes save automatically into the draft. Press Esc to exit full screen."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-background focus-within:border-primary/40">
+          <Textarea
+            value={cfg.systemPrompt}
+            onChange={(e) => set("systemPrompt", e.target.value)}
+            ref={fullscreenPromptRef}
+            readOnly={readOnly}
+            aria-label="System prompt"
+            placeholder="You are a helpful assistant…"
+            className="min-h-0 flex-1 resize-none rounded-t-xl rounded-b-none border-0 bg-transparent font-mono text-[13px] leading-6 focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2">
+            <span className="text-[11px] text-muted-foreground/80">
+              {cfg.systemPrompt.length.toLocaleString()} characters
+            </span>
+            <div className="flex items-center gap-2">
+              {generatePromptButton}
+              <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
   const TABS = [
     { id: "agent", label: "Agent" },
@@ -322,19 +422,39 @@ export function ConfigEditor({
                     className="min-h-[5.5rem] resize-y border-0 bg-transparent focus-visible:ring-0"
                   />
                   <div className="flex items-center justify-between gap-2 border-t border-border/70 px-3 py-2">
-                    <span className="text-[11px] text-muted-foreground/60">
+                    <span className="text-[11px] text-muted-foreground/80">
                       Empty lets the agent wait for the user to start.
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setLanguageOpen(true)}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                      title="Language settings"
-                    >
-                      <LanguageDot code={cfg.defaultLanguage} />
-                      {languageLabel(cfg.defaultLanguage)}
-                      <ChevronRight className="h-3 w-3" />
-                    </button>
+                    {onTranslateText && !readOnly ? (
+                      <FirstMessageTranslator
+                        text={cfg.welcomeMessage}
+                        defaultLanguage={cfg.defaultLanguage}
+                        allowedLanguages={cfg.allowedLanguages}
+                        translate={onTranslateText}
+                        onOpenSettings={() => setLanguageOpen(true)}
+                        onReplace={(translated, language, makeDefault) => {
+                          set("welcomeMessage", translated);
+                          if (makeDefault) {
+                            set("defaultLanguage", language);
+                            if (!cfg.allowedLanguages.includes(language)) {
+                              set("allowedLanguages", [...cfg.allowedLanguages, language]);
+                            }
+                          }
+                          toast.success(makeDefault ? `First message translated; ${languageLabel(language)} is now the default language.` : "First message translated.");
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setLanguageOpen(true)}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        title="Language settings"
+                      >
+                        <LanguageDot code={cfg.defaultLanguage} />
+                        {languageLabel(cfg.defaultLanguage)}
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -343,14 +463,18 @@ export function ConfigEditor({
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <Label className="text-sm font-medium">System prompt</Label>
-                  <button
-                    type="button"
-                    onClick={() => setPromptPreviewOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
-                    title="Preview the full prompt sent to the AI"
-                  >
-                    <BookOpen className="h-3.5 w-3.5" /> Preview
-                  </button>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {generatePromptButton}
+                    {fullscreenPromptButton}
+                    <button
+                      type="button"
+                      onClick={() => setPromptPreviewOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+                      title="Preview the full prompt sent to the AI"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" /> Preview
+                    </button>
+                  </div>
                 </div>
                 <div className="rounded-xl border border-border bg-background focus-within:border-primary/40">
                   <Textarea
@@ -361,7 +485,7 @@ export function ConfigEditor({
                     className="resize-y border-0 bg-transparent font-mono text-[13px] leading-6 focus-visible:ring-0"
                   />
                   <div className="flex items-center justify-between gap-2 border-t border-border/70 px-3 py-2">
-                    <span className="text-[11px] text-muted-foreground/60">
+                    <span className="text-[11px] text-muted-foreground/80">
                       {cfg.systemPrompt.length.toLocaleString()} characters
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -399,7 +523,7 @@ export function ConfigEditor({
                     <span className="text-xs text-muted-foreground">Advanced</span>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-5 px-4 pb-4">
-                    <Field label="Out-of-scope reply" hint="Returned when strict mode rejects a question.">
+                    <Field label="Out-of-scope reply" hint="What the assistant conveys, in the visitor's language, when a question isn't covered by the knowledge base. It is paraphrased with a pointer to what you do cover, and never used for greetings or &quot;what can you do&quot; questions.">
                       <Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." />
                     </Field>
                   </CollapsibleContent>
@@ -420,12 +544,12 @@ export function ConfigEditor({
                     <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
                     {providerVoiceCatalog ? `Voices · ${providerVoiceCatalog.providerName}` : "Voices"}
                     {providerVoiceCatalog && (
-                      <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                      <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
                         Synced
                       </span>
                     )}
                     {(providerVoiceCatalog?.voices.length ?? voiceCatalog?.voices.length ?? 0) > 0 && (
-                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {providerVoiceCatalog?.voices.length ?? voiceCatalog?.voices.length} voices
                       </span>
                     )}
@@ -483,7 +607,7 @@ export function ConfigEditor({
                                 <span className="block truncate text-sm font-medium text-foreground">
                                   {v.label}
                                   {v.isDefault && (
-                                    <span className="ml-1.5 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                                    <span className="ml-1.5 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                                       Default
                                     </span>
                                   )}
@@ -598,8 +722,8 @@ export function ConfigEditor({
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {languageLabel(cfg.defaultLanguage)}
                       </span>
-                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Default</span>
-                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", languageOpen && "rotate-180")} />
+                      <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Default</span>
+                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", languageOpen && "rotate-180")} />
                     </button>
                   </li>
                   <li>
@@ -609,14 +733,14 @@ export function ConfigEditor({
                       aria-expanded={languageOpen}
                       className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
                     >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
                         {cfg.allowedLanguages.length}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {cfg.allowedLanguages.map((c) => languageLabel(c)).slice(0, 3).join(" & ")}
                         {cfg.allowedLanguages.length > 3 ? ` +${cfg.allowedLanguages.length - 3}` : ""}
                       </span>
-                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", languageOpen && "rotate-180")} />
+                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", languageOpen && "rotate-180")} />
                     </button>
                   </li>
                 </ul>
@@ -690,13 +814,13 @@ export function ConfigEditor({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {cfg.primaryColour} · {cfg.accentColour}
                   </span>
-                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", brandingOpen && "rotate-180")} />
+                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", brandingOpen && "rotate-180")} />
                 </button>
                 {brandingOpen && (
                   <div className="space-y-4 border-t border-border/60 px-3 py-3">
                     {/* Live mini preview */}
                     <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">Live preview</p>
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">Live preview</p>
                       <div className="mt-2 space-y-2">
                         <div className="flex justify-end">
                           <span className="rounded-2xl rounded-br-sm px-3 py-1.5 text-xs text-white" style={{ backgroundColor: cfg.primaryColour }}>
@@ -739,7 +863,7 @@ export function ConfigEditor({
                               aria-pressed={active}
                               title={`${preset.name} — ${preset.primary} / ${preset.accent}`}
                               className={cn(
-                                "flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-medium transition-colors",
+                                "flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors",
                                 active ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/70 text-muted-foreground hover:border-primary/30 hover:text-foreground",
                               )}
                             >
@@ -786,13 +910,13 @@ export function ConfigEditor({
                   onClick={() => onOpenAISettings?.()}
                   className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
                     AI
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {llmSummary ?? "Platform default"}
                   </span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
                 </button>
               </div>
             </section>
@@ -815,10 +939,10 @@ export function ConfigEditor({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {cfg.strictMode ? "Strict" : "Open"} · {cfg.citeSources ? "cites sources" : "no citations"}
                   </span>
-                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
                     T {cfg.temperature.toFixed(2)}
                   </span>
-                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform", behaviorOpen && "rotate-180")} />
+                  <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", behaviorOpen && "rotate-180")} />
                 </button>
                 {behaviorOpen && (
                   <div className="space-y-5 border-t border-border/60 px-3 py-3">
@@ -839,7 +963,7 @@ export function ConfigEditor({
                       </div>
                     </Field>
                     <div className="grid grid-cols-2 gap-4">
-                      <SwitchField label="Strict Mode" desc="Reject off-topic questions" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} />
+                      <SwitchField label="Strict Mode" desc="Answer only from the knowledge base; off-topic questions get the out-of-scope reply" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} />
                       <SwitchField label="Cite Sources" desc="Include [S1] citations" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} />
                     </div>
                     <Field label="Temperature" hint={`${cfg.temperature} — response creativity`}>
@@ -884,6 +1008,8 @@ export function ConfigEditor({
         >
           <SystemPromptPreview config={cfg} contextName={contextName} />
         </ContextDrawer>
+        {promptGeneratorDialog}
+        {fullscreenPromptDialog}
       </div>
     );
   }
@@ -932,6 +1058,7 @@ export function ConfigEditor({
                 label="System prompt"
                 hint="The core instructions that guide the agent&apos;s behaviour, tasks and personality."
               >
+                <div className="mb-2 flex flex-wrap justify-end gap-2">{generatePromptButton}{fullscreenPromptButton}</div>
                 <Textarea
                   value={cfg.systemPrompt}
                   onChange={(e) => set("systemPrompt", e.target.value)}
@@ -1015,7 +1142,7 @@ export function ConfigEditor({
                     <span className="text-xs text-muted-foreground">Advanced</span>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-5 px-4 pb-4">
-                    <Field label="Out-of-scope reply" hint="Returned when strict mode rejects a question.">
+                    <Field label="Out-of-scope reply" hint="What the assistant conveys, in the visitor's language, when a question isn't covered by the knowledge base. It is paraphrased with a pointer to what you do cover, and never used for greetings or &quot;what can you do&quot; questions.">
                       <Input value={cfg.outOfScopeReply} onChange={(e) => set("outOfScopeReply", e.target.value)} placeholder="I can only answer questions about this knowledge base." />
                     </Field>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -1048,7 +1175,7 @@ export function ConfigEditor({
               <div className="flex gap-2"><Input value={newRule} onChange={(e) => setNewRule(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRule()} placeholder="e.g. Always end responses with a follow-up question" className="flex-1" /><Button variant="outline" size="sm" onClick={addRule} disabled={!newRule.trim()}>Add</Button></div>
             </div>
           </Field>
-          <div className="grid grid-cols-2 gap-6"><SwitchField label="Strict Mode" desc="Reject off-topic questions" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} /><SwitchField label="Cite Sources" desc="Include [S1] citations in answers" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} /></div>
+          <div className="grid grid-cols-2 gap-6"><SwitchField label="Strict Mode" desc="Answer only from the knowledge base; off-topic questions get the out-of-scope reply" checked={cfg.strictMode} onChange={(v) => set("strictMode", v)} /><SwitchField label="Cite Sources" desc="Include [S1] citations in answers" checked={cfg.citeSources} onChange={(v) => set("citeSources", v)} /></div>
           <Field label="Temperature" hint={`${cfg.temperature} — controls response creativity (0 = deterministic, 1 = creative)`}><Slider min={0} max={1} step={0.05} value={[cfg.temperature]} onValueChange={([v]) => set("temperature", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Precise</span><span>Creative</span></div></Field>
           <Field label="Max Response Tokens" hint={`${cfg.maxTokens} tokens`}><Slider min={100} max={2000} step={50} value={[cfg.maxTokens]} onValueChange={([v]) => set("maxTokens", v)} className="w-full" /><div className="flex justify-between text-xs text-muted-foreground mt-1"><span>100</span><span>2000</span></div></Field>
         </div>
@@ -1102,6 +1229,8 @@ export function ConfigEditor({
         </div>
         <AutoSaveChip status={autoSave.status} savedAt={autoSave.savedAt} />
       </div>
+      {promptGeneratorDialog}
+      {fullscreenPromptDialog}
     </div>
   );
 }
@@ -1141,7 +1270,7 @@ function relativeTime(iso: string): string {
 function LanguageDot({ code }: { code: string }) {
   const flag = languageFlag(code);
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-[10px]" aria-hidden>
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-[11px]" aria-hidden>
       {flag}
     </span>
   );

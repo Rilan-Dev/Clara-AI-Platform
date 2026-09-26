@@ -289,11 +289,22 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
 
   // Cross-screen refresh: one-click publish (topbar cluster, Overview, publish screen)
   // fires this event so every mounted workspace surface re-reads its context.
+  // Draft edits use the lighter draft-updated event and do not refetch workspace.
   useEffect(() => {
     const refresh = () => refetchContext();
+    const draftUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string; draftUpdatedAt?: string }>).detail;
+      if (!agentId || detail?.agentId !== agentId || !detail.draftUpdatedAt) return;
+      const draftUpdatedAt = detail.draftUpdatedAt;
+      setContext((current) => current ? { ...current, draftUpdatedAt } : current);
+    };
     window.addEventListener("agent-workspace:refresh", refresh);
-    return () => window.removeEventListener("agent-workspace:refresh", refresh);
-  }, [refetchContext]);
+    window.addEventListener("agent-workspace:draft-updated", draftUpdated);
+    return () => {
+      window.removeEventListener("agent-workspace:refresh", refresh);
+      window.removeEventListener("agent-workspace:draft-updated", draftUpdated);
+    };
+  }, [agentId, refetchContext]);
 
   const value = useMemo<AgentsWorkspaceValue>(
     () => ({
@@ -340,7 +351,7 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
 function AgentMobileTabs() {
   const { agentId, orgId } = useAgentsWorkspace();
   const pathname = usePathname();
-  if (!agentId) return null;
+  if (!agentId || !orgId) return null;
 
   const base = `/orgs/${orgId}/agents/${agentId}`;
   const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
@@ -348,7 +359,7 @@ function AgentMobileTabs() {
     { href: `${base}/config`, label: "Main" },
     { href: `${base}/faq`, label: "FAQ" },
     { href: `${base}/knowledge`, label: "Knowledge" },
-    { href: `${base}/tools`, label: "Tools" },
+    { href: `${base}/tools`, label: "Capabilities" },
     { href: `${base}/versions`, label: "Branches" },
     { href: `${base}/publish`, label: "Publish" },
   ];
@@ -406,7 +417,7 @@ function DefaultUpdateBanner() {
       .catch(() => setDefaultUpdate(null));
   }, [agentId, context?.defaultAssistantUpdate?.updateAvailable]);
 
-  if (!defaultUpdate || dismissing) return null;
+  if (!defaultUpdate || dismissing || !agentId || !orgId) return null;
 
   return (
     <div className="px-4 pt-4 sm:px-6 lg:px-8">
@@ -545,7 +556,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
       <DefaultUpdateBanner />
       <main className="p-4 sm:p-6 lg:p-8">{children}</main>
 
-      {agentId && (
+      {agentId && orgId && (
         <AgentHistoryDrawer
           agentId={agentId}
           open={historyOpen}
@@ -758,7 +769,7 @@ function AgentHistoryDrawer({
                           {tags.map((tag) => (
                             <span
                               key={tag}
-                              className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                              className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                             >
                               {tag}
                             </span>
@@ -847,7 +858,7 @@ function AgentHistoryDrawer({
         )}
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-3">
-          <p className="text-[10px] text-muted-foreground/60">
+          <p className="text-[11px] text-muted-foreground/80">
             Immutable history — restoring always creates a new version.
           </p>
           <Link

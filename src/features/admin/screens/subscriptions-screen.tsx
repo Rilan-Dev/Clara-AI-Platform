@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { toast } from "@/components/ui/sonner";
+import { LoadError } from "@/components/ui/load-error";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +37,7 @@ type Plan = {
   voice_enabled: boolean;
   api_access: boolean;
   custom_branding: boolean;
+  multilingual_embeddings?: boolean;
   sso_enabled: boolean;
   analytics_level: string;
   priority_support: boolean;
@@ -199,7 +202,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
                 ))}
               </div>
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Admin note (optional)…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none h-16 focus:outline-none focus:border-primary/50" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 resize-none h-16 focus:outline-none focus:border-primary/50" />
               <button disabled={busy || targetPlan === planId} onClick={() => call("PUT", { planId: targetPlan, note })}
                 className="w-full bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl transition-all">
                 {busy ? "Saving…" : targetPlan === planId ? "(already on this plan)" : `Switch to ${plans.find(p=>p.id===targetPlan)?.name ?? targetPlan}`}
@@ -211,7 +214,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
           {tab === "manage" && (
             <div className="space-y-3">
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Reason / admin note (optional)…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none h-16 focus:outline-none focus:border-primary/50" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 resize-none h-16 focus:outline-none focus:border-primary/50" />
 
               <div className="grid grid-cols-2 gap-2">
                 {/* Pause */}
@@ -264,7 +267,7 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
                 </div>
               </div>
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Note (optional)…"
-                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none h-14 focus:outline-none focus:border-primary/50" />
+                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 resize-none h-14 focus:outline-none focus:border-primary/50" />
               <div className="grid grid-cols-2 gap-2">
                 <button disabled={busy} onClick={() => call("PATCH", { action:"extend_trial", trialDays, note })}
                   className="flex items-center gap-2 justify-center bg-sky-500/10 hover:bg-sky-500/20 border border-sky-600/30 text-sky-700 text-sm font-medium py-2.5 rounded-xl transition-all disabled:opacity-40">
@@ -300,57 +303,127 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
 
 // ── Notification Panel ──────────────────────────────────────────────────────
 
-function NotificationPanel() {
-  const [data, setData] = useState<{ notifications: unknown[]; summary: {status:string; count:number}[] } | null>(null);
-  const [loading, setLoading] = useState(true);
+type NotificationRow = {
+  id: string; status: string; subject: string; org_name: string;
+  recipient_email: string; notification_type: string; created_at: string;
+  error_message?: string | null;
+};
 
-  useEffect(() => {
-    fetch(apiUrl("/api/admin/notifications?limit=20"), { headers: withAuthHeaders({}) })
-      .then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+function NotificationPanel() {
+  const [data, setData] = useState<{ notifications: NotificationRow[]; summary: {status:string; count:number}[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null); // row id, or "all"
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await fetch(apiUrl("/api/admin/notifications?limit=20"), { headers: withAuthHeaders({}) });
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setData(body as { notifications: NotificationRow[]; summary: {status:string; count:number}[] });
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { void load(); }, [load]);
+
+  // Re-send failed emails through the CURRENT email provider — the fix after
+  // correcting SMTP / Resend credentials in Settings → Email Delivery.
+  async function retry(id?: string) {
+    setRetrying(id ?? "all");
+    try {
+      const res = await fetch(apiUrl("/api/admin/notifications/retry"), {
+        method: "POST",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(id ? { id } : { all: true }),
+      });
+      const result = await res.json().catch(() => ({})) as {
+        error?: string; retried?: number; succeeded?: number; failed?: number;
+        failures?: Array<{ error: string }>;
+      };
+      if (!res.ok) throw new Error(result.error ?? `HTTP ${res.status}`);
+      if (!result.retried) toast.info("No failed emails to retry");
+      else if (result.failed) {
+        toast.warning(`${result.succeeded ?? 0} of ${result.retried} sent`, {
+          description: result.failures?.[0]?.error,
+        });
+      } else toast.success(`${result.succeeded} ${result.succeeded === 1 ? "email" : "emails"} sent`);
+      await load();
+    } catch (e) {
+      toast.error("Retry failed", { description: (e as Error).message });
+    } finally {
+      setRetrying(null);
+    }
+  }
+
+  const failedCount = data?.summary.find(s => s.status === "failed")?.count ?? 0;
+
   const NOTIF_STATUS_ICON: Record<string, React.ReactNode> = {
-    sent:       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-    pending:    <Clock className="w-3.5 h-3.5 text-amber-600" />,
-    failed:     <XCircle className="w-3.5 h-3.5 text-destructive" />,
-    suppressed: <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" />,
+    sent:       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-label="Sent" />,
+    pending:    <Clock className="w-3.5 h-3.5 text-amber-600" aria-label="Pending" />,
+    failed:     <XCircle className="w-3.5 h-3.5 text-destructive" aria-label="Failed" />,
+    suppressed: <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" aria-label="Suppressed" />,
   };
 
   return (
     <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
-      <div className="px-5 py-4 border-b border-border/70 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-border/70 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
           <Bell className="w-4 h-4 text-primary" /> Email Notification Queue
         </h3>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {(data?.summary ?? []).map(s => (
-            <span key={s.status} className="text-xs text-muted-foreground/70 capitalize">
+            <span key={s.status} className="text-xs text-muted-foreground capitalize">
               {s.status}: <span className="text-foreground/80 font-medium">{s.count}</span>
             </span>
           ))}
+          {failedCount > 0 && (
+            <Button size="sm" variant="outline" onClick={() => void retry()} disabled={retrying !== null}>
+              <RotateCcw className={`w-3.5 h-3.5 mr-1.5 ${retrying === "all" ? "animate-spin" : ""}`} />
+              Retry failed ({failedCount})
+            </Button>
+          )}
         </div>
       </div>
       {loading ? (
-        <div className="py-8 text-center text-muted-foreground/50 text-sm">Loading…</div>
+        <div role="status" className="py-8 text-center text-muted-foreground text-sm">Loading…</div>
+      ) : loadError ? (
+        <div className="p-4">
+          <LoadError message="The notification queue couldn't be loaded." detail={loadError} onRetry={() => void load()} />
+        </div>
       ) : !data?.notifications.length ? (
-        <div className="py-8 text-center text-muted-foreground/50 text-sm flex flex-col items-center gap-2">
-          <Mail className="w-7 h-7 opacity-30" />
+        <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
+          <Mail className="w-7 h-7 opacity-30" aria-hidden />
           No notifications queued yet
         </div>
       ) : (
         <div className="divide-y divide-border/70">
-          {(data.notifications as Array<Record<string,unknown>>).map((n) => (
-            <div key={n.id as string} className="px-5 py-3 flex items-center gap-4 hover:bg-muted/50 transition-colors">
-              <div className="shrink-0">{NOTIF_STATUS_ICON[n.status as string] ?? <AlertCircle className="w-3.5 h-3.5 text-muted-foreground/70" />}</div>
+          {data.notifications.map((n) => (
+            <div key={n.id} className="px-5 py-3 flex items-center gap-4 hover:bg-muted/50 transition-colors">
+              <div className="shrink-0">{NOTIF_STATUS_ICON[n.status] ?? <AlertCircle className="w-3.5 h-3.5 text-muted-foreground/70" />}</div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-foreground/80 truncate">{n.subject as string}</div>
-                <div className="text-xs text-muted-foreground/70 mt-0.5">
-                  <span className="text-primary/70">{n.org_name as string}</span>
-                  {" · "}{n.recipient_email as string}
-                  {" · "}{n.notification_type as string}
+                <div className="text-sm text-foreground/80 truncate">{n.subject}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  <span className="text-primary/70">{n.org_name}</span>
+                  {" · "}{n.recipient_email}
+                  {" · "}{n.notification_type}
                 </div>
+                {n.status === "failed" && n.error_message && (
+                  <div className="text-xs text-destructive mt-0.5 truncate" title={n.error_message}>{n.error_message}</div>
+                )}
               </div>
-              <div className="text-xs text-muted-foreground/50 shrink-0">{fmtDateTime(n.created_at as string)}</div>
+              {n.status === "failed" && (
+                <Button size="sm" variant="ghost" onClick={() => void retry(n.id)} disabled={retrying !== null}
+                  aria-label={`Retry email to ${n.recipient_email}`}>
+                  <RotateCcw className={`w-3.5 h-3.5 ${retrying === n.id ? "animate-spin" : ""}`} />
+                </Button>
+              )}
+              <div className="text-xs text-muted-foreground shrink-0">{fmtDateTime(n.created_at)}</div>
             </div>
           ))}
         </div>
@@ -367,18 +440,27 @@ export default function AdminSubscriptionsScreen() {
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState("");
   const [modal,   setModal]   = useState<ModalState>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    const getJson = async (res: Response) => {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      return body as Record<string, unknown> & { plans?: Plan[]; orgs?: Array<Partial<OrgSub> & { id?: string }> };
+    };
     try {
       const [plansData, orgsData] = await Promise.all([
-        fetch(apiUrl("/api/subscriptions/plans")).then(r => r.json()),
-        fetch(apiUrl("/api/platform/orgs?perPage=200"), { headers: withAuthHeaders({}) }).then(r => r.json()),
+        fetch(apiUrl("/api/subscriptions/plans")).then(getJson),
+        fetch(apiUrl("/api/platform/orgs?perPage=200"), { headers: withAuthHeaders({}) }).then(getJson),
       ]);
       setPlans(plansData.plans ?? []);
       // /api/platform/orgs returns rows keyed by "id" but OrgSub expects "org_id" —
       // normalize so table row keys + Manage/History modals receive a real org UUID
-      setOrgs((orgsData.orgs ?? []).map((o: Partial<OrgSub> & { id?: string }) => ({ ...o, org_id: o.org_id ?? o.id ?? "" })));
+      setOrgs((orgsData.orgs ?? []).map((o) => ({ ...o, org_id: o.org_id ?? o.id ?? "" }) as OrgSub));
+    } catch (e) {
+      setLoadError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -475,6 +557,14 @@ export default function AdminSubscriptionsScreen() {
         </div>
       </div>
 
+      {loadError && (
+        <LoadError
+          message="Subscriptions couldn't be loaded — organisations and revenue below may be incomplete."
+          detail={loadError}
+          onRetry={() => void loadData()}
+        />
+      )}
+
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as typeof activeTab)}>
         <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-xl p-1">
@@ -542,7 +632,7 @@ export default function AdminSubscriptionsScreen() {
               <h2 className="font-semibold text-foreground text-sm shrink-0">All Organisations</h2>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search…"
-                className="flex-1 min-w-[140px] max-w-xs bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50" />
+                className="flex-1 min-w-[140px] max-w-xs bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary/50" />
               <span className="text-xs text-muted-foreground/70 shrink-0">{filtered.length} orgs</span>
             </div>
 
@@ -569,7 +659,7 @@ export default function AdminSubscriptionsScreen() {
                           <tr key={org.org_id} className="hover:bg-muted/50 transition-colors">
                             <td className="px-5 py-4">
                               <div className="text-sm font-medium text-foreground">{org.name}</div>
-                              <div className="text-xs text-muted-foreground/50 font-mono">{org.slug}</div>
+                              <div className="text-xs text-muted-foreground/80 font-mono">{org.slug}</div>
                             </td>
                             <td className="px-5 py-4">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_BADGE[org.plan_id ?? "free"] ?? PLAN_BADGE.free}`}>
@@ -604,7 +694,7 @@ export default function AdminSubscriptionsScreen() {
                 </tbody>
               </table>
               {!loading && !filtered.length && (
-                <div className="py-12 text-center text-muted-foreground/50 text-sm">No organisations found</div>
+                <div className="py-12 text-center text-muted-foreground/80 text-sm">No organisations found</div>
               )}
             </div>
 
@@ -624,7 +714,7 @@ export default function AdminSubscriptionsScreen() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">{org.name}</p>
-                            <p className="text-[11px] text-muted-foreground/50 font-mono truncate">{org.slug}</p>
+                            <p className="text-[11px] text-muted-foreground/80 font-mono truncate">{org.slug}</p>
                           </div>
                           <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[status] ?? "text-muted-foreground bg-muted/50 border-border"}`}>
                             {status}
@@ -636,7 +726,7 @@ export default function AdminSubscriptionsScreen() {
                           </span>
                           <span className="text-[11px] text-muted-foreground/70">{org.kb_count} KBs</span>
                           <span className="text-[11px] text-muted-foreground/70">{org.query_count.toLocaleString()} queries</span>
-                          <span className="text-[11px] text-muted-foreground/50">{fmtDate(org.created_at)}</span>
+                          <span className="text-[11px] text-muted-foreground/80">{fmtDate(org.created_at)}</span>
                         </div>
                         <div className="mt-3 flex items-center gap-2">
                           <button
@@ -654,7 +744,7 @@ export default function AdminSubscriptionsScreen() {
                     );
                   })}
               {!loading && !filtered.length && (
-                <div className="py-12 text-center text-muted-foreground/50 text-sm">No organisations found</div>
+                <div className="py-12 text-center text-muted-foreground/80 text-sm">No organisations found</div>
               )}
             </div>
           </div>
@@ -689,6 +779,8 @@ export default function AdminSubscriptionsScreen() {
             </Button>
           </div>
 
+          <PlanMultilingualCard plans={plans} onChanged={loadData} />
+
           {planError && <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">{planError}</div>}
           {planSuccess && <div className="rounded-lg border border-emerald-600/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600">{planSuccess}</div>}
 
@@ -714,7 +806,7 @@ export default function AdminSubscriptionsScreen() {
                     }`}
                 >
                   {plan.id === "pro" && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold text-primary uppercase tracking-wider px-2 py-0.5 bg-primary/10 rounded-full">Most Popular</div>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-bold text-primary uppercase tracking-wider px-2 py-0.5 bg-primary/10 rounded-full">Most Popular</div>
                   )}
 
                   <div className="flex items-start justify-between mb-3">
@@ -725,7 +817,7 @@ export default function AdminSubscriptionsScreen() {
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{plan.description}</p>
                     </div>
-                    <span className="text-[10px] text-muted-foreground/70">v{plan.published_version ?? 1} · {plan.version_count ?? 1} versions</span>
+                    <span className="text-[11px] text-muted-foreground/70">v{plan.published_version ?? 1} · {plan.version_count ?? 1} versions</span>
                   </div>
 
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground border-t border-border/70 pt-3">
@@ -764,7 +856,7 @@ export default function AdminSubscriptionsScreen() {
           )}
 
           {!plans.length && !loading && (
-            <div className="text-center py-12 text-muted-foreground/50">
+            <div className="text-center py-12 text-muted-foreground/80">
               <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 mx-auto opacity-30 mb-3" />
               <p>No plans configured yet</p>
               <Button className="mt-4" onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })}>
@@ -955,7 +1047,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
             <div className="flex items-center justify-center h-40 text-muted-foreground/70 text-sm">Loading…</div>
           ) : tab === "invoices" ? (
             !data?.invoices.length ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/50 text-sm gap-2">
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/80 text-sm gap-2">
                 <Receipt className="w-8 h-8 opacity-30" /> No billing events yet
               </div>
             ) : (
@@ -988,7 +1080,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
           ) : (
             // Audit log tab
             !data?.auditLog.length ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/50 text-sm gap-2">
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/80 text-sm gap-2">
                 <Shield className="w-8 h-8 opacity-30" /> No audit events yet
               </div>
             ) : (
@@ -1002,7 +1094,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-sm font-medium text-foreground capitalize">{entry.action.replace(/_/g," ")}</span>
-                          <span className="text-xs text-muted-foreground/50 capitalize">by {entry.actor_label}</span>
+                          <span className="text-xs text-muted-foreground/80 capitalize">by {entry.actor_label}</span>
                         </div>
                         {(entry.old_plan_id || entry.new_plan_id) && (
                           <div className="text-xs text-muted-foreground/70 flex items-center gap-1.5 mb-0.5">
@@ -1019,7 +1111,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
                           </div>
                         )}
                         {entry.note && <p className="text-xs text-muted-foreground/70 italic mt-0.5">&ldquo;{entry.note}&rdquo;</p>}
-                        <div className="text-xs text-muted-foreground/50 mt-1">{fmtDateTime(entry.created_at)}</div>
+                        <div className="text-xs text-muted-foreground/80 mt-1">{fmtDateTime(entry.created_at)}</div>
                       </div>
                     </div>
                   </div>
@@ -1029,6 +1121,65 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Multilingual knowledge index per plan (platform admin). Organisations on a
+ * plan with it enabled can re-index their knowledge bases with the
+ * multilingual E5 model once Settings → AI → Multilingual knowledge index is on.
+ */
+function PlanMultilingualCard({ plans, onChanged }: { plans: Plan[]; onChanged: () => void }) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const toggle = async (plan: Plan, enabled: boolean) => {
+    setSaving(plan.id);
+    setError(null);
+    try {
+      const r = await fetch(apiUrl("/api/platform/subscription-plans"), {
+        method: "PATCH",
+        headers: withAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ action: "multilingual", planId: plan.id, enabled }),
+      });
+      const data = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(data.error ?? "Could not update the plan");
+      onChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(null);
+    }
+  };
+  if (plans.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <p className="text-sm font-semibold text-foreground">Multilingual knowledge index</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Which plans may re-index knowledge bases with the multilingual E5 model (ElevenLabs-grade multilingual retrieval).
+        The platform switch and endpoint live in Settings → AI.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {plans.map((plan) => {
+          const on = Boolean(plan.multilingual_embeddings);
+          return (
+            <label
+              key={plan.id}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={saving === plan.id}
+                onChange={(e) => void toggle(plan, e.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary/20"
+              />
+              {plan.name}
+            </label>
+          );
+        })}
+      </div>
+      {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Brain, ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react";
+import { ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 function VerifyEmailForm() {
   const searchParams = useSearchParams();
@@ -124,9 +125,7 @@ export default function VerifyEmailPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
-            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-          </div>
+          <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Email verification</h1>
           <p className="text-muted-foreground text-sm mt-1">Confirming your Clara AI account.</p>
         </div>

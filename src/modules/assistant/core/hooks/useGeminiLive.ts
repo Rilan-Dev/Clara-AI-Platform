@@ -1,6 +1,8 @@
 "use client";
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { greetingInstruction, normalizeLanguagePolicy } from "@/modules/assistant/core/language-policy";
 import {
   assistantPrompts,
   buildLanguageGuidance,
@@ -13,6 +15,7 @@ import { setMicStreamMuted } from "../voice/mic-mute";
 import { buildSameOriginRelayWsUrl } from "@/modules/voice-core/realtime/relay-url";
 import { GeminiTurnTelemetry } from "@/modules/voice-core/realtime/gemini-telemetry";
 import type { Source } from "../models";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 
 // ─── Debug flag ───────────────────────────────────────────────────────────────
 // Set to true during development to log every WebSocket event to the console.
@@ -221,6 +224,9 @@ export function useGeminiLive(opts?: Options) {
   const { documentId, kbId, documentOverview, voiceGreeting } = opts || {};
   const languagePrefs   = resolveLanguagePreferences(opts?.language);
   const languageGuidance = buildLanguageGuidance(languagePrefs);
+  // Read by the (stable) message handler when the greeting turn is sent.
+  const greetingPolicyRef = useRef(normalizeLanguagePolicy({ defaultLanguage: languagePrefs.assistant, allowedLanguages: languagePrefs.customer }));
+  greetingPolicyRef.current = normalizeLanguagePolicy({ defaultLanguage: languagePrefs.assistant, allowedLanguages: languagePrefs.customer });
 
   const [status,             setStatus]             = useState<Status>("idle");
   const [lastError,          setLastError]           = useState<string | null>(null);
@@ -266,10 +272,14 @@ export function useGeminiLive(opts?: Options) {
   // identically. Additive-only: the realtime flow below is untouched.
   const latencyTelRef        = useRef<GeminiTurnTelemetry | null>(null);
 
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = latencyTelRef.current?.telemetry();
     if (!event) return;
     console.debug("[gemini-live] latency", event);
+    logVoiceTurnLatency("gemini", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -503,7 +513,13 @@ export function useGeminiLive(opts?: Options) {
           latencyTelRef.current?.greetingTurn();
           sendWS({
             clientContent: {
-              turns: [{ role: "user", parts: [{ text: greeting }] }],
+              // Start in the DEFAULT language (language policy).
+              turns: [{
+                role: "user",
+                parts: [{
+                  text: greetingInstruction(greetingPolicyRef.current, greeting),
+                }],
+              }],
               turnComplete: true,
             },
           });
@@ -565,12 +581,19 @@ export function useGeminiLive(opts?: Options) {
                 headers,
                 body: JSON.stringify(
                   kbIdValue
-                    ? { query: q, kbId: kbIdValue, ...(opts?.draftMode ? { scope: "draft" } : {}) }
+                    ? { query: q, kbId: kbIdValue, channel: "voice", ...(opts?.draftMode ? { scope: "draft" } : {}) }
                     : { query: q, documentId: docId }
                 ),
               });
               if (!res.ok) throw new Error(`RAG search HTTP ${res.status}`);
               const payload = await res.json();
+              serverTimingRef.current = (() => {
+                const raw = (payload as { timings?: Record<string, unknown> } | null)?.timings;
+                if (!raw || typeof raw !== "object") return null;
+                const out: Record<string, number> = {};
+                for (const [key, value] of Object.entries(raw)) if (typeof value === "number") out[key.replace(/Ms$/, "")] = value;
+                return Object.keys(out).length > 0 ? out : null;
+              })();
               latencyTelRef.current?.ragEnd();
               const sources: Source[] = Array.isArray(payload?.sources)
                 ? payload.sources : [];
@@ -596,9 +619,22 @@ export function useGeminiLive(opts?: Options) {
                     name: fc.name,             // FIX G10: required by FunctionResponse proto
                     response: {
                       output: JSON.stringify({
-                        context: grounded
-                          ? payload.context
-                          : `GROUNDING GUARD: No sufficiently relevant information was found in the knowledge base. Do not answer from general knowledge. Say exactly: "${outOfScopeReply}"`,
+                        // Server turn guidance (grounded / capability / natural
+                        // no-evidence handling in the visitor's language) —
+                        // never a canned topic-restriction refusal.
+                        context: [
+                          typeof payload?.guidance === "string" && payload.guidance.trim()
+                            ? payload.guidance.trim()
+                            : buildTurnGuidance({
+                                grounded,
+                                intent: payload?.intent === "capability" ? "capability" : grounded ? "knowledge" : "out_of_scope",
+                                responseLanguage: typeof payload?.responseLanguage === "string" ? payload.responseLanguage : null,
+                                fallbackReply: outOfScopeReply,
+                                topics: typeof payload?.scope?.topics === "string" ? payload.scope.topics : null,
+                                channel: "voice",
+                              }),
+                          typeof payload?.context === "string" ? payload.context : "",
+                        ].filter(Boolean).join("\n\n"),
                         sources: payload.sources,
                         grounded,
                         outOfScopeReply,
@@ -1056,11 +1092,10 @@ export function useGeminiLive(opts?: Options) {
         const toolDescription = kbId
           ? "Retrieve relevant snippets from the active knowledge base. Call this whenever the user asks a question that requires specific document context."
           :
-            "Retrieve relevant snippets from the active insurance policy " +
-            "document. Call this whenever the user asks about coverage " +
-            "details, exclusions, claims, premiums, renewals, or any " +
-            "other policy-specific information. Always pass the documentId " +
-            "value specified in the system instruction.";
+            "Retrieve relevant snippets from the active document. Call " +
+            "this whenever the user asks a question that needs specific " +
+            "information from it. Always pass the documentId value " +
+            "specified in the system instruction.";
 
         ws.send(JSON.stringify({
           setup: {

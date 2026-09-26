@@ -6,6 +6,7 @@ import { Loader2, Mic, MicOff, PhoneOff, Sparkles, Volume2 } from "lucide-react"
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "@/modules/assistant/core/voice/mic-mute";
 import DemoWebsiteFrame from "@/features/embed/components/DemoWebsiteFrame";
+import { isAssistantTranscriptDelta } from "@/modules/assistant/core/realtime-events";
 
 type Config = {
   kbId: string;
@@ -114,7 +115,7 @@ function useEmbedVoice(apiKey: string, config: Config, onUser: (text: string) =>
             });
         } else if (type === "response.created") {
           setState("speaking");
-        } else if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
+        } else if (isAssistantTranscriptDelta(type)) {
           const delta = String(msg.delta ?? ""); if (delta) onAssistant(delta); setState("speaking");
         } else if (type === "response.done") {
           setState("listening");

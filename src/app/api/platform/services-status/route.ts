@@ -34,15 +34,45 @@ type CheckResult = {
   error?: string;
 };
 
-const CHECK_TIMEOUT_MS = 2_500;
+/**
+ * Per-check timeout. 2.5 s was too tight for a busy self-hosted VPS (one
+ * Node process, local Postgres/Qdrant/RabbitMQ sharing the CPU) and made
+ * healthy services flap to "down". Override with HEALTH_CHECK_TIMEOUT_MS.
+ */
+const CHECK_TIMEOUT_MS = (() => {
+  const value = Number(process.env.HEALTH_CHECK_TIMEOUT_MS);
+  return Number.isFinite(value) && value > 0 ? value : 5_000;
+})();
+
+/** A failed infrastructure check is retried once after this pause. */
+const RETRY_DELAY_MS = 750;
+
+/** Live AI-provider checks call the vendor APIs; reuse a result this long. */
+const PROVIDER_CHECK_TTL_MS = 60_000;
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} check timed out after ${CHECK_TIMEOUT_MS}ms`)), CHECK_TIMEOUT_MS),
-    ),
-  ]);
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} check timed out after ${CHECK_TIMEOUT_MS}ms`)), CHECK_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Report "down" only when a check fails twice in a row. One slow answer
+ * (GC pause, a busy connection, a container briefly restarting its
+ * listener) must not flip the status page and email every super admin.
+ */
+async function confirmed<T extends CheckResult>(run: () => Promise<T>): Promise<T> {
+  const attempt = () => run().catch((err): T => ({ status: "down", error: (err as Error).message }) as T);
+  const first = await attempt();
+  if (first.status !== "down") return first;
+  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  const second = await attempt();
+  if (second.status === "down") return second;
+  return { ...second, detail: [second.detail, "recovered on retry"].filter(Boolean).join(" · ") };
 }
 
 // ── Individual checks ─────────────────────────────────────────────────────────
@@ -113,7 +143,16 @@ async function checkRabbitMq(): Promise<CheckResult> {
     if (parsed.protocol !== "amqp:" && parsed.protocol !== "amqps:") throw new Error("RABBITMQ_URL must use amqp:// or amqps://");
     const { connect } = await import("amqplib");
     const start = Date.now();
-    const connection = await withTimeout(connect(raw), "RabbitMQ");
+    const connecting = connect(raw, { timeout: CHECK_TIMEOUT_MS });
+    let connection: Awaited<typeof connecting>;
+    try {
+      connection = await withTimeout(connecting, "RabbitMQ");
+    } catch (err) {
+      // A connection that completes after the timeout must still be closed,
+      // otherwise every slow check leaks an AMQP connection.
+      void connecting.then((late) => late.close()).catch(() => {});
+      throw err;
+    }
     const channel = await withTimeout(connection.createChannel(), "RabbitMQ channel");
     await channel.close();
     await connection.close();
@@ -190,8 +229,11 @@ async function checkQueues(redisUp: boolean): Promise<CheckResult & {
 
     const queues = await Promise.all([collect("clara-crawl"), collect("clara-retry")]);
     const totalFailed = queues.reduce((sum, q) => sum + q.failed, 0);
+    // Failed jobs are history, not an outage: BullMQ keeps them until they
+    // are cleaned, so a long-running VPS accumulates them. Surface them as a
+    // warning (see alerts) instead of reporting the queues as down.
     return {
-      status: totalFailed > 100 ? "down" : "up",
+      status: "up",
       queues,
       detail: totalFailed > 100 ? `${totalFailed} failed jobs need attention` : "workers processing normally",
     };
@@ -207,7 +249,7 @@ function checkApp(): CheckResult & { uptimeSeconds: number; memory: object; vers
   return {
     status: "up",
     uptimeSeconds: Math.round(process.uptime()),
-    detail: `up ${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m`,
+    detail: `${process.env.VERCEL ? "Vercel" : "Self-hosted"} · up ${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m · DB pool ${pool.options.max ?? "?"}`,
     memory: {
       rssMb: Math.round(mem.rss / 1_048_576),
       heapUsedMb: Math.round(mem.heapUsed / 1_048_576),
@@ -216,15 +258,20 @@ function checkApp(): CheckResult & { uptimeSeconds: number; memory: object; vers
     versions: {
       node: process.version,
       env: process.env.NODE_ENV ?? "development",
+      platform: process.env.VERCEL ? "vercel" : "self-hosted",
     },
   };
 }
 
 
+type ProviderCheckOutcome = Awaited<ReturnType<typeof testProviderConnection>>;
+const providerCheckCache = new Map<string, { at: number; outcome: ProviderCheckOutcome }>();
+
 async function checkGovernedProvider(
   providerId: "openai" | "gemini" | "sarvam" | "elevenlabs",
   activeProviderId: string,
   checkedBy: string | null,
+  force = false,
 ): Promise<CheckResult & { active: boolean; providerId: string; enabled: boolean }> {
   const registry = await getPlatformAIRegistry();
   const provider = registry.providers.find((item) => item.providerId === providerId);
@@ -237,8 +284,17 @@ async function checkGovernedProvider(
     return { status: "not_configured", active, enabled: false, providerId, detail: "Disabled by platform admin." };
   }
 
-  const outcome = await testProviderConnection(providerId);
-  await recordProviderHealth(providerId, outcome, checkedBy);
+  // The status page auto-refreshes every 30 s; calling four vendor APIs and
+  // writing four health rows on every refresh wastes quota and DB writes.
+  const cached = providerCheckCache.get(providerId);
+  let outcome: ProviderCheckOutcome;
+  if (!force && cached && Date.now() - cached.at < PROVIDER_CHECK_TTL_MS) {
+    outcome = cached.outcome;
+  } else {
+    outcome = await testProviderConnection(providerId);
+    providerCheckCache.set(providerId, { at: Date.now(), outcome });
+    await recordProviderHealth(providerId, outcome, checkedBy);
+  }
   return {
     status: outcome.status === "healthy" ? "up" : "down",
     active,
@@ -267,34 +323,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
 
     const startedAt = Date.now();
+    // Manual "Refresh" and the cron re-run the live AI-provider checks;
+    // auto-refresh reuses results younger than PROVIDER_CHECK_TTL_MS.
+    const force = cronAuthorized || req.nextUrl.searchParams.get("force") === "1";
 
     // Postgres first — the other checks fall back gracefully if it is down.
-    let postgres: Awaited<ReturnType<typeof checkPostgres>>;
-    try {
-      postgres = await checkPostgres();
-    } catch (err) {
-      postgres = { status: "down", error: (err as Error).message };
-    }
+    const postgres: Awaited<ReturnType<typeof checkPostgres>> = await confirmed(checkPostgres);
 
     const platformRegistry = await getPlatformAIRegistry();
     const activeProviderId =
       platformRegistry.defaults.find((item) => item.capability === "chat")?.providerId?.toLowerCase() ??
       (process.env.AI_PROVIDER ?? "openai").trim().toLowerCase();
     const [redis, qdrant, rabbitmq, email, stripe, razorpay, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app] = await Promise.all([
-      checkRedis().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkQdrant().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
-      checkRabbitMq().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
+      confirmed(checkRedis),
+      confirmed(checkQdrant),
+      confirmed(checkRabbitMq),
       checkEmail().catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message })),
       checkStripeGateway().catch((e): PaymentGatewayHealth => ({ status: "down", error: (e as Error).message, webhookConfigured: false })),
       checkRazorpayGateway().catch((e): PaymentGatewayHealth => ({ status: "down", error: (e as Error).message, webhookConfigured: false })),
-      checkGovernedProvider("openai", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
-      checkGovernedProvider("gemini", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
-      checkGovernedProvider("sarvam", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),
-      checkGovernedProvider("elevenlabs", activeProviderId, checkedBy).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "elevenlabs", enabled: true, providerId: "elevenlabs" })),
+      checkGovernedProvider("openai", activeProviderId, checkedBy, force).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "openai", enabled: true, providerId: "openai" })),
+      checkGovernedProvider("gemini", activeProviderId, checkedBy, force).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "gemini", enabled: true, providerId: "gemini" })),
+      checkGovernedProvider("sarvam", activeProviderId, checkedBy, force).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "sarvam", enabled: true, providerId: "sarvam" })),
+      checkGovernedProvider("elevenlabs", activeProviderId, checkedBy, force).catch((e) => ({ status: "down" as ServiceStatus, error: (e as Error).message, active: activeProviderId === "elevenlabs", enabled: true, providerId: "elevenlabs" })),
       Promise.resolve(checkApp()),
     ]);
 
-    const queues = await checkQueues(redis.status === "up");
+    const queues = await confirmed(() => checkQueues(redis.status === "up"));
 
     const services = { postgres, redis, qdrant, rabbitmq, email, queues, stripe, razorpay, aiOpenai, aiGemini, aiSarvam, aiElevenLabs, app };
 
@@ -341,6 +395,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (rabbitmq.status === "down") addAlert({
       id: "rabbitmq-down", severity: "critical", title: "RabbitMQ is down",
       message: rabbitmq.error ?? "RabbitMQ health check failed.",
+      actionLabel: "Review system status", actionHref: "/system-status",
+    });
+    const failedJobs = (queues.queues ?? []).reduce((sum, q) => sum + q.failed, 0);
+    if (failedJobs > 100) addAlert({
+      id: "queues-failed-jobs", severity: "warning", title: "Background jobs have failed",
+      message: `${failedJobs} crawl/retry jobs failed. The workers are running; review and clean the failed jobs.`,
       actionLabel: "Review system status", actionHref: "/system-status",
     });
     if (email.status === "down") addAlert({

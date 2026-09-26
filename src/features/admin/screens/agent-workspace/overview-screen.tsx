@@ -243,7 +243,11 @@ export default function AgentOverviewScreen() {
   const activeKbs = kbs.filter((kb) => kb.status === "active").length;
   const archivedKbs = kbs.length - activeKbs;
 
-  const agentBase = `/orgs/${orgId}/agents/${agentId}`;
+  // The provider derives orgId from the URL, but during initial hydration it
+  // can briefly be empty. Prefer the authoritative agent context and never
+  // emit a malformed /orgs/agents/:agentId URL.
+  const resolvedOrgId = orgId || context?.agent.orgId || "";
+  const agentBase = resolvedOrgId ? `/orgs/${resolvedOrgId}/agents/${agentId}` : "/orgs";
   const configHref = `${agentBase}/config`;
   const knowledgeHref = `${agentBase}/knowledge`;
   const versionsHref = `${agentBase}/versions`;
@@ -365,11 +369,11 @@ export default function AgentOverviewScreen() {
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 font-medium text-muted-foreground">
                 <GitBranch className="h-3 w-3" /> Main
               </span>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground/80" />
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 font-medium text-foreground/80">
                 <FileStack className="h-3 w-3" /> v{currentVersion?.versionNumber ?? 1} saved
               </span>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground/80" />
               {deployment ? (
                 <span
                   className={cn(
@@ -526,7 +530,7 @@ export default function AgentOverviewScreen() {
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-baseline justify-between gap-x-3">
                           <span className="text-sm font-medium text-foreground">{item.title}</span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground/60">{timeAgo(item.at)}</span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground/80">{timeAgo(item.at)}</span>
                         </span>
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                           {item.detail}
@@ -596,7 +600,7 @@ function FactCard({
     <>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground/80" />
       </div>
       <div className="mt-3 flex items-baseline gap-2">
         {value == null ? <Shimmer className="h-7 w-16" /> : <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>}
@@ -642,7 +646,7 @@ function QuickAction({
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
             {title}
-            <ExternalLink className="h-3 w-3 text-muted-foreground/50 transition-colors group-hover:text-primary" />
+            <ExternalLink className="h-3 w-3 text-muted-foreground/80 transition-colors group-hover:text-primary" />
           </span>
           <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{desc}</span>
         </span>

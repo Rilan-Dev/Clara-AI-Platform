@@ -22,13 +22,15 @@
 
 const BASE_DIRECTIVES: string[] = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://checkout.razorpay.com https://vercel.live",
+  // Razorpay Checkout loads its risk-detection bundle from cdn.razorpay.com
+  // and reports to lumberjack.razorpay.com; blocking them trips CSP reports.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://checkout.razorpay.com https://cdn.razorpay.com https://vercel.live",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' https: data: blob:",
-  "connect-src 'self' wss: https://*.up.railway.app https://api.openai.com https://realtime.openai.com https://*.vercel.app https://api.razorpay.com https://vercel.live",
+  "connect-src 'self' wss: https://*.up.railway.app https://api.openai.com https://realtime.openai.com https://*.vercel.app https://api.razorpay.com https://lumberjack.razorpay.com https://vercel.live",
   "media-src 'self' blob:",
-  "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com",
+  "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://vercel.live",
 ];
 
 const MODE_B_CONNECT_ORIGINS = " wss://api.elevenlabs.io https://api.elevenlabs.io";

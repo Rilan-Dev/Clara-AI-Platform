@@ -1,12 +1,13 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Brain, Eye, EyeOff, MailWarning, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, MailWarning, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import axios, { isAxiosError } from "axios";
-import { setStoredToken } from "@/lib/client-auth";
+import { clearStoredToken, setStoredToken, withAuthHeaders } from "@/lib/client-auth";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { AUTH_LOGIN_ENDPOINT, getSafeRedirect } from "./login-redirect";
+import { LogoMark } from "@/components/brand/Logo";
 
 // Authentication is intentionally same-origin. The login API sets the
 // HttpOnly session cookie used by Next middleware to protect /dashboard and
@@ -89,7 +90,7 @@ function LoginForm() {
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         const msg = (err.response?.data as { error?: string })?.error;
-        setError(msg || (err.response ? "Invalid credentials" : "Connection failed. Is the server running?"));
+        setError(msg || (err.response ? "Incorrect email or password." : "We couldn't reach Clara. Check your connection and try again."));
       } else {
         setError("An unexpected error occurred.");
       }
@@ -107,9 +108,7 @@ function LoginForm() {
       </div>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
-            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-          </div>
+          <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Welcome to Clara AI</h1>
           <p className="text-muted-foreground text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
@@ -127,7 +126,7 @@ function LoginForm() {
                 </p>
               </div>
               {resent ? (
-                <div className="text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                <div role="status" className="text-sm text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
                   Verification email resent — check your inbox.
                 </div>
               ) : (
@@ -145,11 +144,17 @@ function LoginForm() {
                 </button>
               )}
               {resendError && (
-                <p className="text-xs text-destructive">{resendError}</p>
+                <p role="alert" className="text-xs text-destructive">{resendError}</p>
               )}
               <button
                 type="button"
-                onClick={() => window.location.replace("/login")}
+                onClick={async () => {
+                  // A session was already issued — end it so "back to sign in"
+                  // really means signed out.
+                  await fetch("/api/auth/logout", { method: "POST", credentials: "include", headers: withAuthHeaders() }).catch(() => undefined);
+                  clearStoredToken();
+                  window.location.replace("/login");
+                }}
                 className="w-full border border-border text-foreground/80 hover:text-foreground hover:border-primary/40 font-medium py-2.5 rounded-xl transition-all"
               >
                 Return to sign in
@@ -158,16 +163,19 @@ function LoginForm() {
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors" />
+              <label htmlFor="login-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
+              <input id="login-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required
+                aria-invalid={error ? true : undefined} aria-describedby={error ? "login-error" : undefined}
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus:border-primary transition-colors" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Password</label>
+              <label htmlFor="login-password" className="block text-xs font-medium text-muted-foreground mb-1.5">Password</label>
               <div className="relative">
-                <input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors" />
-                <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">
+                <input id="login-password" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required
+                  aria-invalid={error ? true : undefined} aria-describedby={error ? "login-error" : undefined}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus:border-primary transition-colors" />
+                <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} aria-pressed={show}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -177,13 +185,19 @@ function LoginForm() {
                 </Link>
               </div>
             </div>
-            {error && <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">{error}</div>}
+            {error && <div id="login-error" role="alert" className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">{error}</div>}
             <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium py-2.5 rounded-xl hover:from-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
           )}
         </div>
+        {!needsVerification && (
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            New to Clara AI?{" "}
+            <Link href="/signup" className="font-medium text-primary hover:text-primary/80">Create an account</Link>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -191,7 +205,7 @@ function LoginForm() {
 
 export default function AdminLogin() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div role="status" className="text-muted-foreground">Loading…</div></div>}>
       <LoginForm />
     </Suspense>
   );

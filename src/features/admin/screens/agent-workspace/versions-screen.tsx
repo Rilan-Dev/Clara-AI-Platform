@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   archiveAgentBranch,
   createAgentBranch,
@@ -41,6 +41,7 @@ export default function AgentVersionsScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
   const { context, refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
@@ -179,6 +180,16 @@ export default function AgentVersionsScreen() {
     setBranchForm({ name: "", description: "", fromVersionId: mainCurrentVersionId });
   }, [mainCurrentVersionId]);
 
+  // Deep link from the topbar Publish menu ("Publish to a new branch"):
+  // /versions?create=1 opens the create-branch drawer once, then cleans the
+  // URL so cancelling/retrying does not re-open it behind the user's back.
+  const createParam = searchParams.get("create") === "1";
+  useEffect(() => {
+    if (!createParam || loading || !mainCurrentVersionId) return;
+    openCreateBranch();
+    router.replace(pathname);
+  }, [createParam, loading, mainCurrentVersionId, openCreateBranch, router, pathname]);
+
   return (
     <div>
 
@@ -208,13 +219,13 @@ export default function AgentVersionsScreen() {
 
       {/* ── Search (image: "Search branches…") ─────────────────────────────────── */}
       <div className="relative mt-5 max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search branches…"
           aria-label="Search branches"
-          className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-colors focus:border-primary/40"
+          className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/80 outline-none transition-colors focus:border-primary/40"
         />
       </div>
 
@@ -259,7 +270,7 @@ export default function AgentVersionsScreen() {
                         {branch.isMain && <VersionBadge tone="primary">Main</VersionBadge>}
                         {branch.isArchived && <VersionBadge tone="muted">Archived</VersionBadge>}
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground/60">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground/80">
                         {branch.latestVersionNumber != null ? `v${branch.latestVersionNumber}` : "no versions"}
                         {branch.forkedFromVersionNumber != null ? ` · forked from Main v${branch.forkedFromVersionNumber}` : ""}
                         {branch.draftUpdatedAt ? " · has draft" : ""}
@@ -274,13 +285,13 @@ export default function AgentVersionsScreen() {
                           <VersionBadge tone="success">Live</VersionBadge>
                         </span>
                       ) : (
-                        <span className="text-muted-foreground/40" title="Not routed to production">—</span>
+                        <span className="text-muted-foreground/80" title="Not routed to production">—</span>
                       )}
                     </td>
 
                     {/* Conversations (7d) — per-branch conversation analytics are not tracked yet. */}
                     <td className="hidden px-4 py-3 sm:table-cell">
-                      <span className="text-muted-foreground/40" title="Conversation analytics per branch are coming soon">—</span>
+                      <span className="text-muted-foreground/80" title="Conversation analytics per branch are coming soon">—</span>
                     </td>
 
                     {/* Status */}
@@ -288,7 +299,7 @@ export default function AgentVersionsScreen() {
                       {branch.isArchived ? (
                         <span className="text-xs text-muted-foreground/70">Archived</span>
                       ) : (
-                        <span className="text-muted-foreground/40">—</span>
+                        <span className="text-muted-foreground/80">—</span>
                       )}
                     </td>
 
@@ -483,7 +494,7 @@ export default function AgentVersionsScreen() {
                           : "border-border bg-card hover:border-primary/25"
                       }`}
                     >
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">Main (keep)</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Main (keep)</p>
                       <p className="mt-0.5 font-medium text-foreground">{conflict.field.ours ?? "not set"}</p>
                     </button>
                     <button
@@ -495,7 +506,7 @@ export default function AgentVersionsScreen() {
                           : "border-border bg-card hover:border-primary/25"
                       }`}
                     >
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">{mergeBranch?.name} (incoming)</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80">{mergeBranch?.name} (incoming)</p>
                       <p className="mt-0.5 font-medium text-foreground">{conflict.field.theirs ?? "not set"}</p>
                     </button>
                   </div>

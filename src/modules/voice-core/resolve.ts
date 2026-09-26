@@ -40,6 +40,8 @@ import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 import {
   getPlatformDefaultSTTModel,
   getPlatformDefaultTTSModel,
+  getPlatformDefaultRealtimeTTSModel,
+  getPlatformDefaultRealtimeSTTModel,
   getPlatformDefaultVoiceId,
   isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
@@ -61,6 +63,7 @@ import type {
   VoiceResolution,
 } from "./config-types";
 import type { VoiceProvider } from "./types";
+import { normalizeLanguagePolicy, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { query } from "@/lib/db";
 import { VoiceProviderFactory } from "./factory";
 import { isOpenAIRealtimeModel, isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
@@ -85,6 +88,15 @@ const SARVAM_TTS_LANGUAGE_BASES = new Set(
   SARVAM_TTS_LANGUAGES.map((code) => code.split("-")[0]!),
 );
 
+/** The assistant's language policy from a resolved brain config. */
+function brainLanguagePolicy(brain: { defaultLanguage?: string | null; allowedLanguages?: string[] | null; assistantConfig?: { alwaysRespondIn?: string | null } | null }) {
+  return normalizeLanguagePolicy({
+    defaultLanguage: brain.defaultLanguage,
+    allowedLanguages: brain.allowedLanguages,
+    alwaysRespondIn: brain.assistantConfig?.alwaysRespondIn,
+  });
+}
+
 export function toSarvamLanguageCode(language: string | null | undefined): string {
   const base = (language ?? "").trim().toLowerCase().split("-")[0] ?? "";
   if (!base) return "en-IN";
@@ -93,10 +105,6 @@ export function toSarvamLanguageCode(language: string | null | undefined): strin
   return "en-IN";
 }
 
-/** V5 realtime STT relay capability flag (off until an operator opts in). */
-export function isSarvamRealtimeSttEnabled(): boolean {
-  return (process.env.SARVAM_REALTIME_STT_ENABLED ?? "false").toLowerCase() === "true";
-}
 
 // ─── Hot-path resolution cache ─────────────────────────────────────────────────
 //
@@ -147,9 +155,11 @@ function voiceConfigCacheKey(input: ResolveVoiceConfigInput): string {
 }
 
 /**
- * TTL-cached resolveVoiceConfig for hot per-request routes (tts, transcribe).
+ * TTL-cached resolveVoiceConfig for hot per-request routes (provider lookup,
+ * session bootstrap, TTS, STT and embed session).
  * Errors are NEVER cached — a failed resolution is retried on the next call.
- * Session bootstrap keeps the uncached resolveVoiceConfig for freshness.
+ * The short TTL keeps provider/model changes responsive while avoiding the
+ * repeated multi-query resolver walk on every realtime turn.
  */
 export async function resolveVoiceConfigCached(
   input: ResolveVoiceConfigInput,
@@ -330,13 +340,14 @@ export async function resolveVoiceConfig(
   // pre-voice-axis tenant already uses) and the event is logged loudly for
   // the operator. The org-level selection stays in the DB untouched, so
   // re-enabling the provider restores the org's choice instantly.
-  const platformUnavailable = async (p: VoiceProvider): Promise<boolean> => {
-    // Registry + entitlement gate (same resolver the UI uses). ElevenLabs and
-    // Sarvam serve VOICE-CHAT (batch STT/TTS adapters); OpenAI/Gemini serve
-    // voice surfaces through their native REALTIME capability — gate each
-    // provider on the capability its adapter actually implements.
-    const capability: "voice_chat" | "realtime_voice" =
-      p === "elevenlabs" || p === "sarvam" ? "voice_chat" : "realtime_voice";
+  const platformUnavailable = async (
+    p: VoiceProvider,
+    capability: "voice_chat" | "realtime_voice",
+  ): Promise<boolean> => {
+    // Provider availability is checked against the PURPOSE being resolved.
+    // ElevenLabs and Sarvam can serve both axes; using voice_chat as a proxy
+    // for realtime would make an explicitly selected ElevenLabs realtime
+    // provider disappear when only the wrong capability is disabled.
     const gate = await validateAgentAISelection({
       organizationId: orgId,
       provider: p,
@@ -357,8 +368,8 @@ export async function resolveVoiceConfig(
   // provider (a Sarvam brain before the operator enables Sarvam), the
   // terminal fallback is OpenAI, matching the platform's default-provider
   // posture.
-  if (await platformUnavailable(voiceProvider)) {
-    const fallback: VoiceProvider = (await platformUnavailable(brain.provider))
+  if (await platformUnavailable(voiceProvider, "voice_chat")) {
+    const fallback: VoiceProvider = (await platformUnavailable(brain.provider, "voice_chat"))
       ? "openai"
       : brain.provider;
     if (!allowedVoiceProviders.includes(fallback)) {
@@ -376,41 +387,67 @@ export async function resolveVoiceConfig(
 
   // Realtime purpose — degrades to the (possibly already degraded)
   // voice-chat provider, mirroring the null-inherit semantics above.
-  if (await platformUnavailable(realtimeProvider)) {
-    if (!allowedVoiceProviders.includes(voiceProvider)) {
+  if (await platformUnavailable(realtimeProvider, "realtime_voice")) {
+    // Realtime is its own provider axis. Fall back to the voice-chat provider
+    // only when that provider is itself usable for realtime; otherwise use the
+    // platform's realtime-capable brain provider if permitted.
+    const realtimeFallback =
+      (await platformUnavailable(voiceProvider, "realtime_voice"))
+        ? ((await platformUnavailable(brain.provider, "realtime_voice")) ? null : brain.provider)
+        : voiceProvider;
+    if (!realtimeFallback || !allowedVoiceProviders.includes(realtimeFallback)) {
       throw unavailableError(realtimeProvider);
     }
     console.warn(
-      `[voice-core] ${realtimeProvider} is disabled at platform level — degrading realtime voice for org ${orgId ?? "(unknown)"} to ${voiceProvider}. Re-enable the provider or change the org's realtime voice provider setting to restore the selection.`,
+      `[voice-core] ${realtimeProvider} is unavailable for realtime_voice for org ${orgId ?? "(unknown)"} — degrading realtime voice to ${realtimeFallback}. Re-enable the provider or change the realtime voice provider setting to restore the selection.`,
     );
-    realtimeProvider = voiceProvider;
+    realtimeProvider = realtimeFallback;
     realtimeSource = "voice_chat";
   }
 
   // ── ElevenLabs specifics ──────────────────────────────────────────────────
-  // Resolved when EITHER purpose selects ElevenLabs — both purposes share the
-  // same org-level models / voice configuration.
+  // Voice Chat and Realtime Voice are independent purposes. Their provider
+  // selection and model/voice settings must remain independent too. Published
+  // agent-version preferences are authoritative, then agent/org settings,
+  // then platform defaults.
   let elevenlabs: ElevenLabsResolvedConfig | null = null;
   if ((input.surface === "voice_chat" && voiceProvider === "elevenlabs") ||
       (input.surface !== "voice_chat" && realtimeProvider === "elevenlabs")) {
+    const isRealtime = input.surface !== "voice_chat";
     const ttsModel =
+      (isRealtime ? versionRealtimeTtsModel : versionVoiceChatTtsModel) ??
+      (isRealtime ? agentSettings?.realtimeTtsModel : agentSettings?.voiceChatTtsModel) ??
       orgSettings?.elevenlabsTtsModel ??
-      getPlatformDefaultTTSModel();
+      (isRealtime ? getPlatformDefaultRealtimeTTSModel() : getPlatformDefaultTTSModel());
+
     if (!isSupportedTTSModel(ttsModel)) {
       throw new VoiceConfigResolutionError(
         `Unsupported ElevenLabs TTS model: ${ttsModel}`,
       );
     }
 
-    const sttModel =
-      orgSettings?.elevenlabsSttModel ??
-      getPlatformDefaultSTTModel();
+    // Batch voice-chat uses Scribe v2; Clara realtime always uses the
+    // dedicated Scribe v2 Realtime model from realtime-init.
+    // The realtime socket only accepts Scribe v2 Realtime, so stale batch ids
+    // stored on the version/agent/org are ignored for that surface.
+    const sttModel = isRealtime
+      ? getPlatformDefaultRealtimeSTTModel()
+      : versionVoiceChatSttModel ??
+        agentSettings?.voiceChatSttModel ??
+        orgSettings?.elevenlabsSttModel ??
+        getPlatformDefaultSTTModel();
+
+    const configuredVoiceId =
+      (isRealtime ? versionRealtimeVoiceId : versionVoiceChatVoiceId) ??
+      (isRealtime ? agentSettings?.realtimeVoiceId : agentSettings?.voiceChatVoiceId) ??
+      null;
 
     const voiceId = await resolveElevenLabsVoiceId({
       orgId,
       agentId: agent?.id ?? null,
       agentSettings,
-      assistantVoiceId: brain.assistantConfig?.voiceId ?? null,
+      configuredVoiceId,
+      assistantVoiceId: configuredVoiceId ?? brain.assistantConfig?.voiceId ?? null,
       orgDefaultVoice: orgSettings?.defaultElevenlabsVoice ?? null,
     });
 
@@ -418,11 +455,12 @@ export async function resolveVoiceConfig(
       ttsModel,
       sttModel,
       voiceId,
-      voiceSettings: {}, // per-agent tuning lands with the settings UI phase
+      voiceSettings: {},
       language:
         brain.defaultLanguage ??
         brain.assistantConfig?.alwaysRespondIn ??
         "en",
+      sttLanguage: speechRecognitionLanguage(brainLanguagePolicy(brain)),
     };
   }
 
@@ -480,8 +518,12 @@ export async function resolveVoiceConfig(
       language: toSarvamLanguageCode(
         brain.defaultLanguage ?? brain.assistantConfig?.alwaysRespondIn ?? "en",
       ),
+      // "unknown" is Sarvam's auto-detect code (Speech-to-Text WS reference).
+      sttLanguage: (() => {
+        const pinned = speechRecognitionLanguage(brainLanguagePolicy(brain));
+        return pinned ? toSarvamLanguageCode(pinned) : "unknown";
+      })(),
       sampleRate: 16_000,
-      realtimeSttEnabled: isSarvamRealtimeSttEnabled(),
     };
   }
 
@@ -591,7 +633,9 @@ function resolveSarvamSpeaker(params: {
  * fixed enumerable set (unlike OPENAI_REALTIME_VOICES), so validation runs
  * against the org's synced catalog + a shape check. Precedence:
  *
- *   assistant config voiceId (if it is an ElevenLabs voice id in the org catalog)
+ *   voice explicitly selected for this surface (realtime / voice chat) on the
+ *   ElevenLabs axis — honoured even before the org catalog is synced
+ *     → assistant config voiceId (if it is an ElevenLabs voice id in the org catalog)
  *     → agent's assigned ElevenLabs voices (first enabled)
  *       → org default ElevenLabs voice
  *         → platform default (env)
@@ -600,6 +644,8 @@ async function resolveElevenLabsVoiceId(params: {
   orgId: string | null;
   agentId: string | null;
   agentSettings: Awaited<ReturnType<typeof getAgentAISettings>>;
+  /** Voice the admin selected for this surface (version / agent settings). */
+  configuredVoiceId?: string | null;
   assistantVoiceId: string | null;
   orgDefaultVoice: string | null;
 }): Promise<string> {
@@ -608,6 +654,19 @@ async function resolveElevenLabsVoiceId(params: {
   // Org's ElevenLabs catalog (elevenlabs_voices table + organisation_voices
   // rows with provider='elevenlabs').
   const catalogVoiceIds = orgId ? await listOrgElevenLabsVoiceIds(orgId) : [];
+
+  // 0. The voice selected for this surface wins when it is an ElevenLabs
+  //    voice id (in the catalog, or ElevenLabs-shaped). A stale id from
+  //    another provider's axis (e.g. an OpenAI voice name kept after the
+  //    realtime provider changed) falls through to the chain below.
+  const configured = params.configuredVoiceId?.trim();
+  if (
+    configured &&
+    !isSupportedOpenAIRealtimeVoice(configured) &&
+    (catalogVoiceIds.includes(configured) || looksLikeElevenLabsVoiceId(configured))
+  ) {
+    return configured;
+  }
 
   // 1. Assistant-config voice id, when it is a known ElevenLabs voice.
   if (assistantVoiceId && catalogVoiceIds.includes(assistantVoiceId)) {

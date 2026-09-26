@@ -9,6 +9,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { confirmAction } from "@/components/ui/confirm-dialog";
+import { ApiKeyUsagePanel } from "@/components/admin/ApiKeyUsagePanel";
+import { toast } from "@/components/ui/sonner";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 
@@ -123,7 +126,7 @@ function RawKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void 
 
 // ── CreateKeyModal ────────────────────────────────────────────────────────────
 
-function CreateKeyModal({ onClose, onCreated, quota }: { onClose: () => void; onCreated: (r: NewKeyResult) => void; quota: QuotaInfo }) {
+function CreateKeyModal({ kbId, onClose, onCreated, quota }: { kbId: string; onClose: () => void; onCreated: (r: NewKeyResult) => void; quota: QuotaInfo }) {
   const [name, setName]           = useState("Production");
   const [origins, setOrigins]     = useState("");
   const [rateLimit, setRateLimit] = useState(500);
@@ -134,7 +137,6 @@ function CreateKeyModal({ onClose, onCreated, quota }: { onClose: () => void; on
   const handleCreate = async () => {
     setCreating(true); setError(null); setIsUpgradeError(false);
     try {
-      const kbId = window.location.pathname.split("/kbs/")[1]?.split("/")[0];
       const res  = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys`), {
         method: "POST",
         headers: withAuthHeaders({ "Content-Type": "application/json" }),
@@ -158,19 +160,19 @@ function CreateKeyModal({ onClose, onCreated, quota }: { onClose: () => void; on
         )}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Key name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Production / Staging / Partner"
+            <label htmlFor="apikeysmanager-key-name" className="block text-sm font-medium mb-1">Key name</label>
+            <input id="apikeysmanager-key-name" value={name} onChange={e => setName(e.target.value)} placeholder="Production / Staging / Partner"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Allowed origins <span className="text-muted-foreground font-normal">(one per line, empty = any)</span></label>
-            <textarea value={origins} onChange={e => setOrigins(e.target.value)} placeholder={"https://yoursite.com\nhttps://app.yoursite.com\n*.yoursite.com"} rows={3}
+            <label htmlFor="apikeysmanager-allowed-origins-one-per-line-e" className="block text-sm font-medium mb-1">Allowed origins <span className="text-muted-foreground font-normal">(one per line, empty = any)</span></label>
+            <textarea id="apikeysmanager-allowed-origins-one-per-line-e" value={origins} onChange={e => setOrigins(e.target.value)} placeholder={"https://yoursite.com\nhttps://app.yoursite.com\n*.yoursite.com"} rows={3}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
             <p className="text-xs text-muted-foreground mt-1">Wildcard: <code>*.example.com</code></p>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
-            <input type="number" min={0} value={rateLimit} onChange={e => setRateLimit(Number(e.target.value))}
+            <label htmlFor="apikeysmanager-rate-limit-req-hour-0-unlimite" className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
+            <input id="apikeysmanager-rate-limit-req-hour-0-unlimite" type="number" min={0} value={rateLimit} onChange={e => setRateLimit(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
         </div>
@@ -233,20 +235,20 @@ function EditKeyModal({ kbId, apiKey, onClose, onUpdated }: {
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Key name</label>
-            <input value={name} onChange={e => setName(e.target.value)}
+            <label htmlFor="apikeysmanager-key-name-2" className="block text-sm font-medium mb-1">Key name</label>
+            <input id="apikeysmanager-key-name-2" value={name} onChange={e => setName(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Allowed origins <span className="font-normal text-muted-foreground">(one per line, empty = any)</span></label>
-            <textarea value={origins} onChange={e => setOrigins(e.target.value)} rows={4}
+            <label htmlFor="apikeysmanager-allowed-origins-one-per-line-e-2" className="block text-sm font-medium mb-1">Allowed origins <span className="font-normal text-muted-foreground">(one per line, empty = any)</span></label>
+            <textarea id="apikeysmanager-allowed-origins-one-per-line-e-2" value={origins} onChange={e => setOrigins(e.target.value)} rows={4}
               placeholder={"https://yoursite.com\nhttp://localhost:8080\n*.yoursite.com"}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
             <p className="text-xs text-muted-foreground mt-1">Include <code className="bg-muted px-1 rounded">http://localhost:PORT</code> for local development.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
-            <input type="number" min={0} value={rateLimit} onChange={e => setRate(Number(e.target.value))}
+            <label htmlFor="apikeysmanager-rate-limit-req-hour-0-unlimite-2" className="block text-sm font-medium mb-1">Rate limit (req/hour, 0 = unlimited)</label>
+            <input id="apikeysmanager-rate-limit-req-hour-0-unlimite-2" type="number" min={0} value={rateLimit} onChange={e => setRate(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           {/* ── Design API permission ── */}
@@ -497,7 +499,7 @@ await updateDesign({
               tab === t.id
                 ? "bg-primary text-primary-foreground"
                 : t.locked
-                ? "bg-muted/50 text-muted-foreground/40 cursor-not-allowed"
+                ? "bg-muted/50 text-muted-foreground/80 cursor-not-allowed"
                 : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}
           >
@@ -557,10 +559,14 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
     setLoading(true);
     try {
       const res  = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys`), { headers: withAuthHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { keys?: ApiKey[]; quota?: QuotaInfo };
       setKeys(data.keys ?? []);
       if (data.quota) setQuota(data.quota);
-    } catch { setKeys([]); } finally { setLoading(false); }
+    } catch (e) {
+      setKeys([]);
+      toast.error("Couldn't load API keys", { description: (e as Error).message });
+    } finally { setLoading(false); }
   }, [kbId]);
 
   useEffect(() => { void loadKeys(); }, [loadKeys]);
@@ -578,12 +584,26 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
   }, []);
 
   const handleRevoke = useCallback(async (keyId: string) => {
-    if (!confirm("Revoke this key? Any websites using it will immediately lose access.")) return;
+    const ok = await confirmAction({
+      title: "Revoke this key?",
+      description: "Any websites using it will immediately lose access. This cannot be undone.",
+      confirmLabel: "Revoke key",
+      destructive: true,
+    });
+    if (!ok) return;
     setRevoking(keyId);
     try {
-      await fetch(apiUrl(`/api/kbs/${kbId}/api-keys/${keyId}`), { method: "DELETE", headers: withAuthHeaders() });
+      const res = await fetch(apiUrl(`/api/kbs/${kbId}/api-keys/${keyId}`), { method: "DELETE", headers: withAuthHeaders() });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `Revoke failed (HTTP ${res.status})`);
+      }
+      // Only drop the key once the server confirms it is revoked.
       setKeys(prev => prev.filter(k => k.id !== keyId));
       setQuota(prev => prev ? { ...prev, current: Math.max(0, prev.current - 1) } : prev);
+      toast.success("Key revoked");
+    } catch (e) {
+      toast.error("The key was NOT revoked", { description: (e as Error).message });
     } finally { setRevoking(null); }
   }, [kbId]);
 
@@ -624,7 +644,7 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
         <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-20 rounded-xl bg-muted/30 animate-pulse" />)}</div>
       ) : keys.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
-          <KeyIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+          <KeyIcon className="h-8 w-8 text-muted-foreground/80 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No API keys yet.</p>
           <p className="text-xs text-muted-foreground mt-1">Create your first key to start embedding.</p>
           {canCreate && <Button size="sm" variant="outline" className="mt-4" onClick={() => setShowCreate(true)}>Create first key</Button>}
@@ -687,8 +707,11 @@ export function ApiKeysManager({ kbId }: { kbId: string }) {
         </div>
       )}
 
+      {/* Usage — per-key request counts and the last-24h trend */}
+      {!loading && keys.length > 0 && <ApiKeyUsagePanel kbId={kbId} />}
+
       {/* Modals */}
-      {showCreate && quota && <CreateKeyModal onClose={() => setShowCreate(false)} onCreated={handleCreated} quota={quota} />}
+      {showCreate && quota && <CreateKeyModal kbId={kbId} onClose={() => setShowCreate(false)} onCreated={handleCreated} quota={quota} />}
       {editingKey && <EditKeyModal kbId={kbId} apiKey={editingKey} onClose={() => setEditingKey(null)} onUpdated={handleUpdated} />}
       {newKeyResult && <RawKeyModal rawKey={newKeyResult.rawKey} onClose={() => setNewKeyResult(null)} />}
     </div>

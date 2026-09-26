@@ -102,10 +102,13 @@ export async function postElevenLabsTranscribe(request: NextRequest): Promise<Ne
     const resolved = await resolveVoiceConfigCached({ kbId, surface: "realtime", ...(form.get("scope") === "draft" ? { preferDraft: true } : {}) });
     // Either voice purpose selects the pipeline (voice-chat axis, or the
     // realtime axis using Mode A as its fallback / embed transport).
-    if (
-      (resolved.voiceProvider !== "elevenlabs" && resolved.realtimeProvider !== "elevenlabs") ||
-      !resolved.elevenlabs
-    ) {
+    // The client names the surface it is transcribing for; default to
+    // realtime because this endpoint is also the Clara realtime relay fallback.
+    const surface = form.get("surface") === "voice_chat" ? "voice_chat" : "realtime";
+
+    const selectedProvider =
+      surface === "voice_chat" ? resolved.voiceProvider : resolved.realtimeProvider;
+    if (selectedProvider !== "elevenlabs" || !resolved.elevenlabs) {
       return NextResponse.json(
         { error: "Voice provider is not ElevenLabs for this knowledge base.", provider: resolved.realtimeProvider },
         { status: 409 },

@@ -32,7 +32,8 @@ import {
 } from "@/modules/admin-ui/ai-platform-api";
 import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
-import { useAuth } from "@/modules/admin-ui/hooks";
+import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function AgentPublishScreen() {
@@ -172,7 +173,6 @@ export default function AgentPublishScreen() {
     }
   }, []);
 
-  const previewHref = `/preview/agents/${agentId}`;
   // Hosted public published page (/agents/:id) — same-origin absolute URL so
   // it is copy-paste ready behind reverse proxies and custom domains.
   const [publicPageUrl, setPublicPageUrl] = useState(`/agents/${agentId}`);
@@ -193,7 +193,8 @@ export default function AgentPublishScreen() {
           <span className="font-medium text-foreground">Publishing is one click.</span> Use the{" "}
           <span className="font-medium text-primary">Publish update</span> button in the top bar next to your profile
           avatar (or the Overview tab) — draft
-          changes are versioned and published automatically. This page keeps the advanced controls: access mode, share links and
+          changes are versioned and published automatically. The button&apos;s dropdown menu also carries View pending
+          changes, Deploy traffic, share links and Discard changes. This page keeps the advanced controls: access mode, share links and
           rollback.
         </p>
       </div>
@@ -259,7 +260,7 @@ export default function AgentPublishScreen() {
                     Public
                   </label>
                 </div>
-                <p className="mt-2 text-[11px] text-muted-foreground/60">
+                <p className="mt-2 text-[11px] text-muted-foreground/80">
                   Embed access is governed separately by the embed API key — publishing does not change embed keys.
                 </p>
               </div>
@@ -281,18 +282,6 @@ export default function AgentPublishScreen() {
               )}
             </div>
           )}
-
-          {/* Dedicated preview shortcut (session-auth — never the embed key). */}
-          <div className="mt-5 border-t border-border/60 pt-4">
-            <button
-              type="button"
-              onClick={() => window.open(previewHref, "_blank", "noopener")}
-              disabled={!deployment}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 disabled:opacity-50"
-            >
-              Open the published preview ↗
-            </button>
-          </div>
         </section>
 
         {/* ── Access the published agent (explore link) ─────────────────────── */}
@@ -353,13 +342,13 @@ export default function AgentPublishScreen() {
                       </div>
                     </div>
                     <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{publicPageUrl}</p>
-                    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/60">
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/80">
                       The hosted public experience — chat and realtime voice from the published
                       settings only, with plan quotas and rate limits enforced.
                     </p>
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground/60">
+                  <p className="text-[11px] text-muted-foreground/80">
                     Serving knowledge base “{exploreLink.kbName}”. The unified preview contains both Chat and Voice. The raw key is shown once — regenerate to rotate it
                     (the previous explore key is revoked automatically).
                   </p>
@@ -374,7 +363,7 @@ export default function AgentPublishScreen() {
                 </p>
               )}
               {isAdmin && (
-                <p className="text-[11px] text-muted-foreground/60">
+                <p className="text-[11px] text-muted-foreground/80">
                   Platform admins can view but not generate links — ask the organisation admin.
                 </p>
               )}
@@ -384,7 +373,7 @@ export default function AgentPublishScreen() {
               <p className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700">
                 The published version is PRIVATE — visitors are blocked until you publish with public access ON.
               </p>
-              <p className="text-[11px] text-muted-foreground/60">
+              <p className="text-[11px] text-muted-foreground/80">
                 Organisation members can still explore it from the workspace preview.
               </p>
             </div>
@@ -396,9 +385,13 @@ export default function AgentPublishScreen() {
           <h2 className="text-sm font-semibold text-foreground">Deployments</h2>
           <p className="mt-1 text-xs text-muted-foreground/70">
             Rollback re-publishes a previous immutable version — nothing is deleted. Full version history lives in{" "}
-            <a href={`/orgs/${context?.agent.orgId ?? ""}/agents/${agentId}/versions`} className="font-medium text-primary hover:text-primary/80">
-              Versions &amp; branches
-            </a>
+            {context?.agent.orgId ? (
+              <a href={`/orgs/${context.agent.orgId}/agents/${agentId}/versions`} className="font-medium text-primary hover:text-primary/80">
+                Versions &amp; branches
+              </a>
+            ) : (
+              <span className="font-medium text-muted-foreground">Versions &amp; branches</span>
+            )}
             .
           </p>
           {loading ? (
@@ -433,7 +426,49 @@ export default function AgentPublishScreen() {
             </ul>
           )}
         </aside>
+
+        {/* ── Channels — where the published agent actually shows up ─────────── */}
+        <ChannelLinks orgId={context?.agent.orgId ?? ""} agentId={agentId} />
       </div>
     </div>
+  );
+}
+
+/** Embed keys, widget design and phone live per knowledge base; link straight
+ *  to them from the place people go right after publishing. */
+function ChannelLinks({ orgId, agentId }: { orgId: string; agentId: string }) {
+  const { kbs, loading } = useKbs(agentId);
+  if (!orgId || loading || kbs.length === 0) return null;
+  const links = [
+    { tab: "deploy", label: "Embed & API keys", hint: "Keys, allowed sites and copy-paste snippets" },
+    { tab: "design", label: "Widget design", hint: "Colours, launcher, layout and branding" },
+    { tab: "phone",  label: "Phone",         hint: "Connect a phone number to this assistant" },
+  ];
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm xl:col-span-2" aria-labelledby="publish-channels">
+      <h2 id="publish-channels" className="text-sm font-semibold text-foreground">Put it on your website</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Each knowledge base has its own embed keys, widget look and phone line.
+      </p>
+      <ul className="mt-4 space-y-3">
+        {kbs.map((kb) => (
+          <li key={kb.id} className="rounded-xl border border-border/70 p-3.5">
+            <p className="text-sm font-medium text-foreground">{kb.name}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {links.map((l) => (
+                <Link
+                  key={l.tab}
+                  href={`/orgs/${orgId}/agents/${agentId}/knowledge/${kb.id}?tab=${l.tab}`}
+                  className="rounded-lg border border-border px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <span className="block text-sm font-medium text-foreground">{l.label}</span>
+                  <span className="block text-xs text-muted-foreground">{l.hint}</span>
+                </Link>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

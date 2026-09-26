@@ -6,7 +6,7 @@
  */
 
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
-import { ProviderFactory } from "@/modules/ai-core/factory";
+import { embedQueryCached } from "@/modules/rag/query-embedding-cache";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 
@@ -29,11 +29,49 @@ export async function searchKbEmbedded(
     filter?: Record<string, unknown>;
     /** Realtime voice fast path: avoid the wider candidate pool/diversification. */
     realtimeVoice?: boolean;
+    /**
+     * The query translated into the KB language (cross-lingual retrieval).
+     * Searched in parallel with the original; best score per point wins.
+     */
+    translatedQuery?: Promise<string | null> | string | null;
+    /** Minimum similarity for this collection's embedding model. */
+    scoreThreshold?: number;
   },
+): Promise<EmbedSearchResult[]> {
+  const phrasings = await Promise.all([
+    searchOnePhrasing(collectionName, query, topK, options),
+    Promise.resolve(options?.translatedQuery ?? null).then((translated) =>
+      translated && translated.trim().toLowerCase() !== query.trim().toLowerCase()
+        ? searchOnePhrasing(collectionName, translated, topK, options)
+        : [],
+    ),
+  ]);
+
+  const best = new Map<string, EmbedSearchResult>();
+  for (const hit of phrasings.flat()) {
+    const current = best.get(hit.id);
+    if (!current || hit.score > current.score) best.set(hit.id, hit);
+  }
+  const mapped = [...best.values()].sort((a, b) => b.score - a.score);
+
+  if (options?.filter || options?.realtimeVoice) return mapped.slice(0, topK);
+
+  return diversifyByDocument(mapped, {
+    getDocId: (r) => r.documentId,
+    getScore: (r) => r.score,
+    topK,
+  });
+}
+
+async function searchOnePhrasing(
+  collectionName: string,
+  query: string,
+  topK: number,
+  options?: { providerConfig?: ProviderConfig; filter?: Record<string, unknown>; realtimeVoice?: boolean; scoreThreshold?: number },
 ): Promise<EmbedSearchResult[]> {
   const client = getQdrantClient();
   const embeddingStart = Date.now();
-  const embedding = await ProviderFactory.getProvider(options?.providerConfig).embedText(query);
+  const embedding = await embedQueryCached(options?.providerConfig, query);
   const embeddingMs = Date.now() - embeddingStart;
 
   // Fetch a larger candidate pool than topK so that when a KB has multiple
@@ -47,8 +85,8 @@ export async function searchKbEmbedded(
   const searchParams = {
     vector: embedding,
     limit: fetchLimit,
-    with_payload: true,
-    score_threshold: SCORE_THRESHOLD,
+    with_payload: ["chunk", "title", "documentId"],
+    score_threshold: options?.scoreThreshold ?? SCORE_THRESHOLD,
     ...(options?.filter ? { filter: options.filter } : {}),
   };
 
@@ -73,7 +111,7 @@ export async function searchKbEmbedded(
     return [];
   }
 
-  const mapped = (
+  return (
     results as Array<{
       id: string | number;
       score?: number;
@@ -86,14 +124,5 @@ export async function searchKbEmbedded(
       snippet: r.payload?.chunk ? String(r.payload.chunk) : "",
       score: r.score ?? 0,
       documentId: r.payload?.documentId ? String(r.payload.documentId) : undefined,
-    }))
-    .sort((a, b) => b.score - a.score);
-
-  if (options?.filter || options?.realtimeVoice) return mapped.slice(0, topK);
-
-  return diversifyByDocument(mapped, {
-    getDocId: (r) => r.documentId,
-    getScore: (r) => r.score,
-    topK,
-  });
+    }));
 }

@@ -40,6 +40,7 @@ export type PlatformAIProviderDTO = {
   description: string | null;
   /** EFFECTIVE enablement (admin switch AND operational kill-switch). */
   enabled: boolean;
+  realtimeEnabled: boolean;
   /** "kill_switch" when the admin switch is on but an env flag is off. */
   disabledReason: "kill_switch" | null;
   configured: boolean;
@@ -114,7 +115,7 @@ export async function fetchProviderWorkspace(providerId: string): Promise<{
 
 export async function patchProvider(
   providerId: string,
-  input: { enabled?: boolean; monthlyBudgetUsd?: number | null; warningThresholdPct?: number },
+  input: { enabled?: boolean; realtimeEnabled?: boolean; monthlyBudgetUsd?: number | null; warningThresholdPct?: number },
 ): Promise<{ provider: PlatformAIProviderDTO | null }> {
   return apiFetch(`/api/platform/ai/providers/${providerId}`, { method: "PATCH", body: JSON.stringify(input) });
 }
@@ -515,4 +516,33 @@ export type AgentAIOptionsDTO = {
 
 export async function fetchAgentAIOptions(agentId: string, capability: AICapability): Promise<AgentAIOptionsDTO> {
   return apiFetch(`/api/agents/${agentId}/ai-options?capability=${capability}`);
+}
+
+export type GeneratedSystemPromptDTO = {
+  prompt: string;
+  template: string;
+  reason?: string;
+  documentsSampled: number;
+};
+
+/** Drafts a system prompt from the agent's knowledge base (review before use). */
+export async function generateAgentSystemPrompt(
+  agentId: string,
+  input: { template: string; notes?: string },
+): Promise<GeneratedSystemPromptDTO> {
+  return apiFetch(`/api/agents/${agentId}/system-prompt/generate`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Translates admin-authored text (e.g. the first message) for review. */
+export async function translateAgentText(
+  agentId: string,
+  input: { text: string; targetLanguage: string },
+): Promise<{ translatedText: string; language: string }> {
+  return apiFetch(`/api/agents/${agentId}/translate`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }

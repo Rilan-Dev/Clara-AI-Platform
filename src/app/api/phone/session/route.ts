@@ -11,6 +11,7 @@
  *             maxCallDurationSec, kbName }
  */
 import { NextRequest, NextResponse } from "next/server";
+import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { ensureMigrated }            from "@/lib/db/migrate";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt }         from "@/modules/knowledge-bases/core/config-builder";
@@ -22,6 +23,7 @@ import {
   getSarvamBaseUrl,
   toSarvamRealtimeSttModel,
   getPlatformDefaultSarvamRealtimeLlmModel,
+  getSarvamRealtimeTuning,
 } from "@/modules/voice-core/model-catalog";
 import {
   buildOpenAIRealtimeSession,
@@ -85,10 +87,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           ttsModel: voiceResolved.sarvam.realtimeTtsModel,
           speaker: voiceResolved.sarvam.realtimeSpeaker,
           language: languageCode,
+          // Speech recognition: "unknown" = Sarvam auto-detect for
+          // multi-language assistants (the reply language follows the caller).
+          sttLanguage: voiceResolved.sarvam.sttLanguage ?? languageCode,
+          // Platform-configurable endpointing + speaking pace.
+          vad: getSarvamRealtimeTuning().vad,
+          ttsPace: getSarvamRealtimeTuning().ttsPace,
           greetingMessage: activeConfig?.greetingMessage ?? assistantConfig.welcomeMessage ?? "Hello! How can I help you today?",
           maxCallDurationSec: activeConfig?.maxCallDurationSec ?? 300,
           kbName: kb.name,
           kbId,
+          // The tenant's own assistant prompt and reply length, instead of a
+          // hardcoded phone prompt and a fixed 180-token cap.
+          systemPrompt: buildSystemPrompt(assistantConfig, {
+            kbName: kb.name,
+            kbDescription: kb.description,
+            surface: "voice",
+            allowedLanguages: resolved.allowedLanguages,
+          }),
+          maxTokens: resolved.maxTokens ?? assistantConfig.maxTokens ?? null,
         },
       });
     }
@@ -105,7 +122,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const voice              = voiceResolved.openai?.voiceId ?? "alloy";
     const temperature        = resolved.temperature     ?? assistantConfig.temperature ?? 0.8;
     const transcriptionModel = resolved.transcriptionModel ?? "gpt-4o-mini-transcribe";
-    const language           = assistantConfig.alwaysRespondIn ?? assistantConfig.defaultLanguage ?? "en";
+    // Recognition language under the language policy (undefined = auto-detect).
+    const language           = speechRecognitionLanguage(policyFromResolvedConfig({
+      defaultLanguage: assistantConfig.defaultLanguage,
+      allowedLanguages: resolved.allowedLanguages ?? assistantConfig.allowedLanguages,
+      assistantConfig: { alwaysRespondIn: assistantConfig.alwaysRespondIn },
+    })) ?? undefined;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY not set" }, { status: 500 });
@@ -114,7 +136,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       model,
       voice,
       instructions,
-      maxOutputTokens: Math.min(resolved.maxTokens ?? 500, 500),
+      // Spoken audio counts against this; a fixed 500 cut phone answers off.
+      maxOutputTokens: resolved.realtimeMaxOutputTokens ?? "inf",
       turnDetection: {
         type:                "server_vad",
         threshold:           0.5,

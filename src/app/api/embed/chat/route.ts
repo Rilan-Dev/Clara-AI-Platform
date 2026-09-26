@@ -2,39 +2,43 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { validateEmbedRequest, buildCorsHeaders, handlePreflight } from "@/modules/embed/core/validate-embed";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
-import { searchKbEmbedded } from "@/modules/embed/core/search";
+import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
+import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ChatMessage } from "@/modules/ai-core/types";
-import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import { AIConfigResolutionError, toProviderConfig } from "@/modules/ai-core/resolve";
+import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
+  recentMessages,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
 
-function isBroadCoverageQuery(query: string): boolean {
-  const normalized = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-  return [
-    "what does my insurance cover",
-    "what does insurance cover",
-    "what is covered by my insurance",
-    "what does my policy cover",
-    "what is my insurance",
-    "tell me about my insurance",
-    "what insurance do you offer",
-    "what policies do you offer",
-    "what is omen insurance",
-    "what is oman insurance",
-    "what is omen united insurance",
-    "what is oman united insurance",
-    "who is omen united insurance",
-    "who is oman united insurance",
-  ].some((phrase) => normalized === phrase || normalized.startsWith(`${phrase} `));
+function publicAIErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (
+    message.includes("credential") ||
+    message.includes("api key") ||
+    message.includes("apikey") ||
+    message.includes("authorization") ||
+    message.includes("bearer ") ||
+    (message.includes("provider") && (message.includes("key") || message.includes("secret") || message.includes("token")))
+  ) {
+    return "This assistant is temporarily unavailable. Please try again later.";
+  }
+  if (message.includes("rate limit") || message.includes("too many requests") || message.includes("quota")) {
+    return "This assistant is busy right now. Please try again in a moment.";
+  }
+  if (message.includes("timeout") || message.includes("timed out")) {
+    return "The assistant took too long to respond. Please try again.";
+  }
+  return "The assistant could not complete that request. Please try again.";
 }
 
 export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
@@ -68,10 +72,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const query = messages[messages.length - 1].content.trim();
-    const retrievalQuery = isBroadCoverageQuery(query)
-      ? `${query}. Retrieve a broad overview of the insurance products, company information, coverage benefits, exclusions, claims, and policy areas available in the knowledge base. Include relevant home, health, travel, motor, personal accident, and life coverage facts when present.`
-      : buildConversationAwareSearchQuery(messages, query);
+    // Conversation-aware search text; nothing tenant- or domain-specific.
+    const retrievalQuery = buildConversationAwareSearchQuery(messages, query);
     const recentConversationContextBlock = buildRecentConversationContextBlock(messages);
+    // Realtime voice is a transport concern: every brain provider gets the
+    // spoken-reply guidance, the short retrieval width and the fast-turn
+    // model mode (previously only Sarvam did).
+    const realtimeVoice = body.realtimeVoice === true;
+
+    // Retrieval starts NOW, alongside the configuration lookups and quota
+    // admission below, instead of after them. It reads only the KB bound to
+    // the embed credential; nothing is returned to the visitor unless the
+    // turn is admitted. This route owns the query event (admitted below,
+    // finalised with the answer), so grounding must not log it again.
+    const t0 = Date.now();
+    const retrievalStart = t0;
+    const groundingPromise = groundClaraContext({
+      kbId: ctx.kbId,
+      query,
+      searchQuery: retrievalQuery,
+      topK: realtimeVoice ? 4 : 8,
+      surface: "embed",
+      admission: "external",
+      sessionId: body.sessionId ?? null,
+      channel: realtimeVoice ? "voice" : "chat",
+    }).catch((error: unknown) => {
+      console.error("[embed/chat] RAG search failed", error);
+      return null;
+    });
 
     const [kb, config] = await Promise.all([
       getKnowledgeBaseById(ctx.kbId),
@@ -81,7 +109,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "KB configuration not found" }, { status: 404, headers: corsHeaders });
     }
 
-    const resolved = await resolveAIConfig({ kbId: ctx.kbId, surface: "chat" });
+    let resolved;
+    try {
+      resolved = await resolveAIConfigCached({ kbId: ctx.kbId, surface: "chat" });
+    } catch (error) {
+      if (error instanceof AIConfigResolutionError) {
+        console.error("[embed/chat] AI configuration rejected", error);
+        return NextResponse.json(
+          { error: publicAIErrorMessage(error) },
+          { status: 503, headers: corsHeaders },
+        );
+      }
+      throw error;
+    }
     if (!resolved.flags.publicEmbedEnabled) {
       return NextResponse.json(
         { error: "Public embed is disabled for this knowledge base" },
@@ -89,10 +129,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const realtimeVoice = body.realtimeVoice === true && resolved.provider === "sarvam";
+    // Sarvam has a dedicated low-latency realtime LLM; other providers keep
+    // their configured chat model (a native realtime model is not a chat model).
+    const sarvamRealtime = realtimeVoice && resolved.provider === "sarvam";
     const providerConfig = {
       ...toProviderConfig(resolved),
-      ...(realtimeVoice
+      ...(sarvamRealtime
         ? {
             chatModel:
               resolved.realtimeModel ??
@@ -100,7 +142,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           }
         : {}),
     };
-    const embeddingConfig = toProviderConfig(resolved, "embedding");
     if (!providerConfig.apiKey) {
       const envName =
         resolved.provider === "openai" ? "OPENAI_API_KEY"
@@ -130,9 +171,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       realtimeVoice,
     });
 
-    const t0 = Date.now();
-    const retrievalStart = t0;
-
     const admission = await admitQueryEvent({
       kbId: ctx.kbId,
       queryText: query,
@@ -146,32 +184,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const eventId = admission.eventId;
     const quotaWarning = admission.warning;
 
-    let searchResults: Awaited<ReturnType<typeof searchKbEmbedded>> = [];
-    try {
-      const searchPromise = searchKbEmbedded(
-        resolved.knowledgeCollection ?? kb.qdrantCollection,
-        retrievalQuery,
-        realtimeVoice ? 4 : 8,
-        { providerConfig: embeddingConfig, realtimeVoice },
-      );
-      const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("search_timeout")), 15000));
-      searchResults = await Promise.race([searchPromise, timeoutPromise]);
-      console.info("[realtime-latency] retrieval complete", { realtimeVoice, ms: Date.now() - retrievalStart, sourceCount: searchResults.length });
-      void finalizeQueryEvent(eventId, { answerText: "", status: "pending", latencyMs: Date.now() - t0, sourceCount: searchResults.length });
-    } catch (searchErr) {
-      if ((searchErr as Error).message !== "search_timeout") {
-        console.error("[embed/chat] RAG search failed", searchErr);
-        void finalizeQueryEvent(eventId, { answerText: "", status: "error", latencyMs: Date.now() - t0 });
-        return NextResponse.json(
-          { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
-          { status: 502, headers: corsHeaders },
-        );
-      }
-      console.warn("[embed/chat] RAG search timed out (>15s)", { kbId: ctx.kbId });
+    // The same grounding service as the native realtime voices: cross-lingual
+    // retrieval, capability handling, KB topics and provider-neutral turn
+    // guidance — started above, in parallel with admission.
+    const grounding = await groundingPromise;
+    if (grounding && !grounding.ok && (grounding.status === 404 || grounding.status === 400)) {
+      void finalizeQueryEvent(eventId, { answerText: "", status: "error", latencyMs: Date.now() - t0 });
+      return NextResponse.json({ error: grounding.error }, { status: grounding.status, headers: corsHeaders });
     }
+    const groundedResult = grounding?.ok ? grounding.result : null;
+    console.info("[realtime-latency] retrieval complete", {
+      realtimeVoice,
+      ms: Date.now() - retrievalStart,
+      sourceCount: groundedResult?.sources.length ?? 0,
+      timings: groundedResult?.timings,
+    });
+    void finalizeQueryEvent(eventId, {
+      answerText: "",
+      status: "pending",
+      latencyMs: Date.now() - t0,
+      sourceCount: groundedResult?.sources.length ?? 0,
+    });
 
     const seen = new Set<string>();
-    const sources = searchResults.filter((result) => {
+    const sources = (groundedResult?.sources ?? []).filter((result) => {
       const key = result.snippet.slice(0, 100).toLowerCase().replace(/\s+/g, " ");
       if (seen.has(key)) return false;
       seen.add(key);
@@ -186,8 +222,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const llmStart = Date.now();
     const baseSystemPrompt = buildSystemPrompt(config, {
       kbName: kb.name,
+      kbDescription: kb.description,
       surface: "embed",
       allowedLanguages,
+      responseLanguage: groundedResult?.responseLanguage ?? null,
     });
     const systemPrompt = withChartInstructions(
       recentConversationContextBlock
@@ -195,24 +233,36 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         : baseSystemPrompt,
     );
 
-    const context = sources.length
-      ? sources.map((result, index) => `[S${index + 1}] ${result.snippet}`).join("\n\n")
-      : "No relevant information was found in the knowledge base for this query.";
+    const guidance =
+      groundedResult?.guidance ??
+      buildTurnGuidance({
+        grounded: false,
+        intent: "out_of_scope",
+        fallbackReply: config.outOfScopeReply,
+        topics: kb.description ?? null,
+        channel: realtimeVoice ? "voice" : "chat",
+      });
+    const evidence = groundedResult?.intent === "capability"
+      ? groundedResult.context
+      : sources.map((result, index) => `[S${index + 1}] ${result.snippet}`).join("\n\n");
+    const context = [guidance, evidence].filter(Boolean).join("\n\n");
 
     const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
     const completion = provider.chatStream(
       [
         { role: "system", content: systemPrompt },
-        ...messages.map((message): ChatMessage => ({
+        ...recentMessages(messages).map((message): ChatMessage => ({
           role: message.role as ChatMessage["role"],
           content: message.content,
         })),
         { role: "system", content: `Knowledge base context:\n${context}` },
       ],
       {
-        maxTokens: realtimeVoice
-          ? Math.min(maxTokens ?? 350, 350)
-          : maxTokens,
+        // The assistant's configured reply length on every surface. A
+        // hardcoded 350-token voice cap cut spoken answers off mid-word
+        // (Tamil/Indic scripts use several tokens per word); brevity for
+        // voice comes from the prompt, not truncation.
+        maxTokens,
         temperature,
         reasoningEffort: realtimeVoice ? null : undefined,
         onUsage: (u) => { usageRef.value = u; },
@@ -275,7 +325,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             }
           } catch (error) {
             console.error("[embed/chat] provider stream failed", error);
-            streamError = error instanceof Error ? error.message : "AI provider stream failed";
+            streamError = publicAIErrorMessage(error);
             safeWrite({ type: "error", payload: streamError });
           } finally {
             safeWrite({ type: "done" });
@@ -303,10 +353,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     });
 
+    const serverTiming = groundingServerTiming(groundedResult?.timings, "rag-");
     return new NextResponse(stream, {
       status: 200,
       headers: {
         ...corsHeaders,
+        ...(serverTiming ? { "Server-Timing": `${serverTiming}, pre-llm;dur=${llmStart - t0}` } : {}),
         "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
@@ -315,8 +367,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error("[embed/chat] request failed", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+      { error: publicAIErrorMessage(error) },
+      { status: error instanceof AIConfigResolutionError ? 503 : 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

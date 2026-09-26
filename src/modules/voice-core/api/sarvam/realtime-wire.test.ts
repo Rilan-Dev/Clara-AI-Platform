@@ -23,12 +23,20 @@ import {
   transcriptText,
   translateUpstreamEvent,
 } from "../../../../../scripts/sarvam-relay.mjs";
+import {
+  audioBytesOf,
+  buildRealtimeSttUrl,
+  buildTtsConfig,
+  realtimeVadTuning,
+  toUpstreamSttFrame,
+} from "../../../../../scripts/sarvam-wire.mjs";
 
 describe("toRealtimeModel — documented realtime model ids", () => {
   it("accepts exactly the documented ids and translates everything else", () => {
     // docs.sarvam.ai: model = saaras:v3-realtime (default) or saaras:v4.
     expect(toRealtimeModel("saaras:v3-realtime")).toBe("saaras:v3-realtime");
     expect(toRealtimeModel("saaras:v4")).toBe("saaras:v4");
+    expect(toRealtimeModel("saaras:v4-realtime")).toBe("saaras:v4-realtime");
     // Batch REST id → realtime variant (the historical production failure).
     expect(toRealtimeModel("saaras:v3")).toBe("saaras:v3-realtime");
     // Unknown/blank → default.
@@ -49,6 +57,9 @@ describe("normalizeRealtimeLanguage — documented language codes", () => {
     expect(normalizeRealtimeLanguage("ta-IN")).toBe("ta-IN");
     expect(normalizeRealtimeLanguage("hi-IN")).toBe("hi-IN");
     expect(normalizeRealtimeLanguage("auto")).toBe("auto");
+    // "unknown" is the BATCH auto-detect code; the realtime endpoint's
+    // adaptive detection is "auto" (multi-language assistants).
+    expect(normalizeRealtimeLanguage("unknown")).toBe("auto");
     expect(normalizeRealtimeLanguage("")).toBe("en-IN");
     expect(normalizeRealtimeLanguage(null)).toBe("en-IN");
   });
@@ -118,5 +129,73 @@ describe("translateUpstreamEvent — browser frame contract", () => {
     expect(transcriptText({ text: "b" })).toBe("b");
     expect(transcriptText({ partial: "c" })).toBe("c");
     expect(transcriptText({})).toBe("");
+  });
+});
+
+describe("sarvam-wire — shared realtime wire contract", () => {
+  it("builds the realtime STT URL with auto detection and configurable VAD", () => {
+    const url = new URL(
+      buildRealtimeSttUrl({
+        baseUrl: "https://api.sarvam.ai/",
+        languageCode: "unknown",
+        model: "saaras:v3",
+        sampleRate: 16000,
+        vad: { threshold: 0.4, silenceMs: 700, minSpeechMs: 200 },
+      }),
+    );
+    expect(url.pathname).toBe("/speech-to-text-realtime/ws");
+    expect(url.searchParams.get("language_code")).toBe("auto");
+    expect(url.searchParams.get("model")).toBe("saaras:v3-realtime");
+    expect(url.searchParams.get("sample_rate")).toBe("16000");
+    expect(url.searchParams.get("threshold")).toBe("0.4");
+    expect(url.searchParams.get("silence_duration_ms")).toBe("700");
+    expect(url.searchParams.get("min_speech_duration_ms")).toBe("200");
+  });
+
+  it("clamps VAD tuning into sane ranges", () => {
+    expect(realtimeVadTuning({ threshold: 5, silenceMs: 1, minSpeechMs: 99999 })).toEqual({
+      threshold: 0.95,
+      silenceMs: 100,
+      minSpeechMs: 2000,
+    });
+  });
+
+  it("sends the documented TTS config frame (target_language_code + explicit sample rate)", () => {
+    const frame = buildTtsConfig({ speaker: "anushka", languageCode: "hi-IN", sampleRate: 24000, pace: 1.1 });
+    expect(frame.type).toBe("config");
+    expect(frame.data).toMatchObject({
+      speaker: "anushka",
+      target_language_code: "hi-IN",
+      speech_sample_rate: 24000,
+      pace: 1.1,
+      output_audio_codec: "linear16",
+    });
+    expect(frame.data).not.toHaveProperty("language_code");
+    // TTS needs a concrete language — auto-detect codes fall back to en-IN.
+    expect(buildTtsConfig({ languageCode: "auto" }).data.target_language_code).toBe("en-IN");
+    // Streaming TTS tops out at 24 kHz.
+    expect(buildTtsConfig({ sampleRate: 48000 }).data.speech_sample_rate).toBe(24000);
+  });
+
+  it("meters decoded audio bytes, not the base64 JSON frame", () => {
+    const pcm = Buffer.alloc(3200, 1); // 100 ms of 16 kHz PCM16
+    const frame = JSON.stringify({ event: "audio_input", audio: pcm.toString("base64") });
+    expect(audioBytesOf(frame)).toBe(3200);
+    expect(frame.length).toBeGreaterThan(4200); // the old (over-billing) count
+  });
+
+  it("forwards only audio and keepalives upstream", () => {
+    expect(toUpstreamSttFrame(JSON.stringify({ event: "audio_input", audio: "AAA=" }), false)).toBe(
+      JSON.stringify({ event: "audio_input", audio: "AAA=" }),
+    );
+    expect(toUpstreamSttFrame(JSON.stringify({ event: "ping" }), false)).toBe(JSON.stringify({ event: "ping" }));
+    // A browser can never reconfigure the vendor session.
+    expect(toUpstreamSttFrame(JSON.stringify({ event: "config.update", language_code: "ta-IN" }), false)).toBeNull();
+    expect(toUpstreamSttFrame("not json", false)).toBeNull();
+    // Raw binary PCM is wrapped as audio_input.
+    expect(JSON.parse(toUpstreamSttFrame(Buffer.from([1, 2, 3, 4]), true)!)).toEqual({
+      event: "audio_input",
+      audio: Buffer.from([1, 2, 3, 4]).toString("base64"),
+    });
   });
 });

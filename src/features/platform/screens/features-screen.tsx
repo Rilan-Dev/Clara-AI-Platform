@@ -88,11 +88,11 @@ const FEATURES = [
   },
   {
     icon: Lock,
-    title: "SSO / SAML",
-    description: "Enterprise customers can integrate their existing identity providers — Azure AD, Okta, Google Workspace — for seamless single sign-on.",
-    bullets: ["SAML 2.0 support", "Azure AD / Okta", "Google Workspace", "Just-in-time provisioning"],
+    title: "Team Roles & Private Audit Trail",
+    description: "Invite your team with clear roles, and keep a Q&A audit trail where emails, phone numbers and payment details are redacted by default.",
+    bullets: ["Invite by email", "Role-based access", "PII redacted by default", "Audited, justified reveals"],
     color: "from-violet-600 to-purple-700",
-    badge: "Enterprise",
+    badge: "All Plans",
   },
   {
     icon: RefreshCw,
@@ -112,7 +112,6 @@ const COMPARISON = [
   { feature: "API Access", free: false, starter: true, pro: true, enterprise: true },
   { feature: "Custom Branding", free: false, starter: false, pro: true, enterprise: true },
   { feature: "Advanced Analytics", free: false, starter: false, pro: true, enterprise: true },
-  { feature: "SSO / SAML", free: false, starter: false, pro: false, enterprise: true },
   { feature: "SLA Guarantee", free: false, starter: false, pro: false, enterprise: true },
   { feature: "Priority Support", free: false, starter: false, pro: true, enterprise: true },
 ];

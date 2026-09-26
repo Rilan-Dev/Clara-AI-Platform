@@ -22,30 +22,38 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  Brain, CreditCard, Zap, Check, AlertCircle,
-  ArrowLeft, Shield, Lock, ChevronRight, Info,
+  CreditCard, Zap, Check, AlertCircle, ArrowLeft, Shield, Lock, ChevronRight, Info,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
 import { withAuthHeaders } from "@/lib/client-auth";
+import { LogoMark } from "@/components/brand/Logo";
 
 // ── Plan metadata ─────────────────────────────────────────────────────────────
 
 type PlanInfo = {
   name: string; usd: string; inr: string;
+  usdAmount: number; inrAmount: number;
   badge?: string; color: string; features: string[];
 };
 const PLANS: Record<string, PlanInfo> = {
   starter: {
     name: "Starter", usd: "$49/mo", inr: "₹4,000/mo",
+    usdAmount: 49, inrAmount: 4000,
     color: "border-cyan-500/30 bg-cyan-500/[0.06]",
     features: ["3 Knowledge Bases", "50 docs per KB", "1,000 req/day", "Voice AI", "Full analytics"],
   },
   pro: {
     name: "Pro", usd: "$149/mo", inr: "₹12,000/mo", badge: "Most popular",
+    usdAmount: 149, inrAmount: 12000,
     color: "border-primary/40 bg-primary/5",
     features: ["10 KBs", "200 docs/KB", "10,000 req/day", "Advanced analytics", "Custom branding", "Priority support"],
   },
 };
+
+/** Price string for the active gateway, e.g. "$49" / "₹4,000". */
+function priceFor(plan: PlanInfo, gateway: Gateway): string {
+  return gateway === "razorpay" ? `₹${plan.inrAmount.toLocaleString("en-IN")}` : `$${plan.usdAmount}`;
+}
 
 type Gateway = "stripe" | "razorpay";
 
@@ -71,6 +79,16 @@ export default function CheckoutScreen() {
   const [error,   setError]   = useState("");
 
   const plan = PLANS[planId] ?? PLANS.starter!;
+
+  // Geo-aware default gateway: visitors on an Indian locale (en-IN, hi-IN,
+  // …) land on Razorpay (INR / UPI); everyone else on Stripe (USD). The
+  // choice stays manually overridable — this only sets the initial state.
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const langs = [navigator.language, ...(navigator.languages ?? [])];
+    const isIndia = langs.some((l) => l.split("-")[1]?.toUpperCase() === "IN");
+    if (isIndia) setGateway("razorpay");
+  }, []);
 
   // Inject Razorpay Checkout.js once
   useEffect(() => {
@@ -121,11 +139,11 @@ export default function CheckoutScreen() {
         key:         order.keyId,
         amount:      order.amount,
         currency:    order.currency,
-        name:        "Clara AI",
+        name:        "Clara AI Platform",
         description: order.planName,
         order_id:    order.orderId,
         prefill:     { email: order.userEmail ?? "", name: order.userName ?? "" },
-        theme:       { color: "#6366f1" },
+        theme:       { color: "#4F46E5" },
         handler: async (response: {
           razorpay_order_id: string;
           razorpay_payment_id: string;
@@ -138,7 +156,7 @@ export default function CheckoutScreen() {
           });
           const vData = await vRes.json() as { ok?: boolean; error?: string };
           if (!vRes.ok) { setError(vData.error ?? "Verification failed"); setLoading(false); return; }
-          router.push(`/checkout/success?orgId=${orgId}&plan=${planId}&gateway=razorpay`);
+          router.push(`/checkout/success?orgId=${orgId}&plan=${planId}&gateway=razorpay&ref=${encodeURIComponent(response.razorpay_payment_id)}`);
         },
         modal: { ondismiss: () => setLoading(false) },
       });
@@ -162,9 +180,7 @@ export default function CheckoutScreen() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
+            <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
             <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
           <h1 className="text-2xl font-black text-foreground mb-1">Complete your subscription</h1>
@@ -178,7 +194,7 @@ export default function CheckoutScreen() {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-foreground">{plan.name} Plan</span>
                 {plan.badge && (
-                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                     {plan.badge}
                   </span>
                 )}
@@ -186,10 +202,14 @@ export default function CheckoutScreen() {
               <div className="text-xs text-muted-foreground mt-0.5">Clara AI Platform</div>
             </div>
             <div className="text-right">
-              <div className="text-xl font-black text-foreground">
-                {gateway === "razorpay" ? plan.inr : plan.usd}
+              <div className="text-2xl font-black text-foreground leading-none">
+                <span className="text-xs font-semibold text-muted-foreground mr-1">
+                  {gateway === "razorpay" ? "INR" : "USD"}
+                </span>
+                {priceFor(plan, gateway)}
+                <span className="text-sm font-semibold text-muted-foreground">/mo</span>
               </div>
-              <div className="text-xs text-muted-foreground/70">billed now</div>
+              <div className="text-xs text-muted-foreground/70 mt-1">renews monthly · cancel anytime</div>
             </div>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-border">
@@ -226,14 +246,28 @@ export default function CheckoutScreen() {
             Choose payment method
           </p>
 
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div
+            role="radiogroup"
+            aria-label="Payment method"
+            className="grid grid-cols-2 gap-3 mb-5"
+            onKeyDown={(e) => {
+              // Arrow keys move between the two options (radio behaviour).
+              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+                e.preventDefault();
+                setGateway((g) => (g === "stripe" ? "razorpay" : "stripe"));
+              }
+            }}
+          >
             {/* Stripe */}
-            <button onClick={() => setGateway("stripe")}
-              className={`flex flex-col items-center gap-2.5 border rounded-xl p-4 transition-all
+            <button type="button" onClick={() => setGateway("stripe")}
+              role="radio"
+              aria-checked={gateway === "stripe"}
+              tabIndex={gateway === "stripe" ? 0 : -1}
+              className={`flex flex-col items-center justify-center gap-2.5 border rounded-xl p-4 min-h-[88px] transition-all
                 ${gateway === "stripe"
                   ? "border-primary bg-primary/10 ring-2 ring-primary/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
-              <CreditCard className={`w-6 h-6 ${gateway === "stripe" ? "text-primary" : "text-muted-foreground/50"}`} />
+              <CreditCard className={`w-6 h-6 ${gateway === "stripe" ? "text-primary" : "text-muted-foreground/80"}`} />
               <div className="text-center">
                 <div className={`text-sm font-bold ${gateway === "stripe" ? "text-foreground" : "text-muted-foreground"}`}>
                   Stripe
@@ -248,12 +282,15 @@ export default function CheckoutScreen() {
             </button>
 
             {/* Razorpay */}
-            <button onClick={() => setGateway("razorpay")}
-              className={`flex flex-col items-center gap-2.5 border rounded-xl p-4 transition-all
+            <button type="button" onClick={() => setGateway("razorpay")}
+              role="radio"
+              aria-checked={gateway === "razorpay"}
+              tabIndex={gateway === "razorpay" ? 0 : -1}
+              className={`flex flex-col items-center justify-center gap-2.5 border rounded-xl p-4 min-h-[88px] transition-all
                 ${gateway === "razorpay"
                   ? "border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
-              <Zap className={`w-6 h-6 ${gateway === "razorpay" ? "text-cyan-600" : "text-muted-foreground/50"}`} />
+              <Zap className={`w-6 h-6 ${gateway === "razorpay" ? "text-cyan-600" : "text-muted-foreground/80"}`} />
               <div className="text-center">
                 <div className={`text-sm font-bold ${gateway === "razorpay" ? "text-foreground" : "text-muted-foreground"}`}>
                   Razorpay
@@ -280,8 +317,9 @@ export default function CheckoutScreen() {
                   <Shield className="w-3 h-3 text-primary" />
                   Visa · Mastercard · Amex · Apple Pay · Google Pay
                 </div>
-                <div className="text-xs text-muted-foreground pt-1 border-t border-border">
-                  Billed in <span className="text-foreground font-semibold">USD</span> — {plan.usd}
+                <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border">
+                  <span className="text-xs text-muted-foreground">Total due today</span>
+                  <span className="text-xs font-bold text-foreground">{priceFor(plan, gateway)}</span>
                 </div>
               </>
             ) : (
@@ -294,8 +332,9 @@ export default function CheckoutScreen() {
                   <Shield className="w-3 h-3 text-cyan-600" />
                   UPI · Net Banking · Cards · Wallets · EMI
                 </div>
-                <div className="text-xs text-muted-foreground pt-1 border-t border-border">
-                  Billed in <span className="text-foreground font-semibold">INR</span> — {plan.inr}
+                <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border">
+                  <span className="text-xs text-muted-foreground">Total due today</span>
+                  <span className="text-xs font-bold text-foreground">{priceFor(plan, gateway)}</span>
                 </div>
               </>
             )}
@@ -304,27 +343,34 @@ export default function CheckoutScreen() {
           <button
             onClick={handleCheckout}
             disabled={loading || !orgId}
-            className={`w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2
+            className="w-full min-h-[48px] py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2
               transition-all disabled:opacity-50 disabled:cursor-not-allowed
-              ${gateway === "razorpay"
-                ? "bg-cyan-600 hover:bg-cyan-500 text-white"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground"}`}>
+              bg-primary hover:bg-primary/90 text-primary-foreground">
             {loading
-              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing…</>
-              : <>{gateway === "stripe" ? "Continue to Stripe" : "Continue to Razorpay"} <ChevronRight className="w-4 h-4" /></>
+              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {gateway === "stripe" ? "Contacting Stripe…" : "Opening Razorpay…"}</>
+              : <>{gateway === "stripe"
+                  ? `Pay ${priceFor(plan, "stripe")} with Stripe`
+                  : `Pay ${priceFor(plan, "razorpay")} with Razorpay`} <ChevronRight className="w-4 h-4" /></>
             }
           </button>
+
+          {loading && (
+            <p className="text-center text-xs text-muted-foreground mt-2" role="status">
+              Please don&apos;t refresh or press back…
+            </p>
+          )}
         </div>
 
         {/* Footer */}
         <div className="text-center mt-5 space-y-2">
-          <p className="text-xs text-muted-foreground/50">
+          <p className="text-xs text-muted-foreground/80">
             By proceeding you agree to our{" "}
             <Link href="/terms" className="text-primary/70 hover:text-primary">Terms</Link>{" "}and{" "}
             <Link href="/privacy" className="text-primary/70 hover:text-primary">Privacy Policy</Link>.
           </p>
           <Link href={`/signup?plan=${planId}`}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground/50 hover:text-foreground/80 transition-colors">
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground/80 hover:text-foreground/80 transition-colors">
             <ArrowLeft className="w-3 h-3" /> Back to signup
           </Link>
         </div>

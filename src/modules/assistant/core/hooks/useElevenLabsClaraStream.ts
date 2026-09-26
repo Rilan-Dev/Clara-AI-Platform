@@ -25,6 +25,7 @@
  * stale audio is discarded at enqueue AND play time.
  */
 
+import { logVoiceTurnLatency } from "@/modules/voice-core/realtime/latency-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Source } from "../models";
 import type { VoiceStatus, VoiceTurn } from "../voice/types";
@@ -49,7 +50,9 @@ import { GenerationPlaybackQueue } from "../voice/generation-playback";
 const REALTIME_FLUSH_MS = 100;
 
 type SessionPayload = {
-  mode: "pipeline";
+  /** Welcome message localised to the assistant's default language. */
+  greeting?: string;
+  mode: "pipeline" | "clara-stream";
   stt: {
     endpoint: string;
     model: string;
@@ -154,6 +157,10 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
    *  answers) land on the record before the event snapshot is taken. */
   const pendingTurnLatencyRef = useRef<TurnLatencyHandle | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
+  // Bounded conversation memory for Clara realtime turns. Keep it client-side
+  // as transport context only; the server still resolves tenant/KB and performs
+  // the authoritative Qdrant grounding for every turn.
+  const conversationRef = useRef<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const answerBufferRef = useRef("");
 
   /** Mark a TURN-scoped stage on the active turn's record (handle), falling
@@ -188,10 +195,14 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
   /** Emit the per-turn latency record (safe: timings only — plan §11).
    *  Prefers the ACTIVE TURN's handle — the record of the turn that just
    *  completed — falling back to the tracker's current record. */
+  /** Server-Timing stages of the current turn (retrieval / pre-model), for the latency line. */
+  const serverTimingRef = useRef<Record<string, number> | null>(null);
   const emitLatencyTelemetry = useCallback(() => {
     const event = turnLatencyRef.current?.telemetry() ?? latencyRef.current?.telemetry();
     if (!event) return;
     console.debug("[elevenlabs-clara] latency", event);
+    logVoiceTurnLatency("elevenlabs", event, serverTimingRef.current);
+    serverTimingRef.current = null;
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
       window.dispatchEvent(new CustomEvent("clara:voice:latency", { detail: event }));
     }
@@ -337,14 +348,22 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     answerBufferRef.current = "";
 
     try {
+      const priorMessages = conversationRef.current.slice(-4);
+      const turnMessages: Array<{ role: "user" | "assistant"; content: string }> = [
+        ...priorMessages,
+        { role: "user", content: question },
+      ];
+
       await streamChatCompletion(
         session.kbId,
-        [{ role: "user", content: question }],
+        turnMessages,
         (event) => {
           if (event.type === "error") {
             const message = String(event.payload ?? "The realtime assistant could not generate a response.");
             console.error("[elevenlabs-clara] chat stream error", message);
             throw new Error(message);
+          } else if (event.type === "timing") {
+            serverTimingRef.current = event.payload;
           } else if (event.type === "sources") {
             turnLatency?.mark("rag.end"); // sources arrive post-retrieval
             turn.sources = event.payload as Source[];
@@ -369,9 +388,22 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
           draftScope: options.draftMode === true,
           assistantLanguage: options.language?.assistant,
           customerLanguages: options.language?.customer,
-          realtimeVoice: false,
+          // This is the realtime turn path: let the shared chat service apply
+          // realtime retrieval/model budgets instead of the full chat profile.
+          realtimeVoice: true,
         },
       );
+
+      // Persist only completed turns. Interrupted/stale generations must never
+      // contaminate the next realtime prompt with partial assistant audio/text.
+      const completedAnswer = answerBufferRef.current.trim();
+      if (completedAnswer) {
+        conversationRef.current = [
+          ...priorMessages,
+          { role: "user" as const, content: question },
+          { role: "assistant" as const, content: completedAnswer },
+        ].slice(-6);
+      }
 
       // Flush whatever the vendor still buffers so short answers speak.
       flushRealtimeTts(generationId);
@@ -398,6 +430,15 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
         setHistory((prev) => prev.map((t) => (t.id === turn.id ? { ...t, status: "done" } : t)));
         return;
       }
+
+      // A failed realtime turn must not leave its generation current or allow
+      // already-buffered TTS audio to continue speaking after the error.
+      coordinator.cancelCurrent("error");
+      interruptPlayback();
+      turnLatency?.mark("turn.complete");
+      emitLatencyTelemetry();
+      if (turnLatencyRef.current === turnLatency) turnLatencyRef.current = null;
+
       const message = (err as Error).message;
       setError(message);
       turn.answer = turn.answer || "Sorry — I could not answer that right now.";
@@ -541,6 +582,7 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
     micStreamRef.current = null;
     sessionRef.current = null;
+    conversationRef.current = [];
     setIsSpeaking(false);
   }, [closeRealtimeTts, interruptPlayback]);
 
@@ -684,8 +726,10 @@ export function useElevenLabsClaraStream(options: VoiceClientOptions) {
 
       // 7. Greet — a system generation that owns playback until the first
       //    committed user turn replaces it (barge-in safe).
-      if (options.voiceGreeting) {
-        const greeting = sanitizeTtsText(options.voiceGreeting);
+      // Server-localised welcome (default language) when available.
+      const greetingSource = sessionRef.current?.greeting || options.voiceGreeting;
+      if (greetingSource) {
+        const greeting = sanitizeTtsText(greetingSource);
         if (greeting) {
           const greetingGeneration = coordinator.beginSystemGeneration();
           turnGenerationRef.current = greetingGeneration.generationId;
