@@ -63,6 +63,7 @@ import {
   updateAgentWorkspaceContextCache,
 } from "@/features/admin/screens/agent-workspace/context-cache";
 import { DiffViewer, VersionBadge, WorkspaceButton } from "@/components/admin/ai-platform/shared";
+import { DraftPreviewPanel } from "./draft-preview-panel";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
 
@@ -541,6 +542,19 @@ function ShellFrame({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const historyOpen = searchParams.get("history") === "1";
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
+
+  useEffect(() => {
+    const openPreview = (event: Event) => {
+      const detail = (event as CustomEvent<{ agentId?: string }>).detail;
+      if (!agentId || (detail?.agentId && detail.agentId !== agentId)) return;
+      setPreviewExpanded(false);
+      setPreviewOpen(true);
+    };
+    window.addEventListener("clara:open-agent-preview", openPreview);
+    return () => window.removeEventListener("clara:open-agent-preview", openPreview);
+  }, [agentId]);
   // Branch context for the history canvas: the branches table's per-row
   // history icon targets a specific branch; anywhere else defaults to Main.
   const historyBranchId = searchParams.get("branch");
