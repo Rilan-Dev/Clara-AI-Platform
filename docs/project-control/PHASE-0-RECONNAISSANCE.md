@@ -1,6 +1,6 @@
 # Phase 0 — Baseline and Control-System Reconnaissance
 
-Status: COMPLETE (developer self-verified; awaiting architect review)
+Status: COMPLETE (developer self-verified; awaiting architect review) — repository snapshot corrected 2026-10-01 (evidence-only revision; see "Snapshot correction" under Repository)
 
 ## Repository
 
@@ -8,8 +8,8 @@ Status: COMPLETE (developer self-verified; awaiting architect review)
 |---|---|
 | Repository | `Rilan-Dev/Clara-AI-Platform` (private) |
 | Branch | `feature/ai-core-from-doable-source` |
-| HEAD SHA | `cdcf23ce8f5b00232a7e600bbe553211018f2b6e` |
-| Date | 2026-10-01 |
+| HEAD SHA | `adbc9e16763c3813886e1a79fff2d7d3b2a889ae` (Phase 0 evidence commit — the commit that introduced this report; see Snapshot correction below) |
+| Date | 2026-10-01 (reconnaissance; repository snapshot corrected same day) |
 | Developer | Z.AI (implementer) |
 | Architect | ChatGPT (technical lead / reviewer / controller) |
 | Working tree | Clean; tracking `origin/feature/ai-core-from-doable-source` |
@@ -23,7 +23,9 @@ Mainline refs at time of reconnaissance (from `origin` after `git fetch --prune`
 | `Vercel-Prod` | `e0ead990` | Production deployment branch (clara.rag domain) |
 | `main` | `550630f5` | Dormant default branch (CI target only; not the active dev line) |
 
-The current feature branch is 6 commits ahead of `Vite-Converted` tip and contains **zero** changes to `src/`, `packages/`, `package.json`, or lockfiles — its commits vendor the Doable source library under `docs/doable-source/` and add the two project-control design documents. Tree-level diff `HEAD...origin/Vercel-Preview` is empty (Vercel-Preview contributes no unique content to this branch's history).
+As of the Phase 0 evidence commit `adbc9e16`, the feature branch is **7 commits ahead / 0 behind** `Vite-Converted` tip `5ca8ec58` (merge-base = `5ca8ec58`, so the branch contains the entire development line). Verified per-commit, the delta contains **zero** changes to `src/`, `packages/`, `package.json`, or lockfiles — the commits vendor the Doable source library under `docs/doable-source/`, add the two project-control design documents, and add this Phase 0 reconnaissance report (net: 1,707 files, all under `docs/`). Superset status (verified): `Vite-Converted` and `main` are commit-ancestors of HEAD; `Vercel-Preview` and `Vercel-Prod` are not commit-ancestors (their histories include direct/promotion commits absent from this branch), but tree-level diffs `HEAD...origin/Vercel-Preview` and `HEAD...origin/Vercel-Prod` are both empty — no mainline contributes unique content, so the branch is a clean content-level superset of all mainline branches.
+
+**Snapshot correction (2026-10-01).** The original report recorded HEAD `cdcf23ce8f5b00232a7e600bbe553211018f2b6e` and a 6-commit delta because its snapshot was taken before the report's own commit existed. This correction re-read the repository state (`git fetch --prune`; all mainline refs unchanged) and is carried by the documentation-only commit "docs: correct phase 0 repository evidence", which advances the branch tip past `adbc9e16` — making the branch 8 commits ahead of `Vite-Converted` (still 0 behind, still docs-only). The snapshot above is anchored to `adbc9e16`; for the exact current tip run `git rev-parse origin/feature/ai-core-from-doable-source`.
 
 ---
 
@@ -212,8 +214,9 @@ Commands run during reconnaissance (read-only; from `docs/doable-source/` where 
 - GitHub REST (read-only): PR #191 state, recent PR list (#249–#262), branch-protection endpoint (returned: requires Pro/public — none enforced), deployments list.
 - `node verification/validate-library.mjs` (from `docs/doable-source/`) → **PASS, 0 errors, 0 warnings** (21/21 capabilities).
 - Repository/file inspection only: README, AGENTS docs, superpowers spec/plan, doable-source library, `vercel.json`, `ci.yml`, `platform-health-scan.yml`, migrations, module tree, env template.
+- Snapshot correction verification (2026-10-01, evidence-only): re-ran `git fetch --prune` (no ref changes); `git rev-parse HEAD` = `adbc9e16763c3813886e1a79fff2d7d3b2a889ae` = `origin/feature/ai-core-from-doable-source`; `git rev-list --left-right --count origin/Vite-Converted...HEAD` → `0 7`; `git merge-base HEAD origin/Vite-Converted` → `5ca8ec5895f521aa7a9a70d193739ad005ed491c` (= Vite-Converted tip); `git diff --stat HEAD...origin/Vercel-Preview` and `HEAD...origin/Vercel-Prod` → both empty; per-commit path audit of `origin/Vite-Converted..HEAD` → every touched path under `docs/`; GitHub API (read-only): PR #191 merged/closed, PR #262 open (head `5ca8ec58`) — both unchanged from reconnaissance.
 
-Scope compliance: no product code changed; no dependency changed; no migration created or executed; no deployment performed; no production branch modified; no Phase 1 document created.
+Scope compliance: no product code changed; no dependency changed; no migration created or executed; no deployment performed; no production branch modified; no Phase 1 document created. The snapshot correction likewise changes only this report file (documentation/evidence only).
 
 ## 12. Phase 0 Conclusion
 
@@ -223,7 +226,7 @@ Scope compliance: no product code changed; no dependency changed; no migration c
 - No existing project-control or state/handoff documents exist in the repository — the Phase 1 foundation creates no duplicates.
 - The only in-repo worklog is library-scoped (`docs/doable-source/WORKLOG.md`); a durable project worklog is missing and must be established (Phase 1, schema finalized Phase 4).
 - Architecture, immutable doable-source boundaries, verification tooling (validator PASS), CI contract, Vercel/branch/domain rules, database/migration conventions, and authorization model (application-layer RBAC, no RLS) are mapped.
-- The current feature branch is a clean superset of all mainline branches (docs-only delta).
+- The feature branch is a clean superset of all mainline branches (docs-only delta: 7 commits ahead of `Vite-Converted` at the evidence commit `adbc9e16`; 8 ahead after the snapshot-correction commit; 0 behind).
 
 **Remains unknown / to be resolved by the architect:**
 
