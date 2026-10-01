@@ -774,3 +774,20 @@ npm run validate:model-config                                                 # 
 # Extraction-integrity harness (agent workspace, outside the repository; materializes a scratch repo from the committed tree):
 bash /home/z/my-project/scripts/verify-doable-extraction-in-clara-layout.sh   # -> 771/771 present pinned blobs verified; failures confined to the absent mcp-servers family (I-014)
 ```
+
+
+## Phase 7 implementation authorization review — 2026-10-02
+
+### Gate D — Architect review
+
+**PASS.** The planning package is evidence-backed, documentation-only at submission, preserves immutable-source and governance boundaries, distinguishes existing Clara infrastructure from host adapters/future work, and provides measurable acceptance criteria and A–F gate rules. No correction handoff is required.
+
+### Ratified
+- D-021: 7-A/7-B authorized; 7-C deferred.
+- D-022: ai-platform-core is the host seam; ai-core remains provider/brain layer.
+- D-023: I-014 is P2/DEFERRED.
+- D-024: D-P4/R-3 remains open; Gate F is conditional.
+- Gate E is N/A unless persistence/schema changes.
+
+### State
+Phase 7 is IN_PROGRESS. Z.AI executes 7-A only next, then STOP for architect review. [architect-verified]
