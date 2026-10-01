@@ -55,5 +55,15 @@
 |---|---|---|---|---|---|
 | D-P1 | 2026-10-01 | CONFIRMED 2026-10-01 — see D-018 | Canonical project worklog location: recommended repository root `worklog.md` (to be established in Phase 4 per plan, not in Phase 1) | was awaiting ChatGPT — confirmed by the refreshed Phase 4 handoff (2026-10-01), recorded as D-018 | Phase 0 report §2/§10 |
 | D-P2 | 2026-10-01 | PENDING | Resolve the missing `docs/AGENTS.md` (I-001): recommended thin pointer to `Doc/18-09-2026/AGENTS.md` vs. amending the spec's recovery read order | awaiting ChatGPT | Phase 0 report §8.1; ISSUES.md I-001 |
-| D-P3 | 2026-10-01 | PENDING | Which AI seam (`src/modules/ai-core` incumbent vs `src/modules/ai-platform-core` Doable-derived) future feature phases target | awaiting ChatGPT | Phase 0 report §8.5; ISSUES.md I-005 |
+| D-P3 | 2026-10-01 | CONFIRMED 2026-10-02 — see D-022 | Which AI seam (`src/modules/ai-core` incumbent vs `src/modules/ai-platform-core` Doable-derived) future feature phases target | resolved by ChatGPT architect review | Phase 7 planning review; D-022 |
 | D-P4 | 2026-10-01 | PENDING | Vercel `ignoreCommand` × `deploymentEnabled` runtime semantics (feature-branch preview deployments observed 2026-09-30) — confirm before Phase 7 codifies deployment gates | awaiting ChatGPT | RISKS.md R-3; Phase 0 report §6 |
+
+
+## Decisions established during Phase 7 review / authorization
+
+| ID | Date | Status | Decision | Authority | Evidence / reference |
+|---|---|---|---|---|---|
+| D-021 | 2026-10-02 | ACTIVE | Phase 7 is ratified as the first AI-platform capability-integration phase. Authorized scope is 7-A host contracts/adapter foundation followed by 7-B Unified Tool Runtime; 7-C is deferred. | ChatGPT | PHASE-7-PLAN.md §25; ZAI_HANDOFF.md Part II |
+| D-022 | 2026-10-02 | ACTIVE | src/modules/ai-platform-core/** is the canonical Clara host seam; src/modules/ai-core/** remains the incumbent provider/brain abstraction and resolver. No duplicate provider stack. | ChatGPT | D-P3/I-005 resolution; Phase 7 review |
+| D-023 | 2026-10-02 | ACTIVE | I-014 is triaged P2 / DEFERRED. No Phase 7 re-vendoring or verifier/catalog correction; re-triage is required before mcp-servers-dependent implementation. | ChatGPT | ISSUES.md I-014; Phase 7 review |
+| D-024 | 2026-10-02 | ACTIVE | D-P4/R-3 remains open. It is not a coding prerequisite for 7-A/7-B; Gate F is conditional if deployment occurs and requires controller evidence. | ChatGPT | RISKS.md R-3; Phase 7 Gate F |
