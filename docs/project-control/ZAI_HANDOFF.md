@@ -191,7 +191,7 @@ Fresh-session read order for a Z.AI developer session:
 |---|---|
 | Correction ID | `CH-001` (the first corrective handoff under the Phase 6 issue-control system; sequential from `CH-001`; never reused) |
 | Correction title | Correct the Phase 6 P2/P3 closure policy — remove the P2/P3 exception path that contradicts the Phase 5 closure-eligibility contract (R6) |
-| Current status | `REVIEW_PENDING` — the correction is delivered and submitted (developer-reported, 2026-10-01; registered in `VERIFICATION_STATE.md` §Phase 6 and on issue I-013); awaiting the architect's re-review |
+| Current status | `CLOSED` — architect re-review `PASS` (2026-10-01): first review `CORRECTION_REQUIRED` → the correction was delivered as the commit `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884` ("docs: correct phase 6 p2 p3 closure policy", the immediate child of the correction baseline `c0cca964064286c25dcf22c8f86038baaacd7ebe`) → re-review `PASS` → issue I-013 → `RESOLVED` (architect-verified disposition) → Phase 6 `CLOSED`. The handoff is fully executed (correction + re-review + resolution + closure; see the Closure record below) |
 | Issued by | ChatGPT (architect / technical lead / reviewer / controller) |
 | Issue date | 2026-10-01 |
 | Repository | `Rilan-Dev/Clara-AI-Platform` (GitHub, private) |
@@ -211,7 +211,7 @@ Fresh-session read order for a Z.AI developer session:
 | Field | Value |
 |---|---|
 | Phase number / name | Phase 6 — Correction and Issue-Control Workflow |
-| Phase status | `IN_PROGRESS` (the phase cannot become `CLOSED` while this correction-cycle issue is unresolved; `CORRECTION_SUBMITTED`/`REVIEW_PENDING` keeps the phase `IN_PROGRESS` per D-011 and `ISSUES.md` §4) |
+| Phase status | `CLOSED` — architect re-review `PASS` (2026-10-01) on the reviewed correction `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884`; the phase was closed by that `PASS` (only `PASS` closes a phase — D-009/D-020); issue I-013 is `RESOLVED`; Phase 7 has NOT started (only ChatGPT may authorize Phase 7) |
 | Review outcome that produced this correction | `CORRECTION_REQUIRED` — the architect's first review of the Phase 6 implementation, 2026-10-01; reviewed commit `c0cca964064286c25dcf22c8f86038baaacd7ebe` ("docs: establish phase 6 correction and issue control") |
 | Phase contract | `docs/project-control/CURRENT_PHASE.md` |
 
@@ -389,14 +389,22 @@ After the correction commit, push, and evidence report: the issue moves `CORRECT
 
 ### 22. STOP boundary
 
-After delivering the correction — implementation, validation, commit, push, and the evidence report — **Z.AI STOPs at the correction boundary**. Until the architect's re-review (or further architect direction), Z.AI must NOT:
+The correction boundary and the closure were both reached on 2026-10-01: the correction was delivered, re-reviewed `PASS`, and the issue resolved (I-013 → `RESOLVED`); Phase 6 was closed by that `PASS`. After the closure-record commit (`docs: record architect approval of phase 6`, the immediate child of `4dc8a573`), its push, and the closure report: **Z.AI STOPs at the inter-phase boundary.** Until the architect reviews the closure record and issues the next explicit handoff, Z.AI must NOT:
 
-1. start the next phase (or any later phase) or create next-phase artifacts;
-2. implement unrelated improvements or fix unrelated issues discovered during the correction;
-3. make architectural decisions outside the corrective scope;
+1. start the next phase (Phase 7 or any later phase) or create next-phase artifacts, templates, marketplace, or automation;
+2. implement unrelated improvements or fix unrelated issues;
+3. make architectural decisions outside any authorized scope;
 4. deploy unless explicitly authorized; modify production (branches, database, deployment configuration);
-5. silently expand the corrective scope or absorb newly discovered out-of-scope issues into this correction.
+5. silently expand any authorized scope or absorb newly discovered out-of-scope issues into it.
 
-**If a newly discovered issue is outside the correction scope: STOP → record/report it (a new `ISSUES.md` record, `[developer-reported]`, awaiting architect triage) → await architect direction.** Do not automatically absorb it into the correction.
+**If a newly discovered issue is outside any authorized scope: STOP → record/report it (a new `ISSUES.md` record, `[developer-reported]`, awaiting architect triage) → await architect direction.**
 
-**Only ChatGPT may decide whether the correction is accepted and whether Phase 6 can close.**
+**Only ChatGPT may authorize Phase 7.**
+
+### Closure record (2026-10-01)
+
+**Architect re-review of the corrected Phase 6 state — outcome `PASS` → Phase 6 `CLOSED`; issue I-013 → `RESOLVED`.** Architect: **ChatGPT**. Developer: **Z.AI**. Reviewed correction commit: `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884` ("docs: correct phase 6 p2 p3 closure policy" — the corrected Phase 6 state; the immediate child of the Phase 6 implementation commit `c0cca964064286c25dcf22c8f86038baaacd7ebe`; verified relationship `c0cca964 → 4dc8a573`; correction baseline `c0cca964` preserved). The architect's first review of the Phase 6 implementation (2026-10-01) returned `CORRECTION_REQUIRED` — the P2/P3 closure-exception contradiction (issue I-013, this corrective handoff CH-001); the corrective commit delivered the correction; the architect's re-review of the corrected state returned `PASS`. Scope verification: documentation-only. The corrected state satisfies the Phase 6 acceptance criteria — the canonical P2/P3 rule is unambiguous and consistent with Phase 5 R6 (**P2/P3 do not automatically block phase closure; if acceptance-violating or otherwise explicitly blocking, they block while unresolved and must be resolved before closure; Phase 6 introduces no P2/P3 exception mechanism** — the P2/P3 contradiction is resolved), the P0 rule (unconditionally closure-blocking; no exception path) and the P1 exception mechanism are unchanged, the issue lifecycle is unchanged, and the corrected deterministic test proves the semantics (24/24 determinations correct, exit 0 — including the rejection of an unresolved acceptance-violating P2/P3 with an alleged architect-approved exception; Phase 5 regression 8/8 with P0 present → closure eligibility FAIL). Issue I-013 disposition: **`RESOLVED`** — recorded with `[architect-verified]` resolution evidence in `ISSUES.md` §"Issue records (canonical schema)". The closure handoff supplies no separate review timestamp; none is fabricated. [architect-verified — as communicated by the architect in the Phase 6 closure handoff]
+
+**Phase 7 is the next phase (per the plan) and the next authorized phase; it has NOT started.** No Phase 7 handoff has been issued; no Phase 7 implementation has been performed; no product implementation has been performed. [architect-verified]
+
+This instance is fully executed and its phase is closed; it remains materialized here until the architect issues the Phase 7 handoff, at which point Part II is replaced with the Phase 7 instance per §I.12 (this instance remains recoverable in Git history at the closure-record commit and in the canonical `worklog.md`). The closure record itself is committed as `docs: record architect approval of phase 6` — the immediate child of `4dc8a573` — and records the architect's approval; the closure-record commit is **not** the reviewed correction (the reviewed correction is `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884`; its SHA is not replaced by the closure-record SHA in any field identifying the reviewed correction). The `b65725e5` handling rules above remain in force: provenance not independently established (never described as confirmed owner authorship); not modified, amended, reverted, or rewritten; `vercel.json` non-scope. The historical Phase 6 worklog entry is preserved unrewritten; the closure appears as a subsequent append-only architect-verified event. Z.AI is STOPped at the inter-phase boundary — awaiting the ChatGPT architect's review of the closure record and the explicit Phase 7 handoff. [developer-reported]

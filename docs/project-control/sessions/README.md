@@ -44,5 +44,6 @@ Every `SESSION-*.md` record follows one canonical schema (from the approved Phas
 | `SESSION-007.md` | 2026-10-01 | Z.AI developer session (Phase 5 closure-record session) | Phase 5 closure record only (architect `PASS` re-review recorded) | `docs: record architect approval of phase 5` (immediate child of `fb4ad5f5`) |
 | `SESSION-008.md` | 2026-10-01 | Z.AI developer session (Phase 6 implementing session) | Phase 6 implementation (correction and issue-control workflow) | `docs: establish phase 6 correction and issue control` (immediate child of `f62326db`) |
 | `SESSION-009.md` | 2026-10-01 | Z.AI developer session (Phase 6 corrective session) | Phase 6 correction (CH-001 / issue I-013 — the P2/P3 closure-policy correction) | `docs: correct phase 6 p2 p3 closure policy` (immediate child of `c0cca964`) |
+| `SESSION-010.md` | 2026-10-01 | Z.AI developer session (Phase 6 closure-record session) | Phase 6 closure record only (architect `PASS` re-review + issue I-013 `RESOLVED` recorded) | `docs: record architect approval of phase 6` (immediate child of `4dc8a573`) |
 
 Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain recoverable in Git history (at each phase's implementation commit) and are identified in the corresponding `worklog.md` phase entries.
