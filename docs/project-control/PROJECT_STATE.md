@@ -18,11 +18,12 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Current phase | **Phase 2 — Z.AI Developer Handoff System** | [architect-verified] Phase 2 implementation handoff issued by ChatGPT on 2026-10-01, immediately after the Phase 1 `PASS` review |
+| Current phase | **Phase 3 — Cross-Chat ChatGPT Continuity** | [architect-verified] Phase 3 implementation handoff issued by ChatGPT on 2026-10-01, immediately after the Phase 2 `PASS` review |
 | Phase status | **IN_PROGRESS** — developer implementation complete; awaiting architect review. The phase remains OPEN until ChatGPT review closes it | [developer-reported] |
-| Current objective | Create a durable, reusable developer-handoff protocol that allows Z.AI to implement any future approved phase from repository state alone — every implementation phase explicit, bounded, reproducible, reviewable, and stoppable | [architect-verified] Phase 2 handoff |
+| Current objective | Create a durable `CHAT_CONTINUITY.md` procedure that allows a completely new ChatGPT conversation, with no access to the previous conversation, to recover the exact Clara project state and continue architectural leadership safely from GitHub repository state alone — with stale conversational memory unable to override repository truth | [architect-verified] Phase 3 handoff |
 | Phase contract | `docs/project-control/CURRENT_PHASE.md` | exists |
-| Active handoff instance | `docs/project-control/ZAI_HANDOFF.md` — Part I (durable protocol) + Part II (active Phase 2 handoff) | exists |
+| Active handoff instance | `docs/project-control/ZAI_HANDOFF.md` — Part I (durable protocol) + Part II (active Phase 3 handoff) | exists |
+| Continuity procedure | `docs/project-control/CHAT_CONTINUITY.md` — fresh-ChatGPT initialization and recovery procedure (established this phase) | exists |
 
 ### Canonical status vocabulary (used by ALL control documents)
 
@@ -39,17 +40,17 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Baseline commit (latest architect-reviewed state) | `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` — Phase 1 implementation commit, **architect-verified by the `PASS` review (2026-10-01)** | [architect-verified by review] |
-| Phase 1 closure-record commit | `6d1c6c9d61a2f3a54a48acaa2e9fc135facb3309` — "docs: record architect approval of phase 1"; developer-recorded durable record of the architect `PASS` review trail in VERIFICATION_STATE.md; documentation-only | [developer-recorded architect action] |
-| Phase 2 developer implementation commit | The immediate child of `6d1c6c9d` on `feature/ai-core-from-doable-source`, message `docs: establish zai developer handoff system` (self-referential: it introduces `ZAI_HANDOFF.md`) — **developer-reported, NOT architect-verified** | [developer-reported] |
+| Baseline commit (latest architect-reviewed state) | `31ffd6f4330753f9b42dba231d7e02589d12eb77` — Phase 2 implementation commit, **architect-verified by the `PASS` review (2026-10-01)** | [architect-verified by review] |
+| Phase 2 closure-record commit | `58856e0be6325d0326a2d7c8cde6d6d6312b9000` — "docs: record architect approval of phase 2"; developer-recorded durable record of the architect `PASS` review trail in VERIFICATION_STATE.md; documentation-only | [developer-recorded architect action] |
+| Phase 3 developer implementation commit | The immediate child of `58856e0b` on `feature/ai-core-from-doable-source`, message `docs: establish cross-chat ChatGPT continuity` (self-referential: it introduces `CHAT_CONTINUITY.md`) — **developer-reported, NOT architect-verified** | [developer-reported] |
 | Current branch tip (recovery command) | `git fetch --prune origin && git rev-parse origin/feature/ai-core-from-doable-source` | always accurate |
-| Branch relationship to `Vite-Converted` (at `6d1c6c9d`) | 10 commits ahead / 0 behind; merge-base `5ca8ec58` = `Vite-Converted` tip; docs-only delta (all changed paths under `docs/`) | [developer-reported, verified by git commands in VERIFICATION_STATE.md] |
+| Branch relationship to `Vite-Converted` (at the Phase 3 implementation commit) | 13 commits ahead / 0 behind; merge-base `5ca8ec58` = `Vite-Converted` tip; docs-only delta (all changed paths under `docs/`) | [developer-reported, verified by git commands in VERIFICATION_STATE.md] |
 | Mainline refs (dated 2026-10-01, after `git fetch --prune`) | unchanged: `Vite-Converted` `5ca8ec58` · `Vercel-Preview` `db6cdb48` · `Vercel-Prod` `e0ead990` · `main` `550630f5` | [developer-reported] |
 
 ## Last architect verification
 
-- **2026-10-01 — Phase 1 review: `PASS`.** ChatGPT independently reviewed commit `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` and its GitHub diff: documentation-only (exactly seven files, all under `docs/project-control/`); document contracts substantially satisfied; state-machine values consistent; evidence classes explicitly separated; Phase 0 evidence represented with the corrected evidence/correction trail; no product/dependency/database/deployment/immutable-source changes; no Phase 2+ artifacts prematurely created. **Phase 1 `CLOSED`; Phase 2 handoff issued.** Closure recorded in VERIFICATION_STATE.md @ `6d1c6c9d`. [architect-verified]
-- **Phase 2 output: NOT YET REVIEWED.** No architect review of the Phase 2 handoff system has occurred as of this snapshot. Nothing in this file or the sibling control documents should be read as architect approval of Phase 2. [developer-reported]
+- **2026-10-01 — Phase 2 review: `PASS`.** ChatGPT independently reviewed the actual GitHub repository state and the Phase 2 implementation: reviewed implementation commit `31ffd6f4330753f9b42dba231d7e02589d12eb77` together with the Phase 1 closure commit `6d1c6c9d61a2f3a54a48acaa2e9fc135facb3309`; scope documentation-only; verified the durable `ZAI_HANDOFF.md`, the single canonical handoff template, the mandatory handoff structure, phase/status lifecycle, correction protocol, stale-baseline/integrity rules, evidence requirements, explicit STOP boundary, fresh-session usability, developer/architect authority separation, Final State Contract consistency, and the absence of product-code/database/deployment/immutable-source changes and premature Phase 3+ artifacts. **Phase 2 `CLOSED`; Phase 3 handoff issued.** Closure recorded in VERIFICATION_STATE.md @ `58856e0b`. [architect-verified]
+- **Phase 3 output: NOT YET REVIEWED.** No architect review of the Phase 3 continuity system has occurred as of this snapshot. Nothing in this file or the sibling control documents should be read as architect approval of Phase 3. [developer-reported]
 
 ## Completed phases
 
@@ -57,6 +58,7 @@
 |---|---|---|---|
 | 0 | Baseline and Control-System Reconnaissance | `CLOSED` | Report `docs/project-control/PHASE-0-RECONNAISSANCE.md` @ `adbc9e16`; evidence correction @ `bcc1769d`; closed by architect Phase 1 handoff issuance, 2026-10-01 [architect-verified by workflow advancement] |
 | 1 | Durable Project-Control Foundation | `CLOSED` | Seven control documents @ `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` ("docs: establish durable project control foundation"); closure record @ `6d1c6c9d` ("docs: record architect approval of phase 1"); closed by architect `PASS` review, 2026-10-01 [architect-verified] |
+| 2 | Z.AI Developer Handoff System | `CLOSED` | `ZAI_HANDOFF.md` + `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` @ `31ffd6f4330753f9b42dba231d7e02589d12eb77` ("docs: establish zai developer handoff system"); closure record @ `58856e0b` ("docs: record architect approval of phase 2"); closed by architect `PASS` review, 2026-10-01 [architect-verified] |
 
 ## Active blockers
 
@@ -76,7 +78,7 @@ R-1 control-doc/state drift (mitigation in progress) · R-2 no enforced branch p
 
 ## Current next action
 
-**ChatGPT architect review of the Phase 2 handoff-system implementation** — verify the handoff contract (mandatory structure, lifecycle, correction protocol, integrity rules, evidence requirements, fresh-session usability, STOP boundary), the single-template rule, and Final State Contract consistency; record `PASS` / `PASS_WITH_FOLLOWUP` / `CORRECTION_REQUIRED` in VERIFICATION_STATE.md; only `PASS` closes Phase 2. Exact continuation instructions: `docs/project-control/NEXT_ACTION.md`. [developer-reported]
+**ChatGPT architect review of the Phase 3 continuity-system implementation** — verify the continuity contract (fresh-session initialization, 17 capability determinations, read order, recovery procedure and report schema, repository-authority and stale-memory rules, broken-chat recovery, state-inconsistency → `BLOCKED`, architect-authority recovery, Z.AI authorization rules, copy/paste initialization prompt, scenarios A–H, no second source of truth) and Final State Contract consistency; record `PASS` / `PASS_WITH_FOLLOWUP` / `CORRECTION_REQUIRED` in VERIFICATION_STATE.md; only `PASS` closes Phase 3. Exact continuation instructions: `docs/project-control/NEXT_ACTION.md`; fresh-session procedure: `docs/project-control/CHAT_CONTINUITY.md`. [developer-reported]
 
 ## Roles
 
@@ -103,7 +105,7 @@ R-1 control-doc/state drift (mitigation in progress) · R-2 no enforced branch p
 | Phase 0 reconnaissance report | `docs/project-control/PHASE-0-RECONNAISSANCE.md` | closed evidence (historical) |
 | Developer handoff system (protocol + active instance) | `docs/project-control/ZAI_HANDOFF.md` | active (established Phase 2) |
 | Handoff template (single canonical blank form) | `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` | active (established Phase 2) |
-| Chat-continuity procedure | `docs/project-control/CHAT_CONTINUITY.md` | **planned — Phase 3; does not exist yet** |
+| Chat-continuity procedure | `docs/project-control/CHAT_CONTINUITY.md` | active (established Phase 3) |
 | Canonical project worklog | repository root `worklog.md` (recommended location, pending architect confirmation) | **planned — Phase 4; does not exist yet** |
 | Session audit records | `docs/project-control/sessions/` | **planned — Phase 4 (optional); does not exist yet** |
 
