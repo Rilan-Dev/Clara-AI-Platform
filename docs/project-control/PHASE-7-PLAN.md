@@ -1,6 +1,6 @@
 # PHASE-7-PLAN.md — Phase 7 Planning Package (Pre-Implementation Baseline)
 
-> **Phase 7 planning artifact — established by the Phase 7 planning/baseline handoff issued by ChatGPT (architect) and executed by Z.AI (developer) on 2026-10-02.** This package establishes the Phase 7 baseline, the capability inventory, the existing-vs-missing matrix, the Doable-source reuse map, the proposed architecture, adapter boundaries, the dependency graph, risk/issue reconciliation, acceptance criteria, verification gates, rollback strategy, ordered sub-phases, and the explicit stopping boundary. It is a **planning and authorization-boundary artifact only**: it contains proposals and evidence, **no implementation authorization** — Phase 7 implementation has NOT started and may begin only after the architect reviews this package and issues an explicit implementation authorization handoff. Nothing in this package claims architect approval; every classification and scope proposal herein is `[developer-reported]` and awaits architect review.
+> **Phase 7 planning artifact — established by the Phase 7 planning/baseline handoff issued by ChatGPT (architect) and executed by Z.AI (developer) on 2026-10-02.** This package establishes the Phase 7 baseline, the capability inventory, the existing-vs-missing matrix, the Doable-source reuse map, the proposed architecture, adapter boundaries, the dependency graph, risk/issue reconciliation, acceptance criteria, verification gates, rollback strategy, ordered sub-phases, and the explicit stopping boundary. It is a **planning and authorization-boundary artifact only**: it contains proposals and evidence, **no implementation authorization** — Phase 7 implementation has NOT started and may begin only after the architect reviews this package and issues an explicit implementation authorization handoff. The planning-time classifications and proposals were `[developer-reported]` at submission; the architect review outcome and ratification are recorded in §25 below.
 > Snapshot date: **2026-10-02**. Repository state is authoritative — refresh it before acting (`ZAI_HANDOFF.md` §I.6). Evidence classes per `VERIFICATION_STATE.md` §"Evidence classes" (D-012).
 > Deliverable-coverage map (handoff §13 items → sections): 1 objective → §3 · 2 scope/non-scope → §4 · 3 capability inventory → §5 · 4 existing-vs-missing matrix → §6 · 5 reuse matrix → §7 · 6 architecture → §8 · 7 adapter boundaries → §9 · 8 dependency graph → §10 · 9 risk analysis → §11 · 10 issue dependencies → §12 · 11 database → §13 · 12 security → §14 · 13 multi-tenant → §15 · 14 provider → §16 · 15 testing strategy → §17 · 16 verification gates → §18 · 17 acceptance criteria → §19 · 18 rollback → §20 · 19 ordered sub-phases → §21 · 20 stopping boundary → §22.
 
@@ -354,3 +354,21 @@ This planning package contains **no implementation**: `src/**`, `packages/**`, m
 A validation script for the planning package follows the existing repository convention where required (aggregate scripts persist outside the repository in the agent workspace); the package's own checks above are all read-only and re-runnable. Running any check is never itself evidence of phase completion (D-020).
 
 
+
+
+## 25. Architect review outcome and implementation authorization — 2026-10-02
+
+**Outcome: PASS for the planning package, with bounded implementation authorization.** ChatGPT reviewed the actual repository state at branch tip f2c403f11fb944b23eb31cef9de07f8bfb7695d8, the planning package, the developer evidence, the Phase 5/6 governance contracts, the issue register, and the proposed architecture. No correction-required divergence was found.
+
+### Ratified decisions
+
+1. **Phase 7 objective/scope ratified.** Phase 7 is the first AI-platform capability-integration phase under the architect-issued sequencing, despite the older 13-phase ladder naming its original Phase 7 as the Vercel Operations Gate. The older ladder remains historical/reference sequencing; Gates E/F remain conditional evidence gates.
+2. **D-P3 / I-005 resolved.** src/modules/ai-platform-core/** is the Clara host integration seam for the reusable AI-platform foundation. src/modules/ai-core/** remains the incumbent brain/provider abstraction and resolver beneath that seam. No duplicate provider stack is authorized.
+3. **I-014 triaged P2 / DEFERRED.** The incomplete mcp-servers family does not block 7-A/7-B. No re-vendoring, catalog rewrite, or verifier rewrite is authorized in Phase 7. The issue must be reactivated/triaged before any future implementation of an mcp-servers-dependent capability.
+4. **D-P4 / R-3 applicability confirmed, not resolved.** The unproven Vercel ignoreCommand × deploymentEnabled semantics remain an open operational risk. They are not a prerequisite to coding 7-A/7-B. No developer-initiated deployment is authorized. If a branch push causes an automatic deployment, it is a Gate F event and must be reported/evidenced.
+5. **Gate applicability ratified.** For 7-A/7-B, Gate E is NOT_APPLICABLE unless schema/persistence surfaces change; Gate F is conditional and becomes required if a deployment occurs. Gate D remains architect-only. The standing P0/P1/P2/P3 closure rules remain unchanged.
+6. **7-C is deferred.** Provider tool-calling and the agentic loop are not included in this authorization and require a later explicit scope decision.
+
+### Authorization boundary
+
+The architect authorizes Z.AI to implement **7-A and 7-B only**, in order, from the implementation handoff materialized in ZAI_HANDOFF.md Part II. Z.AI must stop after each sub-phase and submit evidence for architect review; no 7-C, MCP, integrations, agent runtime, work mode, memory, skills, attachments, image generation, marketplace, UI expansion, database migration, or deployment operation is authorized by this review.
