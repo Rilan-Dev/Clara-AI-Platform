@@ -104,7 +104,8 @@
     "deploymentEnabled": {
       "*": false,
       "Vercel-Preview": true,
-      "Vercel-Prod": true
+      "Vercel-Prod": true,
+      "feature/ai-core-from-doable-source": true
     }
   },
   "fluid": true
