@@ -3,6 +3,11 @@
 # correction-cycle-test.sh — deterministic demonstration of the Phase 6 correction and issue-control workflow
 #
 # Established by Phase 6 — Correction and Issue-Control Workflow (2026-10-01; plan Phase 6).
+# Corrected by the Phase 6 P2/P3 closure-policy correction (2026-10-01; issue I-013; corrective
+# handoff CH-001; correction baseline c0cca964064286c25dcf22c8f86038baaacd7ebe): Phase 6 introduces
+# NO P2/P3 exception mechanism — an acceptance-violating P2/P3 is closure-blocking while unresolved
+# and must be resolved before closure, regardless of any recorded exception; the P0 cases and the
+# P1 exception model are unchanged from the Phase 5 contract.
 # Binding workflow rules: VERIFICATION_STATE.md §"Correction and issue-control workflow (durable)".
 # Canonical issue schema / lifecycle / severity model: docs/project-control/ISSUES.md §"Issue-control system".
 # Canonical correction-handoff form: docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md.
@@ -20,8 +25,13 @@
 #   - Example D — P0: a P0 issue remains closure-blocking even if the corrective work is otherwise complete
 #     (gates PASS, tests passed, developer claims complete) — including a WONT_FIX'd P0 (no exception path);
 #     only RESOLVED (architect-verified) unblocks.
-#   - Severity edge cases: a P1 DEFERRED with an architect-approved exception does not block; a P2 that
-#     violates an acceptance criterion (correction open) does block.
+#   - Severity-model edge cases (corrected semantics): a P1 DEFERRED with an architect-approved
+#     exception does not block (the P1 exception mechanism of the Phase 5 contract — unchanged);
+#     a P2/P3 that is NOT acceptance-violating does not automatically block closure; a P2 or P3
+#     that violates an acceptance criterion blocks closure while unresolved and must be resolved;
+#     an unresolved acceptance-violating P2/P3 with an ALLEGED architect-approved exception is
+#     STILL closure-ineligible — Phase 6 defines no P2/P3 exception path, so the exception flag
+#     has no clearing effect for P2/P3 (resolution is the only path).
 #
 # THIS TEST MODELS STATE TRANSITIONS ON EMBEDDED FIXTURES ONLY. It does NOT perform, simulate, or claim
 # any actual ChatGPT architect review. The "architect-verified" evidence values below are fixture INPUTS
@@ -130,7 +140,9 @@ correction_scope_check() {
 #              CORRECTION_SUBMITTED | REVIEW_PENDING | RESOLVED | WONT_FIX |
 #              DEFERRED | BLOCKED
 #   FLAGS    : comma-separated; 'exception=REF' = architect-approved exception
-#              (an actual DECISIONS.md reference in real use); 'av' = the issue
+#              (an actual DECISIONS.md reference in real use — the P1 exception
+#              mechanism of the Phase 5 contract; it has NO effect for P2/P3:
+#              Phase 6 defines no P2/P3 exception path); 'av' = the issue
 #              violates an acceptance criterion / explicit blocking condition.
 #
 # Derived quantities (fed into R1–R6):
@@ -140,7 +152,9 @@ correction_scope_check() {
 #   BLOCKING_CORRECTION_OPEN = an issue in a correction-cycle state
 #               (CORRECTION_REQUIRED/CORRECTION_IN_PROGRESS/CORRECTION_SUBMITTED/
 #               REVIEW_PENDING) that is closure-blocking per the severity model
-#               (P0 always; P1 unless exceptioned; P2/P3 iff acceptance-violating)
+#               (P0 always; P1 unless exceptioned; P2/P3 iff acceptance-violating
+#               — with NO P2/P3 exception path: an exception flag never clears
+#               an acceptance-violating P2/P3; resolution is the only path)
 # ---------------------------------------------------------------------------
 derive_issue_counts() {
     local issues="$1" line id sev status flags
@@ -163,9 +177,15 @@ derive_issue_counts() {
             local blocking=0
             case "$status" in
                 CORRECTION_REQUIRED|CORRECTION_IN_PROGRESS|CORRECTION_SUBMITTED|REVIEW_PENDING)
+                    # P0 always blocks (no exception path). P1 blocks unless it carries the
+                    # recorded architect-approved exception (R5). P2/P3 block iff acceptance-
+                    # violating — with NO exception path (Phase 6 correction: the exception
+                    # flag has no clearing effect for P2/P3; an acceptance-violating P2/P3
+                    # must be resolved before closure; 'exceptioned' is deliberately ignored
+                    # on this branch).
                     if [ "$sev" = "P0" ]; then blocking=1
                     elif [ "$sev" = "P1" ] && [ "$exceptioned" -eq 0 ]; then blocking=1
-                    elif { [ "$sev" = "P2" ] || [ "$sev" = "P3" ]; } && [ "$av" -eq 1 ] && [ "$exceptioned" -eq 0 ]; then blocking=1
+                    elif { [ "$sev" = "P2" ] || [ "$sev" = "P3" ]; } && [ "$av" -eq 1 ]; then blocking=1
                     fi ;;
             esac
             if [ "$blocking" -eq 1 ]; then BLOCKING_CORRECTION_OPEN=yes; fi
@@ -358,11 +378,25 @@ expect_eligibility "example-d-p0-resolved-unblocks" "PASS" \
 # Severity-model edge cases
 # ===========================================================================
 
-echo "-- Severity-model edge cases --"
+echo "-- Severity-model edge cases (corrected P2/P3 closure semantics) --"
 expect_eligibility "severity-p1-deferred-with-exception" "PASS" \
     "I-300|P1|DEFERRED|exception=D-0EX" "$ALL_GATES_PASS"
 expect_eligibility "severity-p2-acceptance-violation-blocks" "FAIL" \
     "I-301|P2|CORRECTION_REQUIRED|av" "$ALL_GATES_PASS"
+# P2/P3 not acceptance-violating: do NOT automatically block closure (even mid-correction-cycle)
+expect_eligibility "severity-p2-non-av-does-not-block" "PASS" \
+    "I-302|P2|CORRECTION_REQUIRED|" "$ALL_GATES_PASS"
+expect_eligibility "severity-p3-non-av-does-not-block" "PASS" \
+    "I-303|P3|REVIEW_PENDING|" "$ALL_GATES_PASS"
+# P3 acceptance-violating: blocks while unresolved, like P2
+expect_eligibility "severity-p3-av-blocks" "FAIL" \
+    "I-304|P3|CORRECTION_REQUIRED|av" "$ALL_GATES_PASS"
+# NO P2/P3 exception path: an alleged architect-approved exception does NOT clear an
+# unresolved acceptance-violating P2/P3 — the state remains closure-ineligible (FAIL)
+expect_eligibility "severity-p2-av-alleged-exception-rejected" "FAIL" \
+    "I-305|P2|CORRECTION_REQUIRED|av,exception=D-0EX" "$ALL_GATES_PASS"
+expect_eligibility "severity-p3-av-alleged-exception-rejected" "FAIL" \
+    "I-306|P3|REVIEW_PENDING|av,exception=D-0EX" "$ALL_GATES_PASS"
 
 echo ""
 if [ "$CORRECT" -eq "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
@@ -372,6 +406,10 @@ if [ "$CORRECT" -eq "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
     echo "  Example B proves: RESOLVED requires architect-verified evidence; a repeat correction cycle is valid."
     echo "  Example C proves: a correction commit with an unrelated path is rejected — scope cannot silently expand."
     echo "  Example D proves: a P0 blocks closure while unresolved (even submitted or WONT_FIX'd) — no exception path."
+    echo "  Severity edges prove: a P1 DEFERRED with an architect-approved exception does not block; a"
+    echo "                    non-acceptance-violating P2/P3 does not automatically block closure; an"
+    echo "                    acceptance-violating P2/P3 blocks while unresolved and must be resolved — an"
+    echo "                    alleged architect exception does NOT clear it (no P2/P3 exception path)."
     echo "Exit status: 0"
     exit 0
 else
