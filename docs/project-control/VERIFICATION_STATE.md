@@ -1,6 +1,7 @@
 # VERIFICATION_STATE.md — Durable Verification Evidence Register
 
 > Canonical register of verification evidence for the project-control system. **Strictly separates developer-reported evidence from architect-verified evidence.**
+> Since Phase 5 (2026-10-01) this register also carries the durable **verification and phase-gate contract** (§ below) — the binding rules every phase's closure evidence must satisfy from Phase 5 onward (DECISIONS.md D-020).
 > Snapshot date: **2026-10-01**. All commands listed here are read-only and re-runnable by any fresh session.
 
 ## Evidence classes (definitions — used by ALL control documents)
@@ -12,7 +13,53 @@
 
 ## Architect review outcome vocabulary (spec §Review Contract)
 
-`PASS` (closes a phase) · `PASS_WITH_FOLLOWUP` (phase stays open with recorded follow-ups) · `CORRECTION_REQUIRED` (corrective handoff issued to Z.AI).
+`PASS` (closes a phase) · `PASS_WITH_FOLLOWUP` (phase stays open with recorded follow-ups) · `CORRECTION_REQUIRED` (corrective handoff issued to Z.AI). Binding semantics since Phase 5: the §"Verification and phase-gate contract" → "Review outcomes" section below.
+
+---
+
+## Verification and phase-gate contract (durable — established by Phase 5, 2026-10-01)
+
+> **Binding on all phase-closure evidence from Phase 5 onward.** Phases 0–4 closed under the pre-contract convention; their evidence stands as recorded in their sections below. The reusable per-phase form — gate-record templates, applicability worksheet, phase-close checklist, worked examples — is `VERIFICATION_CHECKLIST.md`; the deterministic closure-eligibility demonstration is `docs/project-control/verification/phase-closure-eligibility-test.sh` (DECISIONS.md D-020). This contract governs **closure evidence only**: it does not change where current state lives (the five Final State Contract members), it introduces no second source of truth, and it transfers no closure authority — only ChatGPT/project-owner review closes a phase (D-009), and no checklist or test outcome substitutes for that review.
+
+### Contract purpose
+
+Under this contract it is impossible, within the documented project-control process, to treat any of the following as **sufficient alone** for phase closure when additional verification gates are required: tests alone; a developer claim; a successful build; a clean Git tree; a successful deployment. Each is at most one input to the applicable gates below. Every phase's verification state explicitly distinguishes the seven determinations: developer-reported evidence; architect-verified evidence; required gates; optional/non-applicable gates; blockers; review outcomes; closure eligibility.
+
+### The gates (A–F) and their required records
+
+Gate status values (this contract's schema; the phase-status vocabulary remains D-011): `PASS` · `FAIL` · `MISSING` (not yet evaluated) · `NOT_APPLICABLE` (applicability assessed and recorded — never a silent skip).
+
+| Gate | Verifies | Required for | Must record | Satisfaction rule |
+|---|---|---|---|---|
+| **A — Scope** | what actually changed | every phase | planned scope; actual changed paths; unexpected paths; explicit non-scope confirmation; immutable-source check; production-branch check | `PASS` only if the actual scope is within the approved scope and the non-scope is respected — **a scope mismatch prevents `PASS`** |
+| **B — Implementation** | the delivered change | every phase | implementation commit; parent commit; expected files; actual files; implementation requirements; requirement-by-requirement status | `PASS` only if every requirement is satisfied (or explicitly deferred by the architect); developer assertions are `[developer-reported]` |
+| **C — Test** | executed checks | every phase | per test/check: name; command; expected result; actual result; pass/fail; environment/context; developer-reported vs architect-verified status | `PASS` records what ran and its results — **"tests passed" must not automatically imply phase completion** |
+| **D — Code review** | the architect's review | every phase | architect review status; reviewed commit; reviewed diff; architecture conformity; security concerns; tenancy concerns; regression concerns; unresolved findings | `PASS` **only** from an actual ChatGPT review of the work; a developer self-review may be recorded but never satisfies Gate D; **only actual ChatGPT review may produce `architect-verified` review evidence** — a future or intended review is never written as already completed |
+| **E — Database** | database-surface changes | conditional (see applicability) | applicability; when applicable: migration evidence; schema evidence; RLS/security evidence; runtime query evidence; rollback/recovery evidence | required when the phase changes database surfaces or executes database mutations; **never claim database verification when no database verification occurred** |
+| **F — Deployment** | deployment reality | conditional (see applicability) | applicability; when applicable: target; deployment URL; commit SHA; build result; runtime result; smoke verification; rollback/escalation result | required when the phase performs/requires a deployment or changes deployment surfaces; **a local build is never deployment verification** |
+
+### Gate applicability
+
+Applicability is determined from the phase's **actual changed surfaces** (the implementation diff), never from convenience: Gates A, B, C, D are required for every implementation phase; Gate E is required iff database surfaces changed or database mutations were executed; Gate F is required iff a deployment was performed or required, or deployment surfaces changed. A conditional gate's `NOT_APPLICABLE` status is a **recorded determination with rationale** (an assessed gate), never a silent skip; an applicability mismatch — a surface changed while its gate is marked `NOT_APPLICABLE` — blocks `PASS` as a false-applicability evidence problem. For documentation-only phases such as Phase 5 itself: **Gate E = `NOT_APPLICABLE`; Gate F = `NOT_APPLICABLE`** (both assessed and recorded in `VERIFICATION_CHECKLIST.md` §3).
+
+### Review outcomes (binding semantics)
+
+- **`PASS`** — all required gates passed and no blocking P0/P1 issue remains. The architect **may** close the phase. Closure remains an architect action, never an automatic transition.
+- **`PASS_WITH_FOLLOWUP`** — the implementation is accepted, but explicitly recorded follow-up work remains. The phase remains open unless the project-control rules explicitly permit closure under the documented follow-up policy. **A `PASS_WITH_FOLLOWUP` is never silently converted into `PASS`.**
+- **`CORRECTION_REQUIRED`** — the architect identified a defect, divergence, incomplete requirement, security concern, evidence problem, or other blocking issue. The phase remains open. The corrective handoff must identify: the finding; the evidence; the exact corrective scope; the non-scope; the expected verification; the stopping boundary.
+
+### P0/P1 blocker rule
+
+- **P0 — critical issue preventing safe continuation or invalidating the phase result.** Examples: a security-critical defect; a tenant-isolation failure; destructive uncontrolled behavior; corrupted authoritative state; false verification/closure evidence. **P0 prevents phase closure.** This contract defines no P0 exception path; any architect determination to proceed despite a recorded P0 must itself be an explicit, dated, separately-committed decision recorded in `DECISIONS.md` and cited in the closure record — it can never be assumed or invented.
+- **P1 — high-severity issue that materially affects correctness, security, reliability, or an acceptance criterion.** **P1 prevents `PASS`** unless the project-control policy explicitly records and approves a valid exception (an actual `DECISIONS.md` reference is required). Exceptions are never invented by the developer; **any P0/P1 exception requires an explicit architect decision.**
+
+### Closure eligibility
+
+A verification state is closure-eligible only when all of the following hold: **R1** — every required gate (per applicability) has status `PASS`; **R2** — every conditional gate is either `PASS` or `NOT_APPLICABLE` with a recorded applicability assessment, and there is no applicability mismatch; **R3** — Gate D's `PASS` is `[architect-verified]` (an actual ChatGPT review); **R4** — P0 count = 0; **R5** — P1 count = 0, or every P1 carries an explicitly recorded architect-approved exception; **R6** — no unresolved blocking correction is open; **R7** — the Final State Contract values agree. Otherwise **closure eligibility = FAIL**, and representing a phase as `CLOSED` in that state is a false-closure defect (P0-class under the blocker rule). The reusable phase-close checklist is `VERIFICATION_CHECKLIST.md` §7 — **the checklist itself does not close a phase; only ChatGPT's review does.**
+
+### Evidence-class obligations under this contract
+
+Every gate record carries `[developer-reported]` or `[architect-verified]` (D-012). Developer-generated evidence (commands, outputs, files, commits) is `[developer-reported]`; `[architect-verified]` evidence exists only from an actual ChatGPT review or observable architect workflow action. A future or intended ChatGPT review is never written as already completed, and a command Z.AI executed is never claimed on ChatGPT's behalf.
 
 ---
 
@@ -257,20 +304,77 @@ Executed via the persisted read-only script `/home/z/my-project/scripts/validate
 
 ---
 
+## Phase 5 — Verification and Phase-Gate System — IN_PROGRESS
+
+> Phase 5 handoff issued by ChatGPT on 2026-10-01, after the architect accepted the Phase 4 closure-evidence correction (`8d8595d0`; Phase 4 stands `CLOSED`). The evidence below was **developer-reported** at submission time (2026-10-01); the architect review of the Phase 5 implementation has **not** occurred — the phase is **NOT YET REVIEWED** and remains `IN_PROGRESS`.
+
+| Field | Value |
+|---|---|
+| Assignment | Phase 5 implementation handoff received from ChatGPT on 2026-10-01: implement the Verification and Phase-Gate System defined by the project-control plan — a durable verification contract in this register (Gates A–F with required records and applicability; binding review-outcome semantics; the P0/P1 blocker rule; closure eligibility); a canonical verification checklist/template under `docs/project-control/`; a deterministic test demonstrating that an incomplete verification state cannot legitimately be represented as `CLOSED`; `CURRENT_PHASE.md` phase-gate requirements and closure conditions; Final State Contract reconciliation to Phase 5 `IN_PROGRESS`; documentation-only governance phase — no product/DB/deployment/immutable-source changes; no Phase 6 artifacts; one focused commit `docs: establish phase 5 verification and phase gates`; push; completion report; STOP |
+| Baseline (before) | `8d8595d0a994510da217af6d12225e3f1d00b2fd` — the Phase 4 closure-evidence correction commit ("docs: correct phase 4 closure evidence classification", 2 files, +5/−1), **accepted by the architect — Phase 4 stands `CLOSED`** [architect-verified acceptance, communicated in the Phase 5 handoff]; branch history `5febaacd` → `16b89a94` → `8d8595d0`; clean tree, in sync with origin at start (18 ahead / 0 behind `Vite-Converted`; mainlines unchanged; `b65725e5` ancestry intact; `vercel.json` unchanged) [developer-reported, Git-verifiable] |
+| Implementation state | **Complete (developer-reported; awaiting architect review).** Delivered: the durable verification and phase-gate contract in this register (§ above — binding on closure evidence from Phase 5 onward; six gates, applicability, outcomes, P0/P1, closure eligibility R1–R7); `docs/project-control/VERIFICATION_CHECKLIST.md` — the canonical checklist/template (five never-sufficient-alone evidences; per-gate record templates A–F; applicability worksheet; review-outcome and P0/P1 summaries; the 22-item reusable phase-close checklist; closure-eligibility rules; worked Examples 1 (incomplete → FAIL) and 2 (complete → PASS)); `docs/project-control/verification/phase-closure-eligibility-test.sh` — the deterministic read-only test (8 embedded fixture cases: incomplete → FAIL; complete → PASS; P0 → FAIL; unhandled P1 → FAIL; P1 with architect-approved exception → PASS; developer-reported Gate D → FAIL; database-applicability mismatch → FAIL; open blocking correction → FAIL); `CURRENT_PHASE.md` rewritten as the Phase 5 contract (gate requirements + closure conditions); `PROJECT_STATE.md` and `NEXT_ACTION.md` reconciled to Phase 5 `IN_PROGRESS`; `ZAI_HANDOFF.md` Part II replaced with the Phase 5 instance (Part I untouched); consequential updates — `DECISIONS.md` D-020, session record `SESSION-006.md` + its `sessions/README.md` index row, the `worklog.md` Phase 5 entry |
+| Implementation commit | *(this commit)* — `docs: establish phase 5 verification and phase gates`, the immediate child of `8d8595d0` on `feature/ai-core-from-doable-source` (self-referential: it establishes the verification contract this register's evidence is audited under; documentation-only — changed paths limited to the repository-root `worklog.md` and `docs/project-control/**`). Exact SHA resolvable via `git rev-parse origin/feature/ai-core-from-doable-source` after push [developer-reported] |
+| Scope | Documentation-only: 11 changed paths — `worklog.md` + 10 under `docs/project-control/` (created: `VERIFICATION_CHECKLIST.md`, `verification/phase-closure-eligibility-test.sh`, `sessions/SESSION-006.md`; modified: `VERIFICATION_STATE.md`, `CURRENT_PHASE.md`, `PROJECT_STATE.md`, `NEXT_ACTION.md`, `ZAI_HANDOFF.md` Part II, `DECISIONS.md`, `sessions/README.md`); no product code, no dependencies, no migrations, no Vercel configuration, no Doable-source changes; no Phase 6 artifacts; `b65725e5`/`vercel.json` untouched; no force-push [developer-reported, Git-verifiable] |
+
+### Phase 5 validation (the handoff's 25 required checks — developer-reported)
+
+| # | Check | Method / evidence |
+|---|---|---|
+| 1 | Phase 5 required documents exist | existence checks — `VERIFICATION_CHECKLIST.md`, `verification/phase-closure-eligibility-test.sh`, Phase 5 contract in `CURRENT_PHASE.md` |
+| 2 | Verification checklist/template exists | `git ls-files docs/project-control/` → exactly one `VERIFICATION_CHECKLIST.md` |
+| 3 | Required verification fields exist | `rg` field checks — planned scope / actual changed paths (A); implementation commit / parent commit / requirement-by-requirement (B); test name / command / expected / actual / environment (C); architect review status / reviewed commit / conformity / concerns (D); migration / schema / RLS / runtime-query / rollback evidence (E); target / URL / SHA / build / runtime / smoke / rollback (F) |
+| 4 | All three review outcomes exist | `rg 'PASS_WITH_FOLLOWUP'` in the contract + checklist + `CURRENT_PHASE.md` |
+| 5 | P0/P1 blocker policy exists | `rg 'P0 prevents|P1 prevents'` in the contract + checklist |
+| 6 | Implementation gate exists | Gate B sections in contract + checklist |
+| 7 | Test gate exists | Gate C sections in contract + checklist |
+| 8 | Code-review gate exists | Gate D sections in contract + checklist |
+| 9 | Database applicability/gate exists | Gate E + `NOT_APPLICABLE` + the recorded Phase 5 applicability |
+| 10 | Deployment applicability/gate exists | Gate F + `NOT_APPLICABLE` + the recorded Phase 5 applicability |
+| 11 | Phase-close checklist exists | `rg '^## 7\. Phase-close checklist'` + the 22 items in `VERIFICATION_CHECKLIST.md` |
+| 12 | Deliberately incomplete phase cannot be marked closure-eligible | deterministic test case-1 → `FAIL` (with `TESTS_PASSED=yes` and `DEVELOPER_COMPLETION_CLAIM=yes`); worked Example 1 |
+| 13 | Complete example can be closure-eligible | deterministic test case-2 → `PASS` (Gate D architect-verified; E/F recorded `NOT_APPLICABLE`) |
+| 14 | Developer/architect evidence separation exists | `[developer-reported]` / `[architect-verified]` label checks across all changed documents |
+| 15 | No competing current-state source introduced | `git ls-files` — exactly one checklist, one deterministic test; no new current-state documents |
+| 16 | No secrets introduced | credential-pattern scan of all changed paths — no matches |
+| 17 | No product source changed | diff-scope check vs `8d8595d0` (`src/`, `packages/` untouched) |
+| 18 | No DB/migration files changed | diff-scope check vs `8d8595d0` |
+| 19 | No `vercel.json` change | diff-scope check vs `8d8595d0` — empty |
+| 20 | Immutable Doable-source trees unchanged | diff-scope check vs `8d8595d0` |
+| 21 | Final State Contract consistent | phase/status agreement across the five members + the latest `worklog.md` entry (consistency table below) |
+| 22 | Worklog contains the Phase 5 implementation entry | `rg '^## 2026-10-01 — Phase 5' worklog.md` |
+| 23 | Git diff fully inspected | full-diff review of all 11 changed paths (developer completion report) |
+| 24 | Working tree clean after commit | `git status --porcelain` → empty (post-commit) |
+| 25 | Branch synchronized with origin | `git rev-parse HEAD origin/feature/ai-core-from-doable-source` → equal (post-push) |
+
+Aggregate: the persisted read-only validation script `/home/z/my-project/scripts/validate-phase5-control-docs.sh` (agent workspace, outside the repository, per the Phase 3/4 convention) covers the 25 checks plus structural checks (staged and post-commit HEAD modes; final results recorded in the developer completion report). `npm run validate:model-config` → PASS — a lightweight repository check, explicitly **not** interpreted as sufficient phase verification. The deterministic test: **8/8 cases compute their expected eligibility; exit status 0** (re-runnable: see the appendix Phase 5 block). All evidence on this table is [developer-reported].
+
+### Architect review trail (events bounding the phase so far)
+
+| Date | Event |
+|---|---|
+| 2026-10-01 | **Architect acceptance of the Phase 4 closure-evidence correction.** The correction commit `8d8595d0a994510da217af6d12225e3f1d00b2fd` ("docs: correct phase 4 closure evidence classification") was reviewed by ChatGPT; the Phase 4 implementation stands accepted; **Phase 4 stands `CLOSED`**. [architect-verified — as communicated in the Phase 5 handoff; no repository commands are claimed on ChatGPT's behalf] |
+| 2026-10-01 | **Phase 5 implementation handoff issued.** Baseline `8d8595d0`; latest verified commit remains `5febaacd`; the handoff defines the objective, approved scope, explicit non-scope, the required verification model (Gates A–F), review outcomes, the P0/P1 rule, the phase-close checklist, the deliberately incomplete-phase test, the Final State Contract target (Phase 5 `IN_PROGRESS`), evidence-class and security requirements, validation/commit/report requirements, the STOP boundary, and the acceptance criteria. [architect-verified — workflow action as communicated in the Phase 5 handoff] |
+
+### Outstanding architect verification state for Phase 5
+
+**Pending: the architect review of the Phase 5 implementation — Gate D under the contract this phase establishes.** The implementation is developer-reported complete; no architect review of it has occurred; no architect approval of Phase 5 is claimed. Only ChatGPT/project-owner review can close Phase 5 (D-009). Gate E (database) = `NOT_APPLICABLE` and Gate F (deployment) = `NOT_APPLICABLE` for this documentation-only phase — assessed and recorded in `VERIFICATION_CHECKLIST.md` §3, not silently skipped.
+
+---
+
 ## State-machine consistency (Final State Contract, plan §Final State Contract)
 
-| Field | Value (2026-10-01, at the Phase 4 closure-record commit — transition state) | Agreement |
+| Field | Value (2026-10-01, at the Phase 5 implementation commit — transition state) | Agreement |
 |---|---|---|
-| `VERIFICATION_STATE.phase` | Phase 4 `CLOSED` (this register); Phase 5 next, not started | ✓ (this register) |
-| `PROJECT_STATE.current_phase` | Phase 4 — Worklog and Session Audit, `CLOSED`; Phase 5 next, not started | ✓ (reconciled by this closure commit) |
-| `CURRENT_PHASE.phase` | Phase 4 — Worklog and Session Audit contract, `CLOSED` (Phase 5 identified as next; not started) | ✓ (reconciled by this closure commit) |
-| `NEXT_ACTION.phase` | Phase 4 `CLOSED`; awaiting the architect-issued Phase 5 handoff | ✓ (reconciled by this closure commit) |
-| `ZAI_HANDOFF.phase` | Part II Phase identity: the Phase 4 instance (refreshed handoff), `CLOSED` — fully executed; replaced only when the architect issues the Phase 5 handoff (§I.12) | ✓ (reconciled by this closure commit) |
-| latest worklog phase entry | Phase 4 — Worklog and Session Audit — architect approval, `CLOSED` (the append-only closure entry in the repository-root `worklog.md`; the earlier `IN_PROGRESS` entry is preserved unrewritten as the submission-time record) | ✓ |
-| latest verified commit | `5febaacd5dcc55268904d1371038bbe8ff372040` — Phase 4 implementation, **architect-verified by the `PASS` review (2026-10-01)**. `d12b0582` remains a developer-recorded closure record of the Phase 3 review; `b65725e5` remains an external repository event (provenance not independently established) — neither is classified as an architect-verified product/control implementation; the Phase 4 closure-record commit likewise records, and does not become, an implementation | ✓ |
-| baseline | Phase 4's baseline was `d12b0582f370c0192a97bad0ad1b1dc81b7f0713` (implementation `5febaacd` is its immediate child; the closure record is the immediate child of `5febaacd`). The Phase 5 baseline will be set by the architect-issued Phase 5 handoff — **not yet issued** | ✓ |
+| `VERIFICATION_STATE.phase` | Phase 5 `IN_PROGRESS` (the Phase 5 section above); Phase 4 `CLOSED`; awaiting the architect review of the Phase 5 implementation | ✓ (this register) |
+| `PROJECT_STATE.current_phase` | Phase 5 — Verification and Phase-Gate System, `IN_PROGRESS` (implementation complete developer-reported, awaiting architect review) | ✓ (reconciled by this implementation commit) |
+| `CURRENT_PHASE.phase` | Phase 5 — Verification and Phase-Gate System contract, `IN_PROGRESS` | ✓ (reconciled by this implementation commit) |
+| `NEXT_ACTION.phase` | Phase 5 `IN_PROGRESS`; awaiting the architect review of the Phase 5 implementation commit | ✓ (reconciled by this implementation commit) |
+| `ZAI_HANDOFF.phase` | Part II Phase identity: the Phase 5 instance, `IN_PROGRESS` (the handoff instance executed by this commit) | ✓ (reconciled by this implementation commit) |
+| latest worklog phase entry | Phase 5 — Verification and Phase-Gate System — `IN_PROGRESS` (appended to the repository-root `worklog.md` by this commit; earlier entries preserved unrewritten) | ✓ |
+| latest verified commit | `5febaacd5dcc55268904d1371038bbe8ff372040` — Phase 4 implementation, **architect-verified by the `PASS` review (2026-10-01)** — unchanged at Phase 5 start per the Phase 5 handoff. `16b89a94` (Phase 4 closure-record commit), `8d8595d0` (Phase 4 closure-evidence correction — architect-accepted, Phase 4 stands `CLOSED`), and this Phase 5 implementation commit are documentation commits — recorded and, where applicable, architect-dispositioned, but not architect-verified product/control implementations; `b65725e5` remains an external repository event (provenance not independently established) | ✓ |
+| baseline | Phase 5's baseline is `8d8595d0a994510da217af6d12225e3f1d00b2fd` (the architect-accepted Phase 4 closure-evidence correction; this implementation commit is its immediate child). The next baseline is set by the architect at the Phase 5 review boundary (closure record or corrective handoff) — **not yet issued** | ✓ |
 
-If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. Unlike the Phase 1–3 closures — where the closure-record commit deliberately touched only this register and left sibling reconciliation to the following implementation commit — this Phase 4 closure record reconciles **all five Final State Contract members and the worklog layer to Phase 4 `CLOSED` itself**, because no Phase 5 implementation follows: the repository now rests at a clean inter-phase boundary (Phase 4 `CLOSED`; Phase 5 — Verification and Phase-Gate System identified as next, **not started**; no active handoff instance). A fresh session finding this state must read the Phase 4 section above and the `worklog.md` Phase 4 / closure entries before acting; Z.AI must not begin Phase 5 without a new architect-issued handoff. The earlier reconciliations — pending at `58856e0b` (completed by `3706b977`) and pending at `d12b0582` (completed by `5febaacd`) — are documented at those commits.
+If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. This Phase 5 implementation commit reconciles **all five Final State Contract members and the worklog layer to Phase 5 `IN_PROGRESS`** (the previous transition state — Phase 4 `CLOSED` at the inter-phase boundary — held at `8d8595d0`, where the architect issued the Phase 5 handoff). A fresh session finding this state must read the Phase 5 section above, the durable verification and phase-gate contract, and the `worklog.md` Phase 5 entry before acting; Z.AI must not proceed past the Phase 5 STOP boundary without a new architect-issued handoff or corrective directive. The earlier reconciliations — pending at `58856e0b` (completed by `3706b977`), pending at `d12b0582` (completed by `5febaacd`), and the Phase 4 closure reconciliation at `16b89a94` (accepted with the evidence-classification correction at `8d8595d0`) — are documented at those commits.
 
 ## Appendix — re-runnable validation commands
 
@@ -385,4 +489,29 @@ git status --porcelain                                                   # clean
 git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal after push
 # Aggregate closure-record validation suite (persisted read-only script, agent workspace, outside the repository):
 bash /home/z/my-project/scripts/validate-phase4-closure-record.sh        # -> RESULT: see the closure evidence report
+
+# ---- Phase 5 (Verification and Phase-Gate System) ----
+
+# Deterministic closure-eligibility demonstration (read-only, re-runnable; exit 0 expected):
+bash docs/project-control/verification/phase-closure-eligibility-test.sh   # -> RESULT: 8/8 determinations correct
+
+# Contract / checklist / gate / policy presence:
+rg -n '^## Verification and phase-gate contract' docs/project-control/VERIFICATION_STATE.md
+rg -n '^### Gate [A-F]' docs/project-control/VERIFICATION_CHECKLIST.md
+rg -n 'PASS_WITH_FOLLOWUP' docs/project-control/VERIFICATION_STATE.md docs/project-control/VERIFICATION_CHECKLIST.md docs/project-control/CURRENT_PHASE.md
+rg -n 'P0 prevents|P1 prevents' docs/project-control/VERIFICATION_STATE.md docs/project-control/VERIFICATION_CHECKLIST.md
+rg -n '^## 7\. Phase-close checklist' docs/project-control/VERIFICATION_CHECKLIST.md
+
+# Final State Contract (Phase 5 IN_PROGRESS) + documentation-only scope:
+rg -c 'Phase 5 — Verification and Phase-Gate System' docs/project-control/PROJECT_STATE.md docs/project-control/CURRENT_PHASE.md docs/project-control/NEXT_ACTION.md docs/project-control/VERIFICATION_STATE.md docs/project-control/ZAI_HANDOFF.md
+rg -n '^## 2026-10-01 — Phase 5' worklog.md
+git show --name-only --format= HEAD                                # documentation-only (worklog.md + docs/project-control/**)
+git diff --name-only 8d8595d0 -- vercel.json                      # empty (unchanged)
+git merge-base --is-ancestor b65725e55ed13503b70136ffde6a5a7f269d92e2 HEAD && echo "b65725e5 ancestry intact"
+rg -n 'ghp_[A-Za-z0-9]{30,}|gho_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}|supabase\.co/[A-Za-z0-9]|service_role[a-z_]*[[:space:]]*[:=]' worklog.md docs/project-control/   # no matches
+git status --short && git diff --stat
+npm run validate:model-config                                      # lightweight check — NOT sufficient phase verification
+
+# Aggregate Phase 5 validation suite (persisted read-only script, agent workspace, outside the repository):
+bash /home/z/my-project/scripts/validate-phase5-control-docs.sh         # -> RESULT: see the Phase 5 developer completion report
 ```
