@@ -1,40 +1,38 @@
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
-> The smallest useful instruction for a fresh ChatGPT (or Z.AI) session. Updated at each phase boundary. Snapshot date: **2026-10-02**.
-> This file is intentionally short. History lives in Git, in `VERIFICATION_STATE.md`, and in the canonical `worklog.md`; current truth lives in `PROJECT_STATE.md`. A fresh ChatGPT session follows the full procedure in `docs/project-control/CHAT_CONTINUITY.md` (§5).
+> Snapshot date: 2026-10-02. Repository state is authoritative. Read PROJECT_STATE.md → CURRENT_PHASE.md → PHASE-7-PLAN.md → ZAI_HANDOFF.md → VERIFICATION_STATE.md → CHAT_CONTINUITY.md.
 
-## Read this first
+## Active phase
 
-`docs/project-control/PROJECT_STATE.md` → then `docs/project-control/CURRENT_PHASE.md` (the Phase 7 planning-stage contract) → then `docs/project-control/PHASE-7-PLAN.md` (**the Phase 7 planning package — the artifact awaiting architect review**) → then `docs/project-control/ZAI_HANDOFF.md` (Part I protocol + Part II — the Phase 7 planning handoff instance) → then `docs/project-control/VERIFICATION_STATE.md` (evidence + the durable verification/phase-gate contract + the durable correction/issue-control workflow). Fresh-ChatGPT initialization procedure: `docs/project-control/CHAT_CONTINUITY.md`. Historical audit trail: repository-root `worklog.md` and `docs/project-control/sessions/`. Issue register + issue-control system: `docs/project-control/ISSUES.md` (note the new OPEN issue **I-014**). Full plan: `docs/superpowers/plans/2026-10-01-clara-project-control-system.md`.
+**Phase 7 — AI Platform Core Foundation — IN_PROGRESS.** Planning-package review: **PASS** on 2026-10-02. Implementation authorized for **7-A and 7-B only**, in order. 7-C deferred. Phase 7 is not closed.
 
-## 1. Active phase
+## Authorization baseline
 
-**Phase 7 — AI Platform Core Foundation — `PLANNED` (planning stage).** The architect (ChatGPT) issued the **Phase 7 planning/baseline handoff on 2026-10-02** [architect-verified workflow action] (baseline `3657035ac878da98decd98929fb0deb45aed1fbe` = the Phase 6 closure-record commit). The developer (Z.AI) executed it on 2026-10-02: the planning package `docs/project-control/PHASE-7-PLAN.md` is delivered `[developer-reported]`, **architect review PENDING**. **Phase 7 implementation has NOT started and is NOT authorized** — the planning handoff explicitly withholds implementation authorization; in the implementation sense Phase 7 remains NOT STARTED. Phases 0–6 are all `CLOSED` (Phase 6: architect `PASS` re-review of the reviewed correction `4dc8a573`; closure record `3657035a`). Only ChatGPT may authorize Phase 7 implementation.
-
-## 2. Project state (2026-10-02)
-
-Branch `feature/ai-core-from-doable-source`; local HEAD = origin tip; clean tree (before the planning commit). The planning session verified the full baseline (closure ancestry `c0cca964 → 4dc8a573 → 3657035a`; mainlines `main`/`Vite-Converted`/`Vercel-Preview` unchanged — with the external `Vercel-Prod` movement `e0ead990` → `bae53a07` (PR #262, fast-forward) observed and recorded; immutable-source integrity verified: 771/771 present pinned files byte-identical to the Doable baseline, the `mcp-servers/` family absent → **new OPEN issue I-014**; `vercel.json` unchanged; no product/DB/deployment drift). Open issues: I-001, I-007, I-014 (I-013 `RESOLVED`). Pending decisions: D-P2, D-P3 (seam targeting — directly relevant to the Phase 7 proposal), D-P4 (Vercel semantics — Gate F). R-1 mitigation-in-progress; R-2/R-3/R-4/R-5 open. Repository state is authoritative — always re-read it:
+f2c403f11fb944b23eb31cef9de07f8bfb7695d8. Branch: feature/ai-core-from-doable-source. Refresh before acting:
 
 ```bash
 git fetch --prune origin
-git rev-parse origin/feature/ai-core-from-doable-source   # current tip
+git rev-parse origin/feature/ai-core-from-doable-source
 git log --oneline -5 origin/feature/ai-core-from-doable-source
 ```
 
-## 3. What must happen next
+If the branch moved materially, STOP and request a refreshed handoff.
 
-**ChatGPT architect review of the Phase 7 planning package (`docs/project-control/PHASE-7-PLAN.md`), then either a corrective handoff or the explicit Phase 7 implementation authorization.** The architect verifies: the baseline table is evidence-backed; the objective determination presents both repository records (the plan's Phase 7 = Vercel Operations Gate ladder position; the original AI-platform extraction/integration objective) and the **reconciliation proposal** (§3.2) without enacting it; every A–E classification carries repository evidence; the architecture distinguishes immutable core / host adapters / existing infrastructure / future work; the dependency graph, risk/issue reconciliation (incl. I-014, D-P3, D-P4), acceptance criteria, and Gates A–F design preserve the established governance rules; the stopping boundary is explicit; the package is documentation-only (changed paths limited to `worklog.md` + `docs/project-control/**`); no product/DB/deployment/immutable-source changes; Phase 7 is `PLANNED`, not `PASS`/`CLOSED`; the Final State Contract members agree; clean tree; local/remote synchronized. The ratification list is `PHASE-7-PLAN.md` §23 (scope ratification; D-P3 resolution; I-014 triage; D-P4 confirmation; Gate E/F applicability confirmation). On `PASS`, the architect issues the Phase 7 implementation authorization handoff (which sets the phase `IN_PROGRESS` and defines the authorized sub-phases 7-A/7-B[/7-C]); on `CORRECTION_REQUIRED`, a corrective handoff is issued per `ZAI_HANDOFF.md` §I.5 and the Phase 6 correction workflow. **Z.AI performs no work until that review outcome arrives.**
+## Next action
 
-## 4. Z.AI active handoff status
+**Z.AI: execute 7-A only**, then stop and submit evidence. ChatGPT must review the actual 7-A diff and evidence. Only a subsequent architect PASS authorizes 7-B.
 
-**Phase 7 planning handoff — EXECUTED; awaiting architect review.** The planning instance (Part II of `ZAI_HANDOFF.md`) was materialized and executed 2026-10-02; its deliverable (`PHASE-7-PLAN.md` + this state reconciliation) is submitted `[developer-reported]`. Z.AI is STOPped at the authorization boundary: it must not start Phase 7 implementation, must not modify `src/**`, `packages/**`, migrations, Supabase, `vercel.json`, or the immutable Doable source, must not deploy, must not resolve R-3/R-4/R-5, I-001/I-007/I-014, or any pending decision, and must not start Phase 8 — until the architect's explicit implementation authorization arrives. Only ChatGPT may authorize Phase 7 implementation.
+7-A: host execution-context factory; fail-closed adapter registry/validation; bounded Clara identity/tenant/provider/RAG/transport/secret-boundary adapters; focused tests.
 
-## 5. What ChatGPT must verify before advancing
+Not authorized: 7-C; MCP/integrations/agent runtime/work mode/memory/skills; attachments/image generation/marketplace/templates/automation; UI expansion; migrations/Supabase; vercel.json; production branches; I-014 resolution; R-3/R-4/R-5 resolution; Phase 8.
 
-1. The planning commit is documentation-only: changed paths are exactly the repository-root `worklog.md` and files under `docs/project-control/` (`PHASE-7-PLAN.md` created; `CURRENT_PHASE.md`, `ZAI_HANDOFF.md` Part II, `VERIFICATION_STATE.md`, `PROJECT_STATE.md`, `NEXT_ACTION.md`, `ISSUES.md`, `sessions/README.md` updated; `sessions/SESSION-011.md` created); no product code, dependencies, migrations, Vercel configuration, or Doable-source changes; `b65725e5` and `vercel.json` untouched; no force-push; the commit is the immediate child of `3657035ac878da98decd98929fb0deb45aed1fbe`.
-2. The planning package contains no implementation-authorization claim, no `PASS`/`CLOSED` claim for Phase 7, and no fabricated architect approval; all proposals are `[developer-reported]`; the reconciliation with the plan's phase ladder (§3.2) is presented as a proposal requiring ratification (§23).
-3. The new issue **I-014** is recorded `OPEN` in `ISSUES.md` §"Issue records (canonical schema)" with `[developer-reported]` evidence and awaits architect triage; I-001/I-007 remain open, unmodified; I-013 remains `RESOLVED`; no existing issue/risk/decision was silently resolved; `DECISIONS.md`/`RISKS.md` untouched.
-4. State-machine consistency: phase = Phase 7 and status = `PLANNED` (planning delivered; implementation not authorized; architect review PENDING) agree across `PROJECT_STATE.md`, `CURRENT_PHASE.md`, `NEXT_ACTION.md`, `ZAI_HANDOFF.md` (Part II), `VERIFICATION_STATE.md`, and the latest `worklog.md` entry; the latest architect-verified implementation remains `4dc8a573` (the planning commit is a developer deliverable, not a reviewed implementation).
-5. Historical records are unrewritten: SESSION-001…010, the worklog's historical entries (the Phase 6 closure entry and all earlier), and the Phase 1–6 closure/correction records stand as recorded; the worklog Phase 7 planning entry is a subsequent append-only event; no fabricated timestamps.
-6. The deterministic tests still compute 8/8 (phase-closure-eligibility) and 24/24 (correction-cycle); the planning package's validation record (§24) is re-runnable read-only evidence.
-7. Optionally re-run the validation commands in `VERIFICATION_STATE.md` §Phase 7 planning (appendix block) — they are read-only and repeatable.
+## Ratified decisions
+
+D-022: ai-platform-core is the host seam; ai-core remains provider/brain layer.
+D-023: I-014 is P2/DEFERRED; no Phase 7 re-vendoring.
+D-024: D-P4/R-3 remains open; not a coding prerequisite; Gate F is conditional.
+D-021: 7-A/7-B authorized; 7-C deferred.
+
+## Standing governance
+
+P0 always blocks closure; P1 exception policy unchanged; no P2/P3 exception mechanism for acceptance-violating issues. Gate D is architect-only. Developer completion never closes a phase. No force-push, production-branch work, or silent scope expansion.
