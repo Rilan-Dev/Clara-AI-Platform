@@ -130,8 +130,8 @@ When required, record:
 
 | Class | Definition | Closure effect |
 |---|---|---|
-| **P0** | critical issue preventing safe continuation or invalidating the phase result — e.g. a security-critical defect; a tenant-isolation failure; destructive uncontrolled behavior; corrupted authoritative state; false verification/closure evidence | **P0 prevents phase closure.** The contract defines no P0 exception path; any architect determination to proceed despite a recorded P0 must itself be an explicit, dated, separately-committed decision recorded in `DECISIONS.md` and cited in the closure record — it can never be assumed or invented |
-| **P1** | high-severity issue that materially affects correctness, security, reliability, or an acceptance criterion | **P1 prevents `PASS`** unless the project-control policy explicitly records and approves a valid exception (an actual `DECISIONS.md` reference is required). Exceptions are never invented by the developer; any P0/P1 exception requires an explicit architect decision |
+| **P0** | critical issue preventing safe continuation or invalidating the phase result — e.g. a security-critical defect; a tenant-isolation failure; destructive uncontrolled behavior; corrupted authoritative state; false verification/closure evidence | **P0 prevents phase closure — always; there is no P0 exception path.** An architect decision may document acknowledgement, remediation, escalation, or other operational handling of a recorded P0, but it must **not** authorize phase closure while the P0 remains recorded |
+| **P1** | high-severity issue that materially affects correctness, security, reliability, or an acceptance criterion | **P1 prevents `PASS`** unless the project-control policy explicitly records and approves a valid exception (an actual `DECISIONS.md` reference is required). Exceptions are never invented by the developer; any P1 exception requires an explicit architect decision |
 
 ## 7. Phase-close checklist (reusable — filled per phase by the developer before reporting completion; evaluated by the architect at review)
 
