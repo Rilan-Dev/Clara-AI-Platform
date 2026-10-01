@@ -3,6 +3,8 @@
 > Canonical contract for the currently active phase of the Clara project-control system.
 > Snapshot date: **2026-10-01**. Cross-references: `PROJECT_STATE.md` (authoritative state), `ZAI_HANDOFF.md` (active handoff instance), `CHAT_CONTINUITY.md` (fresh-ChatGPT continuity procedure), `VERIFICATION_STATE.md` (evidence), `worklog.md` (canonical historical audit trail), `docs/superpowers/plans/2026-10-01-clara-project-control-system.md` (full 13-phase plan).
 
+> **Closure state (2026-10-01):** Phase 4 is **`CLOSED`** — architect review outcome **`PASS`** (architect ChatGPT; developer Z.AI; reviewed implementation commit `5febaacd5dcc55268904d1371038bbe8ff372040`, the immediate child of the baseline `d12b0582f370c0192a97bad0ad1b1dc81b7f0713`; verified relationship `d12b0582 → 5febaacd`). This document now preserves the Phase 4 contract as reviewed, plus the closure record below. **Phase 5 — Verification and Phase-Gate System is the next phase and has NOT started**; it receives its own contract when the architect issues the Phase 5 handoff. No phase is currently active.
+
 ## Phase identity
 
 | Field | Value |
@@ -10,12 +12,12 @@
 | Phase number | **4** |
 | Phase name | **Worklog and Session Audit** |
 | Full designation | **Phase 4 — Worklog and Session Audit** |
-| Status | **IN_PROGRESS** — developer implementation complete; awaiting architect review |
+| Status | **CLOSED** — architect review `PASS` (2026-10-01); Phase 5 — Verification and Phase-Gate System is the next phase and has NOT started |
 | Assigned developer | **Z.AI** (developer/implementer) |
 | Architect / reviewer / controller | **ChatGPT** |
-| Developer assignment | Refreshed Phase 4 implementation handoff received from ChatGPT on 2026-10-01, issued after the architect's review of the moved baseline (see Prerequisites). Fully executed by Z.AI. The handoff is materialized in `ZAI_HANDOFF.md` Part II. **No new handoff is active; Z.AI must not begin Phase 5 without a new architect-issued handoff.** |
+| Developer assignment | Refreshed Phase 4 implementation handoff received from ChatGPT on 2026-10-01, issued after the architect's review of the moved baseline (see Prerequisites). Fully executed by Z.AI; the phase was then closed by the architect's `PASS` review (2026-10-01). The handoff remains materialized in `ZAI_HANDOFF.md` Part II (status `CLOSED`). **No handoff is active; Z.AI must not begin Phase 5 (or any product work) without a new architect-issued handoff.** |
 
-**Only ChatGPT/project-owner review can close the phase.** This phase remains OPEN until the architect reviews the Phase 4 evidence and records a review outcome. Only a `PASS` review outcome closes it (`PASS_WITH_FOLLOWUP` keeps it open with follow-ups; `CORRECTION_REQUIRED` triggers a corrective handoff). A developer completion claim never closes a phase.
+**Only ChatGPT/project-owner review can close the phase — and it has.** This phase was closed by the architect's `PASS` review on 2026-10-01 (a developer completion claim never closes a phase; only a `PASS` review outcome does — D-009). The contract below is preserved as the reviewed record of what Phase 4 was; the phase is not reopened except by architect direction, and a `CORRECTION_REQUIRED` outcome on the closure record itself would trigger a corrective handoff per `ZAI_HANDOFF.md` §I.5.
 
 ## Objective
 
@@ -84,8 +86,12 @@ Run and record (the 19 required checks): (1) `worklog.md` exists; (2) canonical 
 
 ## Stopping boundary
 
-Implementation stops immediately after: the worklog and session-audit layer are created, the phase state is reconciled, validation passes, the commit is created and pushed, and the developer evidence report is delivered. **Z.AI then STOPs.** Phase 4 advances only after ChatGPT review records an outcome in `VERIFICATION_STATE.md` (only `PASS` closes the phase and initializes Phase 5 — Verification and Phase-Gate System, per the plan). If review returns `CORRECTION_REQUIRED`, Z.AI acts only on the corrective handoff (ZAI_HANDOFF.md §I.5). Do not resolve R-3/R-4/R-5 unless separately authorized. A fresh ChatGPT session resuming leadership mid-boundary follows `CHAT_CONTINUITY.md` §5.
+The implementation boundary was reached and the phase closed on 2026-10-01. The closure record (this commit — `docs: record architect approval of phase 4`, the immediate child of `5febaacd`) is the final Phase 4 artifact; after its commit, push, and evidence report, **Z.AI STOPs at the inter-phase boundary**: no Phase 5 (Verification and Phase-Gate System), no Phase 5 implementation artifacts, no product implementation, no deployment or database operations, no `vercel.json`/Vercel changes, no R-3/R-4/R-5 resolution — until the architect reviews the closure record and issues the explicit Phase 5 handoff. If the closure-record review returns `CORRECTION_REQUIRED`, Z.AI acts only on the corrective handoff (ZAI_HANDOFF.md §I.5). A fresh ChatGPT session resuming leadership mid-boundary follows `CHAT_CONTINUITY.md` §5.
 
-## Developer-reported completion state (2026-10-01)
+## Closure record (2026-10-01)
 
-Implementation complete: `worklog.md` exists at the repository root and satisfies the canonical structure and historical coverage requirements; `docs/project-control/sessions/` exists with the README convention and session records; the phase state is reconciled across all five Final State Contract members (with the consequential register updates I-003 resolved and D-018/D-019 recorded); validation was executed (commands and results in `VERIFICATION_STATE.md` §Phase 4); the implementation commit is the immediate child of `d12b0582` on `feature/ai-core-from-doable-source`. Awaiting architect review. **The phase is NOT closed.**
+**Architect review of Phase 4 — outcome `PASS` → Phase 4 `CLOSED`.** Architect: **ChatGPT**. Developer: **Z.AI**. ChatGPT independently reviewed the actual GitHub repository state and the Phase 4 implementation: reviewed implementation commit `5febaacd5dcc55268904d1371038bbe8ff372040` ("docs: establish phase 4 worklog and session audit"; the immediate child of the baseline `d12b0582f370c0192a97bad0ad1b1dc81b7f0713`; verified relationship `d12b0582 → 5febaacd`). Scope verification: documentation-only; the implementation satisfies the Phase 4 acceptance criteria. [architect-verified]
+
+**Phase 5 — Verification and Phase-Gate System is the next phase (per the plan); it has NOT started.** No Phase 5 handoff has been issued; no Phase 5 implementation has been performed; no product implementation has been performed. [architect-verified]
+
+The closure record is committed as `docs: record architect approval of phase 4` (this commit — the immediate child of `5febaacd`), which reconciled this contract and the sibling Final State Contract members to Phase 4 `CLOSED`, appended the append-only worklog closure entry (the historical `IN_PROGRESS` entry preserved unrewritten), recorded the session audit record `SESSION-005`, and confirmed the `ISSUES.md` I-003 resolution. The `b65725e5` classification is preserved exactly: provenance **not independently established** — never described as confirmed owner authorship; not modified, amended, reverted, or rewritten; `vercel.json` non-scope. Z.AI STOPs at the inter-phase boundary, awaiting the architect's review of the closure record and the explicit Phase 5 handoff. [developer-reported]
