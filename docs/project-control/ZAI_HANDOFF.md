@@ -183,228 +183,152 @@ Fresh-session read order for a Z.AI developer session:
 
 ## Part II — Active Handoff Instance
 
-> **Corrective handoff instance CH-001** — materialized from `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` per Part I §I.5/§I.12 on 2026-10-01, replacing the Phase 6 implementation instance (superseded; recoverable in Git history at `c0cca964064286c25dcf22c8f86038baaacd7ebe` and identified in the canonical `worklog.md` Phase 6 entry). Related issue: `ISSUES.md` §"Issue records (canonical schema)" **I-013**. This instance authorizes **only the corrective scope (§11)** — it does not authorize unrelated improvements, unrelated project-control state changes, or the next phase.
+> **Phase 7 planning/baseline handoff instance** — materialized from `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` per Part I §I.12 on 2026-10-02, replacing the fully executed CH-001 corrective-handoff instance (superseded; recoverable in Git history at `3657035ac878da98decd98929fb0deb45aed1fbe` and identified in the canonical `worklog.md` Phase 6 closure entry). This instance authorizes **only the Phase 7 planning, scope-definition, and pre-implementation-baseline scope (§3)** — it does **not** authorize Phase 7 implementation, any product/DB/deployment change, or any later phase (the architect's HARD RULE).
 
-### 1. Correction identity
+### Phase identity
 
 | Field | Value |
 |---|---|
-| Correction ID | `CH-001` (the first corrective handoff under the Phase 6 issue-control system; sequential from `CH-001`; never reused) |
-| Correction title | Correct the Phase 6 P2/P3 closure policy — remove the P2/P3 exception path that contradicts the Phase 5 closure-eligibility contract (R6) |
-| Current status | `CLOSED` — architect re-review `PASS` (2026-10-01): first review `CORRECTION_REQUIRED` → the correction was delivered as the commit `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884` ("docs: correct phase 6 p2 p3 closure policy", the immediate child of the correction baseline `c0cca964064286c25dcf22c8f86038baaacd7ebe`) → re-review `PASS` → issue I-013 → `RESOLVED` (architect-verified disposition) → Phase 6 `CLOSED`. The handoff is fully executed (correction + re-review + resolution + closure; see the Closure record below) |
-| Issued by | ChatGPT (architect / technical lead / reviewer / controller) |
-| Issue date | 2026-10-01 |
+| Phase number | 7 |
+| Phase name | AI Platform Core Foundation (Planning, Scope Definition & Pre-Implementation Baseline stage) |
+| Full designation | Phase 7 — AI Platform Core Foundation (planning stage) |
+| Current status | `PLANNED` — planning assignment received 2026-10-02 and executed by the developer (planning package delivered `[developer-reported]`, architect review **PENDING**); implementation NOT started and NOT authorized (in the implementation sense Phase 7 remains NOT STARTED) |
 | Repository | `Rilan-Dev/Clara-AI-Platform` (GitHub, private) |
 | Branch | `feature/ai-core-from-doable-source` |
+| Baseline commit | `3657035ac878da98decd98929fb0deb45aed1fbe` (the Phase 6 closure-record commit — "docs: record architect approval of phase 6"; the repository tip at issuance; the immediate child of the reviewed Phase 6 correction `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884`; correction baseline `c0cca964064286c25dcf22c8f86038baaacd7ebe` preserved) |
+| Architect | ChatGPT |
+| Developer | Z.AI |
+| Handoff date | 2026-10-02 |
 
-### 2. Related issue ID
+### Objective
 
-| Field | Value |
-|---|---|
-| Issue ID | `I-013` — `ISSUES.md` §"Issue records (canonical schema)" (the issue's lifecycle state and this correction's status are kept consistent per `ISSUES.md` §4) |
-| Issue severity | `P1` (architect-assigned at triage — a governance-contract correctness problem affecting phase-closure semantics; deliberately not P0 merely because it blocks Phase 6) |
-| Issue status at issuance | `CORRECTION_REQUIRED` (architect triage: `OPEN → TRIAGED → CORRECTION_REQUIRED`, 2026-10-01) |
-| Related prior corrections | none (the first correction cycle on this issue) |
+Establish the Phase 7 baseline and produce a complete implementation plan: perform the mandatory repository pre-flight; read and reconcile the complete project-control state; establish the Phase 7 starting point (explicit state table); determine the actual Phase 7 objective from the existing project-control records and the original project objective (continuing the broader objective of extracting and integrating reusable AI-platform capabilities from the Doable source into Clara AI Platform — without assuming every previously discussed capability belongs in Phase 7); investigate — without implementing — the existing Clara architecture across the full AI-platform scope; classify candidate capabilities (A Phase 7 candidate scope / B later-phase scope / C existing Clara capability / D Doable-source reference only / E blocked or dependency-gated) with repository evidence; produce the Phase 7 planning package (objective; scope/non-scope; capability inventory; existing-vs-missing matrix; Doable-source reuse matrix; architecture diagram/description; adapter boundaries; dependency graph; risk analysis; issue dependencies; database/security/multi-tenant/provider implications; testing strategy; verification gates A–F; acceptance criteria; rollback strategy; ordered implementation phases/sub-phases; explicit stopping boundary); persist it under the project-control conventions; validate; report; and STOP — **do not implement**.
 
-### 3. Related phase
+### Scope (approved)
 
-| Field | Value |
-|---|---|
-| Phase number / name | Phase 6 — Correction and Issue-Control Workflow |
-| Phase status | `CLOSED` — architect re-review `PASS` (2026-10-01) on the reviewed correction `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884`; the phase was closed by that `PASS` (only `PASS` closes a phase — D-009/D-020); issue I-013 is `RESOLVED`; Phase 7 has NOT started (only ChatGPT may authorize Phase 7) |
-| Review outcome that produced this correction | `CORRECTION_REQUIRED` — the architect's first review of the Phase 6 implementation, 2026-10-01; reviewed commit `c0cca964064286c25dcf22c8f86038baaacd7ebe` ("docs: establish phase 6 correction and issue control") |
-| Phase contract | `docs/project-control/CURRENT_PHASE.md` |
+1. Repository pre-flight verification (branch; clean tree; HEAD = origin; the Phase 6 closure commit `3657035a`; its parent `4dc8a573`; the correction baseline `c0cca964`; mainlines; immutable Doable-source ancestry/provenance; `vercel.json`; no product/DB/deployment changes after the Phase 6 closure) — read-only.
+2. Reading and reconciling the complete project-control state (`PROJECT_STATE.md`, `CURRENT_PHASE.md`, `NEXT_ACTION.md`, `VERIFICATION_STATE.md`, `ISSUES.md`, `RISKS.md`, `DECISIONS.md`, `ZAI_HANDOFF.md`, `VERIFICATION_CHECKLIST.md`, `sessions/README.md`, latest session records, root `worklog.md`, the Phase 1–6 closure/correction records, the 13-phase plan, and the Doable-source library governance) — read-only, preserving append-only rules.
+3. The Phase 7 starting-point state table; the objective determination; the read-only AI-platform architecture investigation (multi-provider, provider abstraction, model configuration, chat providers, realtime/voice providers, embeddings, AI generation, usage tracking, credits/quotas, tracing/observability, AI request lifecycle, provider failover, integrations, tools, MCP, agent runtime, agent work mode, memory, skills, attachments, image generation, persistence, analytics, audit, notifications, collaboration, templates, marketplace, automation — compared against the reusable Doable-source inventory).
+4. The capability classification A–E with repository evidence for every classification.
+5. The Phase 7 planning package documentation — created **only inside the existing project-control structure**, following its append-only/history rules: `docs/project-control/PHASE-7-PLAN.md`; this Part II instance replacement; the `CURRENT_PHASE.md` Phase 7 planning contract; the `VERIFICATION_STATE.md` planning evidence section; the consequential `PROJECT_STATE.md`/`NEXT_ACTION.md` reconciliation; the next valid `SESSION-*` record (`SESSION-011.md`) + index updates; the append-only `worklog.md` entry; a new `ISSUES.md` issue record for any newly discovered out-of-scope finding (I-014 — the vendored-library completeness/verifier finding).
+6. Validation runs of the existing read-only scripts (§ Testing requirements) and — where a validation script is required for the planning package — its creation following the existing repository convention (persisted outside the repository in the agent workspace, per the Phase 3/4/5 convention).
 
-### 4. Baseline commit
+### Non-scope (explicit)
 
-| Field | Value |
-|---|---|
-| Correction baseline | `c0cca964064286c25dcf22c8f86038baaacd7ebe` — the Phase 6 implementation commit (parent `f62326dbe1940a2a518567d66e720a4b407dbf26`). The developer verified per Part I §I.6 before executing: branch `feature/ai-core-from-doable-source`; HEAD = origin tip = `c0cca964`; clean working tree; mainlines unchanged; `b65725e5` ancestry intact; `vercel.json` unchanged. The correction commit must be the direct child of this baseline |
+- **No implementation**: do not modify `src/`, `packages/`, database migrations, Supabase, `vercel.json`; do not deploy anything; do not modify the immutable Doable source; do not introduce new product capabilities; do not begin provider integrations, agent runtime, MCP, or UI implementation. The planning handoff supplies no implementation authorization.
+- No modification of production branches (`Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, `main`); no force-push; no `b65725e5` modification; no secrets; no resolution of R-3/R-4/R-5, I-001, or I-007; no resolution of the newly recorded I-014 (architect triage); no modification of `DECISIONS.md`/`RISKS.md`; no rewriting of historical closure/correction records or session records; no fake approval records; no Phase 7 `PASS`/`CLOSED` claims; no Phase 8.
 
-### 5. Architect
+### Prerequisites
 
-**ChatGPT** — architect / technical lead / reviewer / controller. Only the architect may issue this corrective handoff, re-review the correction, and resolve the related issue.
+1. Phase 6 `CLOSED` with the closure baseline present exactly as expected (`3657035a` / parent `4dc8a573` / correction baseline `c0cca964`) — verified 2026-10-02 per §I.6.
+2. The architect's Phase 7 planning handoff (this instance's source), issued 2026-10-02.
+3. The existing project-control governance model (Phases 0–6) and the Doable-source immutable-source policy (`docs/doable-source/AGENTS.md`; D-007) — read and followed.
 
-### 6. Developer
+### Required reading
 
-**Z.AI** — developer / implementer. Executes only the corrective scope; self-verifies; records evidence; commits; pushes; reports; and STOPs at the correction boundary.
+`PROJECT_STATE.md` · `CURRENT_PHASE.md` (the preserved Phase 6 contract, in Git history at `3657035a`) · `NEXT_ACTION.md` · `VERIFICATION_STATE.md` (the durable verification/phase-gate contract and correction workflow) · `ISSUES.md` · `RISKS.md` · `DECISIONS.md` · `ZAI_HANDOFF.md` Part I · `VERIFICATION_CHECKLIST.md` · `sessions/README.md` + latest session records · root `worklog.md` · `docs/superpowers/plans/2026-10-01-clara-project-control-system.md` (the 13-phase plan) · `docs/doable-source/README.md`, `AGENTS.md`, `EXTRACTION_MANIFEST.md`, `ADAPTER_ARCHITECTURE.md`, `IMPLEMENTATION_PLAYBOOK.md`, `SOURCE_COVERAGE_MATRIX.md`, `COMPLETE_AI_PLATFORM_COVERAGE.md`, `capabilities/CATALOG.json`, `capabilities/DEPENDENCY_GRAPH.json`, `contracts/`, `adapters/`, `external-dependencies/external-dependencies.json`, `verification/` · the Clara source tree (read-only survey: `src/modules/**`, `src/app/api/**`, `src/components/admin/**`, `packages/**`, `src/lib/**`).
 
-### 7. Finding
+### Implementation tasks (numbered, deterministic — as executed)
 
-The Phase 6 issue-control system introduced a P2/P3 exception path inconsistent with the already-established Phase 5 closure-eligibility contract. In `ISSUES.md` and the Phase 6 contract, an acceptance-violating P2/P3 is correctly described as closure-blocking while unresolved, but the implementation then permits such an issue to remain unresolved if covered by a recorded architect-approved exception. This creates a new closure exception mechanism for unresolved blocking P2/P3 issues. The Phase 5 verification contract does not define such an exception. Phase 5 R6 requires "no unresolved blocking correction is open" — therefore an acceptance-violating P2/P3 that remains unresolved is still a blocking correction and cannot become closure-compatible merely because an exception is recorded.
+1. Pre-flight verification (§ Scope 1) — completed 2026-10-02; discrepancy handling: the expected closure baseline WAS present (no STOP); the observed external `Vercel-Prod` movement (`e0ead990` → `bae53a07`, PR #262) was recorded, not acted on.
+2. Read and reconcile the complete project-control state (§ Scope 2).
+3. Produce the Phase 7 starting-point state table (`PHASE-7-PLAN.md` §2).
+4. Determine the Phase 7 objective from records + original objective, with the explicit plan-ladder reconciliation proposal (`PHASE-7-PLAN.md` §3).
+5. Investigate the Clara AI-platform architecture and the Doable-source inventory read-only; build the capability inventory, existing-vs-missing matrix, and reuse map (`PHASE-7-PLAN.md` §5–§7).
+6. Classify candidate capabilities A–E with repository evidence (`PHASE-7-PLAN.md` §7.2).
+7. Produce the architecture proposal, adapter boundaries, and dependency graph (`PHASE-7-PLAN.md` §8–§10).
+8. Reconcile risks and issues (cross-check R-1…R-5, I-001/I-007/I-013, D-P2/D-P3/D-P4); record the newly discovered I-014 finding as a new OPEN issue (`PHASE-7-PLAN.md` §11–§12; `ISSUES.md`).
+9. Draft the acceptance criteria, Gates A–F verification design, testing strategy, rollback strategy, ordered sub-phases, and stopping boundary (`PHASE-7-PLAN.md` §17–§22).
+10. Persist the package (§ Scope 5) and validate (§ Testing requirements).
+11. Commit (§ Git requirements), push, deliver the completion report, and STOP (§ STOP boundary).
 
-### 8. Evidence
-
-- [architect-verified] The architect's corrective handoff on the Phase 6 implementation (2026-10-01): review outcome `CORRECTION_REQUIRED`; correction baseline `c0cca964064286c25dcf22c8f86038baaacd7ebe`; the finding (§7 above) and the required canonical rule (§10 below) as communicated by ChatGPT. No repository commands are claimed on ChatGPT's behalf.
-- [developer-reported, Git-verifiable] The contradictory wording as delivered at `c0cca964`: `ISSUES.md` §1 severity model, P2 row — "it may be cleared only by resolution (`RESOLVED`) or by an explicitly recorded architect-approved exception (the same `DECISIONS.md` mechanism …)"; P3 row — "if acceptance-violating, it blocks while unresolved unless resolved or covered by a recorded architect-approved exception"; `VERIFICATION_STATE.md` §"Correction and issue-control workflow" R6 mapping — "P2/P3 iff the issue violates an acceptance criterion … without a recorded architect-approved exception"; `CURRENT_PHASE.md` correction-workflow model summary — "then they block while unresolved unless resolved or covered by a recorded architect-approved exception"; `verification/correction-cycle-test.sh` — the P2/P3 blocking branch conditioned on `[ "$exceptioned" -eq 0 ]`.
-
-### 9. Why the finding blocks acceptance
-
-The Phase 5 contract is canonical and already binding (D-020): R5 = P1 count is zero, or every P1 has an approved exception; R6 = no unresolved blocking correction is open. An acceptance-violating P2/P3 is explicitly classified by Phase 6 as a blocking issue; therefore, while unresolved, R6 fails and the phase cannot close. The Phase 6 workflow is contractually forbidden from creating a second verification system or bypassing R1–R7 (`VERIFICATION_STATE.md` §"Correction and issue-control workflow"), so there must not be an additional Phase 6 rule that bypasses R6. The contradiction also violates the Phase 6 acceptance criteria requiring P0/P1 behavior to remain consistent with Phase 5 (the severity model's closure semantics must not contradict the closure-eligibility contract) — hence the phase could not receive `PASS` until corrected.
-
-### 10. Exact correction required
-
-Correct the Phase 6 policy to the canonical rule:
-
-> **P2/P3 do not automatically block phase closure. If a P2/P3 violates an active phase acceptance criterion or another explicit blocking condition, it becomes a blocking issue and remains closure-blocking while unresolved. Phase 6 introduces no P2/P3 exception mechanism.**
-
-The severity distinction must remain:
-
-- **P0** — P0 always blocks phase closure. No exception path exists. (Unchanged.)
-- **P1** — P1 blocks `PASS` unless the existing Phase 5 architect-approved P1 exception mechanism applies. (Unchanged.)
-- **P2/P3** — P2/P3 do not automatically block closure. If acceptance-violating or otherwise explicitly blocking, they block while unresolved. They must be resolved before closure. Phase 6 does not introduce a P2/P3 exception path.
-
-Do not weaken the existing P0 or P1 rules. Do not create or imply any P0 exception, P2 exception, P3 exception, generic severity exception, or blocking-correction exception. The issue lifecycle remains unchanged — the correction is about **closure semantics for P2/P3**, not the lifecycle. The correction must be traceable in the issue-control system (issue record; this CH-001 instance), and the deterministic test must be corrected to prove the semantics.
-
-### 11. Approved correction scope
+### Files / components
 
 | Path | Action | Bounded change |
 |---|---|---|
-| `docs/project-control/ISSUES.md` | modify | The severity-model wording (P2/P3 closure-effect rows; the P1 row's only-exception clarifier; the §4 status-relationship row) + the I-013 canonical issue record; legacy entries I-001…I-012 preserved unrewritten |
-| `docs/project-control/VERIFICATION_STATE.md` | modify | The R6-mapping wording (§"Correction and issue-control workflow"); the Phase 6 corrective-cycle records (intro, implementation-state/correction rows, review trail, outstanding state); the state-machine consistency table; the appendix Phase 6 command block |
-| `docs/project-control/CURRENT_PHASE.md` | modify | The severity-model summary (correction-workflow model); the current-state wording (phase state, Phase identity, baseline, verification requirements, git constraints) |
-| `docs/project-control/verification/correction-cycle-test.sh` | modify | The P2/P3 blocking determination (exception flag no longer clears an acceptance-violating P2/P3); severity-edge fixtures proving the corrected semantics; comments; no P0-case or P1-exception-model change |
-| `docs/project-control/ZAI_HANDOFF.md` | modify | Part II replaced with this CH-001 corrective-handoff instance (per Part I §I.5/§I.12); Part I untouched |
-| `worklog.md` | modify | The Phase 6 corrective-cycle note appended (append-only; the implementation entry unrewritten) |
-| `docs/project-control/sessions/SESSION-009.md` | create | The Phase 6 correction session record (per the sessions conventions) |
-| `docs/project-control/sessions/README.md` | modify | The SESSION-009 index row |
-| `docs/project-control/PROJECT_STATE.md` | modify | Consequential current-state reconciliation only (the durable state must distinguish the Phase 6 implementation commit from the Phase 6 correction commit with the architect re-review PENDING — entailed by the Final State Contract consistency requirement, per the established Phase 4/5/6 reconciliation convention) |
-| `docs/project-control/NEXT_ACTION.md` | modify | Consequential current-state reconciliation only (same entailment) |
+| `docs/project-control/PHASE-7-PLAN.md` | create | the Phase 7 planning package (documentation only) |
+| `docs/project-control/CURRENT_PHASE.md` | modify | the Phase 7 planning-stage contract (the Phase 6 contract is preserved in Git history at `3657035a`) |
+| `docs/project-control/ZAI_HANDOFF.md` | modify | Part II replaced with this instance (Part I untouched) |
+| `docs/project-control/VERIFICATION_STATE.md` | modify | the Phase 7 planning evidence section + consistency-table reconciliation + appendix command block |
+| `docs/project-control/PROJECT_STATE.md` | modify | reconciled to Phase 7 `PLANNED` (current phase; commit-state rows; last-architect-verification entry; active issues + I-014; next action; session-records row) |
+| `docs/project-control/NEXT_ACTION.md` | modify | the authorization-boundary continuation instruction |
+| `docs/project-control/ISSUES.md` | modify | I-014 appended under §"Issue records (canonical schema)" (OPEN, `[developer-reported]`, awaiting architect triage); preamble next-ID note updated; legacy entries untouched |
+| `worklog.md` | modify | append-only Phase 7 planning entry |
+| `docs/project-control/sessions/SESSION-011.md` | create | this session's audit record |
+| `docs/project-control/sessions/README.md` | modify | SESSION-011 index row |
+| `/home/z/my-project/scripts/verify-doable-extraction-in-clara-layout.sh` (agent workspace, outside the repository) | create | the persisted read-only scratch-harness for running the library's extraction verifier against the Clara layout (gate-evidence tooling, per the Phase 3/4/5 out-of-repository convention) |
+| `src/**`, `packages/**`, `src/lib/db/migrations/**`, `supabase/**`, `vercel.json`, `docs/doable-source/**` (immutable trees), `DECISIONS.md`, `RISKS.md`, templates, verification scripts | **inspect only** | no changes |
 
-### 12. Explicit non-scope
+### Interfaces / contracts
 
-- No product code (`src/**`, `packages/**`), no dependencies, no database schema/migrations, no Supabase mutations, no Vercel operations, no `vercel.json` changes.
-- No production-branch work (`Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, `main`); no force-push; no rewriting/amending/reverting of `b65725e5` or any historical commit.
-- No immutable Doable-source trees (`docs/doable-source/doable-source/**`, `docs/doable-source/dependency-closure/**`, `docs/doable-source/ui-reference/**`).
-- No unrelated control-document changes; no unrelated issues fixed; no unrelated refactoring; no architecture changes outside this handoff; no silently altered acceptance criteria; no issue-lifecycle redesign; no weakening of the P0 or P1 rules.
-- No next-phase work or artifacts; no product-feature specifications or implementation plans (no Multi-Provider, Unified Tool Runtime, Integrations, MCP, Agent Runtime, Agent Work Mode, Memory, Skills, analytics, usage monitoring, voice/RAG implementation).
-- No secrets, credentials, access tokens, private chain-of-thought, or sensitive runtime payloads introduced anywhere.
-- No R-3/R-4/R-5 resolution and no credential rotation.
-- No rewriting of historical records (`SESSION-008.md`, the `worklog.md` Phase 6 implementation entry, the Phase 6 validation history, the Phase 0–5 records).
+- The Final State Contract: `PROJECT_STATE.current_phase` = `CURRENT_PHASE.phase` = `NEXT_ACTION.phase` = `ZAI_HANDOFF.phase` (Part II) = `VERIFICATION_STATE.phase` = the latest `worklog.md` entry — all at **Phase 7, `PLANNED`** (planning delivered; implementation not authorized; architect review PENDING) after this commit.
+- The canonical status vocabulary (D-011) and the evidence classes (D-012) are used unchanged; no competing verification/source-of-truth is created (one planning package, one handoff instance, one issue register).
+- The Phase 5 verification/phase-gate contract (D-020) and the Phase 6 correction/issue-control workflow remain binding; the Phase 7 gates design in `PHASE-7-PLAN.md` §18 maps onto them without duplicating them.
+- The immutable-source policy (D-007) and the Doable-source library's own governance (`docs/doable-source/AGENTS.md`) remain in force; the planning package treats `doable-source-extensions/**` as immutable-by-provenance in addition to the three D-007 roots.
 
-### 13. Required reading
-
-1. The related issue record — `ISSUES.md` §"Issue records (canonical schema)" (I-013) + §"Issue-control system" (severity model; lifecycle; schema; status relationship; traceability);
-2. `VERIFICATION_STATE.md` — §"Verification and phase-gate contract" (esp. closure eligibility R1–R7 and the P0/P1 blocker rule), §"Correction and issue-control workflow" (the R6 mapping), §Phase 6 (the evidence section and the review trail);
-3. The canonical correction-handoff form — `templates/CORRECTION_HANDOFF_TEMPLATE.md` (the 22 sections; integrity rules);
-4. `CURRENT_PHASE.md` (the Phase 6 contract) and this file's Part I (esp. §I.5, §I.6, §I.8, §I.9, §I.12);
-5. The affected documents: `ISSUES.md` §1 severity rows; `VERIFICATION_STATE.md` R6 mapping; `CURRENT_PHASE.md` severity summary; `verification/correction-cycle-test.sh`;
-6. The Phase 5 P0 correction precedent (`fb4ad5f5`; `SESSION-006.md` corrective note; the `worklog.md` Phase 5 correction note) — the established correction-recording conventions;
-7. `sessions/README.md` (the session-record conventions) and repository-root `worklog.md` (§3.1 append-only convention).
-
-### 14. Implementation tasks (numbered, deterministic)
-
-1. Complete the mandatory initialization (Required reading above; repository refresh per Part I §I.6 — verify branch `feature/ai-core-from-doable-source`, HEAD = origin tip = `c0cca964`, clean tree, mainlines unchanged, `b65725e5` ancestry intact, `vercel.json` unchanged; if the baseline has moved unexpectedly: STOP).
-2. Correct the canonical severity model in `ISSUES.md` §1 — the P2/P3 closure-effect rows state the canonical rule (no P2/P3 exception mechanism; resolution required); the P1 row's parenthetical clarifies P0 and P2/P3 have no exception; the §4 status-relationship row carries the same clarification. Legacy entries untouched.
-3. Correct the R6 mapping in `VERIFICATION_STATE.md` §"Correction and issue-control workflow" — remove the "without a recorded architect-approved exception" qualifier from the P2/P3 blocking determination; state that Phase 6 introduces no P2/P3 exception mechanism.
-4. Correct the severity-model summary in `CURRENT_PHASE.md` (correction-workflow model) — same canonical rule.
-5. Create the issue record I-013 in `ISSUES.md` §"Issue records (canonical schema)" per the full 22-field schema (severity P1; status advanced to `REVIEW_PENDING` at submission; architect review status `pending`).
-6. Correct the deterministic model in `verification/correction-cycle-test.sh` — the P2/P3 blocking determination ignores the exception flag; add fixtures proving: non-acceptance-violating P2/P3 do not automatically block closure; acceptance-violating P2 and P3 block; an unresolved acceptance-violating P2/P3 with an alleged architect exception remains closure-ineligible (FAIL). Do not alter the P0 cases; do not alter the P1 exception model; the test still models state transitions only and claims no actual architect review.
-7. Record the corrective cycle in `VERIFICATION_STATE.md` §Phase 6 (the correction rows, the architect-review-trail entry for the `CORRECTION_REQUIRED` outcome + CH-001 issuance, the correction-validation table, the outstanding re-review state) and reconcile the state-machine consistency table.
-8. Replace Part II of this file with this CH-001 instance (per §I.12; the Phase 6 implementation instance is superseded — recoverable at `c0cca964`).
-9. Consequential current-state reconciliation: `PROJECT_STATE.md` and `NEXT_ACTION.md` updated to the corrective-cycle state (Phase 6 `IN_PROGRESS`; implementation reviewed → `CORRECTION_REQUIRED`; correction submitted, developer-reported; architect re-review PENDING; issue I-013 open at `REVIEW_PENDING`).
-10. Apply the audit updates: append the `worklog.md` corrective-cycle note (append-only; the Phase 6 implementation entry unrewritten); create `sessions/SESSION-009.md` + its `sessions/README.md` index row.
-11. Execute the validation suite (§17); record commands and results in `VERIFICATION_STATE.md` §Phase 6 correction validation.
-12. Commit as `docs: correct phase 6 p2 p3 closure policy` — the immediate child of `c0cca964`; push to `origin/feature/ai-core-from-doable-source`; verify clean status and sync.
-13. Deliver the developer-reported correction completion report (§20) and STOP.
-
-### 15. Interfaces / contracts
-
-- **Control-document contracts** (Phase 1): required fields and headings intact; only dated state values and the corrected closure semantics reconciled.
-- **Final State Contract** (plan): `PROJECT_STATE.current_phase` = `CURRENT_PHASE.phase` = `NEXT_ACTION.phase` = `ZAI_HANDOFF.phase` (this Part II Phase identity) = `VERIFICATION_STATE.phase` = latest worklog phase = **Phase 6 — Correction and Issue-Control Workflow, `IN_PROGRESS`** — with the corrective-cycle state recorded consistently (implementation reviewed → `CORRECTION_REQUIRED`; correction submitted, developer-reported; architect re-review PENDING; issue I-013 `REVIEW_PENDING`).
-- **Verification and phase-gate contract** (Phase 5; D-020): unchanged and binding — Gates A–F, applicability, review-outcome semantics, the P0/P1 blocker rule, closure eligibility R1–R7. **R6 remains authoritative for unresolved blocking corrections.**
-- **Issue-control system** (Phase 6; canonical in `ISSUES.md`): the issue lifecycle vocabulary and severity model P0–P3 with the corrected P2/P3 closure semantics — distinct from, and deterministically related to, the phase-status vocabulary (D-011). The lifecycle itself is unchanged.
-- **Status vocabulary** (D-011) and **evidence classes** (D-012): unchanged and binding.
-- **`b65725e5` handling rules** (standing): accepted as an already-existing repository event; not rewritten/reverted/amended; `vercel.json` non-scope; provenance reported as not independently established.
-- **Handoff integrity** (D-017 / Part I §I.6): unchanged and binding for this instance.
-
-### 16. Security constraints
+### Security constraints
 
 - No secrets, credentials, access tokens, private chain-of-thought, or sensitive runtime payloads may be written (the R-5 Vercel token is referenced but never reproduced).
-- No fabricated timestamps; no unsupported claims; observable evidence only.
-- Tenancy boundaries and authorization requirements: documentation-only — no application security surface.
+- No fabricated timestamps; no unsupported claims; observable evidence only; a future/intended architect review is never written as already completed.
+- Documentation-only assignment — no application security/tenancy surface is touched.
 - Immutable-source boundaries (D-007) and production-branch restrictions (D-008) remain in force; no deployment operations; no force-push.
 
-### 17. Testing requirements (validation before commit)
+### Testing requirements (validation before commit — this stage)
 
 | # | Check | Method | Expected evidence |
 |---|---|---|---|
-| 1 | Model config | `npm run validate:model-config` | PASS (lightweight check — explicitly not interpreted as sufficient correction verification) |
-| 2 | Corrected correction-cycle test | `bash docs/project-control/verification/correction-cycle-test.sh` | **24/24 determinations correct, exit 0** — including: P2 unresolved + non-acceptance-violating → does not automatically block closure (PASS); P2 unresolved + acceptance-violating → closure FAIL; P3 unresolved + acceptance-violating → closure FAIL; acceptance-violating P2/P3 + unresolved + architect exception → **closure FAIL** (rejected); P0 cases unaltered; P1 exception model unaltered |
-| 3 | Phase 5 regression | `bash docs/project-control/verification/phase-closure-eligibility-test.sh` | **8/8 determinations correct, exit 0**; P0 present → closure eligibility FAIL (case-3) |
-| 4 | Canonical-rule presence | `rg -n 'Phase 6 introduces no P2/P3 exception mechanism' docs/project-control/{ISSUES,VERIFICATION_STATE,CURRENT_PHASE}.md` | present in all three carriers |
-| 5 | Semantic-contradiction absence | repository-wide search for the old semantic patterns (`P2/P3 exception`, `acceptance-violating P2/P3 … exception`, `P2 exception`, `P3 exception`, `blocking P2/P3 … architect-approved exception`) | no live rule carries the exception semantics; remaining occurrences are historical finding quotations (the I-013 record, corrective-cycle evidence, review trail, worklog/session notes) |
-| 6 | P0/P1 rules + lifecycle unchanged | diff vs `c0cca964` on the P0/P1 rows and `ISSUES.md` §2; the P0/P1 blocker rule in `VERIFICATION_STATE.md` | byte-identical rule bodies (P1 row's parenthetical clarifier is the only P1-row touch) |
-| 7 | Legacy issue entries preserved | `git diff c0cca964 -- docs/project-control/ISSUES.md` | I-001…I-012 byte-identical; additions only |
-| 8 | Changed-path scope check | `git show --name-only --format=HEAD` | every changed path within `worklog.md` + `docs/project-control/**` |
-| 9 | Immutable-source / production-branch check | diff vs `c0cca964` on protected paths; ref check | immutable trees untouched; production refs unchanged; no force-push; `b65725e5` ancestry intact |
-| 10 | Secret-pattern scan | credential/token patterns across all changed paths | no matches |
-| 11 | Final State Contract consistency | cross-member phase/status check | Phase 6 `IN_PROGRESS` + the corrective-cycle state agree across the five members + the worklog |
-| 12 | Git hygiene | `git status --porcelain`; `git rev-parse HEAD origin/feature/ai-core-from-doable-source` | clean tree after commit; local = origin after push; the commit is the immediate child of `c0cca964` |
+| 1 | Model config | `npm run validate:model-config` | PASS (lightweight — never sufficient alone) |
+| 2 | Phase 5 deterministic regression | `bash docs/project-control/verification/phase-closure-eligibility-test.sh` | 8/8 determinations correct, exit 0; P0 present → closure eligibility FAIL |
+| 3 | Phase 6 deterministic regression | `bash docs/project-control/verification/correction-cycle-test.sh` | 24/24 determinations correct, exit 0 |
+| 4 | Library metadata validation | `node verification/validate-library.mjs` (from `docs/doable-source/`) | PASS (21 capabilities · 21 manifests · 30 edges · 0 errors) |
+| 5 | Extraction integrity (scratch harness) | `bash /home/z/my-project/scripts/verify-doable-extraction-in-clara-layout.sh` | 771/771 present pinned blobs byte-identical to the Doable baseline; all failures confined to the absent `mcp-servers/` family (I-014); `requiredFiles`/`packageHardening`/`externalDependencyInventory`/`uiReferenceFiles` PASS |
+| 6 | Immutable-source / production-branch check | `git diff 03482584 HEAD --stat -- <immutable trees>` (empty); refs check; `vercel.json` diff vs `b65725e5` (empty) | untouched; mainlines recorded (with the external `Vercel-Prod` movement recorded, not acted on); no force-push |
+| 7 | Changed-path scope check | `git show --name-only --format=HEAD` | every changed path within `worklog.md` + `docs/project-control/**` |
+| 8 | Secret-pattern scan | credential/token patterns across all changed paths | no matches |
+| 9 | Final State Contract consistency | cross-member phase/status check | Phase 7 `PLANNED` agree across the five members + the latest worklog entry |
+| 10 | Git hygiene | `git status --porcelain`; `git rev-parse HEAD origin/feature/ai-core-from-doable-source` | clean tree after commit; local = origin after push; the commit is the immediate child of `3657035a` |
 
-The reusable aggregate correction-validation script stays outside the repository (`/home/z/my-project/scripts/validate-phase6-p2p3-correction.sh`, staged + post-commit HEAD modes), per the Phase 3/4/5 convention.
+### Acceptance criteria (pass/fail — evaluated by the architect at review of the planning package)
 
-### 18. Acceptance criteria (pass/fail — evaluated by the architect at re-review)
+1. The verified baseline table is complete and evidence-backed — PASS/FAIL.
+2. The objective determination presents both repository records and the reconciliation proposal without enacting it — PASS/FAIL.
+3. Every A–E classification carries repository evidence — PASS/FAIL.
+4. The capability inventory covers the handoff's full AI-platform scope and distinguishes exists/missing/partial/reuse/adapter-required/outside-boundary/not-in-Phase-7 — PASS/FAIL.
+5. The architecture distinguishes immutable reusable core / Clara host integration+adapters / existing Clara infrastructure / future work — PASS/FAIL.
+6. The dependency graph identifies prerequisites, ordering constraints, and shared infrastructure — PASS/FAIL.
+7. The risk/issue reconciliation cross-checks open issues/risks/decisions and marks dependency-gated capabilities — PASS/FAIL.
+8. Acceptance criteria are measurable and categorized (functional/architectural/security/multi-tenant/provider/persistence/observability/testing/regression/immutable-source/deployment) — PASS/FAIL.
+9. Gates A–F preserve the established governance rules (P0 always blocks; P1-only exception; no P2/P3 exception; developer claims/tree/build/deployment never substitute for review) — PASS/FAIL.
+10. The stopping boundary is explicit — PASS/FAIL.
+11. The package is persisted under the project-control append-only conventions (session record; index updates; no historical rewrites) — PASS/FAIL.
+12. The I-014 finding is recorded as an OPEN issue for architect triage — PASS/FAIL.
+13. No product/DB/deployment/immutable-source changes occur — PASS/FAIL.
+14. No secrets/private reasoning are introduced — PASS/FAIL.
+15. Phase 7 is not marked `PASS`/`CLOSED`; no architect approval is claimed — PASS/FAIL.
+16. Final State Contract is consistent — PASS/FAIL.
+17. Validation passes/results are recorded — PASS/FAIL.
+18. Git tree clean; branch synchronized — PASS/FAIL.
+19. No Phase 7 implementation and no Phase 8 work is started — PASS/FAIL.
 
-1. P0 remains unconditionally closure-blocking — PASS/FAIL.
-2. P1 retains the existing Phase 5 exception mechanism — PASS/FAIL.
-3. P2/P3 do not automatically block closure — PASS/FAIL.
-4. Acceptance-violating P2/P3 are explicitly closure-blocking while unresolved — PASS/FAIL.
-5. No P2/P3 exception mechanism exists — PASS/FAIL.
-6. R6 remains authoritative for unresolved blocking corrections — PASS/FAIL.
-7. The Phase 6 issue-control system does not contradict Phase 5 — PASS/FAIL.
-8. The deterministic test proves non-acceptance-violating P2/P3 are non-blocking — PASS/FAIL.
-9. The deterministic test proves acceptance-violating P2/P3 are blocking — PASS/FAIL.
-10. The deterministic test rejects an unresolved acceptance-violating P2/P3 with an alleged exception — PASS/FAIL.
-11. The Phase 5 regression remains 8/8 — PASS/FAIL.
-12. No unrelated lifecycle semantics are changed — PASS/FAIL.
-13. No unrelated project-control documents are modified — PASS/FAIL.
-14. No product/DB/deployment/immutable-source changes occur — PASS/FAIL.
-15. Evidence is classified correctly — PASS/FAIL.
-16. Phase 6 remains `IN_PROGRESS` — PASS/FAIL.
-17. Architect review remains `PENDING` — PASS/FAIL.
-18. The correction is recorded in the issue-control system — PASS/FAIL.
-19. Worklog history is append-only — PASS/FAIL.
-20. Final State Contract remains consistent — PASS/FAIL.
-21. Working tree is clean — PASS/FAIL.
-22. Local branch is synchronized with origin — PASS/FAIL.
-
-### 19. Git requirements
+### Git requirements
 
 - Permitted branch: `feature/ai-core-from-doable-source` only; never `Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, `main`; no force-push.
-- One focused correction commit: `docs: correct phase 6 p2 p3 closure policy` — the immediate child of the correction baseline `c0cca964064286c25dcf22c8f86038baaacd7ebe`; changed paths limited to the approved correction scope (§11); no unrelated changes ride along; no squashing of unrelated history. If the baseline has moved unexpectedly: STOP — do not rebase or force-push without a refreshed architect handoff.
-- Push normally to `origin/feature/ai-core-from-doable-source`; do not amend the baseline or the Phase 6 implementation commit.
+- One focused documentation-only planning commit: `docs: establish phase 7 planning package` — the immediate child of `3657035ac878da98decd98929fb0deb45aed1fbe`; changed paths limited to the repository-root `worklog.md` and `docs/project-control/**`; no unrelated changes; no squashing of unrelated history. If the baseline has moved unexpectedly: STOP — no rebase or force-push without a refreshed architect handoff.
+- Push normally to `origin/feature/ai-core-from-doable-source`; do not amend the baseline or any historical commit.
 
-### 20. Evidence requirements
+### Evidence requirements
 
-The developer-reported correction completion report (per Part I §I.7 and the architect's corrective handoff §19) must provide: the issue ID (I-013); the correction ID (CH-001); the finding (the P2/P3 closure-exception contradiction); the baseline (`c0cca964064286c25dcf22c8f86038baaacd7ebe`); the exact changed-file list; the canonical rule after correction; confirmation that P0 and P1 are unchanged; the corrected P2/P3 semantics; the deterministic correction-cycle test result; the Phase 5 regression result; the model-config result; other validation results; the correction commit SHA; working tree CLEAN; remote SYNCED; architect review PENDING. All reported as developer-reported evidence until the architect re-reviews — no `PASS` claimed, no `RESOLVED` claimed, no phase closure claimed.
+The developer completion report (per Part I §I.7) must provide: the verified baseline (exact SHA/branch; Phase 6 closure ancestry; mainline state incl. the observed external `Vercel-Prod` movement); confirmation Phase 6 remains `CLOSED`; confirmation Phase 7 implementation was NOT started (no implementation authorization was present in this handoff); the proposed Phase 7 scope (capability list) and non-scope; the reuse map (Doable source → Clara adapters/integration boundaries); the ordered dependency list; the acceptance criteria; the Gates A–F applicability; the exact files changed; the exact validation commands and results; the new I-014 finding summary; the commit SHA; working tree CLEAN; remote SYNCED; architect review of the planning package PENDING — all `[developer-reported]`; no `PASS`, no approval, no closure claimed.
 
-### 21. Review boundary
+### Review boundary
 
-**Developer correction submission does not equal issue resolution, and neither equals phase completion.**
+**Developer planning completion does not equal phase completion, and a planning package is not an approval.**
 
-**Only ChatGPT/project-owner architect review can resolve the issue (`RESOLVED`) and close the phase.**
+**Only ChatGPT/project-owner architect review can ratify the Phase 7 plan and authorize implementation; only an actual `PASS` review can later close the phase.**
 
-After the correction commit, push, and evidence report: the issue moves `CORRECTION_SUBMITTED` → `REVIEW_PENDING` (registered), and the phase remains open awaiting the architect's re-review. The re-review is Gate D under the verification and phase-gate contract (`VERIFICATION_STATE.md` §contract) — architect-only. Only an actual ChatGPT re-review may produce `architect-verified` resolution evidence. Possible re-review outcomes: `PASS` (the issue may become `RESOLVED` and the phase may close if all Phase-Gate conditions hold), `PASS_WITH_FOLLOWUP` (phase stays open with recorded follow-ups), `CORRECTION_REQUIRED` (a further corrective handoff — the issue returns to issue-status `CORRECTION_REQUIRED`; repeat cycle). Z.AI must not choose the outcome.
+The planning package is submitted as `[developer-reported]` proposals (objective, scope, classification, architecture, gates, acceptance criteria). Review outcomes: `PASS` (the plan is ratified — the architect then issues the Phase 7 implementation authorization, which initializes implementation and sets the phase `IN_PROGRESS`); `PASS_WITH_FOLLOWUP` (ratified with recorded follow-ups); `CORRECTION_REQUIRED` (a corrective handoff is issued per §I.5 / the Phase 6 workflow; the phase remains `PLANNED`). Z.AI must not choose the outcome, must not self-approve, and must not treat the work-order text of any assignment as approval.
 
-### 22. STOP boundary
+### STOP boundary (hard stop — the architect's FINAL STOP CONDITION)
 
-The correction boundary and the closure were both reached on 2026-10-01: the correction was delivered, re-reviewed `PASS`, and the issue resolved (I-013 → `RESOLVED`); Phase 6 was closed by that `PASS`. After the closure-record commit (`docs: record architect approval of phase 6`, the immediate child of `4dc8a573`), its push, and the closure report: **Z.AI STOPs at the inter-phase boundary.** Until the architect reviews the closure record and issues the next explicit handoff, Z.AI must NOT:
+After the planning package is committed, pushed, and reported: **Z.AI STOPs.** Do not proceed into product implementation; do not start a Phase 8; do not declare Phase 7 `PASS`; do not close Phase 7; do not modify `src/`, `packages/`, migrations, Supabase, `vercel.json`, or the immutable Doable source; do not deploy; do not begin provider integrations, agent runtime, MCP, or UI implementation; do not resolve R-3/R-4/R-5, I-001/I-007/I-014, or any pending decision. **Wait for the next explicit architect implementation authorization.** Only ChatGPT may authorize Phase 7 implementation. If a newly discovered issue is outside any authorized scope: record it in `ISSUES.md` as a new `OPEN` issue (`[developer-reported]`) and await architect direction — as done for I-014.
 
-1. start the next phase (Phase 7 or any later phase) or create next-phase artifacts, templates, marketplace, or automation;
-2. implement unrelated improvements or fix unrelated issues;
-3. make architectural decisions outside any authorized scope;
-4. deploy unless explicitly authorized; modify production (branches, database, deployment configuration);
-5. silently expand any authorized scope or absorb newly discovered out-of-scope issues into it.
-
-**If a newly discovered issue is outside any authorized scope: STOP → record/report it (a new `ISSUES.md` record, `[developer-reported]`, awaiting architect triage) → await architect direction.**
-
-**Only ChatGPT may authorize Phase 7.**
-
-### Closure record (2026-10-01)
-
-**Architect re-review of the corrected Phase 6 state — outcome `PASS` → Phase 6 `CLOSED`; issue I-013 → `RESOLVED`.** Architect: **ChatGPT**. Developer: **Z.AI**. Reviewed correction commit: `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884` ("docs: correct phase 6 p2 p3 closure policy" — the corrected Phase 6 state; the immediate child of the Phase 6 implementation commit `c0cca964064286c25dcf22c8f86038baaacd7ebe`; verified relationship `c0cca964 → 4dc8a573`; correction baseline `c0cca964` preserved). The architect's first review of the Phase 6 implementation (2026-10-01) returned `CORRECTION_REQUIRED` — the P2/P3 closure-exception contradiction (issue I-013, this corrective handoff CH-001); the corrective commit delivered the correction; the architect's re-review of the corrected state returned `PASS`. Scope verification: documentation-only. The corrected state satisfies the Phase 6 acceptance criteria — the canonical P2/P3 rule is unambiguous and consistent with Phase 5 R6 (**P2/P3 do not automatically block phase closure; if acceptance-violating or otherwise explicitly blocking, they block while unresolved and must be resolved before closure; Phase 6 introduces no P2/P3 exception mechanism** — the P2/P3 contradiction is resolved), the P0 rule (unconditionally closure-blocking; no exception path) and the P1 exception mechanism are unchanged, the issue lifecycle is unchanged, and the corrected deterministic test proves the semantics (24/24 determinations correct, exit 0 — including the rejection of an unresolved acceptance-violating P2/P3 with an alleged architect-approved exception; Phase 5 regression 8/8 with P0 present → closure eligibility FAIL). Issue I-013 disposition: **`RESOLVED`** — recorded with `[architect-verified]` resolution evidence in `ISSUES.md` §"Issue records (canonical schema)". The closure handoff supplies no separate review timestamp; none is fabricated. [architect-verified — as communicated by the architect in the Phase 6 closure handoff]
-
-**Phase 7 is the next phase (per the plan) and the next authorized phase; it has NOT started.** No Phase 7 handoff has been issued; no Phase 7 implementation has been performed; no product implementation has been performed. [architect-verified]
-
-This instance is fully executed and its phase is closed; it remains materialized here until the architect issues the Phase 7 handoff, at which point Part II is replaced with the Phase 7 instance per §I.12 (this instance remains recoverable in Git history at the closure-record commit and in the canonical `worklog.md`). The closure record itself is committed as `docs: record architect approval of phase 6` — the immediate child of `4dc8a573` — and records the architect's approval; the closure-record commit is **not** the reviewed correction (the reviewed correction is `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884`; its SHA is not replaced by the closure-record SHA in any field identifying the reviewed correction). The `b65725e5` handling rules above remain in force: provenance not independently established (never described as confirmed owner authorship); not modified, amended, reverted, or rewritten; `vercel.json` non-scope. The historical Phase 6 worklog entry is preserved unrewritten; the closure appears as a subsequent append-only architect-verified event. Z.AI is STOPped at the inter-phase boundary — awaiting the ChatGPT architect's review of the closure record and the explicit Phase 7 handoff. [developer-reported]
