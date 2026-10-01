@@ -511,20 +511,20 @@ The planning-stage aggregate evidence (harness + report) is persisted outside th
 
 ---
 
-## State-machine consistency (Final State Contract)
+## State-machine consistency (Final State Contract, plan §Final State Contract)
 
-| Member | Current value | Agreement |
+| Field | Value (2026-10-02, at the Phase 7 planning-package commit — authorization boundary) | Agreement |
 |---|---|---|
-| VERIFICATION_STATE.phase | Phase 7 — AI Platform Core Foundation — **IN_PROGRESS** | ✓ |
-| PROJECT_STATE.current_phase | Phase 7 — AI Platform Core Foundation — **IN_PROGRESS** | ✓ |
-| CURRENT_PHASE.phase | Phase 7 implementation contract — **IN_PROGRESS** | ✓ |
-| NEXT_ACTION.phase | Phase 7 — **IN_PROGRESS**; 7-A is next; awaiting architect review after 7-A | ✓ |
-| ZAI_HANDOFF.phase | Phase 7 implementation handoff — **IN_PROGRESS**; 7-A next; 7-B requires subsequent architect PASS | ✓ |
-| latest worklog phase entry | Phase 7 — planning-package architect review — **PASS**; implementation authorized 7-A/7-B | ✓ |
-| latest architect review | Phase 7 planning package — **PASS**, 2026-10-02 | ✓ |
-| implementation baseline | f2c403f11fb944b23eb31cef9de07f8bfb7695d8 | ✓ |
+| `VERIFICATION_STATE.phase` | Phase 7 — AI Platform Core Foundation, **`PLANNED`** (the Phase 7 planning section above — planning handoff issued by the architect 2026-10-02 [architect-verified workflow action]; planning package delivered [developer-reported]; architect review PENDING; implementation NOT started, NOT authorized); Phases 0–6 all `CLOSED` | ✓ (this register) |
+| `PROJECT_STATE.current_phase` | Phase 7 — AI Platform Core Foundation, `PLANNED` (planning stage; implementation not authorized) | ✓ (reconciled by this planning commit) |
+| `CURRENT_PHASE.phase` | The Phase 7 planning-stage contract (status `PLANNED`; planning-stage record; the Phase 6 contract is preserved in Git history at `3657035a`) | ✓ (reconciled by this planning commit) |
+| `NEXT_ACTION.phase` | Phase 7 `PLANNED` — awaiting the architect's review of `PHASE-7-PLAN.md`, then the implementation authorization (or a corrective handoff) | ✓ (reconciled by this planning commit) |
+| `ZAI_HANDOFF.phase` | Part II Phase identity: the **Phase 7 planning/baseline handoff instance** (status `PLANNED` — executed, awaiting architect review; the superseded CH-001 instance remains recoverable in Git history at `3657035a`) | ✓ (reconciled by this planning commit) |
+| latest worklog phase entry | Phase 7 — AI Platform Core Foundation — planning package — `PLANNED` (appended to the repository-root `worklog.md` by this commit; earlier entries preserved unrewritten, including the Phase 6 closure entry) | ✓ |
+| latest verified commit | `4dc8a5733e19c5eb47e2be6d2df77aa4f0dd5884` — the corrected Phase 6 state, **architect-verified by the `PASS` re-review (2026-10-01)** — remains the latest architect-verified implementation. This planning commit is a developer planning deliverable — recorded, not architect-reviewed (a future review is never written as completed); `b65725e5` remains an external repository event (provenance not independently established) | ✓ |
+| baseline | The Phase 7 planning handoff was issued against `3657035ac878da98decd98929fb0deb45aed1fbe` (the Phase 6 closure-record commit; verified: the immediate child of the reviewed correction `4dc8a573`; correction baseline `c0cca964` preserved); this planning commit is its immediate child. The implementation baseline will be set by the architect's Phase 7 implementation-authorization handoff — **not yet issued** | ✓ |
 
-If these values disagree at a future boundary, the phase is BLOCKED until reconciled. Historical Phase 7 planning records remain preserved above and in Git history; they do not override the current-state contract.
+If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. This Phase 7 planning-package commit reconciles **all five Final State Contract members and the worklog layer to Phase 7 `PLANNED`** (the previous transition state — Phase 6 `CLOSED` at the closure-record commit `3657035a`, which held until the architect issued the Phase 7 planning handoff on 2026-10-02 — is preserved in Git history and in the Phase 6 section above). A fresh session finding this state must read the Phase 7 planning section above, `PHASE-7-PLAN.md` (the planning package awaiting architect review — including its §23 ratification list and the new OPEN issue I-014), and `ZAI_HANDOFF.md` Part II (the Phase 7 planning instance) before acting; Z.AI must not proceed past the authorization STOP boundary without the architect's explicit Phase 7 implementation authorization. The earlier reconciliations — pending at `58856e0b` (completed by `3706b977`), pending at `d12b0582` (completed by `5febaacd`), the Phase 4 closure reconciliation at `16b89a94` (accepted with the evidence-classification correction at `8d8595d0`), the Phase 5 `IN_PROGRESS` reconciliation at `f9ce6a83` (corrected at `fb4ad5f5`), the Phase 5 closure reconciliation at `f62326db`, the Phase 6 `IN_PROGRESS` reconciliation at `c0cca964` (corrected at `4dc8a573`), and the Phase 6 closure reconciliation at `3657035a` — are documented at those commits.
 
 ## Appendix — re-runnable validation commands
 
@@ -774,20 +774,3 @@ npm run validate:model-config                                                 # 
 # Extraction-integrity harness (agent workspace, outside the repository; materializes a scratch repo from the committed tree):
 bash /home/z/my-project/scripts/verify-doable-extraction-in-clara-layout.sh   # -> 771/771 present pinned blobs verified; failures confined to the absent mcp-servers family (I-014)
 ```
-
-
-## Phase 7 implementation authorization review — 2026-10-02
-
-### Gate D — Architect review
-
-**PASS.** The planning package is evidence-backed, documentation-only at submission, preserves immutable-source and governance boundaries, distinguishes existing Clara infrastructure from host adapters/future work, and provides measurable acceptance criteria and A–F gate rules. No correction handoff is required.
-
-### Ratified
-- D-021: 7-A/7-B authorized; 7-C deferred.
-- D-022: ai-platform-core is the host seam; ai-core remains provider/brain layer.
-- D-023: I-014 is P2/DEFERRED.
-- D-024: D-P4/R-3 remains open; Gate F is conditional.
-- Gate E is N/A unless persistence/schema changes.
-
-### State
-Phase 7 is IN_PROGRESS. Z.AI executes 7-A only next, then STOP for architect review. [architect-verified]
