@@ -61,6 +61,36 @@ A verification state is closure-eligible only when all of the following hold: **
 
 Every gate record carries `[developer-reported]` or `[architect-verified]` (D-012). Developer-generated evidence (commands, outputs, files, commits) is `[developer-reported]`; `[architect-verified]` evidence exists only from an actual ChatGPT review or observable architect workflow action. A future or intended ChatGPT review is never written as already completed, and a command Z.AI executed is never claimed on ChatGPT's behalf.
 
+## Correction and issue-control workflow (durable — established by Phase 6, 2026-10-01)
+
+> **Binding relationship between the correction workflow and this verification contract.** The canonical issue schema, lifecycle, severity model (P0–P3), and issue/phase status relationship live in `ISSUES.md` §"Issue-control system"; the canonical correction-handoff form is `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md`. This section adds **no second verification system**: it maps the correction workflow onto the existing gates, review outcomes, blocker rules, and closure-eligibility rules above — it duplicates none of them and transfers no closure authority (D-009 stands). It is binding on all correction cycles from Phase 6 onward; the Phase 0–5 correction cycles stand as recorded under the pre-Phase-6 convention (`ZAI_HANDOFF.md` §I.5 as then worded; observed exemplars: the Phase 0 correction `bcc1769d` / I-002, the Phase 4 closure-evidence correction `8d8595d0`, and the Phase 5 P0-policy correction `fb4ad5f5`).
+
+### Workflow purpose and traceability chain
+
+Whenever ChatGPT identifies a defect, divergence, incomplete requirement, regression, security concern, evidence problem, or other blocking issue in Z.AI work, the issue is traced end-to-end through the durable chain:
+
+```text
+architect finding → issue record (ISSUES.md, I-NNN) → corrective handoff (CH-NNN — templates/CORRECTION_HANDOFF_TEMPLATE.md materialized into ZAI_HANDOFF.md Part II)
+→ bounded Z.AI correction → developer verification ([developer-reported]) → correction commit → architect re-review → issue resolution / phase closure
+```
+
+Every link is recorded: the issue record carries the corrective-handoff ID, baseline SHA, correction commit SHA, verification evidence, architect review status, and resolution evidence; the correction commit's message references the finding/issue ID. A fresh session must be able to reconstruct the complete lifecycle from the register alone, without chat history.
+
+### Mapping to the verification and phase-gate contract (no competing system)
+
+- **`CORRECTION_REQUIRED` remains the architect review outcome** under the contract above (and the D-011 phase status it produces). An issue reaching issue-status `CORRECTION_REQUIRED` is the register-side record of the architect's determination that a corrective handoff is required for that issue; the phase-status and issue-status vocabularies remain distinct systems (the full relationship table is `ISSUES.md` §4).
+- **Corrective work does not itself create `PASS`.** A correction commit is `[developer-reported]` evidence entering Gates A–C like any implementation evidence (scope; implementation; tests). **Gate D remains architect-only** — only an actual ChatGPT re-review may produce `architect-verified` review evidence, and only architect verification can establish `architect-verified` issue resolution. A correction is not resolved merely because Z.AI says it is fixed.
+- **P0 remains unconditionally closure-blocking** (R4; there is no P0 exception path — an architect decision may document handling but must not authorize closure while the P0 remains unresolved, i.e. in any lifecycle state other than `RESOLVED`). **P1 exception semantics remain unchanged** (R5; an explicitly recorded architect-approved `DECISIONS.md` reference; exceptions are never invented by the developer; a pending P1 correction is not an exception). **Closure eligibility continues to follow R1–R7.**
+- **R6 mapping (unresolved blocking correction):** an issue in `CORRECTION_REQUIRED`, `CORRECTION_IN_PROGRESS`, `CORRECTION_SUBMITTED`, or `REVIEW_PENDING` status that is closure-blocking per the severity model constitutes an unresolved blocking correction. Blocking determination: P0 always; P1 unless it carries a recorded architect-approved exception; P2/P3 iff the issue violates an acceptance criterion or another explicit blocking condition (recorded in the issue) without a recorded architect-approved exception.
+- **Issue resolution vs phase closure:** issue `RESOLVED` (architect-verified) is necessary-but-not-sufficient for phase closure — the phase may close only if all other Phase-Gate conditions are satisfied (R1–R7) and ChatGPT returns `PASS`. **A developer correction commit never independently closes the issue or the phase.**
+
+### Correction evidence obligations
+
+- The corrective handoff identifies: finding; evidence; why the finding blocks acceptance; exact correction required; approved correction scope; explicit non-scope; expected verification; stopping boundary (the review-outcome contract above; the canonical form is the correction-handoff template).
+- The developer executes **only** the corrective scope — no unrelated fixes, no unrelated refactoring, no architecture changes outside the handoff, no silently altered acceptance criteria, no unrelated project-control state changes, no next-phase work. An unrelated change found in a correction commit is a scope violation and is not accepted as part of the correction; a newly discovered out-of-scope issue is recorded as a new `OPEN` issue and awaits architect direction (never silently absorbed).
+- Evidence classes (D-012) apply throughout: a future or intended architect re-review is never written as already completed; the issue record's "architect review status" field reads `pending` until an actual re-review occurs.
+- The deterministic demonstration of this workflow is `docs/project-control/verification/correction-cycle-test.sh` (read-only, fixture-modeled state transitions — it performs and claims no actual architect review; running it is never itself evidence of issue resolution or phase completion).
+
 ---
 
 ## Phase 0 — Baseline and Control-System Reconnaissance — CLOSED
@@ -367,20 +397,63 @@ Aggregate: the persisted read-only validation script `/home/z/my-project/scripts
 
 ---
 
+## Phase 6 — Correction and Issue-Control Workflow — IN_PROGRESS
+
+> Phase 6 implementation handoff issued by ChatGPT on 2026-10-01 (baseline `f62326dbe1940a2a518567d66e720a4b407dbf26` — the Phase 5 closure-record commit; Phase 5 reviewed implementation `fb4ad5f59b5661dc2bc7f38039805fc6294d58ef`; Phase 5 status `CLOSED`, architect `PASS`). The evidence below is **developer-reported at submission time (2026-10-01)**; the Phase 6 architect review has **NOT occurred** — no architect approval of Phase 6 is claimed anywhere in this section, and a future review is never written as already completed. Only `PASS` closes the phase (D-009/D-020). This is a project-control/governance phase only (documentation-only; no product/DB/deployment/immutable-source changes).
+
+| Field | Value |
+|---|---|
+| Assignment | Phase 6 implementation handoff received from ChatGPT on 2026-10-01: establish the durable, repeatable **Correction and Issue-Control Workflow** — a canonical issue lifecycle (`OPEN → TRIAGED → CORRECTION_REQUIRED → CORRECTION_IN_PROGRESS → CORRECTION_SUBMITTED → REVIEW_PENDING → RESOLVED` + terminal/non-progress states), a P0–P3 severity model (P0/P1 semantics unchanged from the Phase 5 contract), a canonical issue-record schema in `ISSUES.md`, a reusable correction-handoff template under `docs/project-control/templates/`, correction-integrity rules preventing scope creep, deterministic traceability (finding → issue → handoff → commit → verification → review → resolution), the issue/phase status relationship, VERIFICATION_STATE integration without a second verification system, the Phase 6 contract in `CURRENT_PHASE.md`, the Phase 6 handoff instance in `ZAI_HANDOFF.md` Part II, the worklog entry, the session audit record, and a deterministic correction-cycle demonstration (Examples A–D). One focused commit `docs: establish phase 6 correction and issue control`; push; completion report; STOP |
+| Baseline (before) | `f62326dbe1940a2a518567d66e720a4b407dbf26` — the Phase 5 closure-record commit ("docs: record architect approval of phase 5"; 7 files, +149/−51; the immediate child of `fb4ad5f5`) [architect-verified — the Phase 6 baseline as communicated in the Phase 6 handoff]; branch history `f9ce6a83` → `fb4ad5f5` → `f62326db`; clean tree, in sync with origin at start (21 ahead / 0 behind `Vite-Converted`; mainlines unchanged: `Vite-Converted` `5ca8ec58`, `Vercel-Preview` `db6cdb48`, `Vercel-Prod` `e0ead990`, `main` `550630f5`; `b65725e5` ancestry intact; `vercel.json` unchanged) [developer-reported, Git-verifiable] |
+| Implementation state | **Complete (developer-reported; awaiting architect review).** Delivered: the durable correction-workflow contract section in this register (§"Correction and issue-control workflow" above — the mapping onto the Phase 5 verification contract: `CORRECTION_REQUIRED` remains the architect review outcome; corrective work does not create `PASS`; Gate D remains architect-only; P0 unconditionally closure-blocking; P1 exception semantics unchanged; closure eligibility still R1–R7; the R6 blocking-correction mapping; issue resolution is necessary-but-not-sufficient for closure); `ISSUES.md` §"Issue-control system" (severity model P0–P3 with P0/P1 authoritative in the Phase 5 contract; the canonical lifecycle with valid transitions, authority, and evidence; the 22-field issue-record schema; the issue/phase status relationship; traceability requirements; legacy-entry mapping — I-001…I-012 preserved unrewritten; a new §"Issue records (canonical schema)" section, currently empty — no issues opened); `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` (the single canonical correction-handoff form — all 22 required sections; the bounded-scope statement "a correction handoff authorizes only the corrective scope"; correction integrity rules; STOP boundary with the out-of-scope-discovery rule); `docs/project-control/verification/correction-cycle-test.sh` (the deterministic demonstration — Examples A–D + severity edge cases; 19 embedded determinations; models state transitions only, performs/claims no actual architect review); `CURRENT_PHASE.md` rewritten as the Phase 6 contract; `ZAI_HANDOFF.md` Part II replaced with the Phase 6 instance (Part I §I.5/§I.12 pointers updated — the template now exists); `templates/PHASE_HANDOFF_TEMPLATE.md` appendix pointer updated (the corrective variant is superseded by the dedicated template — no competing format); `PROJECT_STATE.md` and `NEXT_ACTION.md` reconciled to Phase 6 `IN_PROGRESS` (entailed by the Final State Contract consistency requirement — acceptance criterion 22); session record `SESSION-008.md` + its `sessions/README.md` index row; the `worklog.md` Phase 6 entry |
+| Implementation commit | *(this commit)* — `docs: establish phase 6 correction and issue control`, the immediate child of `f62326db` on `feature/ai-core-from-doable-source` (documentation-only — changed paths limited to the repository-root `worklog.md` and `docs/project-control/**`; exact SHA resolvable via `git rev-parse origin/feature/ai-core-from-doable-source` after push). [developer-reported, Git-verifiable — not architect-verified; the Phase 6 architect review has not occurred] |
+| Scope | Documentation-only (the changed-path list is recorded in the Phase 6 validation table below and inspected in the full-diff review): no product code (`src/**`, `packages/**`), no dependencies, no migrations, no Vercel configuration, no Doable-source changes, no Phase 7 artifacts; `b65725e5`/`vercel.json` untouched; no force-push. `DECISIONS.md`/`RISKS.md` deliberately not modified (the Phase 6 handoff's approved scope does not list them; no new architecture decisions or risk facts are entailed — dispositions remain architect calls; the P1-exception mechanism continues to reference existing `DECISIONS.md` entries) [developer-reported, Git-verifiable] |
+| Issues opened | **None.** The Phase 6 implementation surfaced no new defects; the new §"Issue records (canonical schema)" section in `ISSUES.md` is empty; existing entries I-001…I-012 are preserved exactly as recorded (I-001/I-007 remain open — not silently resolved; their triage under the severity model remains an architect call). No issue was created for Phase 6 itself — the phase is recorded in the phase-status system, not the issue system [developer-reported] |
+
+### Phase 6 validation (developer-executed 2026-10-01 — commands and results; all [developer-reported])
+
+| # | Check | Method / result |
+|---|---|---|
+| 1 | `npm run validate:model-config` | PASS (lightweight repository check — explicitly **not** interpreted as sufficient phase verification) |
+| 2 | Phase 5 deterministic test — regression | `bash docs/project-control/verification/phase-closure-eligibility-test.sh` → **8/8 determinations correct, exit 0**; P0 present → closure eligibility **FAIL** (case-3) — verified |
+| 3 | Phase 6 deterministic correction-cycle test | `bash docs/project-control/verification/correction-cycle-test.sh` → **19/19 determinations correct, exit 0** — Examples A (no auto-resolution; rejected developer resolution; rejected state skip; open blocking correction → FAIL), B (architect-verified resolution; rejected developer-evidence resolution; valid repeat cycle; resolved issue → PASS), C (in-scope commit accepted; unrelated path rejected), D (P0 submitted → FAIL; P0 WONT_FIX → FAIL; P0 RESOLVED → PASS), severity edges (P1 DEFERRED with exception → PASS; P2 acceptance-violating correction open → FAIL) |
+| 4 | Correction-template completeness | the 22 required sections present in `templates/CORRECTION_HANDOFF_TEMPLATE.md`; the bounded-scope statement present; integrity rules present |
+| 5 | Issue-lifecycle consistency | the lifecycle/transition/severity/schema sections present in `ISSUES.md`; legacy entries preserved unrewritten (diff-checked: I-001…I-012 byte-identical to baseline) |
+| 6 | No competing verification system | the correction workflow in this register references (does not duplicate) the Phase 5 contract; exactly one correction-handoff template and one correction-cycle test exist under `docs/project-control/` (`git ls-files`) |
+| 7 | Changed-path scope check | `git diff --name-only f62326db` — every path within `worklog.md` + `docs/project-control/**`; no `src/**`, `packages/**`, `supabase/**`, `migrations/**`, `vercel.json`, or `docs/doable-source/**` change |
+| 8 | Immutable-source / production-branch check | immutable Doable-source trees untouched; `Vercel-Prod`/`Vercel-Preview`/`Vite-Converted`/`main` refs unchanged; no force-push |
+| 9 | Secret-pattern scan | credential/token patterns scanned across all changed paths — no matches (the R-5 token never reproduced) |
+| 10 | Final State Contract consistency | phase = Phase 6, status = `IN_PROGRESS` agree across `PROJECT_STATE.md`, `CURRENT_PHASE.md`, `NEXT_ACTION.md`, `ZAI_HANDOFF.md` (Part II), this register, and the latest `worklog.md` entry (consistency table below) |
+| 11 | Git hygiene | full diff inspected; working tree clean after commit; local HEAD = origin tip after push; commit is the immediate child of `f62326db` |
+
+The aggregate validation suite is persisted outside the repository (`/home/z/my-project/scripts/validate-phase6-control-docs.sh`, staged + post-commit HEAD modes), per the Phase 3/4/5 convention. Running any test or check is never itself evidence of phase completion (the contract above).
+
+### Architect review trail (events bounding the phase so far)
+
+| Date | Event |
+|---|---|
+| 2026-10-01 | **Phase 6 implementation handoff issued.** ChatGPT issued the Phase 6 — Correction and Issue-Control Workflow handoff: baseline `f62326db` (the Phase 5 closure-record commit; the latest architect-verified implementation remains `fb4ad5f5`); the handoff defines the objective (a durable, repeatable, end-to-end traceable correction and issue-control workflow), the approved scope (ISSUES.md; CURRENT_PHASE.md; ZAI_HANDOFF.md; VERIFICATION_STATE.md; worklog.md; the correction-handoff template; the session record; deterministic validation), the explicit non-scope (no product/DB/deployment/immutable-source changes; no feature work; no Phase 7; no R-3/R-4/R-5 resolution; no rewriting of historical correction records), the issue lifecycle, the severity model (P0/P1 authoritative from Phase 5 — no weakening; P2/P3 not automatically closure-blocking unless acceptance-violating), the issue-record schema, the correction-integrity rules, the traceability requirements, the VERIFICATION_STATE/CURRENT_PHASE/ZAI_HANDOFF/worklog/session integrations, the deterministic Examples A–D, the security requirements, the git/evidence requirements, the review/STOP boundaries, and the 26 acceptance criteria. [architect-verified — workflow action as communicated in the Phase 6 handoff] |
+
+### Outstanding architect verification state for Phase 6
+
+**The Phase 6 architect review is PENDING.** The implementation is submitted (developer-reported) and awaiting ChatGPT's independent review of the implementation commit `docs: establish phase 6 correction and issue control` (the immediate child of `f62326db`) — its full diff, the issue schema/lifecycle/severity, the correction-handoff template, the traceability model, the Phase 5 contract compatibility (P0/P1 behavior), the security/scope boundaries, the deterministic tests, and the Final State Contract. No architect approval of Phase 6 is claimed; only the review outcome `PASS` closes the phase (D-009/D-020). Gate E (database) = `NOT_APPLICABLE` and Gate F (deployment) = `NOT_APPLICABLE` for this documentation-only phase — assessed and recorded (no database surface changed; no deployment performed or required).
+
+---
+
 ## State-machine consistency (Final State Contract, plan §Final State Contract)
 
-| Field | Value (2026-10-01, at the Phase 5 closure-record commit — inter-phase boundary) | Agreement |
+| Field | Value (2026-10-01, at the Phase 6 implementation commit — awaiting architect review) | Agreement |
 |---|---|---|
-| `VERIFICATION_STATE.phase` | Phase 5 `CLOSED` (the Phase 5 section above; closed by the architect `PASS` re-review of the corrected implementation); Phase 4 `CLOSED`; Phase 6 next, `NOT STARTED` | ✓ (this register) |
-| `PROJECT_STATE.current_phase` | Phase 5 — Verification and Phase-Gate System, `CLOSED`; Phase 6 next, `NOT STARTED` | ✓ (reconciled by this closure-record commit) |
-| `CURRENT_PHASE.phase` | Phase 5 contract, closure state — `CLOSED` banner + Closure record section; Phase 6 next, `NOT STARTED` | ✓ (reconciled by this closure-record commit) |
-| `NEXT_ACTION.phase` | None active — Phase 5 `CLOSED`; awaiting the architect-issued Phase 6 handoff | ✓ (reconciled by this closure-record commit) |
-| `ZAI_HANDOFF.phase` | Part II Phase identity: the Phase 5 instance, `CLOSED` (fully executed — implementation, correction, and closure recorded); no handoff active | ✓ (reconciled by this closure-record commit) |
-| latest worklog phase entry | Phase 5 — Verification and Phase-Gate System — architect approval — `CLOSED` (appended to the repository-root `worklog.md` by this commit; earlier entries preserved unrewritten, including the Phase 5 `IN_PROGRESS` entry with its correction note) | ✓ |
-| latest verified commit | `fb4ad5f59b5661dc2bc7f38039805fc6294d58ef` — the corrected Phase 5 implementation ("docs: correct phase 5 p0 closure policy"), **architect-verified by the `PASS` re-review (2026-10-01)**. `f9ce6a83` (the Phase 5 implementation commit — first review `CORRECTION_REQUIRED`, corrected by `fb4ad5f5`) and this closure-record commit are documentation commits — recorded and architect-dispositioned where applicable, but the closure record is not the reviewed implementation; `b65725e5` remains an external repository event (provenance not independently established) | ✓ |
-| baseline | Phase 5's baseline was `8d8595d0a994510da217af6d12225e3f1d00b2fd` (implementation `f9ce6a83` its immediate child); the correction baseline was `f9ce6a833bc67205384e17bb92433c78967f4363` (corrective commit `fb4ad5f5` its immediate child); this closure-record commit is the immediate child of `fb4ad5f5`. The next baseline is set by the architect at the Phase 6 handoff boundary — **not yet issued** | ✓ |
+| `VERIFICATION_STATE.phase` | Phase 6 — Correction and Issue-Control Workflow, `IN_PROGRESS` (the Phase 6 section above; developer implementation complete, awaiting architect review); Phase 5 `CLOSED` (§Phase 5, incl. its closure record); Phases 0–5 all `CLOSED`; Phase 7 NOT STARTED | ✓ (this register) |
+| `PROJECT_STATE.current_phase` | Phase 6 — Correction and Issue-Control Workflow, `IN_PROGRESS` | ✓ (reconciled by this commit) |
+| `CURRENT_PHASE.phase` | The Phase 6 contract (objective; scope; the correction-workflow model; acceptance criteria; non-scope; STOP boundary) — status `IN_PROGRESS` | ✓ (reconciled by this commit) |
+| `NEXT_ACTION.phase` | Phase 6 `IN_PROGRESS` — awaiting the ChatGPT architect review of the Phase 6 implementation | ✓ (reconciled by this commit) |
+| `ZAI_HANDOFF.phase` | Part II Phase identity: the Phase 6 instance, `IN_PROGRESS` (implementation handoff, executed by this commit; no corrective handoff active — no issues open) | ✓ (reconciled by this commit) |
+| latest worklog phase entry | Phase 6 — Correction and Issue-Control Workflow — `IN_PROGRESS` (appended to the repository-root `worklog.md` by this commit; earlier entries preserved unrewritten, incl. the Phase 5 `IN_PROGRESS` entry with its correction note and the Phase 5 closure entry) | ✓ |
+| latest verified commit | `fb4ad5f59b5661dc2bc7f38039805fc6294d58ef` — the corrected Phase 5 implementation, architect-verified by the `PASS` re-review (2026-10-01) — **remains the latest architect-verified implementation**. `f62326db` (the Phase 5 closure-record commit) and this Phase 6 implementation commit are documentation commits — developer-reported until an architect review dispositions them; `b65725e5` remains an external repository event (provenance not independently established) | ✓ |
+| baseline | Phase 6's baseline is `f62326dbe1940a2a518567d66e720a4b407dbf26` (this implementation commit its immediate child); the next baseline is set by the architect at the next handoff boundary | ✓ |
 
-If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. This Phase 5 closure-record commit reconciles **all five Final State Contract members and the worklog layer to Phase 5 `CLOSED`** (the previous transition states — Phase 5 `IN_PROGRESS` at the implementation commit `f9ce6a83`, corrected-and-awaiting-re-review at `fb4ad5f5` — held until this closure). A fresh session finding this state must read the Phase 5 section above (including its closure record), the durable verification and phase-gate contract, and the `worklog.md` Phase 5 closure entry before acting; Z.AI must not proceed past the inter-phase STOP boundary without the architect-issued Phase 6 handoff. The earlier reconciliations — pending at `58856e0b` (completed by `3706b977`), pending at `d12b0582` (completed by `5febaacd`), the Phase 4 closure reconciliation at `16b89a94` (accepted with the evidence-classification correction at `8d8595d0`), and the Phase 5 `IN_PROGRESS` reconciliation at `f9ce6a83` (corrected at `fb4ad5f5`) — are documented at those commits.
+If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. This Phase 6 implementation commit reconciles **all five Final State Contract members and the worklog layer to Phase 6 `IN_PROGRESS`** (the inter-phase boundary state at `f62326db` — Phase 5 `CLOSED` / Phase 6 `NOT STARTED` — held until this handoff was accepted and executed; per `ZAI_HANDOFF.md` §I.6 the developer verified the baseline before implementing). A fresh session finding this state must read the Phase 6 section above, the durable correction-workflow contract (§"Correction and issue-control workflow"), `CURRENT_PHASE.md` (the Phase 6 contract), and `ZAI_HANDOFF.md` Part II (the Phase 6 instance) before acting; Z.AI must not proceed past the Phase 6 STOP boundary without the architect's review outcome and the next architect-issued handoff. The earlier reconciliations — pending at `58856e0b` (completed by `3706b977`), pending at `d12b0582` (completed by `5febaacd`), the Phase 4 closure reconciliation at `16b89a94` (accepted with the evidence-classification correction at `8d8595d0`), the Phase 5 `IN_PROGRESS` reconciliation at `f9ce6a83` (corrected at `fb4ad5f5`), and the Phase 5 closure reconciliation at `f62326db` — are documented at those commits.
 
 ## Appendix — re-runnable validation commands
 
@@ -536,4 +609,36 @@ git status --porcelain                                                   # clean
 git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal after push
 # Aggregate closure-record validation suite (persisted read-only script, agent workspace, outside the repository):
 bash /home/z/my-project/scripts/validate-phase5-closure-record.sh        # -> RESULT: see the Phase 5 closure report
+
+# ---- Phase 6 (Correction and Issue-Control Workflow) ----
+
+# Deterministic correction-cycle demonstration (read-only, re-runnable; exit 0 expected;
+# models state transitions on fixtures only — performs/claims NO actual architect review):
+bash docs/project-control/verification/correction-cycle-test.sh           # -> RESULT: 19/19 determinations correct
+
+# Phase 5 regression (the closure rule must still hold):
+bash docs/project-control/verification/phase-closure-eligibility-test.sh  # -> RESULT: 8/8 determinations correct (P0 -> FAIL)
+
+# Correction-workflow contract / issue-control system / template presence:
+rg -n '^## Correction and issue-control workflow' docs/project-control/VERIFICATION_STATE.md
+rg -n '^## Issue-control system|^### 1\. Issue severity model|^### 2\. Issue lifecycle|^### 3\. Canonical issue-record schema|^### 4\. Issue status|^### 5\. Traceability requirements|^### 6\. Legacy entries|^## Issue records \(canonical schema' docs/project-control/ISSUES.md
+rg -n '^## (1[0-9]|2[0-2])\. ' docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md   # sections 10–22 numbered
+rg -n 'authorizes only the corrective scope' docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md
+git ls-files | rg -i 'CORRECTION_HANDOFF_TEMPLATE|correction-cycle-test'   # exactly one of each
+
+# Legacy issue entries preserved unrewritten (vs the Phase 6 baseline):
+git diff f62326dbe1940a2a518567d66e720a4b407dbf26 -- docs/project-control/ISSUES.md   # additions only above the legacy sections; I-001…I-012 records unchanged
+
+# Final State Contract (Phase 6 IN_PROGRESS) + documentation-only scope:
+rg -c 'Phase 6 — Correction and Issue-Control Workflow' docs/project-control/PROJECT_STATE.md docs/project-control/CURRENT_PHASE.md docs/project-control/NEXT_ACTION.md docs/project-control/VERIFICATION_STATE.md docs/project-control/ZAI_HANDOFF.md
+rg -n '^## 2026-10-01 — Phase 6' worklog.md
+git show --name-only --format= HEAD                                # documentation-only (worklog.md + docs/project-control/**)
+git diff --name-only f62326dbe1940a2a518567d66e720a4b407dbf26 -- vercel.json src packages supabase migrations docs/doable-source   # empty
+git merge-base --is-ancestor b65725e55ed13503b70136ffde6a5a7f269d92e2 HEAD && echo "b65725e5 ancestry intact"
+rg -n 'ghp_[A-Za-z0-9]{30,}|gho_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}|supabase\.co/[A-Za-z0-9]|service_role[a-z_]*[[:space:]]*[:=]' worklog.md docs/project-control/   # no matches
+git status --short && git diff --stat
+npm run validate:model-config                                      # lightweight check — NOT sufficient phase verification
+
+# Aggregate Phase 6 validation suite (persisted read-only script, agent workspace, outside the repository):
+bash /home/z/my-project/scripts/validate-phase6-control-docs.sh         # -> RESULT: see the Phase 6 developer completion report
 ```

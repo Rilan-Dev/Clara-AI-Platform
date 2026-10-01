@@ -2,7 +2,7 @@
 
 > **The single authoritative template for Z.AI implementation handoffs** (ZAI_HANDOFF.md §I.12; DECISIONS.md D-016). No other handoff template or format may be created.
 > **Usage (developer):** when the architect (ChatGPT) issues a new phase handoff, copy this form into **Part II of `docs/project-control/ZAI_HANDOFF.md`** (replacing the previous instance) and fill every section from the architect's issued handoff — transcribe faithfully; never invent scope, tasks, criteria, or dates. Sections you cannot fill from the architect's handoff are a defect: stop and ask the architect.
-> **Usage (correction):** use the corrective variant in the appendix when the architect returns `CORRECTION_REQUIRED` (the dedicated correction-handoff template file arrives in Phase 6 per the plan).
+> **Usage (correction):** use the dedicated canonical correction-handoff template — `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` — whenever the architect returns `CORRECTION_REQUIRED` (established by Phase 6, 2026-10-01; the appendix variant below is the superseded Phase 0–5 convention, retained as historical record only).
 > Every instance must satisfy ZAI_HANDOFF.md §I.3 (mandatory sections), §I.6 (integrity fields), §I.10 (fresh-session usability), §I.8 (review boundary), and §I.9 (STOP boundary).
 
 ---
@@ -98,9 +98,11 @@
 
 ---
 
-## Appendix — Corrective handoff variant (for `CORRECTION_REQUIRED`)
+## Appendix — Corrective handoff variant (for `CORRECTION_REQUIRED`) — SUPERSEDED from Phase 6 onward
 
-*Use this variant when the architect issues a corrective handoff after a review finds a defect (ZAI_HANDOFF.md §I.5). The developer must not independently broaden the correction. A dedicated correction-handoff template file is planned for Phase 6; until then, corrective handoffs are recorded via this variant.*
+*Superseded (2026-10-01, Phase 6): the dedicated canonical correction-handoff template — `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` — is now the single authoritative correction-handoff form (ZAI_HANDOFF.md §I.5/§I.12; `ISSUES.md` §"Issue-control system"; `VERIFICATION_STATE.md` §"Correction and issue-control workflow"). This appendix variant is retained only as the historical record of the Phase 0–5 corrective-handoff convention (used by the Phase 0, Phase 4, and Phase 5 correction cycles); it must not be used for new corrective handoffs.*
+
+*Historical form (Phase 0–5 convention) — use when the architect issues a corrective handoff after a review finds a defect (ZAI_HANDOFF.md §I.5 as then worded). The developer must not independently broaden the correction.*
 
 | Field | Value |
 |---|---|
