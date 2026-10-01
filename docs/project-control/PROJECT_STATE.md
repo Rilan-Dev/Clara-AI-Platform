@@ -18,10 +18,11 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Current phase | **Phase 1 — Durable Project-Control Foundation** | [architect-verified] Phase 1 implementation handoff issued by ChatGPT, 2026-10-01 |
+| Current phase | **Phase 2 — Z.AI Developer Handoff System** | [architect-verified] Phase 2 implementation handoff issued by ChatGPT on 2026-10-01, immediately after the Phase 1 `PASS` review |
 | Phase status | **IN_PROGRESS** — developer implementation complete; awaiting architect review. The phase remains OPEN until ChatGPT review closes it | [developer-reported] |
-| Current objective | Establish the durable project-control state layer (this document set) so any fresh session can recover exact project state from the repository alone | [architect-verified] Phase 1 handoff |
+| Current objective | Create a durable, reusable developer-handoff protocol that allows Z.AI to implement any future approved phase from repository state alone — every implementation phase explicit, bounded, reproducible, reviewable, and stoppable | [architect-verified] Phase 2 handoff |
 | Phase contract | `docs/project-control/CURRENT_PHASE.md` | exists |
+| Active handoff instance | `docs/project-control/ZAI_HANDOFF.md` — Part I (durable protocol) + Part II (active Phase 2 handoff) | exists |
 
 ### Canonical status vocabulary (used by ALL control documents)
 
@@ -38,22 +39,24 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Baseline commit (latest architect-reviewed state) | `bcc1769d3ee0e5d75a27059e6823280cab3a1f40` — Phase 0 evidence correction; the architect advanced the workflow past this commit by issuing the Phase 1 handoff | [architect-verified by workflow advancement] |
-| Phase 1 developer implementation commit | The immediate child of `bcc1769d` on `feature/ai-core-from-doable-source`, message `docs: establish durable project control foundation` (self-referential: it is the commit that introduces this file) — **developer-reported, NOT architect-verified** | [developer-reported] |
+| Baseline commit (latest architect-reviewed state) | `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` — Phase 1 implementation commit, **architect-verified by the `PASS` review (2026-10-01)** | [architect-verified by review] |
+| Phase 1 closure-record commit | `6d1c6c9d61a2f3a54a48acaa2e9fc135facb3309` — "docs: record architect approval of phase 1"; developer-recorded durable record of the architect `PASS` review trail in VERIFICATION_STATE.md; documentation-only | [developer-recorded architect action] |
+| Phase 2 developer implementation commit | The immediate child of `6d1c6c9d` on `feature/ai-core-from-doable-source`, message `docs: establish zai developer handoff system` (self-referential: it introduces `ZAI_HANDOFF.md`) — **developer-reported, NOT architect-verified** | [developer-reported] |
 | Current branch tip (recovery command) | `git fetch --prune origin && git rev-parse origin/feature/ai-core-from-doable-source` | always accurate |
-| Branch relationship to `Vite-Converted` (at `bcc1769d`) | 8 commits ahead / 0 behind; merge-base `5ca8ec58` = `Vite-Converted` tip; docs-only delta (all changed paths under `docs/`) | [developer-reported, verified by git commands in VERIFICATION_STATE.md] |
-| Mainline refs (dated 2026-10-01, after `git fetch --prune`) | `Vite-Converted` `5ca8ec58` · `Vercel-Preview` `db6cdb48` · `Vercel-Prod` `e0ead990` · `main` `550630f5` | [developer-reported] |
+| Branch relationship to `Vite-Converted` (at `6d1c6c9d`) | 10 commits ahead / 0 behind; merge-base `5ca8ec58` = `Vite-Converted` tip; docs-only delta (all changed paths under `docs/`) | [developer-reported, verified by git commands in VERIFICATION_STATE.md] |
+| Mainline refs (dated 2026-10-01, after `git fetch --prune`) | unchanged: `Vite-Converted` `5ca8ec58` · `Vercel-Preview` `db6cdb48` · `Vercel-Prod` `e0ead990` · `main` `550630f5` | [developer-reported] |
 
 ## Last architect verification
 
-- **2026-10-01 — Phase 0 review:** architect reviewed the Phase 0 reconnaissance report and returned **CORRECTION_REQUIRED** (repository-state evidence was stale). Correction delivered in commit `bcc1769d`. The architect then issued the Phase 1 implementation handoff, closing Phase 0 and advancing the workflow. [architect-verified]
-- **Phase 1 output: NOT YET REVIEWED.** No architect review of the Phase 1 foundation has occurred as of this snapshot. Nothing in this file or the sibling control documents should be read as architect approval of Phase 1. [developer-reported]
+- **2026-10-01 — Phase 1 review: `PASS`.** ChatGPT independently reviewed commit `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` and its GitHub diff: documentation-only (exactly seven files, all under `docs/project-control/`); document contracts substantially satisfied; state-machine values consistent; evidence classes explicitly separated; Phase 0 evidence represented with the corrected evidence/correction trail; no product/dependency/database/deployment/immutable-source changes; no Phase 2+ artifacts prematurely created. **Phase 1 `CLOSED`; Phase 2 handoff issued.** Closure recorded in VERIFICATION_STATE.md @ `6d1c6c9d`. [architect-verified]
+- **Phase 2 output: NOT YET REVIEWED.** No architect review of the Phase 2 handoff system has occurred as of this snapshot. Nothing in this file or the sibling control documents should be read as architect approval of Phase 2. [developer-reported]
 
 ## Completed phases
 
 | Phase | Name | Status | Evidence |
 |---|---|---|---|
 | 0 | Baseline and Control-System Reconnaissance | `CLOSED` | Report `docs/project-control/PHASE-0-RECONNAISSANCE.md` @ `adbc9e16`; evidence correction @ `bcc1769d`; closed by architect Phase 1 handoff issuance, 2026-10-01 [architect-verified by workflow advancement] |
+| 1 | Durable Project-Control Foundation | `CLOSED` | Seven control documents @ `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` ("docs: establish durable project control foundation"); closure record @ `6d1c6c9d` ("docs: record architect approval of phase 1"); closed by architect `PASS` review, 2026-10-01 [architect-verified] |
 
 ## Active blockers
 
@@ -73,7 +76,7 @@ R-1 control-doc/state drift (mitigation in progress) · R-2 no enforced branch p
 
 ## Current next action
 
-**ChatGPT architect review of the Phase 1 foundation commit** — verify scope, document contracts, cross-references, and evidence separation; record `PASS` / `PASS_WITH_FOLLOWUP` / `CORRECTION_REQUIRED` in VERIFICATION_STATE.md; only `PASS` closes Phase 1. Exact continuation instructions: `docs/project-control/NEXT_ACTION.md`. [developer-reported]
+**ChatGPT architect review of the Phase 2 handoff-system implementation** — verify the handoff contract (mandatory structure, lifecycle, correction protocol, integrity rules, evidence requirements, fresh-session usability, STOP boundary), the single-template rule, and Final State Contract consistency; record `PASS` / `PASS_WITH_FOLLOWUP` / `CORRECTION_REQUIRED` in VERIFICATION_STATE.md; only `PASS` closes Phase 2. Exact continuation instructions: `docs/project-control/NEXT_ACTION.md`. [developer-reported]
 
 ## Roles
 
@@ -98,7 +101,8 @@ R-1 control-doc/state drift (mitigation in progress) · R-2 no enforced branch p
 | Risk register | `docs/project-control/RISKS.md` | active |
 | Verification evidence register | `docs/project-control/VERIFICATION_STATE.md` | active |
 | Phase 0 reconnaissance report | `docs/project-control/PHASE-0-RECONNAISSANCE.md` | closed evidence (historical) |
-| Developer handoff packet | `docs/project-control/ZAI_HANDOFF.md` | **planned — Phase 2; does not exist yet** |
+| Developer handoff system (protocol + active instance) | `docs/project-control/ZAI_HANDOFF.md` | active (established Phase 2) |
+| Handoff template (single canonical blank form) | `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` | active (established Phase 2) |
 | Chat-continuity procedure | `docs/project-control/CHAT_CONTINUITY.md` | **planned — Phase 3; does not exist yet** |
 | Canonical project worklog | repository root `worklog.md` (recommended location, pending architect confirmation) | **planned — Phase 4; does not exist yet** |
 | Session audit records | `docs/project-control/sessions/` | **planned — Phase 4 (optional); does not exist yet** |

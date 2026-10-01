@@ -102,34 +102,56 @@ None — phase closed by workflow advancement (2026-10-01).
 | Item | Evidence |
 |---|---|
 | Baseline (before) | `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` — Phase 1 implementation commit, architect-verified by the `PASS` review above; clean tree, in sync with origin at start |
-| Closure-record commit | The immediate child of `3a8b8b4` on `feature/ai-core-from-doable-source`, message `docs: record architect approval of phase 1` (this commit — self-referential: it records the Phase 1 closure and initializes this Phase 2 section; documentation-only) |
-| Assignment | Phase 2 implementation handoff received from ChatGPT on 2026-10-01: create `docs/project-control/ZAI_HANDOFF.md` (the single authoritative handoff format) and, if justified by the existing architecture, one reusable template under `docs/project-control/templates/` (Phase 0 report §10 recommends exactly this location); documentation-only scope; no product/DB/deployment/immutable-source changes; no Phase 3+ artifacts (`CHAT_CONTINUITY.md` and the canonical `worklog.md` deliberately NOT created) |
-| Implementation state at this commit | In progress — the handoff-system artifacts and the phase-state reconciliation of `PROJECT_STATE.md` / `CURRENT_PHASE.md` / `NEXT_ACTION.md` / `DECISIONS.md` land in the immediately following Phase 2 implementation commit (`docs: establish zai developer handoff system`) |
+| Closure-record commit (Part A) | `6d1c6c9d61a2f3a54a48acaa2e9fc135facb3309` — "docs: record architect approval of phase 1" (documentation-only: 1 file, +38/−12), pushed to `feature/ai-core-from-doable-source`; records the Phase 1 `PASS` review trail, Phase 1 → `CLOSED`, Phase 2 next; does not rewrite Phase 0 evidence |
+| Implementation commit (Part B) | The immediate child of `6d1c6c9d` on `feature/ai-core-from-doable-source`, message `docs: establish zai developer handoff system` (self-referential — it introduces `ZAI_HANDOFF.md` and the template). Exact SHA: `git rev-parse origin/feature/ai-core-from-doable-source` after push |
+| Deliverables | `docs/project-control/ZAI_HANDOFF.md` (Part I durable protocol + Part II active Phase 2 handoff instance); `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` (single canonical blank form with corrective-handoff variant appendix); phase-state reconciliation to Phase 2 in `PROJECT_STATE.md`, `CURRENT_PHASE.md`, `NEXT_ACTION.md`, `DECISIONS.md` (D-016, D-017 appended), and this register |
+| Scope | Documentation-only: 2 new files + 5 modified files, all under `docs/project-control/`; no product code, no dependencies, no migrations, no Vercel config, no Doable-source changes, no Phase 3+ artifacts (`CHAT_CONTINUITY.md`, canonical `worklog.md`, `sessions/`, Phase 3 handoff instance, Phase 6 correction-handoff template file deliberately NOT created) |
+| Security | No secrets, credentials, tokens, or private chain-of-thought written (secret scan in validation suite below); the R-5 token is referenced but never reproduced |
+
+### Validation commands and results (developer-executed 2026-10-01)
+
+Executed via the persisted read-only script `/home/z/my-project/scripts/validate-phase2-control-docs.sh` (outside the repository; per-check commands in the appendix). Aggregate result: **108 PASS / 0 FAIL**.
+
+| # | Check | Method | Result |
+|---|---|---|---|
+| 1 | Handoff document structure | `rg -F` section checks on `ZAI_HANDOFF.md` and the template | Part I §I.1–§I.12 all present; all 16 mandatory Part II sections present; all 16 template sections + corrective-handoff variant appendix present; all 9 Phase-identity fields present — PASS |
+| 2 | Internal references resolve | path-like backtick-path extraction + existence test (see appendix) | every path-like reference resolves; exceptions are exactly the declared planned ones (`CHAT_CONTINUITY.md`, root `worklog.md`, `sessions/`, `docs/AGENTS.md`, `graphify-out/graph.json`, migrations `NNN` pattern, historical Phase 0 §4 shorthand unchanged since Phase 1) — PASS |
+| 3 | No duplicate handoff source | `git ls-files \| rg -i 'handoff\|project-control/templates'` | exactly `docs/project-control/ZAI_HANDOFF.md` + `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md`; no Phase 3/4 artifacts (`CHAT_CONTINUITY.md`, project `worklog.md`, `sessions/` absent) — PASS |
+| 4 | Status vocabulary consistency | `rg -F 'Phase 2 — Z.AI Developer Handoff System'` + `IN_PROGRESS` across the five reconcilable documents | phase and status agree across `PROJECT_STATE`, `CURRENT_PHASE`, `NEXT_ACTION`, `ZAI_HANDOFF`, `VERIFICATION_STATE`; all six vocabulary tokens present; Phase 1 recorded `CLOSED` — PASS |
+| 5 | Role separation / no false verification claims | `rg` for NOT-verified / NOT-YET-REVIEWED / NOT-closed markers + no-architect-approval rule | Phase 2 marked NOT verified everywhere; PROJECT_STATE "Phase 2 output: NOT YET REVIEWED"; CURRENT_PHASE "The phase is NOT closed"; handoff carries the must-not-claim-architect-approval rule — PASS |
+| 6 | Explicit STOP boundary | `rg` for MUST STOP + the six prohibitions | present in `ZAI_HANDOFF.md` §I.9 + Part II; all six prohibitions enumerated; CURRENT_PHASE stopping boundary present — PASS |
+| 7 | Correction protocol | `rg -F` for the seven corrective-handoff fields | Finding / Affected scope / Required correction / Acceptance criteria / Verification requirements / Explicit non-scope / Stop condition all present; no-independent-broadening rule present — PASS |
+| 8 | Evidence requirements | `rg` for the report fields | all required evidence fields present (changed files, summary, commands, outputs, Git status, SHA, issues, risks, deviations, unresolved questions, no-later-phase confirmation) — PASS |
+| 9 | Secret scan | `rg` credential-pattern scan of `docs/project-control/` | no matches — no credential material — PASS |
+| 10 | Diff/status scope | `git status --porcelain` / `git diff` | all changes under `docs/project-control/` only — PASS |
+| 11 | Lightweight repository validation | `npm run validate:model-config` | PASS (read-only; unchanged product state) |
 
 ### Outstanding architect verification state for Phase 2
 
-**PENDING — awaiting ChatGPT review.** The architect must inspect the Phase 2 implementation commit, then record one of: `PASS` (close Phase 2, initialize Phase 3), `PASS_WITH_FOLLOWUP` (record follow-ups), or `CORRECTION_REQUIRED` (issue corrective handoff). Until then Phase 2 remains `IN_PROGRESS` and no Phase 3 artifact may be created. This section is updated with the full Phase 2 validation evidence by the Phase 2 implementation commit.
+**PENDING — awaiting ChatGPT review.** The architect must inspect the two Phase 2 commits (closure record `6d1c6c9d`; the implementation commit — immediate child of `6d1c6c9d`), then record one of: `PASS` (close Phase 2, initialize Phase 3), `PASS_WITH_FOLLOWUP` (record follow-ups), or `CORRECTION_REQUIRED` (issue corrective handoff per `ZAI_HANDOFF.md` §I.5). Until then Phase 2 remains `IN_PROGRESS` and no Phase 3 artifact may be created.
 
 ---
 
 ## State-machine consistency (Final State Contract, plan §Final State Contract)
 
-| Field | Value (2026-10-01, at the Phase 1 closure-record commit — transition state) | Agreement |
+| Field | Value (2026-10-01, at the Phase 2 implementation commit — reconciled) | Agreement |
 |---|---|---|
-| `VERIFICATION_STATE.phase` | Phase 1 `CLOSED` (this register); Phase 2 `IN_PROGRESS` | ✓ (this register) |
-| `PROJECT_STATE.current_phase` | still records Phase 1 `IN_PROGRESS` from the pre-closure snapshot — reconciled to Phase 2 by the immediately following Phase 2 implementation commit | pending reconciliation (this closure commit deliberately touches only this register, per the architect's directive) |
-| `CURRENT_PHASE.phase` | same — reconciled to Phase 2 by the Phase 2 implementation commit | pending reconciliation |
-| `NEXT_ACTION.phase` | same — reconciled to Phase 2 by the Phase 2 implementation commit | pending reconciliation |
-| `ZAI_HANDOFF.phase` | *document does not exist yet — created by the Phase 2 implementation commit* | n/a |
+| `PROJECT_STATE.current_phase` | Phase 2 — Z.AI Developer Handoff System, `IN_PROGRESS` | ✓ |
+| `CURRENT_PHASE.phase` | Phase 2, `IN_PROGRESS` | ✓ |
+| `NEXT_ACTION.phase` | Phase 2, `IN_PROGRESS` | ✓ |
+| `VERIFICATION_STATE.phase` | Phase 2, `IN_PROGRESS` | ✓ |
+| `ZAI_HANDOFF.phase` | Phase 2 (Part II Phase identity), `IN_PROGRESS` | ✓ |
 | latest worklog phase entry | *canonical worklog does not exist yet (Phase 4)* — no conflict possible | n/a |
-| latest verified commit | `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` — Phase 1 implementation, **architect-verified by the `PASS` review (2026-10-01)** | ✓ |
+| latest verified commit | `3a8b8b4ef8a62c8c7843bbe30af4d046ca9b002f` — Phase 1 implementation, **architect-verified by the `PASS` review (2026-10-01)**; the Phase 2 commits (`6d1c6c9d` closure record + implementation) are developer-reported until architect review | ✓ |
 
-If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. The sibling-document reconciliation pending above is completed by the next commit on this branch — the Phase 2 implementation commit (`docs: establish zai developer handoff system`).
+If any of these disagree at a future boundary, the phase is **BLOCKED until reconciled**. The reconciliation pending at the closure-record commit (`6d1c6c9d`) was completed by this Phase 2 implementation commit, as documented there.
 
 ## Appendix — re-runnable validation commands
 
 ```bash
 cd <repo-root>   # branch feature/ai-core-from-doable-source
+
+# ---- Phase 1 (foundation) ----
 
 # 1–2. Existence + required fields
 ls docs/project-control/
@@ -157,4 +179,22 @@ npm run validate:model-config
 
 # 10–12. Diff/status/scope
 git status --short && git diff --stat && git show --stat HEAD
+
+# ---- Phase 2 (Z.AI Developer Handoff System) ----
+
+# Aggregate suite (108 checks): structure, references, duplicates, vocabulary,
+# role separation, STOP boundary, correction protocol, evidence, secrets, scope, model-config.
+# Persisted read-only script (agent workspace, outside the repository):
+bash /home/z/my-project/scripts/validate-phase2-control-docs.sh   # -> RESULT: 108 PASS / 0 FAIL
+
+# Representative individual checks:
+ls docs/project-control/ docs/project-control/templates/
+rg -n '^### I\.[0-9]+' docs/project-control/ZAI_HANDOFF.md
+rg -n '^### (Phase identity|Objective|Scope \(approved\)|Non-scope \(explicit\)|Prerequisites|Required reading \(completed|Implementation tasks|Files / components|Interfaces / contracts|Security constraints|Testing requirements|Acceptance criteria|Git requirements|Evidence requirements|Review boundary|STOP boundary)' docs/project-control/ZAI_HANDOFF.md
+rg -c 'Phase 2 — Z.AI Developer Handoff System' docs/project-control/{PROJECT_STATE,CURRENT_PHASE,NEXT_ACTION,VERIFICATION_STATE}.md docs/project-control/ZAI_HANDOFF.md
+git ls-files | rg -i 'handoff|project-control/templates'
+git ls-files | rg -i 'CHAT_CONTINUITY|(^|/)worklog\.md$'   # only the library-scoped docs/doable-source/WORKLOG.md
+rg -n 'ghp_[A-Za-z0-9]{30,}|gho_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}|supabase\.co/[A-Za-z0-9]|service_role[a-z_]*[[:space:]]*[:=]' docs/project-control/   # no matches
+git status --short && git diff --stat
+npm run validate:model-config
 ```

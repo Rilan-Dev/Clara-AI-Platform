@@ -29,6 +29,13 @@
 | D-014 | 2026-10-01 | ACTIVE | Branch/PR state in control documents is always dated and paired with a recovery command (never undated prose) — direct mitigation of drift risk R-1, which materialized once during Phase 0 | Z.AI (developer convention, consistent with spec principle 6) | RISKS.md R-1; PHASE-0-RECONNAISSANCE.md correction note |
 | D-015 | 2026-10-01 | ACTIVE | The closed Phase 0 reconnaissance report is historical evidence and is not modified by later phases | Z.AI (developer convention) | Phase 1 handoff non-scope |
 
+## Decisions established during Phase 2 (Z.AI Developer Handoff System)
+
+| ID | Date | Status | Decision | Authority | Evidence / reference |
+|---|---|---|---|---|---|
+| D-016 | 2026-10-01 | ACTIVE | `docs/project-control/ZAI_HANDOFF.md` is the single authoritative developer-handoff format: Part I holds the durable protocol (mandatory 16-section structure, lifecycle, correction protocol, integrity rules, evidence requirements, review boundary, STOP boundary, fresh-session usability); Part II holds the active handoff instance, replaced at each new architect-issued handoff (superseded instances recoverable in Git history). The canonical blank form is `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md`; no other handoff template or duplicate handoff source may be created | ChatGPT (directed via the Phase 2 implementation handoff, 2026-10-01: "The system must establish one authoritative format for future Z.AI implementation handoffs") | Phase 2 handoff §2–§3; plan Phase 2; Phase 0 report §10 |
+| D-017 | 2026-10-01 | ACTIVE | Handoff integrity: every handoff identifies repository, branch, baseline commit, phase, date, and current status; GitHub is authoritative; Z.AI must refresh repository state before implementation (`git fetch --prune`, clean-tree/branch/baseline verification) and MUST STOP and await a refreshed handoff if the baseline has changed materially, rather than applying stale instructions | ChatGPT (directed via the Phase 2 implementation handoff, 2026-10-01, §6 "Handoff integrity") | Phase 2 handoff §6; ZAI_HANDOFF.md §I.6; RISKS.md R-1; ISSUES.md I-002, I-004 |
+
 ## Pending decisions (awaiting architect confirmation — do not act on these)
 
 | ID | Date | Status | Decision (recommendation only) | Authority | Evidence / reference |
