@@ -411,3 +411,43 @@ None opened; no corrections required to date in this phase. D-020 appended (cons
 **ChatGPT architect review of the Phase 5 implementation** — Gate D under the new contract: inspect the implementation commit and its full diff; verify the durable contract, the checklist/template, the deterministic test's FAIL/PASS demonstration, the evidence-class separation, the scope/security boundaries, and the Final State Contract; then record `PASS` / `PASS_WITH_FOLLOWUP` / `CORRECTION_REQUIRED` in `VERIFICATION_STATE.md` §Phase 5 (the closure decision must itself satisfy the phase-close checklist, `VERIFICATION_CHECKLIST.md` §7). Only `PASS` closes Phase 5. If `CORRECTION_REQUIRED`, a corrective handoff is issued per `ZAI_HANDOFF.md` §I.5. Z.AI is STOPped at the phase boundary.
 
 > Correction (2026-10-01): the architect's review of the Phase 5 implementation returned **`CORRECTION_REQUIRED`** — finding: the P0 policy established by this phase contained a contradiction; it stated that P0 prevents phase closure and that no P0 exception path exists, while simultaneously describing an architect-decision mechanism that could authorize phase closure with a P0 still recorded (an implicit P0 exception path; since Phase 5 establishes the canonical phase-gate rules for future phases, the contradiction had to be removed before the phase could receive an architect `PASS`). Corrected by the P0-closure-policy correction commit `docs: correct phase 5 p0 closure policy` (the immediate child of the Phase 5 implementation commit on `feature/ai-core-from-doable-source`, documentation-only): the canonical P0 policy in `VERIFICATION_STATE.md` §"P0/P1 blocker rule" — and its summaries in `VERIFICATION_CHECKLIST.md` §6 and `CURRENT_PHASE.md` — now states unambiguously that **P0 prevents phase closure — always, and that there is no P0 exception path**; an architect decision may document acknowledgement, remediation, escalation, or other operational handling of a recorded P0, but it must not authorize phase closure while the P0 remains recorded. The P1 exception policy (`P1 prevents `PASS` unless an explicitly recorded architect-approved exception exists`) is unchanged. Verified in the corrective cycle: the deterministic closure-eligibility test re-run — 8/8 determinations correct, exit 0, the P0 fixture still computing closure eligibility `FAIL`; `npm run validate:model-config` PASS; correction-cycle validation via the persisted read-only script outside the repository (`/home/z/my-project/scripts/validate-phase5-p0-correction.sh`, staged + HEAD modes). Phase 5 remains `IN_PROGRESS` (correction delivered, developer-reported; awaiting ChatGPT's re-review — the only thing that can close Phase 5); Phase 6 remains NOT STARTED; no product/DB/deployment/immutable-source changes; no entry above was rewritten (this note is appended per §3.1). [developer-reported; the `CORRECTION_REQUIRED` outcome and the corrective directive are architect-verified as communicated in the corrective handoff]
+
+---
+
+## 2026-10-01 — Phase 5 — Verification and Phase-Gate System — architect approval — `CLOSED`
+
+> Append-only subsequent event: the `IN_PROGRESS` entry above (including its corrective-cycle note) is the submission-time record and is preserved unrewritten. This entry records the architect re-review that closed Phase 5, per the Phase 5 closure handoff (2026-10-01).
+
+| Field | Value |
+|---|---|
+| Phase | Phase 5 — Verification and Phase-Gate System |
+| Status | `CLOSED` |
+| Date | 2026-10-01 (Phase 5 closure handoff received from ChatGPT; closure-record commit is the immediate child of `fb4ad5f5`) |
+| Roles | ChatGPT — architect (independent re-review of the corrected Phase 5 implementation; closure decision); Z.AI — developer (closure-record execution) |
+
+### Review [architect-verified]
+
+- Architect re-review of the corrected Phase 5 implementation — outcome **`PASS`**. Architect: **ChatGPT**; developer: **Z.AI**. Reviewed implementation commit: `fb4ad5f59b5661dc2bc7f38039805fc6294d58ef` ("docs: correct phase 5 p0 closure policy"; the immediate child of the Phase 5 implementation commit `f9ce6a833bc67205384e17bb92433c78967f4363`; verified relationship `f9ce6a83 → fb4ad5f5`).
+- The review cycle in full: the architect's first review of the Phase 5 implementation (2026-10-01) returned `CORRECTION_REQUIRED` (the P0-policy contradiction — recorded in the corrective-cycle note above and in `VERIFICATION_STATE.md` §Phase 5 review trail); the corrective commit `fb4ad5f5` delivered the correction; the architect's re-review of the corrected state returned **`PASS`** — implementation → correction → architect re-review → `PASS` → `CLOSED`.
+- Scope verification: documentation-only; the corrected state satisfies the Phase 5 acceptance criteria — the canonical P0 policy is unambiguous (P0 prevents phase closure — always; there is no P0 exception path), the P1 exception mechanism is unchanged, and the deterministic P0 case still computes closure eligibility `FAIL`. The closure handoff supplies no separate review timestamp; none is fabricated.
+- **Phase 5 → `CLOSED`** (only `PASS` closes a phase — D-009; binding under the verification and phase-gate contract this phase established — D-020).
+
+### Post-closure state
+
+- **Phase 6 is the next phase (per the plan) and the next authorized phase; it has NOT started.** No Phase 6 handoff has been issued; no Phase 6 implementation has been performed; no product implementation has been performed. Only ChatGPT may authorize Phase 6. [architect-verified]
+- The `b65725e5` classification is preserved exactly: provenance **not independently established** — never described as confirmed owner authorship; the commit is not modified, amended, reverted, or rewritten; `vercel.json` remains non-scope. [architect-verified directive, preserved]
+- Z.AI STOPs at the inter-phase boundary: awaiting the ChatGPT architect's review of this closure record and the subsequent explicit Phase 6 handoff. [developer-reported]
+
+### Commits
+
+| SHA | Message |
+|---|---|
+| *(this commit)* | docs: record architect approval of phase 5 — the immediate child of `fb4ad5f5` on `feature/ai-core-from-doable-source` (self-referential: it records the Phase 5 closure); documentation-only — a closure-record commit, not the reviewed implementation and not a new product/control implementation [developer-reported] |
+
+### Issues / correction
+
+- None opened by the closure. The corrective cycle that preceded it (the P0-closure-policy correction) is recorded above and in `VERIFICATION_STATE.md` §Phase 5; the architect's re-review confirms the corrected state satisfied the finding. I-001 and I-007 remain open (non-scope; not silently resolved); D-020 stands as recorded; `DECISIONS.md`/`ISSUES.md`/`RISKS.md` deliberately not modified by this closure (no new decisions, defects, or risk facts entailed — dispositions remain architect calls).
+
+### Next action (current)
+
+**ChatGPT architect review of the Phase 5 closure record**, then the explicit Phase 6 handoff (per the plan; only ChatGPT may authorize Phase 6). Z.AI performs no further work until then.

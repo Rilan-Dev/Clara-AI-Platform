@@ -40,6 +40,7 @@ Every `SESSION-*.md` record follows one canonical schema (from the approved Phas
 | `SESSION-003.md` | 2026-10-01 | Z.AI developer session | Phase 4 Part A only (Phase 3 closure record) + §I.6 stop | `d12b0582` |
 | `SESSION-004.md` | 2026-10-01 | Z.AI developer session (this phase's implementing session) | Phase 4 implementation (refreshed handoff) | the Phase 4 implementation commit (immediate child of `d12b0582`) |
 | `SESSION-005.md` | 2026-10-01 | Z.AI developer session (Phase 4 closure-record session) | Phase 4 closure record only (architect `PASS` recorded) | `docs: record architect approval of phase 4` (immediate child of `5febaacd`) |
-| `SESSION-006.md` | 2026-10-01 | Z.AI developer session (Phase 5 implementing session) | Phase 5 implementation (verification and phase-gate system) | `docs: establish phase 5 verification and phase gates` (immediate child of `8d8595d0`) |
+| `SESSION-006.md` | 2026-10-01 | Z.AI developer session (Phase 5 implementing session) | Phase 5 implementation (verification and phase-gate system) + the architect-directed P0-policy corrective continuation | `docs: establish phase 5 verification and phase gates` (immediate child of `8d8595d0`); `docs: correct phase 5 p0 closure policy` (immediate child of the implementation commit) |
+| `SESSION-007.md` | 2026-10-01 | Z.AI developer session (Phase 5 closure-record session) | Phase 5 closure record only (architect `PASS` re-review recorded) | `docs: record architect approval of phase 5` (immediate child of `fb4ad5f5`) |
 
 Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain recoverable in Git history (at each phase's implementation commit) and are identified in the corresponding `worklog.md` phase entries.
