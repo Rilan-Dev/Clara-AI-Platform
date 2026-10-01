@@ -1,93 +1,91 @@
 # CURRENT_PHASE.md — Active-Phase Contract
 
 > Canonical contract for the currently active phase of the Clara project-control system.
-> Snapshot date: **2026-10-01**. Cross-references: `PROJECT_STATE.md` (authoritative state), `ZAI_HANDOFF.md` (active handoff instance), `CHAT_CONTINUITY.md` (fresh-ChatGPT continuity procedure), `VERIFICATION_STATE.md` (evidence), `docs/superpowers/plans/2026-10-01-clara-project-control-system.md` (full 13-phase plan).
+> Snapshot date: **2026-10-01**. Cross-references: `PROJECT_STATE.md` (authoritative state), `ZAI_HANDOFF.md` (active handoff instance), `CHAT_CONTINUITY.md` (fresh-ChatGPT continuity procedure), `VERIFICATION_STATE.md` (evidence), `worklog.md` (canonical historical audit trail), `docs/superpowers/plans/2026-10-01-clara-project-control-system.md` (full 13-phase plan).
 
 ## Phase identity
 
 | Field | Value |
 |---|---|
-| Phase number | **3** |
-| Phase name | **Cross-Chat ChatGPT Continuity** |
-| Full designation | **Phase 3 — Cross-Chat ChatGPT Continuity** |
+| Phase number | **4** |
+| Phase name | **Worklog and Session Audit** |
+| Full designation | **Phase 4 — Worklog and Session Audit** |
 | Status | **IN_PROGRESS** — developer implementation complete; awaiting architect review |
 | Assigned developer | **Z.AI** (developer/implementer) |
 | Architect / reviewer / controller | **ChatGPT** |
-| Developer assignment | Phase 3 implementation handoff received from ChatGPT on 2026-10-01 (immediately after the Phase 2 `PASS` review) and fully executed by Z.AI, in two parts: Part A — Phase 2 closure record (commit `58856e0be6325d0326a2d7c8cde6d6d6312b9000`); Part B — this implementation (see VERIFICATION_STATE.md §Phase 3). The handoff is materialized in `ZAI_HANDOFF.md` Part II. **No new handoff is active; Z.AI must not begin Phase 4 without a new architect-issued handoff.** |
+| Developer assignment | Refreshed Phase 4 implementation handoff received from ChatGPT on 2026-10-01, issued after the architect's review of the moved baseline (see Prerequisites). Fully executed by Z.AI. The handoff is materialized in `ZAI_HANDOFF.md` Part II. **No new handoff is active; Z.AI must not begin Phase 5 without a new architect-issued handoff.** |
 
-**Only ChatGPT/project-owner review can close the phase.** This phase remains OPEN until the architect reviews the Phase 3 evidence and records a review outcome. Only a `PASS` review outcome closes it (`PASS_WITH_FOLLOWUP` keeps it open with follow-ups; `CORRECTION_REQUIRED` triggers a corrective handoff). A developer completion claim never closes a phase.
+**Only ChatGPT/project-owner review can close the phase.** This phase remains OPEN until the architect reviews the Phase 4 evidence and records a review outcome. Only a `PASS` review outcome closes it (`PASS_WITH_FOLLOWUP` keeps it open with follow-ups; `CORRECTION_REQUIRED` triggers a corrective handoff). A developer completion claim never closes a phase.
 
 ## Objective
 
-Create a durable `CHAT_CONTINUITY.md` procedure that allows a completely new ChatGPT conversation, with no access to the previous conversation, to recover the exact Clara project state and continue architectural leadership safely from GitHub repository state alone. The continuity system must prevent stale conversational memory from overriding repository truth.
+Create the durable project-wide worklog and session-audit layer so future ChatGPT sessions can reconstruct project history — phases, events, decisions, and evidence — without depending on conversation memory, while the worklog remains an audit/history layer that never replaces the current-state authority of the project-control documents.
 
 ## Scope (approved)
 
-- Create `docs/project-control/CHAT_CONTINUITY.md`: the durable cross-chat ChatGPT continuity procedure — fresh-ChatGPT initialization; the 17 capability determinations; deterministic read order distinguishing mandatory / conditional / historical reads; the recovery procedure; the recovery-report schema with evidence grading (architect-verified / developer-reported / unresolved-stale / inferred-only-after-verification); the repository-authority and stale-memory rules with examples; broken-chat recovery; state-inconsistency → `BLOCKED`; architect-authority recovery; Z.AI authorization rules; a reusable copy/paste initialization prompt; recovery scenarios A–H; the validation procedure.
-- Record the Phase 2 architect approval durably in `VERIFICATION_STATE.md` and commit it separately (`docs: record architect approval of phase 2` — delivered as `58856e0b`).
-- Modify `PROJECT_STATE.md` and `NEXT_ACTION.md` (phase-state reconciliation to Phase 3).
-- Modify other `docs/project-control/` files only where necessary to keep the Final State Contract correct: `CURRENT_PHASE.md` (this file), `ZAI_HANDOFF.md` (Part II instance replacement per §I.12 / D-016), `VERIFICATION_STATE.md` (Phase 3 evidence + reconciled consistency table).
+- Create `worklog.md` at the repository root — the canonical Clara project worklog, explicitly authorized by the refreshed Phase 4 handoff (superseding the Phase 3 prohibition) and distinct from the library-scoped `docs/doable-source/WORKLOG.md` — with: canonical entry schema (phase, role, date, objective, implementation, verification, review, commit, issues, correction, next action); explicit status values (`PLANNED`, `IN_PROGRESS`, `BLOCKED`, `CORRECTION_REQUIRED`, `VERIFIED`, `CLOSED`); append-only convention with explicit corrections only; accurate historical reconstruction of Phases 0–3; a clearly identified entry for the `b65725e5` mid-handoff branch-movement event; developer-reported/architect-verified evidence classification; the explicit declaration that it does **not** replace `PROJECT_STATE.md`, `CURRENT_PHASE.md`, `NEXT_ACTION.md`, `ZAI_HANDOFF.md`, or `VERIFICATION_STATE.md`.
+- Create the session audit records under `docs/project-control/sessions/` per the approved Phase 4 specification/plan (`README.md` convention + session records), each making determinable: session identity; date/time only if actually known; role; phase; starting repository state; work performed; evidence produced; decisions/actions; resulting commits; validation; stopping boundary; next responsible role.
+- Reconcile the Final State Contract members to Phase 4 `IN_PROGRESS`: `PROJECT_STATE.md`, `CURRENT_PHASE.md` (this file), `NEXT_ACTION.md`, `ZAI_HANDOFF.md` (Part II instance replacement per §I.12 / D-016), `VERIFICATION_STATE.md` (Phase 4 evidence + validation + the architect's moved-baseline review trail + reconciled consistency table).
+- Consequential register updates entailed by the deliverables: `ISSUES.md` I-003 resolved with dated evidence (the durable in-repo worklog now exists); `DECISIONS.md` D-018 (canonical worklog location confirmed — D-P1) and D-019 (session-audit layer enabled) appended, D-P1 marked confirmed.
 
 ## Non-scope (explicit)
 
-- **Do NOT** modify application product source code, dependencies, database schema/migrations, or Vercel/deployment configuration.
-- **Do NOT** modify the immutable Doable-source trees (`docs/doable-source/doable-source/**`, `docs/doable-source/dependency-closure/**`, `docs/doable-source/ui-reference/**`) or any other library-governed content.
-- **Do NOT** create the canonical project `worklog.md` (Phase 4) or `sessions/` records.
-- **Do NOT** implement Multi-Provider, Unified Tool Runtime, Integrations, MCP, Agent Runtime, Agent Work Mode, or any product capability of the north-star program.
-- **Do NOT** create a Phase 4 handoff instance or any later-phase artifact.
-- **Do NOT** add a validation script/validator to the repository (any reusable script stays outside the repository, in the agent workspace).
-- **Do NOT** work directly on `Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, or `main`.
-- **Do NOT** modify `README.md` or `AGENTS.md` documents (pending architect decision D-P2).
-- **Do NOT** modify the closed Phase 0 reconnaissance report or rewrite historical Phase 0/Phase 1/Phase 2 evidence.
+- **Do NOT** modify `src/`, `packages/`, or any application product source code; do not implement Multi-Provider, Unified Tool Runtime, Integrations, MCP, Agent Runtime, Agent Work Mode, or any AI provider behavior.
+- **Do NOT** modify database schema, create migrations, run remote database mutations, or modify Supabase state.
+- **Do NOT** modify `vercel.json` or any Vercel configuration; do not deploy; do not modify `Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, or `main`; do not rewrite, revert, or amend `b65725e5`.
+- **Do NOT** modify the immutable Doable-source trees (`docs/doable-source/doable-source/**`, `docs/doable-source/dependency-closure/**`, `docs/doable-source/ui-reference/**`) or fold project entries into `docs/doable-source/WORKLOG.md`.
+- **Do NOT** resolve R-3, R-4, or R-5, or rotate the Vercel token — unless explicitly handed off later.
+- **Do NOT** create a Phase 5 handoff instance or any later-phase artifact; do not start Phase 5.
+- **Do NOT** add a validation script/validator to the repository (any reusable script stays outside the repository, in the agent workspace, per the Phase 3 convention).
+- **Do NOT** modify `README.md` or `AGENTS.md` documents (pending architect decision D-P2) or the closed Phase 0 reconnaissance report.
+- **Do NOT** rewrite historical Phase 0/Phase 1/Phase 2/Phase 3 evidence, or resolve unrelated issues.
 
-## Prerequisites (all satisfied)
+## Prerequisites (all satisfied 2026-10-01)
 
-1. Phase 2 `CLOSED` — architect review `PASS` on commit `31ffd6f4330753f9b42dba231d7e02589d12eb77` (2026-10-01); closure recorded in `VERIFICATION_STATE.md` and committed as `58856e0be6325d0326a2d7c8cde6d6d6312b9000` ("docs: record architect approval of phase 2").
-2. The Phase 2 handoff system is in force: `ZAI_HANDOFF.md` Part I (durable protocol) and `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md`.
-3. Mandatory initialization completed by the developer on 2026-10-01: all required documents read (`README.md`; `.github/copilot-instructions.md`, `Doc/18-09-2026/AGENTS.md`, `docs/doable-source/AGENTS.md`; the eight control documents; the spec and plan; `PHASE-0-RECONNAISSANCE.md`); repository state refreshed (`git fetch --prune`; branch `feature/ai-core-from-doable-source`; clean tree; 12 ahead / 0 behind `Vite-Converted` at the closure-record commit; mainlines unchanged); Phase 2 closure confirmed **from repository evidence**, not chat memory.
+1. Phase 3 `CLOSED` — architect review `PASS` (2026-10-01) on implementation commit `3706b977099e8a1aa8b867c936149439b1f700c0`; closure recorded in `VERIFICATION_STATE.md` and committed as `d12b0582f370c0192a97bad0ad1b1dc81b7f0713` ("docs: record architect approval of phase 3").
+2. The architect reviewed the moved baseline: independently verified that `b65725e5` changes only `vercel.json` and enables Vercel deployment for `feature/ai-core-from-doable-source`; accepted it as an already-existing repository event (its provenance is **not independently established** and must not be described as confirmed owner authorship); determined that Phase 4 may continue from `d12b0582`; and issued the refreshed Phase 4 implementation handoff (2026-10-01) with baseline `d12b0582` and branch history `3706b977` → `b65725e5` → `d12b0582`. R-3/R-4/R-5 remain open and out of Phase 4 scope.
+3. Mandatory initialization completed by the developer on 2026-10-01: all required documents read; repository state refreshed (`git fetch --prune`; branch `feature/ai-core-from-doable-source`; HEAD `d12b0582` = origin tip, clean tree; 15 ahead / 0 behind `Vite-Converted`; mainlines unchanged); Phase 3 closure and the refreshed-handoff baseline confirmed **from repository evidence**, not chat memory.
 
 ## Required deliverables
 
-- `docs/project-control/CHAT_CONTINUITY.md` — the durable continuity procedure, satisfying the Phase 3 continuity contract: fresh-ChatGPT initialization; 17 capability determinations; read order (mandatory / conditional / historical); recovery procedure; recovery-report schema with evidence grading; repository-authority and stale-memory rules («ChatGPT must never treat previous conversational memory as authoritative when repository evidence disagrees with it.»); broken-chat recovery (never assuming completion from commit existence alone); state-inconsistency → `BLOCKED`; architect-authority recovery; Z.AI authorization rules (never inferred from Git history alone); copy/paste initialization prompt (conversation-independent); recovery scenarios A–H; validation procedure; review boundary; procedure-only status (no second source of truth).
-- Phase 2 closure record in `VERIFICATION_STATE.md` (delivered in commit `58856e0b`, before this implementation).
-- Phase-state reconciliation to Phase 3 across the control documents (Final State Contract): `PROJECT_STATE.md`, `CURRENT_PHASE.md` (this file), `NEXT_ACTION.md`, `ZAI_HANDOFF.md` (Part II), `VERIFICATION_STATE.md`.
+- `worklog.md` (repository root) — the canonical project worklog satisfying the Historical worklog requirements of the refreshed handoff: Phases 0–3 reconstructed accurately (reconnaissance and stale-evidence correction; Phase 1 foundation, `PASS`, closure, transition; Phase 2 handoff system, `PASS`, closure, transition; Phase 3 continuity implementation, `PASS`, closure, transition); the `b65725e5` repository event clearly identified with its authorized fact set and its provenance reported as **not independently established**; evidence classification on every material statement; historical — not current-state — authority.
+- `docs/project-control/sessions/` — the session-audit records (README + `SESSION-*.md`) following the approved structure, with no fabricated timestamps and no credentials/tokens/private chain-of-thought/unsupported claims.
+- Reconciled current state: all five Final State Contract members at Phase 4 — Worklog and Session Audit, `IN_PROGRESS`, baseline `d12b0582`, latest architect-verified product/control implementation `3706b977` (with `d12b0582` classified as a closure-record commit and `b65725e5` as an external repository event — not misclassified as architect-verified implementation).
 
 ## Acceptance criteria
 
-1. A fresh ChatGPT session can reconstruct Clara state without the previous conversation.
-2. Repository state is explicitly authoritative; stale ChatGPT memory cannot override GitHub evidence.
-3. The active phase, the active Z.AI handoff, and the latest architect-verified commit can be determined from repository state alone.
-4. Developer-reported evidence is distinguishable from architect-verified evidence.
-5. Broken-chat recovery is deterministic.
-6. State inconsistencies become `BLOCKED`.
-7. Z.AI authorization can be determined without conversational memory.
-8. The initialization prompt is reusable and conversation-independent.
-9. No competing source of truth is introduced.
-10. No product feature is implemented; no database/deployment changes occur; immutable Doable-source boundaries remain untouched.
-11. Final State Contract values agree across all control documents (Phase 3 `IN_PROGRESS`; latest verified commit `31ffd6f4`).
+1. `worklog.md` exists at the repository root with its canonical structure (entry schema fields; six status values; append-only convention).
+2. Phases 0–3 are represented accurately in the worklog, each with objective, implementation, verification, review outcome, commits, issues/correction, and next action.
+3. The `b65725e5` branch-movement event is represented accurately: its position between `3706b977` and `d12b0582`; that it changes only `vercel.json` and enables Vercel deployment for the branch; that it occurred while Phase 3 closure work was in progress; that it caused the initial push rejection; that Z.AI correctly applied stale-baseline protection; that Z.AI stopped Phase 4 implementation; that the architect subsequently reviewed the moved baseline and determined Phase 4 may continue from `d12b0582` — with **no** statement of definite owner authorship.
+4. Every worklog/session entry distinguishes developer-reported from architect-verified evidence; no developer statement is presented as architect verification.
+5. Session records follow the approved structure and make all twelve determinations available; no fabricated timestamps; no secrets/tokens/credentials/private chain-of-thought/unsupported claims.
+6. The worklog explicitly states that it does not replace the five current-state authority documents; current state remains authoritative in the project-control layer; superseded handoff instances remain recoverable through Git history and worklog/session history.
+7. No duplicate current-state source exists (`git ls-files` shows exactly one project worklog and one session-audit directory; the worklog is history, not state).
+8. No product source, database/migration files, `vercel.json`, or immutable Doable-source trees changed; no deployment or database operation performed; R-3/R-4/R-5 untouched.
+9. Final State Contract values agree across all control documents (Phase 4 `IN_PROGRESS`; latest verified commit `3706b977`; baseline `d12b0582`; latest worklog phase entry = Phase 4 `IN_PROGRESS`).
+10. Working tree clean; the implementation commit pushed to `origin/feature/ai-core-from-doable-source`; local/remote synchronized.
 
 ## Verification requirements (developer, before commit)
 
-Run and record: (1) `CHAT_CONTINUITY.md` existence; (2) required-section checks (§1–§15); (3) read-order explicitness; (4) repository-authority rule; (5) stale-memory rule; (6) recovery-report schema; (7) broken-chat procedure; (8) state-inconsistency → `BLOCKED`; (9) role separation; (10) Z.AI authorization rules; (11) initialization prompt; (12) recovery scenarios A–H; (13) internal-reference resolution; (14) no competing state source (`git ls-files`); (15) secret/credential scan of `docs/project-control/`; (16) Final State Contract consistency across the five documents; (17) `npm run validate:model-config`; (18) scope check (`git diff` / `git status`: documentation-only, `docs/project-control/` only). Commands and results are recorded in `VERIFICATION_STATE.md` §Phase 3.
+Run and record (the 19 required checks): (1) `worklog.md` exists; (2) canonical structure verified; (3) Phases 0–3 represented; (4) the `b65725e5` event represented accurately; (5) developer/architect evidence classification verified; (6) no unsupported provenance claim about `b65725e5`; (7) session records follow the approved structure; (8) worklog is historical rather than current-state authority; (9) no duplicate current-state source; (10) no secrets/tokens/credentials introduced; (11) no product source changed; (12) no DB/migration files changed; (13) `vercel.json` unchanged; (14) immutable Doable-source trees unchanged; (15) applicable lightweight repository validation (`npm run validate:model-config`); (16) full diff inspection; (17) Final State Contract verification; (18) commit and push; (19) clean tree and local/remote synchronization. Commands and results are recorded in `VERIFICATION_STATE.md` §Phase 4. The reusable validation script remains outside the repository (`/home/z/my-project/scripts/validate-phase4-control-docs.sh`), following the Phase 3 convention.
 
 ## Security constraints
 
-- No secrets, credentials, access tokens, or private chain-of-thought may be written into any control document (plan Global Constraints). The exposed Vercel token referenced by R-5 must never be reproduced here.
-- Control documents record decisions and observable evidence only — not hidden reasoning.
-- This phase changes documentation only; no security/tenancy surface of the application is touched.
+- No secrets, credentials, access tokens, or private chain-of-thought may be written into the worklog, session records, or any control document (plan Global Constraints). The exposed Vercel token (R-5) must never be reproduced.
+- No fabricated timestamps: only dates or repository-derived information actually available may be recorded in session records and worklog entries.
+- The provenance of `b65725e5` must be reported as **not independently established** unless new repository evidence proves otherwise; Git-metadata inferences are recorded as inferences only (D-012).
+- Control documents record decisions and observable evidence only — not hidden reasoning. This phase changes documentation only; no application security/tenancy surface is touched.
 
 ## Git/branch constraints
 
-- Work only on `feature/ai-core-from-doable-source`; never on `Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, or `main`.
-- Two focused documentation-only commits (no squashing of unrelated history, no unrelated changes riding along):
-  1. `docs: record architect approval of phase 2` — closure record (delivered: `58856e0be6325d0326a2d7c8cde6d6d6312b9000`);
-  2. `docs: establish cross-chat ChatGPT continuity` — this implementation (immediate child of `58856e0b`).
-- Both pushed to `origin/feature/ai-core-from-doable-source`.
+- Work only on `feature/ai-core-from-doable-source`; never on `Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, or `main`; no force-push.
+- One focused documentation-only implementation commit: `docs: establish phase 4 worklog and session audit` — the immediate child of `d12b0582` on `feature/ai-core-from-doable-source`; changed paths limited to the repository-root `worklog.md` and `docs/project-control/**`. No unrelated changes ride along; no squashing of unrelated history.
+- `b65725e5` is not modified, rewritten, reverted, or amended; `vercel.json` is not touched.
 
 ## Stopping boundary
 
-Implementation stops immediately after: the continuity procedure is created, the phase state is reconciled, validation passes, the commit is created and pushed, and the developer evidence report is delivered. **Z.AI then STOPs.** Phase 3 advances only after ChatGPT review records an outcome in VERIFICATION_STATE.md (only `PASS` closes the phase and initializes Phase 4 — Worklog and Session Audit, per the plan). If review returns `CORRECTION_REQUIRED`, Z.AI acts only on the corrective handoff (ZAI_HANDOFF.md §I.5). A fresh ChatGPT session resuming leadership mid-boundary follows `CHAT_CONTINUITY.md` §5.
+Implementation stops immediately after: the worklog and session-audit layer are created, the phase state is reconciled, validation passes, the commit is created and pushed, and the developer evidence report is delivered. **Z.AI then STOPs.** Phase 4 advances only after ChatGPT review records an outcome in `VERIFICATION_STATE.md` (only `PASS` closes the phase and initializes Phase 5 — Verification and Phase-Gate System, per the plan). If review returns `CORRECTION_REQUIRED`, Z.AI acts only on the corrective handoff (ZAI_HANDOFF.md §I.5). Do not resolve R-3/R-4/R-5 unless separately authorized. A fresh ChatGPT session resuming leadership mid-boundary follows `CHAT_CONTINUITY.md` §5.
 
 ## Developer-reported completion state (2026-10-01)
 
-Implementation complete: `CHAT_CONTINUITY.md` exists and satisfies the continuity contract; the Phase 3 handoff instance is materialized in `ZAI_HANDOFF.md` Part II; the phase state is reconciled across all control documents; validation was executed (commands and results in VERIFICATION_STATE.md §Phase 3); the implementation commit is the immediate child of `58856e0b` on `feature/ai-core-from-doable-source`. Awaiting architect review. **The phase is NOT closed.**
+Implementation complete: `worklog.md` exists at the repository root and satisfies the canonical structure and historical coverage requirements; `docs/project-control/sessions/` exists with the README convention and session records; the phase state is reconciled across all five Final State Contract members (with the consequential register updates I-003 resolved and D-018/D-019 recorded); validation was executed (commands and results in `VERIFICATION_STATE.md` §Phase 4); the implementation commit is the immediate child of `d12b0582` on `feature/ai-core-from-doable-source`. Awaiting architect review. **The phase is NOT closed.**

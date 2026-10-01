@@ -18,17 +18,6 @@
 | Evidence / reference | `docs/superpowers/specs/2026-10-01-clara-project-control-architecture-design.md` §Cross-Chat Recovery; `git ls-files docs/AGENTS.md` → empty |
 | Owner / next action | ChatGPT — decide D-P2 (thin pointer file vs. amend the spec read order); deliberately NOT created in Phase 1 (outside the required file set) |
 
-### I-003 — No durable in-repo project worklog
-
-| Field | Value |
-|---|---|
-| Status | open |
-| Description | The only in-repo worklog is `docs/doable-source/WORKLOG.md`, which is scoped to the vendored library's own development phases. No durable project-wide worklog exists; the Z.AI agent-side worklog lives outside the repository and is not durable |
-| Impact | Until Phase 4, historical audit relies on Git history + the Phase 0 report + this control-document set; chat-carried history is not authoritative |
-| Phase discovered | Phase 0 (report §2/§8.2, conflict C-2) |
-| Evidence / reference | Phase 0 report §2; `git ls-files | grep -i worklog` → only `docs/doable-source/WORKLOG.md` |
-| Owner / next action | Phase 4 (Worklog and Session Audit) per plan; location recommendation D-P1 (root `worklog.md`) awaits architect confirmation. NOT created in Phase 1 (outside the required file set) |
-
 ### I-007 — Stale Copilot instructions reference non-existent `graphify-out/`
 
 | Field | Value |
@@ -41,6 +30,18 @@
 | Owner / next action | ChatGPT — trivial doc fix whenever convenient; not blocking any phase |
 
 ## Resolved
+
+### I-003 — No durable in-repo project worklog (RESOLVED 2026-10-01)
+
+| Field | Value |
+|---|---|
+| Status | resolved (2026-10-01) |
+| Description | The only in-repo worklog was `docs/doable-source/WORKLOG.md`, scoped to the vendored library's own development phases; no durable project-wide worklog existed, and the Z.AI agent-side worklog lived outside the repository (not durable, not in Git) |
+| Impact | Until Phase 4, historical audit relied on Git history + the Phase 0 report + the control-document set; chat-carried history was not authoritative |
+| Phase discovered | Phase 0 (report §2/§8.2, conflict C-2) |
+| Resolution evidence | Canonical project worklog established at the repository root (`worklog.md`) by the Phase 4 implementation commit `docs: establish phase 4 worklog and session audit` (the immediate child of `d12b0582` on `feature/ai-core-from-doable-source`), together with the session-audit layer `docs/project-control/sessions/` (README + SESSION-001…004); historical coverage of Phases 0–3 + the `b65725e5` mid-handoff event, evidence-classified and append-only; explicitly an audit/history artifact, not current-state authority. D-P1 confirmed as D-018 (DECISIONS.md). The out-of-repo agent-side worklog remains a local session convenience only and is never cited as authority |
+| Closed by | Phase 4 — Worklog and Session Audit implementation (2026-10-01), per plan Phase 4 and the refreshed Phase 4 handoff; the architect review of Phase 4 is pending and will confirm the resolution |
+| Traceability | Phase 0 finding C-2 → plan Phase 4 → D-P1 recommendation → refreshed Phase 4 handoff authorization → Phase 4 implementation commit → (pending) architect review |
 
 ### I-002 — Phase 0 report recorded stale repository-state evidence (RESOLVED 2026-10-01)
 
