@@ -49,6 +49,41 @@
       "source_path": "src/modules/organisations/core/agent-ai-types.ts",
       "target_path": "clara-core/source/src/modules/organisations/core/agent-ai-types.ts",
       "source_blob_sha": "7a6a37bf00d19016e1915a3f0f801c41356f6b8d"
+    },
+    {
+      "source_path": "src/modules/ai-governance/core/types.ts",
+      "target_path": "clara-core/source/src/modules/ai-governance/core/types.ts",
+      "source_blob_sha": "e55b68fb959aec043d23ffe29fa9182673d255ab"
+    },
+    {
+      "source_path": "src/modules/ai-governance/core/entitlements-db.ts",
+      "target_path": "clara-core/source/src/modules/ai-governance/core/entitlements-db.ts",
+      "source_blob_sha": "d478c70090535c655f35fe3dd7d52a8121e691f5"
+    },
+    {
+      "source_path": "src/modules/ai-governance/core/live-catalog.ts",
+      "target_path": "clara-core/source/src/modules/ai-governance/core/live-catalog.ts",
+      "source_blob_sha": "27166f8cc55f670d37f873469adfd0e0358b4c42"
+    },
+    {
+      "source_path": "src/modules/ai-governance/core/resolver.ts",
+      "target_path": "clara-core/source/src/modules/ai-governance/core/resolver.ts",
+      "source_blob_sha": "651ed9b0477564b04e0262fe6a3945a0316b9bda"
+    },
+    {
+      "source_path": "src/modules/ai-core/model-catalog.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/model-catalog.ts",
+      "source_blob_sha": "53775b1b857982c4da21df3bf6f865977233795d"
+    },
+    {
+      "source_path": "src/modules/assistant/api/conversation-context.ts",
+      "target_path": "clara-core/source/src/modules/assistant/api/conversation-context.ts",
+      "source_blob_sha": "683e7c1d73642e0c50b3c4ee355c27ae7d8f505e"
+    },
+    {
+      "source_path": "src/modules/assistant/api/realtime.ts",
+      "target_path": "clara-core/source/src/modules/assistant/api/realtime.ts",
+      "source_blob_sha": "980df0bc8405cf1b53aa2d78e2b9d118ca4455a8"
     }
   ]
 }
