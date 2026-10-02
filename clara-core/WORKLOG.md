@@ -89,3 +89,28 @@ Continue from the newly extracted imports, prioritizing the direct dependencies 
 
 ### Next
 Follow the imports from the voice factory/resolver and AI runtime next. Extract provider implementations and their pure/shared dependencies without copying host-only API adapters prematurely. Preserve byte-for-byte source identity and verify every source/target blob before manifest registration.
+
+## 2026-10-03 — AI provider implementation closure slice
+
+### Completed
+- Extracted the Clara AI provider factory and stale-while-revalidate AI configuration cache.
+- Extracted the complete AI configuration contract used by runtime resolution.
+- Extracted Clara OpenAI, Gemini, Sarvam and TEI provider implementations.
+- Extracted the ElevenLabs server-side voice provider implementation.
+- Registered the successfully copied files in the immutable extraction manifest.
+
+### Verified source identities
+- `src/modules/ai-core/factory.ts` → `86c21eb4fbd4bbc179d46d3c4567baca942d4124`
+- `src/modules/ai-core/resolve-cache.ts` → `8bff3975e0d7aa04dfad68f4782f66bdd4302a08`
+- `src/modules/ai-core/config-types.ts` → `5cbc046ab68df7c2fc927815d914a1c416e322db`
+- `src/modules/ai-core/providers/openai.ts` → `a3c0ea00fbd98076260e0e1789e7de30aeb79cac`
+- `src/modules/ai-core/providers/gemini.ts` → `26da813de08b56b226f53a6deff707b4a431731f`
+- `src/modules/ai-core/providers/sarvam.ts` → `6ffe59799d12437bbc9993aed6966d03c99d2dd0`
+- `src/modules/ai-core/providers/tei.ts` → `1dd80e7689e9b9d527b20035f6bfd5b1681dc517`
+- `src/modules/voice-core/providers/elevenlabs.ts` → `7771d4f5275c3fe128ba8ed60e956d5082564c18`
+
+### Blocked / not registered
+- `src/modules/voice-core/providers/sarvam.ts` was inspected and identified as the next required provider implementation, but the GitHub write operation was blocked by the platform safety check. It was therefore NOT claimed as extracted and is NOT in the manifest.
+
+### Next
+Continue with the blocked Sarvam voice provider through a safe write path if available; otherwise proceed with its direct dependencies and the remaining AI/voice pure runtime dependencies. Do not fabricate or modify immutable source content.
