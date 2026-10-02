@@ -12,7 +12,8 @@
     "multi-provider-ai-foundation",
     "provider-discovery",
     "embedding-resolution",
-    "engine-types"
+    "engine-types",
+    "ai-engine"
   ],
   "files": [
     {
@@ -84,6 +85,11 @@
       "source_path": "services/api/src/ai/engine-types.ts",
       "target_path": "ai-platform-core/doable-source/services/api/src/ai/engine-types.ts",
       "source_blob_sha": "a8f00d43541b6f72852ee736935dbe13ac7b8725"
+    },
+    {
+      "source_path": "services/api/src/ai/engine.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/engine.ts",
+      "source_blob_sha": "3989bd817d2e013b80cf3bf5fc6a495477187d0a"
     }
   ]
 }
