@@ -233,3 +233,33 @@ Clara Core now contains the Qdrant storage/index boundary required to populate a
 
 ### Next
 Trace Clara's document upload/parse/chunk pipeline into the Qdrant upsert boundary. Extract the reusable document ingestion primitives and their direct dependencies, then verify the complete RAG path from document bytes → chunks → embeddings → Qdrant → grounding.
+
+## 2026-10-03 — Clara document ingestion primitives
+
+### Completed
+- Extracted Clara's document loader and chunking facade.
+- Extracted the parser contract/factory and PDF, DOCX, text, XLSX, and HTML parsers.
+- Extracted Clara's recursive character chunker and web/HTML loader used by HTML ingestion.
+- Registered exact source blob identities in the extraction manifest.
+
+### Source identities
+- document-loader.ts → 6ff4dc8960f343a1c6cea18d2698bb6e7b15de32
+- chunker.ts → d3f04176a147ca5e0a1e55610c267f687fb458e5
+- ingest/index.ts → 5aae8b60366862bdb3d84947bdb6c363ef28cafb
+- web-loader.ts → d87c28d7efb5faeb7a198f300f614aaabf91c285
+- ingest/types.ts → d2371b78524cd8d94946c889f07514f09caf82e9
+- ingest/factory.ts → 42f6ee40298ce342cd55b9588483410333c2ed42
+- pdf.ts → df00f345d3bb763c8f1c73ca76914cd90e8e51de
+- docx.ts → 1d9844baa8e459a9e846bfbfca7c3806f07f13d2
+- text.ts → beaa08ebcfb810951a60959504bc635af760ed0a
+- xlsx.ts → 0032257c4d05bfe05ea3efc02c80e381ec13dcb9
+- html-parser.ts → e986ab42648cae85073d8c8c0505d38e29f62395
+- recursive.ts → 77a3813ee477949e8af0950856557e54988c00ee
+
+### Not completed
+- Full ingest-worker extraction and its DB/job/queue dependencies.
+- Upload/document persistence closure.
+- End-to-end verification from uploaded bytes through Qdrant.
+
+### Next
+Trace the worker's persistence and queue boundaries, extract only the reusable Clara ingestion lifecycle dependencies, then verify document → parse → chunk → embed → Qdrant as one coherent core path.
