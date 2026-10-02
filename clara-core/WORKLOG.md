@@ -170,3 +170,39 @@ The reusable Clara core now contains the KB configuration boundary needed to com
 
 ### Next
 Continue from the Clara grounding imports and Qdrant/document lifecycle. Extract the reusable retrieval, document/indexing, and knowledge-base runtime primitives while keeping provider-native KB state out of the reusable core.
+
+## 2026-10-03 — RAG retrieval runtime dependency slice
+
+### Completed
+- Extracted Clara collection embedding/index binding so retrieval and ingestion can use the embedding model that actually built each Qdrant collection.
+- Extracted the query-embedding cache used by realtime grounding.
+- Extracted Clara multilingual embedding configuration and score-threshold policy.
+- Extracted KB-wide document diversification for vector retrieval.
+- Extracted RAG runtime mode configuration, provider-neutral turn guidance, and tenant-derived knowledge-topic generation.
+- Extracted the KB query analytics/audit persistence boundary used by grounding and quota metering.
+- Registered all eight files with their exact Clara source Git blob SHAs.
+
+### Verified source identities
+- `src/modules/knowledge-bases/core/embedding-index.ts` → `0b51afe01c0a2d65615fce158b80cac0c2db9bf0`
+- `src/modules/rag/query-embedding-cache.ts` → `c97205b8975606a03bf101ac656820174df66fb7`
+- `src/modules/ai-core/multilingual-embeddings.ts` → `38ffebef16c5780a09f6133048ba7a36ff518279`
+- `src/modules/rag/diversify.ts` → `af520fb79c2d9252bc85c6d8b8a4caa56e3f73bb`
+- `src/modules/rag/config.ts` → `65bda919cc0c69a1d7701939df334fb71118156a`
+- `src/modules/rag/turn-guidance.ts` → `d4eb89d701aa7f7bbbd6d5ebb7445ce19ade439e`
+- `src/modules/rag/knowledge-topics.ts` → `1de5bcef44bcaaf3b795276f0c53d78662318bbf8`
+- `src/modules/knowledge-bases/core/analytics-db.ts` → `137e64182e5b51419ce3cf979645178afdb8e5f6`
+
+### Architectural result
+The reusable Clara RAG layer now preserves collection/model identity, cached query embeddings, multilingual retrieval policy, document-balanced search, runtime RAG modes, answer guidance, tenant-derived topic discovery, and query analytics. Provider-native knowledge bases remain outside this path.
+
+### Not completed
+- Qdrant/document ingestion and indexing worker primitives.
+- Graph retrieval dependencies.
+- Remaining grounding dependency closure.
+- Usage/quota admission dependency closure.
+- Agent versioning persistence/service closure.
+- MCP/tools/integrations, embed and phone runtime closure.
+- Automated full-library verifier.
+
+### Next
+Continue with the Clara document ingestion/indexing lifecycle and Qdrant primitives that populate the collections consumed by this retrieval path. Then close any remaining grounding imports before moving to agent-versioning and usage/quota infrastructure.
