@@ -6,6 +6,7 @@ import { resolveVoiceConfigCached } from "@/modules/voice-core/resolve";
 import { groundClaraContext } from "@/modules/rag/grounding";
 import { buildConversationAwareSearchQuery, buildRecentConversationContextBlock, recentMessages } from "@/modules/assistant/api/conversation-context";
 import type { ChatMessage } from "@/modules/ai-core/types";
+import { getClaraToolRuntime, invokeClaraTool } from "./clara-tools";
 
 export interface ClaraRuntimeContext {
   orgId: string | null;
@@ -126,22 +127,45 @@ export const claraRuntime = {
   },
 
   tools: {
+    /**
+     * Phase 7-B — the Unified Tool Runtime seam. The former hardcoded tool
+     * object is REPLACED by delegation to the registry
+     * (`getClaraToolRuntime()` — PHASE-7-PLAN.md §9 A2: "claraRuntime.tools
+     * seam (replacing the hardcoded object)"). The external contract is
+     * preserved: list() returns `{ name, description }` summaries, and
+     * invoke() returns the tool's domain payload (the incumbent
+     * GroundingOutcome for rag_search, byte-for-byte) while throwing — as
+     * before — on the legacy error conditions with the exact legacy
+     * messages. The module-level import cycle with clara-tools.ts
+     * (clara-runtime ⇄ clara-tools) is call-time-only: neither module
+     * dereferences the other at evaluation time, so ESM live bindings
+     * resolve in both load orders.
+     */
     list() {
-      return [{
-        name: "rag_search",
-        description: "Retrieve tenant-bound evidence from Clara's active knowledge base.",
-      }];
+      return getClaraToolRuntime()
+        .listTools()
+        .map((tool) => ({ name: tool.name, description: tool.description }));
     },
 
     async invoke(ctx: ClaraRuntimeContext, name: string, input: unknown) {
-      if (name !== "rag_search") throw new Error("Unsupported Clara tool: " + name);
-      const payload = input && typeof input === "object" ? input as Record<string, unknown> : {};
-      const query = typeof payload.query === "string" ? payload.query.trim() : "";
-      if (!query) throw new Error("rag_search requires a query.");
-      return claraRuntime.retrieve(ctx, query, {
-        ragMode: payload.ragMode === "classic" || payload.ragMode === "agentic" ? payload.ragMode : "hybrid",
-        channel: "voice",
-      });
+      // The incumbent seam has always served the VOICE tool-call path
+      // (channel "voice" was hardcoded in the former implementation), so the
+      // mandatory execution context is minted with the realtime surface —
+      // the surface the tool is actually exposed on. Fail-closed identity
+      // rules (missing tenant/KB) surface as ExecutionContextError before
+      // any retrieval can happen.
+      const outcome = await invokeClaraTool(ctx, name, input, "realtime");
+      if (outcome.ok) {
+        return outcome.data;
+      }
+      // Legacy throw contract, preserved message-for-message:
+      if (outcome.error.code === "UNKNOWN_TOOL") {
+        throw new Error("Unsupported Clara tool: " + name);
+      }
+      if (outcome.error.code === "INVALID_ARGUMENTS" && name === "rag_search") {
+        throw new Error("rag_search requires a query.");
+      }
+      throw new Error(outcome.error.message);
     },
   },
 } as const;

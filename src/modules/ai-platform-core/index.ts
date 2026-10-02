@@ -40,3 +40,45 @@ export {
   getClaraPlatformAdapter,
   getClaraPlatformRegistry,
 } from "./clara-adapters";
+
+// Phase 7-B — Unified Tool Runtime (server-side only).
+export type {
+  ToolAuthorizationAdapter,
+  ToolAuthorizationDecision,
+  ToolAuthorizationPolicy,
+  ToolAuthorizationRequest,
+  ToolDefinition,
+} from "./tool-contracts";
+export type {
+  ToolError,
+  ToolErrorCode,
+  ToolEventSink,
+  ToolFailure,
+  ToolInvocationOutcome,
+  ToolMeteringHook,
+  ToolMeteringRecord,
+  ToolName,
+  ToolPlanCapability,
+  ToolResult,
+  ToolStreamingEvent,
+  ToolSummary,
+} from "./tool-contracts";
+export { TOOL_NAME_PATTERN, ToolExecutionError } from "./tool-contracts";
+export {
+  ToolRegistrationError,
+  UnknownToolError,
+  createToolRuntime,
+  type ToolInvokeOptions,
+  type ToolRuntime,
+  type ToolRuntimeOptions,
+} from "./tool-registry";
+export {
+  RAG_SEARCH_TOOL_NAME,
+  buildClaraToolAuthorizationAdapter,
+  buildClaraToolMeteringHook,
+  buildClaraToolRuntime,
+  buildRagSearchTool,
+  getClaraToolRuntime,
+  invokeClaraTool,
+  planCapabilityForSurface,
+} from "./clara-tools";

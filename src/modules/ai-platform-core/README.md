@@ -72,3 +72,75 @@ definitions, schemas, registry, invocation lifecycle, authorization and
 metering hooks — and provider tool-calling / the agentic loop (7-C) are NOT
 part of this foundation and remain unauthorized until the architect issues
 the corresponding explicit authorization handoffs.
+
+## Phase 7-B — Unified Tool Runtime
+
+Phase 7-B (`docs/project-control/PHASE-7-PLAN.md` §21) extends the seam with
+the keystone runtime. **Server-side only.** Zero new runtime dependencies
+(zod was already a project dependency). No routes added or changed; no
+database/migration/Supabase changes; no provider tool-calling.
+
+| File | Role |
+|---|---|
+| `tool-contracts.ts` | Host-neutral 7-B vocabulary: `ToolDefinition` (zod-backed input schema + declarative authorization policy + executor), the per-tool authorization hook port, the usage-metering hook, normalized result envelopes, the typed-error vocabulary, and the normalized streaming tool-event contract (types only — no provider tool-calling). |
+| `tool-registry.ts` | The Unified Tool Runtime: fail-closed registration (up-front definition validation; duplicates rejected; committed definitions frozen), deterministic listing/lookup (unknown → controlled failure), and the full invocation lifecycle — mandatory provenance-verified execution context → tool allowlist → authorization (surface allowlist + declared identity requirements + the host adapter) → zod input validation → execute() → result/error normalization → metering hook → streaming events. Every tool-level failure is a normalized typed `ToolFailure`; the runtime never throws out of `invoke()` and never falls back permissively. |
+| `clara-tools.ts` | The Clara binding: the migrated `rag_search` `ToolDefinition` (wraps the existing `claraRuntime.retrieve` — behavior-preserving), the Clara authorization adapter (plan entitlements via the existing `ai-governance` resolver; RBAC via the existing `auth` org-access context when a tool declares `requiredPermission`), the default Clara metering hook (existing-spine discipline; see below), and the `getClaraToolRuntime()` application singleton. |
+| `clara-runtime.ts` | The incumbent thin host binding — its formerly hardcoded `tools` object is REPLACED by delegation to the Unified Tool Runtime (the external `list()`/`invoke()` contract is preserved, including the legacy throw messages). |
+
+### The invocation lifecycle
+
+```text
+mandatory PlatformExecutionContext (7-A provenance boundary — forged frozen lookalikes rejected)
+  → tool allowlist (registry membership)
+  → authorization: surface allowlist × declared identity requirements × host adapter
+      (plan entitlement × RBAC × host tenant checks — fail-closed; adapter errors are denials)
+  → zod input validation
+  → execute(validatedInput, context)          ← the tool receives ONLY the frozen tenant context
+  → normalized ToolResult | typed ToolFailure
+  → metering hook (once per attempt, caller-scoped, never breaks the call)
+  → streaming tool events (started → succeeded|failed, paired around execution only)
+```
+
+### `rag_search` migration (behavior-preserving)
+
+The existing behavior — `claraRuntime.tools.invoke` → `claraRuntime.retrieve`
+→ `groundClaraContext` (channel "voice", ragMode from the payload defaulting
+to "hybrid", the caller's orgId/agentId/kbId/userId/sessionId carried through
+unchanged, `admission: "external"` so the owning turn keeps owning the query
+event) — is wrapped, not rewritten. The tool's domain payload IS the incumbent
+`GroundingOutcome`, including its domain-level `ok:false` outcomes (e.g. the
+402 `plan_limit_exceeded` contract): those are valid tool outputs preserved
+byte-for-byte; the typed `ToolFailure` envelope is reserved for runtime-level
+failures (context/allowlist/authorization/validation/execution). Parity is
+proven by tests that call the registry and the direct implementation with
+identical inputs and compare results.
+
+Authorization for `rag_search`: allowed surfaces are exactly the ones the
+tool is exposed on today — `realtime` and `embed` (chat never exposed a tool
+surface, so it is NOT in the allowlist; public/embed exposure is not
+broadened). Plan entitlement is derived from the invocation surface through
+the existing `ai-governance` resolver (realtime → `realtime_voice`, embed →
+`voice_chat`, chat → `chat`). No org-role requirement is introduced for the
+incumbent tool: its owning routes keep the authentication/RBAC boundary
+exactly as today; the runtime's RBAC integration point is exercised by tools
+that declare `requiredPermission`.
+
+### Metering binding
+
+The runtime exposes the approved hook interface and invokes it once per
+invocation attempt with the caller-scoped record. The default Clara hook
+follows the existing spine's discipline (append-only,
+never-break-the-metered-pipeline, org-scoped) WITHOUT inserting new billing
+rows: the incumbent retrieval is metered by its owning turn (the
+`admission: "external"` contract exists to prevent double-billing), and the
+`usage_events` kind vocabulary is fixed by the existing schema CHECK
+constraint (no migrations are authorized in 7-B). Hosts bind their own hook
+to extend metering onto the existing spine.
+
+### Stopping boundary
+
+7-B delivers the runtime and the `rag_search` migration only. Provider
+tool-calling, the agentic loop, bounded iteration logic, tool-calling
+provider APIs, MCP, and integrations are 7-C-and-beyond territory and remain
+unauthorized until the architect issues the corresponding explicit
+authorization handoffs.
