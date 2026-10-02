@@ -1,5 +1,6 @@
 import { ProviderFactory } from "@/modules/ai-core/factory";
-import { toProviderConfig, type ResolvedAIConfig } from "@/modules/ai-core/resolve";
+import { toProviderConfig } from "@/modules/ai-core/resolve";
+import type { ResolvedAIConfig } from "@/modules/ai-core/config-types";
 import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { resolveVoiceConfigCached } from "@/modules/voice-core/resolve";
 import { groundClaraContext } from "@/modules/rag/grounding";
@@ -34,7 +35,7 @@ export interface ClaraAgentTurn {
  */
 export const claraRuntime = {
   async resolveProvider(ctx: ClaraRuntimeContext, surface: "chat" | "realtime" | "embed" = "chat") {
-    return resolveAIConfigCached({ kbId: ctx.kbId, orgId: ctx.orgId, surface });
+    return resolveAIConfigCached({ kbId: ctx.kbId, orgId: ctx.orgId ?? undefined, surface });
   },
 
   async resolveVoice(ctx: ClaraRuntimeContext) {
@@ -53,8 +54,8 @@ export const claraRuntime = {
       topK: options?.topK ?? 8,
       ragMode: options?.ragMode ?? "hybrid",
       surface: options?.channel === "voice" ? "voice" : "search",
-      sessionId: ctx.sessionId ?? null,
-      userId: ctx.userId ?? null,
+      sessionId: ctx.sessionId ?? undefined,
+      userId: ctx.userId ?? undefined,
       admission: "external",
       channel: options?.channel ?? "chat",
     });
@@ -63,7 +64,7 @@ export const claraRuntime = {
   async createChatTurn(request: ClaraAgentTurnRequest): Promise<ClaraAgentTurn> {
     const config = await resolveAIConfigCached({
       kbId: request.kbId,
-      orgId: request.orgId,
+      orgId: request.orgId ?? undefined,
       surface: request.surface ?? "chat",
     });
 
@@ -78,9 +79,9 @@ export const claraRuntime = {
       searchQuery: retrievalQuery,
       topK: request.surface === "realtime" ? 4 : 8,
       ragMode: request.ragMode ?? "hybrid",
-      surface: request.surface === "embed" ? "embed" : request.surface === "realtime" ? "voice" : "chat",
-      sessionId: request.sessionId ?? null,
-      userId: request.userId ?? null,
+      surface: request.surface === "embed" ? "embed" : request.surface === "realtime" ? "voice" : "workspace",
+      sessionId: request.sessionId ?? undefined,
+      userId: request.userId ?? undefined,
       admission: "external",
       channel: request.surface === "realtime" ? "voice" : "chat",
     });
