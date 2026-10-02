@@ -199,6 +199,46 @@
       "source_path": "src/modules/assistant/core/language-policy.ts",
       "target_path": "clara-core/source/src/modules/assistant/core/language-policy.ts",
       "source_blob_sha": "95832c3d702cbc2221cd188c87278a27cc02c995"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/embedding-index.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/embedding-index.ts",
+      "source_blob_sha": "0b51afe01c0a2d65615fce158b80cac0c2db9bf0"
+    },
+    {
+      "source_path": "src/modules/rag/query-embedding-cache.ts",
+      "target_path": "clara-core/source/src/modules/rag/query-embedding-cache.ts",
+      "source_blob_sha": "c97205b8975606a03bf101ac656820174df66fb7"
+    },
+    {
+      "source_path": "src/modules/ai-core/multilingual-embeddings.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/multilingual-embeddings.ts",
+      "source_blob_sha": "38ffebef16c5780a09f6133048ba7a36ff518279"
+    },
+    {
+      "source_path": "src/modules/rag/diversify.ts",
+      "target_path": "clara-core/source/src/modules/rag/diversify.ts",
+      "source_blob_sha": "af520fb79c2d9252bc85c6d8b8a4caa56e3f73bb"
+    },
+    {
+      "source_path": "src/modules/rag/config.ts",
+      "target_path": "clara-core/source/src/modules/rag/config.ts",
+      "source_blob_sha": "65bda919cc0c69a1d7701939df334fb71118156a"
+    },
+    {
+      "source_path": "src/modules/rag/turn-guidance.ts",
+      "target_path": "clara-core/source/src/modules/rag/turn-guidance.ts",
+      "source_blob_sha": "d4eb89d701aa7f7bbbd6d5ebb7445ce19ade439e"
+    },
+    {
+      "source_path": "src/modules/rag/knowledge-topics.ts",
+      "target_path": "clara-core/source/src/modules/rag/knowledge-topics.ts",
+      "source_blob_sha": "1de5bcef44bcaaf3b795276f0c53d78662318bbf8"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/analytics-db.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/analytics-db.ts",
+      "source_blob_sha": "137e64182e5b51419ce3cf979645178afdb8e5f6"
     }
   ]
 }
