@@ -9,7 +9,10 @@
     "status": "in_progress"
   },
   "capabilities": [
-    "multi-provider-ai-foundation"
+    "multi-provider-ai-foundation",
+    "provider-discovery",
+    "embedding-resolution",
+    "engine-types"
   ],
   "files": [
     {
@@ -61,6 +64,26 @@
       "source_path": "services/api/src/ai/streaming.ts",
       "target_path": "ai-platform-core/doable-source/services/api/src/ai/streaming.ts",
       "source_blob_sha": "96f49e46a7a6d0c15c259f93e0ec2d55836a27bb"
+    },
+    {
+      "source_path": "services/api/src/ai/provider-discovery.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/provider-discovery.ts",
+      "source_blob_sha": "1b97d69b1d9528d7d192760f894f2bb812b43dad"
+    },
+    {
+      "source_path": "services/api/src/ai/provider-discovery-helpers.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/provider-discovery-helpers.ts",
+      "source_blob_sha": "034eb189e8f0e5e37b17d9cd58823d12e077ed8d"
+    },
+    {
+      "source_path": "services/api/src/ai/embedding-resolver.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/embedding-resolver.ts",
+      "source_blob_sha": "44a0918fdbca92060943523342d37ea5cde2fcc3"
+    },
+    {
+      "source_path": "services/api/src/ai/engine-types.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/engine-types.ts",
+      "source_blob_sha": "a8f00d43541b6f72852ee736935dbe13ac7b8725"
     }
   ]
 }
