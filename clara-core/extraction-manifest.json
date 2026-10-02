@@ -84,6 +84,36 @@
       "source_path": "src/modules/assistant/api/realtime.ts",
       "target_path": "clara-core/source/src/modules/assistant/api/realtime.ts",
       "source_blob_sha": "980df0bc8405cf1b53aa2d78e2b9d118ca4455a8"
+    },
+    {
+      "source_path": "src/modules/voice-core/config-types.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/config-types.ts",
+      "source_blob_sha": "ae8e6cb54e7844c7040da8a12d58e83bc5656abb"
+    },
+    {
+      "source_path": "src/modules/voice-core/model-catalog.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/model-catalog.ts",
+      "source_blob_sha": "026d5f9e3c3751f09f4bd6970e50ac3bd1cf7edc"
+    },
+    {
+      "source_path": "src/modules/voice-core/resolve.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/resolve.ts",
+      "source_blob_sha": "ffeea456e4cd8e67895c5aeb12660b95b2ffc44b"
+    },
+    {
+      "source_path": "src/modules/voice-core/factory.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/factory.ts",
+      "source_blob_sha": "c0476d170b338c7aff4b40259fa4bb35ffa87ddd"
+    },
+    {
+      "source_path": "src/modules/assistant/api/openai-realtime.ts",
+      "target_path": "clara-core/source/src/modules/assistant/api/openai-realtime.ts",
+      "source_blob_sha": "75f51414d5f4820324dbabd583417f2d150f358e"
+    },
+    {
+      "source_path": "src/modules/assistant/api/openai-catalog.ts",
+      "target_path": "clara-core/source/src/modules/assistant/api/openai-catalog.ts",
+      "source_blob_sha": "55ffce4b8ee3ff228479ada72312b3c2923ac6f0"
     }
   ]
 }
