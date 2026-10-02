@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "library": "clara-core",
+  "source_repository": "Rilan-Dev/Clara-AI-Platform",
+  "source_ref": "feature/ai-core-from-doable-source",
+  "extraction_mode": "exact-source-from-clara-platform",
+  "immutable": true,
+  "status": "in_progress",
+  "purpose": "Reusable Clara platform core for independent SaaS, agents and multi-tenant applications.",
+  "rules": [
+    "Source is extracted only from Clara-AI-Platform.",
+    "Doable is reference material only and is not an extraction source.",
+    "Immutable source files are copied byte-for-byte and are not refactored or rewritten.",
+    "Host-specific identity, tenancy, secrets, billing, branding and deployment are adapter concerns.",
+    "Clara-owned AI, agent, RAG, versioning, voice and runtime behavior remains in the reusable core."
+  ],
+  "files": [
+    {
+      "source_path": "src/modules/ai-platform-core/clara-runtime.ts",
+      "target_path": "clara-core/source/src/modules/ai-platform-core/clara-runtime.ts",
+      "source_blob_sha": "f7fa173ca24f96a2d1002a562181fd1bed01939a"
+    },
+    {
+      "source_path": "src/modules/ai-core/types.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/types.ts",
+      "source_blob_sha": "3a2b6663be4be7395b59c696f35fefdf878285cf"
+    },
+    {
+      "source_path": "src/modules/ai-core/resolve.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/resolve.ts",
+      "source_blob_sha": "c780c14c52374df410d9027bb96f9335ed1c741d"
+    },
+    {
+      "source_path": "src/modules/rag/grounding.ts",
+      "target_path": "clara-core/source/src/modules/rag/grounding.ts",
+      "source_blob_sha": "f0789e0e23967f7b00e7e4d06eefb4bc37504298"
+    },
+    {
+      "source_path": "src/modules/agent-versioning/core/types.ts",
+      "target_path": "clara-core/source/src/modules/agent-versioning/core/types.ts",
+      "source_blob_sha": "7160a7affd47f91baa59bed48c256109fde1f028"
+    },
+    {
+      "source_path": "src/modules/voice-core/types.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/types.ts",
+      "source_blob_sha": "854a678417b9b77b357cb469a2a8d48bc1d289a5"
+    },
+    {
+      "source_path": "src/modules/organisations/core/agent-ai-types.ts",
+      "target_path": "clara-core/source/src/modules/organisations/core/agent-ai-types.ts",
+      "source_blob_sha": "7a6a37bf00d19016e1915a3f0f801c41356f6b8d"
+    }
+  ]
+}
