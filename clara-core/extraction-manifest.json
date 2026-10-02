@@ -114,6 +114,46 @@
       "source_path": "src/modules/assistant/api/openai-catalog.ts",
       "target_path": "clara-core/source/src/modules/assistant/api/openai-catalog.ts",
       "source_blob_sha": "55ffce4b8ee3ff228479ada72312b3c2923ac6f0"
+    },
+    {
+      "source_path": "src/modules/ai-core/factory.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/factory.ts",
+      "source_blob_sha": "86c21eb4fbd4bbc179d46d3c4567baca942d4124"
+    },
+    {
+      "source_path": "src/modules/ai-core/resolve-cache.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/resolve-cache.ts",
+      "source_blob_sha": "8bff3975e0d7aa04dfad68f4782f66bdd4302a08"
+    },
+    {
+      "source_path": "src/modules/ai-core/config-types.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/config-types.ts",
+      "source_blob_sha": "5cbc046ab68df7c2fc927815d914a1c416e322db"
+    },
+    {
+      "source_path": "src/modules/ai-core/providers/openai.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/providers/openai.ts",
+      "source_blob_sha": "a3c0ea00fbd98076260e0e1789e7de30aeb79cac"
+    },
+    {
+      "source_path": "src/modules/ai-core/providers/gemini.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/providers/gemini.ts",
+      "source_blob_sha": "26da813de08b56b226f53a6deff707b4a431731f"
+    },
+    {
+      "source_path": "src/modules/ai-core/providers/sarvam.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/providers/sarvam.ts",
+      "source_blob_sha": "6ffe59799d12437bbc9993aed6966d03c99d2dd0"
+    },
+    {
+      "source_path": "src/modules/ai-core/providers/tei.ts",
+      "target_path": "clara-core/source/src/modules/ai-core/providers/tei.ts",
+      "source_blob_sha": "1dd80e7689e9b9d527b20035f6bfd5b1681dc517"
+    },
+    {
+      "source_path": "src/modules/voice-core/providers/elevenlabs.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/providers/elevenlabs.ts",
+      "source_blob_sha": "7771d4f5275c3fe128ba8ed60e956d5082564c18"
     }
   ]
 }
