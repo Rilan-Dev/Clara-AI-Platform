@@ -159,6 +159,46 @@
       "source_path": "src/modules/voice-core/providers/sarvam.ts",
       "target_path": "clara-core/source/src/modules/voice-core/providers/sarvam.ts",
       "source_blob_sha": "0f98c62c0e5fa71780f4139af576b844443e1cae"
+    },
+    {
+      "source_path": "src/modules/rag/cross-lingual.ts",
+      "target_path": "clara-core/source/src/modules/rag/cross-lingual.ts",
+      "source_blob_sha": "10dd946cf2ce7b4f40a4bd04a11559c16ccd7e98"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/models.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/models.ts",
+      "source_blob_sha": "5f305a66da7cc97252ecc4f5a6195375530e91b2"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/snapshots-db.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/snapshots-db.ts",
+      "source_blob_sha": "bc741cefd77343a67a0b563ea616d07d07e40e9c"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/db.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/db.ts",
+      "source_blob_sha": "90a3265b80e5aa469e593df3479b8c75fa5dd473"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/ai-overrides-db.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/ai-overrides-db.ts",
+      "source_blob_sha": "3c5c2301d0b99b6779085cae5f87f802a05619f4"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/config-builder.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/config-builder.ts",
+      "source_blob_sha": "c1380eaf7511496788c8c5899abb66b6221aa06c"
+    },
+    {
+      "source_path": "src/modules/assistant/core/config.ts",
+      "target_path": "clara-core/source/src/modules/assistant/core/config.ts",
+      "source_blob_sha": "e9fa07bc9a4f745f79364e95a59ea5bc70dbb2d5"
+    },
+    {
+      "source_path": "src/modules/assistant/core/language-policy.ts",
+      "target_path": "clara-core/source/src/modules/assistant/core/language-policy.ts",
+      "source_blob_sha": "95832c3d702cbc2221cd188c87278a27cc02c995"
     }
   ]
 }
