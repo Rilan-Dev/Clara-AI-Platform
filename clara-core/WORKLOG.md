@@ -114,3 +114,27 @@ Follow the imports from the voice factory/resolver and AI runtime next. Extract 
 
 ### Next
 Continue with the blocked Sarvam voice provider through a safe write path if available; otherwise proceed with its direct dependencies and the remaining AI/voice pure runtime dependencies. Do not fabricate or modify immutable source content.
+
+## 2026-10-03 — Sarvam voice provider closure
+
+### Completed
+- Extracted `src/modules/voice-core/providers/sarvam.ts` from Clara-AI-Platform into the canonical `clara-core` source tree.
+- Preserved the Clara source content byte-for-byte; no refactor, rename, formatting change, or Doable-source substitution was used.
+- Registered the exact Clara Git blob SHA in the immutable extraction manifest.
+
+### Verified source identity
+- `src/modules/voice-core/providers/sarvam.ts` → `0f98c62c0e5fa71780f4139af576b844443e1cae`
+
+### Result
+The Clara voice factory's Sarvam provider implementation is now present in the reusable core alongside ElevenLabs and the shared voice contracts/resolution/catalog layers.
+
+### Not completed
+- Full transitive closure of Sarvam voice dependencies beyond the already extracted model catalog/types.
+- Remaining RAG/knowledge-base runtime closure.
+- Agent versioning persistence/service closure.
+- Usage/quota/analytics/audit closure.
+- Tools/MCP/integrations, embed and phone runtime closure.
+- Automated full-library verifier.
+
+### Next
+Move into Clara's RAG and knowledge-base runtime closure. Follow imports from the existing grounding boundary and knowledge-base configuration/database modules, extracting only Clara-owned reusable source and keeping host-specific persistence/identity concerns explicit for later adapters.
