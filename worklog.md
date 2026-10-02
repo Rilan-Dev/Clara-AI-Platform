@@ -670,3 +670,46 @@ No new issues were discovered during the correction (the correction validation r
 ## Next action (current)
 
 **ChatGPT architect re-review of the actual Phase 7-A correction diff and evidence** (against the CH-002 acceptance criteria in `ZAI_HANDOFF.md` Part II §18), then the I-016 disposition (and severity triage) and either the explicit 7-B authorization decision (only ChatGPT may authorize 7-B — 7-A being corrected does NOT authorize 7-B) or a further corrective handoff per `ZAI_HANDOFF.md` §I.5 and the Phase 6 correction workflow. Z.AI performs no further work until then — STOPped at the correction boundary per the CH-002 §13 MANDATORY HARD STOP.
+
+## 2026-10-02 — Phase 7 — AI Platform Core Foundation — sub-phase 7-A architect approval — `7-A CLOSED` (Phase 7 `IN_PROGRESS`)
+
+> Append-only subsequent event: the `IN_PROGRESS` entries above (the Phase 7 planning package, the 7-A implementation, and the 7-A correction) are the submission-time records and are preserved unrewritten. This entry records the architect re-review that closed sub-phase 7-A, per the Phase 7-A closure handoff (2026-10-02).
+
+| Field | Value |
+|---|---|
+| Phase | Phase 7 — AI Platform Core Foundation (sub-phase 7-A — Host Contracts / Adapter Foundation) |
+| Status | Phase 7: `IN_PROGRESS` · sub-phase 7-A: `PASS — CORRECTION VERIFIED — CLOSED` |
+| Date | 2026-10-02 (Phase 7-A closure handoff received from ChatGPT; closure-record commit is the immediate child of `577189d4963121a64a696c59bd3fb16dacb3b61d`) |
+| Roles | ChatGPT — architect (independent re-review of the corrected Phase 7-A state; the disposition communicated in the closure handoff); Z.AI — developer (closure-record execution) |
+
+### Review [architect-verified]
+
+- Architect re-review of the Phase 7-A correction — outcome **`PASS`**. Architect: **ChatGPT**; developer: **Z.AI**. Reviewed correction commit: `577189d4963121a64a696c59bd3fb16dacb3b61d` ("fix: harden phase 7-a execution context and adapter boundaries"; the immediate child of the reviewed Phase 7-A implementation commit `688070a5fcda04dfce6c971b79322aed34adb4a0`; verified relationship `688070a5 → 577189d4`; correction baseline `688070a5` preserved).
+- The review cycle in full: the architect's first review of the Phase 7-A implementation (2026-10-02) returned `CORRECTION_REQUIRED` (the two fail-closed boundary defects — issue I-016 / corrective handoff CH-002, recorded in the 7-A correction entry above and in `VERIFICATION_STATE.md` §Phase 7 review trail); the corrective commit `577189d4` delivered the correction; the architect's re-review of the corrected state returned **`PASS`** — 7-A implementation → architect `CORRECTION_REQUIRED` → CH-002 correction → correction commit `577189d4` → architect `PASS` → 7-A closure → STOP (the auditable sequence; every prior record preserved unrewritten).
+- The architect explicitly reviewed and accepted: (1) the **ExecutionContext provenance hardening** using private `WeakSet` identity provenance; (2) the **adapter-registry committed-adapter immutability**; (3) the **correction regression coverage**; (4) the **correction scope and the preservation of the immutable Doable source**; (5) the **preservation of I-014 and I-015 as open issues**. The `PASS` disposition applies to the Phase 7-A correction only — no further architect approval is claimed or fabricated.
+- The architect's review also observed a successful Vercel status associated with `577189d4` — recorded here as an **observed external deployment status only**: NOT a Phase 7 deployment authorization, NOT Gate F completion, NOT a promotion (Gate F remains not-executed as a verification gate; D-P4 remains `PENDING`; deployment applicability remains governed by the Phase 7 plan; no deployment was performed, directed, or promoted by the developer; `vercel.json` untouched).
+- The closure handoff supplies no separate review timestamp; none is fabricated.
+- **Issue I-016 → `RESOLVED`** (architect-verified disposition, recorded with `[architect-verified]` resolution evidence in `ISSUES.md` §"Issue records (canonical schema)" — referencing the architect review of `577189d4`, the two corrected defects (the provenance boundary correction; the adapter immutability correction), and the regression evidence).
+- **Sub-phase 7-A → `PASS — CORRECTION VERIFIED — CLOSED`** (the corrected 7-A implementation `688070a5` + `577189d4` is accepted; only an architect `PASS` closes a phase stage — D-009/D-020 applied at the sub-phase level).
+
+### Post-closure state
+
+- **Phase 7 remains `IN_PROGRESS` — NOT `PASS`, NOT `CLOSED`.** The 7-A closure does not complete Phase 7. Sub-phases **7-B (Unified Tool Runtime) and 7-C (provider tool calling / agentic loop) remain `NOT AUTHORIZED` and `NOT STARTED`** — the `PASS` applies to the Phase 7-A correction only, and the 7-A closure creates no 7-B authorization (no wording in any control document creates it, and none is to be inferred). Only ChatGPT may authorize 7-B. [architect-verified boundary, as communicated in the Phase 7-A closure handoff]
+- **I-015 remains `OPEN`** — the workspace/typecheck/dependency problem represented by I-015 is **NOT fixed**: no dependency-changing install, no `package-lock.json` repair, no workspace repair was performed; the 19 pre-existing application-code typecheck errors remain and are not claimed fixed. [developer-reported]
+- **I-014 remains `OPEN`** — the vendored-library `mcp-servers/` absence; the immutable Doable source re-verified byte-unchanged (the four tree OIDs identical to the recorded baseline; 771/771 present pinned blobs byte-verified; the 31 absent files confined to the `mcp-servers/` family). [developer-reported]
+- The `b65725e5` classification is preserved exactly: provenance **not independently established** — never described as confirmed owner authorship; the commit is not modified, amended, reverted, or rewritten; `vercel.json` remains non-scope. [architect-verified directive, preserved]
+- Z.AI STOPs at the 7-A closure boundary inside Phase 7: awaiting the ChatGPT architect's review of this closure record and the next explicit authorization (the 7-B authorization decision or further direction). [developer-reported]
+
+### Commits
+
+| SHA | Message |
+|---|---|
+| *(this commit)* | `docs: close phase 7-a after architect pass` — the immediate child of `577189d4963121a64a696c59bd3fb16dacb3b61d` on `feature/ai-core-from-doable-source` (self-referential: it records the Phase 7-A closure); documentation-only — a closure-record commit, not the reviewed correction and not a new product/control implementation [developer-reported] |
+
+### Issues / correction
+
+- The closure records the resolution of issue **I-016** (the two fail-closed 7-A boundary defects): the architect's re-review of the correction returned `PASS`; the issue disposition is `RESOLVED` with `[architect-verified]` resolution evidence, recorded in `ISSUES.md` §"Issue records (canonical schema)". The corrective cycle that preceded the closure (CH-002 → correction `577189d4`) is recorded above and in `VERIFICATION_STATE.md` §Phase 7. No new issues were opened by the closure (no out-of-scope discovery; the recorded environmental state — the 19 pre-existing application typecheck errors, the not-runnable production build — is the already-recorded I-015, kept OPEN). I-001 and I-007 remain open (non-scope; not silently resolved; separate architect decisions); I-013 remains `RESOLVED`; `DECISIONS.md`/`RISKS.md`/`PHASE-7-PLAN.md` deliberately not modified by this closure (no new decisions, defects, or risk facts entailed — dispositions remain architect calls).
+
+### Next action (current)
+
+**ChatGPT architect review of the Phase 7-A closure record**, then the explicit 7-B authorization decision (or further architect direction) — only ChatGPT may authorize 7-B, and the 7-A closure does NOT authorize it. Z.AI performs no further work until then — STOPped at the 7-A closure boundary per the Phase 7-A closure handoff.
