@@ -43,3 +43,26 @@ Every copied file must retain its original Doable blob SHA. Do not edit the copi
 ### Next
 - Extract engine.ts and its complete direct local dependency closure before extracting engine-resolver.ts.
 - Continue following imports rather than copying isolated files.
+
+
+## 2026-10-03 — AI engine dependency closure slice
+
+### Completed
+- Extracted context-builder.ts, tool-messages.ts, attachments.ts, and project-files.ts byte-for-byte from the pinned Doable source.
+- Registered all four immutable files and their source blob SHAs in extraction-manifest.json.
+- Preserved the existing engine.ts extraction and provider-resolution slice without modifying immutable source.
+
+### Dependency findings
+- context-builder.ts reaches context manager/injector, project file manager, environment/marketplace/skills data access, integration prompt manifests, MCP prompt manifests, per-app DB/AI prompt blocks, and project metadata.
+- project-files.ts reaches path-safety, collaboration/Yjs bridge, TanStack Start protection, MCP-agent misuse protection, and Supabase misuse/provision/schema guards.
+- attachments.ts is a document/media processing boundary and must retain its parser/temp-file and SDK attachment behavior plus its external package dependencies.
+- tool-messages.ts contains presentation/sanitization behavior used by the AI tool runtime and chat history reconstruction.
+
+### Not completed
+- Full transitive dependency closure for these four files.
+- engine-resolver.ts and mode-specific runtime modules.
+- Tool registry/execution, MCP/integration runtime, memory/context manager, and persistence closure.
+
+### Next
+- Continue from the newly extracted files by resolving their direct local imports and shared package imports before adding higher-level AI modes or adapters.
+- Do not substitute Clara implementations for Doable source dependencies inside the immutable tree.
