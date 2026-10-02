@@ -27,8 +27,8 @@ runtime dependencies. No behavior change to any existing route.
 | File | Role |
 |---|---|
 | `contracts.ts` | Host-neutral seam vocabulary: `PlatformExecutionContext`, `ExecutionContextInput`, and the 7-A adapter ports (`IdentityTenantAdapter`, `ProviderAdapter`, `SecretsAdapter`, `TransportAdapter`). Types only. |
-| `execution-context.ts` | Fail-closed `ExecutionContext` factory derived from Clara's existing runtime identity (`ClaraRuntimeContext`-shaped input → frozen, tenant-scoped context) plus `assertTenantScope` / `assertExecutionContext` guards. |
-| `adapter-registry.ts` | Fail-closed host adapter registry: explicit registration with up-front slot validation, deterministic exact-slot lookup, no implicit fallback, unknown adapter → controlled failure, re-registration rejected, committed set frozen. |
+| `execution-context.ts` | Fail-closed `ExecutionContext` factory derived from Clara's existing runtime identity (`ClaraRuntimeContext`-shaped input → frozen, tenant-scoped context) plus `assertTenantScope` / `assertExecutionContext` guards. Validation is provenance-based (CORRECTION A): only contexts minted by `createExecutionContext` (tracked in a module-private WeakSet) are accepted — a merely frozen structural lookalike is rejected. |
+| `adapter-registry.ts` | Fail-closed host adapter registry: explicit registration with up-front slot validation, deterministic exact-slot lookup, no implicit fallback, unknown adapter → controlled failure, re-registration rejected, committed set frozen AND each committed adapter object frozen in place at commit time (CORRECTION B — immutable through the original caller references too). |
 | `clara-adapters.ts` | The Clara host adapter bindings + the lazily-initialized application registry singleton (`getClaraPlatformRegistry`). |
 | `clara-runtime.ts` | The incumbent thin host binding (unchanged behavior; see below). |
 
@@ -38,7 +38,10 @@ runtime dependencies. No behavior change to any existing route.
   `PlatformExecutionContext`. `tenantId` (orgId) and `kbId` are mandatory;
   missing tenant identity fails closed with no ambient/global fallback.
   This derives from Clara's existing tenancy model — it is not a second
-  authentication system.
+  authentication system. Factory-produced contexts are the only valid ones:
+  `isValidPlatformExecutionContext` requires module-private provenance
+  (WeakSet membership), so hand-built frozen lookalikes never cross the
+  trust boundary.
 - **provider** — delegates to the incumbent `ai-core` resolver stack through
   the existing `claraRuntime.resolveProvider` seam. The provider stack is
   consumed, never duplicated or replaced; the caller's tenant context is

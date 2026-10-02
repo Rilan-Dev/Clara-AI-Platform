@@ -16,8 +16,15 @@
  * - lookup is deterministic (exact slot), with NO implicit fallback to
  *   arbitrary or default adapters;
  * - unknown adapter names and pre-registration lookups fail closed;
- * - the committed adapter set is frozen, so slots cannot be swapped after
- *   registration.
+ * - the committed adapter set is frozen AND every committed adapter object
+ *   is frozen in place at commit time (CORRECTION B — architect review of
+ *   `688070a5`, outcome `CORRECTION_REQUIRED`: freezing only the slot
+ *   container left the adapter objects mutable through the original
+ *   references supplied to `register()`, so a caller could still swap
+ *   `adapters.provider.resolveModel` after registration). The registry keeps
+ *   using the EXACT validated implementation that was committed — freezing
+ *   preserves object identity and behavior while making the committed
+ *   bindings immutable through every reference.
  */
 
 import type { PlatformAdapterName, PlatformAdapters } from "./contracts";
@@ -81,8 +88,31 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Freezes an adapter object IN PLACE — and, defensively, any own plain-object
+ * or array values it carries (cycle-safe) — so that after a successful
+ * registration the committed implementation cannot be mutated through the
+ * original external references either (CORRECTION B). `Object.freeze`
+ * returns the same object: identity and behavior are preserved, extensibility
+ * and writability are removed. Functions are left unfrozen (calling them is
+ * unaffected either way; freezing function objects is unnecessary for this
+ * boundary). Idempotent: an already-frozen value is a no-op.
+ */
+function freezeAdapterObject<T extends object>(value: T, seen: Set<object>): T {
+  if (seen.has(value)) return value; // cycle/shared-reference guard — freeze once, never loop
+  seen.add(value);
+  Object.freeze(value);
+  for (const key of Object.keys(value)) {
+    const nested: unknown = (value as Record<string, unknown>)[key];
+    if (isPlainObject(nested) || Array.isArray(nested)) {
+      freezeAdapterObject(nested, seen);
+    }
+  }
+  return value;
+}
+
 export interface PlatformAdapterRegistry {
-  /** Validates and commits a complete adapter set. Fails closed; never overwrites. */
+  /** Validates and commits a complete adapter set (freezing the committed adapter objects in place — CORRECTION B). Fails closed; never overwrites. */
   register(adapters: PlatformAdapters): void;
   /** Deterministic exact-slot lookup. Unknown names and unregistered state fail closed. */
   get<N extends PlatformAdapterName>(name: N): PlatformAdapters[N];
@@ -145,7 +175,21 @@ export function createPlatformAdapterRegistry(): PlatformAdapterRegistry {
       }
       // Validate-then-commit: a rejected registration leaves the registry untouched.
       validate(adapters);
-      committed = Object.freeze({ ...adapters });
+      // Commit the EXACT validated implementation. Each adapter object is
+      // frozen IN PLACE (CORRECTION B) — the caller's original references
+      // therefore also become immutable — and the slot container is frozen,
+      // so neither the slot bindings nor the adapter objects can be altered
+      // after registration. Freezing happens only after validation succeeds
+      // and only on the winning registration, so failed and duplicate
+      // attempts never touch the caller's objects; `committed` is assigned
+      // only after every freeze has succeeded (validate-then-commit
+      // atomicity preserved).
+      committed = Object.freeze({
+        identity: freezeAdapterObject(adapters.identity, new Set()),
+        provider: freezeAdapterObject(adapters.provider, new Set()),
+        secrets: freezeAdapterObject(adapters.secrets, new Set()),
+        transport: freezeAdapterObject(adapters.transport, new Set()),
+      });
     },
 
     get<N extends PlatformAdapterName>(name: N): PlatformAdapters[N] {

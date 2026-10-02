@@ -131,12 +131,12 @@ describe("context validation helpers", () => {
   });
 
   it("rejects hand-rolled context lookalikes — only factory-produced (frozen) contexts are valid", () => {
-    // Structurally complete but NOT produced by the factory (not frozen):
+    // A2 — structurally complete but NOT produced by the factory (not frozen):
     // the sanctioned production path stays createExecutionContext.
     const lookalike = { tenantId: TENANT_A, kbId: KB_A, surface: "chat" };
     expect(isValidPlatformExecutionContext(lookalike)).toBe(false);
     expect(() => assertExecutionContext(lookalike)).toThrow(ExecutionContextError);
-    // Copies/serializations of a real context are equally rejected.
+    // A4 — copies/serializations of a real context are equally rejected.
     expect(isValidPlatformExecutionContext(JSON.parse(JSON.stringify(createExecutionContext(validInput))))).toBe(false);
   });
 
@@ -144,6 +144,91 @@ describe("context validation helpers", () => {
     expect(() => assertExecutionContext(null)).toThrow(ExecutionContextError);
     expect(() => assertExecutionContext({ tenantId: TENANT_A })).toThrow(ExecutionContextError);
     expect(assertExecutionContext(createExecutionContext(validInput)).tenantId).toBe(TENANT_A);
+  });
+});
+
+describe("CORRECTION A — provenance trust boundary (architect review of 688070a5: frozen lookalikes are NOT valid contexts)", () => {
+  it("A1: a genuine factory context is accepted", () => {
+    const ctx = createExecutionContext(validInput);
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
+    expect(assertExecutionContext(ctx)).toBe(ctx);
+  });
+
+  it("A3: a frozen structural lookalike is rejected — Object.freeze is not provenance", () => {
+    // The exact attack from the corrective handoff: a caller independently
+    // constructs and freezes an equivalent object. Structural validity plus
+    // frozenness must NOT satisfy the platform-context trust boundary.
+    const forged = Object.freeze({
+      tenantId: TENANT_A,
+      kbId: KB_A,
+      surface: "chat",
+    });
+    expect(Object.isFrozen(forged)).toBe(true);
+    expect(isValidPlatformExecutionContext(forged)).toBe(false);
+    expect(() => assertExecutionContext(forged)).toThrow(ExecutionContextError);
+    // The forgery also fails the tenant-scope guard — it can never authorize
+    // a tenant-scoped platform-seam operation, even for its own tenant ids.
+    expect(() => assertTenantScope(forged, TENANT_A)).toThrow(ExecutionContextError);
+  });
+
+  it("A3 (hardened): a fully-populated frozen lookalike with frozen metadata is still rejected", () => {
+    const forgedFull = Object.freeze({
+      tenantId: TENANT_B,
+      kbId: KB_B,
+      userId: "user-1",
+      agentId: "agent-1",
+      sessionId: "session-1",
+      correlationId: "corr-1",
+      surface: "realtime" as const,
+      metadata: Object.freeze({ unit: "tokens" }),
+    });
+    expect(Object.isFrozen(forgedFull)).toBe(true);
+    expect(Object.isFrozen(forgedFull.metadata)).toBe(true);
+    expect(isValidPlatformExecutionContext(forgedFull)).toBe(false);
+    expect(() => assertExecutionContext(forgedFull)).toThrow(ExecutionContextError);
+  });
+
+  it("A3 (identity): a re-frozen spread-copy of a REAL context is still rejected", () => {
+    // Same shape, same values, frozen — but a different object that was never
+    // produced by the factory. Provenance is carried by identity, not shape.
+    const real = createExecutionContext(validInput);
+    const copy = Object.freeze({ ...real });
+    expect(isValidPlatformExecutionContext(copy)).toBe(false);
+    expect(() => assertExecutionContext(copy)).toThrow(ExecutionContextError);
+    // The genuine context remains valid regardless of the forgery attempts.
+    expect(isValidPlatformExecutionContext(real)).toBe(true);
+  });
+
+  it("A5: factory contexts remain accepted after validation — provenance uses no marker property, symbol, or externally visible state", () => {
+    const ctx = createExecutionContext(validInput);
+    // No provenance marker was written onto the context: externally visible
+    // state is exactly the documented contract vocabulary — no string-keyed
+    // marker, no symbol-keyed marker, no magic metadata field.
+    expect(Object.getOwnPropertySymbols(ctx)).toEqual([]);
+    expect(Object.keys(ctx).sort()).toEqual(
+      ["agentId", "correlationId", "kbId", "sessionId", "surface", "tenantId", "userId"].sort(),
+    );
+    expect(ctx.metadata).toBeUndefined();
+    // Validation is repeatable and identity-based, not mutable-state-based.
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
+    // Interleaved validations of other genuine contexts change nothing.
+    const other = createExecutionContext({ orgId: TENANT_B, kbId: KB_B, surface: "embed" });
+    expect(isValidPlatformExecutionContext(other)).toBe(true);
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
+    // A rejected lookalike has no effect on genuine contexts.
+    const lookalike = Object.freeze({ tenantId: TENANT_A, kbId: KB_A, surface: "chat" });
+    expect(isValidPlatformExecutionContext(lookalike)).toBe(false);
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
+    // Genuine contexts stay valid across use in the scope guard and assert.
+    assertTenantScope(ctx, TENANT_A);
+    assertExecutionContext(ctx);
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
+    // Mutation attempts on the frozen context do not strip provenance.
+    expect(() => {
+      (ctx as { tenantId?: string }).tenantId = TENANT_B;
+    }).toThrow(TypeError);
+    expect(isValidPlatformExecutionContext(ctx)).toBe(true);
   });
 });
 

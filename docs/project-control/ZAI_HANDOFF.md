@@ -181,160 +181,189 @@ Fresh-session read order for a Z.AI developer session:
 
 ---
 
+
 ## Part II — Active Handoff Instance
 
-> **Phase 7-A implementation authorization handoff instance** — materialized from `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` per Part I §I.12 on 2026-10-02, replacing the fully executed Phase 7 planning/baseline handoff instance (superseded; recoverable in Git history at `ac06ca72516282bd78f8d0f37afaa46062322b53` — the authorization-boundary restoration tip — and identified in the canonical `worklog.md` Phase 7 planning entry). This instance authorizes **exactly Phase 7-A — Host Contracts / Adapter Foundation (§3)**. It does **not** authorize Phase 7-B, Phase 7-C, MCP, integrations, agent runtime, memory, skills, attachments, image generation, marketplace, templates, automation, collaboration, database/schema changes, deployment work, or Phase 8 (the architect's authorization boundary).
+> **CH-002 — Phase 7-A correction-handoff instance** — materialized from `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` per Part I §I.5/§I.12 on 2026-10-02, replacing the fully executed Phase 7-A implementation-authorization handoff instance (superseded; recoverable in Git history at `688070a5fcda04dfce6c971b79322aed34adb4a0` and identified in the canonical `worklog.md` Phase 7-A implementation entry). This instance authorizes **only the corrective scope** (§11): the two Phase 7-A boundary corrections (ExecutionContext provenance; adapter-registry immutability) plus the focused tests proving them and the governance evidence recording the correction. It does **not** authorize 7-B, 7-C, MCP, integrations, agent runtime, memory, skills, attachments, image generation, marketplace, templates, automation, collaboration, database/schema changes, deployment work, `vercel.json`, immutable Doable source, I-014 resolution, I-015 resolution, `package-lock.json` repair, dependency-graph changes, unrelated refactoring, `ai-core` redesign, or Phase 8 (the architect's correction boundary).
 
-### Phase identity
+## 1. Correction identity
 
 | Field | Value |
 |---|---|
-| Phase number | 7 |
-| Phase name | AI Platform Core Foundation (Phase 7-A — Host Contracts / Adapter Foundation stage) |
-| Full designation | Phase 7-A — Host Contracts / Adapter Foundation (the first authorized implementation sub-phase of Phase 7) |
-| Current status | `IN_PROGRESS` — 7-A authorization received 2026-10-02 and executed by the developer (implementation delivered `[developer-reported]`, architect review of the actual 7-A diff/evidence **PENDING**); 7-B/7-C remain unauthorized; Phase 7 is not `PASS`, not `CLOSED` |
-| Repository | `Rilan-Dev/Clara-AI-Platform` (GitHub, private) |
+| Correction ID | `CH-002` (sequential after CH-001 — the Phase 6 correction; never reused) |
+| Correction title | Phase 7-A boundary corrections: ExecutionContext provenance validation and adapter-registry immutability |
+| Current status | `REVIEW_PENDING` (lifecycle: `CORRECTION_REQUIRED` (issued 2026-10-02) → `CORRECTION_IN_PROGRESS` → `CORRECTION_SUBMITTED` → `REVIEW_PENDING` — the correction commit, push, and evidence report delivered by the developer 2026-10-02; the architect's re-review has NOT occurred) |
+| Issued by | ChatGPT (architect / technical lead / reviewer / controller) |
+| Issue date | 2026-10-02 |
+| Repository | `Rilan-Dev/Clara-AI-Platform` |
 | Branch | `feature/ai-core-from-doable-source` |
-| Baseline commit | `ac06ca72516282bd78f8d0f37afaa46062322b53` ("docs: restore phase 7 planning authorization boundary" — the authoritative remote feature-branch tip at issuance; the local feature worktree was stale at `31ffd6f4` and was synchronized to this tip by fast-forward before implementation, per the handoff's §3 worktree-synchronization directive) |
-| Architect | ChatGPT |
-| Developer | Z.AI |
-| Handoff date | 2026-10-02 |
 
-### Objective
+## 2. Related issue ID
 
-Implement exactly the reviewed Phase 7-A design (`PHASE-7-PLAN.md` §21 sub-phase 7-A): after the mandated feature-worktree synchronization and baseline re-verification, establish the Clara-owned platform seam foundation under `src/modules/ai-platform-core/**` — the fail-closed ExecutionContext factory derived from Clara's existing runtime identity (tenant/org isolation, user identity, request/correlation context, authorization boundaries, future usage/metering information; no second authentication system; no bypass of Clara's tenancy model); the fail-closed host adapter registry (explicit registration, deterministic lookup, no implicit fallback, unknown adapter → controlled failure, tenant context preserved, no cross-tenant leakage); and the Clara host seam (identity/provider/secrets/transport adapter declarations bound to existing services — the incumbent `ai-core` provider/resolver stack consumed through the existing `claraRuntime` seam, never duplicated; secrets never crossing the seam; transport declaring only existing routes) — with focused unit tests, zero new runtime dependencies, no database/persistence changes, no new public routes, no immutable-source changes; then update the control documentation, create one focused commit, deliver the structured implementation report, and STOP for architect review of the actual diff.
+| Field | Value |
+|---|---|
+| Issue ID | **I-016** — the `ISSUES.md` record this correction resolves (`ISSUES.md` §"Issue records (canonical schema)") |
+| Issue severity | not assigned in the corrective handoff — awaiting architect triage at re-review (developer observation, not a self-assigned label: the defects violate 7-A acceptance criteria 2 and 3 and are closure-blocking while unresolved under the R6 severity model regardless of the eventual P-label) |
+| Issue status at issuance | `CORRECTION_REQUIRED` (the architect's review outcome of the Phase 7-A implementation — the register-side record of the determination that this corrective handoff is required) |
+| Related prior corrections | none (first correction cycle on I-016 / on the Phase 7-A implementation) |
 
-### Scope (approved)
+## 3. Related phase
 
-1. Feature-worktree synchronization to the authoritative remote tip `ac06ca72516282bd78f8d0f37afaa46062322b53` (clean-tree verification; remote-tip verification; history-preserving fast-forward only; no destructive reset; no force-push; no history rewrite; `main`/`Vercel-Prod` untouched; no unrelated merges) — per the handoff §3.
-2. Baseline re-verification after synchronization (branch; expected HEAD; clean tree; Phase 7 active; authorization recorded; I-014 OPEN; immutable Doable source unchanged; no unexpected source changes) — per the handoff §4.
-3. Implementation of the reviewed 7-A design under `src/modules/ai-platform-core/**` only: new host-contract files (execution context; adapter registry; Clara adapter bindings), additive module exports, module documentation, focused colocated unit tests, and minimal behavior-preserving type-correctness fixes to the module's own incumbent binding file (`clara-runtime.ts` — pre-existing broken import paths and nullability mismatches discovered by the baseline typecheck) — per the handoff §5/§6.
-4. Control-documentation updates recording the 7-A authorization, execution, validation, and stopping boundary (append-only conventions; `[developer-reported]` vs `[architect-verified]` distinguished; no fabricated architect verification) — per the handoff §13.
-5. One focused implementation commit + push + the structured implementation report (handoff §14/§16), then HARD STOP.
+| Field | Value |
+|---|---|
+| Phase number / name | Phase 7 — AI Platform Core Foundation; sub-phase 7-A — Host Contracts / Adapter Foundation |
+| Phase status | `IN_PROGRESS` (canonical D-011 vocabulary; the phase cannot become `CLOSED` while the closure-blocking correction is unresolved — R6) |
+| Review outcome that produced this correction | Architect review of the Phase 7-A implementation — outcome **`CORRECTION_REQUIRED`** (2026-10-02; reviewed commit `688070a5fcda04dfce6c971b79322aed34adb4a0`) |
+| Phase contract | `docs/project-control/CURRENT_PHASE.md` (the implementation-stage contract + the correction-stage record appended by this correction) |
 
-### Non-scope (explicit)
+## 4. Baseline commit
 
-- **No 7-B / 7-C**: no Unified Tool Runtime, no tool definitions/registry/invocation lifecycle, no `rag_search` migration, no provider tool calling, no agentic loop, no streaming tool events.
-- No MCP, no integrations, no agent runtime, no work mode, no memory, no skills, no attachments, no image generation, no marketplace, no templates, no automation, no collaboration, no UI work.
-- No database migrations, schema changes, Supabase operations, new persistence layer, tables, or indexes (Gate E `NOT_APPLICABLE` for 7-A unless implementation unexpectedly introduces persistence — if so: STOP and report).
-- No deployment work; Gate F not executed; D-P4 remains pending.
-- No new public routes; no modification of unrelated API behavior, authentication, billing, embed, or deployment endpoints.
-- No new runtime dependencies (prefer zero; any proven-necessary addition requires a STOP-and-report before adding).
-- No modification of the immutable trees (`docs/doable-source/doable-source/**`, `dependency-closure/**`, `ui-reference/**`, `doable-source-extensions/**`), no `b65725e5` modification, no `vercel.json` change, no production-branch work (D-008), no force-push.
-- No resolution of I-014 (remains `OPEN` — no re-vendoring of `mcp-servers/`, no copying of MCP server files, no closure, no priority/disposition change), I-001, I-007, R-3/R-4/R-5, D-P2, D-P4; no Phase 8.
+| Field | Value |
+|---|---|
+| Correction baseline | `688070a5fcda04dfce6c971b79322aed34adb4a0` — "feat: establish phase 7-a host contracts and adapter foundation" (the reviewed Phase 7-A implementation commit; the developer verified per `ZAI_HANDOFF.md` §I.6 before executing: branch `feature/ai-core-from-doable-source`; HEAD = the baseline = origin tip after fresh fetch; clean tree; no unexpected movement) |
 
-### Prerequisites
+## 5. Architect
 
-1. The architect's Phase 7 planning-package review returned **`PASS`** (communicated in this handoff: "Planning package: PASS; Phase 7: PLANNED; Implementation: NOT AUTHORIZED until this handoff; Doable source: immutable; I-014: OPEN and NOT RESOLVED; no application implementation performed during review") [architect-verified — as communicated in the Phase 7-A implementation authorization handoff].
-2. This Phase 7-A implementation authorization handoff (the instance's source), issued 2026-10-02 — the explicit architect authorization for 7-A ONLY.
-3. The reviewed planning package `docs/project-control/PHASE-7-PLAN.md` (the design source for 7-A: §4 scope, §8 architecture, §9 adapter boundaries, §21 sub-phase 7-A, §23 ratified items) and the ratified decisions D-021/D-022 (`DECISIONS.md`).
-4. The existing project-control governance model (Phases 0–6) and the Doable-source immutable-source policy (D-007) — read and followed.
+**ChatGPT** — architect / technical lead / reviewer / controller. Only the architect may issue this corrective handoff, re-review the correction, and resolve the related issue.
 
-### Required reading
+## 6. Developer
 
-`PROJECT_STATE.md` · `CURRENT_PHASE.md` (the Phase 7-A implementation-stage contract) · `NEXT_ACTION.md` · `PHASE-7-PLAN.md` (the reviewed planning package — the 7-A design source) · `VERIFICATION_STATE.md` (the durable verification/phase-gate contract and correction workflow) · `ISSUES.md` (I-014 OPEN; the issue-control system) · `DECISIONS.md` (D-021/D-022; the ratified items) · `ZAI_HANDOFF.md` Part I · `VERIFICATION_CHECKLIST.md` · `sessions/README.md` + latest session records · root `worklog.md` · `src/modules/ai-platform-core/**` (the incumbent seam: `clara-runtime.ts`, `README.md`) · `src/modules/ai-core/**` (the incumbent provider/resolver stack — consumed, never duplicated) · `docs/doable-source/contracts/` + `docs/doable-source/adapters/` (the architectural PATTERN — read as design reference only, never imported).
+**Z.AI** — developer / implementer. Executes only the corrective scope; self-verifies; records evidence; commits; pushes; reports; and STOPs at the correction boundary.
 
-### Implementation tasks (numbered, deterministic — as executed)
+## 7. Finding
 
-1. Worktree synchronization (§ Scope 1) — completed 2026-10-02: feature worktree verified clean; remote tip verified (`ac06ca72` after fresh fetch); fast-forward safety verified (`31ffd6f4` is a strict ancestor — 35 commits, no divergence); fast-forward merge executed; history preserved; no reset/force-push/rewrite; `main`/`Vercel-Prod` untouched.
-2. Baseline re-verification (§ Scope 2) — completed 2026-10-02: branch `feature/ai-core-from-doable-source`; HEAD = `ac06ca72` = origin tip; clean tree; the 35 incoming commits verified documentation/governance-only (the phase records, the architect-review/authorization records, and the authorization-boundary restoration commits; the only non-docs change is the pre-existing `vercel.json` preview-deployment enablement from the historical `b65725e5` lineage); Phase 7 active (`PLANNED`, planning package delivered, awaiting the authorization this handoff provides); I-014 OPEN; immutable tree hashes recorded and verified unchanged; pre-implementation typecheck baseline recorded (24 pre-existing application-code errors, 5 of them within `src/modules/ai-platform-core/clara-runtime.ts`).
-3. Implement the 7-A foundation under `src/modules/ai-platform-core/**` (§ Scope 3): `contracts.ts` (host-neutral seam vocabulary) + `execution-context.ts` (fail-closed factory, frozen contexts, tenant-scope guard) + `adapter-registry.ts` (fail-closed registry: validate-then-commit registration, deterministic exact-slot lookup, unknown-adapter controlled failure, re-registration rejection, frozen committed set) + `clara-adapters.ts` (Clara bindings: identity → factory; provider → delegation to the incumbent `claraRuntime.resolveProvider` seam; secrets → always-fail-closed non-transfer declaration; transport → existing-routes-only declaration; the lazily-initialized application registry singleton) + additive `index.ts` exports + the module `README.md` 7-A foundation documentation + minimal behavior-preserving type fixes in `clara-runtime.ts` (import-path correction for `resolveAIConfigCached`/`ResolvedAIConfig`; `?? undefined` nullability coercions; the grounding surface mapping corrected to the valid `QuerySurface` vocabulary) + the three colocated test files.
-4. Validate (§ Testing requirements) and record results.
-5. Update the control documentation (§ Scope 4).
-6. Commit (§ Git requirements), push, deliver the completion report, and STOP (§ STOP boundary).
+The architect's review of the Phase 7-A implementation (`688070a5`) found the architecture and overall scope substantially aligned with the authorized 7-A design, but identified **two fail-closed boundary defects** that must be corrected before 7-A can receive an architect `PASS`:
 
-### Files / components
+1. **ExecutionContext provenance (Correction A).** The implementation claimed that only contexts produced by `createExecutionContext()` are accepted, but the validator (`isValidPlatformExecutionContext`) checked only structural validity plus `Object.isFrozen()`. A malicious or accidental caller could construct and freeze an equivalent object independently (the handoff's example: `const forged = Object.freeze({ tenantId: "tenant-b", kbId: "kb-b", surface: "chat" })`) and it would be accepted — the platform-context trust boundary was therefore not actually established.
+2. **Adapter registry immutability (Correction B).** The registry committed with `committed = Object.freeze({ ...adapters })` — freezing only the adapter-slot container. The registered adapter objects remained mutable through the original references supplied to `register()` (the handoff's example: after registration, `adapters.provider.resolveModel = hostileImplementation` still altered the registry's provider slot) — violating the intended immutable/fail-closed registration boundary.
+
+## 8. Evidence
+
+- [architect-verified] The architect's corrective handoff on the Phase 7-A implementation (2026-10-02; review outcome `CORRECTION_REQUIRED`; reviewed commit `688070a5fcda04dfce6c971b79322aed34adb4a0`) — §2 (Correction A: the forged-frozen-object example), §4 (Correction B: the post-registration mutation example), and the required tests §3/§5.
+- [developer-reported, Git-verifiable] The delivered code at `688070a5`: `src/modules/ai-platform-core/execution-context.ts` — `isValidPlatformExecutionContext` performed structural checks + `Object.isFrozen` only (no provenance mechanism); `src/modules/ai-platform-core/adapter-registry.ts` — `register()` committed via `Object.freeze({ ...adapters })` (shallow container freeze; the slot values kept the caller's original mutable object references).
+
+## 9. Why the finding blocks acceptance
+
+The defects violate Phase 7-A acceptance criteria 2 and 3 (the implementation-stage contract / the superseded 7-A instance in Git history at `688070a5`): criterion 2 requires the ExecutionContext factory to be "the only sanctioned production path" — a validator that accepts frozen lookalikes contradicts exactly that; criterion 3 requires the fail-closed adapter registry with a frozen committed set — a committed set whose adapter objects remain mutable through external references contradicts the intended immutable registration boundary. The 7-A security constraint ("the 7-A boundary fails closed") is implicated for both. The architect's review outcome `CORRECTION_REQUIRED` (2026-10-02) is already recorded; 7-A cannot receive `PASS` until the corrections are delivered and re-reviewed.
+
+## 10. Exact correction required
+
+**Correction A — ExecutionContext provenance.** A valid platform execution context must be demonstrably produced through the sanctioned factory, using an appropriate private provenance mechanism (a module-private `WeakSet` of factory-created contexts, or an equivalently robust mechanism). The mechanism must NOT be exposed publicly; must NOT use a mutable public marker property; must NOT rely solely on `Object.isFrozen`, a symbol exposed to callers, a magic metadata field, or structural equality. The existing tenant/kb/surface validation must remain. The returned context must remain immutable. Required tests: A1 (genuine factory context accepted), A2 (ordinary mutable structural lookalike rejected — preserved), A3 (frozen structural lookalike rejected: `isValidPlatformExecutionContext(forged) === false` AND `assertExecutionContext(forged)` throws), A4 (serialized/reconstructed context rejected — preserved), A5 (factory context remains accepted after validation; the provenance mechanism does not depend on mutable metadata or other externally visible state).
+
+**Correction B — Adapter registry immutability.** Once an adapter set has been successfully registered: the registered slot bindings cannot be replaced; the registered adapter objects cannot be mutated through external references; the registry must continue using the exact validated implementation that was committed; failed registration must still leave the registry unchanged; duplicate registration must still fail deterministically. Minimal implementation consistent with the existing architecture — no large abstraction. Required tests: B1 (original adapter object mutation cannot alter committed behavior), B2 (returned adapter cannot be mutated through `registry.get("provider")` / `requireRegistered()`), B3 (failed registration remains atomic — preserved), B4 (duplicate registration remains atomic — preserved), B5 (all four adapter slots — identity, provider, secrets, transport — retain their committed behavior).
+
+**Architecture unchanged.** The seam (`src/modules/ai-platform-core/**` → Clara host adapters → existing Clara infrastructure → existing `ai-core` provider stack) is not redesigned; the provider adapter architecture, `ai-core`, and the existing Clara runtime behavior are unchanged except where directly necessary to correct the two defects.
+
+## 11. Approved correction scope
 
 | Path | Action | Bounded change |
 |---|---|---|
-| `src/modules/ai-platform-core/contracts.ts` | create | host-neutral seam vocabulary: `PlatformExecutionContext`, `ExecutionContextInput`, `SurfaceKind`, the 7-A adapter ports (`IdentityTenantAdapter`, `ProviderAdapter`, `SecretsAdapter`, `TransportAdapter`), `PlatformAdapters`, `PlatformAdapterName` — types only, zero runtime dependencies |
-| `src/modules/ai-platform-core/execution-context.ts` | create | fail-closed `createExecutionContext` factory (mandatory tenant/KB binding; no ambient fallback; unknown-key typo guard; frozen context + frozen metadata copy), `ExecutionContextError`, `isValidPlatformExecutionContext` / `assertExecutionContext` (factory-produced-only validation), `assertTenantScope` (cross-tenant guard) |
-| `src/modules/ai-platform-core/adapter-registry.ts` | create | `createPlatformAdapterRegistry()` + `AdapterRegistrationError` / `UnknownAdapterError` / `AdaptersNotRegisteredError`: per-slot method-shape validation at registration (validate-then-commit; a rejected registration leaves the registry untouched), duplicate-registration rejection preserving the live binding, deterministic exact-slot lookup with no fallback, frozen committed adapter set |
-| `src/modules/ai-platform-core/clara-adapters.ts` | create | `buildClaraPlatformAdapters()` (the Clara bindings) + `getClaraPlatformRegistry()` / `getClaraPlatformAdapter()` (lazily-initialized singleton, registers exactly once) + `PlatformSecretAccessError` (secrets never cross the seam) |
-| `src/modules/ai-platform-core/execution-context.test.ts` | create | factory mapping/normalization; fail-closed on missing tenant/KB/non-object/unknown keys/malformed fields; structural compatibility with `ClaraRuntimeContext`; freeze/immutability proofs; hand-rolled-lookalike rejection; tenant-scope guard tests |
-| `src/modules/ai-platform-core/adapter-registry.test.ts` | create | registration acceptance; per-slot missing/mis-shaped rejection (deterministic naming; registry stays unregistered); duplicate-registration rejection preserving the live binding; frozen committed set; unknown-adapter controlled failures; pre-registration failures; registry isolation |
-| `src/modules/ai-platform-core/clara-adapters.test.ts` | create | identity delegation + fail-closed; provider delegation with tenant-preservation proofs against a mocked incumbent seam (tenant A's invocation can never resolve tenant B's context; malformed invocation fails before reaching the resolver; surface pass-through; neutral resolution descriptor); secrets always-fail-closed; transport existing-routes-only + frozen declarations; singleton registration-once behavior |
-| `src/modules/ai-platform-core/index.ts` | modify | additive re-exports of the 7-A foundation (the incumbent `clara-runtime` export unchanged) |
-| `src/modules/ai-platform-core/README.md` | modify | the 7-A foundation documentation (file map; adapter-slot bindings; provenance/immutability rules; stopping boundary) — the incumbent boundary statements preserved |
-| `src/modules/ai-platform-core/clara-runtime.ts` | modify | minimal behavior-preserving type-correctness fixes for the module's own pre-existing defects (see § Interfaces): corrected import paths; `?? undefined` nullability coercions on resolver inputs; the grounding `surface` value corrected to the valid `QuerySurface` vocabulary ("chat" → "workspace"). No behavioral redesign; no incumbent-stack changes |
-| `docs/project-control/CURRENT_PHASE.md` | modify | the Phase 7-A implementation-stage contract (the planning-stage contract is preserved in Git history at `ac06ca72`) |
-| `docs/project-control/ZAI_HANDOFF.md` | modify | Part II replaced with this instance (Part I untouched) |
-| `docs/project-control/VERIFICATION_STATE.md` | modify | the Phase 7-A implementation evidence section + review-trail entries + consistency-table reconciliation |
-| `docs/project-control/PROJECT_STATE.md` / `NEXT_ACTION.md` | modify | reconciled to Phase 7 `IN_PROGRESS` (7-A implemented, awaiting architect review) |
-| `docs/project-control/DECISIONS.md` | modify | D-021/D-022 appended (the architect-ratified D-P3 resolution and phase-ladder reconciliation, per the handoff §2); the D-P3 pending row status updated to RESOLVED → D-021 (the D-P1 → D-018 precedent) |
-| `docs/project-control/ISSUES.md` | modify | **I-015** appended (the dependency-lockfile desync / incomplete-workspace-node_modules finding — discovered during 7-A validation, reported per the out-of-scope-discovery rule); I-014 untouched (OPEN) |
-| `worklog.md` | modify | append-only Phase 7-A implementation entry |
-| `docs/project-control/sessions/SESSION-012.md` | create | this session's audit record |
-| `docs/project-control/sessions/README.md` | modify | SESSION-012 index row |
-| `src/modules/ai-core/**`, `src/app/api/**`, `packages/**`, migrations, Supabase, `vercel.json`, `docs/doable-source/**` (immutable trees), `RISKS.md`, templates, verification scripts | **inspect only** | no changes |
+| `src/modules/ai-platform-core/execution-context.ts` | modify | the module-private provenance mechanism (WeakSet) + the corrected `isValidPlatformExecutionContext` (provenance + preserved structural/frozen checks); factory registers sanctioned contexts; doc comments updated |
+| `src/modules/ai-platform-core/adapter-registry.ts` | modify | in-place deep freeze of each committed adapter object at commit time (minimal helper; identity-preserving; validate-then-commit atomicity preserved); doc comments updated |
+| `src/modules/ai-platform-core/execution-context.test.ts` | modify | the focused tests proving A1/A3/A5 (A2/A4 preserved from the existing suite) |
+| `src/modules/ai-platform-core/adapter-registry.test.ts` | modify | the focused tests proving B1/B2/B5 (B3/B4 preserved from the existing suite) |
+| `src/modules/ai-platform-core/README.md` | modify | the module boundary documentation updated to the corrected semantics (provenance-based context validation; deep committed-adapter immutability) |
+| `docs/project-control/ISSUES.md` | modify | **I-016** appended (the architect's finding, per the canonical schema); the intro next-ID note updated (→ I-017); I-014/I-015 untouched (OPEN) |
+| `docs/project-control/ZAI_HANDOFF.md` | modify | Part II replaced with this CH-002 instance (Part I untouched) |
+| `docs/project-control/VERIFICATION_STATE.md` | modify | the Phase 7-A correction evidence section + the architect review-trail entries + the outstanding-state and consistency-table reconciliation (append; the 7-A implementation record preserved unrewritten) |
+| `docs/project-control/CURRENT_PHASE.md` | modify | the correction-stage record appended (the implementation-stage record preserved); the current-state header/identity rows reconciled |
+| `docs/project-control/PROJECT_STATE.md` / `NEXT_ACTION.md` | modify | reconciled to Phase 7 `IN_PROGRESS` / 7-A correction applied — awaiting architect re-review |
+| `worklog.md` | modify | append-only Phase 7-A correction entry |
+| `docs/project-control/sessions/SESSION-013.md` + `sessions/README.md` | create / modify | the correction session record + its index row |
+| `src/modules/ai-core/**`, `src/app/api/**`, `packages/**`, migrations, Supabase, `vercel.json`, dependency files, the immutable Doable-source trees, `RISKS.md`, `PHASE-7-PLAN.md`, templates, verification scripts | **inspect only** | no changes |
 
-### Interfaces / contracts
+## 12. Explicit non-scope
 
-- The Final State Contract: `PROJECT_STATE.current_phase` = `CURRENT_PHASE.phase` = `NEXT_ACTION.phase` = `ZAI_HANDOFF.phase` (Part II) = `VERIFICATION_STATE.phase` = the latest `worklog.md` entry — all at **Phase 7, `IN_PROGRESS`** (7-A implemented `[developer-reported]`, awaiting architect review; 7-B/7-C NOT authorized) after this commit.
-- The 7-A host contracts (this instance's product): `PlatformExecutionContext` (frozen, tenant-scoped: `tenantId`/`kbId` mandatory; `userId`/`agentId`/`sessionId`/`correlationId` optional; `surface` explicit) produced ONLY by `createExecutionContext`; the four-slot `PlatformAdapters` (identity/provider/secrets/transport) registered ONLY through the fail-closed registry; the provider adapter delegates to the incumbent seam (`claraRuntime.resolveProvider` → `ai-core` resolver ladder) carrying the caller's tenant context unchanged (D-021: the incumbent stack stays authoritative).
-- The incumbent `ai-core` provider/resolver interfaces, the resolver precedence ladder, the entitlement gating, and the `claraRuntime` seam methods are consumed unchanged — no provider is replaced, rewritten, removed, or duplicated; no second LLM stack; `ChatOptions` untouched (7-C only, unauthorized).
-- Zero new runtime dependencies (`zod`/`ws` remain unused-by-7-A existing declarations); no database/persistence surface; no API/route surface; no UI surface.
-- The immutable-source policy (D-007 + `doable-source-extensions/` immutable-by-provenance) remains in force; the Doable `contracts/`/`adapters/` pattern is referenced for design only — never imported at runtime (static import scan: zero matches in `src/**`).
+- No 7-B (Unified Tool Runtime; tool definitions/schemas/registry/invocation lifecycle; `rag_search` migration); no 7-C (provider tool calling; agentic loop); no MCP; no integrations.
+- No database/schema/migrations; no Supabase; no deployment; no `vercel.json`.
+- No immutable Doable source (`docs/doable-source/doable-source/**`, `dependency-closure/**`, `ui-reference/**`, `doable-source-extensions/**`).
+- No I-014 resolution (remains `OPEN`; no re-vendoring of `mcp-servers/`); no I-015 resolution (remains `OPEN`; no dependency-changing install, no `package-lock.json` rewrite, no dependency add/upgrade/remove, no workspace repair).
+- No repair of the 19 remaining pre-existing application typecheck errors (they are NOT claimed fixed).
+- No unrelated refactoring; no `ai-core` redesign; no architecture change beyond the two corrected boundaries; no Phase 8.
+- No production-branch work (`Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, `main`); no force-push; no history rewrite; no modification/rewrite of `b65725e5` or any historical commit.
+- No silently altered acceptance criteria; no unrelated project-control state changes; no unrelated issues fixed.
+- No secrets, credentials, access tokens, private chain-of-thought, or sensitive runtime payloads introduced anywhere.
 
-### Security constraints
+## 13. Required reading
 
-- Fail-closed everywhere: missing tenant identity, missing KB binding, malformed contexts, unknown adapter names, unregistered lookups, duplicate registrations, and secret requests all produce controlled failures — never implicit fallbacks, ambient scopes, or silent overwrites.
-- No implicit global tenant context; no unscoped adapter lookup; no arbitrary dynamic imports; no arbitrary code execution; no secret or provider-credential leakage (the secrets adapter always fails closed — `PlatformSecretAccessError`); no cross-organization access (frozen contexts + tenant-scope guard + tenant-preservation delegation proofs).
-- No secrets, credentials, access tokens, private chain-of-thought, or sensitive runtime payloads in any changed file (secret-pattern scan: no matches).
-- No fabricated timestamps; no unsupported claims; a future/intended architect review is never written as completed (D-012).
+The architect's corrective handoff (this instance's source — transcribed into §7/§10/§11/§12/§17/§18/§19/§21/§22); `ISSUES.md` I-016 (+ the issue-control system); `VERIFICATION_STATE.md` §"Correction and issue-control workflow" + §Phase 7 (the 7-A implementation record and validation) + the review trail; `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` (the canonical form + correction integrity rules); the affected implementation files at the correction baseline (`src/modules/ai-platform-core/execution-context.ts`, `adapter-registry.ts`, and their test files); `CURRENT_PHASE.md` (the 7-A implementation-stage contract + acceptance criteria 2/3); `NEXT_ACTION.md`; the latest `worklog.md` entry (Phase 7-A implementation).
 
-### Testing requirements (validation before commit — this stage)
+## 14. Implementation tasks (numbered, deterministic — as executed)
+
+1. Baseline verification per `ZAI_HANDOFF.md` §I.6: branch `feature/ai-core-from-doable-source`; HEAD = `688070a5` = origin tip; clean tree; no unexpected movement; I-014/I-015 OPEN; the pre-correction validation baseline recorded (focused 43/43; typecheck 19 pre-existing application-code errors + 3419 immutable-tree errors).
+2. **Correction A** — `execution-context.ts`: the module-private `SANCTIONED_PLATFORM_CONTEXTS: WeakSet<object>`; the factory freezes then registers each sanctioned context; `isValidPlatformExecutionContext` requires provenance membership in addition to the preserved structural + frozen checks; nothing provenance-related exported; no marker property/symbol/metadata written onto contexts.
+3. **Correction B** — `adapter-registry.ts`: the minimal `freezeAdapterObject` helper (in-place freeze of the adapter object + defensively its own plain-object/array values; cycle-safe; functions untouched; identity-preserving); `register()` commits the exact validated objects frozen in place inside the frozen container; freezing occurs only after validation and only on the winning registration (failed/duplicate attempts never touch the caller's objects); `committed` assigned only after every freeze succeeds.
+4. **Tests** — `execution-context.test.ts`: A1, A3 (incl. the handoff's exact forged example + a hardened fully-populated frozen lookalike + a re-frozen spread-copy of a real context), A5 (no marker property/symbol; repeatable identity-based validation; interleaved validations; mutation does not strip provenance); `adapter-registry.test.ts`: B1 (the handoff's exact post-registration mutation attack), B2 (mutation through `get()`/`requireRegistered()` references), B5 (all four slots: frozen, identity-preserved, committed behavior retained); B3/B4 preserved with the freeze-order property added.
+5. **Module documentation** — `README.md` boundary statements updated to the corrected semantics.
+6. **Validation** — the §17 suite, executed and recorded with the exact before/after typecheck count.
+7. **Governance evidence** — the §11 documentation changes (I-016; this instance; the VERIFICATION_STATE correction section + review trail + consistency; CURRENT_PHASE correction-stage record; PROJECT_STATE/NEXT_ACTION reconciliation; the worklog entry; SESSION-013 + index).
+8. **Commit + push + report + STOP** — one focused correction commit (§19), the correction report (§20), then the mandatory HARD STOP (§22).
+
+## 15. Interfaces / contracts
+
+- The Final State Contract: `PROJECT_STATE.current_phase` = `CURRENT_PHASE.phase` = `NEXT_ACTION.phase` = `ZAI_HANDOFF.phase` (Part II) = `VERIFICATION_STATE.phase` = the latest `worklog.md` entry — all at **Phase 7, `IN_PROGRESS`** (7-A implemented — correction applied `[developer-reported]` — awaiting architect re-review; 7-B/7-C NOT authorized) after this commit.
+- The 7-A host contracts are unchanged in shape: `PlatformExecutionContext` (frozen, tenant-scoped) produced only by `createExecutionContext`; the four-slot `PlatformAdapters` registered only through the fail-closed registry; the public module surface (`index.ts` exports) is unchanged — the provenance mechanism adds NO public export; the registry interface (`register`/`get`/`requireRegistered`/`isRegistered`/`listRegistered`) is unchanged in signature.
+- The architecture is unchanged: `src/modules/ai-platform-core/**` → Clara host adapters → existing Clara infrastructure → existing `ai-core` provider stack; the provider adapter delegates to the incumbent seam exactly as before (the corrected code changes only the two boundary mechanisms).
+- The canonical status vocabularies (D-011 phase statuses; the issue lifecycle; the correction statuses) and the evidence classes (D-012) apply throughout; the issue lifecycle of I-016 follows the canonical transitions (developer effects only CORRECTION_IN_PROGRESS/CORRECTION_SUBMITTED/REVIEW_PENDING registration; RESOLVED is architect-only).
+
+## 16. Security constraints
+
+- No secrets, credentials, or access tokens may be written (the R-5 Vercel token is referenced but never reproduced).
+- No private chain-of-thought — observable evidence only; no fabricated timestamps or unsupported claims.
+- Tenancy boundaries: the correction STRENGTHENS them — the platform-context trust boundary is now provenance-based (forged frozen lookalikes rejected); the committed adapter set is now immutable through every reference (post-registration behavior substitution prevented). No other application security surface is touched.
+- Immutable-source boundaries and production-branch restrictions remain in force (D-007, D-008).
+
+## 17. Testing requirements (validation before commit — this correction)
 
 | # | Check | Method | Expected evidence |
 |---|---|---|---|
-| 1 | Targeted 7-A unit tests | `npx vitest run src/modules/ai-platform-core/` | all pass (43 tests across 4 files incl. the incumbent seam's 2) |
-| 2 | Full relevant test suite | `npx vitest run` | all pass (108 files / 960 tests — no regression anywhere) |
-| 3 | Typecheck | `npm run type-check` (tsconfig.typecheck.json) | the 5 pre-existing errors within `src/modules/ai-platform-core/` eliminated; **zero new application-code errors** (19 pre-existing errors in unrelated files — all environmental missing-optional-dependency / unrelated-route defects — remain untouched, recorded); the immutable `docs/doable-source/**` reference trees' pre-existing errors (3419) unchanged and out of scope |
-| 4 | Lint | `npx eslint src/modules/ai-platform-core/` | 0 errors, 0 warnings |
-| 5 | Model config | `npm run validate:model-config` | PASS |
-| 6 | Governance regressions | `bash docs/project-control/verification/phase-closure-eligibility-test.sh`; `bash docs/project-control/verification/correction-cycle-test.sh` | 8/8 exit 0; 24/24 exit 0 |
-| 7 | Library integrity | `node verification/validate-library.mjs` (from `docs/doable-source/`) | PASS |
-| 8 | Immutable-source verification | `git diff 03482584 HEAD --stat -- <four immutable trees>` (empty); tree-hash comparison vs the pre-implementation baseline; the reconstructed worktree blob verifier (`/home/z/my-project/scripts/verify-immutable-blobs-in-worktree.sh`, agent workspace) | 771/771 present pinned blobs byte-identical; the 31 absent files confined to the `mcp-servers/` family (I-014); 0 mismatches |
-| 9 | Runtime import scan | static search of `src/**` for imports of `doable-source` | zero matches |
-| 10 | Secret-pattern scan | credential/token patterns across all changed paths | no matches |
-| 11 | Production build | `next build` | **not runnable in this workspace** — pre-existing environmental condition: `node_modules` is incomplete relative to `package.json` (106 packages absent incl. `@vercel/queue`/`@vercel/functions`/`@elevenlabs/*`) and `package-lock.json` is out of sync with `package.json` (`@vercel/functions` declared-but-unlocked — recorded as **I-015**); completing the install would rewrite the lockfile (a dependency-graph change outside 7-A authorization). The 7-A change introduces zero dependencies and is fully covered by checks 1–10. Not caused by 7-A; not fixed by 7-A (report, do not absorb) |
-| 12 | Changed-path scope check | `git status` / `git show --name-only` post-commit | application changes confined to `src/modules/ai-platform-core/**`; documentation changes confined to `worklog.md` + `docs/project-control/**`; nothing else |
-| 13 | Final State Contract consistency | cross-member phase/status check | Phase 7 `IN_PROGRESS` (7-A implemented, awaiting review) agreeing across the five members + the latest worklog entry |
-| 14 | Git hygiene | `git status --porcelain`; `git rev-parse HEAD origin/feature/ai-core-from-doable-source` | clean tree after commit; local = origin after push |
+| 1 | Focused 7-A tests | `npx vitest run src/modules/ai-platform-core/` | the complete 7-A suite passes — 4 files / 53 tests (43 preserved + 10 correction proofs: A1/A3×3/A5 + B1/B2/B3/B4/B5) |
+| 2 | Full regression | `npx vitest run` | all pass (108 files / 970 tests — zero regressions) |
+| 3 | Lint | `npx eslint src/modules/ai-platform-core/` | 0 errors, 0 warnings |
+| 4 | Typecheck | `npm run type-check` (tsconfig.typecheck.json) | the exact before/after count reported: application-code errors **19 → 19** (the 19 pre-existing unrelated errors unchanged and NOT claimed fixed; the module clean; zero new); the 3419 immutable-tree errors unchanged |
+| 5 | Governance | `bash docs/project-control/verification/phase-closure-eligibility-test.sh`; `bash docs/project-control/verification/correction-cycle-test.sh`; `npm run validate:model-config` | 8/8 exit 0; 24/24 exit 0; PASS |
+| 6 | Immutable source | `git diff 03482584 --stat -- <four immutable trees>` (empty); tree-hash identity vs the baseline (`a42aee79`/`ee07c362`/`b76b8f34`/`54606204`); the worktree blob verifier (`/home/z/my-project/scripts/verify-immutable-blobs-in-worktree.sh`) | 802 pinned · 771 present · 771/771 byte-verified · 0 mismatches; the 31 absent files confined to `mcp-servers/` (I-014 OPEN) |
+| 7 | Scope | `git status` / `git diff` / `git diff --stat` / `git show --name-only` (pre-commit inspection) | the correction diff contains only `src/modules/ai-platform-core/**` + `docs/project-control/**` + `worklog.md`, and only the files genuinely required by the correction |
 
-### Acceptance criteria (pass/fail — evaluated by the architect at review of the actual 7-A diff and evidence)
+*(A passing test is one Gate C input for the re-review — never, by itself, resolution of the issue or the phase.)*
 
-1. The worktree synchronization was performed safely (fast-forward only; history preserved; no reset/force-push/rewrite; production branches untouched) and the baseline re-verified — PASS/FAIL.
-2. A tenant-scoped, frozen `PlatformExecutionContext` exists, produced only by a fail-closed factory requiring tenant and KB identity, with no ambient fallback — PASS/FAIL.
-3. A fail-closed adapter registry exists: explicit registration with up-front validation; deterministic exact-slot lookup; no implicit fallback; unknown adapter → controlled failure; duplicate registration rejected deterministically — PASS/FAIL.
-4. The four 7-A adapter declarations are bound to existing services: identity (factory), provider (delegation to the incumbent seam), secrets (always-fail-closed non-transfer), transport (existing-routes-only declaration) — PASS/FAIL.
-5. The incumbent `ai-core` provider/resolver architecture is unmodified and unduplicated (delegation only; `ChatOptions` untouched) — PASS/FAIL.
-6. Focused tests prove: registration acceptance/rejection; execution-context preservation and fail-closed behavior; tenant isolation (no cross-tenant resolution; frozen contexts; malformed invocation fails safely); secrets never crossing the seam — PASS/FAIL.
-7. Zero new runtime dependencies; no database/persistence changes; no new routes; no deployment; immutable source byte-unchanged; no runtime import of the Doable reference — PASS/FAIL.
-8. The only pre-existing-file modification is the minimal, behavior-preserving type-correctness fix set within `clara-runtime.ts`, fully disclosed — PASS/FAIL.
-9. Validation evidence exists and is recorded (tests/typecheck/lint/governance/immutable checks with actual commands and results); the build-attempt limitation is honestly recorded with its pre-existing cause (I-015) — PASS/FAIL.
-10. I-014 remains `OPEN`; no issue is closed; the new I-015 finding is recorded `[developer-reported]` for architect triage — PASS/FAIL.
-11. The control documentation records the 7-A authorization, execution, validation, and the exact stopping boundary; `[developer-reported]` is distinguished from `[architect-verified]`; no fabricated architect verification — PASS/FAIL.
-12. Phase 7 is not marked `PASS`/`CLOSED`; 7-B is not marked authorized or in progress; the Final State Contract is consistent — PASS/FAIL.
+## 18. Acceptance criteria (pass/fail — evaluated by the architect at re-review of the actual correction diff)
 
-### Git requirements
+1. A genuine `createExecutionContext` context validates; the exact handoff forgery (`Object.freeze({ tenantId, kbId, surface })`) is rejected by `isValidPlatformExecutionContext` and throws in `assertExecutionContext` — proven by A1/A3.
+2. The provenance mechanism is module-private (not exported), uses no mutable public marker property, no exposed symbol, no magic metadata field, no structural equality; the existing tenant/kb/surface validation and context immutability are preserved; genuine contexts remain valid after validation with no externally visible provenance state — proven by A5.
+3. Post-registration mutation through the original adapter references cannot alter committed behavior (the handoff's `adapters.provider.resolveModel = hostile` attack fails); the adapters returned by `get()`/`requireRegistered()` cannot be mutated; the registry keeps the exact validated implementation; failed and duplicate registrations remain atomic; all four slots retain committed behavior — proven by B1/B2/B3/B4/B5.
+4. The architecture is unchanged (no seam redesign; no provider-adapter architecture change; no `ai-core` modification; no Clara runtime behavior change beyond the two corrections) — verified by diff inspection.
+5. I-015 remains `OPEN` (no dependency-changing install; no lockfile rewrite); I-014 remains `OPEN` (immutable source byte-unchanged; the 31 absent files still confined to `mcp-servers/`).
+6. The validation evidence (§17) is real and recorded with the exact typecheck before/after count; the 19 pre-existing errors are not claimed fixed.
+7. The governance records append the correction event (the historical 7-A implementation record unrewritten); `[developer-reported]` is distinguished from `[architect-verified]`; the correction records the architect outcome `CORRECTION_REQUIRED`, the reviewed commit `688070a5`, both defect reasons, I-015 OPEN, I-014 OPEN, 7-B NOT AUTHORIZED — and records NO architect `PASS`.
+8. One focused correction commit, the immediate child of `688070a5`, changed paths within the approved scope, pushed normally (no force-push, no history rewrite).
+9. Final state: `Phase 7-A: IMPLEMENTED — CORRECTION APPLIED — AWAITING ARCHITECT REVIEW`; Phase 7 `IN_PROGRESS`; 7-B/7-C `NOT AUTHORIZED`; no `PASS`/`CLOSED` claim for 7-A or Phase 7.
+
+## 19. Git requirements
 
 - Permitted branch: `feature/ai-core-from-doable-source` only; never `Vercel-Prod`, `Vercel-Preview`, `Vite-Converted`, `main`; no force-push.
-- One focused implementation commit: `feat: establish phase 7-a host contracts and adapter foundation` — the immediate child of `ac06ca72516282bd78f8d0f37afaa46062322b53`; application changes confined to `src/modules/ai-platform-core/**`; documentation changes confined to the repository-root `worklog.md` and `docs/project-control/**`; no unrelated changes; no bundling of 7-B/7-C/MCP/integrations/unrelated cleanup. If the baseline has moved unexpectedly: STOP — no rebase or force-push without a refreshed architect handoff.
-- Push normally to `origin/feature/ai-core-from-doable-source`; do not amend the baseline or any historical commit.
+- One focused correction commit: `fix: harden phase 7-a execution context and adapter boundaries` — the immediate child of `688070a5fcda04dfce6c971b79322aed34adb4a0`; changed paths limited to the approved correction scope (`src/modules/ai-platform-core/**` + `docs/project-control/**` + `worklog.md`); no unrelated changes ride along; no squashing of unrelated history.
+- Pre-commit inspection: `git status`, `git diff`, `git diff --stat`, `git show --name-only` — verifying no unauthorized files changed.
+- Push normally to `origin/feature/ai-core-from-doable-source`; do not amend the baseline or any prior commit.
 
-### Evidence requirements
+## 20. Evidence requirements
 
-The developer completion report (per Part I §I.7 and the handoff §16) must provide: **A. Baseline** (branch; starting commit `31ffd6f4` → synchronized remote commit `ac06ca72`; worktree state); **B. 7-A Implementation** (files created/modified; architecture; contracts; adapters; integration points); **C. Scope Verification** (7-B/7-C/MCP/integrations not implemented; no DB changes; no deployment; immutable source unchanged; no unauthorized dependencies); **D. Validation** (actual commands/results: targeted tests; full suite; typecheck with the baseline comparison; lint; governance validators; immutable-source verification); **E. Issues/Risks** (I-014 OPEN; the new I-015 finding; pre-existing defects fixed within module scope — disclosed); **F. Commit** (SHA; message; changed files; diff summary); **G. Phase State** (`Phase 7-A: IMPLEMENTED — AWAITING ARCHITECT REVIEW`; Phase 7 not complete; 7-B not authorized). All `[developer-reported]`; no `PASS`, no approval, no closure claimed.
+Per `ZAI_HANDOFF.md` §I.7 plus the correction traceability chain: the issue ID (I-016); the architect finding (§7 — both defects, with the handoff's attack examples); the corrective handoff (this CH-002 instance); the correction baseline SHA (`688070a5`); the developer correction commit SHA + message; the verification evidence (commands + results, `[developer-reported]` — the §17 suite with the exact typecheck before/after count); the architect re-review status (**PENDING** — never claimed as completed); the issue resolution state (only architect verification may set `RESOLVED` — I-016 is NOT resolved by this correction). All reported as developer-reported evidence until the architect re-reviews.
 
-### Review boundary
+## 21. Review boundary
 
-**Developer implementation completion does not equal phase completion, and this implementation report is developer evidence until reviewed.**
+**Developer correction submission does not equal issue resolution, and neither equals phase completion.**
 
-**Only ChatGPT/project-owner architect review can accept the 7-A implementation; the architect will independently inspect the actual diff before deciding whether 7-B can be authorized; only an actual `PASS` review can later close the phase.**
+**Only ChatGPT/project-owner architect review can resolve the issue (`RESOLVED`) and close the phase.**
 
-Review outcomes: `PASS` (the 7-A implementation is accepted — the architect then decides on 7-B authorization); `PASS_WITH_FOLLOWUP` (accepted with recorded follow-ups); `CORRECTION_REQUIRED` (a corrective handoff is issued per §I.5 / the Phase 6 workflow; the sub-phase returns to correction). Z.AI must not choose the outcome, must not self-approve, and must not treat the work-order text of any assignment as approval.
+After the correction commit, push, and evidence report: I-016 stands `REVIEW_PENDING` and the phase remains open awaiting the architect's re-review of the actual correction diff. The re-review is Gate D under the verification and phase-gate contract (`VERIFICATION_STATE.md` §contract) — architect-only. Only an actual ChatGPT re-review may produce `architect-verified` resolution evidence. Possible re-review outcomes: `PASS` (I-016 may become `RESOLVED`; 7-A may be accepted; the architect then decides on 7-B authorization), `PASS_WITH_FOLLOWUP` (accepted with recorded follow-ups), `CORRECTION_REQUIRED` (a further corrective handoff — I-016 returns to issue-status `CORRECTION_REQUIRED`; repeat cycle). Z.AI must not choose the outcome.
 
-### STOP boundary (hard stop — the architect's FINAL STOP CONDITION)
+## 22. STOP boundary (hard stop)
 
-After the 7-A commit, push, and implementation report: **Z.AI STOPs.** Do NOT proceed to 7-B (no Unified Tool Runtime, no `rag_search` migration, no tool registry); do NOT implement 7-C (no provider tool calling, no agentic loop); do NOT implement MCP or integrations; do NOT start Phase 8; do NOT deploy; do NOT resolve I-014/I-015/I-001/I-007, R-3/R-4/R-5, D-P2, or D-P4; do NOT modify `src/modules/ai-core/**`, migrations, Supabase, `vercel.json`, or the immutable Doable source beyond this instance's authorized 7-A scope. **Wait for the architect's review of the actual 7-A diff and evidence.** No further implementation is authorized by the handoff this instance materializes. If a newly discovered issue is outside the authorized scope: record it in `ISSUES.md` as a new `OPEN` issue (`[developer-reported]`) and await architect direction — as done for I-015.
+After the correction commit, validation, and push: **Z.AI STOPs.** Do NOT continue into 7-B; do NOT make any additional architectural changes; do NOT start Phase 8; do NOT deploy; do NOT modify `src/modules/ai-core/**`, migrations, Supabase, `vercel.json`, dependency files, or the immutable Doable source; do NOT resolve I-014/I-015/I-001/I-007, R-3/R-4/R-5, D-P2, or D-P4; do NOT mark 7-A or Phase 7 `PASS`/`CLOSED`; do NOT absorb any newly discovered out-of-scope issue into this correction (record it as a new `OPEN` issue and await architect direction). **The architect will independently review the correction diff.** This handoff repairs only the two identified Phase 7-A boundary defects — nothing beyond those corrections is authorized.
+
+---
+
+## Correction integrity rules (binding — from the durable workflow contract)
+
+The developer executes **only** the corrective scope (§10/§11). The developer must NOT: fix unrelated issues; refactor unrelated code; change architecture outside the handoff; silently alter acceptance criteria; modify unrelated project-control state; begin the next phase; or continue past the correction commit and evidence report. The correction is delivered as one focused commit whose message and evidence reference the finding and the issue ID (traceability: architect finding → issue record I-016 → corrective handoff CH-002 → baseline SHA `688070a5` → developer correction commit → verification evidence → architect re-review → issue resolution / phase closure). An unrelated change found in the correction commit is a scope violation — it is not accepted as part of the correction. Issue resolution requires architect verification: **a correction is not resolved merely because Z.AI says it is fixed — only architect verification can establish `architect-verified` resolution.** A developer correction commit never independently closes the issue or the phase.

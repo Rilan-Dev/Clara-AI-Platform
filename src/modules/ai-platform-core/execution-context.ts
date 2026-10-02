@@ -37,6 +37,28 @@ export class ExecutionContextError extends Error {
   }
 }
 
+/**
+ * Module-private provenance registry of sanctioned platform contexts.
+ *
+ * CORRECTION A (architect review of `688070a5` — outcome
+ * `CORRECTION_REQUIRED`): structural validity + `Object.isFrozen()` alone
+ * does NOT establish provenance — a caller can independently construct and
+ * freeze a structurally identical lookalike. Membership in this WeakSet is
+ * the demonstrable proof that a context was produced by the sanctioned
+ * factory `createExecutionContext`.
+ *
+ * Trust-boundary properties:
+ * - module-private and NEVER exported — callers cannot enumerate it, add to
+ *   it, or test membership directly;
+ * - WeakSet membership is not forgeable by object shape, freezing, symbols,
+ *   or metadata fields — only the factory itself can add members;
+ * - weak references — contexts that are no longer referenced remain
+ *   garbage-collectable (no unbounded retention);
+ * - no mutable marker property is written onto the context: provenance is
+ *   carried by identity (the object itself), not by inspectable state.
+ */
+const SANCTIONED_PLATFORM_CONTEXTS: WeakSet<object> = new WeakSet();
+
 const SURFACE_KINDS: readonly SurfaceKind[] = ["chat", "realtime", "embed"];
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -106,7 +128,9 @@ function normalizeRequiredId(
  * - `surface` must be a known surface kind (defaults to "chat");
  * - unknown top-level keys are rejected (typo guard: a misspelled identity
  *   field must never silently produce a tenant-less or wrong-scoped context);
- * - the returned context (and its metadata copy) is frozen.
+ * - the returned context (and its metadata copy) is frozen AND registered in
+ *   the module-private provenance WeakSet — the ONLY sanctioned production
+ *   path for a valid `PlatformExecutionContext`.
  */
 export function createExecutionContext(input: ExecutionContextInput): PlatformExecutionContext {
   if (!isPlainObject(input)) {
@@ -154,19 +178,34 @@ export function createExecutionContext(input: ExecutionContextInput): PlatformEx
     surface,
     ...(metadata !== undefined ? { metadata } : {}),
   };
-  return Object.freeze(context);
+  const frozen = Object.freeze(context);
+  // Provenance: only here — after full validation and freezing — does the
+  // context become a member of the sanctioned set. Frozen first so the
+  // registry can never hold a mutable context.
+  SANCTIONED_PLATFORM_CONTEXTS.add(frozen);
+  return frozen;
 }
 
 /**
- * Structural check used by adapter boundaries to fail closed on malformed
- * contexts. Accepts only factory-produced contexts: a valid context is
- * structurally complete AND frozen — hand-rolled lookalikes are rejected so
- * the sanctioned production path stays `createExecutionContext` (where the
- * typo guard and blank checks live).
+ * Provenance + structural check used by adapter boundaries to fail closed on
+ * malformed or forged contexts. Accepts ONLY contexts demonstrably produced
+ * by the sanctioned factory `createExecutionContext`:
+ *
+ * - the value must be a member of the module-private provenance WeakSet
+ *   (CORRECTION A — a merely frozen structural lookalike constructed outside
+ *   the factory is NOT a member and is rejected, so no caller can mint a
+ *   trusted tenant context by hand);
+ * - it must still be frozen (defense in depth);
+ * - it must still carry a non-blank tenant/KB and a known surface (the
+ *   existing tenant/kb/surface validation is preserved).
+ *
+ * The provenance mechanism is not exposed publicly, carries no mutable
+ * marker property, and does not depend on externally visible state.
  */
 export function isValidPlatformExecutionContext(value: unknown): value is PlatformExecutionContext {
   if (!isPlainObject(value)) return false;
   if (!Object.isFrozen(value)) return false;
+  if (!SANCTIONED_PLATFORM_CONTEXTS.has(value)) return false;
   return (
     typeof value.tenantId === "string" &&
     value.tenantId.trim().length > 0 &&
