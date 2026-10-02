@@ -138,3 +138,35 @@ The Clara voice factory's Sarvam provider implementation is now present in the r
 
 ### Next
 Move into Clara's RAG and knowledge-base runtime closure. Follow imports from the existing grounding boundary and knowledge-base configuration/database modules, extracting only Clara-owned reusable source and keeping host-specific persistence/identity concerns explicit for later adapters.
+
+## 2026-10-03 — RAG and knowledge-base runtime dependency slice
+
+### Completed
+- Extracted Clara cross-lingual RAG retrieval support.
+- Extracted knowledge-base domain models, PostgreSQL knowledge-base/assistant configuration persistence, AI overrides, configuration snapshots, and system-prompt configuration builder.
+- Extracted the shared assistant language catalog and language-policy implementation required by the KB prompt builder.
+- Registered all eight files using their exact Clara Git blob SHAs.
+
+### Verified source identities
+- `src/modules/rag/cross-lingual.ts` → `10dd946cf2ce7b4f40a4bd04a11559c16ccd7e98`
+- `src/modules/knowledge-bases/core/models.ts` → `5f305a66da7cc97252ecc4f5a6195375530e91b2`
+- `src/modules/knowledge-bases/core/snapshots-db.ts` → `bc741cefd77343a67a0b563ea616d07d07e40e9c`
+- `src/modules/knowledge-bases/core/db.ts` → `90a3265b80e5aa469e593df3479b8c75fa5dd473`
+- `src/modules/knowledge-bases/core/ai-overrides-db.ts` → `3c5c2301d0b99b6779085cae5f87f802a05619f4`
+- `src/modules/knowledge-bases/core/config-builder.ts` → `c1380eaf7511496788c8c5899abb66b6221aa06c`
+- `src/modules/assistant/core/config.ts` → `e9fa07bc9a4f745f79364e95a59ea5bc70dbb2d5`
+- `src/modules/assistant/core/language-policy.ts` → `95832c3d702cbc2221cd188c87278a27cc02c995`
+
+### Architectural result
+The reusable Clara core now contains the KB configuration boundary needed to combine tenant-owned knowledge-base metadata, AI overrides, immutable assistant configuration snapshots, multilingual language policy, and prompt construction. Cross-lingual retrieval is also preserved as a first-class RAG capability rather than delegated to provider-native knowledge bases.
+
+### Not completed
+- Full dependency closure of `grounding.ts` and `cross-lingual.ts`.
+- Qdrant retrieval/indexing primitives and document ingestion lifecycle.
+- Agent-versioning persistence/service closure.
+- Usage/quota/analytics/audit closure.
+- MCP/tools/integrations, embed and phone runtime closure.
+- Automated full-library verifier.
+
+### Next
+Continue from the Clara grounding imports and Qdrant/document lifecycle. Extract the reusable retrieval, document/indexing, and knowledge-base runtime primitives while keeping provider-native KB state out of the reusable core.
