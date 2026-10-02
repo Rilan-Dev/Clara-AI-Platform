@@ -1,5 +1,6 @@
 import { ProviderFactory } from "@/modules/ai-core/factory";
-import { resolveAIConfigCached, toProviderConfig, type ResolvedAIConfig } from "@/modules/ai-core/resolve";
+import { toProviderConfig, type ResolvedAIConfig } from "@/modules/ai-core/resolve";
+import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { resolveVoiceConfigCached } from "@/modules/voice-core/resolve";
 import { groundClaraContext } from "@/modules/rag/grounding";
 import { buildConversationAwareSearchQuery, buildRecentConversationContextBlock, recentMessages } from "@/modules/assistant/api/conversation-context";
