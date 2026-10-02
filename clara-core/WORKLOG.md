@@ -65,3 +65,27 @@ The Clara core now has the registry/entitlement/capability-resolution boundary r
 
 ### Next
 Continue from the newly extracted imports, prioritizing the direct dependencies required to make governance, model resolution, conversation runtime, and realtime self-contained. Keep every extraction byte-for-byte and verify source/target Git blob identity before registering it in the manifest.
+
+## 2026-10-03 — Voice and OpenAI Realtime dependency slice
+
+### Completed
+- Extracted Clara voice resolution contracts, canonical voice model catalogue, voice-provider resolver, and voice provider factory.
+- Extracted the OpenAI Realtime transport builder/client-secret exchange and OpenAI capability catalogue used by the realtime runtime.
+- Registered all six files in the immutable extraction manifest.
+
+### Verified immutable files
+- `src/modules/voice-core/config-types.ts` → `ae8e6cb54e7844c7040da8a12d58e83bc5656abb`
+- `src/modules/voice-core/model-catalog.ts` → `026d5f9e3c3751f09f4bd6970e50ac3bd1cf7edc`
+- `src/modules/voice-core/resolve.ts` → `ffeea456e4cd8e67895c5aeb12660b95b2ffc44b`
+- `src/modules/voice-core/factory.ts` → `c0476d170b338c7aff4b40259fa4bb35ffa87ddd`
+- `src/modules/assistant/api/openai-realtime.ts` → `75f51414d5f4820324dbabd583417f2d150f358e`
+- `src/modules/assistant/api/openai-catalog.ts` → `55ffce4b8ee3ff228479ada72312b3c2923ac6f0`
+
+### Not completed
+- Voice provider implementations referenced by the factory (ElevenLabs and Sarvam).
+- Remaining AI-core factory/cache/config dependencies.
+- Remaining voice realtime primitives and provider-specific relay implementations.
+- KB, agent-versioning, usage/quota, analytics/audit, integrations/MCP, embed and phone closures.
+
+### Next
+Follow the imports from the voice factory/resolver and AI runtime next. Extract provider implementations and their pure/shared dependencies without copying host-only API adapters prematurely. Preserve byte-for-byte source identity and verify every source/target blob before manifest registration.
