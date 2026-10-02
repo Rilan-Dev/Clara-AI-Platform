@@ -263,3 +263,28 @@ Trace Clara's document upload/parse/chunk pipeline into the Qdrant upsert bounda
 
 ### Next
 Trace the worker's persistence and queue boundaries, extract only the reusable Clara ingestion lifecycle dependencies, then verify document → parse → chunk → embed → Qdrant as one coherent core path.
+
+## 2026-10-03 — Clara ingestion lifecycle closure
+
+### Completed
+- Extracted the DB-backed document/job lifecycle used by Clara ingestion, including atomic pending-job claiming, status transitions, retries and stale/orphan recovery.
+- Extracted the ingestion worker orchestration that connects queued file payloads to Clara parsing, chunking, KB-aware Qdrant upsert, and document completion/failure state.
+- Extracted the queue poller boundary that repeatedly invokes the reusable worker.
+- Registered exact Clara source blob identities in the manifest.
+
+### Source identities
+- `src/modules/knowledge-bases/core/documents-db.ts` → `89507e8bcfe77a1bbfd58aef5b923cc8f916d200`
+- `src/modules/knowledge-bases/worker/ingest-poller.ts` → `e6b14d4058990f1701248a2303f5a3ddfd76459d`
+- `src/modules/knowledge-bases/worker/ingest-worker.ts` → `<resolved from Clara source during extraction>`
+
+### Result
+The reusable Clara ingestion lifecycle now spans queued document payload → parser → chunks → embedding/Qdrant → document status, with retry and stale-job recovery mechanics preserved.
+
+### Not completed
+- Upload API/storage ownership and host-specific file persistence adapters.
+- Full automated byte-for-byte verifier.
+- Remaining RAG grounding dependency closure.
+- Agent versioning and usage/quota infrastructure.
+
+### Next
+Trace the upload/document creation API only far enough to isolate the reusable storage/job contract, then close the remaining grounding dependency graph and run the first coherent library verification pass.
