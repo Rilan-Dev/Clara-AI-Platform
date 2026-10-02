@@ -239,6 +239,21 @@
       "source_path": "src/modules/knowledge-bases/core/analytics-db.ts",
       "target_path": "clara-core/source/src/modules/knowledge-bases/core/analytics-db.ts",
       "source_blob_sha": "137e64182e5b51419ce3cf979645178afdb8e5f6"
+    },
+    {
+      "source_path": "src/modules/admin/core/vector-store.ts",
+      "target_path": "clara-core/source/src/modules/admin/core/vector-store.ts",
+      "source_blob_sha": "784c9fcd61925f5616a44d6822826c526a80792b"
+    },
+    {
+      "source_path": "src/modules/admin/core/vector-store-kb.ts",
+      "target_path": "clara-core/source/src/modules/admin/core/vector-store-kb.ts",
+      "source_blob_sha": "c3592f48fec99b0d74afb44e2a3d30893157f7eb"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/reindex.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/reindex.ts",
+      "source_blob_sha": "31708095ddd99df4bfa34f6d86baaa0813b3c0ff"
     }
   ]
 }
