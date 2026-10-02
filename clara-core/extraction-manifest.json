@@ -254,6 +254,66 @@
       "source_path": "src/modules/knowledge-bases/core/reindex.ts",
       "target_path": "clara-core/source/src/modules/knowledge-bases/core/reindex.ts",
       "source_blob_sha": "31708095ddd99df4bfa34f6d86baaa0813b3c0ff"
+    },
+    {
+      "source_path": "src/modules/admin/core/ingest/document-loader.ts",
+      "target_path": "clara-core/source/src/modules/admin/core/ingest/document-loader.ts",
+      "source_blob_sha": "6ff4dc8960f343a1c6cea18d2698bb6e7b15de32"
+    },
+    {
+      "source_path": "src/modules/admin/core/ingest/chunker.ts",
+      "target_path": "clara-core/source/src/modules/admin/core/ingest/chunker.ts",
+      "source_blob_sha": "d3f04176a147ca5e0a1e55610c267f687fb458e5"
+    },
+    {
+      "source_path": "src/modules/admin/core/ingest/index.ts",
+      "target_path": "clara-core/source/src/modules/admin/core/ingest/index.ts",
+      "source_blob_sha": "5aae8b60366862bdb3d84947bdb6c363ef28cafb"
+    },
+    {
+      "source_path": "src/modules/admin/core/ingest/web-loader.ts",
+      "target_path": "clara-core/source/src/modules/admin/core/ingest/web-loader.ts",
+      "source_blob_sha": "d87c28d7efb5faeb7a198f300f614aaabf91c285"
+    },
+    {
+      "source_path": "src/modules/ingest/types.ts",
+      "target_path": "clara-core/source/src/modules/ingest/types.ts",
+      "source_blob_sha": "d2371b78524cd8d94946c889f07514f09caf82e9"
+    },
+    {
+      "source_path": "src/modules/ingest/factory.ts",
+      "target_path": "clara-core/source/src/modules/ingest/factory.ts",
+      "source_blob_sha": "42f6ee40298ce342cd55b9588483410333c2ed42"
+    },
+    {
+      "source_path": "src/modules/ingest/parsers/pdf.ts",
+      "target_path": "clara-core/source/src/modules/ingest/parsers/pdf.ts",
+      "source_blob_sha": "df00f345d3bb763c8f1c73ca76914cd90e8e51de"
+    },
+    {
+      "source_path": "src/modules/ingest/parsers/docx.ts",
+      "target_path": "clara-core/source/src/modules/ingest/parsers/docx.ts",
+      "source_blob_sha": "1d9844baa8e459a9e846bfbfca7c3806f07f13d2"
+    },
+    {
+      "source_path": "src/modules/ingest/parsers/text.ts",
+      "target_path": "clara-core/source/src/modules/ingest/parsers/text.ts",
+      "source_blob_sha": "beaa08ebcfb810951a60959504bc635af760ed0a"
+    },
+    {
+      "source_path": "src/modules/ingest/parsers/xlsx.ts",
+      "target_path": "clara-core/source/src/modules/ingest/parsers/xlsx.ts",
+      "source_blob_sha": "0032257c4d05bfe05ea3efc02c80e381ec13dcb9"
+    },
+    {
+      "source_path": "src/modules/ingest/parsers/html-parser.ts",
+      "target_path": "clara-core/source/src/modules/ingest/parsers/html-parser.ts",
+      "source_blob_sha": "e986ab42648cae85073d8c8c0505d38e29f62395"
+    },
+    {
+      "source_path": "src/modules/ingest/chunkers/recursive.ts",
+      "target_path": "clara-core/source/src/modules/ingest/chunkers/recursive.ts",
+      "source_blob_sha": "77a3813ee477949e8af0950856557e54988c00ee"
     }
   ]
 }
