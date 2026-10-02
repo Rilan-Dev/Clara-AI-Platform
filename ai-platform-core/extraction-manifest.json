@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "extraction": {
+    "source_repository": "Rilan-Dev/Doable",
+    "source_ref": "develop",
+    "source_commit": "a6036d1fd6dca83c08ee5affa141e5c85e45f5af",
+    "target_root": "ai-platform-core/doable-source",
+    "immutable": true,
+    "status": "in_progress"
+  },
+  "capabilities": [
+    "multi-provider-ai-foundation"
+  ],
+  "files": [
+    {
+      "source_path": "packages/shared/src/ai/index.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/index.ts",
+      "source_blob_sha": "82c902b981bfd70aeb5315840d1d9308b176d52d"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-catalog.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-catalog.ts",
+      "source_blob_sha": "8eb12eb20c5bc210ebd895c5cda6ef3821521563"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-cloud-major.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-cloud-major.ts",
+      "source_blob_sha": "aeb18be01b4f0fcd80ba39f27f68c4024d2a75db"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-cloud-regional.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-cloud-regional.ts",
+      "source_blob_sha": "a6c4eb5b31e5df7fe3c829b951cd9ed4e7e04937"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-cloud-special.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-cloud-special.ts",
+      "source_blob_sha": "cc277d3d3efed5cb6abbfb7732d45a61fae407dc"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-local.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-local.ts",
+      "source_blob_sha": "a1e463448ce5297a6f8810114737e0b91de07b74"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-types.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-types.ts",
+      "source_blob_sha": "93cd93e748002d4064141c7dddc1777041b2d2bb"
+    },
+    {
+      "source_path": "services/api/src/ai/provider.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/provider.ts",
+      "source_blob_sha": "04d3ce8094416737d16260124a1737676993c114"
+    },
+    {
+      "source_path": "services/api/src/ai/runtime-config.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/runtime-config.ts",
+      "source_blob_sha": "14582c5515b8322c97d10165ee9c6f336d52ff54"
+    },
+    {
+      "source_path": "services/api/src/ai/streaming.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/streaming.ts",
+      "source_blob_sha": "96f49e46a7a6d0c15c259f93e0ec2d55836a27bb"
+    }
+  ]
+}
