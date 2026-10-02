@@ -154,6 +154,11 @@
       "source_path": "src/modules/voice-core/providers/elevenlabs.ts",
       "target_path": "clara-core/source/src/modules/voice-core/providers/elevenlabs.ts",
       "source_blob_sha": "7771d4f5275c3fe128ba8ed60e956d5082564c18"
+    },
+    {
+      "source_path": "src/modules/voice-core/providers/sarvam.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/providers/sarvam.ts",
+      "source_blob_sha": "0f98c62c0e5fa71780f4139af576b844443e1cae"
     }
   ]
 }
