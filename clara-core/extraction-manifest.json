@@ -314,6 +314,21 @@
       "source_path": "src/modules/ingest/chunkers/recursive.ts",
       "target_path": "clara-core/source/src/modules/ingest/chunkers/recursive.ts",
       "source_blob_sha": "77a3813ee477949e8af0950856557e54988c00ee"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/core/documents-db.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/core/documents-db.ts",
+      "source_blob_sha": "89507e8bcfe77a1bbfd58aef5b923cc8f916d200"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/worker/ingest-poller.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/worker/ingest-poller.ts",
+      "source_blob_sha": "e6b14d4058990f1701248a2303f5a3ddfd76459d"
+    },
+    {
+      "source_path": "src/modules/knowledge-bases/worker/ingest-worker.ts",
+      "target_path": "clara-core/source/src/modules/knowledge-bases/worker/ingest-worker.ts",
+      "source_blob_sha": "f3e44522d466cf3ec85c37df51cd75ca80b3a58e"
     }
   ]
 }
