@@ -206,3 +206,30 @@ The reusable Clara RAG layer now preserves collection/model identity, cached que
 
 ### Next
 Continue with the Clara document ingestion/indexing lifecycle and Qdrant primitives that populate the collections consumed by this retrieval path. Then close any remaining grounding imports before moving to agent-versioning and usage/quota infrastructure.
+
+## 2026-10-03 — Qdrant indexing and reindex runtime slice
+
+### Completed
+- Extracted Clara's Qdrant vector-store implementation, including embedding batching/retry behavior, collection management, vector search, and point operations.
+- Extracted the KB-aware Qdrant layer that persists `kbId` and `documentId` payloads, supports attribution/deletion, and integrates embedding usage accounting.
+- Extracted the zero-downtime KB embedding-model reindex lifecycle: create target collection, page/re-embed existing chunks, mirror writes, and atomically swap the active collection.
+- Registered all three files with their exact Clara source Git blob SHAs.
+
+### Verified source identities
+- `src/modules/admin/core/vector-store.ts` → `784c9fcd61925f5616a44d6822826c526a80792b`
+- `src/modules/admin/core/vector-store-kb.ts` → `c3592f48fec99b0d74afb44e2a3d30893157f7eb`
+- `src/modules/knowledge-bases/core/reindex.ts` → `31708095ddd99df4bfa34f6d86baaa0813b3c0ff`
+
+### Architectural result
+Clara Core now contains the Qdrant storage/index boundary required to populate and migrate the collections used by the extracted RAG retrieval layer. The active embedding model can be changed without replacing the live collection in place.
+
+### Not completed
+- Source document parsing/chunking and upload ingestion lifecycle.
+- Remaining grounding imports, if any.
+- Agent versioning persistence/service closure.
+- Usage/quota admission and broader analytics/audit closure.
+- Tools/MCP/integrations, embed and phone runtime closure.
+- Automated full-library verifier.
+
+### Next
+Trace Clara's document upload/parse/chunk pipeline into the Qdrant upsert boundary. Extract the reusable document ingestion primitives and their direct dependencies, then verify the complete RAG path from document bytes → chunks → embeddings → Qdrant → grounding.
