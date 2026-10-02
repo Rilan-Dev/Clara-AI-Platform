@@ -13,7 +13,11 @@
     "provider-discovery",
     "embedding-resolution",
     "engine-types",
-    "ai-engine"
+    "ai-engine",
+    "project-context-builder",
+    "tool-message-presentation",
+    "attachment-processing",
+    "project-file-runtime"
   ],
   "files": [
     {
@@ -90,6 +94,26 @@
       "source_path": "services/api/src/ai/engine.ts",
       "target_path": "ai-platform-core/doable-source/services/api/src/ai/engine.ts",
       "source_blob_sha": "3989bd817d2e013b80cf3bf5fc6a495477187d0a"
+    },
+    {
+      "source_path": "services/api/src/ai/context-builder.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/context-builder.ts",
+      "source_blob_sha": "704c7cbedc06d9f7970e11c6b3848c0ceef12b39"
+    },
+    {
+      "source_path": "services/api/src/ai/tool-messages.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/tool-messages.ts",
+      "source_blob_sha": "1a90d49c923249bc41e7e3bbbc43d7161db45913"
+    },
+    {
+      "source_path": "services/api/src/ai/attachments.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/attachments.ts",
+      "source_blob_sha": "8b6b8bc43cfe56984f1827e34c14df7b8c894458"
+    },
+    {
+      "source_path": "services/api/src/ai/project-files.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/project-files.ts",
+      "source_blob_sha": "ece636d83bbae1e7b667e43f5930590c95f3e26b"
     }
   ]
 }
