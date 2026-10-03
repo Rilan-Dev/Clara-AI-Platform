@@ -449,6 +449,26 @@
       "source_path": "src/modules/voice-core/metering.ts",
       "target_path": "clara-core/source/src/modules/voice-core/metering.ts",
       "source_blob_sha": "89eb511909c3668f2260193c0f506fa487bbd7c3"
+    },
+    {
+      "source_path": "src/modules/phone/core/types.ts",
+      "target_path": "clara-core/source/src/modules/phone/core/types.ts",
+      "source_blob_sha": "2d635b06c35c71a56fca33402e3c107be628ebc0"
+    },
+    {
+      "source_path": "src/modules/phone/providers/twilio.ts",
+      "target_path": "clara-core/source/src/modules/phone/providers/twilio.ts",
+      "source_blob_sha": "54b2d6e685675fbe1079765c272a40f90dacaa09"
+    },
+    {
+      "source_path": "src/modules/phone/providers/vonage.ts",
+      "target_path": "clara-core/source/src/modules/phone/providers/vonage.ts",
+      "source_blob_sha": "e6a658616ade1efd31a451cd087e9c3867b0dfbd"
+    },
+    {
+      "source_path": "src/modules/embed/core/public-token.ts",
+      "target_path": "clara-core/source/src/modules/embed/core/public-token.ts",
+      "source_blob_sha": "2171f84fa53dd8e081bb7aa5c12740222da7533b"
     }
   ]
 }
