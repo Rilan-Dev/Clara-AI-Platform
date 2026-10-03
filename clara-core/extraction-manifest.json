@@ -409,6 +409,36 @@
       "source_path": "src/modules/voice-core/pricing.ts",
       "target_path": "clara-core/source/src/modules/voice-core/pricing.ts",
       "source_blob_sha": "020361a3e69540b8c45274b7896ca2d351cc9011"
+    },
+    {
+      "source_path": "src/modules/agent-versioning/core/db.ts",
+      "target_path": "clara-core/source/src/modules/agent-versioning/core/db.ts",
+      "source_blob_sha": "0f263e05a2fe33d17b8dcd8e4ad54298cba80d21"
+    },
+    {
+      "source_path": "src/modules/agent-versioning/core/diff.ts",
+      "target_path": "clara-core/source/src/modules/agent-versioning/core/diff.ts",
+      "source_blob_sha": "9c9fb3ad5ad2d786c848f482f1fb23833535115b"
+    },
+    {
+      "source_path": "src/modules/agent-versioning/core/projection.ts",
+      "target_path": "clara-core/source/src/modules/agent-versioning/core/projection.ts",
+      "source_blob_sha": "c253f33b0fd388ab6bdd208df6d9376b77535c39"
+    },
+    {
+      "source_path": "src/modules/agent-versioning/core/service.ts",
+      "target_path": "clara-core/source/src/modules/agent-versioning/core/service.ts",
+      "source_blob_sha": "18345c4bb015b94d3c6a824bdf069ccea52329e8"
+    },
+    {
+      "source_path": "src/modules/organisations/core/agent-ai-settings-db.ts",
+      "target_path": "clara-core/source/src/modules/organisations/core/agent-ai-settings-db.ts",
+      "source_blob_sha": "21fb06de35b7d53078e786098e9aacab7ba45c23"
+    },
+    {
+      "source_path": "src/modules/organisations/core/ai-settings-db.ts",
+      "target_path": "clara-core/source/src/modules/organisations/core/ai-settings-db.ts",
+      "source_blob_sha": "041f44177eb23824b57087a8bd62c375b9074080"
     }
   ]
 }
