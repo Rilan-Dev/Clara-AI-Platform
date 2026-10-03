@@ -288,3 +288,61 @@ Clara already has the complete source-level contracts: `VoiceResolution`, `Eleve
 
 ### Next
 Continue the remaining `public/embed/*` and `scripts/*` dependency graph, specifically looking for existing pure browser transport/event/protocol modules and published-agent runtime contracts not yet represented in `clara-core`.
+
+
+## 2026-10-03 — Public/embed browser contract and scripts closure audit
+
+### Completed
+- Continued the remaining `public/embed/*`, published-agent runtime, and `scripts/*` dependency graph from the existing Clara source tree.
+- Re-traced `public/embed/clara.js` against the extracted server-side contracts. It is already the correct reusable browser runtime and is already registered in the manifest; no duplicate extraction was made.
+- Confirmed the browser runtime currently owns its event emitter internally and directly parses the embed NDJSON stream. There is no separate existing Clara browser event/transport module below it that can be copied byte-for-byte without inventing a new abstraction.
+- Rechecked `src/modules/embed/core/ndjson.ts` and `src/modules/assistant/core/realtime-events.ts`: both are already the provider-neutral serialization/event boundaries consumed by the wider runtime. No duplicate browser wrapper was introduced.
+- Rechecked published-agent configuration/session routes:
+  - `src/app/api/public/agents/[agentId]/config/route.ts` remains a host HTTP/publication/DB adapter.
+  - `src/app/api/embed/session/route.ts` remains a host HTTP/auth/entitlement/provider-session adapter.
+  - `src/modules/voice-core/api/*/session.ts` remains provider-session infrastructure around already-extracted capability contracts.
+- Audited `src/features/agent-conversation/types.ts`. It is a feature-layer contract importing the voice hook type and therefore is not a self-contained core primitive.
+- Audited `src/modules/assistant/core/voice/types.ts`. Although mostly type-only, it imports application assistant models/config and exposes browser `MediaStream` callbacks; the whole file is not dependency-clean under the immutable extraction rule, so it remains in the host.
+- Re-audited all relevant executable realtime scripts:
+  - `scripts/voice-relay.mjs`
+  - `scripts/gemini-relay.mjs`
+  - `scripts/sarvam-relay.mjs`
+  - `scripts/sarvam-tts-relay.mjs`
+  - `scripts/elevenlabs-relay.mjs`
+  - `scripts/phone-stream.mjs`
+- These scripts contain useful helper functions, but each file as a whole is coupled to Node WebSockets, vendor credentials/endpoints, Clara HTTP routes, metering/auth, connection lifecycle, or telephony transport. Under the byte-for-byte rule, extracting only selected functions would be a partial rewrite, so none were added.
+- `scripts/sarvam-wire.mjs` remains the clean script-level protocol boundary and is already extracted.
+- The published-agent runtime therefore remains cleanly split between reusable browser/core contracts and host adapters; no synthetic generic session/event abstraction was created.
+
+### Verified source identity
+- Existing public/embed runtime: `public/embed/clara.js` → `1710bd5a54244ab5af95efa51b2a99b7233faeab`.
+- Existing NDJSON contract: `src/modules/embed/core/ndjson.ts` → `be41ac5b9306c61415069d789ff0bf7e1e55a0da`.
+- Existing realtime event contract: `src/modules/assistant/core/realtime-events.ts` → `30b95fb7d4907cd37ba5a00d8ca3ca0c28fabc14`.
+- Existing Sarvam wire contract: `scripts/sarvam-wire.mjs` → `0c7e8879e213996aadecb0e06b77025b328e8834`.
+- No new immutable source entries were required in this slice; manifest remains at 108 entries.
+
+### Boundary conclusion
+The public/embed and published-agent chain is now explicitly bounded as:
+
+```
+Clara browser runtime (clara.js)
+        ↓
+NDJSON + realtime event contracts
+        ↓
+public/session capability descriptors
+        ↓
+host HTTP/auth/publication/entitlement adapters
+        ↓
+Clara RAG + AI + voice + telemetry core
+        ↓
+provider/telephony relay adapters
+```
+
+The remaining `scripts/*` relay implementations are infrastructure adapters, not reusable immutable core files. Their reusable wire/format contracts are already represented by extracted Clara modules.
+
+### Not completed
+- No new manifest entries were warranted.
+- Full 108-entry immutable verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue the broader Clara `src/` dependency graph outside the already-closed public/embed/realtime slice, prioritizing the next unrepresented Clara-owned reusable capability (integrations/tools/MCP, audit/observability, or event/runtime infrastructure). Preserve the same rule: extract only an existing whole file with a clean dependency boundary; otherwise document the adapter boundary instead.
