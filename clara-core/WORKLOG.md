@@ -67,3 +67,36 @@ Continue tracing the remaining published-agent/session runtime dependencies. Pri
 
 ### Next
 Continue tracing the remaining provider-neutral realtime/public runtime dependencies, especially any existing capability-token validation/relay-auth primitives that are pure and reusable. Keep provider session routes and host persistence/auth as adapters.
+## 2026-10-03 — Realtime provider capability-token auth slice
+
+### Completed
+- Traced the remaining realtime relay authentication layer below the HTTP session routes.
+- Confirmed Clara already contains three pure provider-specific HMAC capability-token modules that are reusable core mechanics rather than route handlers:
+  - `src/modules/voice-core/api/gemini/realtime-auth.ts`
+  - `src/modules/voice-core/api/sarvam/realtime-auth.ts`
+  - `src/modules/voice-core/api/elevenlabs/realtime-auth.ts`
+- Extracted all three byte-for-byte into `clara-core/source/`.
+- Gemini: short-lived browser token verification/minting with KB/org scope and constant-time signature comparison.
+- Sarvam: the same browser capability token plus the provider relay internal-header HMAC proof.
+- ElevenLabs: the same browser capability token plus the provider relay internal-header HMAC proof.
+- Vendor credentials remain server-side; the extracted modules only operate on the capability/relay-auth primitives.
+
+### Verified source identity
+- Gemini: `c4c61a336b5ff6626ddc8a82dd94caf1d2e48563`
+- Sarvam: `f5819822d8f441f7c24517fc3c3d1b7197dca79f`
+- ElevenLabs: `5782d317e0afc1ec4191d345072403c016ffc6e4`
+- Extraction commits: `0700b94a153e4a3ba7582f8fe5334674f6a222ad`, `7e55934b5ff480fe8022536fffc21f1aa1bd8830`, `c4f3445dd42a34e42a76a652a7d1e7d7b52f48a7`.
+- Manifest registration committed in `bcb1aaac92a4b8e2e488e225af6ca535759e672a`.
+- Manifest count increased from 99 to 102 immutable source entries.
+
+### Boundary conclusion
+- The three auth modules are provider-specific but still Clara-owned reusable integration primitives; they contain no tenant DB access, billing checks, HTTP response handling, or vendor-secret exposure.
+- The surrounding `realtime.ts`, `realtime-init.ts`, and session routes remain application/provider adapters because they perform authorization, plan checks, provider resolution, persistence, HTTP handling, or secret retrieval.
+- `voice-core/realtime/gemini-telemetry.ts` was reviewed but is not yet extracted because it depends on `LatencyTracker` and is specifically tied to Gemini's vendor-native VAD lifecycle; it should be revisited only as part of a complete telemetry primitive closure.
+- No new generic auth/session abstraction was invented.
+
+### Not completed
+- Full 102-entry immutable verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue tracing the remaining pure realtime/public runtime primitives, prioritizing existing telemetry/latency contracts and provider-neutral capability descriptors. Do not extract HTTP routes or invent a new runtime abstraction.
