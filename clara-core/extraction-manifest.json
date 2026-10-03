@@ -524,6 +524,26 @@
       "source_path": "src/modules/voice-core/api/elevenlabs/realtime-auth.ts",
       "target_path": "clara-core/source/src/modules/voice-core/api/elevenlabs/realtime-auth.ts",
       "source_blob_sha": "5782d317e0afc1ec4191d345072403c016ffc6e4"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/latency-tracker.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/latency-tracker.ts",
+      "source_blob_sha": "a8b8750c2c5df7f4143f6dcefeb165a8642d81ff"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/gemini-telemetry.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/gemini-telemetry.ts",
+      "source_blob_sha": "091e519a2de96752f97addf8dc489ec421c10d6c"
+    },
+    {
+      "source_path": "scripts/sarvam-wire.mjs",
+      "target_path": "clara-core/source/scripts/sarvam-wire.mjs",
+      "source_blob_sha": "0c7e8879e213996aadecb0e06b77025b328e8834"
+    },
+    {
+      "source_path": "public/embed/clara.js",
+      "target_path": "clara-core/source/public/embed/clara.js",
+      "source_blob_sha": "1710bd5a54244ab5af95efa51b2a99b7233faeab"
     }
   ]
 }
