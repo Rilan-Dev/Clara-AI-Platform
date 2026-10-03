@@ -439,6 +439,16 @@
       "source_path": "src/modules/organisations/core/ai-settings-db.ts",
       "target_path": "clara-core/source/src/modules/organisations/core/ai-settings-db.ts",
       "source_blob_sha": "041f44177eb23824b57087a8bd62c375b9074080"
+    },
+    {
+      "source_path": "src/modules/ai-governance/core/usage-db.ts",
+      "target_path": "clara-core/source/src/modules/ai-governance/core/usage-db.ts",
+      "source_blob_sha": "12efa2d1ac1f22f5f26ab5465c8b2b4a24693353"
+    },
+    {
+      "source_path": "src/modules/voice-core/metering.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/metering.ts",
+      "source_blob_sha": "89eb511909c3668f2260193c0f506fa487bbd7c3"
     }
   ]
 }
