@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "extraction": {
+    "source_repository": "Rilan-Dev/Doable",
+    "source_ref": "develop",
+    "source_commit": "a6036d1fd6dca83c08ee5affa141e5c85e45f5af",
+    "target_root": "ai-platform-core/doable-source",
+    "immutable": true,
+    "status": "in_progress"
+  },
+  "capabilities": [
+    "multi-provider-ai-foundation",
+    "provider-discovery",
+    "embedding-resolution",
+    "engine-types",
+    "ai-engine",
+    "project-context-builder",
+    "tool-message-presentation",
+    "attachment-processing",
+    "project-file-runtime"
+  ],
+  "files": [
+    {
+      "source_path": "packages/shared/src/ai/index.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/index.ts",
+      "source_blob_sha": "82c902b981bfd70aeb5315840d1d9308b176d52d"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-catalog.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-catalog.ts",
+      "source_blob_sha": "8eb12eb20c5bc210ebd895c5cda6ef3821521563"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-cloud-major.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-cloud-major.ts",
+      "source_blob_sha": "aeb18be01b4f0fcd80ba39f27f68c4024d2a75db"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-cloud-regional.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-cloud-regional.ts",
+      "source_blob_sha": "a6c4eb5b31e5df7fe3c829b951cd9ed4e7e04937"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-cloud-special.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-cloud-special.ts",
+      "source_blob_sha": "cc277d3d3efed5cb6abbfb7732d45a61fae407dc"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-data-local.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-data-local.ts",
+      "source_blob_sha": "a1e463448ce5297a6f8810114737e0b91de07b74"
+    },
+    {
+      "source_path": "packages/shared/src/ai/provider-types.ts",
+      "target_path": "ai-platform-core/doable-source/packages/shared/src/ai/provider-types.ts",
+      "source_blob_sha": "93cd93e748002d4064141c7dddc1777041b2d2bb"
+    },
+    {
+      "source_path": "services/api/src/ai/provider.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/provider.ts",
+      "source_blob_sha": "04d3ce8094416737d16260124a1737676993c114"
+    },
+    {
+      "source_path": "services/api/src/ai/runtime-config.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/runtime-config.ts",
+      "source_blob_sha": "14582c5515b8322c97d10165ee9c6f336d52ff54"
+    },
+    {
+      "source_path": "services/api/src/ai/streaming.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/streaming.ts",
+      "source_blob_sha": "96f49e46a7a6d0c15c259f93e0ec2d55836a27bb"
+    },
+    {
+      "source_path": "services/api/src/ai/provider-discovery.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/provider-discovery.ts",
+      "source_blob_sha": "1b97d69b1d9528d7d192760f894f2bb812b43dad"
+    },
+    {
+      "source_path": "services/api/src/ai/provider-discovery-helpers.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/provider-discovery-helpers.ts",
+      "source_blob_sha": "034eb189e8f0e5e37b17d9cd58823d12e077ed8d"
+    },
+    {
+      "source_path": "services/api/src/ai/embedding-resolver.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/embedding-resolver.ts",
+      "source_blob_sha": "44a0918fdbca92060943523342d37ea5cde2fcc3"
+    },
+    {
+      "source_path": "services/api/src/ai/engine-types.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/engine-types.ts",
+      "source_blob_sha": "a8f00d43541b6f72852ee736935dbe13ac7b8725"
+    },
+    {
+      "source_path": "services/api/src/ai/engine.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/engine.ts",
+      "source_blob_sha": "3989bd817d2e013b80cf3bf5fc6a495477187d0a"
+    },
+    {
+      "source_path": "services/api/src/ai/context-builder.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/context-builder.ts",
+      "source_blob_sha": "704c7cbedc06d9f7970e11c6b3848c0ceef12b39"
+    },
+    {
+      "source_path": "services/api/src/ai/tool-messages.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/tool-messages.ts",
+      "source_blob_sha": "1a90d49c923249bc41e7e3bbbc43d7161db45913"
+    },
+    {
+      "source_path": "services/api/src/ai/attachments.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/attachments.ts",
+      "source_blob_sha": "8b6b8bc43cfe56984f1827e34c14df7b8c894458"
+    },
+    {
+      "source_path": "services/api/src/ai/project-files.ts",
+      "target_path": "ai-platform-core/doable-source/services/api/src/ai/project-files.ts",
+      "source_blob_sha": "ece636d83bbae1e7b667e43f5930590c95f3e26b"
+    }
+  ]
+}
