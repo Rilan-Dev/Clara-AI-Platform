@@ -1,4 +1,35 @@
 
+## 2026-10-03 — Published voice event compatibility and phone lifecycle boundary
+
+### Completed
+- Traced the phone `CallHandler` end-to-end. It is intentionally **not** extracted as one immutable core module because it couples telephony transport to Clara PostgreSQL call logs, KB configuration, OpenAI Realtime session creation, internal `/api/embed/search`, environment secrets, and provider-specific lifecycle handling.
+- Confirmed `phone/core/db.ts` is a host persistence boundary for `phone_call_configs`, `phone_call_logs`, and event outbox writes; it remains outside the reusable core.
+- Confirmed `phone/core/elevenlabs-call.ts` remains vendor/application-specific rather than a provider-neutral runtime.
+- Extracted the provider-neutral OpenAI Realtime event compatibility layer:
+  - `src/modules/assistant/core/realtime-events.ts`
+  - accepts both GA and beta Realtime audio/transcript event names, and provides response-text extraction.
+- This closes a real dependency used by the phone runtime while keeping the phone call orchestrator itself behind an application adapter.
+
+### Verified source identity
+- `src/modules/assistant/core/realtime-events.ts` → `30b95fb7d4907cd37ba5a00d8ca3ca0c28fabc14`
+- Source and extracted target Git blobs match exactly.
+
+### Architectural result
+The reusable core now includes the Realtime protocol-compatibility primitive needed by browser voice, embed voice, and telephony consumers without pulling OpenAI credentials, database persistence, RAG HTTP routes, or telephony lifecycle state into the library.
+
+### Manifest
+- Immutable extraction manifest increased from 91 to 92 entries.
+
+### Remaining
+- Public embed chat/session orchestration is still primarily an HTTP/auth/plan/deployment boundary; extract additional pieces only when they are demonstrably provider-neutral and host-independent.
+- Phone outbound/inbound lifecycle remains an adapter around the extracted transport, audio, Realtime, RAG, and usage primitives.
+- Governance registry/runtime-settings adapter isolation.
+- Full 92-entry immutable verifier execution from a repository checkout.
+
+### Next
+Continue tracing the published-agent runtime around `/api/embed/chat`, embed session multiplexing, and the production deployment resolver. Extract only reusable Clara runtime mechanics that are not tied to HTTP authentication, subscription gates, database ownership, secrets, or deployment infrastructure.
+
+
 ## 2026-10-03 — Public/embed session-token and phone/telephony mechanics slice
 
 ### Completed
