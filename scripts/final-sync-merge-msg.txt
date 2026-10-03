@@ -1,0 +1,49 @@
+merge: synchronize final owner extraction docs for architect review
+
+Final synchronization merge executed under the architect's Phase 7-B
+final remote synchronization and architect-review preparation
+authorization (2026-10-03): reconcile the locally integrated Phase 7-B
+state with the current remote branch and prepare the repository for
+architect review, without rewriting either history.
+
+The remote advanced from the previously integrated a776c6f1 to
+91551e4d (7 additional RiluRaafu-authored commits, all docs-only and
+all confined to top-level clara-core/: d162967f and 38a7df75 WORKLOG
+audit entries; 52503d06 README navigation; 85b31c66 AGENTS.md;
+a1604dd8 REFERENCE-MAP.md; 5a52e10a IMPLEMENTATION-PLAYBOOK.md;
+91551e4d WORKLOG reference-library entry — net 5 files, +343/-0
+insertions only). d162967f is the previously recorded trailing
+docs-only commit; the other six continue the same additive
+extraction-documentation pattern.
+
+Re-verified before this merge, with all invariants holding: the new
+commits touch zero protected paths (no src/**, no docs/project-control/**,
+no root worklog.md, no package.json/package-lock.json, no vercel.json,
+no docs/doable-source/**); zero path intersection with the Phase 7-B
+scope; the immutable Doable-source trees byte-identical at the merge
+base, local tip, remote tip, and the pre-computed merged tree (802
+pinned / 771 present / 771/771 byte-verified / 0 mismatches / 31 absent
+confined to mcp-servers per I-014; tree OIDs a42aee79 / ee07c362 /
+b76b8f34 / 54606204 unchanged); vercel.json blob 3f26d343 unchanged;
+git merge-tree clean (zero conflicts, exit 0, tree e58a6865) with all
+18 local changed paths and all 5 remote changed paths verified
+blob-identical to their respective tips. No rebase, no squash, no
+cherry-pick, no force-push, no history rewrite; the Phase 7-B
+implementation commit 63bccded, the governance/rejection history
+(6bfc9aec), the synchronization correction (d7b74a50), the prior merge
+commits (a7bd7b53, 9bf1363c), the integration governance record
+(d29225ad), and the owner's full parallel history all remain preserved
+verbatim.
+
+The clara-core extraction-staleness observation is unchanged: the
+extraction manifest still pins src/modules/ai-platform-core/
+clara-runtime.ts at blob f7fa173ca24f96a2d1002a562181fd1bed01939a
+(the extracted snapshot is that blob) while the live 7-B source remains
+blob 14b8879fc67266c72640103801251a1061661fc4 — still an
+architect/owner decision, deliberately not modified here; the remote
+stream did not touch the extraction manifest or any snapshot.
+
+This commit is an integration event only. Phase 7-B remains
+IMPLEMENTED — AWAITING ARCHITECT REVIEW; this is not a PASS, not an
+architect review outcome, not Gate D completion, and not an
+authorization for Phase 7-C.
