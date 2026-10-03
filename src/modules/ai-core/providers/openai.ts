@@ -3,6 +3,7 @@ import type {
   ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
+import type { ChatStreamEvent, ChatToolCall, ChatToolDefinition, ToolCallingChatOptions } from "../types";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 
 const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
@@ -15,6 +16,50 @@ const DEFAULT_EMBEDDING_MODEL =
  * unsupported-value error, so the field must be omitted entirely.
  */
 const REASONING_MODEL_PATTERN = /^gpt-5(?:\.\d+)?(?:-(?:luna|terra|sol))?$/i;
+
+export function toOpenAIToolDefinitions(
+  tools: readonly ChatToolDefinition[],
+): Array<{
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}> {
+  return tools.map((tool) => ({
+    type: "function" as const,
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    },
+  }));
+}
+
+export interface OpenAIToolCallDelta {
+  readonly index: number;
+  readonly id?: string;
+  readonly name?: string;
+  readonly arguments?: string;
+}
+
+export function normalizeOpenAIToolCallDeltas(
+  deltas: readonly OpenAIToolCallDelta[],
+): ChatToolCall[] {
+  const calls = new Map<number, { id: string; name: string; arguments: string }>();
+  for (const delta of deltas) {
+    const current = calls.get(delta.index) ?? { id: "", name: "", arguments: "" };
+    if (delta.id) current.id = delta.id;
+    if (delta.name) current.name = delta.name;
+    if (delta.arguments) current.arguments += delta.arguments;
+    calls.set(delta.index, current);
+  }
+  return [...calls.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, call]) => call)
+    .filter((call) => Boolean(call.id && call.name));
+}
 
 export function supportsTemperature(model: string): boolean {
   return !REASONING_MODEL_PATTERN.test(model.trim());
@@ -75,6 +120,63 @@ export class OpenAIProvider implements LLMProvider {
       maxRetries: 1,
       // baseURL defaults to OPENAI_BASE_URL env (SDK behaviour) when unset.
     });
+  }
+
+  async *chatStreamWithTools(
+    messages: ChatMessage[],
+    options: ToolCallingChatOptions,
+  ): AsyncGenerator<ChatStreamEvent, void, unknown> {
+    const model = this.config.chatModel ?? DEFAULT_CHAT_MODEL;
+    const openaiMessages: ChatCompletionMessageParam[] = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    const request: ChatCompletionCreateParamsStreaming = {
+      model,
+      messages: openaiMessages,
+      tools: toOpenAIToolDefinitions(options.tools),
+      tool_choice: "auto",
+      stream: true,
+      stream_options: { include_usage: true },
+    };
+
+    if (options.maxTokens != null) {
+      if (usesMaxCompletionTokens(model)) request.max_completion_tokens = options.maxTokens;
+      else request.max_tokens = options.maxTokens;
+    }
+    if (supportsTemperature(model)) request.temperature = options.temperature ?? 0.2;
+
+    const effort = reasoningEffortFor(model, options.reasoningEffort);
+    if (effort) request.reasoning_effort = effort;
+
+    const stream = await this.client.chat.completions.create(request);
+    const deltas: OpenAIToolCallDelta[] = [];
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (delta?.content) {
+        yield { type: "text_delta", text: delta.content };
+      }
+      for (const toolCall of delta?.tool_calls ?? []) {
+        deltas.push({
+          index: toolCall.index,
+          id: toolCall.id ?? undefined,
+          name: toolCall.function?.name ?? undefined,
+          arguments: toolCall.function?.arguments ?? undefined,
+        });
+      }
+      if (chunk.usage) {
+        options.onUsage?.({
+          promptTokens: chunk.usage.prompt_tokens ?? 0,
+          completionTokens: chunk.usage.completion_tokens ?? 0,
+        });
+      }
+    }
+
+    for (const toolCall of normalizeOpenAIToolCallDeltas(deltas)) {
+      yield { type: "tool_call", toolCall };
+    }
   }
 
   async *chatStream(
