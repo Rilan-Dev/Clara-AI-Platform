@@ -117,6 +117,87 @@ describe("bounded agentic loop", () => {
     expect(p.chatStreamWithTools).toHaveBeenCalledTimes(8);
   });
 
+  it("normalizes provider failures into a bounded provider_error result", async () => {
+    const p: ToolCallingLLMProvider = {
+      ...provider([]),
+      chatStreamWithTools: vi.fn(async function* () {
+        throw new Error("provider unavailable");
+      }),
+    };
+
+    const result = await runBoundedAgenticLoop(
+      p,
+      [{ role: "user", content: "hello" }],
+      [],
+      context,
+      runtime(),
+      { enabled: true },
+    );
+
+    expect(result.status).toBe("provider_error");
+    expect(result.error).toContain("provider unavailable");
+    expect(result.iterations).toBe(1);
+  });
+
+  it("preserves a tool failure as a tool_result and still lets the provider finish", async () => {
+    const p: ToolCallingLLMProvider = {
+      ...provider([]),
+      chatStreamWithTools: vi
+        .fn()
+        .mockImplementationOnce(async function* () {
+          yield { type: "tool_call", toolCall: { id: "call-fail", name: "rag_search", arguments: "{}" } };
+        })
+        .mockImplementationOnce(async function* () {
+          yield { type: "text_delta", text: "recovered" };
+        }),
+    };
+    const rt: ToolRuntime = {
+      ...runtime(),
+      invoke: vi.fn(async () => ({
+        ok: false as const,
+        toolName: "rag_search",
+        error: { code: "EXECUTION_FAILED" as const, message: "qdrant unavailable" },
+      })),
+    };
+
+    const result = await runBoundedAgenticLoop(
+      p,
+      [{ role: "user", content: "hello" }],
+      [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
+      context,
+      rt,
+      { enabled: true },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.text).toBe("recovered");
+    expect(result.events.some((event) => event.type === "tool_result" && event.result.ok === false)).toBe(true);
+  });
+
+  it("stops before another provider turn when cancellation is requested", async () => {
+    const controller = new AbortController();
+    const p: ToolCallingLLMProvider = {
+      ...provider([]),
+      chatStreamWithTools: vi.fn(async function* () {
+        controller.abort();
+        yield { type: "tool_call", toolCall: { id: "call-cancel", name: "rag_search", arguments: "{}" } };
+      }),
+    };
+
+    const result = await runBoundedAgenticLoop(
+      p,
+      [{ role: "user", content: "cancel" }],
+      [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
+      context,
+      runtime(),
+      { enabled: true, maxIterations: 8, signal: controller.signal },
+    );
+
+    expect(result.status).toBe("cancelled");
+    expect(result.iterations).toBe(1);
+    expect(p.chatStreamWithTools).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves provider text deltas while collecting tool events", async () => {
     const result = await runBoundedAgenticLoop(
       provider([{ type: "text_delta", text: "hello " }, { type: "text_delta", text: "world" }]),
