@@ -1236,3 +1236,8 @@ npm run validate:model-config                                                 # 
 (cd docs/doable-source && node verification/validate-library.mjs)              # -> PASS (21 capabilities · 30 edges · 0 errors)
 bash /home/z/my-project/scripts/verify-immutable-blobs-in-worktree.sh         # -> 802 pinned · 771 present · 771/771 byte-verified · 0 mismatches; the 31 absent files confined to mcp-servers (I-014 OPEN, unchanged)
 ```
+
+
+## ChatGPT implementation takeover — current authorization and I-015 status (2026-10-04)
+
+D-024 is active: ChatGPT is the implementation owner for the current continuation. The historical Z.AI handoff/STOP records remain historical and are not rewritten. D-026 authorizes bounded I-015 dependency/lockfile remediation. The lockfile reconciliation commit b3ed15acac4de39e1eaff33d40bea9f045ff9c16 is implemented and structurally verified, but I-015 remains OPEN because npm typecheck/test/build execution is not available in the current execution environment. D-027 authorizes only the default-off Phase 7-C provider tool-calling and hard-bounded agentic-loop pilot; D-023 remains binding and no schema, migration, billable tool metering, MCP, integrations or deployment work is authorized.
