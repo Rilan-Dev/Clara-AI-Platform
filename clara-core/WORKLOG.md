@@ -193,3 +193,39 @@ No generic session orchestrator or synthetic capability schema was introduced be
 
 ### Next
 Continue auditing the remaining `public/embed/*`, published-agent runtime and `scripts/*` dependency graph for pure existing contracts, with particular attention to public configuration serialization, browser event contracts and provider-neutral chat/runtime transport primitives. Extract only existing Clara source files whose dependency boundary is already clean.
+## 2026-10-03 — Public/embed transport and published-runtime boundary audit
+
+### Completed
+- Audited the remaining public/embed dependency chain rather than adding duplicate abstractions.
+- `src/modules/embed/core/validate-embed.ts` remains an application security boundary. It combines NextRequest/NextResponse, API-key persistence, public-token validation, deployment DB lookup, plan/quota/rate-limit enforcement and CORS. Its pure origin-policy helpers are useful but the file as a whole is not an immutable portable core primitive.
+- `src/modules/embed/core/search.ts` remains coupled to Clara's Qdrant client, embedding cache and RAG diversification. It is already an appropriate Clara server-core primitive and was previously extracted; no duplicate copy was added.
+- `src/app/api/embed/chat/route.ts` was traced end-to-end. It is deliberately a host HTTP adapter: authentication, KB persistence, provider resolution, plan/quota admission, grounding, provider streaming, usage finalization and HTTP streaming all converge there. The reusable lower layers are already extracted: grounding, search, NDJSON, provider factory/resolution, analytics/metering and quota admission.
+- The public configuration route was also confirmed as a serialization boundary rather than a core runtime. It combines deployment/publication checks, DB reads, AI/voice resolution and UI customization. The browser runtime consumes this contract, but the route itself remains host-owned.
+- `public/embed/clara.js` remains the reusable browser runtime already extracted in the previous slice. No second copy was created.
+- `src/modules/assistant/core/realtime-events.ts` remains the provider-neutral OpenAI event-name compatibility contract already extracted. No duplicate extraction was added.
+- `src/modules/assistant/api/conversation-context.ts` was evaluated as a candidate reusable chat helper. It contains useful pure conversation/chart transformations, but also reads `CHAT_HISTORY_MAX_MESSAGES` directly from process.env and is located in the application assistant API layer. Under the exact-source/no-refactor rule, it is retained in the host rather than forcing application runtime configuration into Clara Core.
+- The scripts audit found no additional standalone pure file in this slice. Provider relays continue to be infrastructure adapters; the existing `scripts/sarvam-wire.mjs` is already the extracted wire-level boundary.
+
+### Architectural conclusion
+The public/embed stack now has a clean extraction boundary:
+
+```
+clara.js (reusable browser runtime)
+        ↓
+NDJSON / realtime event contracts
+        ↓
+public capability/session descriptors
+        ↓
+host HTTP/auth/publication/quota adapters
+        ↓
+Clara RAG + provider + metering core
+```
+
+The remaining route files are intentionally not copied into the immutable library because doing so would copy tenant identity, persistence, billing/entitlement and HTTP framework responsibilities into the reusable runtime.
+
+### Not completed
+- No new immutable entries were required in this slice.
+- Full 106-entry verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue with the remaining provider-neutral runtime/capability descriptors and inspect public/embed browser event usage against the already-extracted NDJSON and realtime contracts. Only add source entries when the existing Clara file itself is already dependency-clean.
