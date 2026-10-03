@@ -336,3 +336,8 @@ STOP: AWAIT NEXT EXPLICIT ARCHITECT AUTHORIZATION
 ```
 
 The closure is the architect's [architect-verified — ChatGPT performed the independent closure review and returned `PASS`]; the closure-record commit is the developer's faithful recording of it. Phase 7-C creates no authorization and is NOT begun; Phase 7 itself is NOT `PASS` and NOT `CLOSED`; first-class billable tool-usage metering remains deferred to a future separately authorized design phase; I-014/I-015 remain OPEN. Z.AI STOPs at the post-closure boundary. [developer-reported]
+
+
+## ChatGPT implementation takeover — current authorization and I-015 status (2026-10-04)
+
+D-024 is active: ChatGPT is the implementation owner for the current continuation. The historical Z.AI handoff/STOP records remain historical and are not rewritten. D-026 authorizes bounded I-015 dependency/lockfile remediation. The lockfile reconciliation commit b3ed15acac4de39e1eaff33d40bea9f045ff9c16 is implemented and structurally verified, but I-015 remains OPEN because npm typecheck/test/build execution is not available in the current execution environment. D-027 authorizes only the default-off Phase 7-C provider tool-calling and hard-bounded agentic-loop pilot; D-023 remains binding and no schema, migration, billable tool metering, MCP, integrations or deployment work is authorized.
