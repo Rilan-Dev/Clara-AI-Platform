@@ -368,3 +368,33 @@ The reusable core now contains both runtime resolution and its underlying versio
 
 ### Next
 Follow the usage/entitlement path from the governance resolver into actual usage-event persistence and metering, then verify the resulting extraction graph before moving to tools/MCP.
+
+## 2026-10-03 — Usage-event and voice metering closure slice
+
+### Completed
+- Traced Clara's governance usage path into the authoritative `usage_events` metering spine.
+- Extracted provider-period usage rollup/reporting:
+  - `src/modules/ai-governance/core/usage-db.ts`
+- Extracted reusable voice billable-invocation writers for TTS, STT/transcription, and ElevenLabs conversation duration:
+  - `src/modules/voice-core/metering.ts`
+- Confirmed language-service metering was already included in the previously extracted Clara `src/modules/language-core/pricing.ts`, so no duplicate extraction was created.
+- Confirmed query/chat metering remains in the already extracted `src/modules/knowledge-bases/core/analytics-db.ts`, while quota admission remains in `src/lib/quota-admission.ts`.
+- Preserved append-only usage semantics, measured-unit billing, provider/model attribution, latency metadata, and fail-safe metering behavior exactly from Clara.
+- Registered both files in the immutable extraction manifest; manifest increased from 85 to 87 entries.
+
+### Verified source identities
+- `src/modules/ai-governance/core/usage-db.ts` → `12efa2d1ac1f22f5f26ab5465c8b2b4a24693353`
+- `src/modules/voice-core/metering.ts` → `89eb511909c3668f2260193c0f506fa487bbd7c3`
+
+### Architectural result
+The reusable Clara core now has the main usage accounting surfaces for chat/query, embeddings, language operations, voice TTS/STT/conversation, and provider-period rollups. Usage is still based on Clara's own `usage_events` / `query_events` spine rather than vendor-native billing state.
+
+### Not completed
+- The governance registry implementation imported by `usage-db.ts` remains outside the extracted set; it also crosses the platform secret/runtime-settings boundary and should be isolated before being treated as a fully portable adapter surface.
+- Full LLM response-token/cost writer coverage outside the existing query-event finalization path still needs tracing.
+- Usage-budget admission for voice/language-specific limits needs tracing separately from request-count admission.
+- Full 87-entry immutable verifier still needs to be executed from a repository checkout.
+- Tools/MCP/integrations, public/embed and phone runtime remain.
+
+### Next
+Trace the non-query LLM metering and provider-response usage path (prompt/completion tokens, model pricing, cost finalization) and close any reusable writer/pricing dependencies without duplicating the existing query-event metering spine. Then move into tools/MCP/integrations.
