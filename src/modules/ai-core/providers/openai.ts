@@ -3,7 +3,7 @@ import type {
   ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import type { ChatStreamEvent, ChatToolCall, ChatToolDefinition, ToolCallingChatOptions } from "../types";
+import type { ChatStreamEvent, ChatToolCall, ChatToolDefinition, ToolCallingChatOptions, ToolCallingLLMProvider } from "../types";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 
 const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
@@ -125,7 +125,7 @@ export function reasoningEffortFor(
   return requested ?? "low";
 }
 
-export class OpenAIProvider implements LLMProvider {
+export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
   private config: ProviderConfig;
   private client: OpenAI;
 
