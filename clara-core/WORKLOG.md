@@ -142,3 +142,54 @@ Continue tracing the remaining pure realtime/public runtime primitives, prioriti
 
 ### Next
 Continue auditing remaining provider-neutral capability descriptors and public/embed client dependencies. In parallel, inspect whether other `scripts/*` files contain additional pure wire/format contracts worth extracting; do not extract operational scripts merely because they are reusable deployment artifacts.
+## 2026-10-03 — Capability descriptor and public/embed dependency closure audit
+
+### Completed
+- Continued the provider-neutral capability-descriptor audit.
+- Confirmed `voice-core/realtime/relay-url.ts` is the canonical provider-neutral relay descriptor contract already extracted: `endpoint + short-lived token` is sufficient for the browser to construct a same-origin relay URL without vendor credentials.
+- Confirmed `voice-core/config-types.ts` is already the provider-session capability contract and is already extracted. Its ElevenLabs/Sarvam payloads deliberately expose platform endpoints, models, audio parameters and short-lived tokens, while withholding vendor keys and direct vendor URLs.
+- Confirmed the public published-page credential primitive `embed/core/public-token.ts` is already extracted and remains the correct anonymous published-session token boundary. It is deployment-bound, HMAC-signed, short-lived, and deliberately leaves deployment/publicAccess revalidation to the host validation layer.
+- Audited `src/features/agent-conversation/lib/chat-stream.ts`. It is reusable behaviorally, but its direct `@/lib/runtime` dependency makes it an application client helper rather than a self-contained Clara Core primitive. It is therefore NOT extracted; the already-extracted `embed/core/ndjson.ts` remains the transport-format primitive and host applications can provide their own fetch/origin adapter.
+- Audited `scripts/elevenlabs-relay.mjs`. It contains valuable pure functions (token verification, Scribe event translation, upstream URL construction, TTS BOS framing), but the file is inseparable as a whole from Node WebSocket handling, environment secrets, bootstrap HTTP calls, metering routes, reconnect state and server lifecycle. Under byte-for-byte extraction rules, it remains a provider relay adapter. No partial rewrite/extraction was invented.
+- Audited the legacy `scripts/voice-relay.mjs` as well: it is an OpenAI/Gemini server relay plus RAG tool bridge and therefore remains application/provider infrastructure. Its pure concepts are already represented by extracted realtime auth, relay URL, RAG, generation and telemetry primitives.
+- The existing `scripts/sarvam-wire.mjs` remains the only currently identified pure script-level wire contract and is already extracted.
+
+### Capability architecture conclusion
+The reusable capability chain now has explicit boundaries:
+
+```
+resolved provider config
+      ↓
+provider session payload / capability descriptor
+      ↓
+{ endpoint, token, model/audio metadata }
+      ↓
+relay-url.ts
+      ↓
+same-origin browser transport
+      ↓
+provider relay adapter
+      ↓
+latency + generation + metering contracts
+```
+
+Public published agents add the separate boundary:
+
+```
+active deployment
+      ↓
+public-token.ts
+      ↓
+public/embed validation adapter
+      ↓
+embed chat / voice capability descriptors
+```
+
+No generic session orchestrator or synthetic capability schema was introduced because Clara already has the required contracts.
+
+### Not completed
+- No new immutable source entries were added in this audit slice; all candidate contracts were either already extracted or intentionally retained as host/provider adapters.
+- Full 106-entry verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue auditing the remaining `public/embed/*`, published-agent runtime and `scripts/*` dependency graph for pure existing contracts, with particular attention to public configuration serialization, browser event contracts and provider-neutral chat/runtime transport primitives. Extract only existing Clara source files whose dependency boundary is already clean.
