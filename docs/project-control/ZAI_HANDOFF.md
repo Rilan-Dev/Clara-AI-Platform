@@ -368,3 +368,34 @@ Phase 7: IN_PROGRESS
 ```
 
 The 7-B implementation commits exist LOCALLY only and are NOT synchronized with origin. `HEAD == origin` is NOT satisfied — recorded as the exact repository state, not claimed as synced. Integration is an architect/owner decision. The architect's review of the 7-B implementation remains PENDING (the implementation report is developer evidence only; only ChatGPT may accept 7-B, require correction, or authorize 7-C). [developer-reported]
+
+---
+
+## Part II execution-record addendum — Phase 7-B integration record (2026-10-03)
+
+> Dated addendum appended per the appended-record convention (the authorization texts and prior addenda stand unmodified). This addendum records the execution of the architect's explicit **Phase 7-B integration authorization** (received 2026-10-03): integrate the already-developed Phase 7-B implementation with the current remote branch without rewriting either history — a merge (not rebase, not cherry-pick), preserving the 7-B implementation commit, the governance/rejection history, the synchronization-correction commit, and the parallel owner's commit history; full re-verification before and after; report and STOP.
+
+**Executed** [developer-reported]:
+
+1. **Topology recomputed** from Git (not from memory): merge-base `a2c74204`; local tip `d7b74a50` (the exact 7-B lineage); remote tip `5b92a4b6` (189 owner-authored parallel commits; the previously recorded `9f55924e`/112 state had advanced by 77 further commits of the same additive extraction class). Local changed-path set = 17 paths; remote changed-path set = 133 **added** paths under the two top-level extraction directories only; **zero path intersection**; no remote commit ever touched `src/**`, `docs/project-control/**`, `worklog.md`, `vercel.json`, `package.json`, `package-lock.json`, or `docs/doable-source/**`.
+2. **Mechanical merge verification before any ref change**: `git merge-tree --write-tree` clean (exit 0; zero conflicts; tree `79144e68`); the computed tree verified to preserve all 17 local paths blob-identical to `d7b74a50` AND all 133 remote-added paths blob-identical to `5b92a4b6`; the merged changed-path set = exactly the union of the two sides.
+3. **Immutable-source verification against all four trees** (merge base, local tip, remote tip, computed merged tree) with the persisted commit-mode verifier: **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent, all confined to `mcp-servers/`** — identical on every tree; I-014 unchanged (OPEN); I-015 unchanged (OPEN).
+4. **First merge**: `git merge --no-ff origin/feature/ai-core-from-doable-source` → merge commit **`a7bd7b53`** (parents `d7b74a50` + `5b92a4b6`; tree = the exact pre-computed `79144e68`; both histories preserved verbatim; clean worktree). Post-merge verification: diff vs the pre-merge local tip = 133 additions only; all key commits reachable; immutable trees and `vercel.json` byte-identical; `package.json`/`package-lock.json` unchanged; migrations unchanged.
+5. **Validation at `a7bd7b53`**: targeted 7-B suite 131/131; full suite 110 files / 1048 tests; typecheck `src/**` **exactly 19** (the identical pre-existing I-015 set — NOT claimed fixed; the 7-B module zero errors); governance validators 8/8 + 24/24; model-config PASS; library integrity PASS; lint 0/0; import/secret scans clean. **Typecheck-profile observation recorded (not fixed)**: the merged tree additionally carries the owner's extraction-dir errors (`ai-platform-core/**` 40 + `clara-core/**` 13) plus the pre-existing `docs/doable-source/**` background (~3419 lines) — empirically verified identical at BOTH parents (the same typecheck was run at `d7b74a50` and at the remote tip `5b92a4b6`); the merged profile is exactly the union of the parents' pre-existing profiles; **zero new typecheck errors introduced by the integration**; any exclusion of the owner's extraction directories from the typecheck include is an architect/owner decision.
+6. **First push REJECTED** — the owner stream advanced in real time during validation (6 further commits `89297e83`…`a776c6f1`, all confined to `clara-core/`). Those 6 commits were re-verified against every invariant (additive class; ONLY `clara-core/` paths; immutable trees byte-identical at the new tip; `vercel.json` unchanged; the `clara-runtime.ts` pin still `f7fa173c`; merge-tree clean → tree `39f38e66`) and the authorized merge command was re-executed once: **second merge** → merge commit **`9bf1363c`** (parents `a7bd7b53` + `a776c6f1`; tree = the exact pre-computed `39f38e66`; 4 files changed, all `clara-core/`).
+7. **Second push REJECTED again** — the remote advanced once more (`d162967f`, a `clara-core/WORKLOG.md`-only docs commit) while the second merge was being made. A declared no-loop bound was honored: **no third merge, no force-push, no rebase, no reset, no blind retry**.
+8. **Validation re-run at the final HEAD `9bf1363c`**: 131/131; 110 files / 1048 tests; typecheck `src/**` = 19 (identical set; 7-B module 0 errors); governance 8/8 + 24/24; immutable verifier 802/771/771/0/31-confined (exit 0); lint 0/0; scans clean; `vercel.json` unchanged.
+9. **clara-core extraction-staleness recorded (action NONE)**: the manifest pins `src/modules/ai-platform-core/clara-runtime.ts` at blob `f7fa173ca24f96a2d1002a562181fd1bed01939a` (the extracted snapshot under `clara-core/source/` IS that blob) while the live 7-B source is blob `14b8879fc67266c72640103801251a1061661fc4` — a semantic staleness question deliberately left for the architect/owner (of the manifest's 106 entries: 103 well-formed and fresh; 2 malformed-but-content-matching pinned SHAs — `knowledge-topics.ts` 41-char, `language-core/config-types.ts` 39-char, pre-existing owner data-quality quirks; exactly 1 true staleness).
+10. **No deployment** performed or authorized; no Vercel observation available from this workspace; any preview triggered by a future successful push is an external automatic event only — NOT Gate F completion, NOT architectural approval.
+
+**Canonical status after the integration**:
+
+```text
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: IMPLEMENTED — INTEGRATED LOCALLY — AWAITING ARCHITECT REVIEW
+Remote synchronization: PARTIALLY RESOLVED — integrated through a776c6f1 (merge commits a7bd7b53 + 9bf1363c); push BLOCKED by continued real-time owner advancement (final divergence: 1 owner docs-only commit d162967f)
+Phase 7-C: NOT AUTHORIZED
+Phase 7: IN_PROGRESS
+```
+
+The integration is an integration event only — it is NOT a `PASS`, NOT an architect review outcome, and NOT Gate D completion. The 7-B implementation diff awaiting architect review remains exactly `63bccded` (the immediate child of `a2c74204`). Z.AI STOPs at the 7-B review boundary. [developer-reported]
