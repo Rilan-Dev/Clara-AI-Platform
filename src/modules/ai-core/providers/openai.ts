@@ -10,6 +10,37 @@ const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
 const DEFAULT_EMBEDDING_MODEL =
   process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
 
+function toOpenAIMessage(message: ChatMessage): ChatCompletionMessageParam {
+  if (message.role === "tool") {
+    if (!message.toolCallId) throw new Error("Tool messages require toolCallId.");
+    return {
+      role: "tool",
+      tool_call_id: message.toolCallId,
+      content: message.content,
+    };
+  }
+
+  if (message.role === "assistant" && message.toolCalls?.length) {
+    return {
+      role: "assistant",
+      content: message.content,
+      tool_calls: message.toolCalls.map((call) => ({
+        id: call.id,
+        type: "function" as const,
+        function: {
+          name: call.name,
+          arguments: call.arguments,
+        },
+      })),
+    };
+  }
+
+  return {
+    role: message.role,
+    content: message.content,
+  };
+}
+
 /**
  * GPT-5.6 reasoning models use the provider default sampling configuration.
  * Sending a custom temperature causes OpenAI to reject the request with an
@@ -127,10 +158,7 @@ export class OpenAIProvider implements LLMProvider {
     options: ToolCallingChatOptions,
   ): AsyncGenerator<ChatStreamEvent, void, unknown> {
     const model = this.config.chatModel ?? DEFAULT_CHAT_MODEL;
-    const openaiMessages: ChatCompletionMessageParam[] = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const openaiMessages: ChatCompletionMessageParam[] = messages.map(toOpenAIMessage);
 
     const request: ChatCompletionCreateParamsStreaming = {
       model,
