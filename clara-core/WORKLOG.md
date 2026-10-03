@@ -288,3 +288,50 @@ The reusable Clara ingestion lifecycle now spans queued document payload → par
 
 ### Next
 Trace the upload/document creation API only far enough to isolate the reusable storage/job contract, then close the remaining grounding dependency graph and run the first coherent library verification pass.
+
+## 2026-10-03 — Upload boundary, grounding closure slice, and immutable verifier
+
+### Completed
+- Traced `src/modules/knowledge-bases/api/documents.ts` without extracting the HTTP route. Authentication, KB authorization, plan enforcement, rate limiting, virus scanning, audit wiring, and NextResponse handling remain host/application concerns.
+- Confirmed the reusable document contract is already represented by `documents-db.ts`: durable document rows, ingest-job payloads, status transitions, retries, and stale-job recovery.
+- Extracted Clara's reusable cloud-job transport boundary:
+  - `src/modules/cloud-jobs/queue.ts`
+  - supports Vercel and local transports with idempotency.
+- Extracted Clara usage/quota/audit support:
+  - `src/lib/quota-admission.ts`
+  - `src/lib/plan-guard.ts`
+  - `src/lib/redact.ts`
+- Closed the direct grounding dependency slice with:
+  - graph types/store/retriever
+  - RAG turn guidance, diversification, and tenant-derived topics
+  - language translation pipeline/factory/catalog/pricing/config/types
+  - language Sarvam provider
+  - voice pricing and sentence splitting
+- Registered 19 new immutable Clara source files. The manifest now contains 79 extracted source entries.
+- Added `clara-core/scripts/verify-extraction.mjs`, a zero-dependency Git-blob verifier that checks both the source blob and extracted target blob against the manifest.
+
+### Verification
+- Verified the newly added immutable files against their Clara source blob identities during extraction: all 19 matched.
+- The verifier script itself is committed but has not been executed in a local checkout from this tool session. It is designed to verify all 79 manifest entries from the repository root.
+
+### Architectural result
+The upload path is now explicitly separated into:
+1. host-facing HTTP/auth/plan/security adapter,
+2. reusable Clara document/job persistence,
+3. reusable Clara queue transport,
+4. reusable Clara ingestion worker,
+5. reusable parsing/chunking/Qdrant indexing,
+6. reusable grounding/retrieval.
+
+Provider-native KB state is still outside this path.
+
+### Remaining
+- Full transitive dependency closure below `resolveAIConfig`, KB persistence, DB adapter, and remaining host-bound services.
+- Agent-versioning persistence/service closure.
+- Broader usage-event/voice/LLM metering closure beyond query quota admission.
+- Tools/MCP/integrations, public/embed and phone runtime closure.
+- Execute the new full-library verifier in a repository checkout and resolve any missing manifest/source entries it reveals.
+- Define explicit host adapters for DB, identity/tenancy, billing/plan resolution, secrets, queue credentials, and deployment.
+
+### Next
+Run the immutable verifier, then continue from the first unresolved import/dependency reported by the verifier, prioritizing agent-versioning and the remaining usage/entitlement infrastructure. Keep extraction source strictly limited to Clara-AI-Platform; Doable remains reference-only.
