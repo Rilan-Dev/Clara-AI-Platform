@@ -189,3 +189,11 @@ R-1 control-doc/state drift (mitigation in progress; the worklog layer — the l
 | Deterministic correction-cycle test | `docs/project-control/verification/correction-cycle-test.sh` | **active — established Phase 6 (read-only governance artifact; models state transitions only — performs/claims no actual architect review)** |
 
 Related authority documents: architecture spec `docs/superpowers/specs/2026-10-01-clara-project-control-architecture-design.md` · implementation plan `docs/superpowers/plans/2026-10-01-clara-project-control-system.md` · codebase agent instructions `Doc/18-09-2026/AGENTS.md` · Doable-source library governance `docs/doable-source/AGENTS.md` · deployment contract `docs/deployment/VERCEL-VPS-CLOUD.md`.
+
+## ChatGPT implementation takeover — current authorization (2026-10-04)
+
+ChatGPT is actively implementing the project from this point forward under D-024. The repository remains the source of truth and all existing project-control documents remain binding. Historical Z.AI execution records are preserved and are not rewritten.
+
+Current execution sequence: D-025 canonical reusable-core role separation -> D-026 bounded I-015 infrastructure remediation -> D-027 bounded Phase 7-C provider tool-calling plus hard-bounded agentic-loop pilot.
+
+Hard boundaries: immutable Doable trees remain untouched; no database/schema/migration changes; D-023 audit-only tool telemetry remains binding; no MCP, integrations, first-class billable tool metering, deployment or Phase 8 work. Every implementation task is TDD-first, verified and committed.
