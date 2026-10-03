@@ -38,3 +38,18 @@ Every extracted file is registered in `extraction-manifest.json` with its Clara 
 ## Current status
 
 This library is being built incrementally from the existing Clara implementation. The current slice establishes the Clara runtime, AI resolution, RAG grounding, agent version model, voice contracts and agent AI runtime selection.
+
+
+## AI-agent reference documentation
+
+For another AI coding agent, start with:
+- AGENTS.md — navigation, extraction and provider/runtime rules.
+- REFERENCE-MAP.md — capability-to-source dependency map.
+- IMPLEMENTATION-PLAYBOOK.md — implementation sequence and verification gates.
+- WORKLOG.md — extraction decisions and excluded host boundaries.
+- extraction-manifest.json — immutable source/blob identity.
+- scripts/verify-extraction.mjs — machine verifier.
+
+The reference set is specifically intended to make AI provider configuration, chat, RAG, realtime voice, published agents, provider sessions, browser/relay transport, latency and usage discoverable before new code is written.
+
+The current manifest contains 108 immutable entries.

@@ -263,3 +263,115 @@ benchmark / diagnostics
 
 ### Next
 Continue the remaining provider-neutral capability-descriptor audit, especially browser-facing session/config serialization and any pure existing event/transport contracts that can be extracted without refactoring application hooks or routes.
+## 2026-10-03 — Realtime foundation barrel and capability boundary audit
+
+### Completed
+- Audited the remaining provider-neutral realtime capability chain and browser-facing serialization boundary.
+- Confirmed `src/modules/voice-core/config-types.ts` is already extracted and is the canonical type contract for resolved voice configuration and session bootstrap payloads. No duplicate descriptor abstraction was introduced.
+- Confirmed `src/modules/voice-core/realtime/relay-url.ts` is already extracted and remains the canonical browser-side conversion from `{ endpoint, token }` capability descriptors to same-origin WS/WSS URLs.
+- Confirmed `src/modules/voice-core/realtime/identity.ts` and `src/modules/assistant/core/realtime-events.ts` are already extracted. The former owns correlation identity; the latter owns OpenAI GA/beta event classification and response text extraction.
+- Extracted the existing pure realtime barrel `src/modules/voice-core/realtime/index.ts` → `clara-core/source/src/modules/voice-core/realtime/index.ts`.
+- Source blob SHA: `2f7b423c4b12e1c43ea82652709abc8d3405d010`.
+- The barrel is dependency-clean within the already-extracted realtime foundation and provides the existing Clara package boundary without inventing or renaming APIs.
+- Audited `src/modules/voice-core/api/sarvam/session.ts`: it remains an HTTP/security/persistence/provider-resolution adapter. Its returned `SarvamSessionPayload` is already represented by the extracted `config-types.ts`; the route itself must not be copied into immutable core.
+- Rechecked public embed session/config behavior: capability descriptors intentionally contain same-origin endpoints plus short-lived capability tokens, while auth, tenant resolution, rate limiting, plan guards, localization, and provider resolution remain host boundaries.
+- Rechecked scripts: provider relays remain coupled to WebSocket servers, vendor credentials and lifecycle; `scripts/sarvam-wire.mjs` remains the identified pure protocol contract already extracted.
+
+### Why no new synthetic capability type was added
+Clara already has the complete source-level contracts: `VoiceResolution`, `ElevenLabsSessionPayload`, `SarvamSessionPayload`, `RelayEndpointDescriptor`, and the OpenAI realtime event helpers. Adding another generic descriptor would duplicate semantics rather than extract existing source.
+
+### Result
+- Manifest count increased from 107 to 108.
+- Extraction commit: `009b0b201837c94f521ad7a620b1a851dc5ea409`.
+- Manifest registration commit: `a776c6f1a956b28b091eea729bfae696dc3267f6`.
+- Full 108-entry immutable verifier remains pending execution from an actual checkout.
+
+### Next
+Continue the remaining `public/embed/*` and `scripts/*` dependency graph, specifically looking for existing pure browser transport/event/protocol modules and published-agent runtime contracts not yet represented in `clara-core`.
+
+
+## 2026-10-03 — Public/embed browser contract and scripts closure audit
+
+### Completed
+- Continued the remaining `public/embed/*`, published-agent runtime, and `scripts/*` dependency graph from the existing Clara source tree.
+- Re-traced `public/embed/clara.js` against the extracted server-side contracts. It is already the correct reusable browser runtime and is already registered in the manifest; no duplicate extraction was made.
+- Confirmed the browser runtime currently owns its event emitter internally and directly parses the embed NDJSON stream. There is no separate existing Clara browser event/transport module below it that can be copied byte-for-byte without inventing a new abstraction.
+- Rechecked `src/modules/embed/core/ndjson.ts` and `src/modules/assistant/core/realtime-events.ts`: both are already the provider-neutral serialization/event boundaries consumed by the wider runtime. No duplicate browser wrapper was introduced.
+- Rechecked published-agent configuration/session routes:
+  - `src/app/api/public/agents/[agentId]/config/route.ts` remains a host HTTP/publication/DB adapter.
+  - `src/app/api/embed/session/route.ts` remains a host HTTP/auth/entitlement/provider-session adapter.
+  - `src/modules/voice-core/api/*/session.ts` remains provider-session infrastructure around already-extracted capability contracts.
+- Audited `src/features/agent-conversation/types.ts`. It is a feature-layer contract importing the voice hook type and therefore is not a self-contained core primitive.
+- Audited `src/modules/assistant/core/voice/types.ts`. Although mostly type-only, it imports application assistant models/config and exposes browser `MediaStream` callbacks; the whole file is not dependency-clean under the immutable extraction rule, so it remains in the host.
+- Re-audited all relevant executable realtime scripts:
+  - `scripts/voice-relay.mjs`
+  - `scripts/gemini-relay.mjs`
+  - `scripts/sarvam-relay.mjs`
+  - `scripts/sarvam-tts-relay.mjs`
+  - `scripts/elevenlabs-relay.mjs`
+  - `scripts/phone-stream.mjs`
+- These scripts contain useful helper functions, but each file as a whole is coupled to Node WebSockets, vendor credentials/endpoints, Clara HTTP routes, metering/auth, connection lifecycle, or telephony transport. Under the byte-for-byte rule, extracting only selected functions would be a partial rewrite, so none were added.
+- `scripts/sarvam-wire.mjs` remains the clean script-level protocol boundary and is already extracted.
+- The published-agent runtime therefore remains cleanly split between reusable browser/core contracts and host adapters; no synthetic generic session/event abstraction was created.
+
+### Verified source identity
+- Existing public/embed runtime: `public/embed/clara.js` → `1710bd5a54244ab5af95efa51b2a99b7233faeab`.
+- Existing NDJSON contract: `src/modules/embed/core/ndjson.ts` → `be41ac5b9306c61415069d789ff0bf7e1e55a0da`.
+- Existing realtime event contract: `src/modules/assistant/core/realtime-events.ts` → `30b95fb7d4907cd37ba5a00d8ca3ca0c28fabc14`.
+- Existing Sarvam wire contract: `scripts/sarvam-wire.mjs` → `0c7e8879e213996aadecb0e06b77025b328e8834`.
+- No new immutable source entries were required in this slice; manifest remains at 108 entries.
+
+### Boundary conclusion
+The public/embed and published-agent chain is now explicitly bounded as:
+
+```
+Clara browser runtime (clara.js)
+        ↓
+NDJSON + realtime event contracts
+        ↓
+public/session capability descriptors
+        ↓
+host HTTP/auth/publication/entitlement adapters
+        ↓
+Clara RAG + AI + voice + telemetry core
+        ↓
+provider/telephony relay adapters
+```
+
+The remaining `scripts/*` relay implementations are infrastructure adapters, not reusable immutable core files. Their reusable wire/format contracts are already represented by extracted Clara modules.
+
+### Not completed
+- No new manifest entries were warranted.
+- Full 108-entry immutable verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue the broader Clara `src/` dependency graph outside the already-closed public/embed/realtime slice, prioritizing the next unrepresented Clara-owned reusable capability (integrations/tools/MCP, audit/observability, or event/runtime infrastructure). Preserve the same rule: extract only an existing whole file with a clean dependency boundary; otherwise document the adapter boundary instead.
+
+
+## 2026-10-03 — AI-agent reference library and realtime/chat completeness guardrails
+
+### Completed
+- Strengthened Clara Core documentation so a new AI coding agent can navigate the reusable reference set without relying on prior conversation context.
+- Added `clara-core/AGENTS.md` with mandatory search/filter/extraction rules, realtime voice completeness checklist, AI/chat checklist, provider matrix, and documentation discovery procedure.
+- Added `clara-core/REFERENCE-MAP.md` mapping AI provider configuration, chat, RAG, realtime voice, provider-specific realtime implementations, public embed and usage/latency paths to exact Clara source locations.
+- Added `clara-core/IMPLEMENTATION-PLAYBOOK.md` defining the implementation sequence for a new SaaS/agent project and the minimum verification gates.
+- Expanded `clara-core/README.md` to make these documents the canonical starting point for new AI agents.
+- Rechecked the current manifest: 108 immutable entries.
+- Rechecked that the reference set already contains the AI provider implementations (OpenAI, Gemini, Sarvam, TEI), voice provider services (ElevenLabs and Sarvam), AI/voice resolution/config/model catalogs, realtime coordination/latency/auth primitives, public embed runtime, NDJSON/realtime events, RAG and usage/metering foundations.
+- Explicitly documented that OpenAI and Gemini realtime implementations are transport/API-specific rather than missing symmetric VoiceProviderService classes; their browser/API implementations remain reference implementations where coupled to React/Next.js/provider lifecycle.
+- Explicitly separated chat, voice-chat, realtime voice and telephony so a new implementation does not accidentally replace one runtime path with another.
+
+### Current implementation guard
+The reference library is now documentation-complete enough for AI-agent navigation, but this does not claim that every host adapter or provider relay has been made immutable core. Coupled routes, React hooks, vendor relay lifecycle, auth/tenancy, secrets and telephony remain documented reference/adapter boundaries.
+
+### Verification status
+- Manifest size: 108.
+- Documentation files verified present with current Git blob SHAs:
+  - `clara-core/AGENTS.md` → `af4529d780266bb4ec425859dab8041a0b88f0f8`
+  - `clara-core/REFERENCE-MAP.md` → `0e1f312e457c9e0946dab457ed282987e29f429e`
+  - `clara-core/IMPLEMENTATION-PLAYBOOK.md` → `55e6f8dee26c6d6304188159722aaa340ccadf15`
+  - `clara-core/README.md` → `4182a9b5a07ed9f5be2e30f15d268cfc1d309247`
+- Full 108-entry immutable verifier still requires execution from a real repository checkout.
+
+### Next
+Continue the source dependency graph into integrations/tools/MCP, audit/observability and event/runtime infrastructure, while cross-checking their interaction with the already-covered AI/chat/realtime voice chains.
