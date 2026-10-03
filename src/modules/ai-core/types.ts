@@ -67,6 +67,13 @@ export interface EmbedOptions {
   onUsage?: (usage: TokenUsage) => void;
 }
 
+export interface ToolCallingLLMProvider extends LLMProvider {
+  chatStreamWithTools(
+    messages: ChatMessage[],
+    options: ToolCallingChatOptions,
+  ): AsyncGenerator<ChatStreamEvent, void, unknown>;
+}
+
 export interface LLMProvider {
   /**
    * Generates a chat completion stream.
