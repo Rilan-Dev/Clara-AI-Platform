@@ -1100,3 +1100,18 @@ Phase 7: IN_PROGRESS
 ```
 
 7-B closed by the architect's explicit `PASS` (an acceptance disposition under D-023 — NOT a claim that the original usage-spine requirement was technically satisfied; the AH-004 finding stands unrewritten; `audit_logs` is operational observability, NOT the usage-metering spine); no 7-C; no Phase 8; first-class billable tool-usage metering deferred to a future authorized design phase; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged; historical records stand unrewritten (append-only). [developer-reported]
+
+
+---
+
+## 2026-10-04 — Task 2 — I-015 lockfile reconciliation — implementation evidence
+
+| Field | Value |
+|---|---|
+| Task | Phase 7 continuation Task 2 — reconcile package manifest and lockfile for @vercel/functions |
+| Status | IN_PROGRESS — lockfile reconciliation implemented; runtime/typecheck verification pending |
+| Implementation | Added the existing package.json dependency @vercel/functions ^3.9.9 to the lockfile root and recorded the verified 3.9.9 package metadata, @vercel/oidc 3.8.9, @vercel/cli-config 0.3.0, and the nested jose 5.10.0 required by the Vercel dependency chain. No package.json, source, migration, immutable-source or Vercel configuration changes were made. |
+| Verification | Lockfile parsed successfully; dependency-closure comparison against an independent 3.9.9 npm lock snapshot reports 25 closure nodes and 0 missing nodes after the merge. The commit status exposes only the pre-existing Vercel deployment quota failure; no repository test/typecheck runner is available in this execution environment. |
+| Evidence | Commit b3ed15acac4de39e1eaff33d40bea9f045ff9c16. External npm metadata confirms @vercel/functions 3.9.9 exists; package-lock semantics require resolved/integrity metadata. |
+| Review | I-015 is NOT yet closed. The infrastructure fix is recorded, but npm typecheck/test/build evidence remains outstanding. |
+| Next action | Continue with provider/tool-runtime implementation only after preserving this verification distinction; do not claim I-015 closure without executable verification. |
