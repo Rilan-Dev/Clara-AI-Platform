@@ -469,6 +469,11 @@
       "source_path": "src/modules/embed/core/public-token.ts",
       "target_path": "clara-core/source/src/modules/embed/core/public-token.ts",
       "source_blob_sha": "2171f84fa53dd8e081bb7aa5c12740222da7533b"
+    },
+    {
+      "source_path": "src/modules/assistant/core/realtime-events.ts",
+      "target_path": "clara-core/source/src/modules/assistant/core/realtime-events.ts",
+      "source_blob_sha": "30b95fb7d4907cd37ba5a00d8ca3ca0c28fabc14"
     }
   ]
 }
