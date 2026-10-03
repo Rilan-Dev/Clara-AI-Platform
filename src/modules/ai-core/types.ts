@@ -12,8 +12,11 @@
 export type AIProvider = "openai" | "gemini" | "sarvam";
 
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  readonly toolCallId?: string;
+  readonly toolName?: string;
+  readonly toolCalls?: readonly ChatToolCall[];
 }
 
 /**
