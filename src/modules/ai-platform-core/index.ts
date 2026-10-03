@@ -1,4 +1,12 @@
-export {\n  AGENT_LOOP_FLAG,\n  HARD_MAX_AGENT_ITERATIONS,\n  isAgentLoopEnabled,\n  runBoundedAgenticLoop,\n  type AgenticLoopResult,\n  type AgenticLoopStatus,\n} from "./agentic-loop";\nexport * from "./clara-runtime";
+export {
+  AGENT_LOOP_FLAG,
+  HARD_MAX_AGENT_ITERATIONS,
+  isAgentLoopEnabled,
+  runBoundedAgenticLoop,
+  type AgenticLoopResult,
+  type AgenticLoopStatus,
+} from "./agentic-loop";
+export * from "./clara-runtime";
 
 // Phase 7-A — host contracts / adapter foundation (server-side only).
 export type {
@@ -82,4 +90,11 @@ export {
   invokeClaraTool,
   planCapabilityForSurface,
 } from "./clara-tools";
-\nexport {\n  PROVIDER_TOOL_CALLING_FLAG,\n  consumeProviderToolCall,\n  isProviderToolCallingEnabled,\n  type ProviderToolCall,\n  type ProviderToolCallPilotResult,\n} from "./provider-tool-calling-pilot";\n
+
+export {
+  PROVIDER_TOOL_CALLING_FLAG,
+  consumeProviderToolCall,
+  isProviderToolCallingEnabled,
+  type ProviderToolCall,
+  type ProviderToolCallPilotResult,
+} from "./provider-tool-calling-pilot";
