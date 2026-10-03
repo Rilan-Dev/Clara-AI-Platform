@@ -504,6 +504,11 @@
       "source_path": "src/modules/voice-core/realtime/generation-coordinator.ts",
       "target_path": "clara-core/source/src/modules/voice-core/realtime/generation-coordinator.ts",
       "source_blob_sha": "0384d2c60d1e482c1c33d76de8a1e776f9a4867c"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/relay-url.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/relay-url.ts",
+      "source_blob_sha": "7d629587d0a0c61827a89cb93cd40e8b3d5f06e0"
     }
   ]
 }
