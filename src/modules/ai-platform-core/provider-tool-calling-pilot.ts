@@ -95,7 +95,7 @@ export async function consumeProviderToolCall(
       callId: call.id ?? "",
       outcome: null,
       error: {
-        code: "MALFORMED_TOOL_CALL",
+        code: "INVALID_CONTEXT",
         message: (error as Error)?.message ?? "Invalid execution context.",
       },
     };
