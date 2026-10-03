@@ -398,3 +398,28 @@ The reusable Clara core now has the main usage accounting surfaces for chat/quer
 
 ### Next
 Trace the non-query LLM metering and provider-response usage path (prompt/completion tokens, model pricing, cost finalization) and close any reusable writer/pricing dependencies without duplicating the existing query-event metering spine. Then move into tools/MCP/integrations.
+
+## 2026-10-03 — LLM response metering closure + tools/MCP inventory
+
+### Completed
+- Traced the full Clara chat metering path from provider response usage through query-event finalisation.
+- Confirmed `src/modules/knowledge-bases/core/analytics-db.ts` is already the reusable LLM metering writer: it persists provider-reported prompt/completion tokens, calculates model-catalogue cost when the provider does not supply cost, finalises `query_events`, and exposes org-level usage aggregation.
+- Confirmed OpenAI, Gemini and Sarvam provider adapters already emit authoritative usage through the shared `ChatOptions.onUsage` callback; these provider adapters are already extracted into `clara-core`.
+- Confirmed `src/modules/ai-core/model-catalog.ts` already supplies reusable chat-cost calculation and is already extracted.
+- Therefore no duplicate LLM metering file was extracted in this slice.
+- Audited Clara's current MCP/tool surface. The repository currently contains MCP feature/config flags and provider-specific ElevenLabs server-tool/webhook mechanics, but no standalone generic MCP registry/executor module under `src/modules` to extract as reusable Clara core.
+- Existing ElevenLabs webhook authentication/provider implementation remains a provider adapter boundary rather than a generic MCP core.
+
+### Architectural result
+The LLM metering chain is now closed in the reusable graph:
+provider usage callback → chat finalisation → token/cost persistence → org usage aggregation.
+No second billing/metering spine is needed.
+
+### Not completed
+- Generic MCP/tool runtime does not currently exist as an extractable standalone Clara module; implementation-specific discovery should not be invented from feature flags alone.
+- Public/embed runtime and phone/telephony runtime still need dependency tracing and extraction where the underlying mechanics are Clara-owned and reusable.
+- Governance registry/runtime-settings adapter boundary still needs isolation.
+- Full 87-entry immutable verifier still needs execution from a repository checkout.
+
+### Next
+Trace the public/embed and phone/telephony runtime from the already-extracted provider-neutral Clara grounding/runtime path. Extract only reusable tenant-bound session/configuration and telephony mechanics; keep HTTP routes, API-key authentication, billing, secrets and deployment-specific wiring as adapters unless the underlying code is demonstrably reusable core.
