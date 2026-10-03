@@ -108,6 +108,21 @@ describe("provider tool-calling pilot", () => {
     expect(rt.invoke).not.toHaveBeenCalled();
   });
 
+  it("rejects a forged context before the provider payload reaches the runtime", async () => {
+    const rt = runtime({ ok: true, toolName: "rag_search", data: null });
+    const forged = Object.freeze({ tenantId: "attacker", kbId: "attacker-kb", surface: "chat" });
+
+    const result = await consumeProviderToolCall(
+      { id: "call-forged", name: "rag_search", arguments: "{}" },
+      forged as never,
+      rt,
+      { enabled: true },
+    );
+
+    expect(result.error?.code).toBe("MALFORMED_TOOL_CALL");
+    expect(rt.invoke).not.toHaveBeenCalled();
+  });
+
   it("preserves runtime denials instead of bypassing authorization", async () => {
     const denial: ToolInvocationOutcome = {
       ok: false,
