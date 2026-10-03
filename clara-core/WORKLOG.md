@@ -229,3 +229,37 @@ The remaining route files are intentionally not copied into the immutable librar
 
 ### Next
 Continue with the remaining provider-neutral runtime/capability descriptors and inspect public/embed browser event usage against the already-extracted NDJSON and realtime contracts. Only add source entries when the existing Clara file itself is already dependency-clean.
+## 2026-10-03 — Provider-neutral latency presentation contract
+
+### Completed
+- Continued the browser/provider-neutral realtime contract audit.
+- Extracted `src/modules/voice-core/realtime/latency-log.ts` → `clara-core/source/src/modules/voice-core/realtime/latency-log.ts`.
+- Source blob SHA: `91dadef0c815f0ae145098d31c3714a96d8055b3`.
+- This file is dependency-clean except for the already-extracted `TurnStageLatencies` type and contains only deterministic formatting/logging of Clara's timing contract: TTFA, STT, RAG, LLM, TTS and Server-Timing breakdowns. It does not access DB, HTTP, provider secrets, React, or tenant state.
+- This closes the presentation side of the telemetry chain: provider adapters emit the common latency event; `latency-log.ts` formats it; benchmark tooling can consume the same event without duplicating stage arithmetic.
+- Re-audited `useGeminiLive.ts` and `useOpenAIRealtime.ts`. Both are orchestration hooks and remain host/application adapters because they bind React state, browser media/WebRTC APIs, API routes, authentication headers, RAG calls and provider-specific protocols. Their reusable dependencies are now represented by extracted pure modules.
+- Re-audited `LandingEmbedFrame.tsx`. Its voice state and WebRTC/RAG flow are application UI behavior; it remains host UI rather than core. The pure realtime state machine is already extracted separately.
+- Reconfirmed `public/embed/clara.js` is the portable browser runtime and already extracted; its event emitter remains internal to that runtime and does not justify inventing a separate event module without an existing clean Clara source boundary.
+
+### Resulting telemetry chain
+```
+provider events
+  ↓
+provider telemetry adapter
+  ↓
+LatencyTracker / TurnLatencyHandle
+  ↓
+clara:voice:latency event
+  ↓
+latency-log.ts (human-readable formatting)
+  ↓
+benchmark / diagnostics
+```
+
+### Verification
+- Source SHA recorded in manifest and independently matched to the extracted target blob.
+- Manifest count increased from 106 to 107.
+- Full 107-entry immutable verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue the remaining provider-neutral capability-descriptor audit, especially browser-facing session/config serialization and any pure existing event/transport contracts that can be extracted without refactoring application hooks or routes.
