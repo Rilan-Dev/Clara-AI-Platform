@@ -8,6 +8,7 @@
  */
 
 import type { PlatformExecutionContext } from "./contracts";
+import { assertExecutionContext } from "./execution-context";
 import type { ToolInvocationOutcome, ToolRuntime } from "./tool-registry";
 
 export const PROVIDER_TOOL_CALLING_FLAG = "ENABLE_AI_PLATFORM_TOOL_CALLING";
@@ -82,6 +83,20 @@ export async function consumeProviderToolCall(
       error: {
         code: "PILOT_DISABLED",
         message: "The AI Platform provider tool-calling pilot is disabled.",
+      },
+    };
+  }
+
+  try {
+    assertExecutionContext(context);
+  } catch (error) {
+    return {
+      enabled: true,
+      callId: call.id ?? "",
+      outcome: null,
+      error: {
+        code: "MALFORMED_TOOL_CALL",
+        message: (error as Error)?.message ?? "Invalid execution context.",
       },
     };
   }
