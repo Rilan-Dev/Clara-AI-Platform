@@ -917,3 +917,57 @@ Phase 7: IN_PROGRESS
 ```
 
 No `PASS` claimed for 7-B; F-7B-01/F-7B-02/I-017 NOT resolved; no 7-C; no Phase 8; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged; historical records stand unrewritten (append-only). [developer-reported]
+
+---
+
+# Phase 7-B — F-7B-01 Metering Representation Decision Analysis (AH-004 — architect-directed, read-only) — 2026-10-04
+
+## Assignment [architect-verified — as communicated in the decision-analysis handoff]
+
+The architect independently re-reviewed the CH-003 correction at the remote tip `4413bc83d76588f42e2cd0b669dd882566824238`: **F-7B-02 = RESOLVED**; **F-7B-01 = OPEN / BLOCKING**; **I-017 = OPEN**; Phase 7-B = `CORRECTION_REQUIRED`. The architect's finding: the audit-spine binding is valid org-scoped audit/observability, but does not by itself demonstrate satisfaction of the original Phase 7-B acceptance criterion requiring per-invocation usage metering through the existing usage/analytics spine. The authorized task: a **read-only exhaustive investigation** of the existing Clara metering/analytics infrastructure to determine, from repository evidence, whether any already-existing authorized representation/path satisfies the original criterion without schema change or new billing architecture — plus governance recording and a neutral decision-options table for the architect. NO implementation, NO migration, NO schema change, NO new usage_events kind, NO query_events semantics change, NO rag_search behavior change, NO immutable/provider change, NO deployment, NO closure, NO 7-C, NO history rewrite.
+
+## Analysis [developer-reported]
+
+(1) **Baseline verified** — HEAD == origin == `4413bc83`; clean tree; `63bccded`/`74200bec` present, unmodified, ancestors of HEAD. (2) **The three spines investigated exhaustively** — `query_events`: the chat/query audit trail AND the billing unit; the rolling-24h quota COUNT counts EVERY row per org (no status/surface filter; `getOrgUsageSnapshot` likewise); writers = the atomic admission insert / the audit-only `logQueryEvent` / the finalise+hash-chain UPDATE; readers = every usage/analytics surface (usage, queries, audit, org dashboard metering, usage-limits, ai-governance provider rollup, plan-guard, KB analytics). `usage_events`: append-only billable NON-chat AI provider invocations; kind CHECK-closed (`EMBEDDING/TTS/OCR/TRANSCRIPTION/CONVERSATION/TRANSLATION`), `model` NOT NULL, cost from measured facts, every writer skips usage amount ≤ 0; readers = org dashboard metering (embedding/voice), ai-governance provider rollups (monthly budgets + recharge warnings), plan-guard TTS/STT/translation quota gates. `audit_logs`: operational/security telemetry; 10 writer sites; **ZERO application readers** (no SELECT anywhere in `src/`); zero quota/billing coupling; invisible to every dashboard. Latent defect observed (recorded, not fixed): `logTransliterationUsage` writes kind `TRANSLITERATION`, absent from the DB CHECK — the insert would be CHECK-rejected and silently swallowed (evidence the vocabulary is closed and DB-enforced). (3) **`rag_search` accounting traced end-to-end across every surface** — external/audit-only/quota admission modes mapped to their owning routes; the Unified Tool Runtime executor writes NOTHING (`admission: "external"` — the owning turn owns the single query event; "logging here would count the turn twice"); on the embed/phone/realtime relay surfaces the tool call IS the admitted query event at `/api/embed/search`; the Mode-B tool callback writes an audit-only row that still counts in the org's rolling-24h COUNT. (4) **Tool-usage representation search (exhaustive)** — **NO EXISTING TOOL-USAGE REPRESENTATION FOUND** (examined and excluded: elevenlabs_webhook_nonces, api_key_usage, event_outbox, platform_events, platform_ai_provider_usage, elevenlabs_conversations, the full 73-table migrations inventory, and the Doable reference schemas — reference-only, later-phase material). (5) **Analytics surface matrix** — no surface reads audit_logs; the correction's tool.invoked/tool.denied rows are invisible to every existing usage/analytics surface. (6) **Acceptance matrix** — the correction satisfies no-double-billing/vocabulary/no-migration/no-new-billing/tenant-isolation/denial-classification/failure-isolation; it does NOT satisfy §19(4) per-invocation usage metering on the existing org-scoped usage spine or §19(19) observability via existing usage/analytics surfaces. (7) **Decision outcome: C** —
+
+```text
+F-7B-01 CANNOT BE SATISFIED UNDER THE CURRENT
+NO-SCHEMA-CHANGE / NO-NEW-BILLING-ARCHITECTURE CONSTRAINT.
+```
+
+The neutral four-option decision table (A audit-only telemetry; B extend the usage spine for tool events; C extend query analytics semantics; D redefine the Phase 7-B metering acceptance) is recorded in `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 representation decision analysis — **no winner selected; no acceptance criterion changed by the developer; the decision belongs to the architect/owner.**
+
+## Verification [developer-reported]
+
+Governance validators: `phase-closure-eligibility-test.sh` **8/8** (exit 0); `correction-cycle-test.sh` **24/24** (exit 0); `npm run validate:model-config` **PASS**. Immutable source: the four tree OIDs (`a42aee79`/`ee07c362`/`b76b8f34`/`54606204`) and `vercel.json` blob `3f26d343` identical at HEAD; the manifest blob verifier → **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/`**; the diff vs `03482584` over the four immutable trees → **empty**. Git: HEAD == origin == `4413bc83` (verified before starting; re-verified after the analysis); working tree clean (an incidental untracked artifact from a read-only verifier run — `ai-platform-core/verification/completeness-report.json` — was deleted to restore the pristine state; no tracked file affected). No deployment; no database operation; no schema modification.
+
+## Review
+
+The architect's metering representation decision — PENDING. This analysis is `[developer-reported]` evidence only; it does NOT resolve F-7B-01 or I-017 and does NOT close Phase 7-B.
+
+## Commits
+
+| SHA | Message |
+|---|---|
+| *(this commit)* | `docs: record phase 7-b metering representation decision analysis` — governance-only, clearly identified as an analysis record (NOT a fix, NOT a closure); the immediate child of `4413bc83` on `feature/ai-core-from-doable-source`; changes confined to `worklog.md` + `docs/project-control/**` |
+
+## Issues / analysis
+
+- **I-017 remains OPEN**: F-7B-02 RESOLVED [architect-verified — re-review communicated in the decision-analysis handoff]; F-7B-01 OPEN/BLOCKING — the metering representation decision pending (architect).
+- **I-014 remains OPEN** (immutable source re-verified byte-unchanged; the 31 absent files still confined to `mcp-servers/`). **I-015 remains OPEN** (no dependency/install change).
+- Recorded for architect disposition (not resolved, not new issues): (a) the F-7B-01 representation blocker — Outcome C above; (b) the latent `TRANSLITERATION` CHECK-rejected metering write (pre-existing, out of scope, discovered during the analysis); (c) the `ai-platform-core` module remains unconsumed by production routes (per the plan's "first wiring step" — the metering hook's production effect begins when routes adopt the seam).
+
+## Next action (current)
+
+**ChatGPT architect metering representation decision on F-7B-01** (choose among the recorded neutral options A/B/C/D — or another architect direction), then the explicit next authorization (a bounded corrective implementation handoff, an acceptance redefinition, a 7-C decision, or other direction). Z.AI performs no work until that decision and authorization arrive. **STOPped at the architect-decision boundary.**
+
+**Canonical status after the analysis**:
+
+```text
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: CORRECTION_REQUIRED — F-7B-01 OPEN/BLOCKING — METERING REPRESENTATION DECISION PENDING (ARCHITECT)
+Phase 7-C: NOT AUTHORIZED
+Phase 7: IN_PROGRESS
+```
+
+No `PASS` claimed for 7-B; F-7B-01/I-017 NOT resolved; no 7-C; no Phase 8; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged; historical records stand unrewritten (append-only). [developer-reported]

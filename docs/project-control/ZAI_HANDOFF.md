@@ -182,241 +182,98 @@ Fresh-session read order for a Z.AI developer session:
 ---
 
 
+
 ## Part II — Active Handoff Instance
 
-> **CH-003 — Phase 7-B corrective-handoff instance (findings F-7B-01 / F-7B-02)** — materialized from `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md` per Part I §I.5/§I.12 on 2026-10-03, replacing the fully executed Phase 7-B implementation-authorization instance (superseded; recoverable in Git history at `74200beca21fb2b15817fe2471dc86929316cd48` and identified in the canonical `worklog.md` entries; its execution-record addenda below stand unmodified as history). This correction authorizes ONLY the correction of the two architect findings below. It does **not** authorize Phase 7-C (provider tool calling, agentic loops, bounded iteration logic, tool-calling provider APIs), MCP, integrations, deployment, dependency remediation, I-014 remediation, I-015 remediation, database migrations, schema modification, new billing systems, `rag_search` retrieval-behavior changes, or unrelated refactoring. Phase 7 remains `IN_PROGRESS`; Phase 7-B is `CORRECTION_SUBMITTED — AWAITING ARCHITECT RE-REVIEW`; 7-C remains **NOT AUTHORIZED**.
+> **Phase 7-B F-7B-01 Metering Representation Decision Analysis — architect-directed analysis and governance task (analysis handoff AH-004)** — materialized 2026-10-04 from the architect's decision-analysis handoff text, replacing the fully executed CH-003 corrective-handoff instance (superseded; recoverable in Git history at `4413bc83d76588f42e2cd0b669dd882566824238`, including its execution-record addenda; identified in the canonical `worklog.md`). The architect has independently re-reviewed CH-003: **F-7B-02 = RESOLVED**; **F-7B-01 = OPEN / BLOCKING**; **I-017 = OPEN**; **Phase 7-B = CORRECTION_REQUIRED**; **Phase 7-C = NOT AUTHORIZED**. This instance authorizes ONLY a read-only exhaustive investigation and governance recording — it does NOT authorize any implementation, metering implementation attempt, migration, schema change, `usage_events` kind invention, `query_events` semantics change, `rag_search` behavior change, immutable-tree change, provider change, deployment, phase closure, 7-C authorization, or history rewrite (no amend/rebase/squash/cherry-pick/force-push). The task exists to produce the evidence required for an **architect decision** about F-7B-01.
 
-## 1. Correction identity
+## 1. Analysis identity
 
 | Field | Value |
 |---|---|
-| Correction ID | `CH-003` (sequential from `CH-001`/`CH-002`; never reused) |
-| Correction title | Phase 7-B Corrective Handoff: Metering Spine Binding and Invocation Boundary |
-| Current status | `CORRECTION_SUBMITTED` (the developer executed the corrective handoff 2026-10-03; the architect's re-review is PENDING) |
+| Analysis ID | `AH-004` (first analysis-only handoff; sequential after CH-001/CH-002/CH-003) |
+| Analysis title | Phase 7-B F-7B-01 Metering Representation Decision Analysis |
+| Current status | `EXECUTED` (the developer executed the read-only analysis 2026-10-04; the architect's representation decision is PENDING) |
 | Issued by | ChatGPT (architect / technical lead / reviewer / controller) |
-| Issue date | 2026-10-03 |
+| Issue date | 2026-10-04 |
 | Repository | `Rilan-Dev/Clara-AI-Platform` |
 | Branch | `feature/ai-core-from-doable-source` |
 | Worktree | `/home/z/my-project/.worktrees/vc` |
-| Current synchronized remote state at issuance | `74200beca21fb2b15817fe2471dc86929316cd48` |
+| Baseline | `4413bc83d76588f42e2cd0b669dd882566824238` (the CH-003 correction commit) — verified: HEAD == origin == `4413bc83`; clean tree; `63bccded` / `74200bec` present, unmodified, ancestors of HEAD |
 
 ## 2. Related issue ID
 
 | Field | Value |
 |---|---|
-| Issue ID | `I-017` — the `ISSUES.md` record this correction resolves (both findings F-7B-01 and F-7B-02, per the one-review/one-issue convention established by I-016) |
-| Issue severity | not assigned in the corrective handoff — awaiting architect triage at re-review (acceptance-violating and therefore closure-blocking while unresolved under the R6 severity model regardless of the eventual P-label) |
-| Issue status at issuance | `CORRECTION_REQUIRED` (the architect review outcome; registered `OPEN` → `TRIAGED` → `CORRECTION_REQUIRED` on receipt) |
-| Related prior corrections | none on this issue (CH-001 — Phase 6 P2/P3 closure policy; CH-002 — Phase 7-A boundary defects / I-016 — both RESOLVED) |
+| Issue ID | `I-017` — the `ISSUES.md` record this analysis informs (F-7B-01 finding) |
+| Architect re-review outcome being recorded | **F-7B-02 = RESOLVED** [architect-verified — as communicated in this handoff]; **F-7B-01 = OPEN / BLOCKING** [architect-verified — as communicated in this handoff]; I-017 remains OPEN |
+| Issue status | `CORRECTION_REQUIRED` (the CH-003 correction was re-reviewed; the audit-spine binding was assessed valid org-scoped observability but not sufficient for the per-invocation usage-metering acceptance criterion) |
 
 ## 3. Related phase
 
 | Field | Value |
 |---|---|
 | Phase number / name | Phase 7 — AI Platform Core Foundation; sub-phase 7-B — Unified Tool Runtime |
-| Phase status | `IN_PROGRESS` (cannot become `CLOSED` while the closure-blocking issue is unresolved) |
-| Review outcome that produced this correction | `CORRECTION_REQUIRED` — the architect's review of the actual GitHub implementation at `63bccded2c61d29ba1a2218cf654bd3901ba6940`, 2026-10-03 |
+| Phase status | `IN_PROGRESS` (7-B = `CORRECTION_REQUIRED` — awaiting the architect's metering representation decision) |
 | Phase contract | `docs/project-control/CURRENT_PHASE.md` |
 
-## 4. Baseline commit
+## 4. The architect's finding under analysis
 
-| Field | Value |
-|---|---|
-| Correction baseline | `74200beca21fb2b15817fe2471dc86929316cd48` — the developer verified per Part I §I.6 before executing: branch `feature/ai-core-from-doable-source`; HEAD = `74200bec` = origin tip after fresh fetch; clean tree; the Phase 7-B implementation commit `63bccded2c61d29ba1a2218cf654bd3901ba6940` present, unmodified (not rewritten/amended), and an ancestor of HEAD |
+The CH-003 correction established (and the architect's re-review confirmed) that `query_events` cannot safely represent a separate tool invocation (every row participates in the org quota/accounting model; `rag_search` already has owning-turn accounting); `usage_events`' CHECK vocabulary does not contain TOOL and `model` is NOT NULL; and `audit_logs` can represent org-scoped tool observability without billing/schema impact but is not necessarily equivalent to the Phase 7-B "usage metering spine". The current implementation therefore uses `buildClaraToolMeteringHook()` → `writeAuditLog()` → `audit_logs`. The architect's conclusion: this is valid org-scoped audit/observability, but it does not by itself demonstrate satisfaction of the original Phase 7-B acceptance criterion requiring per-invocation usage metering through the existing usage/analytics spine.
 
-## 5. Architect
+## 5. Authorized analysis tasks
 
-**ChatGPT** — architect / technical lead / reviewer / controller. Only the architect may issue this corrective handoff, re-review the correction, and resolve the related issue.
+(1) Read-only exhaustive investigation of the existing Clara metering/analytics infrastructure (all writers, readers, consumers, analytics surfaces of `usage_events` / `query_events` / `audit_logs` and the named helpers); (2) exact semantics of each spine; (3) complete end-to-end `rag_search` accounting trace; (4) an exhaustive search for any existing tool-usage representation; (5) analytics-surface consumption matrix; (6) acceptance-criterion requirement matrix; (7) the decision-outcome determination (A/B/C); (8) if Outcome C, a neutral architectural decision-options table (no winner selected); (9) the minimal validators; (10) governance recording (analysis/review records only — no closure records); (11) the required final report; (12) STOP.
 
-## 6. Developer
+## 6. Decision outcome recorded by the analysis
 
-**Z.AI** — developer / implementer. Executes only the corrective scope; self-verifies; records evidence; commits; pushes; reports; and STOPs at the correction boundary.
+```text
+F-7B-01 CANNOT BE SATISFIED UNDER THE CURRENT
+NO-SCHEMA-CHANGE / NO-NEW-BILLING-ARCHITECTURE CONSTRAINT.
+```
 
-## 7. Finding
+(Outcome C — the full evidence is recorded in `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 representation decision analysis, `ISSUES.md` I-017, `worklog.md`, and `SESSION-019.md`; the neutral decision-options table for the architect is recorded there. No winner was selected; no acceptance criterion was changed by the developer.)
 
-**F-7B-01 — Production Clara metering binding does not satisfy the reviewed metering acceptance criterion.** The reviewed Phase 7 plan requires: Unified Tool Runtime metering hooks; existing org-scoped usage/analytics spine integration; per-invocation usage metering; no duplicated billing architecture; preservation of the incumbent `rag_search` `admission: "external"` semantics. The generic runtime abstraction (`ToolMeteringHook`) is acceptable and the runtime correctly invokes an injected hook — but the production Clara implementation (`buildClaraToolMeteringHook()`) only performs structured `console.info(...)`; the implementation's own test confirms "the default Clara metering hook completes without writing". This does not satisfy the reviewed Phase 7-B acceptance requirement that tool invocation metering lands on the existing org-scoped spine / remains observable through existing usage/analytics infrastructure.
+## 7. Non-negotiable constraints (all honored)
 
-**F-7B-02 — Invalid-context metering contract is stronger than the implementation.** The tool-registry documentation says the metering hook is invoked for success, typed failure, and boundary refusal — but `invoke()` returns immediately for an invalid/untrusted `PlatformExecutionContext` (`INVALID_CONTEXT`) before a tenant-scoped `ToolMeteringRecord` can safely be constructed. This is a legitimate security boundary and MUST NOT be weakened; the contract must be made internally consistent.
+No application implementation modified; no metering implementation attempted; no migration; no schema modification; no new `usage_events` kind; no `query_events` semantics change; no `rag_search` behavior change; no immutable-source modification; no provider code change; no deployment; no Phase 7-B closure; no 7-C authorization or start; no commit amend/rebase/squash/cherry-pick/force-push; governance records limited to analysis/review records clearly identified as such.
 
-## 8. Evidence
+## 8. Git requirements (all honored)
 
-[architect-verified] The architect's corrective handoff (2026-10-03; review outcome `CORRECTION_REQUIRED`; reviewed commit `63bccded2c61d29ba1a2218cf654bd3901ba6940`) — §2 F-7B-01 and §3 F-7B-02, including the quoted code identifiers (`buildClaraToolMeteringHook()`, `ToolMeteringHook`, `INVALID_CONTEXT`) and the quoted implementation test. [developer-reported, Git-verifiable] The delivered code at `63bccded`: `src/modules/ai-platform-core/clara-tools.ts` (console.info-only hook), `src/modules/ai-platform-core/tool-contracts.ts` (the ToolMeteringHook documentation), `src/modules/ai-platform-core/tool-registry.ts` (the INVALID_CONTEXT early return).
+Baseline verified before starting (HEAD == origin == `4413bc83`; clean tree); read-only investigation; the single resulting commit is governance-only and clearly identified as an analysis record (not a "fix" commit, not a closure commit); normal (non-force) push; history rewritten nowhere (`63bccded` / `74200bec` / `4413bc83` all preserved unmodified).
 
-## 9. Why the finding blocks acceptance
+## 9. STOP boundary
 
-F-7B-01 violates the reviewed Phase 7 plan §19 acceptance criterion (4) "per-invocation usage metering lands on the existing org-scoped spine" and (19) "tool invocations are observable via existing usage/analytics surfaces", and the 7-B handoff's metering acceptance rows — a functional acceptance criterion of the authorized 7-B scope. F-7B-02 leaves the runtime's documented metering contract internally inconsistent with its (correct) fail-closed behavior — a contract-integrity defect in the delivered runtime. Both are acceptance-violating and closure-blocking while unresolved (R6).
-
-## 10. Exact correction required
-
-**F-7B-01**: inspect the existing Clara metering infrastructure and determine the correct existing helper/path for recording a tool invocation without creating a new billing architecture or schema. The correction must: (1) reuse the existing Clara usage/metering infrastructure; (2) preserve its existing org/tenant scoping; (3) preserve existing `usage_events`/`query_events` vocabulary and constraints; (4) make the Unified Tool Runtime's metering hook actually bind to the existing spine where Phase 7-B requires it; (5) avoid double-billing `rag_search` — the incumbent `rag_search` path already uses `admission: "external"` and its owning turn owns the existing retrieval/query accounting, so do NOT blindly insert a second identical billing/query event; make the tool-runtime metering integration represent the tool invocation according to the existing spine's established event semantics. If the existing schema/helpers cannot represent a distinct tool invocation without a migration, STOP and report that exact blocker rather than creating a new schema or inventing a new event kind. No database migration, no schema modification, no new billing system is authorized.
-
-**F-7B-02**: make the contract internally consistent — explicitly document that a provenance-invalid context is rejected before tenant-scoped metering; do not invoke the tenant-scoped metering hook using an untrusted context; ensure the documentation no longer claims that every invalid-context boundary refusal produces a normal scoped metering record; add a regression test proving invalid context is rejected and no untrusted tenant data is passed into the metering hook. Do NOT create an ambient/default tenant; do NOT infer tenant identity; do NOT weaken `assertExecutionContext()`; do NOT accept forged contexts.
-
-## 11. Approved correction scope
-
-`src/modules/ai-platform-core/tool-contracts.ts`; `src/modules/ai-platform-core/tool-registry.ts`; `src/modules/ai-platform-core/clara-tools.ts`; `src/modules/ai-platform-core/*7-B tests*`; plus the required governance records (`worklog.md`; `docs/project-control/VERIFICATION_STATE.md`; `docs/project-control/ISSUES.md`; `docs/project-control/NEXT_ACTION.md`; `docs/project-control/PROJECT_STATE.md`; `docs/project-control/CURRENT_PHASE.md`; `docs/project-control/ZAI_HANDOFF.md`; `docs/project-control/sessions/*`). Do not modify unrelated application code unless the existing metering helper can only be consumed through an already-authorized Clara seam and the change is strictly necessary for this correction. If a change outside the listed correction scope is necessary, STOP and report before modifying it.
-
-## 12. Explicit non-scope
-
-`package.json`; `package-lock.json`; `vercel.json`; database migrations; Supabase state; `docs/doable-source/**`; the ai-platform-core immutable/reference trees; the `clara-core` extraction snapshots (the stale `clara-runtime.ts` snapshot is NOT refreshed); provider implementations; voice providers; chat routes; realtime routes; embed routes; MCP; integrations; agent runtime; provider tool calling; agentic loops; I-014 remediation; I-015 remediation; D-P2; D-P4; the immutable Doable source.
-
-## 13. Required reading
-
-The governance layer (`CHAT_CONTINUITY.md` §5 procedure; `PROJECT_STATE.md`; `CURRENT_PHASE.md`; `NEXT_ACTION.md`; `ZAI_HANDOFF.md`; `VERIFICATION_STATE.md` incl. the correction and issue-control workflow; `ISSUES.md` incl. the issue-control system; `DECISIONS.md`; `RISKS.md`; `worklog.md`; the Phase 7 planning/specification documents; the prior Phase 7-B session records) — read BEFORE any edit, with the repository state treated as authoritative.
-
-## 14. Implementation tasks (numbered, deterministic)
-
-1. Verify the correction baseline per §I.6 (branch; HEAD = `74200bec` = origin tip; clean tree; `63bccded` present/unmodified/reachable).
-2. Perform the required investigation of the existing metering infrastructure BEFORE editing: `usage_events`, `query_events`, `recordUsage`/`recordUsageEvent`/`meter`/`metering`/`admission`/`external`/`usage event`/`analytics`/`query event`; trace the incumbent `rag_search` path from its owning route through retrieval and usage accounting; determine the eight required facts (the recording helper; the event kind; the org/tenant scope fields; the duplicate-billing prevention mechanism; whether the runtime hook can safely call the existing helper; whether the helper is appropriate for tool-level telemetry; whether a tool-specific event already exists; whether the schema permits the required representation). Do not guess.
-3. Implement the F-7B-01 correction within the approved scope (the binding; the double-billing analysis recorded; the STOP boundary honored if the schema cannot represent the invocation).
-4. Implement the F-7B-02 correction (the documentation consistency; the regression test).
-5. Add/modify the focused tests per §17.
-6. Run the full validation battery per §20.
-7. Update the governance records (append-only; the issue-control state distinguishing `developer correction submitted` from `architect review`; no `PASS`; no resolution; no closure).
-8. Create ONE focused corrective commit (no amend of `63bccded`/`4aa73384`/`74200bec`; no rebase; no squash; no cherry-pick; no force-push) and push normally; if the remote advances, inspect the divergence before acting.
-9. Produce the required final report and STOP.
-
-## 15. Interfaces / contracts
-
-The generic `ToolMeteringHook` / `ToolMeteringRecord` remain host-neutral (M-1). The `rag_search` executor continues to call the incumbent `claraRuntime.retrieve(...)` with the same `orgId`/`agentId`/`kbId`/`userId`/`sessionId`/`query`/`ragMode`/`channel: "voice"` (no retrieval rewrite; no tenant/KB binding change; no surface-exposure broadening; no chat exposure; the `admission: "external"` behavior unchanged absent explicit architect authorization).
-
-## 16. Security constraints
-
-No raw credentials or secrets cross the tool boundary (M-4). No ambient/default tenant; no tenant-identity inference; `assertExecutionContext()` unweakened; forged contexts rejected (M-7). Invalid provenance contexts generate no tenant-scoped metering from untrusted data. The fail-closed boundaries all stand.
-
-## 17. Testing requirements
-
-Focused tests proving: (1) the production Clara metering binding uses the existing metering infrastructure correctly; (2) a successful `rag_search` invocation has the expected metering/telemetry effect; (3) tenant/org identity preserved; (4) KB identity preserved; (5) authorization denial correctly classified; (6) `rag_search` does not create a duplicate billing/query event; (7) invalid execution context fails closed; (8) invalid execution context passes no untrusted tenant data to the metering hook; (9) metering failures still do not break tool execution; (10) existing behavior-parity tests remain green; (11) existing streaming-event behavior unchanged; (12) existing authorization behavior unchanged. Do not weaken or delete existing tests merely to obtain green output.
-
-## 18. Acceptance criteria (pass/fail — M-1…M-10)
-
-M-1 the generic `ToolMeteringHook` remains host-neutral; M-2 the Clara production binding is connected to the existing Clara usage/metering spine where appropriate; M-3 metering remains org/tenant scoped; M-4 no raw credentials or secrets cross the tool boundary; M-5 a successful tool invocation produces the expected existing metering/telemetry representation; M-6 authorization-denied invocations are represented according to the existing metering discipline without creating duplicate billing; M-7 invalid provenance contexts do NOT generate tenant-scoped metering from untrusted data; M-8 `rag_search` does not become double-billed; M-9 no new database migration is introduced; M-10 no new event kind is invented if the existing schema does not permit it. If M-5/M-6 cannot be implemented safely using the existing schema/helpers, STOP and report the exact blocker instead of inventing a schema change.
-
-## 19. Git requirements
-
-One focused corrective implementation commit. Do not amend `63bccded`, `4aa73384`, `74200bec`. Do not rebase. Do not squash. Do not cherry-pick the original implementation. Do not force-push. Normal push only. If the remote advances, inspect the divergence before acting; do not blindly overwrite owner history.
-
-## 20. Evidence requirements
-
-Focused Phase 7-B suite (`npx vitest run src/modules/ai-platform-core/` — ALL PASS; the 131/131 baseline must not regress); full suite (`npx vitest run` — ALL PASS; the 110 files / 1048 tests baseline); the existing typecheck command (I-015 NOT repaired; `src/**` application errors reported separately from extraction/reference-tree errors; the pre-existing application baseline is 19); lint (`npx eslint src/modules/ai-platform-core/`); the governance validators (`phase-closure-eligibility-test.sh`; `correction-cycle-test.sh`; `npm run validate:model-config`); the established library integrity validation; the immutable-source reverification (802 pinned / 771 present / 771 byte-verified / 0 mismatches / 31 absent under mcp-servers only; the tree identities `a42aee79`/`ee07c362`/`b76b8f34`/`54606204`; `vercel.json` = `3f26d343`); the secret scan over all changed paths; the runtime import scan.
-
-## 21. Review boundary
-
-The issue-control state must distinguish `developer correction submitted` from `architect review`. Do NOT record `PASS`; do NOT mark Phase 7-B closed; do NOT mark F-7B-01 or F-7B-02 resolved — those dispositions belong to the architect's re-review. Only the architect may subsequently return `PASS`, `PASS_WITH_FOLLOWUP`, or `CORRECTION_REQUIRED`.
-
-## 22. STOP boundary
-
-After: (1) implementing only the correction; (2) running validation; (3) committing; (4) pushing normally; (5) updating the required evidence records; (6) producing the final report — STOP. Do not continue into Phase 7-C or any unrelated work.
-
-## Correction integrity rules (binding — from the durable workflow contract)
-
-The corrective work executed under this instance is recorded in `VERIFICATION_STATE.md` §Phase 7-B correction and `CURRENT_PHASE.md`'s correction-stage record; the issue lifecycle in `ISSUES.md` (I-017). A correction commit is `[developer-reported]` evidence; Gate D remains architect-only; a correction is not resolved merely because the developer says it is fixed. The canonical status at submission:
+After delivering the evidence package (the final report with the required structure): STOP. Z.AI performs no further work until the architect's metering representation decision and the next explicit authorization arrive. The canonical status:
 
 ```text
 Phase 7: IN_PROGRESS
-Phase 7-B: CORRECTION_SUBMITTED / AWAITING ARCHITECT RE-REVIEW
+Phase 7-B: CORRECTION_REQUIRED — METERING REPRESENTATION DECISION PENDING (ARCHITECT)
 Phase 7-C: NOT AUTHORIZED
 ```
 
+## Part II execution-record addendum — AH-004 analysis record (2026-10-04)
 
-## Part II execution-record addendum — Phase 7-B instance (2026-10-03, synchronization resolution)
+> Dated addendum appended per the appended-record convention. This addendum records the execution of the **Phase 7-B F-7B-01 Metering Representation Decision Analysis** (AH-004). It is an analysis/review record, NOT a closure record and NOT an implementation record.
 
-> Dated addendum appended to this Phase 7-B implementation-authorization instance (per the appended-record convention; the architect's authorization text above stands unmodified). Fields such as the Git requirements describe the handoff's issuance-time instructions, not the delivery outcome; this addendum records the actual outcome.
+**Executed** [developer-reported — evidence for the architect's decision; NOT a decision]:
 
-The authorized 7-B implementation was delivered locally (the implementation commit, the immediate child of the baseline `a2c74204cd793758444a6f5e307c2921014e8c90`), and the normal push was **REJECTED**: `origin/feature/ai-core-from-doable-source` advanced from `a2c74204` to `9f55924e759e6240d11935dbb059b6e5a5fd05d8` in a parallel repository-owner-authored extraction stream (exactly 112 commits, all RiluRaafu, 2026-10-03 04:14–04:56 +0530) establishing the new top-level `ai-platform-core/` and `clara-core/` libraries. Per Part I §I.6 and the Git constraints, no rebase, merge, force-push, reset, pull, or push retry was performed.
+1. **Baseline verification**: fresh `git fetch --prune origin`; branch `feature/ai-core-from-doable-source`; HEAD = origin = `4413bc83d76588f42e2cd0b669dd882566824238`; clean working tree; `63bccded` (the 7-B implementation) and `74200bec` (the CH-003 baseline) verified present, unmodified, and ancestors of HEAD.
+2. **The three spines investigated exhaustively (read-only)**: `query_events` (migrations 004/027/028/029/030 — the chat/query audit trail AND billing unit; `admitQueryEvent`'s rolling-24h `COUNT(*)` per org counts EVERY row with no status/surface filter; `getOrgUsageSnapshot.requests_today/requests_24h` likewise; writers: the atomic admission insert, the audit-only `logQueryEvent`, the finalise/hash-chain UPDATE; readers: `/api/analytics/usage`, `/api/analytics/queries`, `/api/analytics/audit` (+ export/verify/reveal), the org dashboard metering, the usage-limits snapshot, the ai-governance provider rollup, the plan-guard quota COUNT, `getKbAnalytics`); `usage_events` (migrations 028/033/036 — append-only NON-chat billable AI provider invocations; kind CHECK `('EMBEDDING','TTS','OCR','TRANSCRIPTION','CONVERSATION','TRANSLATION')`, `model` NOT NULL, cost from measured facts, usage amount > 0 required by every writer; writers: `logUsageEvent` EMBEDDING (reindex), the voice-core TTS/TRANSCRIPTION/CONVERSATION writers, the language-core TRANSLATION writer; readers: the org dashboard metering (embedding/voice axes), the ai-governance provider usage rollup (monthly budgets + recharge warnings), the plan-guard TTS/STT/translation quota gates; observed latent defect recorded: `logTransliterationUsage` inserts kind `TRANSLITERATION` which is NOT in the DB CHECK — the insert would be CHECK-rejected and silently swallowed by the writer's never-break discipline, confirming the vocabulary is closed and DB-enforced); `audit_logs` (migration 002 — operational/security telemetry: user./org./auth./document./quota.denied/org.impersonate actions; writers: 10 `writeAuditLog` sites incl. the corrected `tool.invoked`/`tool.denied`; **readers: ZERO — no SELECT from audit_logs exists anywhere in `src/`**; no quota/billing coupling; not represented in any dashboard).
+3. **`rag_search` accounting traced end-to-end (all surfaces)**: workspace KB chat (`admission: "external"` + route-owned admit/finalise — one row per turn); Mode-B document chat (route-owned admission); embed chat (external + route-owned); embed search (`/api/embed/search` route-owned admission, surface "voice" — the endpoint the embed voice frame, the phone call handler, and the realtime hook relay `rag_search` tool calls into — the tool call IS the admitted query event there); workspace RAG search (`postRagSearch` admission "quota" — grounding itself admits and finalises); the ElevenLabs Mode-B RAG server-tool callback (`admission: "audit-only"` — a query_events row per tool call that still counts in the org's rolling-24h COUNT, plus `logConversationUsage` CONVERSATION metering at post-call); and the Unified Tool Runtime path (the executor calls `claraRuntime.retrieve` → `groundClaraContext({admission: "external"})` → writes NOTHING — the owning turn owns the single query event; the module is not yet consumed by any production route). `admission: "external"` means the CALLER owns the query event ("logging here would count the turn twice"). Grounding writes nothing on the external path (verified at `src/modules/rag/grounding.ts`). The current `audit_logs` implementation changes no billing/accounting.
+4. **Existing tool-usage representation search (exhaustive)**: **NO EXISTING TOOL-USAGE REPRESENTATION FOUND**. Examined and excluded: `elevenlabs_webhook_nonces` (replay-guard nonce ledger); `api_key_usage` (per-key hourly request rate-limit counters — the Deploy-tab dashboard reads the same counters; a request counter, not tool metering); `event_outbox` (durable broker handoff for phone notifications; no usage analytics reader); `platform_events` (dormant — no writers, no readers); `platform_ai_provider_usage` (a rollup cache derived FROM usage_events/query_events); `elevenlabs_conversations` (vendor conversation records — not tool invocations); the full migrations table inventory (73 tables) swept; the Doable reference schemas (`ai_usage_log.tool_call_count`, `043_chat_traces` tool_start/tool_end, `022_mcp_connectors`) are inside the immutable reference tree — later-phase reference material only, different tenant model, NOT an existing Clara mechanism.
+5. **Analytics surface matrix (source-level)**: Usage analytics reads query_events only; Query analytics reads query_events only; Billing/credits reads subscriptions/billing_events only; Admin audit tab reads query_events (NOT audit_logs); Org analytics reads query_events + usage_events; AI-governance provider usage reads usage_events + query_events; API-key usage dashboard reads api_key_usage. **No surface reads audit_logs — the correction's `tool.invoked`/`tool.denied` rows are invisible to every existing usage/analytics surface.**
+6. **Acceptance matrix**: satisfied — no duplicate rag_search billing; existing event vocabulary preserved; no migration; no new billing architecture; tenant isolation; auth-denial classification (`tool.denied`); metering failure isolation; host-neutral hook; org-scoped per-invocation records (on the audit surface). NOT satisfied — §19(4) "per-invocation usage metering lands on the existing org-scoped spine" and §19(19) "tool invocations are observable via existing usage/analytics surfaces" (the audit binding is org-scoped per-invocation observability, but the existing usage/analytics spine is query_events + usage_events, which audit_logs does not feed).
+7. **Decision outcome: C** (no compliant existing representation). A neutral four-option decision table (A keep audit-only telemetry; B extend the usage spine to support tool events; C extend query analytics semantics; D redefine the Phase 7-B metering acceptance) was produced for the architect — **no winner selected; no acceptance criterion changed by the developer**.
+8. **Validators run** (minimal, per the handoff): `phase-closure-eligibility-test.sh` **8/8** (exit 0); `correction-cycle-test.sh` **24/24** (exit 0); `npm run validate:model-config` **PASS**; immutable-source verification — the four tree OIDs (`a42aee79` doable-source / `ee07c362` dependency-closure / `b76b8f34` ui-reference / `54606204` doable-source-extensions) and `vercel.json` blob `3f26d343` identical at HEAD; the manifest blob verifier → **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/`**; the diff vs the baseline commit `03482584` over the four immutable trees → **empty**. (Note: an incidental run of `docs/doable-source/verification/verify-extraction.mjs` produced an untracked `ai-platform-core/verification/completeness-report.json` artifact, which was deleted to restore the pristine clean tree; no tracked file was touched by it.)
+9. **Governance records**: this instance + addendum; the append-only `worklog.md` analysis entry; `SESSION-019.md` + its README index row; `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 representation decision analysis + the review-trail row; `ISSUES.md` I-017 re-review outcome + decision-analysis evidence; `CURRENT_PHASE.md` analysis-stage record; `PROJECT_STATE.md`/`NEXT_ACTION.md` reconciliation. All records are analysis/review records — no `PASS`, no closure, no resolution of F-7B-01/I-017, no 7-C authorization. I-014/I-015 remain OPEN.
 
-**Canonical status after the synchronization-resolution correction (2026-10-03):**
-
-```text
-Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
-Phase 7-B: IMPLEMENTED LOCALLY — AWAITING ARCHITECT REVIEW
-Remote synchronization: BLOCKED by parallel owner history
-Phase 7-C: NOT AUTHORIZED
-Phase 7: IN_PROGRESS
-```
-
-The 7-B implementation commits exist LOCALLY only and are NOT synchronized with origin. `HEAD == origin` is NOT satisfied — recorded as the exact repository state, not claimed as synced. Integration is an architect/owner decision. The architect's review of the 7-B implementation remains PENDING (the implementation report is developer evidence only; only ChatGPT may accept 7-B, require correction, or authorize 7-C). [developer-reported]
-
----
-
-## Part II execution-record addendum — Phase 7-B integration record (2026-10-03)
-
-> Dated addendum appended per the appended-record convention (the authorization texts and prior addenda stand unmodified). This addendum records the execution of the architect's explicit **Phase 7-B integration authorization** (received 2026-10-03): integrate the already-developed Phase 7-B implementation with the current remote branch without rewriting either history — a merge (not rebase, not cherry-pick), preserving the 7-B implementation commit, the governance/rejection history, the synchronization-correction commit, and the parallel owner's commit history; full re-verification before and after; report and STOP.
-
-**Executed** [developer-reported]:
-
-1. **Topology recomputed** from Git (not from memory): merge-base `a2c74204`; local tip `d7b74a50` (the exact 7-B lineage); remote tip `5b92a4b6` (189 owner-authored parallel commits; the previously recorded `9f55924e`/112 state had advanced by 77 further commits of the same additive extraction class). Local changed-path set = 17 paths; remote changed-path set = 133 **added** paths under the two top-level extraction directories only; **zero path intersection**; no remote commit ever touched `src/**`, `docs/project-control/**`, `worklog.md`, `vercel.json`, `package.json`, `package-lock.json`, or `docs/doable-source/**`.
-2. **Mechanical merge verification before any ref change**: `git merge-tree --write-tree` clean (exit 0; zero conflicts; tree `79144e68`); the computed tree verified to preserve all 17 local paths blob-identical to `d7b74a50` AND all 133 remote-added paths blob-identical to `5b92a4b6`; the merged changed-path set = exactly the union of the two sides.
-3. **Immutable-source verification against all four trees** (merge base, local tip, remote tip, computed merged tree) with the persisted commit-mode verifier: **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent, all confined to `mcp-servers/`** — identical on every tree; I-014 unchanged (OPEN); I-015 unchanged (OPEN).
-4. **First merge**: `git merge --no-ff origin/feature/ai-core-from-doable-source` → merge commit **`a7bd7b53`** (parents `d7b74a50` + `5b92a4b6`; tree = the exact pre-computed `79144e68`; both histories preserved verbatim; clean worktree). Post-merge verification: diff vs the pre-merge local tip = 133 additions only; all key commits reachable; immutable trees and `vercel.json` byte-identical; `package.json`/`package-lock.json` unchanged; migrations unchanged.
-5. **Validation at `a7bd7b53`**: targeted 7-B suite 131/131; full suite 110 files / 1048 tests; typecheck `src/**` **exactly 19** (the identical pre-existing I-015 set — NOT claimed fixed; the 7-B module zero errors); governance validators 8/8 + 24/24; model-config PASS; library integrity PASS; lint 0/0; import/secret scans clean. **Typecheck-profile observation recorded (not fixed)**: the merged tree additionally carries the owner's extraction-dir errors (`ai-platform-core/**` 40 + `clara-core/**` 13) plus the pre-existing `docs/doable-source/**` background (~3419 lines) — empirically verified identical at BOTH parents (the same typecheck was run at `d7b74a50` and at the remote tip `5b92a4b6`); the merged profile is exactly the union of the parents' pre-existing profiles; **zero new typecheck errors introduced by the integration**; any exclusion of the owner's extraction directories from the typecheck include is an architect/owner decision.
-6. **First push REJECTED** — the owner stream advanced in real time during validation (6 further commits `89297e83`…`a776c6f1`, all confined to `clara-core/`). Those 6 commits were re-verified against every invariant (additive class; ONLY `clara-core/` paths; immutable trees byte-identical at the new tip; `vercel.json` unchanged; the `clara-runtime.ts` pin still `f7fa173c`; merge-tree clean → tree `39f38e66`) and the authorized merge command was re-executed once: **second merge** → merge commit **`9bf1363c`** (parents `a7bd7b53` + `a776c6f1`; tree = the exact pre-computed `39f38e66`; 4 files changed, all `clara-core/`).
-7. **Second push REJECTED again** — the remote advanced once more (`d162967f`, a `clara-core/WORKLOG.md`-only docs commit) while the second merge was being made. A declared no-loop bound was honored: **no third merge, no force-push, no rebase, no reset, no blind retry**.
-8. **Validation re-run at the final HEAD `9bf1363c`**: 131/131; 110 files / 1048 tests; typecheck `src/**` = 19 (identical set; 7-B module 0 errors); governance 8/8 + 24/24; immutable verifier 802/771/771/0/31-confined (exit 0); lint 0/0; scans clean; `vercel.json` unchanged.
-9. **clara-core extraction-staleness recorded (action NONE)**: the manifest pins `src/modules/ai-platform-core/clara-runtime.ts` at blob `f7fa173ca24f96a2d1002a562181fd1bed01939a` (the extracted snapshot under `clara-core/source/` IS that blob) while the live 7-B source is blob `14b8879fc67266c72640103801251a1061661fc4` — a semantic staleness question deliberately left for the architect/owner (of the manifest's 106 entries: 103 well-formed and fresh; 2 malformed-but-content-matching pinned SHAs — `knowledge-topics.ts` 41-char, `language-core/config-types.ts` 39-char, pre-existing owner data-quality quirks; exactly 1 true staleness).
-10. **No deployment** performed or authorized; no Vercel observation available from this workspace; any preview triggered by a future successful push is an external automatic event only — NOT Gate F completion, NOT architectural approval.
-
-**Canonical status after the integration**:
-
-```text
-Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
-Phase 7-B: IMPLEMENTED — INTEGRATED LOCALLY — AWAITING ARCHITECT REVIEW
-Remote synchronization: PARTIALLY RESOLVED — integrated through a776c6f1 (merge commits a7bd7b53 + 9bf1363c); push BLOCKED by continued real-time owner advancement (final divergence: 1 owner docs-only commit d162967f)
-Phase 7-C: NOT AUTHORIZED
-Phase 7: IN_PROGRESS
-```
-
-The integration is an integration event only — it is NOT a `PASS`, NOT an architect review outcome, and NOT Gate D completion. The 7-B implementation diff awaiting architect review remains exactly `63bccded` (the immediate child of `a2c74204`). Z.AI STOPs at the 7-B review boundary. [developer-reported]
-
----
-
-## Part II execution-record addendum — Phase 7-B final remote-synchronization record (2026-10-03)
-
-> Dated addendum appended per the appended-record convention (the authorization texts and prior addenda stand unmodified). This addendum records the execution of the architect's explicit **Phase 7-B Final Remote Synchronization and Architect-Review Preparation** authorization (received 2026-10-03): reconcile the locally integrated Phase 7-B state with the current remote branch and prepare the repository for architect review — merge-only where required, never rewriting either history, with a maximum of two merge/revalidation cycles, full validation, a normal-only push, append-only governance records, and a HARD STOP at the review boundary.
-
-**Executed** [developer-reported]:
-
-1. **Required reading + state verification**: the governance layer read from the feature-branch tip; the four recorded SHAs (`63bccded` / `a7bd7b53` / `9bf1363c` / `d29225ad`) verified present, unchanged (exact parents), and reachable from HEAD; the designated linked worktree confirmed holding the feature branch; clean tree.
-2. **Remote difference recomputed** against the CURRENT remote (`91551e4d`, fetched fresh): 7 remote-only RiluRaafu-authored docs-only commits (the previously recorded trailing `d162967f` + 6 further `docs(clara-core)` commits), net 5 files under `clara-core/` only, +343/−0; **zero protected paths; zero path intersection** with the 18-path local set — assessed as remaining within the previously accepted additive extraction pattern; no STOP condition triggered.
-3. **Immutable-source verification on all relevant trees** (merge base, local tip, remote tip, pre-computed merged tree, final merge commit) with the persisted commit-mode verifier: **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/`** — identical on every tree; the four immutable tree OIDs and `vercel.json` (`3f26d343`) unchanged; I-014 OPEN; I-015 OPEN.
-4. **Mechanical merge verification then the merge**: `git merge-tree --write-tree` clean (exit 0; zero conflicts; tree `e58a6865`; both sides verified blob-identical within the computed tree) → `git merge --no-ff origin/feature/ai-core-from-doable-source` → merge commit **`4aa73384e537a3cb2bf08ea187aa13a2c0b5ed81`** (parents `d29225ad` + `91551e4d`; tree = the exact pre-computed `e58a6865`; zero conflicts; both histories preserved verbatim; the diff vs the pre-merge local tip = the 5 `clara-core/` paths only).
-5. **Validation at the final HEAD `4aa73384`**: targeted 7-B suite 131/131; full suite 110 files / 1048 tests; typecheck `src/**` exactly 19 (the identical pre-existing I-015 set — NOT claimed fixed; the 7-B module zero errors; the extraction-dir profile 40 + 13 and the docs background 3419 exactly the union of the parents' pre-existing profiles — zero new errors); governance validators 8/8 + 24/24; model-config PASS; library integrity PASS; lint 0/0; runtime import scan zero; secret scan zero.
-6. **`clara-core` stale snapshot (action NONE)**: unchanged — live `clara-runtime.ts` blob `14b8879f` vs manifest pin / extracted snapshot `f7fa173c`; the remote stream did not touch the manifest (`348b72ef` at both tips) or any snapshot; architect/owner disposition remains required.
-7. **Push — SUCCEEDED**: the remote re-checked first (origin still `91551e4d`; local 7 ahead / 0 behind — safely fast-forwardable; the two-cycle bound not consumed); the normal (non-force) push accepted as fast-forward `91551e4d..4aa73384`; post-push re-fetch verified **HEAD == origin == `4aa73384`**; clean worktree. No deployment performed or authorized; any automatic preview triggered by the push is an external event only — NOT Gate F completion, NOT architectural approval.
-
-**Canonical status after the final synchronization**:
-
-```text
-Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
-Phase 7-B: IMPLEMENTED — SYNCHRONIZED WITH REMOTE — AWAITING ARCHITECT REVIEW
-Remote synchronization: RESOLVED — local HEAD == origin == 4aa73384
-Phase 7-C: NOT AUTHORIZED
-Phase 7: IN_PROGRESS
-```
-
-The synchronization is a synchronization event only — it is NOT a `PASS`, NOT an architect review outcome, and NOT Gate D completion. The 7-B implementation diff awaiting architect review remains exactly `63bccded` (the immediate child of `a2c74204`), now inspectable at the synchronized remote tip. Z.AI STOPs at the 7-B review boundary. [developer-reported]
-
-## Part II execution-record addendum — CH-003 correction record (2026-10-03)
-
-> Dated addendum appended per the appended-record convention (the authorization texts and prior addenda stand unmodified). This addendum records the execution of the **CH-003 corrective handoff (findings F-7B-01/F-7B-02, issue I-017)**.
-
-**Executed** [developer-reported — awaiting the architect's re-review]:
-
-1. **Required reading + baseline verification**: the governance layer read from the feature-branch tip; the correction baseline `74200beca21fb2b15817fe2471dc86929316cd48` verified (branch `feature/ai-core-from-doable-source`; HEAD = `74200bec` = origin tip after fresh fetch; clean tree); the reviewed implementation commit `63bccded2c61d29ba1a2218cf654bd3901ba6940` verified present, unmodified, and an ancestor of HEAD (NOT rewritten; the correction is a new focused commit).
-2. **The required metering-infrastructure investigation (per §14 task 2 — before any edit)**: `query_events` (`admitQueryEvent` in `src/lib/quota-admission.ts` — the atomic quota admission whose rolling-24h COUNT counts EVERY row per org; `logQueryEvent`/`finalizeQueryEvent` in `src/modules/knowledge-bases/core/analytics-db.ts` — the audit insert and the finalise/hash-chain update); `usage_events` (`logUsageEvent` in analytics-db + the voice-core writers `logTtsUsage`/`logSttUsage`/`logConversationUsage` + the language-core writer; the kind vocabulary CHECK-constrained to `('EMBEDDING','TTS','OCR','TRANSCRIPTION','CONVERSATION','TRANSLATION')` by migrations 028→033→036 with `model` NOT NULL and cost from measured facts, never guessed); `audit_logs` (`writeAuditLog` in `src/modules/auth/core/db.ts` — org-scoped structured infrastructure events, open dotted action vocabulary, zero billing impact — the spine's own established path for metering-domain events that must not affect billing; precedent: the quota spine's `quota.denied` rows); the incumbent `rag_search` path traced (`claraRuntime.tools.invoke` → `claraRuntime.retrieve` → `groundClaraContext({admission: "external"})` — grounding writes NO query event; the owning turn admits and finalises the single row; "logging here would count the turn twice"). **Conclusions**: (1) `usage_events` cannot represent a distinct tool invocation without a migration (the closed kind vocabulary; the NOT NULL model; the billable-cost semantics); (2) `query_events` cannot without double-billing (every row consumes the rolling-24h quota; the incumbent retrieval is already represented by the owning turn's admitted+finalised row); (3) the existing spine's established discipline for org-scoped metering-domain events that must NOT affect billing is `writeAuditLog` — the binding point used by the correction (consumed on the already-authorized `@/modules/auth/core/db` seam; no out-of-scope code change required).
-3. **F-7B-01 correction delivered** (`src/modules/ai-platform-core/clara-tools.ts`): `buildClaraToolMeteringHook()` now binds to the existing org-scoped observability spine via the existing `writeAuditLog` helper — one org-scoped, append-only audit row per metered invocation attempt: `action` `tool.invoked` (or the dedicated `tool.denied` for the authorization-denial family: MISSING_CONTEXT_IDENTITY / UNAUTHORIZED_SURFACE / UNAUTHORIZED_ROLE / PLAN_NOT_ENTITLED / TENANT_SCOPE_VIOLATION / AUTHORIZATION_UNAVAILABLE — mirroring the quota spine's `quota.denied` discipline for metering-domain denials), `resourceType` `tool_invocation`, `resourceId` = the tool name, and the full caller-scoped metering record (invocationId, toolName, kbId, agentId/userId/sessionId, surface, outcome, typed errorCode, durationMs, correlationId) in `newData`. The hook NEVER writes billing rows (no `query_events` insert — which would double-bill the org's rolling-24h quota (M-8); no `usage_events` insert — whose closed kind vocabulary + NOT NULL model + measured-cost semantics cannot represent a tool invocation without a migration (M-9/M-10)); metering failures are absorbed and logged inside the hook AND by the runtime's metering stage — never breaking the metered invocation. **The billable-spine representation blocker is recorded (in the code rationale, the issue record, and this addendum), NOT silently resolved — awaiting architect disposition.**
-4. **F-7B-02 correction delivered** (`src/modules/ai-platform-core/tool-contracts.ts` + `src/modules/ai-platform-core/tool-registry.ts`): the `ToolMeteringHook` documentation, the streaming-event documentation, the registry header lifecycle, the `invoke()` docstring, and the INVALID_CONTEXT return-site comment now explicitly document that a provenance-invalid context is rejected BEFORE tenant-scoped metering — the hook is NOT invoked and NO metering record is produced for that attempt (no ambient/default tenant fabricated; no tenant identity inferred; `assertExecutionContext()` unchanged; forged contexts still rejected; the security boundary NOT weakened). NO runtime logic changed — the INVALID_CONTEXT early-return behavior was already correct; only the contract documentation was made internally consistent, and the regression test proves it (a forged frozen lookalike carrying hostile tenant data is rejected with INVALID_CONTEXT and the tenant-scoped metering hook is NEVER invoked).
-5. **Correction tests** — 8 new focused proofs + 1 superseded (the superseded test is the implementation's own "the default Clara metering hook completes without writing" assertion — the exact F-7B-01 evidence the architect quoted; replaced by positive binding proofs, not deleted to obtain green output): the binding's write shape/scoping; org/KB identity preservation across callers; the denial classification (`tool.denied`, scoped to the denied caller, retrieval never reached); the no-billing-writers proof (`logQueryEvent`/`finalizeQueryEvent`/`admitQueryEvent`/`logUsageEvent` all zero calls; the incumbent retrieval exactly once); the invalid-context no-audit-row proof; the audit-write-failure tolerance; the direct-hook unit proof; the runtime-level INVALID_CONTEXT-before-metering regression.
-6. **Validation** (all commands run at the corrected tree): targeted 7-B suite **6 files / 138 tests ALL PASS** (131 − 1 superseded + 8 new); full suite **110 files / 1055 tests ALL PASS** (zero regressions); typecheck `src/**` **19 → 19** (the identical pre-existing I-015 set — NOT claimed fixed; zero errors in the five changed files; the 3472 extraction/reference-tree errors separately reported); lint **0 errors 0 warnings**; model-config **PASS**; governance validators **8/8 + 24/24** (exit 0); library integrity **PASS** (21 capabilities · 30 edges · 0 errors · 0 warnings); immutable source **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/`**; the four immutable tree OIDs (`a42aee79`/`ee07c362`/`b76b8f34`/`54606204`) and `vercel.json` (`3f26d343`) unchanged; runtime import scan **zero matches**; secret scan **zero matches**.
-7. **Governance records**: I-017 appended (`ISSUES.md`; lifecycle OPEN → TRIAGED → CORRECTION_REQUIRED [architect, per CH-003] → CORRECTION_IN_PROGRESS → CORRECTION_SUBMITTED [developer registration]; NOT resolved); the CH-003 Part II instance (this file; the superseded 7-B implementation-authorization instance recoverable in Git history at `74200bec`); `VERIFICATION_STATE.md` §Phase 7-B correction + validation + the review-trail rows + the outstanding-state/header updates + the correction-boundary consistency reconciliation; `CURRENT_PHASE.md` correction-stage record; `PROJECT_STATE.md`/`NEXT_ACTION.md` reconciliation; the append-only `worklog.md` entry; `SESSION-018.md` + its index row. **I-014 remains OPEN; I-015 remains OPEN** (no dependency-changing install; no lockfile rewrite). No migration, no schema change, no new billing system, no `rag_search` retrieval-behavior change, no route/provider/DB/dependency/`vercel.json`/immutable-source change, no 7-C/MCP/integrations work.
-8. **Commit + push**: one focused corrective commit — `fix: bind phase 7-b tool metering to existing clara audit spine` (the immediate child of `74200bec`; application changes confined to the five approved files; documentation changes confined to `worklog.md` + `docs/project-control/**`); the normal (non-force) push; the remote SHA verified after the push. No amend of `63bccded`/`4aa73384`/`74200bec`; no rebase; no squash; no cherry-pick; no force-push.
-
-**Canonical status after the correction submission**:
+**Canonical status after the analysis**:
 
 ```text
 Phase 7: IN_PROGRESS
-Phase 7-B: CORRECTION_SUBMITTED / AWAITING ARCHITECT RE-REVIEW
+Phase 7-B: CORRECTION_REQUIRED — F-7B-01 OPEN/BLOCKING — METERING REPRESENTATION DECISION PENDING (ARCHITECT)
 Phase 7-C: NOT AUTHORIZED
 ```
 
-The correction is `[developer-reported]` evidence only — it is NOT a `PASS`, NOT an architect review outcome, NOT Gate D completion, and does NOT resolve F-7B-01, F-7B-02, or I-017. Only the architect may subsequently return `PASS`, `PASS_WITH_FOLLOWUP`, or `CORRECTION_REQUIRED`. Z.AI STOPs at the re-review boundary. [developer-reported]
+The analysis is `[developer-reported]` evidence for the architect's decision — it is NOT a decision, NOT a `PASS`, NOT Gate D completion, and does NOT resolve F-7B-01 or I-017. Z.AI STOPs at the architect-decision boundary. [developer-reported]
