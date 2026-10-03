@@ -25,7 +25,7 @@ export type AgenticLoopStatus =
   | "disabled"
   | "completed"
   | "max_iterations"
-  | "provider_error";
+  | "provider_error"\n  | "cancelled";
 
 export interface AgenticLoopResult {
   readonly status: AgenticLoopStatus;
@@ -78,11 +78,11 @@ export async function runBoundedAgenticLoop(
   }
 
   const maxIterations = boundedIterations(options?.maxIterations);
-  const history: ChatMessage[] = [...initialMessages];
+  const history: ChatMessage[] = [...initialMessages];\n  const signal = options?.signal;
   const events: ChatStreamEvent[] = [];
   let text = "";
 
-  for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
+  for (let iteration = 1; iteration <= maxIterations; iteration += 1) {\n    if (signal?.aborted) {\n      return {\n        status: "cancelled",\n        text,\n        events: Object.freeze([...events]),\n        iterations: iteration - 1,\n      };\n    }
     const turnEvents: ChatStreamEvent[] = [];
     try {
       for await (const event of provider.chatStreamWithTools(history, { tools })) {
