@@ -263,3 +263,28 @@ benchmark / diagnostics
 
 ### Next
 Continue the remaining provider-neutral capability-descriptor audit, especially browser-facing session/config serialization and any pure existing event/transport contracts that can be extracted without refactoring application hooks or routes.
+## 2026-10-03 — Realtime foundation barrel and capability boundary audit
+
+### Completed
+- Audited the remaining provider-neutral realtime capability chain and browser-facing serialization boundary.
+- Confirmed `src/modules/voice-core/config-types.ts` is already extracted and is the canonical type contract for resolved voice configuration and session bootstrap payloads. No duplicate descriptor abstraction was introduced.
+- Confirmed `src/modules/voice-core/realtime/relay-url.ts` is already extracted and remains the canonical browser-side conversion from `{ endpoint, token }` capability descriptors to same-origin WS/WSS URLs.
+- Confirmed `src/modules/voice-core/realtime/identity.ts` and `src/modules/assistant/core/realtime-events.ts` are already extracted. The former owns correlation identity; the latter owns OpenAI GA/beta event classification and response text extraction.
+- Extracted the existing pure realtime barrel `src/modules/voice-core/realtime/index.ts` → `clara-core/source/src/modules/voice-core/realtime/index.ts`.
+- Source blob SHA: `2f7b423c4b12e1c43ea82652709abc8d3405d010`.
+- The barrel is dependency-clean within the already-extracted realtime foundation and provides the existing Clara package boundary without inventing or renaming APIs.
+- Audited `src/modules/voice-core/api/sarvam/session.ts`: it remains an HTTP/security/persistence/provider-resolution adapter. Its returned `SarvamSessionPayload` is already represented by the extracted `config-types.ts`; the route itself must not be copied into immutable core.
+- Rechecked public embed session/config behavior: capability descriptors intentionally contain same-origin endpoints plus short-lived capability tokens, while auth, tenant resolution, rate limiting, plan guards, localization, and provider resolution remain host boundaries.
+- Rechecked scripts: provider relays remain coupled to WebSocket servers, vendor credentials and lifecycle; `scripts/sarvam-wire.mjs` remains the identified pure protocol contract already extracted.
+
+### Why no new synthetic capability type was added
+Clara already has the complete source-level contracts: `VoiceResolution`, `ElevenLabsSessionPayload`, `SarvamSessionPayload`, `RelayEndpointDescriptor`, and the OpenAI realtime event helpers. Adding another generic descriptor would duplicate semantics rather than extract existing source.
+
+### Result
+- Manifest count increased from 107 to 108.
+- Extraction commit: `009b0b201837c94f521ad7a620b1a851dc5ea409`.
+- Manifest registration commit: `a776c6f1a956b28b091eea729bfae696dc3267f6`.
+- Full 108-entry immutable verifier remains pending execution from an actual checkout.
+
+### Next
+Continue the remaining `public/embed/*` and `scripts/*` dependency graph, specifically looking for existing pure browser transport/event/protocol modules and published-agent runtime contracts not yet represented in `clara-core`.
