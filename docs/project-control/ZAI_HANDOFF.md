@@ -399,3 +399,31 @@ Phase 7: IN_PROGRESS
 ```
 
 The integration is an integration event only — it is NOT a `PASS`, NOT an architect review outcome, and NOT Gate D completion. The 7-B implementation diff awaiting architect review remains exactly `63bccded` (the immediate child of `a2c74204`). Z.AI STOPs at the 7-B review boundary. [developer-reported]
+
+---
+
+## Part II execution-record addendum — Phase 7-B final remote-synchronization record (2026-10-03)
+
+> Dated addendum appended per the appended-record convention (the authorization texts and prior addenda stand unmodified). This addendum records the execution of the architect's explicit **Phase 7-B Final Remote Synchronization and Architect-Review Preparation** authorization (received 2026-10-03): reconcile the locally integrated Phase 7-B state with the current remote branch and prepare the repository for architect review — merge-only where required, never rewriting either history, with a maximum of two merge/revalidation cycles, full validation, a normal-only push, append-only governance records, and a HARD STOP at the review boundary.
+
+**Executed** [developer-reported]:
+
+1. **Required reading + state verification**: the governance layer read from the feature-branch tip; the four recorded SHAs (`63bccded` / `a7bd7b53` / `9bf1363c` / `d29225ad`) verified present, unchanged (exact parents), and reachable from HEAD; the designated linked worktree confirmed holding the feature branch; clean tree.
+2. **Remote difference recomputed** against the CURRENT remote (`91551e4d`, fetched fresh): 7 remote-only RiluRaafu-authored docs-only commits (the previously recorded trailing `d162967f` + 6 further `docs(clara-core)` commits), net 5 files under `clara-core/` only, +343/−0; **zero protected paths; zero path intersection** with the 18-path local set — assessed as remaining within the previously accepted additive extraction pattern; no STOP condition triggered.
+3. **Immutable-source verification on all relevant trees** (merge base, local tip, remote tip, pre-computed merged tree, final merge commit) with the persisted commit-mode verifier: **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/`** — identical on every tree; the four immutable tree OIDs and `vercel.json` (`3f26d343`) unchanged; I-014 OPEN; I-015 OPEN.
+4. **Mechanical merge verification then the merge**: `git merge-tree --write-tree` clean (exit 0; zero conflicts; tree `e58a6865`; both sides verified blob-identical within the computed tree) → `git merge --no-ff origin/feature/ai-core-from-doable-source` → merge commit **`4aa73384e537a3cb2bf08ea187aa13a2c0b5ed81`** (parents `d29225ad` + `91551e4d`; tree = the exact pre-computed `e58a6865`; zero conflicts; both histories preserved verbatim; the diff vs the pre-merge local tip = the 5 `clara-core/` paths only).
+5. **Validation at the final HEAD `4aa73384`**: targeted 7-B suite 131/131; full suite 110 files / 1048 tests; typecheck `src/**` exactly 19 (the identical pre-existing I-015 set — NOT claimed fixed; the 7-B module zero errors; the extraction-dir profile 40 + 13 and the docs background 3419 exactly the union of the parents' pre-existing profiles — zero new errors); governance validators 8/8 + 24/24; model-config PASS; library integrity PASS; lint 0/0; runtime import scan zero; secret scan zero.
+6. **`clara-core` stale snapshot (action NONE)**: unchanged — live `clara-runtime.ts` blob `14b8879f` vs manifest pin / extracted snapshot `f7fa173c`; the remote stream did not touch the manifest (`348b72ef` at both tips) or any snapshot; architect/owner disposition remains required.
+7. **Push — SUCCEEDED**: the remote re-checked first (origin still `91551e4d`; local 7 ahead / 0 behind — safely fast-forwardable; the two-cycle bound not consumed); the normal (non-force) push accepted as fast-forward `91551e4d..4aa73384`; post-push re-fetch verified **HEAD == origin == `4aa73384`**; clean worktree. No deployment performed or authorized; any automatic preview triggered by the push is an external event only — NOT Gate F completion, NOT architectural approval.
+
+**Canonical status after the final synchronization**:
+
+```text
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: IMPLEMENTED — SYNCHRONIZED WITH REMOTE — AWAITING ARCHITECT REVIEW
+Remote synchronization: RESOLVED — local HEAD == origin == 4aa73384
+Phase 7-C: NOT AUTHORIZED
+Phase 7: IN_PROGRESS
+```
+
+The synchronization is a synchronization event only — it is NOT a `PASS`, NOT an architect review outcome, and NOT Gate D completion. The 7-B implementation diff awaiting architect review remains exactly `63bccded` (the immediate child of `a2c74204`), now inspectable at the synchronized remote tip. Z.AI STOPs at the 7-B review boundary. [developer-reported]
