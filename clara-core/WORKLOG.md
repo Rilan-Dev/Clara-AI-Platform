@@ -335,3 +335,36 @@ Provider-native KB state is still outside this path.
 
 ### Next
 Run the immutable verifier, then continue from the first unresolved import/dependency reported by the verifier, prioritizing agent-versioning and the remaining usage/entitlement infrastructure. Keep extraction source strictly limited to Clara-AI-Platform; Doable remains reference-only.
+
+## 2026-10-03 — Agent versioning persistence/service closure
+
+### Completed
+- Traced the agent-versioning runtime dependency boundary from `ai-core/resolve.ts`.
+- Extracted the reusable database-backed version-control mechanics:
+  - `src/modules/agent-versioning/core/db.ts`
+  - `src/modules/agent-versioning/core/diff.ts`
+  - `src/modules/agent-versioning/core/projection.ts`
+  - `src/modules/agent-versioning/core/service.ts`
+- Extracted the Clara AI settings persistence dependencies required by version projection:
+  - `src/modules/organisations/core/agent-ai-settings-db.ts`
+  - `src/modules/organisations/core/ai-settings-db.ts`
+- The extracted service preserves Clara's existing draft → immutable version → branch → production deployment model, including merge/publish behavior.
+- No admin API/UI route was extracted; HTTP authorization and host-facing workspace behavior remain outside the core.
+
+### Verification
+- All 6 newly extracted files match their Clara source Git blob SHA exactly.
+- Manifest increased from 79 to 85 immutable entries.
+- The previously added full-library verifier remains the canonical verification mechanism and should be executed from a repository checkout.
+
+### Architectural result
+The reusable core now contains both runtime resolution and its underlying version/deployment persistence layer. A host application can supply its own identity/tenant/DB adapter while retaining Clara's immutable version semantics.
+
+### Remaining
+- Execute the full 85-entry immutable verifier.
+- Continue resolving transitive dependencies below agent-versioning, especially DB/tenant adapter boundaries.
+- Close usage-event and LLM/voice metering infrastructure.
+- Close tools/MCP/integrations and public/embed/phone runtime.
+- Separate remaining host-only concerns from reusable Clara mechanics.
+
+### Next
+Follow the usage/entitlement path from the governance resolver into actual usage-event persistence and metering, then verify the resulting extraction graph before moving to tools/MCP.
