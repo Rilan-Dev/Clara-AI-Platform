@@ -119,7 +119,7 @@ describe("provider tool-calling pilot", () => {
       { enabled: true },
     );
 
-    expect(result.error?.code).toBe("MALFORMED_TOOL_CALL");
+    expect(result.error?.code).toBe("INVALID_CONTEXT");
     expect(rt.invoke).not.toHaveBeenCalled();
   });
 
