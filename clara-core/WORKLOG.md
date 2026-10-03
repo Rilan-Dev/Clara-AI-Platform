@@ -39,3 +39,31 @@ Continue from the remaining published-agent runtime dependencies, prioritizing p
 
 ### Next
 Continue tracing the remaining published-agent/session runtime dependencies. Prioritize a provider-neutral session/configuration contract below HTTP routes. Do not extract route handlers or invent a new session runtime when Clara does not already contain one.
+## 2026-10-03 — Same-origin realtime relay URL primitive
+
+### Completed
+- Continued tracing published-agent/realtime session dependencies below the HTTP session routes.
+- Confirmed that Clara already contains a provider-neutral, HTTP-independent browser relay URL primitive in `src/modules/voice-core/realtime/relay-url.ts`.
+- Extracted it byte-for-byte into Clara Core:
+  - `src/modules/voice-core/realtime/relay-url.ts`
+- The primitive converts a capability descriptor (`endpoint` + short-lived session token) into a same-origin `ws://` / `wss://` URL and is shared by browser hooks/tests.
+- It keeps vendor URLs and long-lived provider credentials out of the browser; no tenant, auth, billing, database, or HTTP route concerns are embedded in the extracted module.
+
+### Verified source identity
+- Source blob SHA: `7d629587d0a0c61827a89cb93cd40e8b3d5f06e0`
+- Target was created byte-for-byte in commit `48280b6fa9c2e066ad3e5445597c1990fec926ec`.
+- Manifest registration committed in `5a811b6ccaa995279c261effda51d5dd973658ff`.
+- Manifest count increased from 98 to 99 immutable source entries.
+
+### Boundary conclusion
+- `src/modules/voice-core/config-types.ts` is already extracted and owns the provider-specific session payload contracts.
+- `src/modules/voice-core/api/*/session.ts` remains an application boundary because it performs auth, rate limits, plan/entitlement checks, provider token minting, persistence/config resolution, and HTTP handling.
+- `src/modules/agent-versioning/core/projection.ts` remains a compatibility/database migration boundary; it mirrors mutable legacy stores and is not a portable runtime primitive.
+- `src/modules/agent-versioning/core/service.ts` remains coupled to Clara PostgreSQL, KB persistence, governance, and Qdrant deployment state, so it is not extracted as a generic session runtime.
+- No new provider-neutral session orchestrator was invented.
+
+### Not completed
+- Full 99-entry immutable verifier still needs execution from a repository checkout.
+
+### Next
+Continue tracing the remaining provider-neutral realtime/public runtime dependencies, especially any existing capability-token validation/relay-auth primitives that are pure and reusable. Keep provider session routes and host persistence/auth as adapters.
