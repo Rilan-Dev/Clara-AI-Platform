@@ -14,7 +14,7 @@ import type {
   ToolCallingLLMProvider,
 } from "../ai-core/types";
 import type { PlatformExecutionContext } from "./contracts";
-import { consumeProviderToolCall } from "./provider-tool-calling-pilot";
+import { consumeProviderToolCall, isProviderToolCallingEnabled } from "./provider-tool-calling-pilot";
 import type { ToolRuntime } from "./tool-registry";
 
 export const AGENT_LOOP_FLAG = "ENABLE_AI_PLATFORM_AGENT_LOOP";
@@ -67,10 +67,12 @@ export async function runBoundedAgenticLoop(
     readonly enabled?: boolean;
     readonly maxIterations?: number;
     readonly signal?: AbortSignal;
+    readonly toolCallingEnabled?: boolean;
   },
 ): Promise<AgenticLoopResult> {
   const enabled = options?.enabled ?? isAgentLoopEnabled();
-  if (!enabled) {
+  const toolCallingEnabled = options?.toolCallingEnabled ?? isProviderToolCallingEnabled();
+  if (!enabled || !toolCallingEnabled) {
     return {
       status: "disabled",
       text: "",
@@ -136,7 +138,7 @@ export async function runBoundedAgenticLoop(
     });
 
     for (const call of toolCalls) {
-      const result = await consumeProviderToolCall(call, context, runtime, { enabled: true });
+      const result = await consumeProviderToolCall(call, context, runtime, { enabled: toolCallingEnabled });
       const toolResultEvent: ChatStreamEvent = result.error
         ? {
             type: "tool_result",
