@@ -484,6 +484,26 @@
       "source_path": "src/modules/embed/core/ndjson.ts",
       "target_path": "clara-core/source/src/modules/embed/core/ndjson.ts",
       "source_blob_sha": "be41ac5b9306c61415069d789ff0bf7e1e55a0da"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/reconnect-policy.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/reconnect-policy.ts",
+      "source_blob_sha": "01c768b400f10b117fd41e4d0f3533b544427c06"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/ui-state-machine.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/ui-state-machine.ts",
+      "source_blob_sha": "1dcc840e50f0d072e8d59a533b205d6616bbf44d"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/identity.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/identity.ts",
+      "source_blob_sha": "11ab42a9c5408393b012fecd80b62a379172dc73"
+    },
+    {
+      "source_path": "src/modules/voice-core/realtime/generation-coordinator.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/realtime/generation-coordinator.ts",
+      "source_blob_sha": "0384d2c60d1e482c1c33d76de8a1e776f9a4867c"
     }
   ]
 }
