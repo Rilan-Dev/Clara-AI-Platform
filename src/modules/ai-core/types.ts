@@ -24,6 +24,27 @@ export interface TokenUsage {
   completionTokens: number;
 }
 
+export interface ChatToolDefinition {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Record<string, unknown>;
+}
+
+export interface ChatToolCall {
+  readonly id: string;
+  readonly name: string;
+  readonly arguments: string;
+}
+
+export type ChatStreamEvent =
+  | { readonly type: "text_delta"; readonly text: string }
+  | { readonly type: "tool_call"; readonly toolCall: ChatToolCall }
+  | { readonly type: "tool_result"; readonly toolCallId: string; readonly toolName: string; readonly result: unknown };
+
+export interface ToolCallingChatOptions extends ChatOptions {
+  readonly tools: readonly ChatToolDefinition[];
+}
+
 export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
