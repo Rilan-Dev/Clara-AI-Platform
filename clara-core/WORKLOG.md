@@ -502,3 +502,32 @@ No second billing/metering spine is needed.
 
 ### Next
 Trace the public/embed and phone/telephony runtime from the already-extracted provider-neutral Clara grounding/runtime path. Extract only reusable tenant-bound session/configuration and telephony mechanics; keep HTTP routes, API-key authentication, billing, secrets and deployment-specific wiring as adapters unless the underlying code is demonstrably reusable core.
+
+## 2026-10-03 — Published embed retrieval runtime slice
+
+### Completed
+- Traced the public published-agent retrieval path from the embed surface through Clara's provider-neutral grounding and Qdrant layers.
+- Confirmed the HTTP routes remain host/application adapters: public authentication/session-token validation, publication checks, rate limits, subscription gates, tenant DB ownership, and Next.js response handling were not extracted.
+- Extracted the reusable Clara embed retrieval primitive:
+  - src/modules/embed/core/search.ts
+- The extracted primitive performs provider-backed query embedding, Qdrant collection search, score-threshold enforcement, optional metadata filtering, realtime fast-path behavior, translated-query parallel retrieval, best-hit de-duplication, and document-balanced diversification.
+- This closes the reusable retrieval primitive used by public embed surfaces without copying the public HTTP/auth boundary into Clara Core.
+
+### Verified source identity
+- src/modules/embed/core/search.ts → 74b4eb165fb3ecd416db750cba186e5e8de2ab5c
+- Target was created byte-for-byte from the Clara source in commit 5aae9b19110349fcd00ff73a00035792fbdbcd83.
+- Manifest registration was committed in ef0bf51e429cadf728ebe378cd341c49c6aeffed.
+- Manifest count increased from 92 to 93 immutable source entries.
+
+### Architectural result
+The reusable Clara core now contains the low-level retrieval primitive needed by published/embed agents while preserving the existing Clara RAG stack: embedding resolution/cache → Qdrant search → translated-query merge → document diversification. Public authentication, publication visibility, quota/subscription enforcement, and HTTP lifecycle remain adapter responsibilities.
+
+### Not completed
+- Published-agent chat orchestration is still host-bound in src/modules/assistant/api/chat.ts because it combines HTTP/auth/rate limiting/quota admission, tenant DB queries, legacy document mode, provider execution, analytics, and response streaming.
+- Public deployment/config route remains an adapter; ai-core/resolve.ts already contains the reusable published-deployment resolution semantics.
+- Public embed session/voice routes remain provider/HTTP adapters; reusable provider-neutral voice/realtime mechanics are already extracted separately.
+- Generic MCP/tool runtime still has no standalone Clara implementation to extract.
+- Full 93-entry immutable verifier still needs execution from a repository checkout.
+
+### Next
+Continue tracing the published-agent chat execution boundary. Separate the reusable turn/runtime orchestration from HTTP authentication, quota/rate-limit enforcement, tenant persistence, and streaming transport. Extract only a Clara-owned provider-neutral chat runtime if the source contains a clean boundary; otherwise document the route as an adapter and continue to the next unresolved runtime dependency.
