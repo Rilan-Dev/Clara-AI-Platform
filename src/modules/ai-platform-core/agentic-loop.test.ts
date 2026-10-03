@@ -49,6 +49,23 @@ describe("bounded agentic loop", () => {
     expect(isAgentLoopEnabled({ ENABLE_AI_PLATFORM_AGENT_LOOP: "true" })).toBe(true);
   });
 
+  it("does not execute tools when the provider-tool flag is disabled", async () => {
+    const p = provider([{ type: "tool_call", toolCall: { id: "call-disabled", name: "rag_search", arguments: "{}" } }]);
+    const spy = vi.spyOn(p, "chatStreamWithTools");
+
+    const result = await runBoundedAgenticLoop(
+      p,
+      [{ role: "user", content: "hello" }],
+      [],
+      context,
+      runtime(),
+      { enabled: true, toolCallingEnabled: false },
+    );
+
+    expect(result.status).toBe("disabled");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("returns without calling the provider when disabled", async () => {
     const p = provider([{ type: "text_delta", text: "should not run" }]);
     const spy = vi.spyOn(p, "chatStreamWithTools");
@@ -86,7 +103,7 @@ describe("bounded agentic loop", () => {
       [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
       context,
       rt,
-      { enabled: true, maxIterations: 3 },
+      { enabled: true, toolCallingEnabled: true, maxIterations: 3 },
     );
 
     expect(result.status).toBe("completed");
@@ -109,7 +126,7 @@ describe("bounded agentic loop", () => {
       [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
       context,
       runtime(),
-      { enabled: true, maxIterations: 999 },
+      { enabled: true, toolCallingEnabled: true, maxIterations: 999 },
     );
 
     expect(result.status).toBe("max_iterations");
@@ -190,7 +207,7 @@ describe("bounded agentic loop", () => {
       [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
       context,
       runtime(),
-      { enabled: true, maxIterations: 8, signal: controller.signal },
+      { enabled: true, toolCallingEnabled: true, maxIterations: 8, signal: controller.signal },
     );
 
     expect(result.status).toBe("cancelled");
