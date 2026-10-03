@@ -1115,3 +1115,10 @@ Phase 7: IN_PROGRESS
 | Evidence | Commit b3ed15acac4de39e1eaff33d40bea9f045ff9c16. External npm metadata confirms @vercel/functions 3.9.9 exists; package-lock semantics require resolved/integrity metadata. |
 | Review | I-015 is NOT yet closed. The infrastructure fix is recorded, but npm typecheck/test/build evidence remains outstanding. |
 | Next action | Continue with provider/tool-runtime implementation only after preserving this verification distinction; do not claim I-015 closure without executable verification. |
+
+
+## 2026-10-04 — ChatGPT implementation takeover — Phase 7-C Tasks 3–5
+
+D-027 execution by ChatGPT: bounded Unified Tool Runtime consumer pilot, additive OpenAI tool-calling capability, and hard-bounded/cancellable agentic loop. Implementation commits are on the authorized feature branch. D-023 audit-only telemetry remains unchanged; no schema/migration/immutable/MCP/integration/billable-metering/deployment work was performed.
+
+Verification remains pending because the current sandbox lacks the repository checkout and outbound GitHub cloning is blocked. No tests/typecheck/lint PASS is claimed. This is an implementation checkpoint, not a phase closure.
