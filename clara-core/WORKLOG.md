@@ -100,3 +100,45 @@ Continue tracing the remaining provider-neutral realtime/public runtime dependen
 
 ### Next
 Continue tracing the remaining pure realtime/public runtime primitives, prioritizing existing telemetry/latency contracts and provider-neutral capability descriptors. Do not extract HTTP routes or invent a new runtime abstraction.
+## 2026-10-03 — Realtime telemetry chain + public embed client + scripts audit
+
+### Completed
+- Continued the realtime telemetry/latency dependency chain.
+- Extracted the provider-neutral latency contract:
+  - `src/modules/voice-core/realtime/latency-tracker.ts`
+  - It defines common stage marks, first-wins semantics, turn handles, TTFA/stage derivation and p50/p95 summarisation.
+- Extracted Gemini's existing vendor-specific telemetry adapter:
+  - `src/modules/voice-core/realtime/gemini-telemetry.ts`
+  - It is reusable because it only translates Gemini VAD/transcription events into the already-shared latency contract; it has no HTTP, DB, auth or provider credential access.
+- Explicitly audited the already-extracted dependency chain:
+  - `realtime/identity.ts` supplies correlation IDs.
+  - `realtime/generation-coordinator.ts` supplies generation lifecycle/current-generation fencing.
+  - `latency-tracker.ts` consumes generation identity and emits timing-only telemetry.
+- Audited `public/embed/clara.js` as requested. It is the actual Clara browser embed runtime: script bootstrap/API-key handling, config fetch, Shadow DOM widget, streaming NDJSON chat transport, voice relay/WebRTC/audio handling, headless SDK events, voice state and host-page events. It derives its server origin from the script URL rather than embedding a Clara deployment hostname. The HTTP endpoints and API-key credential remain host contracts, but the client runtime itself is Clara-owned and reusable, so it was copied byte-for-byte into Clara Core under `public/embed/clara.js`.
+- Audited `scripts/*` specifically for contribution to the platform rather than blindly extracting deployment scripts:
+  - `scripts/sarvam-wire.mjs` is a pure provider wire-contract library shared by multiple relays/phone streaming paths; extracted byte-for-byte.
+  - `scripts/voice-relay.mjs`, `gemini-relay.mjs`, `sarvam-relay.mjs`, `sarvam-tts-relay.mjs`, `elevenlabs-relay.mjs`, `phone-stream.mjs` are executable server-side network/secret/provider relay adapters and are intentionally NOT extracted as generic core modules.
+  - `scripts/start.mjs` is Clara deployment/runtime wiring that attaches WebSocket servers to the custom Next server and is intentionally an application/deployment adapter.
+  - `scripts/voice-benchmark/run.mjs` is test/benchmark tooling; its percentile logic duplicates the core latency contract but it is not runtime core and remains tooling.
+  - Seed/migration/reset, E2E acceptance, VPS doctor, ingest, and benchmark generation scripts remain operational/project tooling rather than reusable runtime core.
+- No new telemetry/session abstraction was invented; the extraction follows the existing Clara contracts.
+
+### Verified source identity
+- latency tracker: `a8b8750c2c5df7f4143f6dcefeb165a8642d81ff`
+- Gemini telemetry: `091e519a2de96752f97addf8dc489ec421c10d6c`
+- Sarvam wire: `0c7e8879e213996aadecb0e06b77025b328e8834`
+- public embed client: `1710bd5a54244ab5af95efa51b2a99b7233faeab`
+- Extraction commits: `01cb71bc54ddcb18ae9d51f7e098f2ce0485bd3c`, `81c6153c3e9769984bcbc0c589231ee00743efb3`, `2d91bea8ba04ebda5dd2f8badc3bb6090dab3c46`, `9bf3f274c908b720ab867b13e7b9fc328cc92c11`.
+- Manifest registration: `de8ac036d7c492e684d75468903bc07a443fcae3`.
+- Manifest count increased from 102 to 106 immutable source entries.
+
+### Boundary conclusion
+- Public/embed Clara.js is reusable client runtime, while its endpoint/auth/config contracts remain host-provided adapters.
+- The executable relay scripts are not byte-for-byte reusable core because they bind directly to Node WebSocket servers, environment secrets, provider endpoints and Clara HTTP routes. Their pure wire-contract pieces are the appropriate extraction boundary.
+- The benchmark harness is valuable verification tooling but not part of the runtime core.
+
+### Not completed
+- Full 106-entry immutable verifier still needs execution from an actual repository checkout.
+
+### Next
+Continue auditing remaining provider-neutral capability descriptors and public/embed client dependencies. In parallel, inspect whether other `scripts/*` files contain additional pure wire/format contracts worth extracting; do not extract operational scripts merely because they are reusable deployment artifacts.
