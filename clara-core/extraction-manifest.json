@@ -509,6 +509,21 @@
       "source_path": "src/modules/voice-core/realtime/relay-url.ts",
       "target_path": "clara-core/source/src/modules/voice-core/realtime/relay-url.ts",
       "source_blob_sha": "7d629587d0a0c61827a89cb93cd40e8b3d5f06e0"
+    },
+    {
+      "source_path": "src/modules/voice-core/api/gemini/realtime-auth.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/api/gemini/realtime-auth.ts",
+      "source_blob_sha": "c4c61a336b5ff6626ddc8a82dd94caf1d2e48563"
+    },
+    {
+      "source_path": "src/modules/voice-core/api/sarvam/realtime-auth.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/api/sarvam/realtime-auth.ts",
+      "source_blob_sha": "f5819822d8f441f7c24517fc3c3d1b7197dca79f"
+    },
+    {
+      "source_path": "src/modules/voice-core/api/elevenlabs/realtime-auth.ts",
+      "target_path": "clara-core/source/src/modules/voice-core/api/elevenlabs/realtime-auth.ts",
+      "source_blob_sha": "5782d317e0afc1ec4191d345072403c016ffc6e4"
     }
   ]
 }
