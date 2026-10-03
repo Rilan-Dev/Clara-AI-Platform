@@ -203,3 +203,10 @@ Hard boundaries: immutable Doable trees remain untouched; no database/schema/mig
 D-024/D-027 govern the active continuation. ChatGPT is implementing Tasks 3–5: the bounded Unified Tool Runtime consumer pilot, additive OpenAI tool calling, and the hard-bounded agentic loop. The implementation is default-off, uses the Unified Tool Runtime as the only tool execution boundary, and does not change schema, migrations, immutable/reference trees, MCP, integrations, billable tool metering, deployment, or Phase 8.
 
 Verification is pending: the current sandbox does not contain the repository checkout and outbound GitHub cloning is blocked. No Vitest, repository typecheck, lint, or full verification PASS is claimed. I-015 remains OPEN. Historical Z.AI records remain unchanged.
+
+
+## ChatGPT implementation takeover — Phase 7-C execution state (2026-10-04)
+
+D-024/D-027 are active. ChatGPT is the implementation owner for Tasks 3–5. The provider tool-call pilot and bounded loop are additive/default-off; the Unified Tool Runtime remains the only tool execution boundary. No schema, migration, immutable/reference, MCP, integrations, billable metering, deployment, or Phase 8 work has been performed.
+
+Verification is pending because the current sandbox lacks the repository checkout and cannot clone GitHub. No test/typecheck/lint PASS is claimed. I-015 remains OPEN.
