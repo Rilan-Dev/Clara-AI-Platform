@@ -1025,3 +1025,78 @@ Phase 7: IN_PROGRESS
 ```
 
 No `PASS` claimed for 7-B; 7-B NOT closed; no 7-C; no Phase 8; first-class billable tool-usage metering deferred to a future authorized design phase; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged; historical records stand unrewritten (append-only). [developer-reported]
+
+
+---
+
+# Phase 7-B — Closure (architect closure review `PASS` — the D-023 / Option A acceptance) — 2026-10-04
+
+## Phase [developer-reported]
+
+Phase 7 — AI Platform Core Foundation (sub-phase 7-B — Unified Tool Runtime — closed under the D-023 / Option A acceptance).
+
+## Status [developer-reported — recording the architect's closure decision]
+
+**Phase 7-B: `PASS — CLOSED`** (the architect's independent closure review of the acceptance-redefined state returned `PASS` — an architect-verified disposition); Phase 7-A: `PASS — CORRECTION VERIFIED — CLOSED`; Phase 7-C: `NOT AUTHORIZED`; **Phase 7: `IN_PROGRESS`** (not `PASS`, not `CLOSED`).
+
+## Date
+
+2026-10-04. Exact session start time not recorded; not fabricated. The architect's closure decision is dated as received in the closure communication (no separate timestamps supplied; none fabricated).
+
+## Roles
+
+Developer/implementer: **Z.AI** (this session — the governance closure recording). Architect/reviewer/controller: **ChatGPT** (the independent closure review — recorded here as an external architect governance event, cited from the architect's closure communication).
+
+## Objective [developer-reported]
+
+Record the architect's closure decision — **`PASS — Phase 7-B CLOSED under the formally redefined D-023 / Option A acceptance`** — as a governance-only closure record: reconcile the current-state documents to Phase 7 `IN_PROGRESS` / 7-A `PASS — CORRECTION VERIFIED — CLOSED` / **7-B `PASS — CLOSED`** / 7-C `NOT AUTHORIZED`; preserve the binding semantic distinction (the original usage-spine requirement NOT technically satisfied; the AH-004 finding unrewritten; D-023 the governing acceptance; `audit_logs` = operational observability, NOT the usage-metering spine); record the deferred capability (first-class billable tool-usage metering — not begun); change nothing in `src/**`, migrations, schema, dependencies, the immutable source, or `vercel.json`; ONE governance-only commit; STOP.
+
+## Assignment [architect-verified — as communicated in the closure communication]
+
+The architect independently completed the closure review of the acceptance-redefined Phase 7-B state at `8d124263fd4405bfaec0060bbabfd580a49e8821` and returned **`PASS — Phase 7-B CLOSED under the formally redefined D-023 / Option A acceptance`** — an explicit architect closure decision, not to be reinterpreted. The closure applies to the redefined Phase 7-B acceptance ONLY (an acceptance disposition, NOT a claim of technical satisfaction of the original per-invocation usage-metering spine requirement); Phase 7-C remains `NOT AUTHORIZED`; Phase 7 remains `IN_PROGRESS`; I-014 and I-015 remain `OPEN`; the developer's task was strictly the faithful governance recording of that decision.
+
+## Closure recorded [architect-verified — the closure decision; recorded by the developer — the developer decided nothing]
+
+**Phase 7-B — Unified Tool Runtime — `PASS — CLOSED`**: F-7B-01 **`RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`**; F-7B-02 **`RESOLVED`** (implementation correction); I-017 **`RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`** (consistently with D-023). The accepted deliverable: org-scoped tool invocation observability through `audit_logs` — structured `tool.invoked`/`tool.denied` audit records via the existing `buildClaraToolMeteringHook()` → `writeAuditLog()` implementation; fail-closed invalid-context behavior; the existing authorization/error behavior; the existing `rag_search` accounting semantics preserved. **Deferred (NOT implemented by 7-B):** first-class billable tool-usage metering — a future separately authorized design phase covering schema representation, tenant/org scope, invocation identity, provider/tool attribution, billable vs non-billable semantics, measured usage facts, quota behavior, billing behavior, analytics readers, provider rollups, `rag_search` ownership, duplicate prevention, migration/Gate-E implications, and compatibility with `usage_events`/`query_events` — NOT begun.
+
+## Execution [developer-reported]
+
+(1) **Baseline verified** — fresh `git fetch --prune origin`; HEAD == origin == `8d124263fd4405bfaec0060bbabfd580a49e8821`; clean working tree; the mandated pre-edit reading completed (CURRENT_PHASE / PROJECT_STATE / NEXT_ACTION / ISSUES (I-017/I-014/I-015) / VERIFICATION_STATE (§Phase 7-B F-7B-01 architect decision record) / ZAI_HANDOFF (Part I + the DH-005 Part II instance) / the repository worklog / SESSION-020). (2) **`VERIFICATION_STATE.md`** — the §Phase 7-B closure record appended (the reviewed state/commit `8d124263`; the architect outcome `PASS`; the closure scope — Phase 7-B only; the governing acceptance — D-023 / Option A; the F-7B-01/F-7B-02/I-017 dispositions; the original-requirement status — NOT technically satisfied, the AH-004 finding preserved; the `audit_logs` classification — operational observability, NOT the usage-metering spine; the deferred capability with its minimum future-design scope; the non-changes; the open issues — I-014/I-015 remain OPEN; the evidence-classification note) + the §Phase 7-B closure validation table + the two review-trail rows (the architect `PASS` row `[architect-verified]` — ChatGPT performed the independent closure review; the developer recording row `[developer-reported]`) + the outstanding-state update + the Phase 7 header update + the closure-boundary reconciliation appended to the Final State Contract section. (3) **`CURRENT_PHASE.md`** — the closure record appended (the prior stage records preserved unrewritten) + the header/status reconciliation (the snapshot date; the closure-state note; the Status field; the Full designation; the Developer assignment; the Baseline commit; the Only-ChatGPT paragraph; the Stopping boundary). (4) **`PROJECT_STATE.md`/`NEXT_ACTION.md`** — reconciled to 7-B `PASS — CLOSED` (the snapshot dates; the current-phase/phase-status/current-objective cells; the active-handoff-instance + session-records cells; the decision-record commit row converted to the durable reference `8d124263`; the new closure-record commit row; the new last-architect-verification bullet; the active-blockers paragraph; the I-017 row closure note; the current-next-action — the next architect-controlled boundary, nothing selected on the architect's behalf). (5) **`ISSUES.md`** — the I-017 closure-confirmation note appended to the resolved record (the resolution distinction preserved: F-7B-02 = implementation correction; F-7B-01 = architect acceptance redefinition; the historical finding unrewritten; I-014/I-015 remain OPEN) + the intro-paragraph closure note. (6) **`ZAI_HANDOFF.md`** — the Part II instance updated in place to the closure/STOP record (the header blockquote; the Current status → `CLOSED`; the Related phase; the Baseline; the §8 STOP boundary — `Phase 7-B: CLOSED — architect PASS / Phase 7-C: NOT AUTHORIZED / STOP: await next explicit architect authorization`; the appended closure record subsection; the appended closure addendum). (7) **This worklog entry + `SESSION-021.md` + its README index row.** (8) **The validation battery + ONE governance-only commit + the normal push + the HEAD == origin verification + the final report.** `DECISIONS.md` NOT modified (D-023 already recorded; no cross-reference strictly necessary; D-023 unrewritten).
+
+## Verification [developer-reported]
+
+Changed files: governance-only — `worklog.md` + `docs/project-control/{CURRENT_PHASE,ISSUES,NEXT_ACTION,PROJECT_STATE,VERIFICATION_STATE,ZAI_HANDOFF}.md` + `docs/project-control/sessions/README.md` + `docs/project-control/sessions/SESSION-021.md`; zero `src/**` changes; zero migration changes; zero dependency/lockfile changes; zero immutable-source changes; zero `vercel.json` changes. Validators: `phase-closure-eligibility-test.sh` → 8/8, exit 0; `correction-cycle-test.sh` → 24/24, exit 0; `npm run validate:model-config` → PASS. Immutable source: the worktree blob verifier → 802 pinned / 771 present / 771/771 byte-verified / 0 mismatches / 31 absent, all confined to `mcp-servers/` (the I-014 family — unchanged); the four immutable tree OIDs (`a42aee79` / `ee07c362` / `b76b8f34` / `54606204`) and the `vercel.json` blob (`3f26d343`) identical at HEAD. Git: `8d124263` remains unchanged and is the immediate parent of the closure-record commit; no amend/rebase/squash/cherry-pick/force-push; the normal push succeeded; HEAD == origin verified after the push; the working tree clean.
+
+## Review
+
+**Architect closure review — `PASS` — Phase 7-B `PASS — CLOSED` under the D-023 / Option A acceptance** [architect-verified — ChatGPT performed the independent closure review of the acceptance-redefined state at `8d124263` and returned `PASS`; an explicit architect closure decision]. This closure record is the developer's faithful recording of that decision: everything the developer executed in this session (the governance edits, the validation battery, the commit, the push) is **[developer-reported]**; the closure decision is **never** classified as developer-reported, and the developer's recording is **never** classified as architect verification.
+
+## Commits
+
+| SHA | Message |
+|---|---|
+| *(this commit)* | `docs: close phase 7-b after architect pass` — governance-only, clearly identified as a closure record (NOT a fix, NOT an implementation); the immediate child of `8d124263fd4405bfaec0060bbabfd580a49e8821` on `feature/ai-core-from-doable-source`; the normal (non-force) push; HEAD == origin verified after the push |
+
+## Issues / closure
+
+- **I-017 stands `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`** — closure-confirmed by the architect's closure `PASS` (the resolution distinction preserved: F-7B-02 = implementation correction; F-7B-01 = architect acceptance redefinition; the historical finding unrewritten).
+- **I-014 remains OPEN** (immutable source re-verified byte-unchanged; the 31 absent files still confined to `mcp-servers/`). **I-015 remains OPEN** (no dependency/install change; the 19 pre-existing typecheck errors NOT claimed fixed).
+- **Deferred for future authorization:** first-class billable tool-usage metering (the full minimum scope enumerated above — schema representation through `usage_events`/`query_events` compatibility); NOT begun.
+- Recorded observations carried forward unchanged for architect disposition (not resolved, not new issues): the latent `TRANSLITERATION` CHECK-rejected metering write (pre-existing, out of scope); the `ai-platform-core` module remains unconsumed by production routes (the plan's "first wiring step"); the `clara-core` stale-extraction snapshot.
+
+## Next action (current)
+
+**The next architect-controlled boundary — the architect's next explicit decision (the developer selects nothing on the architect's behalf).** The Phase 7-B closure review is COMPLETE. The architect may next direct, among other options: the Phase 7-C decision (authorize or decline); the I-014 triage; the I-015 triage; the D-P2/D-P4 dispositions (Vercel semantics — Gate F; observed external deployment statuses are NOT Gate F completion and NOT deployment authorizations); the `clara-core` stale-extraction disposition; or other direction.
+
+**Canonical status after the closure recording**:
+
+```text
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: PASS — CLOSED
+           (F-7B-01 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION;
+            F-7B-02 RESOLVED; I-017 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION)
+Phase 7-C: NOT AUTHORIZED
+Phase 7: IN_PROGRESS
+```
+
+7-B closed by the architect's explicit `PASS` (an acceptance disposition under D-023 — NOT a claim that the original usage-spine requirement was technically satisfied; the AH-004 finding stands unrewritten; `audit_logs` is operational observability, NOT the usage-metering spine); no 7-C; no Phase 8; first-class billable tool-usage metering deferred to a future authorized design phase; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged; historical records stand unrewritten (append-only). [developer-reported]
