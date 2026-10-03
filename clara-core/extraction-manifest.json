@@ -479,6 +479,11 @@
       "source_path": "src/modules/embed/core/search.ts",
       "target_path": "clara-core/source/src/modules/embed/core/search.ts",
       "source_blob_sha": "74b4eb165fb3ecd416db750cba186e5e8de2ab5c"
+    },
+    {
+      "source_path": "src/modules/embed/core/ndjson.ts",
+      "target_path": "clara-core/source/src/modules/embed/core/ndjson.ts",
+      "source_blob_sha": "be41ac5b9306c61415069d789ff0bf7e1e55a0da"
     }
   ]
 }
