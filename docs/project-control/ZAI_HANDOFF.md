@@ -182,98 +182,128 @@ Fresh-session read order for a Z.AI developer session:
 ---
 
 
-
 ## Part II — Active Handoff Instance
 
-> **Phase 7-B F-7B-01 Metering Representation Decision Analysis — architect-directed analysis and governance task (analysis handoff AH-004)** — materialized 2026-10-04 from the architect's decision-analysis handoff text, replacing the fully executed CH-003 corrective-handoff instance (superseded; recoverable in Git history at `4413bc83d76588f42e2cd0b669dd882566824238`, including its execution-record addenda; identified in the canonical `worklog.md`). The architect has independently re-reviewed CH-003: **F-7B-02 = RESOLVED**; **F-7B-01 = OPEN / BLOCKING**; **I-017 = OPEN**; **Phase 7-B = CORRECTION_REQUIRED**; **Phase 7-C = NOT AUTHORIZED**. This instance authorizes ONLY a read-only exhaustive investigation and governance recording — it does NOT authorize any implementation, metering implementation attempt, migration, schema change, `usage_events` kind invention, `query_events` semantics change, `rag_search` behavior change, immutable-tree change, provider change, deployment, phase closure, 7-C authorization, or history rewrite (no amend/rebase/squash/cherry-pick/force-push). The task exists to produce the evidence required for an **architect decision** about F-7B-01.
+> **Phase 7-B F-7B-01 Architect Decision Recording — OPTION A — KEEP AUDIT-ONLY TELEMETRY (decision-record handoff DH-005)** — materialized 2026-10-04 from the architect's decision-recording handoff text, replacing the fully executed AH-004 analysis instance (superseded; recoverable in Git history at `f7327d7b2fe76dbf1bfbcae3dbfc687e69653660`, including its execution-record addendum; identified in the canonical `worklog.md`). The architect has now explicitly decided: **OPTION A — KEEP AUDIT-ONLY TELEMETRY** — the current Phase 7-B `buildClaraToolMeteringHook()` → `writeAuditLog()` implementation is kept as org-scoped tool invocation observability (not billable usage); the Phase 7-B acceptance boundary is formally redefined; F-7B-01 and I-017 are resolved as ARCHITECT ACCEPTANCE DISPOSITIONs; first-class billable tool-usage metering is deferred to a future explicitly authorized phase; **Phase 7-C remains NOT AUTHORIZED**. This instance authorized ONLY the governance recording of that decision — it does NOT authorize any application implementation, migration, schema change, `TOOL` usage kind invention, `query_events` semantics change, `rag_search` behavior change, billing redesign, phase closure, 7-C authorization, MCP, integrations, deployment, or history rewrite (no amend/rebase/squash/cherry-pick/force-push). **Provenance note:** an earlier decision-recording handoff text (2026-10-04) arrived with the architect-decision slot left as an unfilled insertion placeholder; the developer correctly made ZERO repository changes at that boundary and reported the blocker rather than inferring or selecting a decision — that attempt was never materialized into repository state, and no unfilled decision placeholder exists anywhere in repository history. This instance is the first materialization of the architect's explicit decision.
 
-## 1. Analysis identity
+## 1. Decision-record identity
 
 | Field | Value |
 |---|---|
-| Analysis ID | `AH-004` (first analysis-only handoff; sequential after CH-001/CH-002/CH-003) |
-| Analysis title | Phase 7-B F-7B-01 Metering Representation Decision Analysis |
-| Current status | `EXECUTED` (the developer executed the read-only analysis 2026-10-04; the architect's representation decision is PENDING) |
+| Record ID | `DH-005` (first decision-recording handoff; sequential after CH-001/CH-002/CH-003/AH-004) |
+| Record title | Phase 7-B F-7B-01 Architect Decision Recording — OPTION A — KEEP AUDIT-ONLY TELEMETRY |
+| Current status | `EXECUTED` (the decision recorded 2026-10-04 as **D-023**; the Phase 7-B acceptance redefinition recorded; F-7B-01/I-017 resolved as ARCHITECT ACCEPTANCE DISPOSITIONs; Phase 7-B = `ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW` — awaiting the architect closure review) |
 | Issued by | ChatGPT (architect / technical lead / reviewer / controller) |
 | Issue date | 2026-10-04 |
 | Repository | `Rilan-Dev/Clara-AI-Platform` |
 | Branch | `feature/ai-core-from-doable-source` |
 | Worktree | `/home/z/my-project/.worktrees/vc` |
-| Baseline | `4413bc83d76588f42e2cd0b669dd882566824238` (the CH-003 correction commit) — verified: HEAD == origin == `4413bc83`; clean tree; `63bccded` / `74200bec` present, unmodified, ancestors of HEAD |
+| Baseline | `f7327d7b2fe76dbf1bfbcae3dbfc687e69653660` (the AH-004 analysis commit) — verified: HEAD == origin == `f7327d7b`; clean tree; `4413bc83` / `63bccded` / `74200bec` present, unmodified, ancestors of HEAD |
 
-## 2. Related issue ID
+## 2. The architect's decision (as supplied — recorded verbatim in substance)
+
+The architect explicitly decides:
+
+1. Keep the current Phase 7-B `buildClaraToolMeteringHook()` → `writeAuditLog()` implementation.
+2. Treat `tool.invoked` and `tool.denied` as **org-scoped tool invocation observability, not billable usage**.
+3. Do NOT insert tool invocations into `query_events`.
+4. Do NOT invent or add a `TOOL` `usage_events` kind.
+5. Do NOT create a migration.
+6. Do NOT create a new billing architecture.
+7. Do NOT change `rag_search` accounting semantics.
+8. Defer first-class billable tool-usage metering to a future explicitly authorized phase.
+9. Formally redefine/clarify the Phase 7-B acceptance criteria so that the Phase 7-B deliverable is tool-invocation observability through the existing audit infrastructure, while independent usage-spine/billing metering is explicitly deferred.
+10. F-7B-01 may be resolved as an **architect-authorized acceptance disposition**, not as a claim that the original usage-spine requirement was technically satisfied.
+11. I-017 may be resolved consistently with that disposition.
+12. Phase 7-B may proceed toward closure only after the acceptance redefinition and issue disposition are correctly recorded and independently validated.
+13. **Phase 7-C remains NOT AUTHORIZED.**
+
+"This decision is authoritative for this handoff. Do not reinterpret it. Do not broaden it. Do not select another option." — honored: recorded exactly as supplied; the developer selected nothing. [architect-verified — as communicated in the decision-recording handoff]
+
+## 3. Related issue / phase
 
 | Field | Value |
 |---|---|
-| Issue ID | `I-017` — the `ISSUES.md` record this analysis informs (F-7B-01 finding) |
-| Architect re-review outcome being recorded | **F-7B-02 = RESOLVED** [architect-verified — as communicated in this handoff]; **F-7B-01 = OPEN / BLOCKING** [architect-verified — as communicated in this handoff]; I-017 remains OPEN |
-| Issue status | `CORRECTION_REQUIRED` (the CH-003 correction was re-reviewed; the audit-spine binding was assessed valid org-scoped observability but not sufficient for the per-invocation usage-metering acceptance criterion) |
+| Issue ID | `I-017` — now **`RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`**: F-7B-02 resolved by implementation correction (the re-reviewed corrective commit `4413bc83`); F-7B-01 resolved by architect-authorized acceptance redefinition — NOT because a hidden implementation satisfying the original requirement was discovered |
+| Related phase | Phase 7 — AI Platform Core Foundation; sub-phase 7-B — Unified Tool Runtime — `ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW` (NOT `PASS`, NOT `CLOSED`) |
+| Phase contract | `docs/project-control/CURRENT_PHASE.md` (the appended decision-stage record) |
 
-## 3. Related phase
-
-| Field | Value |
-|---|---|
-| Phase number / name | Phase 7 — AI Platform Core Foundation; sub-phase 7-B — Unified Tool Runtime |
-| Phase status | `IN_PROGRESS` (7-B = `CORRECTION_REQUIRED` — awaiting the architect's metering representation decision) |
-| Phase contract | `docs/project-control/CURRENT_PHASE.md` |
-
-## 4. The architect's finding under analysis
-
-The CH-003 correction established (and the architect's re-review confirmed) that `query_events` cannot safely represent a separate tool invocation (every row participates in the org quota/accounting model; `rag_search` already has owning-turn accounting); `usage_events`' CHECK vocabulary does not contain TOOL and `model` is NOT NULL; and `audit_logs` can represent org-scoped tool observability without billing/schema impact but is not necessarily equivalent to the Phase 7-B "usage metering spine". The current implementation therefore uses `buildClaraToolMeteringHook()` → `writeAuditLog()` → `audit_logs`. The architect's conclusion: this is valid org-scoped audit/observability, but it does not by itself demonstrate satisfaction of the original Phase 7-B acceptance criterion requiring per-invocation usage metering through the existing usage/analytics spine.
-
-## 5. Authorized analysis tasks
-
-(1) Read-only exhaustive investigation of the existing Clara metering/analytics infrastructure (all writers, readers, consumers, analytics surfaces of `usage_events` / `query_events` / `audit_logs` and the named helpers); (2) exact semantics of each spine; (3) complete end-to-end `rag_search` accounting trace; (4) an exhaustive search for any existing tool-usage representation; (5) analytics-surface consumption matrix; (6) acceptance-criterion requirement matrix; (7) the decision-outcome determination (A/B/C); (8) if Outcome C, a neutral architectural decision-options table (no winner selected); (9) the minimal validators; (10) governance recording (analysis/review records only — no closure records); (11) the required final report; (12) STOP.
-
-## 6. Decision outcome recorded by the analysis
+## 4. The acceptance redefinition (canonical text — recorded in `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 architect decision record)
 
 ```text
-F-7B-01 CANNOT BE SATISFIED UNDER THE CURRENT
-NO-SCHEMA-CHANGE / NO-NEW-BILLING-ARCHITECTURE CONSTRAINT.
+Phase 7-B tool metering/observability boundary:
+
+The Phase 7-B Unified Tool Runtime provides org-scoped invocation
+observability through the existing Clara audit infrastructure.
+
+Successful and denied tool invocations may emit structured
+tool.invoked / tool.denied audit records.
+
+These records are operational observability and are NOT billable
+usage_events and are NOT query_events.
+
+Independent billable tool-usage metering is explicitly deferred
+because the existing Clara usage schema does not contain a compliant
+tool-event representation without changing schema/accounting semantics.
+
+A future first-class tool-usage metering capability requires a
+separate architectural design and explicit authorization.
 ```
 
-(Outcome C — the full evidence is recorded in `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 representation decision analysis, `ISSUES.md` I-017, `worklog.md`, and `SESSION-019.md`; the neutral decision-options table for the architect is recorded there. No winner was selected; no acceptance criterion was changed by the developer.)
+**The preserved semantic distinction (binding):** ORIGINAL REQUIREMENT (per-invocation usage metering through the existing usage/analytics spine) · AH-004 FINDING (not technically satisfiable under the existing constraints — stands unrewritten) · ARCHITECT DECISION (formally redefine/defer that requirement for Phase 7-B) · CURRENT 7-B DELIVERABLE (org-scoped tool invocation observability through `audit_logs`). The repository must NOT claim "`audit_logs` satisfies the original usage-metering spine requirement"; `audit_logs` is NOT described as the usage-metering spine.
 
-## 7. Non-negotiable constraints (all honored)
+## 5. Authorized recording tasks (all executed)
 
-No application implementation modified; no metering implementation attempted; no migration; no schema modification; no new `usage_events` kind; no `query_events` semantics change; no `rag_search` behavior change; no immutable-source modification; no provider code change; no deployment; no Phase 7-B closure; no 7-C authorization or start; no commit amend/rebase/squash/cherry-pick/force-push; governance records limited to analysis/review records clearly identified as such.
+(1) Pre-flight verification (HEAD == origin == `f7327d7b`; clean tree; the mandated control-document reading); (2) the decision recorded as **D-023** in `DECISIONS.md` (the Phase 7 section — Decision / Context / Architectural decision / Deferred capability / Explicit non-goals, per the established register format); (3) F-7B-01 resolved in `ISSUES.md` strictly as `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION` (the resolution explanation distinguishing the original non-satisfaction, the AH-004 finding, the architect's redefinition, the accepted audit-only observability, and the deferred first-class billable tool usage); (4) I-017 resolved consistently (F-7B-02 by implementation correction; F-7B-01 by architect-authorized acceptance redefinition); (5) `CURRENT_PHASE.md` / `PROJECT_STATE.md` / `NEXT_ACTION.md` reconciled to `ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW`; (6) the architect-decision record appended to `VERIFICATION_STATE.md` (preserving the AH-004 analysis unrewritten); (7) this Part II instance replaced (no placeholder anywhere in the active state); (8) the append-only `worklog.md` entry + `SESSION-020.md` + its README index row; (9) the validation battery; (10) ONE governance-only commit + the normal push; (11) the required final report; (12) STOP at the architect closure review.
 
-## 8. Git requirements (all honored)
+## 6. Non-negotiable constraints (all honored)
 
-Baseline verified before starting (HEAD == origin == `4413bc83`; clean tree); read-only investigation; the single resulting commit is governance-only and clearly identified as an analysis record (not a "fix" commit, not a closure commit); normal (non-force) push; history rewritten nowhere (`63bccded` / `74200bec` / `4413bc83` all preserved unmodified).
+No application implementation; no migration; no schema change; no `TOOL` usage kind; no query-event semantics change; no billing redesign; no `rag_search` accounting change; no Phase 7-C; no MCP work; no integrations work; no deployment; no database access; no Phase 7-B closure claim (only ChatGPT may close 7-B); no amend/rebase/squash/cherry-pick/force-push; the decision recorded exactly as supplied — not reinterpreted, not broadened, no other option selected; the developer not represented as having selected the architecture; the architect decision / developer execution of the decision record / future authorization explicitly distinguished; the historical AH-004 analysis and the original finding preserved unrewritten.
 
-## 9. STOP boundary
+## 7. Git requirements (all honored)
 
-After delivering the evidence package (the final report with the required structure): STOP. Z.AI performs no further work until the architect's metering representation decision and the next explicit authorization arrive. The canonical status:
+Baseline verified before starting (HEAD == origin == `f7327d7b`; clean tree); the single resulting commit is governance-only and clearly identified as a decision record (not a "fix" commit, not a closure commit) — the immediate child of `f7327d7b` on `feature/ai-core-from-doable-source`; normal (non-force) push; HEAD == origin verified after the push; history rewritten nowhere (`63bccded` / `74200bec` / `4413bc83` / `f7327d7b` all preserved unmodified).
+
+## 8. STOP boundary
+
+After delivering the decision record and the required final report: STOP. Z.AI performs no further work until the architect's closure-review outcome and the next explicit authorization arrive. The canonical status:
+
+```text
+Phase 7-B: ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW
+F-7B-01: RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION
+F-7B-02: RESOLVED
+I-017: RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION
+Phase 7-C: NOT AUTHORIZED
+STOP: ARCHITECT CLOSURE REVIEW REQUIRED
+```
+
+Only ChatGPT may perform the architect closure review and decide whether Phase 7-B can be formally closed. The next action is explicitly: **architect re-review of the acceptance-redefined Phase 7-B state.** No implementation work is pending from this decision itself; first-class billable tool-usage metering is deferred to a future explicitly authorized design phase.
+
+## Part II execution-record addendum — DH-005 decision record (2026-10-04)
+
+> Dated addendum appended per the appended-record convention. This addendum records the execution of the **Phase 7-B F-7B-01 Architect Decision Recording** (DH-005). It is a decision record and acceptance-redefinition record, NOT a closure record and NOT an implementation record.
+
+**Executed** [developer-reported — the faithful recording of the architect's decision; the developer selected nothing]:
+
+1. **Baseline verification**: fresh `git fetch --prune origin`; branch `feature/ai-core-from-doable-source`; HEAD = origin = `f7327d7b2fe76dbf1bfbcae3dbfc687e69653660`; clean working tree; the mandated pre-edit reading completed (CURRENT_PHASE / PROJECT_STATE / NEXT_ACTION / ISSUES / VERIFICATION_STATE / ZAI_HANDOFF / DECISIONS / worklog / SESSION-019).
+2. **The decision recorded**: **D-023** in `DECISIONS.md` (the Phase 7 section) — OPTION A — KEEP AUDIT-ONLY TELEMETRY; the Phase 7-B acceptance boundary formally redefined; F-7B-01 resolved as an ARCHITECT ACCEPTANCE DISPOSITION (explicitly NOT a claim of technical satisfaction of the original §19(4)/§19(19) usage-spine requirement); first-class billable tool-usage metering deferred (the future-design scope enumerated); the explicit non-goals recorded.
+3. **The issue dispositions recorded** (`ISSUES.md` I-017): status → `RESOLVED` (lifecycle completed with the architect-authorized acceptance-disposition transition); the resolution evidence distinguishing F-7B-02 (implementation correction) from F-7B-01 (architect-authorized acceptance redefinition); the related-decision link to D-023; the resolution date.
+4. **The verification register updated** (`VERIFICATION_STATE.md`): the §Phase 7-B F-7B-01 architect decision record section appended (the decision; the decision authority; the twelve-point decision text; the AH-004 context preserved; the canonical acceptance-redefinition text; the preserved semantic distinction; the deferred capability; the explicit non-goals; the effect block; the resulting state; the provenance note about the earlier unfilled-placeholder attempt); the two 2026-10-04 decision review-trail rows appended; the outstanding-state paragraph updated; the Phase 7 header updated; the decision-boundary reconciliation paragraph appended to the Final State Contract section. The AH-004 analysis section stands unrewritten above it.
+5. **The current-state documents reconciled**: `CURRENT_PHASE.md` (the decision-stage record appended; the prior stage records preserved unrewritten); `PROJECT_STATE.md` (the snapshot date; the current-phase/phase-status/current-objective cells; the active-handoff-instance and session-records cells; the commit-state rows incl. the AH-004 durable reference + this decision-record commit; the last-architect-verification bullet; the active-blockers paragraph; the I-017 active-issues row; the current-next-action); `NEXT_ACTION.md` (the snapshot date; §1–§4).
+6. **This Part II instance replaced** (the superseded AH-004 instance recoverable in Git history at `f7327d7b`); the append-only `worklog.md` entry; `SESSION-020.md` + its README index row.
+7. **Validation** (see the session record and the worklog entry for the full results): the changed-files check (governance-only — `worklog.md` + `docs/project-control/**` only; zero `src/**` / migration / dependency / lockfile / immutable-source changes); the governance validators (`phase-closure-eligibility-test.sh` 8/8, exit 0; `correction-cycle-test.sh` 24/24, exit 0); `npm run validate:model-config` PASS; the immutable-source invariants re-verified (the four tree OIDs `a42aee79`/`ee07c362`/`b76b8f34`/`54606204` and `vercel.json` blob `3f26d343` identical at HEAD; the manifest blob verifier 802 pinned / 771 present / 771/771 byte-verified / 0 mismatches / 31 absent confined to `mcp-servers/`); git history not rewritten; ONE governance-only commit + the normal push; HEAD == origin verified after the push.
+8. **No deployment; no database access; no migration run.**
+
+**Canonical status after the decision recording**:
 
 ```text
 Phase 7: IN_PROGRESS
-Phase 7-B: CORRECTION_REQUIRED — METERING REPRESENTATION DECISION PENDING (ARCHITECT)
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW
+           (F-7B-01 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION;
+            F-7B-02 RESOLVED; I-017 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION)
 Phase 7-C: NOT AUTHORIZED
+STOP: ARCHITECT CLOSURE REVIEW REQUIRED
 ```
 
-## Part II execution-record addendum — AH-004 analysis record (2026-10-04)
-
-> Dated addendum appended per the appended-record convention. This addendum records the execution of the **Phase 7-B F-7B-01 Metering Representation Decision Analysis** (AH-004). It is an analysis/review record, NOT a closure record and NOT an implementation record.
-
-**Executed** [developer-reported — evidence for the architect's decision; NOT a decision]:
-
-1. **Baseline verification**: fresh `git fetch --prune origin`; branch `feature/ai-core-from-doable-source`; HEAD = origin = `4413bc83d76588f42e2cd0b669dd882566824238`; clean working tree; `63bccded` (the 7-B implementation) and `74200bec` (the CH-003 baseline) verified present, unmodified, and ancestors of HEAD.
-2. **The three spines investigated exhaustively (read-only)**: `query_events` (migrations 004/027/028/029/030 — the chat/query audit trail AND billing unit; `admitQueryEvent`'s rolling-24h `COUNT(*)` per org counts EVERY row with no status/surface filter; `getOrgUsageSnapshot.requests_today/requests_24h` likewise; writers: the atomic admission insert, the audit-only `logQueryEvent`, the finalise/hash-chain UPDATE; readers: `/api/analytics/usage`, `/api/analytics/queries`, `/api/analytics/audit` (+ export/verify/reveal), the org dashboard metering, the usage-limits snapshot, the ai-governance provider rollup, the plan-guard quota COUNT, `getKbAnalytics`); `usage_events` (migrations 028/033/036 — append-only NON-chat billable AI provider invocations; kind CHECK `('EMBEDDING','TTS','OCR','TRANSCRIPTION','CONVERSATION','TRANSLATION')`, `model` NOT NULL, cost from measured facts, usage amount > 0 required by every writer; writers: `logUsageEvent` EMBEDDING (reindex), the voice-core TTS/TRANSCRIPTION/CONVERSATION writers, the language-core TRANSLATION writer; readers: the org dashboard metering (embedding/voice axes), the ai-governance provider usage rollup (monthly budgets + recharge warnings), the plan-guard TTS/STT/translation quota gates; observed latent defect recorded: `logTransliterationUsage` inserts kind `TRANSLITERATION` which is NOT in the DB CHECK — the insert would be CHECK-rejected and silently swallowed by the writer's never-break discipline, confirming the vocabulary is closed and DB-enforced); `audit_logs` (migration 002 — operational/security telemetry: user./org./auth./document./quota.denied/org.impersonate actions; writers: 10 `writeAuditLog` sites incl. the corrected `tool.invoked`/`tool.denied`; **readers: ZERO — no SELECT from audit_logs exists anywhere in `src/`**; no quota/billing coupling; not represented in any dashboard).
-3. **`rag_search` accounting traced end-to-end (all surfaces)**: workspace KB chat (`admission: "external"` + route-owned admit/finalise — one row per turn); Mode-B document chat (route-owned admission); embed chat (external + route-owned); embed search (`/api/embed/search` route-owned admission, surface "voice" — the endpoint the embed voice frame, the phone call handler, and the realtime hook relay `rag_search` tool calls into — the tool call IS the admitted query event there); workspace RAG search (`postRagSearch` admission "quota" — grounding itself admits and finalises); the ElevenLabs Mode-B RAG server-tool callback (`admission: "audit-only"` — a query_events row per tool call that still counts in the org's rolling-24h COUNT, plus `logConversationUsage` CONVERSATION metering at post-call); and the Unified Tool Runtime path (the executor calls `claraRuntime.retrieve` → `groundClaraContext({admission: "external"})` → writes NOTHING — the owning turn owns the single query event; the module is not yet consumed by any production route). `admission: "external"` means the CALLER owns the query event ("logging here would count the turn twice"). Grounding writes nothing on the external path (verified at `src/modules/rag/grounding.ts`). The current `audit_logs` implementation changes no billing/accounting.
-4. **Existing tool-usage representation search (exhaustive)**: **NO EXISTING TOOL-USAGE REPRESENTATION FOUND**. Examined and excluded: `elevenlabs_webhook_nonces` (replay-guard nonce ledger); `api_key_usage` (per-key hourly request rate-limit counters — the Deploy-tab dashboard reads the same counters; a request counter, not tool metering); `event_outbox` (durable broker handoff for phone notifications; no usage analytics reader); `platform_events` (dormant — no writers, no readers); `platform_ai_provider_usage` (a rollup cache derived FROM usage_events/query_events); `elevenlabs_conversations` (vendor conversation records — not tool invocations); the full migrations table inventory (73 tables) swept; the Doable reference schemas (`ai_usage_log.tool_call_count`, `043_chat_traces` tool_start/tool_end, `022_mcp_connectors`) are inside the immutable reference tree — later-phase reference material only, different tenant model, NOT an existing Clara mechanism.
-5. **Analytics surface matrix (source-level)**: Usage analytics reads query_events only; Query analytics reads query_events only; Billing/credits reads subscriptions/billing_events only; Admin audit tab reads query_events (NOT audit_logs); Org analytics reads query_events + usage_events; AI-governance provider usage reads usage_events + query_events; API-key usage dashboard reads api_key_usage. **No surface reads audit_logs — the correction's `tool.invoked`/`tool.denied` rows are invisible to every existing usage/analytics surface.**
-6. **Acceptance matrix**: satisfied — no duplicate rag_search billing; existing event vocabulary preserved; no migration; no new billing architecture; tenant isolation; auth-denial classification (`tool.denied`); metering failure isolation; host-neutral hook; org-scoped per-invocation records (on the audit surface). NOT satisfied — §19(4) "per-invocation usage metering lands on the existing org-scoped spine" and §19(19) "tool invocations are observable via existing usage/analytics surfaces" (the audit binding is org-scoped per-invocation observability, but the existing usage/analytics spine is query_events + usage_events, which audit_logs does not feed).
-7. **Decision outcome: C** (no compliant existing representation). A neutral four-option decision table (A keep audit-only telemetry; B extend the usage spine to support tool events; C extend query analytics semantics; D redefine the Phase 7-B metering acceptance) was produced for the architect — **no winner selected; no acceptance criterion changed by the developer**.
-8. **Validators run** (minimal, per the handoff): `phase-closure-eligibility-test.sh` **8/8** (exit 0); `correction-cycle-test.sh` **24/24** (exit 0); `npm run validate:model-config` **PASS**; immutable-source verification — the four tree OIDs (`a42aee79` doable-source / `ee07c362` dependency-closure / `b76b8f34` ui-reference / `54606204` doable-source-extensions) and `vercel.json` blob `3f26d343` identical at HEAD; the manifest blob verifier → **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/`**; the diff vs the baseline commit `03482584` over the four immutable trees → **empty**. (Note: an incidental run of `docs/doable-source/verification/verify-extraction.mjs` produced an untracked `ai-platform-core/verification/completeness-report.json` artifact, which was deleted to restore the pristine clean tree; no tracked file was touched by it.)
-9. **Governance records**: this instance + addendum; the append-only `worklog.md` analysis entry; `SESSION-019.md` + its README index row; `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 representation decision analysis + the review-trail row; `ISSUES.md` I-017 re-review outcome + decision-analysis evidence; `CURRENT_PHASE.md` analysis-stage record; `PROJECT_STATE.md`/`NEXT_ACTION.md` reconciliation. All records are analysis/review records — no `PASS`, no closure, no resolution of F-7B-01/I-017, no 7-C authorization. I-014/I-015 remain OPEN.
-
-**Canonical status after the analysis**:
-
-```text
-Phase 7: IN_PROGRESS
-Phase 7-B: CORRECTION_REQUIRED — F-7B-01 OPEN/BLOCKING — METERING REPRESENTATION DECISION PENDING (ARCHITECT)
-Phase 7-C: NOT AUTHORIZED
-```
-
-The analysis is `[developer-reported]` evidence for the architect's decision — it is NOT a decision, NOT a `PASS`, NOT Gate D completion, and does NOT resolve F-7B-01 or I-017. Z.AI STOPs at the architect-decision boundary. [developer-reported]
+The decision is the architect's [architect-verified — as communicated in the decision-recording handoff]; this commit is the developer's faithful recording of it. **No `PASS` is claimed for 7-B; 7-B is NOT closed by this record — the architect closure review is the next boundary.** Z.AI STOPs at the architect-closure-review boundary. [developer-reported]
