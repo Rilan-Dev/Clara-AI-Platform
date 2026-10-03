@@ -346,3 +346,32 @@ The remaining `scripts/*` relay implementations are infrastructure adapters, not
 
 ### Next
 Continue the broader Clara `src/` dependency graph outside the already-closed public/embed/realtime slice, prioritizing the next unrepresented Clara-owned reusable capability (integrations/tools/MCP, audit/observability, or event/runtime infrastructure). Preserve the same rule: extract only an existing whole file with a clean dependency boundary; otherwise document the adapter boundary instead.
+
+
+## 2026-10-03 — AI-agent reference library and realtime/chat completeness guardrails
+
+### Completed
+- Strengthened Clara Core documentation so a new AI coding agent can navigate the reusable reference set without relying on prior conversation context.
+- Added `clara-core/AGENTS.md` with mandatory search/filter/extraction rules, realtime voice completeness checklist, AI/chat checklist, provider matrix, and documentation discovery procedure.
+- Added `clara-core/REFERENCE-MAP.md` mapping AI provider configuration, chat, RAG, realtime voice, provider-specific realtime implementations, public embed and usage/latency paths to exact Clara source locations.
+- Added `clara-core/IMPLEMENTATION-PLAYBOOK.md` defining the implementation sequence for a new SaaS/agent project and the minimum verification gates.
+- Expanded `clara-core/README.md` to make these documents the canonical starting point for new AI agents.
+- Rechecked the current manifest: 108 immutable entries.
+- Rechecked that the reference set already contains the AI provider implementations (OpenAI, Gemini, Sarvam, TEI), voice provider services (ElevenLabs and Sarvam), AI/voice resolution/config/model catalogs, realtime coordination/latency/auth primitives, public embed runtime, NDJSON/realtime events, RAG and usage/metering foundations.
+- Explicitly documented that OpenAI and Gemini realtime implementations are transport/API-specific rather than missing symmetric VoiceProviderService classes; their browser/API implementations remain reference implementations where coupled to React/Next.js/provider lifecycle.
+- Explicitly separated chat, voice-chat, realtime voice and telephony so a new implementation does not accidentally replace one runtime path with another.
+
+### Current implementation guard
+The reference library is now documentation-complete enough for AI-agent navigation, but this does not claim that every host adapter or provider relay has been made immutable core. Coupled routes, React hooks, vendor relay lifecycle, auth/tenancy, secrets and telephony remain documented reference/adapter boundaries.
+
+### Verification status
+- Manifest size: 108.
+- Documentation files verified present with current Git blob SHAs:
+  - `clara-core/AGENTS.md` → `af4529d780266bb4ec425859dab8041a0b88f0f8`
+  - `clara-core/REFERENCE-MAP.md` → `0e1f312e457c9e0946dab457ed282987e29f429e`
+  - `clara-core/IMPLEMENTATION-PLAYBOOK.md` → `55e6f8dee26c6d6304188159722aaa340ccadf15`
+  - `clara-core/README.md` → `4182a9b5a07ed9f5be2e30f15d268cfc1d309247`
+- Full 108-entry immutable verifier still requires execution from a real repository checkout.
+
+### Next
+Continue the source dependency graph into integrations/tools/MCP, audit/observability and event/runtime infrastructure, while cross-checking their interaction with the already-covered AI/chat/realtime voice chains.
