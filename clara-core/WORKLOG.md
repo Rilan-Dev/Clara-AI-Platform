@@ -1,3 +1,51 @@
+
+## 2026-10-03 — Public/embed session-token and phone/telephony mechanics slice
+
+### Completed
+- Traced Clara's public embed session boundary and separated public-session cryptography from HTTP/API-key/plan enforcement.
+- Extracted the reusable HMAC-signed public session-token primitive:
+  - `src/modules/embed/core/public-token.ts`
+  - deployment binding and active-public checks remain in the host validation layer; the extracted primitive only mints/verifies the signed credential.
+- Traced Clara phone runtime and separated transport/audio mechanics from call persistence, billing, provider secrets, HTTP webhooks and OpenAI/RAG orchestration.
+- Extracted the reusable telephony contracts and provider transport/audio primitives:
+  - `src/modules/phone/core/types.ts`
+  - `src/modules/phone/providers/twilio.ts`
+  - `src/modules/phone/providers/vonage.ts`
+- Preserved Clara source byte-for-byte; no source refactor or rename was performed.
+
+### Verified source identities
+- `src/modules/embed/core/public-token.ts` → `2171f84fa53dd8e081bb7aa5c12740222da7533b`
+- `src/modules/phone/core/types.ts` → `2d635b06c35c71a56fca33402e3c107be628ebc0`
+- `src/modules/phone/providers/twilio.ts` → `54b2d6e685675fbe1079765c272a40f90dacaa09`
+- `src/modules/phone/providers/vonage.ts` → `e6a658616ade1efd31a451cd087e9c3867b0dfbd`
+
+### Architectural result
+The reusable Clara core now contains the cryptographic credential primitive for public published-agent sessions and the transport/audio contracts needed to connect telephony providers to a Clara voice runtime. The HTTP embed routes, API-key/database authorization, subscription/plan gates, phone call persistence, provider secrets, OpenAI session orchestration, RAG endpoint calls and deployment-specific webhooks remain application/adapter concerns.
+
+### Deliberately not extracted
+- `src/modules/embed/core/validate-embed.ts`: mixes API-key DB access, subscription quota/voice entitlement, deployment validation and Next.js HTTP responses.
+- `src/modules/embed/core/api-keys-db.ts`: persistent API-key storage and subscription-plan database implementation; host adapter boundary.
+- `src/modules/phone/core/db.ts`: phone config/call-log persistence, subscription checks, platform environment settings and webhook outbox wiring.
+- `src/modules/phone/core/call-handler.ts`: tightly couples telephony transport to Clara's DB, KB config, OpenAI Realtime, internal HTTP RAG endpoint and call-log persistence.
+- `src/modules/phone/core/elevenlabs-call.ts`: ElevenLabs-specific binding/gating, Clara DB queries and vendor registration; remains a provider adapter.
+- Public/embed session HTTP routes: remain host/application surfaces.
+
+### Manifest
+- Immutable extraction manifest increased from 87 to 91 entries.
+
+### Verification
+- The four new source/target pairs were created from the exact Clara source contents and recorded with the source Git blob identities above.
+- The repository-wide immutable verifier remains the canonical full check and has not been executed from a local checkout in this session.
+
+### Remaining
+- Governance registry/runtime-settings adapter isolation.
+- Any remaining public/embed runtime mechanics that are provider-neutral and not HTTP/auth/plan specific.
+- Phone outbound/call lifecycle adapter surfaces if a provider-neutral reusable boundary exists.
+- Full 91-entry immutable verifier execution from a repository checkout.
+
+### Next
+Continue tracing the public published-agent/embed runtime and phone call lifecycle around the extracted boundaries. Only extract additional Clara-owned provider-neutral mechanics; do not pull HTTP routes, DB authorization, billing, secrets, or vendor-specific orchestration into the immutable core.
+
 # Clara Core Extraction Worklog
 
 ## 2026-10-03 — Clara-owned library established
