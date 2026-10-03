@@ -869,3 +869,51 @@ Phase 7: IN_PROGRESS
 ```
 
 No `PASS` claimed for 7-B; no architect review of the 7-B implementation claimed or fabricated; no 7-C; no Phase 8; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged throughout; historical records stand unrewritten (append-only). The 7-B implementation diff awaiting architect review remains exactly `63bccded2c61d29ba1a2218cf654bd3901ba6940` (the immediate child of `a2c74204`). [developer-reported]
+
+---
+
+# Phase 7-B — Unified Tool Runtime — Correction (CH-003 / I-017 — F-7B-01/F-7B-02) — 2026-10-03
+
+## Assignment [architect-verified]
+
+**CH-003 corrective handoff received from ChatGPT on 2026-10-03** (as communicated in the corrective handoff; no repository commands are claimed on ChatGPT's behalf): the architect's review of the actual Phase 7-B implementation at `63bccded2c61d29ba1a2218cf654bd3901ba6940` returned **`CORRECTION_REQUIRED`** with two findings — **F-7B-01** (the production Clara metering binding `buildClaraToolMeteringHook()` only performed structured `console.info`; the reviewed requirement that tool invocation metering land on the existing org-scoped spine / remain observable through existing usage/analytics infrastructure was not satisfied) and **F-7B-02** (the metering contract documentation claimed the hook fires for every boundary refusal while `invoke()` returns INVALID_CONTEXT before a tenant-scoped `ToolMeteringRecord` can safely be constructed — a legitimate security boundary that must NOT be weakened, documented inconsistently). The correction authorizes ONLY the two findings (the three 7-B source files + the 7-B tests + the governance records; the required metering-infrastructure investigation first; no migrations, no schema changes, no new billing system, no `rag_search` retrieval-behavior change, no double-billing, no 7-C/MCP/integrations/deployment/dependency/I-014/I-015 work); issue **I-017**; the M-1…M-10 acceptance criteria; the 12 required test proofs; the full validation battery; ONE focused corrective commit (no amend/rebase/squash/cherry-pick/force-push; normal push only); the governance records distinguishing `developer correction submitted` from `architect review`; the final report; the STOP boundary.
+
+## Correction [developer-reported]
+
+Executed the corrective handoff in full. (1) **Baseline verification** — branch `feature/ai-core-from-doable-source`; HEAD = `74200beca21fb2b15817fe2471dc86929316cd48` = origin tip after fresh fetch; clean tree; the implementation commit `63bccded` verified present, unmodified, and an ancestor of HEAD (NOT rewritten). (2) **The required investigation (before any edit)** — `query_events` (`admitQueryEvent` — the atomic quota admission whose rolling-24h COUNT counts EVERY row per org; `logQueryEvent`/`finalizeQueryEvent`); `usage_events` (the kind vocabulary CHECK-constrained to `('EMBEDDING','TTS','OCR','TRANSCRIPTION','CONVERSATION','TRANSLATION')` with `model` NOT NULL and cost from measured facts; the analytics-db/voice-core/language-core writers); `audit_logs` (`writeAuditLog` — org-scoped structured infrastructure events with zero billing impact; the spine's own path for metering-domain events that must not affect billing, precedent `quota.denied`); the incumbent `rag_search` path (`claraRuntime.tools.invoke` → `claraRuntime.retrieve` → `groundClaraContext({admission: "external"})` — the owning turn owns the single query event; "logging here would count the turn twice"). Conclusions: `usage_events` cannot represent a distinct tool invocation without a migration; `query_events` cannot without double-billing; the existing non-billing discipline for org-scoped metering-domain events is `writeAuditLog` — the binding point. (3) **F-7B-01** — the default Clara metering hook bound to the existing org-scoped observability spine via the existing `writeAuditLog` helper on the already-consumed `@/modules/auth/core/db` seam: one org-scoped, append-only audit row per metered invocation attempt (`tool.invoked`; the dedicated `tool.denied` for the authorization-denial family mirroring `quota.denied`; `resourceType` `tool_invocation`; the full caller-scoped record in `newData`); NEVER writes billing rows; metering failures absorbed and logged (in the hook AND by the runtime) — never breaking the metered invocation; **the billable-spine representation blocker recorded, NOT silently resolved — awaiting architect disposition**. (4) **F-7B-02** — the metering contract documentation made internally consistent across `tool-contracts.ts` and `tool-registry.ts` (a provenance-invalid context is rejected BEFORE tenant-scoped metering; the hook is not invoked; no ambient/default tenant; no inferred identity; `assertExecutionContext()` unchanged — the security boundary NOT weakened); NO runtime logic changed (the behavior was already correct); the regression test proves invalid contexts are rejected with zero untrusted tenant data reaching the metering hook. (5) **Tests** — 8 new focused proofs + 1 superseded (the implementation's own "completes without writing" assertion — the F-7B-01 evidence — replaced by positive binding proofs, not deleted for green output). (6) **Governance** — I-017 (CORRECTION_SUBMITTED, NOT resolved); the CH-003 Part II instance; the VERIFICATION_STATE correction sections + review-trail rows + consistency reconciliation; the CURRENT_PHASE correction-stage record; PROJECT_STATE/NEXT_ACTION; this entry; SESSION-018 + its index row.
+
+## Verification [developer-reported]
+
+`npx vitest run src/modules/ai-platform-core/` → **6 files / 138 tests, all pass** (131 − 1 superseded + 8 new). `npx vitest run` → **110 files / 1055 tests, all pass** (zero regressions). `npm run type-check` → `src/**` application errors **19 → 19** (the pre-existing I-015 set unchanged — NOT claimed fixed; zero errors in the five changed files; the 3472 extraction/reference-tree errors separately reported and out of scope). `npx eslint src/modules/ai-platform-core/` → **0 errors, 0 warnings**. `npm run validate:model-config` → **PASS**. Governance: `phase-closure-eligibility-test.sh` **8/8** (exit 0); `correction-cycle-test.sh` **24/24** (exit 0). Library integrity (`node verification/validate-library.mjs` from `docs/doable-source/`) → **PASS** (21 capabilities · 30 edges · 0 errors · 0 warnings). Immutable source: the worktree blob verifier → **802 pinned · 771 present · 771/771 byte-verified · 0 mismatches · 31 absent confined to `mcp-servers/` (I-014 unchanged)**; the four tree OIDs (`a42aee79`/`ee07c362`/`b76b8f34`/`54606204`) and `vercel.json` (`3f26d343`) unchanged. Runtime import scan → **zero `doable-source` imports in `src/**`**. Secret scan of the five changed paths → **zero matches**. The production build remains not-runnable for the pre-existing I-015 cause (kept OPEN; no install performed).
+
+## Review
+
+Architect re-review of the actual Phase 7-B correction diff and evidence — **PENDING**. The correction is `[developer-reported]` evidence only; it does NOT resolve F-7B-01, F-7B-02, or I-017; only the architect may return `PASS` / `PASS_WITH_FOLLOWUP` / `CORRECTION_REQUIRED`.
+
+## Commits
+
+| SHA | Message |
+|---|---|
+| *(this commit)* | `fix: bind phase 7-b tool metering to existing clara audit spine` — the immediate child of `74200beca21fb2b15817fe2471dc86929316cd48` on `feature/ai-core-from-doable-source`; application changes confined to `src/modules/ai-platform-core/**` (5 modified files: tool-contracts.ts, tool-registry.ts, clara-tools.ts, tool-registry.test.ts, clara-tools.test.ts); documentation changes confined to `worklog.md` + `docs/project-control/**` |
+
+## Issues / correction
+
+- **I-017** opened (the architect's two metering findings; lifecycle OPEN → TRIAGED → CORRECTION_REQUIRED [architect, per CH-003] → CORRECTION_IN_PROGRESS → CORRECTION_SUBMITTED [developer registration]; NOT resolved — the disposition belongs to the architect's re-review).
+- **I-014 remains OPEN** (immutable source re-verified byte-unchanged; the 31 absent files still confined to `mcp-servers/`).
+- **I-015 remains OPEN** (no dependency-changing install; no lockfile rewrite; the 19 pre-existing application typecheck errors NOT claimed fixed).
+- Recorded for architect disposition (not resolved, not a new issue): **the billable-spine representation blocker** — a distinct tool-invocation `usage_events` kind requires a migration (the closed CHECK-constrained kind vocabulary + NOT NULL `model`), and a `query_events` row would double-bill the org's rolling-24h quota; the correction therefore binds to the existing non-billing audit-spine discipline (`writeAuditLog`) per the `quota.denied` precedent.
+
+## Next action (current)
+
+**ChatGPT architect re-review of the Phase 7-B correction (CH-003 / I-017)**, then the explicit 7-C authorization decision (or a further corrective handoff, or other architect direction). Z.AI performs no work until that re-review outcome and the next explicit authorization arrive. **STOPped at the 7-B re-review boundary.**
+
+**Canonical status after the correction submission**:
+
+```text
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: CORRECTION_SUBMITTED / AWAITING ARCHITECT RE-REVIEW
+Phase 7-C: NOT AUTHORIZED
+Phase 7: IN_PROGRESS
+```
+
+No `PASS` claimed for 7-B; F-7B-01/F-7B-02/I-017 NOT resolved; no 7-C; no Phase 8; I-014/I-015 remain OPEN; the immutable Doable source byte-unchanged; historical records stand unrewritten (append-only). [developer-reported]

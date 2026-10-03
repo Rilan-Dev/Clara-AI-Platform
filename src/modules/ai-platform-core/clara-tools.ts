@@ -29,15 +29,26 @@
  *   `requiredPermission` — `rag_search` deliberately declares none: its
  *   owning routes keep the authentication boundary, exactly as today) ×
  *   tenant execution context (the 7-A provenance-hardened factory).
- * - metering — the approved hook interface, bound following the existing
- *   spine's discipline (append-only, never-break-the-metered-pipeline,
- *   org-scoped). The default Clara hook is a non-writing observer: the
- *   incumbent rag_search retrieval is metered by its owning turn (the
- *   admission: "external" contract exists precisely to prevent
- *   double-billing), and the `usage_events` kind vocabulary is fixed by the
- *   existing schema (CHECK constraint; no migrations are authorized in 7-B).
- *   Hosts bind their own hook to extend metering; the runtime invokes it
- *   with the caller-scoped record on every invocation attempt.
+ * - metering — the approved hook interface, bound to the EXISTING Clara
+ *   org-scoped observability spine via the existing `writeAuditLog` helper
+ *   (the auth audit trail — the same discipline the quota spine itself
+ *   uses for metering-domain events that must not affect billing;
+ *   precedent: `quota.denied`; F-7B-01, corrected). One org-scoped audit
+ *   row per metered invocation attempt; authorization-denied attempts
+ *   record the dedicated `tool.denied` action (mirroring `quota.denied`),
+ *   every other outcome `tool.invoked` with the typed outcome/errorCode.
+ *   The hook NEVER writes billing rows: the incumbent rag_search retrieval
+ *   is metered by its owning turn (the admission: "external" contract
+ *   exists precisely to prevent double-billing — and a second
+ *   `query_events` row would ALSO consume the org's rolling-24h quota),
+ *   while the `usage_events` kind vocabulary is fixed by the existing
+ *   schema CHECK constraint with a NOT NULL `model` — no tool-invocation
+ *   kind exists and none may be invented without a migration (not
+ *   authorized in 7-B; recorded as the billable-spine representation
+ *   blocker, awaiting architect disposition). Metering failures are
+ *   absorbed and logged — they NEVER break the metered invocation. Hosts
+ *   may still bind their own hook; the runtime invokes it with the
+ *   caller-scoped record on every provenance-verified invocation attempt.
  *
  * The incumbent `ai-core` provider stack and `src/modules/ai-core/**` are
  * consumed through `claraRuntime`, never duplicated or modified. No routes
@@ -48,7 +59,7 @@
 
 import { z } from "zod";
 import { resolvePlanAIEntitlements } from "@/modules/ai-governance/core/entitlements-db";
-import { getOrgAccessContext } from "@/modules/auth/core/db";
+import { getOrgAccessContext, writeAuditLog } from "@/modules/auth/core/db";
 import type { OrgMember, PermissionKey } from "@/modules/auth/core/models";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import { createExecutionContext } from "./execution-context";
@@ -211,39 +222,102 @@ export function buildClaraToolAuthorizationAdapter(): ToolAuthorizationAdapter {
 // ─── Clara metering hook ─────────────────────────────────────────────────────
 
 /**
+ * The typed error codes that classify a metered invocation attempt as
+ * authorization-denied (the denial family of the ToolErrorCode union — the
+ * codes the runtime's authorization stage can produce). These attempts
+ * record the dedicated `tool.denied` audit action, mirroring the quota
+ * spine's existing `quota.denied` discipline for representing metering-domain
+ * denials without affecting billing. Every other metered outcome (unknown
+ * tool, invalid arguments, execution failure, or success) records
+ * `tool.invoked` with the typed outcome/errorCode classification in the
+ * payload.
+ */
+const TOOL_AUTHORIZATION_DENIED_CODES: ReadonlySet<string> = new Set([
+  "MISSING_CONTEXT_IDENTITY",
+  "UNAUTHORIZED_SURFACE",
+  "UNAUTHORIZED_ROLE",
+  "PLAN_NOT_ENTITLED",
+  "TENANT_SCOPE_VIOLATION",
+  "AUTHORIZATION_UNAVAILABLE",
+]);
+
+/**
  * The default Clara metering hook — the approved 7-B metering interface bound
- * to the existing spine's DISCIPLINE (append-only, never-break-the-metered-
- * pipeline, org-scoped) without inserting new billing rows:
+ * to the existing Clara org-scoped observability spine (F-7B-01, corrected).
  *
- * - the incumbent rag_search retrieval is metered by its OWNING turn (the
- *   grounding `admission: "external"` contract exists precisely so the
- *   caller owns the query event — inserting here would double-bill);
- * - the `usage_events` kind vocabulary is fixed by the existing schema CHECK
- *   constraint, and 7-B authorizes no migrations;
- * - the hook is the extension point where the existing usage/event
- *   infrastructure is bound per-surface by the owning flow (e.g. a future
- *   7-C loop binds per-turn accounting).
+ * Binding analysis against the existing metering infrastructure:
  *
- * The default implementation therefore records org-scoped structured
- * telemetry and never throws. Tests prove the RUNTIME invokes the hook with
- * the correctly scoped record; hosts may bind their own hook.
+ * - `usage_events` (the billable non-chat metering spine) CANNOT represent a
+ *   distinct tool invocation: the kind vocabulary is closed by the schema
+ *   CHECK constraint (EMBEDDING/TTS/OCR/TRANSCRIPTION/CONVERSATION/
+ *   TRANSLATION — every kind is a billable AI provider invocation) and
+ *   `model` is NOT NULL with cost taken from measured facts, never guessed.
+ *   Representing a tool invocation would require a new kind or a fabricated
+ *   model — a schema change / an invented event kind, both unauthorized in
+ *   7-B (recorded as the billable-spine representation blocker, awaiting
+ *   architect disposition).
+ * - `query_events` (the chat/query billing unit) CANNOT represent a distinct
+ *   tool invocation without double-billing: quota admission counts EVERY
+ *   row per org in the rolling-24h window, and the incumbent rag_search
+ *   retrieval is already represented by its owning turn's admitted +
+ *   finalised query event (the admission: "external" contract — inserting
+ *   here would count the turn twice).
+ * - The existing spine's established discipline for metering-domain events
+ *   that must NOT affect billing is the org-scoped audit trail:
+ *   `writeAuditLog` — the same helper the quota spine itself uses to record
+ *   `quota.denied` (an append-only, org-scoped, admin-analytics-observable
+ *   event row with zero billing impact and zero schema impact). This hook
+ *   binds there, on the already-consumed `@/modules/auth/core/db` seam.
+ *
+ * Event semantics: one audit row per metered invocation attempt —
+ * `tool.denied` for authorization-denied attempts (the `quota.denied`
+ * discipline), `tool.invoked` for every other outcome, with the full
+ * caller-scoped metering record (tool, KB, agent/user/session identity,
+ * surface, outcome, typed errorCode, duration, correlation) in `newData`.
+ * The runtime still invokes the hook exactly once per provenance-verified
+ * invocation attempt (INVALID_CONTEXT attempts produce no metering record
+ * at all — F-7B-02; untrusted tenant data never reaches this binding).
+ *
+ * Metering failures are absorbed and logged here (and additionally by the
+ * runtime's own metering stage) — never breaking the metered invocation,
+ * the same never-break-the-metered-pipeline discipline as the existing
+ * `logQueryEvent` / `logUsageEvent` / voice-metering writers.
  */
 export function buildClaraToolMeteringHook(): ToolMeteringHook {
   return {
     async onInvocation(record: ToolMeteringRecord): Promise<void> {
-      console.info(
-        "[tool-runtime] invocation metered",
-        JSON.stringify({
-          invocationId: record.invocationId,
-          toolName: record.toolName,
+      const denied =
+        record.errorCode !== undefined &&
+        TOOL_AUTHORIZATION_DENIED_CODES.has(record.errorCode);
+      try {
+        await writeAuditLog({
           orgId: record.tenantId,
-          kbId: record.kbId,
-          surface: record.surface,
-          outcome: record.outcome,
-          errorCode: record.errorCode ?? null,
-          durationMs: record.durationMs,
-        }),
-      );
+          ...(record.userId !== undefined ? { userId: record.userId } : {}),
+          action: denied ? "tool.denied" : "tool.invoked",
+          resourceType: "tool_invocation",
+          resourceId: record.toolName,
+          newData: {
+            invocationId: record.invocationId,
+            toolName: record.toolName,
+            kbId: record.kbId,
+            ...(record.agentId !== undefined ? { agentId: record.agentId } : {}),
+            ...(record.sessionId !== undefined ? { sessionId: record.sessionId } : {}),
+            surface: record.surface,
+            outcome: record.outcome,
+            ...(record.errorCode !== undefined ? { errorCode: record.errorCode } : {}),
+            durationMs: record.durationMs,
+            ...(record.correlationId !== undefined ? { correlationId: record.correlationId } : {}),
+          },
+        });
+      } catch (err) {
+        // The existing spine's never-break-the-metered-pipeline discipline
+        // (same as logQueryEvent / logUsageEvent / the voice metering
+        // writers): a metering write failure is logged and swallowed.
+        console.warn(
+          "[tool-runtime] metering audit write failed (never breaks the invocation):",
+          (err as Error)?.message ?? err,
+        );
+      }
     },
   };
 }

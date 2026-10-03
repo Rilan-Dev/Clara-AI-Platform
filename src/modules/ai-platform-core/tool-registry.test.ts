@@ -550,6 +550,36 @@ describe("tool invocation — the usage-metering hook", () => {
     const outcome = await runtime.invoke("echo_tool", { message: "hi" }, contextFor(TENANT_A));
     expect(outcome.ok).toBe(true); // the metered pipeline is unaffected
   });
+
+  it("rejects an invalid context BEFORE tenant-scoped metering — no untrusted tenant data reaches the metering hook (F-7B-02 regression)", async () => {
+    const records: ToolMeteringRecord[] = [];
+    const runtime = runtimeWith({ meteringHook: { onInvocation: (record) => { records.push(record); } } });
+    runtime.registerTool(echoTool());
+
+    // A forged frozen structural lookalike carrying HOSTILE tenant data —
+    // rejected by the Phase 7-A provenance boundary, and the rejection
+    // happens BEFORE any tenant-scoped metering record is constructed.
+    const forged = Object.freeze({
+      tenantId: "attacker-tenant",
+      kbId: "attacker-kb",
+      userId: "attacker-user",
+      sessionId: "attacker-session",
+      surface: "realtime",
+    });
+    const outcome = await runtime.invoke("echo_tool", { message: "hi" }, forged as never);
+    expect(outcome.ok).toBe(false);
+    expect((outcome as { error: { code: string } }).error.code).toBe("INVALID_CONTEXT");
+
+    // Missing / null / non-object contexts fail the same way.
+    for (const invalid of [undefined, null, "context", {}]) {
+      const rejected = await runtime.invoke("echo_tool", { message: "hi" }, invalid as never);
+      expect((rejected as { error: { code: string } }).error.code).toBe("INVALID_CONTEXT");
+    }
+
+    // The tenant-scoped metering hook was NEVER invoked for any of the
+    // rejected attempts — no untrusted tenant data was passed into metering.
+    expect(records).toHaveLength(0);
+  });
 });
 
 // ─── Streaming tool-event contract (types + emission only — NO provider tool calling) ──

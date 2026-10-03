@@ -64,12 +64,36 @@ vi.mock("@/modules/auth/core/db", () => ({
           : new Set(["kb:read", "agent:update"]),
     },
   ]),
+  // The default Clara metering hook binds to this EXISTING helper (the
+  // org-scoped audit spine — the quota.denied discipline; F-7B-01). Mocked
+  // so the tests prove the binding's exact write shape hermetically.
+  writeAuditLog: vi.fn(async () => undefined),
+}));
+
+// The BILLING/query-event writers are mocked so the F-7B-01 tests can
+// PROVE the default Clara metering binding never touches them — a
+// rag_search tool invocation must not create a duplicate billing/query
+// event (the owning turn owns the query accounting; admission: "external").
+vi.mock("@/modules/knowledge-bases/core/analytics-db", () => ({
+  logQueryEvent: vi.fn(async () => null),
+  logUsageEvent: vi.fn(async () => undefined),
+  finalizeQueryEvent: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/quota-admission", () => ({
+  admitQueryEvent: vi.fn(async () => ({
+    admitted: true as const,
+    eventId: null,
+    warning: null,
+    used: 0,
+    limit: 0,
+  })),
 }));
 
 import { claraRuntime } from "./clara-runtime";
 import {
   RAG_SEARCH_TOOL_NAME,
   buildClaraToolAuthorizationAdapter,
+  buildClaraToolMeteringHook,
   buildClaraToolRuntime,
   buildRagSearchTool,
   getClaraToolRuntime,
@@ -83,6 +107,21 @@ const mockedRetrieve = vi.mocked(claraRuntime.retrieve);
 const mockedEntitlements = vi.mocked(
   await import("@/modules/ai-governance/core/entitlements-db"),
 ).resolvePlanAIEntitlements;
+const mockedWriteAuditLog = vi.mocked(
+  await import("@/modules/auth/core/db"),
+).writeAuditLog;
+const mockedLogQueryEvent = vi.mocked(
+  await import("@/modules/knowledge-bases/core/analytics-db"),
+).logQueryEvent;
+const mockedLogUsageEvent = vi.mocked(
+  await import("@/modules/knowledge-bases/core/analytics-db"),
+).logUsageEvent;
+const mockedFinalizeQueryEvent = vi.mocked(
+  await import("@/modules/knowledge-bases/core/analytics-db"),
+).finalizeQueryEvent;
+const mockedAdmitQueryEvent = vi.mocked(
+  await import("@/lib/quota-admission"),
+).admitQueryEvent;
 
 const TENANT_A = "11111111-1111-4111-8111-111111111111";
 const TENANT_B = "22222222-2222-4222-8222-222222222222";
@@ -110,7 +149,13 @@ function realtimeContext(tenantId: string, overrides?: { kbId?: string; userId?:
 beforeEach(() => {
   mockedRetrieve.mockClear();
   mockedEntitlements.mockClear();
+  mockedWriteAuditLog.mockClear();
+  mockedLogQueryEvent.mockClear();
+  mockedLogUsageEvent.mockClear();
+  mockedFinalizeQueryEvent.mockClear();
+  mockedAdmitQueryEvent.mockClear();
   mockedRetrieve.mockResolvedValue(ENTITLED_GROUNDING as never);
+  mockedWriteAuditLog.mockResolvedValue(undefined);
 });
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -422,11 +467,158 @@ describe("rag_search — the approved metering hook", () => {
     const outcome = await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, realtimeContext(TENANT_A));
     expect(outcome.ok).toBe(true);
   });
+});
 
-  it("the default Clara metering hook completes without writing and without throwing", async () => {
+// ─── The default Clara metering binding (F-7B-01 correction) ──────────────────
+
+describe("rag_search — the default Clara metering binding on the existing org-scoped audit spine (F-7B-01)", () => {
+  it("records each successful invocation on the existing audit spine via writeAuditLog with the caller-scoped record", async () => {
+    const runtime = buildClaraToolRuntime();
+    const outcome = await runtime.invoke(
+      RAG_SEARCH_TOOL_NAME,
+      { query: "metered query" },
+      realtimeContext(TENANT_A, { sessionId: "sess-42" }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(mockedWriteAuditLog).toHaveBeenCalledTimes(1);
+    const input = mockedWriteAuditLog.mock.calls[0][0];
+    // Org/tenant scoping preserved (M-3): the audit row is scoped to the
+    // CALLER'S org, exactly as the existing audit spine requires.
+    expect(input.orgId).toBe(TENANT_A);
+    expect(input.userId).toBe("user-1");
+    // The existing audit vocabulary: action / resourceType / resourceId.
+    expect(input.action).toBe("tool.invoked");
+    expect(input.resourceType).toBe("tool_invocation");
+    expect(input.resourceId).toBe(RAG_SEARCH_TOOL_NAME);
+    // KB identity preserved (M-5/§9-4) + the full metering record shape.
+    expect(input.newData).toMatchObject({
+      invocationId: expect.any(String) as string,
+      toolName: RAG_SEARCH_TOOL_NAME,
+      kbId: KB_A,
+      agentId: "agent-1",
+      sessionId: "sess-42",
+      surface: "realtime",
+      outcome: "ok",
+      durationMs: expect.any(Number) as number,
+    });
+    expect((input.newData as Record<string, unknown>).errorCode).toBeUndefined();
+  });
+
+  it("preserves org/tenant identity and KB identity across callers (per-org audit scoping)", async () => {
+    const runtime = buildClaraToolRuntime();
+    await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, realtimeContext(TENANT_A, { kbId: "kb-aaaaaaaa" }));
+    await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, realtimeContext(TENANT_B, { kbId: "kb-bbbbbbbb" }));
+
+    expect(mockedWriteAuditLog).toHaveBeenCalledTimes(2);
+    const [first, second] = mockedWriteAuditLog.mock.calls.map((call) => call[0]);
+    expect(first.orgId).toBe(TENANT_A);
+    expect((first.newData as Record<string, unknown>).kbId).toBe("kb-aaaaaaaa");
+    expect(second.orgId).toBe(TENANT_B);
+    expect((second.newData as Record<string, unknown>).kbId).toBe("kb-bbbbbbbb");
+  });
+
+  it("classifies authorization denials with the dedicated tool.denied audit action (the quota.denied discipline)", async () => {
+    const runtime = buildClaraToolRuntime();
+
+    // Plan-entitlement denial (realtime → realtime_voice not entitled).
+    const denied = await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, realtimeContext(TENANT_FREE));
+    expect((denied as { error: { code: string } }).error.code).toBe("PLAN_NOT_ENTITLED");
+
+    // Surface denial (chat never exposed a tool surface).
+    const chatCtx = createExecutionContext({ orgId: TENANT_A, kbId: KB_A, surface: "chat" });
+    const refused = await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, chatCtx);
+    expect((refused as { error: { code: string } }).error.code).toBe("UNAUTHORIZED_SURFACE");
+
+    expect(mockedWriteAuditLog).toHaveBeenCalledTimes(2);
+    const [entitlementDenial, surfaceDenial] = mockedWriteAuditLog.mock.calls.map((call) => call[0]);
+    // The denial rows mirror the quota spine's quota.denied discipline…
+    expect(entitlementDenial.action).toBe("tool.denied");
+    expect(entitlementDenial.orgId).toBe(TENANT_FREE); // scoped to the DENIED caller
+    expect(entitlementDenial.newData).toMatchObject({
+      toolName: RAG_SEARCH_TOOL_NAME,
+      outcome: "error",
+      errorCode: "PLAN_NOT_ENTITLED",
+    });
+    expect(surfaceDenial.action).toBe("tool.denied");
+    expect((surfaceDenial.newData as Record<string, unknown>).errorCode).toBe("UNAUTHORIZED_SURFACE");
+    // …and the denied attempts never reached the retrieval implementation.
+    expect(mockedRetrieve).not.toHaveBeenCalled();
+  });
+
+  it("never writes billing/query events — rag_search is not double-billed (the owning turn owns the query accounting)", async () => {
     const runtime = buildClaraToolRuntime();
     const outcome = await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, realtimeContext(TENANT_A));
     expect(outcome.ok).toBe(true);
+
+    // The incumbent retrieval ran exactly once through the unchanged seam…
+    expect(mockedRetrieve).toHaveBeenCalledTimes(1);
+    // …the metering binding wrote exactly ONE org-scoped audit row…
+    expect(mockedWriteAuditLog).toHaveBeenCalledTimes(1);
+    // …and NONE of the billing/query-event writers were touched — no
+    // second query_events row (which would consume the org's rolling-24h
+    // quota), no usage_events row (whose closed kind vocabulary has no
+    // tool-invocation kind and permits no schema change).
+    expect(mockedLogQueryEvent).not.toHaveBeenCalled();
+    expect(mockedFinalizeQueryEvent).not.toHaveBeenCalled();
+    expect(mockedAdmitQueryEvent).not.toHaveBeenCalled();
+    expect(mockedLogUsageEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not meter invalid contexts — no untrusted tenant data reaches the audit spine (F-7B-02)", async () => {
+    const runtime = buildClaraToolRuntime();
+    const forged = Object.freeze({ tenantId: "attacker-tenant", kbId: "attacker-kb", surface: "realtime" });
+
+    const outcome = await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, forged as never);
+    expect((outcome as { error: { code: string } }).error.code).toBe("INVALID_CONTEXT");
+
+    // Rejected BEFORE tenant-scoped metering: no audit row was constructed
+    // from the untrusted context.
+    expect(mockedWriteAuditLog).not.toHaveBeenCalled();
+    expect(mockedRetrieve).not.toHaveBeenCalled();
+  });
+
+  it("never breaks the invocation when the audit-spine write itself fails", async () => {
+    mockedWriteAuditLog.mockRejectedValue(new Error("audit insert failed") as never);
+    const runtime = buildClaraToolRuntime();
+
+    const outcome = await runtime.invoke(RAG_SEARCH_TOOL_NAME, { query: "q" }, realtimeContext(TENANT_A));
+    // The metered pipeline is unaffected — the existing spine's
+    // never-break-the-metered-pipeline discipline.
+    expect(outcome.ok).toBe(true);
+  });
+
+  it("the hook is directly invocable with a caller-scoped record and writes exactly one audit row", async () => {
+    const hook = buildClaraToolMeteringHook();
+    const record: ToolMeteringRecord = {
+      invocationId: "toolinv-test-1",
+      toolName: RAG_SEARCH_TOOL_NAME,
+      tenantId: TENANT_A,
+      kbId: KB_A,
+      agentId: "agent-1",
+      userId: "user-1",
+      sessionId: "session-1",
+      surface: "embed",
+      outcome: "error",
+      errorCode: "EXECUTION_FAILED",
+      durationMs: 7,
+    };
+    await hook.onInvocation(record);
+
+    // Non-denial typed failures still record tool.invoked (only the
+    // authorization-denial family records tool.denied).
+    expect(mockedWriteAuditLog).toHaveBeenCalledTimes(1);
+    const input = mockedWriteAuditLog.mock.calls[0][0];
+    expect(input.action).toBe("tool.invoked");
+    expect(input.orgId).toBe(TENANT_A);
+    expect(input.newData).toMatchObject({
+      toolName: RAG_SEARCH_TOOL_NAME,
+      kbId: KB_A,
+      surface: "embed",
+      outcome: "error",
+      errorCode: "EXECUTION_FAILED",
+      durationMs: 7,
+    });
   });
 });
 

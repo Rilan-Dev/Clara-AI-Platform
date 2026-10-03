@@ -268,12 +268,22 @@ export interface ToolMeteringRecord {
 
 /**
  * Usage-metering hook — the approved 7-B metering interface. The runtime
- * invokes it exactly once per invocation attempt (success, typed failure, or
- * boundary refusal) with the caller-scoped record. The Clara binding wires
- * this onto the existing metering spine's discipline (append-only,
- * never-break-the-metered-pipeline, org-scoped); metering failures are logged
- * and NEVER break the invocation. No new billing architecture is hard-coded
- * here — hosts bind their own hook.
+ * invokes it exactly once per invocation attempt THAT PASSES the provenance
+ * assertion (success, typed failure, or boundary refusal) with the
+ * caller-scoped record. Boundary carve-out (F-7B-02, corrected): a
+ * provenance-invalid context (INVALID_CONTEXT) is rejected BEFORE
+ * tenant-scoped metering — for that attempt the hook is NOT invoked and NO
+ * metering record is produced, because a tenant-scoped
+ * ToolMeteringRecord cannot be safely constructed from an untrusted
+ * context (no ambient/default tenant is fabricated and no tenant identity
+ * is inferred from the rejected object). Every OTHER refusal boundary
+ * (unknown tool, authorization denial, schema validation) and every
+ * executed invocation DOES produce exactly one metering record, because
+ * those stages run after the context has been provenance-verified. The
+ * Clara binding wires this onto the existing metering spine's discipline
+ * (append-only, never-break-the-metered-pipeline, org-scoped); metering
+ * failures are logged and NEVER break the invocation. No new billing
+ * architecture is hard-coded here — hosts bind their own hook.
  */
 export interface ToolMeteringHook {
   onInvocation(record: ToolMeteringRecord): void | Promise<void>;
@@ -289,8 +299,10 @@ export interface ToolMeteringHook {
  * before execute() runs, and exactly one terminal event
  * (`tool_call_succeeded` | `tool_call_failed`) follows. Pre-execution
  * refusals (unknown tool, invalid context, authorization denial, schema
- * validation) emit NO events — no tool call happened — and are captured by
- * the metering record instead.
+ * validation) emit NO events — no tool call happened. Apart from the
+ * invalid-context refusal (rejected before a trusted tenant-scoped metering
+ * record can exist — see the ToolMeteringHook carve-out above), these
+ * refusals are captured by the metering record instead.
  *
  * Tenant identifiers deliberately do NOT appear in event payloads: these
  * events are shaped for transport surfaces, and tenant ids must not leak

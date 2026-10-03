@@ -30,6 +30,10 @@
  *     surface/identity checks + the host authorization adapter) → zod input
  *     validation → execute() → result/error normalization → metering hook →
  *     streaming tool events;
+ *     a provenance-invalid context terminates the invocation at the FIRST
+ *     arrow (INVALID_CONTEXT) BEFORE tenant-scoped metering — no metering
+ *     record is constructed from untrusted data and the metering hook is
+ *     not invoked for that attempt (F-7B-02, corrected; regression-proven);
  * - every failure is a normalized typed error (ToolFailure); the runtime
  *   never throws out of invoke() for tool-level failures and never falls
  *     back permissively;
@@ -323,7 +327,11 @@ export interface ToolRuntime {
    * tool-level failures — every failure is the normalized typed
    * `ToolFailure`. Lifecycle: context assertion → allowlist → authorization
    * (surface + identity checks, then the host adapter) → zod validation →
-   * execute() → normalization → metering → streaming events.
+   * execute() → normalization → metering → streaming events. A
+   * provenance-invalid context fails closed at the context assertion with
+   * INVALID_CONTEXT and produces NO tenant-scoped metering record — the
+   * metering hook is not invoked and no untrusted tenant data is passed
+   * into metering (see tool-contracts.ts ToolMeteringHook).
    */
   invoke(
     name: string,
@@ -464,7 +472,13 @@ export function createToolRuntime(options: ToolRuntimeOptions): ToolRuntime {
 
       // (1) Mandatory execution context — the Phase 7-A provenance boundary.
       // An invalid, non-factory, or forged context fails closed before
-      // anything else happens.
+      // anything else happens. This deliberately includes metering (F-7B-02,
+      // corrected): the tenant-scoped ToolMeteringRecord would have to be
+      // built FROM this untrusted context, so no record is produced, the
+      // metering hook is not invoked, and no untrusted tenant data reaches
+      // the metering boundary. The security boundary is intentional and is
+      // NOT weakened — no ambient/default tenant is fabricated and no tenant
+      // identity is inferred from the rejected object.
       try {
         assertExecutionContext(context);
       } catch (err) {
