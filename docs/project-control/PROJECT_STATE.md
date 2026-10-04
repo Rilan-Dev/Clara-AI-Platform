@@ -223,3 +223,11 @@ Task 3–5 implementation review: architect PASS. The provider pilot is default-
 Verification evidence: CI run 37192496888 passed 113/113 test files and 1075/1075 tests, Phase 7 focused lint/typecheck, governance verification, model configuration, and npm installation. Global repository typecheck/lint remain baseline failures (reference/extraction-tree and unrelated existing findings); no active Phase 7-C runtime file remains in those reported error sets.
 
 I-015 is RESOLVED for its dependency/lockfile condition. I-014 remains OPEN. Phase 7-C is deliberately not closed yet because the whole-branch verification matrix is not fully green; no global baseline error is being “fixed” by altering immutable/reference material.
+
+## Current-state reconciliation — 2026-10-04 — Phase 7-C CLOSED
+
+D-028 has been established and the architect closure review returned PASS. Phase 7-C is now CLOSED. Phase 7 remains IN_PROGRESS because broader project-level items remain open (including I-014 and pending D-P2/D-P4).
+
+Current HEAD remains on feature/ai-core-from-doable-source and contains the D-027 implementation plus governance closure records. The provider tool-calling pilot and bounded agentic loop are accepted as additive/default-off capabilities. No unauthorized MCP, integrations, memory, skills, billable tool metering, schema, migration, deployment, or Phase 8 work was introduced.
+
+The global Type Check and ESLint baseline remains non-green and is explicitly dispositioned by D-028 as a non-regressive follow-up. This does not make global CI green and does not authorize changing immutable/reference material. Phase 7-C closure is based on the phase-specific acceptance surface and the passing changed-code/full-test evidence.
