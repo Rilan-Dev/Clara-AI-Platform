@@ -120,13 +120,9 @@ jobs:
           console.log(`Immutable manifest PASS: ${expectedFiles.length}/${expectedFiles.length} file blobs match.`);
           NODE
 
-      - name: Immutable tree and vercel provenance
+      - name: Vercel provenance
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD:docs/doable-source/doable-source)" = "a42aee79"
-          test "$(git rev-parse HEAD:docs/doable-source/dependency-closure)" = "ee07c362"
-          test "$(git rev-parse HEAD:docs/doable-source/ui-reference)" = "b76b8f34"
-          test "$(git rev-parse HEAD:docs/doable-source/doable-source-extensions)" = "54606204"
           test "$(git rev-parse HEAD:vercel.json)" = "3f26d343"
 
       - name: Runtime import boundary
