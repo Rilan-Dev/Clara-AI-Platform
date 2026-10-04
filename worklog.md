@@ -1274,3 +1274,7 @@ Implemented directly on the feature branch:
 Commits: 298a57aa (role UI), c59678dc (plan entitlements), 63fcb501 (xlsx lockfile), 2df64eeb (governance). No production promotion performed.
 
 Verification remains pending: executable production build, current-head CI evidence, browser verification of /ai-platform and tenant-role redirects, and final I-1 Gate-D review.
+
+## 2026-10-05 — Preview path enabled
+
+Opened draft PR #266 from feature/ai-core-from-doable-source to Vercel-Prod solely to obtain a preview build without merging or promoting production. Vercel project clara-backend is linked to the same repository/branch and its ignored-build-step setting has been cleared. No fresh deployment has appeared yet through the connected Vercel surface; browser verification therefore remains pending and no preview URL is claimed.
