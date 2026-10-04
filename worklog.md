@@ -1214,3 +1214,8 @@ Current status: **IMPLEMENTED — VERIFICATION PENDING** because the connected G
 | Review | [architect-verified] Gate D review completed with `PASS_WITH_FOLLOWUP`: the corrected contract is architect-reviewed, but I-1 cannot close until executable verification is observed. |
 | Current status | **IMPLEMENTED — VERIFICATION PENDING**. No I-2 or later integration work is authorized. |
 | Next action | Obtain executable I-1 CI evidence, then perform final Gate-D closure review and either close I-1 or issue a bounded correction. |
+
+
+## 2026-10-05 — Integrations I-1 threat model — verification still pending
+
+D-031-authorized scope now includes the I-1 trust-boundary artifact `src/modules/ai-platform-core/integrations/integration-threat-model.md`. [developer/ChatGPT] The document maps credential, OAuth, tenancy, egress, tool-bridge, and telemetry boundaries and records the stopping boundary for I-1. No runtime integration, persistence, OAuth transport, outbound HTTP, deployment, or billing behavior was added. [architect-verified] I-1 remains open pending executable Gate-C evidence; I-2 remains unauthorized.
