@@ -313,3 +313,17 @@ D-031 authorizes only Integrations I-1: host-neutral integration contracts and t
 Explicitly out of scope for this boundary: persistence/schema/migrations, OAuth routes/token exchange, credential vault implementation, Activepieces execution/dependencies, outbound network/egress execution, deployment, MCP runtime, agent runtime, and billing/metering changes.
 
 The next stop is executable verification and architect review of I-1. No I-2 work begins before that review. [architect-verified]
+
+## Current-state reconciliation — 2026-10-05 — I-1 correction applied, Gate C pending
+
+The I-1 architect review found and corrected I-018 before closure. The corrected exact head is `bfc40f671aea218def571c617f00789e15b45823`. The correction is bounded to the two D-031 contract/test files and preserves the host-neutral stopping boundary.
+
+Current I-1 gate state:
+- Gate A: PASS [architect-verified].
+- Gate B: PASS [architect-verified] after I-018 correction.
+- Gate C: **MISSING** — executable focused Vitest/strict TypeScript/ESLint evidence is not yet exposed for the current head.
+- Gate D: PASS_WITH_FOLLOWUP [architect-verified] — correction reviewed; final closure review waits for Gate C.
+- Gate E: NOT_APPLICABLE.
+- Gate F: NOT_APPLICABLE.
+
+I-1 remains **IMPLEMENTED — VERIFICATION PENDING**. I-018 is RESOLVED. No I-2 or runtime integration work is authorized. [architect-verified]
