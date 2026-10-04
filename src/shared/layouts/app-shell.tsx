@@ -41,6 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/subscriptions") ||
     pathname.startsWith("/analytics") ||
     pathname.startsWith("/system-status") ||
+    pathname.startsWith("/ai-platform") ||
     pathname.startsWith("/settings");
   const shellClassName = "w-full min-h-screen min-h-[100dvh] antialiased";
 
