@@ -1,6 +1,6 @@
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
-> The smallest useful instruction for a fresh ChatGPT (or Z.AI) session. Updated at each phase boundary. Snapshot date: **2026-10-04 (Phase 7-B — CLOSED: the architect's independent closure review of the acceptance-redefined state returned `PASS` — Phase 7-B `PASS — CLOSED` under the D-023 / Option A acceptance; F-7B-01/F-7B-02/I-017 stand RESOLVED; first-class billable tool-usage metering deferred; Phase 7-C NOT AUTHORIZED; awaiting the next explicit architect authorization)**.
+> The smallest useful instruction for a fresh ChatGPT (or Z.AI) session. Updated at each phase boundary. Snapshot date: **2026-10-04 (Phase 7-C CLOSED — architect PASS under D-028; I-014 RESOLVED under D-029; Phase 7 remains IN_PROGRESS)**.
 > This file is intentionally short. History lives in Git, in `VERIFICATION_STATE.md`, and in the canonical `worklog.md`; current truth lives in `PROJECT_STATE.md`. A fresh ChatGPT session follows the full procedure in `docs/project-control/CHAT_CONTINUITY.md` (§5).
 
 ## Read this first
