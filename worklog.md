@@ -1190,3 +1190,12 @@ ChatGPT completed the whole-phase architect review after the recorded 7-A, 7-B, 
 
 ### Next
 Prepare the next bounded architecture/planning package. Do not begin later product implementation without its own explicit authorization.
+
+
+## 2026-10-05 — Integrations I-1 contract foundation — verification pending
+
+D-031 authorized a bounded host-neutral contract/test slice only. ChatGPT implemented `src/modules/ai-platform-core/integrations/integration-contracts.ts`, its focused test, and the platform-core export.
+
+No persistence, OAuth transport, credential vault, Activepieces runtime, outbound HTTP, egress execution, migration, deployment, or billing change was introduced.
+
+Current status: **IMPLEMENTED — VERIFICATION PENDING** because the connected GitHub integration has not exposed an Actions run for the current feature head. No PASS is claimed.
