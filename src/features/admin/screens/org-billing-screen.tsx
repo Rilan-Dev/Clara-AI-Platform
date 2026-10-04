@@ -500,9 +500,25 @@ export default function OrgBillingScreen() {
                   {plan.price_usd > 0 && <span className="text-sm font-normal text-muted-foreground/70">/mo</span>}
                 </div>
 
-                <ul className="flex-1 space-y-1.5 mt-3 min-h-[84px]">
-                  {(plan.features ?? []).slice(0, 5).map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-[13px] text-muted-foreground">
+                <div className="mt-3 space-y-2 rounded-xl border border-border/70 bg-muted/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Limits & entitlements</p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                    <span className="text-muted-foreground">Knowledge bases</span><span className="text-right text-foreground font-medium">{plan.max_kbs === -1 ? "Unlimited" : plan.max_kbs ?? "—"}</span>
+                    <span className="text-muted-foreground">Docs / KB</span><span className="text-right text-foreground font-medium">{plan.max_docs_per_kb === -1 ? "Unlimited" : plan.max_docs_per_kb ?? "—"}</span>
+                    <span className="text-muted-foreground">Requests / 24h</span><span className="text-right text-foreground font-medium">{plan.max_req_day === -1 ? "Unlimited" : plan.max_req_day?.toLocaleString() ?? "—"}</span>
+                    <span className="text-muted-foreground">Storage</span><span className="text-right text-foreground font-medium">{plan.max_storage_mb === -1 ? "Unlimited" : plan.max_storage_mb != null ? plan.max_storage_mb.toLocaleString() + " MB" : "—"}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {[["Voice", plan.voice_enabled], ["API", plan.api_access], ["Branding", plan.custom_branding], ["SSO", plan.sso_enabled]].map(([label, enabled]) => (
+                      <span key={String(label)} className={`rounded-full border px-2 py-0.5 text-[10px] ${enabled ? "border-emerald-600/25 bg-emerald-500/10 text-emerald-600" : "border-border bg-muted text-muted-foreground/70"}`}>
+                        {enabled ? "✓" : "—"} {String(label)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <ul className="flex-1 space-y-1.5 mt-3 min-h-[60px]">
+                  {(plan.features ?? []).slice(0, 4).map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-[12px] text-muted-foreground">
                       <Check className="w-3.5 h-3.5 text-emerald-600/70 shrink-0 mt-0.5" /> {f}
                     </li>
                   ))}
