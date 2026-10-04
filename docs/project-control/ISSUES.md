@@ -401,3 +401,9 @@ The current branch package metadata now contains the previously missing `@vercel
 I-015 remains **OPEN** because the authoritative plan requires executable npm/typecheck verification after reconciliation, and the current ChatGPT sandbox does not contain the repository checkout and cannot clone GitHub. No typecheck/build PASS is inferred from static lockfile inspection.
 
 > **I-015 resolution evidence — 2026-10-04:** The active `package-lock.json` now contains the declared `@vercel/functions ^3.9.9` root dependency and resolved `3.9.9` package metadata. GitHub Actions run `37192123977` successfully completed `npm install --legacy-peer-deps` and `npm run test -- --run`; the Type Check job no longer reports the previous `@vercel/functions`/missing-dependency application errors. Remaining Type Check failures are confined to the pre-existing extraction/reference trees and unrelated baseline application conditions. I-015 is therefore **RESOLVED** for the manifest/lockfile/environment dependency condition. This does not make the overall Phase 7 verification matrix PASS and does not close the global typecheck/build baseline.
+
+## Current-state reconciliation — 2026-10-04
+
+I-015 current status: RESOLVED for the dependency/lockfile/environment condition. GitHub Actions run 37192496888 successfully completed npm install --legacy-peer-deps, and the previous @vercel/functions missing-dependency cascade is absent from the current Type Check result. The remaining repository-wide TypeScript failures are pre-existing reference/extraction-tree and unrelated baseline findings; they do not reopen I-015.
+
+I-014 remains OPEN because the 31 absent immutable vendored files remain confined to the mcp-servers family. This is outside the authorized Phase 7-C scope and does not block the bounded provider tool-calling/agentic-loop implementation review.
