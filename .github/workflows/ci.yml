@@ -88,3 +88,35 @@ jobs:
         run: bash docs/project-control/verification/correction-cycle-test.sh
       - name: Model configuration
         run: npm run validate:model-config
+
+      - name: Library integrity
+        run: node docs/doable-source/verification/validate-library.mjs
+        working-directory: docs/doable-source
+
+      - name: Immutable Doable-source paths
+        run: |
+          set -euo pipefail
+          git diff --quiet 03482584 HEAD --             docs/doable-source/doable-source             docs/doable-source/dependency-closure             docs/doable-source/ui-reference             docs/doable-source/doable-source-extensions
+          test "$(git rev-parse 03482584:docs/doable-source/doable-source)" = "$(git rev-parse HEAD:docs/doable-source/doable-source)"
+          test "$(git rev-parse 03482584:docs/doable-source/dependency-closure)" = "$(git rev-parse HEAD:docs/doable-source/dependency-closure)"
+          test "$(git rev-parse 03482584:docs/doable-source/ui-reference)" = "$(git rev-parse HEAD:docs/doable-source/ui-reference)"
+          test "$(git rev-parse 03482584:docs/doable-source/doable-source-extensions)" = "$(git rev-parse HEAD:docs/doable-source/doable-source-extensions)"
+          test "$(git rev-parse b65725e5:vercel.json)" = "$(git rev-parse HEAD:vercel.json)"
+
+      - name: Runtime import boundary
+        run: |
+          set -euo pipefail
+          if git grep -nE '(^|[[:space:](])((from|import|require)[[:space:]]*\(?["'"'] )[^"'"']*doable-source' -- src; then
+            echo "Runtime import boundary violation detected."
+            exit 1
+          fi
+
+      - name: Secret-pattern scan
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only 88a6b5f9806c6526a7173c3e3cceff6ed77baba8 HEAD)"
+          if [ -z "$changed" ]; then exit 0; fi
+          if printf '%s\n' "$changed" | xargs grep -nE -I             '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY-----|Bearer[[:space:]]+[A-Za-z0-9._-]{20,})' --; then
+            echo "Secret-pattern match detected in changed paths."
+            exit 1
+          fi
