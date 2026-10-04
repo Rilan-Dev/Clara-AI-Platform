@@ -11,6 +11,7 @@ import {
   FlaskConical,
   GitBranch,
   LockKeyhole,
+  Plug,
   ShieldCheck,
   TerminalSquare,
   Wrench,
@@ -19,7 +20,7 @@ import {
 import { ProvidersWorkspace } from "./ProvidersWorkspace";
 import { cn } from "@/lib/utils";
 
-type Tab = "overview" | "providers" | "tools" | "agent-loop" | "verification";
+type Tab = "overview" | "providers" | "tools" | "integrations" | "agent-loop" | "verification";
 
 type AiPlatformWorkspaceProps = {
   toolCallingEnabled: boolean;
@@ -30,6 +31,7 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof Brain }> = [
   { id: "overview", label: "Overview", icon: Brain },
   { id: "providers", label: "Providers", icon: Activity },
   { id: "tools", label: "Tool Runtime", icon: Wrench },
+  { id: "integrations", label: "Integrations", icon: Plug },
   { id: "agent-loop", label: "Agent Loop", icon: Bot },
   { id: "verification", label: "Verification", icon: ShieldCheck },
 ];
@@ -101,15 +103,14 @@ export function AiPlatformWorkspace({
                 <Brain className="h-3.5 w-3.5" />
                 AI Platform Core
               </span>
-              <StatusPill enabled={true} label="Phase 7 foundation active" />
+              <StatusPill enabled={true} label="Integrations I-1 active" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               AI Platform workspace
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              The control surface for Clara&apos;s new provider-agnostic tool runtime and
-              bounded agent orchestration. Existing production paths remain unchanged until
-              an explicit pilot flag is enabled.
+              The control surface for Clara&apos;s provider-agnostic tool runtime and the active
+              Integrations I-1 contract foundation. Runtime execution remains explicitly gated.
             </p>
           </div>
 
@@ -134,20 +135,20 @@ export function AiPlatformWorkspace({
 
         <div className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
           <div className="border-r border-border p-4 sm:p-5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Runtime</div>
-            <div className="mt-1 font-semibold">Unified Tools</div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Current scope</div>
+            <div className="mt-1 font-semibold">Integrations I-1</div>
           </div>
           <div className="border-b border-r border-border p-4 sm:border-b-0 sm:p-5">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">First tool</div>
             <div className="mt-1 font-semibold font-mono text-sm">rag_search</div>
           </div>
           <div className="border-r border-border p-4 sm:p-5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Loop bound</div>
-            <div className="mt-1 font-semibold">8 iterations max</div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">I-1 boundary</div>
+            <div className="mt-1 font-semibold">Contracts only</div>
           </div>
           <div className="p-4 sm:p-5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Metering</div>
-            <div className="mt-1 font-semibold">Audit only</div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Persistence</div>
+            <div className="mt-1 font-semibold">Not authorized</div>
           </div>
         </div>
       </header>
@@ -191,7 +192,7 @@ export function AiPlatformWorkspace({
                 <div>
                   <h2 className="font-semibold">Implementation pipeline</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    The actual new runtime layers now implemented in Clara.
+                    The reusable runtime foundation and the active integration contract boundary.
                   </p>
                 </div>
                 <TerminalSquare className="h-5 w-5 text-primary" />
@@ -258,13 +259,13 @@ export function AiPlatformWorkspace({
               <div>
                 <h2 className="font-semibold">Ready for hands-on verification</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Start with providers, inspect the registered tool contract, then review the
-                  bounded-loop state before enabling any pilot flag.
+                  Start with Integrations to inspect the new trust boundary, then inspect the
+                  Unified Tool Runtime and provider surfaces. Runtime execution is not yet authorized.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setTab("tools")}
+                onClick={() => setTab("integrations")}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
               >
                 Inspect tools
@@ -335,6 +336,73 @@ export function AiPlatformWorkspace({
                 <div className="mt-1 font-mono text-[11px] text-muted-foreground">{detail}</div>
               </div>
             ))}
+          </section>
+        </div>
+      )}
+
+      {tab === "integrations" && (
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Plug className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Integrations Framework · I-1</h2>
+                </div>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Host-neutral contracts are implemented. This surface intentionally exposes
+                  the trust boundary without pretending that OAuth, persistence or action execution exists yet.
+                </p>
+              </div>
+              <StatusPill enabled={true} label="Contracts implemented" />
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Metric value="7" label="Explicit adapter ports" tone="success" />
+              <Metric value="0" label="Database changes" tone="success" />
+              <Metric value="0" label="OAuth transports" />
+              <Metric value="0" label="Outbound executors" />
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            {[
+              ["Catalog", "IntegrationDescriptor + catalog adapter", "Implemented"],
+              ["Connections", "Tenant/project/user-scoped connection references", "Implemented"],
+              ["Credentials", "Opaque credential handles only", "Implemented"],
+              ["OAuth", "Protocol boundary + callback data", "Port only"],
+              ["Actions", "Zod input schemas + runner port", "Contract only"],
+              ["Egress", "Explicit SSRF/egress policy adapter", "Port only"],
+              ["Tool bridge", "Integration action → Unified Tool Runtime", "Contract only"],
+              ["Observability", "Redaction-safe operational boundary", "Contract only"],
+            ].map(([title, detail, state]) => (
+              <div key={title} className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold">{title}</h3>
+                  <span className={cn(
+                    "text-[11px] font-medium",
+                    state === "Implemented" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground",
+                  )}>
+                    {state}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-5 text-muted-foreground">{detail}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h3 className="font-semibold">I-1 stopping boundary</h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Database migrations, OAuth routes/token exchange, credential-vault implementation,
+                  Activepieces runtime, outbound HTTP/SSRF execution, integration action execution,
+                  deployment and billing changes are deliberately unavailable in this slice.
+                </p>
+              </div>
+            </div>
           </section>
         </div>
       )}
