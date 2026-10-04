@@ -209,3 +209,17 @@ Verification is pending: the current sandbox does not contain the repository che
 D-024/D-027 are active. ChatGPT is the implementation owner for Tasks 3–5. The provider tool-call pilot and bounded loop are additive/default-off; the Unified Tool Runtime remains the only tool execution boundary. No schema, migration, immutable/reference, MCP, integrations, billable metering, deployment, or Phase 8 work has been performed.
 
 Verification is pending because the current sandbox lacks the repository checkout and cannot clone GitHub. No test/typecheck/lint PASS is claimed. I-015 remains OPEN.
+
+## Current-state reconciliation — 2026-10-04 — post Task-6 architect review
+
+The current repository state supersedes the older takeover paragraphs that predate executable CI evidence. Historical records remain preserved.
+
+Authoritative current state: Phase 7 is IN_PROGRESS; Phase 7-A and 7-B are closed; Phase 7-C is AUTHORIZED / IMPLEMENTED / VERIFICATION SUBSTANTIALLY COMPLETE / NOT CLOSED. ChatGPT is the active implementation owner under D-024/D-027.
+
+Current HEAD: acd753d92ec6065ecfc8dbf845fbefb54ad49c9d, identical to origin/feature/ai-core-from-doable-source by GitHub compare.
+
+Task 3–5 implementation review: architect PASS. The provider pilot is default-off, the agent loop is default-off and hard-capped at 8 iterations, provenance is enforced before runtime invocation, cancellation is checked before each provider turn and pending tool execution, and provider failures are sanitized. The Unified Tool Runtime remains the only tool execution boundary. No unauthorized MCP, integration, memory, skills, billable metering, schema, migration, deployment, or Phase 8 work is present in the reviewed delta.
+
+Verification evidence: CI run 37192496888 passed 113/113 test files and 1075/1075 tests, Phase 7 focused lint/typecheck, governance verification, model configuration, and npm installation. Global repository typecheck/lint remain baseline failures (reference/extraction-tree and unrelated existing findings); no active Phase 7-C runtime file remains in those reported error sets.
+
+I-015 is RESOLVED for its dependency/lockfile condition. I-014 remains OPEN. Phase 7-C is deliberately not closed yet because the whole-branch verification matrix is not fully green; no global baseline error is being “fixed” by altering immutable/reference material.
