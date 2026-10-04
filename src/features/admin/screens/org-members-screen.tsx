@@ -191,7 +191,7 @@ export default function OrgMembersScreen() {
                 onChange={(e) => setInviteRole(e.target.value)}
                 className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground focus:outline-none focus:border-primary"
               >
-                {ROLES.map((r) => (
+                {inviteRoles.map((r) => (
                   <option key={r.id} value={r.id} className="bg-popover">{r.label}</option>
                 ))}
               </select>
@@ -264,7 +264,7 @@ export default function OrgMembersScreen() {
                         aria-label={`Change role for ${m.fullName ?? m.email}`}
                         className="bg-muted/50 border border-border rounded-lg px-2.5 py-2 text-base sm:text-xs text-muted-foreground focus:outline-none focus:border-primary disabled:opacity-40"
                       >
-                        {ROLES.map((r) => (
+                        {(canManageMembers ? ROLES : ROLES.filter((r) => r.id === "kb_editor" || r.id === "kb_viewer")).map((r) => (
                           <option key={r.id} value={r.id} className="bg-popover">{r.label}</option>
                         ))}
                       </select>
