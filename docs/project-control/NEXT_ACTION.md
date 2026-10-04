@@ -83,3 +83,13 @@ The implementation test scope is green (113 files / 1075 tests), model configura
 ## Task 6 current boundary — 2026-10-04
 
 Green evidence: full tests 113/113 and 1075/1075; Phase 7 focused lint/typecheck; governance validators; model-config; npm install. I-015 resolved. Remaining closure work: reproduce immutable-source/library-integrity/secret/runtime-import checks at current head and perform final fresh-context review. Global typecheck/lint failures remain baseline/reference-tree gates and must not be “fixed” by altering immutable/reference material. Phase 7-C stays IN_PROGRESS until the final closure decision is made.
+
+## Current-state reconciliation — 2026-10-04
+
+The current next action supersedes earlier “verification pending / I-015 open” wording above; those paragraphs are retained as historical checkpoints.
+
+1. Keep Phase 7-C IN_PROGRESS; do not claim closure yet.
+2. Preserve the architect-verified Gate A/B/D results and the changed-code Gate C PASS from CI run 37192496888.
+3. The only remaining closure decision is whether the repository-wide typecheck/lint baseline can be formally accepted as an explicit project follow-up under the phase-gate contract, or whether a separately authorized infrastructure/baseline-cleanup phase is required. Do not alter immutable/reference trees to make these global gates green.
+4. I-015 is RESOLVED; I-014 remains OPEN and outside 7-C scope.
+5. Any final closure commit must update all five current-state members consistently and must be an explicit ChatGPT architect decision.
