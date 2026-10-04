@@ -1278,3 +1278,11 @@ Verification remains pending: executable production build, current-head CI evide
 ## 2026-10-05 — Preview path enabled
 
 Opened draft PR #266 from feature/ai-core-from-doable-source to Vercel-Prod solely to obtain a preview build without merging or promoting production. Vercel project clara-backend is linked to the same repository/branch and its ignored-build-step setting has been cleared. No fresh deployment has appeared yet through the connected Vercel surface; browser verification therefore remains pending and no preview URL is claimed.
+
+## 2026-10-05 — UI/RBAC/subscription correction checkpoint — `d0f2d5a1`
+
+[developer/ChatGPT] Continued the user-directed UI test-readiness work from the existing feature branch. The Members surface now presents explicit role guidance and constrains project managers to Editor/Viewer grants. The server-side invitation and role-change handlers enforce the same hierarchy and reject self-role changes. Billing & Plan now exposes the complete plan-limit/entitlement set on each plan card while retaining live usage meters and existing upgrade/downgrade flows.
+
+A source review also found that earlier governance wording overstated the existing role restriction/package state. The current records are being reconciled to the actual branch state. `@e965/xlsx@0.20.3` is now declared and locked with published integrity metadata; no immutable/reference material was modified.
+
+Current status: **IMPLEMENTED — VERIFICATION PENDING**. Required next evidence is a current-head production build, current-head CI, browser verification, and exact-head immutable/runtime-import/secret/governance checks. No I-2, OAuth, persistence, egress, MCP runtime, or production promotion is authorized.
