@@ -58,13 +58,15 @@ function orgSettingsNav(orgId: string | null): SettingsNavItem[] {
 // directly from the sidebar (they used to be horizontal tabs; moving them
 // into the rail keeps every screen focused on one job: monitor → build →
 // team → money). "Settings" stays personal (account) in its own group.
-function orgWorkspaceNav(orgId: string) {
+function orgWorkspaceNav(orgId: string, role: string | null) {
   const base = `/orgs/${orgId}`;
+  const canManageMembers = role === "org_admin";
+  const canInvite = role === "org_admin" || role === "project_manager";
   return [
-    { href: base,              icon: LayoutDashboard, label: "Dashboard", exact: true  },
-    { href: `${base}/agents`,  icon: Bot,             label: "Agents",    exact: false },
-    { href: `${base}/members`, icon: Users,           label: "Members",   exact: false },
-    { href: `${base}/billing`, icon: CreditCard,      label: "Billing",   exact: false },
+    { href: base, icon: LayoutDashboard, label: "Dashboard", exact: true },
+    { href: `${base}/agents`, icon: Bot, label: "Agents", exact: false },
+    ...(canInvite ? [{ href: `${base}/members`, icon: Users, label: "Members", exact: false }] : []),
+    ...(canManageMembers ? [{ href: `${base}/billing`, icon: CreditCard, label: "Billing", exact: false }] : []),
   ];
 }
 
@@ -119,7 +121,7 @@ function tabLabel(item: { href: string; label: string; exact?: boolean }): strin
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout, primaryOrgId } = useAuth();
+  const { user, loading, logout, primaryOrgId, primaryOrgRole } = useAuth();
   const pathname   = usePathname();
   const router     = useRouter();
   const [moreOpen, setMoreOpen] = useState(false); // mobile "More" bottom sheet
@@ -169,7 +171,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // "/orgs" list is admin-only; "/orgs/:id" is accessible to org users for their own org
       const isOrgsListPage = pathname === "/orgs";
 
-      if (isAdminOnlyPage || isOrgsListPage) {
+      const isOrgBillingPage = Boolean(primaryOrgId && pathname === `/orgs/${primaryOrgId}/billing`);
+      const isBillingAllowed = primaryOrgRole === "org_admin";
+      if (isAdminOnlyPage || isOrgsListPage || (isOrgBillingPage && !isBillingAllowed)) {
         const dest = primaryOrgId ? `/orgs/${primaryOrgId}` : "/settings";
         router.replace(dest);
       }
@@ -206,7 +210,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // its identity + configuration groups are added below in the same rail —
   // never as a second sidebar. On the agents index the rail lists the org's
   // agents themselves (ElevenLabs layout).
-  const orgNav = primaryOrgId ? orgWorkspaceNav(primaryOrgId) : [];
+  const orgNav = primaryOrgId ? orgWorkspaceNav(primaryOrgId, primaryOrgRole) : [];
   const agentRoute = pathname.match(/^\/orgs\/([^/]+)\/agents\/([^/]+)/);
   const activeAgentOrgId = agentRoute?.[1] ?? null;
   const activeAgentId = agentRoute?.[2] ?? null;
