@@ -9,7 +9,8 @@
 
 import type { PlatformExecutionContext } from "./contracts";
 import { assertExecutionContext } from "./execution-context";
-import type { ToolInvocationOutcome, ToolRuntime } from "./tool-registry";
+import type { ToolInvocationOutcome } from "./tool-contracts";
+import type { ToolRuntime } from "./tool-registry";
 
 export const PROVIDER_TOOL_CALLING_FLAG = "ENABLE_AI_PLATFORM_TOOL_CALLING";
 
