@@ -523,3 +523,17 @@ The immediately preceding Phase 7-C reconciliation sentence stating **“I-014 r
 The requested UI surface is already implemented and has now been tightened for testability: organisation navigation is role-aware; agent workspace sections are enabled; team management exposes Admin / Project manager / Editor / Viewer roles; usage meters surface effective plan limits; and Billing & Plan exposes plan status, usage, upgrade/downgrade flow, and explicit entitlement flags. Project managers are now prevented in the UI from granting elevated organisation roles; the server remains authoritative.
 
 Vercel project clara-backend is linked to Rilan-Dev/Clara-AI-Platform on feature/ai-core-from-doable-source. The ignored-build-step setting was cleared to allow the feature branch to produce a preview when the next commit is pushed. No production promotion was performed.
+
+
+## I-022 — Project-manager organisation-role escalation boundary
+
+| Field | Value |
+|---|---|
+| Issue ID | I-022 |
+| Severity | P1 |
+| Status | CORRECTED — executable verification pending |
+| Finding | The organisation member UI/server accepted the full role enum for callers holding the member-invite permission. The intended least-privilege model requires project managers to manage only Editor/Viewer access. |
+| Correction | Project managers may only invite/manage Editor and Viewer members. Organisation admins retain full role assignment. Self-role changes are rejected. Both UI filtering and server-side checks were updated. |
+| Scope | `src/features/admin/screens/org-members-screen.tsx`; `src/modules/auth/api/auth.ts` |
+| Non-scope | No new permission keys, migrations, billing architecture, deployment promotion, MCP, OAuth, or integration runtime work. |
+| Verification | Current-head CI/browser verification remains pending. |
