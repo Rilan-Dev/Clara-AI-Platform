@@ -60,6 +60,8 @@
     "download",
     "upload",
     "tool-results",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "ai-platform-core/**",
+    "clara-core/**"
   ]
 }
