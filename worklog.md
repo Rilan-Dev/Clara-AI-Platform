@@ -1286,3 +1286,13 @@ Opened draft PR #266 from feature/ai-core-from-doable-source to Vercel-Prod sole
 A source review also found that earlier governance wording overstated the existing role restriction/package state. The current records are being reconciled to the actual branch state. `@e965/xlsx@0.20.3` is now declared and locked with published integrity metadata; no immutable/reference material was modified.
 
 Current status: **IMPLEMENTED — VERIFICATION PENDING**. Required next evidence is a current-head production build, current-head CI, browser verification, and exact-head immutable/runtime-import/secret/governance checks. No I-2, OAuth, persistence, egress, MCP runtime, or production promotion is authorized.
+
+
+## 2026-10-05 — UI / RBAC / Subscription verification checkpoint
+- Organisation Team UI exposes the four existing roles: Admin, Project manager, Editor, Viewer.
+- Added an explicit permission matrix to the Members screen; it is explanatory UI only and server-side RBAC remains authoritative.
+- Billing UI exposes plan limits/capabilities including knowledge bases, documents per KB, rolling request quota, storage, Voice, API, Branding, and SSO.
+- Secure spreadsheet parser dependency `@e965/xlsx@0.20.3` is present in package.json and package-lock.json, addressing the Docker build failure reported from the previous branch build.
+- Server RBAC remains fail-closed: tenant scope rejects platform-admin access to tenant resources, and org/agent/KB permissions are checked server-side.
+- Subscription enforcement remains server-side through `planGuard`; inactive subscriptions fall back to Free limits.
+- UI testing is authorized once a fresh branch preview reaches READY; the previously observed Vercel deployment was cancelled and is not treated as a valid test target.
