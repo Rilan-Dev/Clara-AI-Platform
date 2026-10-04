@@ -1122,3 +1122,9 @@ Phase 7: IN_PROGRESS
 D-027 execution by ChatGPT: bounded Unified Tool Runtime consumer pilot, additive OpenAI tool-calling capability, and hard-bounded/cancellable agentic loop. Implementation commits are on the authorized feature branch. D-023 audit-only telemetry remains unchanged; no schema/migration/immutable/MCP/integration/billable-metering/deployment work was performed.
 
 Verification remains pending because the current sandbox lacks the repository checkout and outbound GitHub cloning is blocked. No tests/typecheck/lint PASS is claimed. This is an implementation checkpoint, not a phase closure.
+
+## 2026-10-04 — I-015 lockfile reconciliation checkpoint
+
+The current branch package metadata now contains the previously missing `@vercel/functions ^3.9.9` root dependency and a matching `node_modules/@vercel/functions` lock entry at 3.9.9 with integrity data and its `@vercel/oidc 3.8.9` dependency; the matching `@vercel/oidc` lock entry is also present. This is sufficient to classify the lockfile metadata itself as reconciled against `package.json`.
+
+I-015 remains **OPEN** because the authoritative plan requires executable npm/typecheck verification after reconciliation, and the current ChatGPT sandbox does not contain the repository checkout and cannot clone GitHub. No typecheck/build PASS is inferred from static lockfile inspection.
