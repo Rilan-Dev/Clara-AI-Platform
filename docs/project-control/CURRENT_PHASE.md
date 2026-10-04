@@ -290,3 +290,16 @@ I-017:     RESOLVED
 The Phase 7 closure is an architect PASS over the completed ordered sub-phases and their recorded correction/verification evidence. D-023 remains binding: first-class billable tool-usage metering is deferred and was not implemented. D-028 remains binding: repository-wide Type Check/Lint baseline failures are not claimed green and must not be “fixed” by mutating immutable/reference material. D-029 confirms the restored mcp-servers family is complete against the immutable manifest.
 
 **Stopping boundary:** Phase 7 is closed. No Phase 8 or later product implementation begins merely because Phase 7 closed. The next bounded action is a fresh architecture/planning package for the next capability, with its own explicit authorization and verification gates. [architect-verified]
+
+
+## Current-state reconciliation — 2026-10-05 — Integrations I-1 verification boundary
+
+Phase 7 remains **PASS — CLOSED**.
+
+D-031 authorizes only Integrations I-1: host-neutral integration contracts and their focused tests. The I-1 implementation is present under `src/modules/ai-platform-core/integrations/**` and exported through the platform-core index.
+
+**Current I-1 status:** IMPLEMENTED — VERIFICATION PENDING.
+
+Explicitly out of scope for this boundary: persistence/schema/migrations, OAuth routes/token exchange, credential vault implementation, Activepieces execution/dependencies, outbound network/egress execution, deployment, MCP runtime, agent runtime, and billing/metering changes.
+
+The next stop is executable verification and architect review of I-1. No I-2 work begins before that review. [architect-verified]
