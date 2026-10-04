@@ -72,3 +72,16 @@ A user-provided Docker build exposed I-019: Next.js type-checking traversed the 
 **Next bounded action:** execute the production build from the current feature head (`docker compose up -d --build` or equivalent CI `npm run build`). If the build passes, close I-019 with evidence; if it fails, correct only the newly evidenced build blocker without modifying immutable/reference material.
 
 No reference-only dependency should be added merely to make the application build traverse an immutable snapshot.
+
+
+## Current next action — 2026-10-05 — executable verification and browser readiness
+
+The user-directed RBAC/UI continuation is implemented. Do not add more feature scope until verification catches up.
+
+1. Execute the current-head focused I-1 contract tests, strict TypeScript, and ESLint in CI or the project build environment.
+2. Execute the production build (`docker compose up -d --build` or equivalent) to close or correct I-019 after the reference-tree TypeScript exclusion.
+3. Re-run immutable-source, runtime-import, secret, and governance checks at the exact verified head.
+4. Browser-verify `/ai-platform` as a platform-admin surface and verify tenant-role navigation/redirect behavior.
+5. Complete I-1 Gate-D closure review only after Gate C evidence exists; then issue the next explicit authorization if required.
+
+**Stopping boundary:** no I-2 integration runtime, OAuth, persistence, credential vault, egress, integration action execution, MCP runtime, or deployment/promotion is authorized merely because the UI exists.
