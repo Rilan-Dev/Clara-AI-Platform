@@ -30,7 +30,7 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Current branch tip | `5f061683bfe83309c917270946e9e4d2903b275c` — current governance tip; I-1 implementation/correction state is preserved at `d9705441b016d565923f9e0813d7a22544aef8c8` with correction `bfc40f671aea218def571c617f00789e15b45823` as an ancestor | [architect-verified] GitHub compare from the I-1 checkpoint |
+| Current branch tip | `61b282eeca95539f66d6f7da977d85b864672b07` — current governance tip; the I-1 implementation/correction state is preserved at `d9705441b016d565923f9e0813d7a22544aef8c8` with correction `bfc40f671aea218def571c617f00789e15b45823` as an ancestor | [architect-verified] GitHub compare from the I-1 checkpoint |
 | I-1 status | **IMPLEMENTED — VERIFICATION PENDING** | [architect-verified] Gate C is not yet executable/observed through the connected Actions surface |
 | Next authorization boundary | I-2 remains **NOT AUTHORIZED** | [architect-verified] D-031 |
 
