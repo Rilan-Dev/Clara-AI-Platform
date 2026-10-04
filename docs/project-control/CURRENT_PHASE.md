@@ -265,3 +265,7 @@ Closure evidence:
 - D-023 audit-only tool telemetry remains binding.
 
 This closure is an architect acceptance of Phase 7-C, not a claim that the repository-wide Type Check or ESLint jobs are globally green. The baseline cleanup remains a separately tracked project follow-up and must not mutate immutable/reference source merely to satisfy global CI.
+
+## I-014 closure — 2026-10-04 — architect PASS
+
+I-014 is RESOLVED. The 31 missing mcp-servers immutable files were restored byte-for-byte from the pinned Doable source commit and independently SHA-verified 31/31 against the immutable manifest. No runtime scope was added. Phase 7 remains IN_PROGRESS for remaining project-level decisions and risks.
