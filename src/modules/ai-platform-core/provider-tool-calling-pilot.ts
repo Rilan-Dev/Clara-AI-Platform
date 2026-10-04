@@ -38,7 +38,7 @@ export type ProviderToolCallPilotResult =
       readonly callId: string;
       readonly outcome: null;
       readonly error: {
-        readonly code: "MALFORMED_TOOL_CALL";
+        readonly code: "MALFORMED_TOOL_CALL" | "INVALID_CONTEXT";
         readonly message: string;
       };
     };
