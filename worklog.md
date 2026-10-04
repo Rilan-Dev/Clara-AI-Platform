@@ -1148,3 +1148,10 @@ The branch remains verification-pending. The current sandbox cannot execute the 
 GitHub Actions run 37192123977 verified the implementation against a real repository checkout. Full tests passed: 113 files / 1075 tests. Model configuration passed. npm installation succeeded, and the previous @vercel/functions dependency/lockfile failure is resolved; I-015 is now RESOLVED.
 
 Repository-wide typecheck and lint remain non-green for pre-existing reference/extraction-tree and baseline application conditions. No changed Phase 7-C runtime file remains in the reported typecheck/lint error set. The Phase 7-C focused tests pass as part of the full suite. Task 6 therefore remains open; no Phase 7-C closure is claimed.
+
+
+## 2026-10-04 — Task 6 verification matrix checkpoint
+
+Run 37192496888: Governance Verification PASS; Phase 7 Focused Verification PASS; full tests PASS at 113 files / 1075 tests; model-config PASS; npm install PASS. I-015 is resolved. Global Type Check and global Lint remain non-green only at the repository baseline/reference-tree boundary. No Phase 7-C runtime file remains in those reported error sets.
+
+Closure ruling: Phase 7-C remains open. Changed-code and governance evidence are green, but the complete closure matrix is not yet green. Do not mark Phase 7-C PASS/CLOSED until the remaining immutable/source/library/secret checks are independently reproduced and the baseline-gate disposition is explicitly recorded.
