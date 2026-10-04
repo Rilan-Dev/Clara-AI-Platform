@@ -55,9 +55,10 @@ export async function listOrgsHandler(req: NextRequest): Promise<NextResponse> {
     // Shape mirrors listOrganisations()/toOrg (incl. agent + KB counts).
     const orgs = await query<{
       id: string; name: string; slug: string; logo_url: string | null;
-      created_at: string; updated_at: string; agent_count: number; kb_count: number;
+      created_at: string; updated_at: string; agent_count: number; kb_count: number; role_name: string;
     }>(
       `SELECT o.id, o.name, o.slug, o.logo_url, o.created_at, o.updated_at,
+              r.name AS role_name,
               COUNT(DISTINCT a.id)::int AS agent_count,
               COUNT(DISTINCT kb.id)::int AS kb_count
          FROM organisations o
@@ -78,6 +79,7 @@ export async function listOrgsHandler(req: NextRequest): Promise<NextResponse> {
         updatedAt: o.updated_at,
         agentCount: o.agent_count,
         knowledgeBaseCount: o.kb_count,
+        roleName: o.role_name,
       }))
     );
   } catch (err) {
