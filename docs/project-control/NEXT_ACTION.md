@@ -99,3 +99,7 @@ The current next action supersedes earlier “verification pending / I-015 open�
 D-028 is established and Phase 7-C is CLOSED with architect PASS. Do not reopen 7-C merely because the repository-wide Type Check/ESLint baseline remains non-green; those failures are explicitly recorded as a non-regressive follow-up and must not be “fixed” by mutating immutable/reference material.
 
 Phase 7 remains IN_PROGRESS. The next project-level work must be separately bounded and authorized. Current open/pending items include I-014 (mcp-servers immutable vendored-family absence), D-P2, D-P4, and the remaining project risks. I-015 is RESOLVED.
+
+## Current-state reconciliation — 2026-10-04 — I-014 resolved
+
+I-014 is RESOLVED after 31/31 immutable SHA checks. The next project-level action is the next separately bounded Phase 7 governance/architecture item; do not reopen I-014 unless a future verifier demonstrates a mismatch. I-015 remains RESOLVED. Phase 7 remains IN_PROGRESS.
