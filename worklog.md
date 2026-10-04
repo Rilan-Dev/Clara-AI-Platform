@@ -1163,3 +1163,7 @@ ChatGPT independently reviewed current GitHub HEAD acd753d92ec6065ecfc8dbf845fbe
 ## 2026-10-04 — Phase 7-C closure — architect PASS / D-028
 
 ChatGPT completed the final whole-branch review. The D-027 provider tool-calling pilot and hard-bounded agentic loop satisfy the authorized acceptance surface. Full tests passed 113/113 files and 1075/1075 tests; focused Phase 7 lint/typecheck, governance verification, model-config, and npm install passed. The global Type Check failures are concentrated in preserved Doable/reference trees and related baseline material; the global ESLint run contains zero Phase 7-C paths among its error set. D-028 records these as a non-regressive follow-up rather than a Phase 7-C blocker. Architect outcome: PASS. **Phase 7-C CLOSED.** Phase 7 remains IN_PROGRESS for broader project-level items. I-015 RESOLVED; I-014 remains OPEN.
+
+## 2026-10-04 — I-014 resolution — architect PASS
+
+Resolved the immutable Doable-source extraction gap. Restored all 31 previously absent mcp-servers files from pinned source commit a6036d1fd6dca83c08ee5affa141e5c85e45f5af; independently verified destination blob SHA against the immutable manifest: 31/31 PASS, 0 mismatches. No existing immutable file or product/runtime code was changed. I-014 is RESOLVED; Phase 7 remains IN_PROGRESS.
