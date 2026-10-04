@@ -34,6 +34,7 @@ const ADMIN_NAV = [
   { href: "/analytics",     icon: BarChart3,       label: "Analytics"     },
   { href: "/ai-platform",   icon: Brain,            label: "AI Platform"    },
   { href: "/system-status", icon: Activity,        label: "System Status" },
+  { href: "/ai-platform",   icon: Brain,            label: "AI Platform" },
 ];
 
 // Settings sub-sections rendered as a dropdown group in the sidebar.
@@ -88,7 +89,7 @@ function agentSectionNav(orgId: string, agentId: string) {
 }
 
 // Routes only accessible to super-admins — org users are redirected away from these
-const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics", "/system-status"];
+const SUPERADMIN_ONLY_PATHS = ["/dashboard", "/subscriptions", "/analytics", "/system-status", "/ai-platform"];
 
 // Organisation-content routes — platform admins are redirected away from
 // these because orgs manage their own agents and knowledge bases.
