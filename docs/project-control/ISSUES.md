@@ -407,3 +407,9 @@ I-015 remains **OPEN** because the authoritative plan requires executable npm/ty
 I-015 current status: RESOLVED for the dependency/lockfile/environment condition. GitHub Actions run 37192496888 successfully completed npm install --legacy-peer-deps, and the previous @vercel/functions missing-dependency cascade is absent from the current Type Check result. The remaining repository-wide TypeScript failures are pre-existing reference/extraction-tree and unrelated baseline findings; they do not reopen I-015.
 
 I-014 remains OPEN because the 31 absent immutable vendored files remain confined to the mcp-servers family. This is outside the authorized Phase 7-C scope and does not block the bounded provider tool-calling/agentic-loop implementation review.
+
+## Current-state reconciliation — 2026-10-04 — post Phase 7-C closure
+
+I-015 remains RESOLVED for the dependency/lockfile condition.
+
+I-014 remains OPEN and outside the closed Phase 7-C scope. Its 31 absent immutable vendored files remain confined to the mcp-servers family. No Phase 7-C acceptance depends on resolving I-014.
