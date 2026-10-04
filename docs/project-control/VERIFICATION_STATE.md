@@ -1321,3 +1321,7 @@ D-028 formally dispositions the repository-wide Type Check and ESLint failures a
 Gate A PASS [architect-verified]; Gate B PASS [architect-verified]; Gate C PASS [architect-verified from CI plus D-028 disposition]; Gate D PASS [architect-verified]; Gate E NOT_APPLICABLE; Gate F NOT_APPLICABLE. No P0/P1 blocker remains. I-015 RESOLVED; I-014 OPEN and outside the phase scope.
 
 The closure does not assert global repository Type Check/Lint success. D-028 explicitly forbids modifying immutable/reference material merely to make those baseline jobs green. A future baseline-cleanup operation requires its own bounded authorization.
+
+## I-014 closure verification — 2026-10-04
+
+I-014 is RESOLVED — architect PASS. The 31 previously absent mcp-servers immutable files were restored from Doable commit a6036d1fd6dca83c08ee5affa141e5c85e45f5af. Independent destination SHA checks against immutable-source-manifest.json returned 31/31 PASS, 0 mismatches. No existing immutable file was changed and no runtime/product path was introduced.
