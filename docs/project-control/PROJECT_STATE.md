@@ -26,7 +26,15 @@
 | Canonical project worklog | repository-root `worklog.md` — historical audit trail, Phases 0–3 + the `b65725e5` event + the Phase 4 implementation/closure entries + the Phase 5 implementation entry (with its corrective-cycle note) + the Phase 5 closure entry + the Phase 6 implementation entry (with its appended corrective-cycle note) + the Phase 6 closure entry (2026-10-01) + the Phase 7 planning entry (2026-10-02) + the Phase 7-A implementation entry (2026-10-02) + the Phase 7-A correction entry (CH-002 / I-016, 2026-10-02) + the Phase 7-A closure entry (architect `PASS` — 7-A closed, 2026-10-02); **audit/history artifact, NOT current-state authority** (established Phase 4; D-018) | exists |
 | Session audit records | `docs/project-control/sessions/` — README + `SESSION-001`…`SESSION-021` (established Phase 4; D-019; SESSION-015–SESSION-018 record the Phase 7-B implementation/integration/final-synchronization/correction sessions; SESSION-019 records the AH-004 decision-analysis session; SESSION-020 records the architect-decision recording session (D-023 — OPTION A); **SESSION-021 records the Phase 7-B closure-recording session (architect closure review `PASS`)**) | exists |
 
-### Canonical status vocabulary (used by ALL control documents)
+### Current continuation checkpoint — Integrations I-1
+
+| Field | Value | Evidence |
+|---|---|---|
+| Current branch tip | `8706daaa6481313262756c70d1752bfb376dcf20` — threat-model artifact; current I-1 code hardening is in `726e95b8` and `b27cf3c`; verification/governance checkpoints follow these commits | [architect-verified] GitHub compare from the I-1 checkpoint |
+| I-1 status | **IMPLEMENTED — VERIFICATION PENDING** | [architect-verified] Gate C is not yet executable/observed through the connected Actions surface |
+| Next authorization boundary | I-2 remains **NOT AUTHORIZED** | [architect-verified] D-031 |
+
+## Canonical status vocabulary (used by ALL control documents)
 
 | Status | Meaning |
 |---|---|
