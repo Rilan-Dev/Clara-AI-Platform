@@ -248,7 +248,7 @@ describe("bounded agentic loop", () => {
       ...provider([]),
       chatStreamWithTools: vi.fn(async function* () {
         controller.abort();
-        yield { type: "tool_call", toolCall: { id: "call-cancel", name: "rag_search", arguments: "{}" } };
+        yield { type: "tool_call", toolCall: { id: "call-cancel", name: "rag_search", arguments: "{}" } } as const;
       }),
     };
 
