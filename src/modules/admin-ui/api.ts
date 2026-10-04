@@ -59,6 +59,7 @@ export type Org = {
   updatedAt?: string;
   agentCount?: number;
   knowledgeBaseCount?: number;
+  roleName?: "org_admin" | "project_manager" | "kb_editor" | "kb_viewer";
 };
 export type AIProvider = "openai" | "gemini" | "sarvam";
 export type VoiceProvider = "openai" | "gemini" | "elevenlabs" | "sarvam";
