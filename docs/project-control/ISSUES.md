@@ -299,6 +299,8 @@ The pre-Phase-6 entries below predate this system and are **preserved exactly as
 
 ### I-015 — `package.json`/`package-lock.json` out of sync (`@vercel/functions` declared but unlocked) and the developer workspace `node_modules` incomplete — the production build cannot run in this workspace without an unauthorized dependency-graph change
 
+> **2026-10-04 verification update:** repository inspection confirms the active package-lock.json contains the declared root @vercel/functions ^3.9.9 dependency and a resolved 3.9.9 package record with integrity metadata. The active CI workflow has been updated to include feature/ai-core-from-doable-source. The issue remains OPEN because mandated executable typecheck/test/build evidence has not yet been produced; no resolution is claimed from static lockfile inspection alone.
+
 | Field | Value |
 |---|---|
 | Issue ID | I-015 |
