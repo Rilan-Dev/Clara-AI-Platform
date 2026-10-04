@@ -235,3 +235,26 @@ The global Type Check and ESLint baseline remains non-green and is explicitly di
 ## I-014 closure reconciliation — 2026-10-04
 
 I-014 is now RESOLVED — architect PASS. The immutable extraction gap consisted of 31 absent mcp-servers files. All 31 were restored from the authoritative Doable commit and verified against the pinned manifest with zero SHA mismatches. The immutable boundary remains intact; no previously present pinned file was modified and no product/runtime behavior changed. I-015 remains RESOLVED; Phase 7 remains IN_PROGRESS.
+
+
+## Current-state reconciliation — 2026-10-05 — Phase 7 closure
+
+This append-only addendum is the authoritative current-state reconciliation and supersedes earlier current-state paragraphs that predate the completed Phase 7-C closure and I-014 resolution. Historical stage records remain unchanged.
+
+- **Current branch:** `feature/ai-core-from-doable-source`.
+- **Current HEAD:** `ae3b6ec45788acd9b767fbc59f041daa90a2da7d` (the repository-authoritative tip at this reconciliation).
+- **Phase 7-A:** `PASS — CORRECTION VERIFIED — CLOSED`.
+- **Phase 7-B:** `PASS — CLOSED` under D-023 / Option A; first-class billable tool-usage metering remains explicitly deferred.
+- **Phase 7-C:** `PASS — CLOSED` under D-028; global repository Type Check/Lint remain a separately recorded non-regressive baseline follow-up and are not represented as green.
+- **I-014:** `RESOLVED` by D-029; all 31 previously absent mcp-servers files were restored from the pinned Doable source and SHA-verified 31/31.
+- **I-015:** `RESOLVED` for the manifest/lockfile dependency condition; CI install evidence confirms the reconciled dependency graph.
+- **I-016:** `RESOLVED`; **I-017:** `RESOLVED`.
+- **No active P0/P1 blocker or unresolved blocking correction remains for Phase 7.**
+- The immutable Doable source remains provenance-controlled; restored mcp-servers files are reference/immutable material only and were not converted into runtime dependencies.
+- No database/schema/migration, MCP runtime integration, integrations framework, first-class billable tool metering, or deployment work was introduced by the Phase 7 implementation.
+- **Phase 7 overall is now `PASS — CLOSED`** by this architect review. The closure applies to the reviewed Phase 7 program (7-A/7-B/7-C plus the explicitly resolved I-014/I-015 closure conditions); it does not authorize Phase 8 or any later capability automatically.
+- **Next action:** create/review the next bounded capability-planning package from the now-closed Phase 7 baseline. No later product implementation is implicitly authorized by this closure.
+
+### Phase 7 architect closure evidence
+
+The closure review considered the actual implementation and governance trail through `SESSION-029` (7-C architect PASS), `SESSION-030` (I-014 architect PASS), D-028, D-029, the passing full test/focused verification evidence, the immutable manifest restoration evidence (31/31), the I-015 CI installation evidence, and the Phase 7 ordered-subphase boundary in `PHASE-7-PLAN.md`. No unresolved acceptance-violating correction remains. [architect-verified]
