@@ -12,6 +12,7 @@
  */
 import type { z } from "zod";
 import type { PlatformExecutionContext, SurfaceKind } from "../contracts";
+import type { ToolDefinition } from "../tool-contracts";
 
 export type IntegrationId = string;
 export type IntegrationActionName = string;
@@ -191,7 +192,7 @@ export interface IntegrationToolBridgeAdapter {
   listToolDefinitions(
     context: PlatformExecutionContext,
     integrationId: IntegrationId,
-  ): Promise<readonly IntegrationActionDefinition[]>;
+  ): Promise<readonly ToolDefinition[]>;
 
   invokeThroughRuntime(
     request: IntegrationExecutionRequest,
