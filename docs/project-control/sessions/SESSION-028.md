@@ -66,3 +66,17 @@ Phase 7-C remains IN_PROGRESS / NOT CLOSED.
 The implementation is accepted at the changed-code scope. The whole-branch verification matrix is not fully green because repository-wide Type Check and Lint remain baseline failures. This is recorded as the remaining closure condition; it is not being “fixed” by altering immutable/reference material.
 
 No Phase 7-C PASS/closure is claimed by this session.
+
+## UI / entitlement readiness checkpoint
+
+- Existing org UI is enabled in the active admin shell: Dashboard, Agents, Members, and Billing.
+- Members UI supports invite, role assignment, role changes, removal, and a visible Roles & access guide.
+- RBAC roles are org_admin, project_manager, kb_editor, and kb_viewer; server-side permission checks remain authoritative.
+- Billing UI already renders current plan/status, usage meters, plan limits, entitlement badges, upgrade/renew/downgrade flows, and billing history.
+- Plan guard enforces KB, document, request, storage, voice, API, branding, SSO, TTS, STT, and translation limits.
+- User-provided Docker build exposed a missing application dependency for the immutable Doable import @e965/xlsx. The immutable source was not changed; @e965/xlsx@0.20.3 was added to package.json and package-lock.json.
+
+## Remaining owner-visible testing
+
+- After the next successful build/deployment, manually test login, organisation dashboard, agent workspace, Members/RBAC, Billing/plan limits, and the bounded provider tool-calling pilot.
+- Production deployment remains pending fresh deployment verification.
