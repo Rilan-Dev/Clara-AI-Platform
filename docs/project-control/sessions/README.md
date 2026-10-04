@@ -80,3 +80,5 @@ Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain 
 | `SESSION-035.md` | 2026-10-05 | ChatGPT architect I-1 current-state review | Corrected I-1 contract accepted architecturally; Gate C still pending because no current GitHub Actions run is exposed | `docs: record I-1 current-state architect review` |
 
 | `SESSION-036.md` | 2026-10-05 | ChatGPT | UI test-readiness review and Docker build-boundary checkpoint; reference-only dependency change reverted; I-1/I-019 remain pending executable verification | D-031 / I-019 |
+
+| `SESSION-037.md` | 2026-10-05 | ChatGPT | AI Platform / Integrations I-1 UI verification surface; implementation complete, browser/deployment verification pending | User-directed UI scope; D-031 runtime boundary preserved |
