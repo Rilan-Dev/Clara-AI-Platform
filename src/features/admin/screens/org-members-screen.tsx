@@ -287,6 +287,17 @@ export default function OrgMembersScreen() {
         )}
       </div>
 
+      {/* Access guide — keeps role intent visible before an admin changes a member. */}
+      <div className="mt-6 border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div><h2 className="font-semibold text-foreground">Roles & access</h2><p className="text-sm text-muted-foreground mt-1">Choose the least-privileged role that matches the teammate’s job. Server-side RBAC remains the source of truth for every action.</p></div>
+          <Shield className="w-5 h-5 text-primary shrink-0" aria-hidden />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {ROLES.map((r) => (<div key={r.id} className="rounded-xl border border-border/70 bg-muted/40 p-4"><div className="flex items-center justify-between gap-2"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${r.badge}`}>{r.label}</span><span className="text-[10px] font-mono text-muted-foreground/70">{r.id}</span></div><p className="mt-3 text-xs leading-5 text-muted-foreground">{r.desc}.</p></div>))}
+        </div>
+      </div>
+
       {/* Role legend — plain-English reference (desktop; phones use the
           select labels — the legend is reference noise on a 390px screen) */}
       <div className="mt-6 hidden sm:grid grid-cols-2 xl:grid-cols-4 gap-3">
