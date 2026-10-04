@@ -125,6 +125,15 @@ export interface IntegrationCatalogAdapter {
 export interface IntegrationConnectionStoreAdapter {
   list(context: PlatformExecutionContext, integrationId?: IntegrationId): Promise<readonly IntegrationConnectionRef[]>;
   get(context: PlatformExecutionContext, integrationId: IntegrationId): Promise<IntegrationConnectionRef | null>;
+  connect(
+    context: PlatformExecutionContext,
+    integrationId: IntegrationId,
+    configuration: Readonly<Record<string, unknown>>,
+  ): Promise<IntegrationConnectionRef>;
+  disconnect(
+    context: PlatformExecutionContext,
+    integrationId: IntegrationId,
+  ): Promise<void>;
 }
 
 export interface IntegrationCredentialVaultAdapter {
