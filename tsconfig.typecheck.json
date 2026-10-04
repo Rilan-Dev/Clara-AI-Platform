@@ -19,6 +19,8 @@
     "_archive",
     "download",
     "upload",
-    "tool-results"
+    "tool-results",
+    "ai-platform-core/**",
+    "clara-core/**"
   ]
 }
