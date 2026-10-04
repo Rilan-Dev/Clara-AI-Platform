@@ -98,3 +98,6 @@ export {
   type ProviderToolCall,
   type ProviderToolCallPilotResult,
 } from "./provider-tool-calling-pilot";
+
+// Next capability — Integrations Framework I-1 host-neutral contracts.
+export * from "./integrations/integration-contracts";
