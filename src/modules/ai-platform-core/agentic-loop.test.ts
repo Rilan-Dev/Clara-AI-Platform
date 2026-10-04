@@ -148,7 +148,7 @@ describe("bounded agentic loop", () => {
       [],
       context,
       runtime(),
-      { enabled: true },
+      { enabled: true, toolCallingEnabled: true },
     );
 
     expect(result.status).toBe("provider_error");
@@ -183,7 +183,7 @@ describe("bounded agentic loop", () => {
       [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
       context,
       rt,
-      { enabled: true },
+      { enabled: true, toolCallingEnabled: true },
     );
 
     expect(result.status).toBe("completed");
@@ -222,7 +222,7 @@ describe("bounded agentic loop", () => {
       [],
       context,
       runtime(),
-      { enabled: true },
+      { enabled: true, toolCallingEnabled: true },
     );
 
     expect(result.status).toBe("completed");
