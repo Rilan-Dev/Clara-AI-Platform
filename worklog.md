@@ -1219,3 +1219,14 @@ Current status: **IMPLEMENTED — VERIFICATION PENDING** because the connected G
 ## 2026-10-05 — Integrations I-1 threat model — verification still pending
 
 D-031-authorized scope now includes the I-1 trust-boundary artifact `src/modules/ai-platform-core/integrations/integration-threat-model.md`. [developer/ChatGPT] The document maps credential, OAuth, tenancy, egress, tool-bridge, and telemetry boundaries and records the stopping boundary for I-1. No runtime integration, persistence, OAuth transport, outbound HTTP, deployment, or billing behavior was added. [architect-verified] I-1 remains open pending executable Gate-C evidence; I-2 remains unauthorized.
+
+
+## 2026-10-05 — Integrations I-1 — I-018 correction and verification boundary
+
+ChatGPT architect review found a concrete contract/test mismatch before I-1 closure: the test still constructed a removed generic connection `metadata` bag; the execution-result error contract still exposed generic `details`; and the test omitted the result type import. This was recorded as I-018 (P1) and corrected within D-031 scope.
+
+Correction commits:
+- `b13e74487a5874b8b070da8ade97963e3f63f0d5`
+- `bfc40f671aea218def571c617f00789e15b45823`
+
+Architect verification confirms the correction diff is limited to the two authorized I-1 contract/test files. Gate C remains MISSING because no executable Actions run is exposed for the current feature head. I-1 therefore remains IMPLEMENTED — VERIFICATION PENDING; no closure is claimed. [architect-verified]
