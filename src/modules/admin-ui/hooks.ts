@@ -60,7 +60,7 @@ function useAsync<T>(
 
 // ── Auth hook ─────────────────────────────────────────────────────────────────
 
-type AuthSession = { user: CurrentUser | null; primaryOrgId: string | null };
+type AuthSession = { user: CurrentUser | null; primaryOrgId: string | null; primaryOrgRole: Org["roleName"] | null };
 
 // Shared in-flight session loader. The app shell AND every screen mount
 // useAuth() at the same moment, which previously fired one /api/auth/me
@@ -79,13 +79,15 @@ function loadAuthSession(): Promise<AuthSession> {
         // primaryOrgId: the first org the current user belongs to.
         // Null for super-admins (they see all orgs) or when not yet loaded.
         let primaryOrgId: string | null = null;
+        let primaryOrgRole: Org["roleName"] | null = null;
         if (!u.isSuperAdmin) {
           try {
             const orgs = await api.fetchOrgs();
             primaryOrgId = orgs[0]?.id ?? null;
+            primaryOrgRole = orgs[0]?.roleName ?? null;
           } catch { /* non-critical */ }
         }
-        return { user: u, primaryOrgId };
+        return { user: u, primaryOrgId, primaryOrgRole };
       } catch {
         return { user: null, primaryOrgId: null };
       }
@@ -108,6 +110,7 @@ export function useAuth() {
   // primaryOrgId: the first org the current user belongs to.
   // Null for super-admins (they see all orgs) or when not yet loaded.
   const [primaryOrgId, setPrimaryOrgId] = useState<string | null>(null);
+  const [primaryOrgRole, setPrimaryOrgRole] = useState<Org["roleName"] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +119,7 @@ export function useAuth() {
         if (cancelled) return;
         setUser(session.user);
         setPrimaryOrgId(session.primaryOrgId);
+        setPrimaryOrgRole(session.primaryOrgRole);
       })
       // loadAuthSession never rejects (it resolves null on failure), the
       // catch is a belt-and-braces guard for future edits.
@@ -135,6 +139,7 @@ export function useAuth() {
         try {
           const orgs = await api.fetchOrgs();
           setPrimaryOrgId(orgs[0]?.id ?? null);
+          setPrimaryOrgRole(orgs[0]?.roleName ?? null);
         } catch { /* non-critical */ }
       }
     } catch (e) {
@@ -149,9 +154,10 @@ export function useAuth() {
     await api.logout().catch(() => {});
     setUser(null);
     setPrimaryOrgId(null);
+    setPrimaryOrgRole(null);
   }, []);
 
-  return { user, loading, error, login, logout, primaryOrgId };
+  return { user, loading, error, login, logout, primaryOrgId, primaryOrgRole };
 }
 
 // ── Orgs ──────────────────────────────────────────────────────────────────────
