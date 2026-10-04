@@ -1128,3 +1128,9 @@ Verification remains pending because the current sandbox lacks the repository ch
 The current branch package metadata now contains the previously missing `@vercel/functions ^3.9.9` root dependency and a matching `node_modules/@vercel/functions` lock entry at 3.9.9 with integrity data and its `@vercel/oidc 3.8.9` dependency; the matching `@vercel/oidc` lock entry is also present. This is sufficient to classify the lockfile metadata itself as reconciled against `package.json`.
 
 I-015 remains **OPEN** because the authoritative plan requires executable npm/typecheck verification after reconciliation, and the current ChatGPT sandbox does not contain the repository checkout and cannot clone GitHub. No typecheck/build PASS is inferred from static lockfile inspection.
+
+## 2026-10-04 — Phase 7-C fresh-context review corrections
+
+Two concrete review defects were corrected on the active branch: (1) the provider-tool pilot result union now declares the runtime-returned `INVALID_CONTEXT` classification; (2) agent-loop tests now explicitly enable both the agent-loop and provider-tool feature flags where tool execution is expected. No safety boundary was weakened.
+
+The branch remains verification-pending. The current sandbox cannot execute the repository's npm/Vitest/typecheck/lint commands, and the connected GitHub integration exposes no Actions run for the current feature head. No PASS or phase closure is claimed.
