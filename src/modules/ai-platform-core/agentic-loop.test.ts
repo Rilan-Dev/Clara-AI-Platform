@@ -156,6 +156,28 @@ describe("bounded agentic loop", () => {
     expect(result.iterations).toBe(1);
   });
 
+  it("does not expose the raw provider error message", async () => {
+    const p: ToolCallingLLMProvider = {
+      ...provider([]),
+      chatStreamWithTools: vi.fn(async function* () {
+        throw new Error("Authorization Bearer secret-token must not escape");
+      }),
+    };
+
+    const result = await runBoundedAgenticLoop(
+      p,
+      [{ role: "user", content: "hello" }],
+      [],
+      context,
+      runtime(),
+      { enabled: true, toolCallingEnabled: true },
+    );
+
+    expect(result.status).toBe("provider_error");
+    expect(result.error).toBe("Provider tool-calling request failed.");
+    expect(result.error).not.toContain("secret-token");
+  });
+
   it("preserves a tool failure as a tool_result and still lets the provider finish", async () => {
     const p: ToolCallingLLMProvider = {
       ...provider([]),
@@ -189,6 +211,35 @@ describe("bounded agentic loop", () => {
     expect(result.status).toBe("completed");
     expect(result.text).toBe("recovered");
     expect(result.events.some((event) => event.type === "tool_result" && event.result.ok === false)).toBe(true);
+  });
+
+  it("does not execute a pending tool after cancellation", async () => {
+    const controller = new AbortController();
+    const rt: ToolRuntime = {
+      ...runtime(),
+      invoke: vi.fn(async () => {
+        throw new Error("tool should not execute after cancellation");
+      }),
+    };
+    const p: ToolCallingLLMProvider = {
+      ...provider([]),
+      chatStreamWithTools: vi.fn(async function* () {
+        yield { type: "tool_call", toolCall: { id: "call-pending", name: "rag_search", arguments: "{}" } };
+        controller.abort();
+      }),
+    };
+
+    const result = await runBoundedAgenticLoop(
+      p,
+      [{ role: "user", content: "cancel" }],
+      [{ name: "rag_search", description: "search", parameters: { type: "object" } }],
+      context,
+      rt,
+      { enabled: true, toolCallingEnabled: true, signal: controller.signal },
+    );
+
+    expect(result.status).toBe("cancelled");
+    expect(rt.invoke).not.toHaveBeenCalled();
   });
 
   it("stops before another provider turn when cancellation is requested", async () => {
