@@ -5,7 +5,7 @@ import {
   isAgentLoopEnabled,
   runBoundedAgenticLoop,
 } from "./agentic-loop";
-import type { ChatMessage, ChatStreamEvent, ToolCallingLLMProvider } from "../ai-core/types";
+import type { ChatStreamEvent, ToolCallingLLMProvider } from "../ai-core/types";
 import type { ToolRuntime } from "./tool-registry";
 
 const context = createExecutionContext({
@@ -89,7 +89,7 @@ describe("bounded agentic loop", () => {
       chatStreamWithTools: vi
         .fn()
         .mockImplementationOnce(async function* () {
-          yield { type: "tool_call", toolCall: { id: "call-1", name: "rag_search", arguments: '{"query":"q"}' } };
+          yield { type: "tool_call", toolCall: { id: "call-1", name: "rag_search", arguments: '{"query":"q"}' } } as const;
         })
         .mockImplementationOnce(async function* () {
           yield { type: "text_delta", text: "final answer" };
@@ -117,7 +117,7 @@ describe("bounded agentic loop", () => {
     const p: ToolCallingLLMProvider = {
       ...provider([]),
       chatStreamWithTools: vi.fn(async function* () {
-        yield { type: "tool_call", toolCall: { id: "call-loop", name: "rag_search", arguments: "{}" } };
+        yield { type: "tool_call", toolCall: { id: "call-loop", name: "rag_search", arguments: "{}" } } as const;
       }),
     };
     const result = await runBoundedAgenticLoop(
@@ -152,7 +152,7 @@ describe("bounded agentic loop", () => {
     );
 
     expect(result.status).toBe("provider_error");
-    expect(result.error).toContain("provider unavailable");
+    expect(result.error).toBe("Provider tool-calling request failed.");
     expect(result.iterations).toBe(1);
   });
 
@@ -184,7 +184,7 @@ describe("bounded agentic loop", () => {
       chatStreamWithTools: vi
         .fn()
         .mockImplementationOnce(async function* () {
-          yield { type: "tool_call", toolCall: { id: "call-fail", name: "rag_search", arguments: "{}" } };
+          yield { type: "tool_call", toolCall: { id: "call-fail", name: "rag_search", arguments: "{}" } } as const;
         })
         .mockImplementationOnce(async function* () {
           yield { type: "text_delta", text: "recovered" };
@@ -210,7 +210,7 @@ describe("bounded agentic loop", () => {
 
     expect(result.status).toBe("completed");
     expect(result.text).toBe("recovered");
-    expect(result.events.some((event) => event.type === "tool_result" && event.result.ok === false)).toBe(true);
+    expect(result.events.some((event) => event.type === "tool_result" && typeof event.result === "object" && event.result !== null && "ok" in event.result && event.result.ok === false)).toBe(true);
   });
 
   it("does not execute a pending tool after cancellation", async () => {
@@ -224,7 +224,7 @@ describe("bounded agentic loop", () => {
     const p: ToolCallingLLMProvider = {
       ...provider([]),
       chatStreamWithTools: vi.fn(async function* () {
-        yield { type: "tool_call", toolCall: { id: "call-pending", name: "rag_search", arguments: "{}" } };
+        yield { type: "tool_call", toolCall: { id: "call-pending", name: "rag_search", arguments: "{}" } } as const;
         controller.abort();
       }),
     };
