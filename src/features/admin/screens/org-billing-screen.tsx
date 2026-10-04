@@ -36,6 +36,9 @@ type SubData = {
     current_period_end: string | null; current_period_start: string | null;
     cancel_at_period_end: boolean; price_usd: number;
     max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
+    voice_enabled: boolean; api_access: boolean; custom_branding: boolean;
+    multilingual_embeddings: boolean; sso_enabled: boolean;
+    analytics_level: string; priority_support: boolean;
     features: string[];
     scheduled_plan_id: string | null; scheduled_at: string | null; scheduled_plan_name: string | null;
   };
@@ -51,7 +54,10 @@ type DowngradeBlocker = { key: string; current: number; limit: number; label: st
 
 type Plan = {
   id: string; name: string; description: string; price_usd: number;
-  max_kbs: number; max_req_day: number; features: string[];
+  max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
+  voice_enabled: boolean; api_access: boolean; custom_branding: boolean;
+  multilingual_embeddings: boolean; sso_enabled: boolean;
+  analytics_level: string; priority_support: boolean; features: string[];
 };
 
 type HistoryData = {
@@ -566,6 +572,36 @@ export default function OrgBillingScreen() {
             <a href="mailto:sales@clara.ai" className="text-primary/80 hover:text-primary">Talk to sales</a>.
           </p>
         )}
+      </div>
+
+      {/* Entitlements — make plan limitations explicit before users choose a new plan. */}
+      <div className="mt-6 sm:mt-8 border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 className="font-semibold text-foreground text-sm">Included capabilities</h3>
+            <p className="text-xs text-muted-foreground mt-1">These controls are enforced server-side for the organisation&rsquo;s effective plan.</p>
+          </div>
+          <BadgeCheck className="w-5 h-5 text-primary shrink-0" />
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            ["Voice assistant", s?.voice_enabled ?? false],
+            ["API & embed access", s?.api_access ?? false],
+            ["Custom branding", s?.custom_branding ?? false],
+            ["Multilingual knowledge", s?.multilingual_embeddings ?? false],
+            ["SSO / SAML", s?.sso_enabled ?? false],
+            ["Priority support", s?.priority_support ?? false],
+          ].map(([label, enabled]) => (
+            <div key={String(label)} className="rounded-xl border border-border/70 bg-muted/40 px-3 py-3 flex items-center justify-between gap-3">
+              <span className="text-xs font-medium text-foreground">{String(label)}</span>
+              {enabled ? <Check className="w-4 h-4 text-emerald-600 shrink-0" /> : <X className="w-4 h-4 text-muted-foreground/50 shrink-0" />}
+            </div>
+          ))}
+          <div className="rounded-xl border border-border/70 bg-muted/40 px-3 py-3">
+            <p className="text-[11px] text-muted-foreground">Analytics</p>
+            <p className="text-sm font-semibold text-foreground capitalize mt-0.5">{s?.analytics_level ?? "basic"}</p>
+          </div>
+        </div>
       </div>
 
       {/* Billing history */}
