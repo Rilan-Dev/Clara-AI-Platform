@@ -93,20 +93,46 @@ jobs:
         run: node docs/doable-source/verification/validate-library.mjs
         working-directory: docs/doable-source
 
-      - name: Immutable Doable-source paths
+      - name: Immutable Doable-source manifest
         run: |
           set -euo pipefail
-          git diff --quiet 03482584 HEAD --             docs/doable-source/doable-source             docs/doable-source/dependency-closure             docs/doable-source/ui-reference             docs/doable-source/doable-source-extensions
-          test "$(git rev-parse 03482584:docs/doable-source/doable-source)" = "$(git rev-parse HEAD:docs/doable-source/doable-source)"
-          test "$(git rev-parse 03482584:docs/doable-source/dependency-closure)" = "$(git rev-parse HEAD:docs/doable-source/dependency-closure)"
-          test "$(git rev-parse 03482584:docs/doable-source/ui-reference)" = "$(git rev-parse HEAD:docs/doable-source/ui-reference)"
-          test "$(git rev-parse 03482584:docs/doable-source/doable-source-extensions)" = "$(git rev-parse HEAD:docs/doable-source/doable-source-extensions)"
-          test "$(git rev-parse b65725e5:vercel.json)" = "$(git rev-parse HEAD:vercel.json)"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const { execFileSync } = require("node:child_process");
+          const manifest = JSON.parse(fs.readFileSync("docs/doable-source/verification/immutable-source-manifest.json", "utf8"));
+          const expectedFiles = manifest.files ?? [];
+          const failures = [];
+          for (const entry of expectedFiles) {
+            const ref = `HEAD:docs/doable-source/${entry.root}/${entry.path}`;
+            let actual = "";
+            try {
+              actual = execFileSync("git", ["rev-parse", ref], { encoding: "utf8" }).trim();
+            } catch {
+              actual = "";
+            }
+            if (actual !== entry.sha) failures.push(`${entry.root}/${entry.path}: expected ${entry.sha}, got ${actual || "MISSING"}`);
+          }
+          if (expectedFiles.length !== 802) failures.push(`manifest file count is ${expectedFiles.length}, expected 802`);
+          if (failures.length) {
+            console.error(failures.join("\n"));
+            process.exit(1);
+          }
+          console.log(`Immutable manifest PASS: ${expectedFiles.length}/${expectedFiles.length} file blobs match.`);
+          NODE
+
+      - name: Immutable tree and vercel provenance
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:docs/doable-source/doable-source)" = "a42aee79"
+          test "$(git rev-parse HEAD:docs/doable-source/dependency-closure)" = "ee07c362"
+          test "$(git rev-parse HEAD:docs/doable-source/ui-reference)" = "b76b8f34"
+          test "$(git rev-parse HEAD:docs/doable-source/doable-source-extensions)" = "54606204"
+          test "$(git rev-parse HEAD:vercel.json)" = "3f26d343"
 
       - name: Runtime import boundary
         run: |
           set -euo pipefail
-          if git grep -nE '(^|[[:space:](])((from|import|require)[[:space:]]*\(?["'"'] )[^"'"']*doable-source' -- src; then
+          if git grep -nE '(^|[[:space:](])((from|import|require)[[:space:]]*\(?["'"'"'][^"'"'"']*doable-source' -- src; then
             echo "Runtime import boundary violation detected."
             exit 1
           fi
