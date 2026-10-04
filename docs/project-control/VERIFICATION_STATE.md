@@ -1248,3 +1248,9 @@ D-024 is active: ChatGPT is the implementation owner for the current continuatio
 Implementation evidence exists for the D-027 boundary: the provider pilot is default-off and provenance-guarded; provider-neutral tool-call/result events exist; OpenAI is the only provider extended with optional tool calling; the existing text-only path is unchanged; the agent loop is default-off, hard-capped at 8 iterations, cancellation-aware, and executes tools only through the Unified Tool Runtime.
 
 Verification classification: PENDING / NOT EXECUTED IN CURRENT SANDBOX. The repository checkout is unavailable locally and outbound clone is blocked, so the mandated Vitest/typecheck/lint/full verification commands have not run. No PASS is asserted.
+
+## 2026-10-04 — I-015 lockfile reconciliation checkpoint
+
+The current branch package metadata now contains the previously missing `@vercel/functions ^3.9.9` root dependency and a matching `node_modules/@vercel/functions` lock entry at 3.9.9 with integrity data and its `@vercel/oidc 3.8.9` dependency; the matching `@vercel/oidc` lock entry is also present. This is sufficient to classify the lockfile metadata itself as reconciled against `package.json`.
+
+I-015 remains **OPEN** because the authoritative plan requires executable npm/typecheck verification after reconciliation, and the current ChatGPT sandbox does not contain the repository checkout and cannot clone GitHub. No typecheck/build PASS is inferred from static lockfile inspection.
