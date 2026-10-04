@@ -278,3 +278,19 @@ Current bounded state:
 - No integration persistence, OAuth route/token exchange, credential-vault implementation, Activepieces runtime/dependency, outbound HTTP/egress execution, deployment, or database mutation has been introduced.
 - I-1 verification is **PENDING executable CI evidence**; no PASS is claimed from static review.
 - No I-2 or later integration runtime work is authorized yet.
+
+
+## Current-state reconciliation — 2026-10-05 — I-1 correction applied
+
+Phase 7 remains **PASS — CLOSED**. The active capability is Integrations I-1 under D-031.
+
+- Current branch: `feature/ai-core-from-doable-source`.
+- Current reviewed correction head: `bfc40f671aea218def571c617f00789e15b45823` (followed by governance-only reconciliation commits).
+- I-1 Gate A/B: PASS [architect-verified].
+- I-1 Gate C: **MISSING** pending executable focused Vitest/strict TypeScript/ESLint evidence for the current head.
+- I-1 Gate D: PASS_WITH_FOLLOWUP [architect-verified] pending Gate C.
+- Gate E/F: NOT_APPLICABLE.
+- I-018: RESOLVED [architect-verified].
+- I-2 and all runtime integration surfaces remain unauthorized.
+
+The repository remains under ChatGPT implementation ownership (D-024); GitHub state remains authoritative. No closure of I-1 is claimed until executable Gate-C evidence is observed.
