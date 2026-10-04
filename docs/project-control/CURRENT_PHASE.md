@@ -246,3 +246,22 @@ This section is the authoritative current-state addendum and supersedes only the
 - I-015 is RESOLVED for the dependency/lockfile condition, based on passing CI install evidence. I-014 remains OPEN and is unrelated to the bounded 7-C runtime scope.
 
 No historical Z.AI stage record is rewritten by this reconciliation. No new runtime scope is authorized beyond D-027.
+
+## Phase 7-C closure record — 2026-10-04 — D-028 / architect PASS
+
+ChatGPT completed the final Task-6 architect review and established D-028. The repository-wide Type Check/Lint baseline is explicitly classified as a non-regressive follow-up rather than a Phase 7-C acceptance failure: Type Check failures are concentrated in preserved Doable/reference trees and related baseline material, while the global ESLint error set contains zero Phase 7-C paths. The Phase 7-C changed-code verification is green.
+
+**Architect outcome: PASS. Phase 7-C is CLOSED.**
+
+Closure evidence:
+- Gate A PASS — authorized scope only.
+- Gate B PASS — D-027 implementation requirements satisfied.
+- Gate C PASS — full tests 113/113 files and 1075/1075 tests, focused Phase 7 lint/typecheck PASS, governance/model-config/npm-install PASS; global baseline failures explicitly dispositioned by D-028 and not hidden.
+- Gate D PASS — ChatGPT independent code review found no unresolved correctness, security, tenancy, secret-leakage, or regression finding.
+- Gate E NOT_APPLICABLE — no database surface or mutation.
+- Gate F NOT_APPLICABLE — no deployment/configuration change.
+- No P0/P1 blocking issue remains for this sub-phase.
+- I-015 is RESOLVED; I-014 remains OPEN but is outside 7-C scope.
+- D-023 audit-only tool telemetry remains binding.
+
+This closure is an architect acceptance of Phase 7-C, not a claim that the repository-wide Type Check or ESLint jobs are globally green. The baseline cleanup remains a separately tracked project follow-up and must not mutate immutable/reference source merely to satisfy global CI.
