@@ -76,3 +76,5 @@ Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain 
 | SESSION-033 | 2026-10-05 | ChatGPT | Integrations I-1 host-neutral contract foundation; verification pending | D-031 |
 
 | SESSION-034 | 2026-10-05 | ChatGPT | Integrations I-1 contract/test correction; I-018 resolved; Gate C pending executable CI evidence | D-031 |
+
+| `SESSION-035.md` | 2026-10-05 | ChatGPT architect I-1 current-state review | Corrected I-1 contract accepted architecturally; Gate C still pending because no current GitHub Actions run is exposed | `docs: record I-1 current-state architect review` |
