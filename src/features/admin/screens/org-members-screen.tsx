@@ -39,12 +39,14 @@ function formatDate(value: string) {
 
 export default function OrgMembersScreen() {
   const { id = "" } = useParams<{ id: string }>();
-  const { user }   = useAuth();
+  const { user, primaryOrgRole } = useAuth();
   const isAdmin    = user?.isSuperAdmin ?? false;
+  const canInvite  = isAdmin || primaryOrgRole === "org_admin" || primaryOrgRole === "project_manager";
+  const canManageMembers = isAdmin || primaryOrgRole === "org_admin";
 
   const [members, setMembers]   = useState<Member[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [canInvite, setCanInvite] = useState(true); // optimistic; API enforces real RBAC
+  const [apiCanInvite, setApiCanInvite] = useState(true); // server remains authoritative
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole]   = useState("kb_editor");
@@ -58,7 +60,7 @@ export default function OrgMembersScreen() {
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          if (res.status === 403) setCanInvite(false);
+          if (res.status === 403) setApiCanInvite(false);
           throw new Error(data.error ?? `HTTP ${res.status}`);
         }
         return res.json() as Promise<Member[]>;
@@ -162,7 +164,7 @@ export default function OrgMembersScreen() {
       )}
 
       {/* Invite form — the primary action, front and center */}
-      {canInvite && (
+      {canInvite && apiCanInvite && (
         <div className="mb-4 sm:mb-6 border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <UserPlus className="w-4 h-4 text-primary" />
@@ -254,7 +256,7 @@ export default function OrgMembersScreen() {
                       {role?.label ?? m.roleName}
                     </span>
 
-                    {canInvite && !isSelf && (
+                    {canManageMembers && apiCanInvite && !isSelf && (
                       <select
                         value={m.roleName}
                         disabled={busyId === m.userId}
@@ -268,7 +270,7 @@ export default function OrgMembersScreen() {
                       </select>
                     )}
 
-                    {canInvite && !isSelf && (
+                    {canManageMembers && apiCanInvite && !isSelf && (
                       <Button variant="outline" size="sm"
                         className="border-destructive/20 text-destructive hover:bg-destructive/10 h-9 w-9 p-0"
                         aria-label={`Remove ${m.fullName ?? m.email} from organisation`}
