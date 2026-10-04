@@ -31,6 +31,9 @@ describe("integration contracts", () => {
     expect(connection).not.toHaveProperty("credentials");
     expect(connection).not.toHaveProperty("accessToken");
     expect(connection).not.toHaveProperty("clientSecret");
+    // @ts-expect-error Generic connection metadata is intentionally forbidden at the core boundary.
+    const unsafeMetadata: IntegrationConnectionRef = { ...connection, metadata: { accessToken: "secret" } };
+    expect(unsafeMetadata).toBeDefined();
   });
 
   it("uses an opaque credential handle rather than decrypted credentials", () => {
@@ -134,6 +137,10 @@ describe("integration contracts", () => {
         invokeThroughRuntime: async () => ({ ok: false, error: { code: "UNAUTHORIZED", message: "not configured" } }),
       },
     };
+
+    // @ts-expect-error Error details are intentionally forbidden because adapter errors must be redaction-safe.
+    const unsafeResult: IntegrationExecutionResult = { ok: false, error: { code: "EXECUTION_FAILED", message: "safe", details: { accessToken: "secret" } } };
+    expect(unsafeResult).toBeDefined();
 
     expect(Object.keys(adapters)).toEqual([
       "catalog",
