@@ -90,7 +90,7 @@ jobs:
         run: npm run validate:model-config
 
       - name: Library integrity
-        run: node docs/doable-source/verification/validate-library.mjs
+        run: node verification/validate-library.mjs
         working-directory: docs/doable-source
 
       - name: Immutable Doable-source manifest
