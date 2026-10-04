@@ -299,7 +299,7 @@ The pre-Phase-6 entries below predate this system and are **preserved exactly as
 
 ### I-015 — `package.json`/`package-lock.json` out of sync (`@vercel/functions` declared but unlocked) and the developer workspace `node_modules` incomplete — the production build cannot run in this workspace without an unauthorized dependency-graph change
 
-> **2026-10-04 verification update:** repository inspection confirms the active package-lock.json contains the declared root @vercel/functions ^3.9.9 dependency and a resolved 3.9.9 package record with integrity metadata. The active CI workflow has been updated to include feature/ai-core-from-doable-source. The issue remains OPEN because mandated executable typecheck/test/build evidence has not yet been produced; no resolution is claimed from static lockfile inspection alone.
+> **2026-10-05 verification update:** GitHub Actions run 37192123977 completed npm install --legacy-peer-deps successfully, and the prior @vercel/functions dependency condition disappeared from Type Check. I-015 is resolved for the manifest/lockfile/environment condition; remaining repository-wide typecheck/lint failures are separate pre-existing baseline/reference-tree conditions.
 
 | Field | Value |
 |---|---|
@@ -307,7 +307,7 @@ The pre-Phase-6 entries below predate this system and are **preserved exactly as
 | Title | `package.json` declares `@vercel/functions ^3.9.9` but `package-lock.json` does not contain it (lockfile out of sync with the manifest), and the developer workspace's `node_modules` is incomplete relative to `package.json` (≈106 declared packages absent) — consequently the production `next build` cannot run in the developer workspace without an install that would rewrite the lockfile (a dependency-graph change outside developer authorization) |
 | Phase | Phase 7 — AI Platform Core Foundation (sub-phase 7-A — discovered during the implementation validation, at the production-build attempt); the desync itself predates the program (present at the vendoring-era dependency state; not introduced by any project-control commit) |
 | Severity | not yet assigned — awaiting architect triage (developer-proposed: **P3** — a real but bounded tooling/environment gap: it blocks only build-attempt evidence in developer workspaces, not the recorded test/typecheck/lint/governance evidence; the repository's declared dependency graph is untouched by Phase 7-A) |
-| Status | `OPEN` (lifecycle: `OPEN` [developer-reported finding, 2026-10-02] — awaiting architect triage) |
+| Status | `RESOLVED` (authorized lockfile reconciliation followed by executable CI verification on 2026-10-04) |
 | Date identified | 2026-10-02 |
 | Reporter / role | Z.AI — developer self-discovery during the Phase 7-A validation (the handoff §11 "build if applicable" requirement) |
 | Finding | (1) `package.json` declares `@vercel/functions ^3.9.9` (used by `src/app/api/voice/sarvam/realtime/route.ts` and `src/app/api/voice/sarvam/tts-realtime/route.ts`) but `package-lock.json` contains no `node_modules/@vercel/functions` entry — the lockfile is out of sync with the manifest (an `npm install` in the workspace reports "added 106 packages, removed 8 packages, and changed 844 packages" — it would rewrite the lockfile). (2) The developer workspace's `node_modules` is incomplete relative to `package.json`: `@vercel/queue`, `@vercel/functions`, `@vercel/analytics`, `@vercel/speed-insights`, `@elevenlabs/client`, `@elevenlabs/elevenlabs-js` (all declared in `package.json`) are absent from the installed tree. (3) Consequences: the production `next build` cannot run in this workspace (webpack module resolution of the declared-but-uninstalled imports fails); 19 of the 24 pre-existing application-code typecheck errors at the 7-A baseline trace to the missing modules (TS2307 "Cannot find module"); `npm ci` cannot complete either (it requires manifest/lockfile sync). None of this affects the vitest suite (108 files / 960 tests pass), the module-scoped lint, the model-config validation, or the governance validators |
@@ -455,3 +455,8 @@ The issue records themselves remain append-only. This addendum reconciles the cu
 | Developer correction commit | `b13e74487a5874b8b070da8ade97963e3f63f0d5`; `bfc40f671aea218def571c617f00789e15b45823` |
 | Resolution evidence | [architect-verified] ChatGPT reviewed the correction diff: only the two authorized I-1 contract/test files changed; generic `details` is removed; the test now uses `providerAccountId`, explicitly rejects generic metadata at compile time, and imports `IntegrationExecutionResult`. |
 | Follow-up | Gate C remains pending until executable CI evidence is observed; this issue itself is resolved. |
+
+
+## 2026-10-05 — Phase 7-C closure reconciliation
+
+**I-014 remains OPEN. I-015 is RESOLVED.** The former I-014 current-field value was corrected because the immutable mcp-servers family remains absent and no architect triage/correction occurred. I-015 is resolved only for the manifest/lockfile/environment condition, based on executable CI npm-install evidence; this does not claim global typecheck/lint/build closure.
