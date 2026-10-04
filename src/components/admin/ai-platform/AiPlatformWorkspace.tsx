@@ -11,7 +11,6 @@ import {
   FlaskConical,
   GitBranch,
   LockKeyhole,
-  Play,
   ShieldCheck,
   TerminalSquare,
   Wrench,
