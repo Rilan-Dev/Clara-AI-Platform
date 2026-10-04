@@ -89,7 +89,7 @@ function loadAuthSession(): Promise<AuthSession> {
         }
         return { user: u, primaryOrgId, primaryOrgRole };
       } catch {
-        return { user: null, primaryOrgId: null };
+        return { user: null, primaryOrgId: null, primaryOrgRole: null };
       }
     })();
     authSessionInFlight = pending;
