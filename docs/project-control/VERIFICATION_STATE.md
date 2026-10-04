@@ -1369,3 +1369,31 @@ Architectural checks:
 - no persistence, OAuth transport, outbound HTTP, Activepieces dependency, migration, or deployment path was added.
 
 Verification classification: **PENDING**. The GitHub connector currently exposes no workflow run for the current feature head, so executable test/lint/typecheck evidence is not yet available for I-1. No PASS is asserted.
+
+
+## 2026-10-05 — Integrations I-1 — current verification checkpoint
+
+### Scope / implementation [architect-verified]
+D-031 authorizes only the host-neutral Integrations Framework contract/test foundation. The I-1 implementation is confined to:
+- `src/modules/ai-platform-core/integrations/integration-contracts.ts`
+- `src/modules/ai-platform-core/integrations/integration-contracts.test.ts`
+- the additive export in `src/modules/ai-platform-core/index.ts`
+- verification-only CI wiring.
+
+A subsequent architect review identified and corrected two trust-boundary defects before closure: generic connection metadata and generic error-detail bags were removed; connection-store/credential-vault APIs now identify concrete connection IDs.
+
+### Gate status
+| Gate | Status | Evidence |
+|---|---|---|
+| A — Scope | PASS | [architect-verified] GitHub compare of the I-1 implementation range; no database, OAuth transport, credential vault, Activepieces, outbound HTTP, deployment, or billing changes |
+| B — Implementation | PASS | [architect-verified] Contract surface reviewed against D-031; corrected trust-boundary APIs are explicit |
+| C — Test | **MISSING** | [architect-verified] No executable GitHub Actions run is currently exposed for the feature head; focused I-1 Vitest/typecheck/lint job has now been added to CI for the next run |
+| D — Code review | **PASS_WITH_FOLLOWUP** | [architect-verified] ChatGPT reviewed the exact I-1 contract/test implementation and required the trust-boundary correction; corrected code is now present, but Gate C remains missing |
+| E — Database | NOT_APPLICABLE | [architect-verified] No schema/migration/database mutation surface changed |
+| F — Deployment | NOT_APPLICABLE | [architect-verified] No deployment was performed or required for this contract-only slice |
+
+### Closure eligibility
+**FAIL / NOT CLOSURE-ELIGIBLE.** Gate C is missing, and Gate D is recorded as PASS_WITH_FOLLOWUP pending executable verification. I-2 and later integration work remain unauthorized.
+
+### Next
+Obtain the CI run for I-1, verify the focused tests/typecheck/lint plus existing immutable/import/secret/governance checks, then perform the final Gate-D closure review. No phase PASS is claimed.
