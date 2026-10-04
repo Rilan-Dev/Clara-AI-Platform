@@ -21,7 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth } from "@/modules/auth/core/rbac";
+import { requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { queryOne, query } from "@/lib/db";
 import { comparePlans } from "@/lib/plans";
 import {
@@ -56,13 +56,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
     if (!org) return NextResponse.json({ error: "Organisation not found" }, { status: 404 });
 
-    const membership = await queryOne(
-      "SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2",
-      [orgId, auth.user.id]
-    );
-    if (!membership && !auth.user.isSuperAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!auth.user.isSuperAdmin) await requireOrgPermission(auth, orgId, "org:update");
 
     const onboarding = await queryOne<{ plan_id: string; status: string }>(
       "SELECT plan_id, status FROM org_subscriptions WHERE org_id = $1", [orgId]
