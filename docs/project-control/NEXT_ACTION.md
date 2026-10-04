@@ -78,3 +78,8 @@ Tasks 3–5 are implemented under D-027 but remain verification-pending. The nex
 ## Verification checkpoint — 2026-10-04
 
 The implementation test scope is green (113 files / 1075 tests), model configuration is green, and I-015 is resolved. Repository-wide TypeScript and ESLint remain blocked by pre-existing baseline/reference-tree errors. Next action is to complete the fresh-context whole-branch review, run the immutable-source/library/secret/governance validators against the current head, and classify the remaining global typecheck/lint failures without modifying immutable/reference material merely to make CI green.
+
+
+## Task 6 current boundary — 2026-10-04
+
+Green evidence: full tests 113/113 and 1075/1075; Phase 7 focused lint/typecheck; governance validators; model-config; npm install. I-015 resolved. Remaining closure work: reproduce immutable-source/library-integrity/secret/runtime-import checks at current head and perform final fresh-context review. Global typecheck/lint failures remain baseline/reference-tree gates and must not be “fixed” by altering immutable/reference material. Phase 7-C stays IN_PROGRESS until the final closure decision is made.
