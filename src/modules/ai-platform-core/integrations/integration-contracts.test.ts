@@ -100,6 +100,14 @@ describe("integration contracts", () => {
       connections: {
         list: async () => [],
         get: async () => null,
+        connect: async () => ({
+          id: "conn-1",
+          integrationId: "slack",
+          scope: "user",
+          userId: "user-1",
+          status: "active",
+        }),
+        disconnect: async () => undefined,
       },
       credentials: {
         getHandle: async () => null,
