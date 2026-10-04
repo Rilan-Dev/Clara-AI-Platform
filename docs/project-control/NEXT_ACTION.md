@@ -74,3 +74,7 @@ Verification is pending: the current sandbox does not contain the repository che
 ## ChatGPT implementation checkpoint (2026-10-04)
 
 Tasks 3–5 are implemented under D-027 but remain verification-pending. The next required action is executable verification: run the focused RED→GREEN tests, provider/platform regressions, typecheck, lint, immutable-source, secret, model-config, and governance validators in an isolated repository workspace, then perform the whole-branch review. Do not close Phase 7-C from source inspection alone.
+
+## Verification checkpoint — 2026-10-04
+
+The implementation test scope is green (113 files / 1075 tests), model configuration is green, and I-015 is resolved. Repository-wide TypeScript and ESLint remain blocked by pre-existing baseline/reference-tree errors. Next action is to complete the fresh-context whole-branch review, run the immutable-source/library/secret/governance validators against the current head, and classify the remaining global typecheck/lint failures without modifying immutable/reference material merely to make CI green.
