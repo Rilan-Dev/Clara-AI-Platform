@@ -64,7 +64,8 @@ export interface IntegrationConnectionRef {
   readonly userId?: string;
   readonly status: "active" | "error" | "expired" | "revoked";
   readonly displayName?: string;
-  readonly metadata?: Readonly<Record<string, unknown>>;
+  /** Provider/account identifiers only; decrypted credentials are never modeled here. */
+  readonly providerAccountId?: string;
 }
 
 /** Deliberately excludes decrypted credential material. */
@@ -124,7 +125,7 @@ export interface IntegrationCatalogAdapter {
 
 export interface IntegrationConnectionStoreAdapter {
   list(context: PlatformExecutionContext, integrationId?: IntegrationId): Promise<readonly IntegrationConnectionRef[]>;
-  get(context: PlatformExecutionContext, integrationId: IntegrationId): Promise<IntegrationConnectionRef | null>;
+  get(context: PlatformExecutionContext, connectionId: string): Promise<IntegrationConnectionRef | null>;
   connect(
     context: PlatformExecutionContext,
     integrationId: IntegrationId,
@@ -132,7 +133,7 @@ export interface IntegrationConnectionStoreAdapter {
   ): Promise<IntegrationConnectionRef>;
   disconnect(
     context: PlatformExecutionContext,
-    integrationId: IntegrationId,
+    connectionId: string,
   ): Promise<void>;
 }
 
@@ -144,7 +145,7 @@ export interface IntegrationCredentialVaultAdapter {
    */
   getHandle(
     context: PlatformExecutionContext,
-    integrationId: IntegrationId,
+    connectionId: string,
   ): Promise<IntegrationCredentialHandle | null>;
 }
 
