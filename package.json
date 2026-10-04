@@ -125,7 +125,8 @@
     "ws": "^8.18.0",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76",
-    "@vercel/functions": "^3.9.9"
+    "@vercel/functions": "^3.9.9",
+    "@e965/xlsx": "0.20.3"
   },
   "devDependencies": {
     "@types/node": "^20.19.22",
