@@ -354,3 +354,10 @@ D-024 transferred implementation ownership to ChatGPT. The older Part II STOP re
 Current repository state: Phase 7 is **PASS — CLOSED**; 7-A, 7-B, and 7-C are closed; I-014 and I-015 are resolved; D-023, D-028, and D-029 remain binding.
 
 **STOP boundary:** no new implementation is authorized merely by this closure. A new explicit bounded planning/implementation authorization must be recorded before the next capability begins. [architect-verified]
+
+
+## Part II current-state addendum — 2026-10-05 — I-1 correction checkpoint
+
+D-031 remains the only active I-1 implementation authorization. ChatGPT found and corrected I-018 in the I-1 contract/test boundary. The corrected implementation head is `bfc40f671aea218def571c617f00789e15b45823`.
+
+**STOP:** executable Gate-C evidence is still required. No I-1 closure is claimed until focused Vitest/strict TypeScript/ESLint evidence is observed. No I-2 or later integration work is authorized.
