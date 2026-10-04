@@ -340,3 +340,13 @@ I-1 remains **IMPLEMENTED — VERIFICATION PENDING**. I-018 is RESOLVED. No I-2 
 **Issue state:** I-015 is RESOLVED for the manifest/lockfile/environment condition based on CI npm-install evidence; the remaining global typecheck/lint baseline is separately recorded and is not attributed to I-015. I-014 remains OPEN because the immutable vendored mcp-servers family is still absent and awaits architect triage.
 
 **Phase 7 remains IN_PROGRESS** because I-014 and other project-level pending matters remain outside this sub-phase. Phase 7-C itself is formally CLOSED by this architect PASS. No Phase 8 work is authorized by this closure.
+
+## Current-state reconciliation — 2026-10-05 — RBAC and UI enablement
+
+Phase 7 remains **PASS — CLOSED**. The active capability remains Integrations I-1 under D-031, with Gate C and final Gate-D closure pending executable verification.
+
+The user-directed UI/RBAC continuation is implemented at the current feature head. Existing organisation roles are now surfaced to the client workspace and the sidebar reflects the existing permission hierarchy: org_admin has Members and Billing; project_manager has Members but not Billing; kb_editor and kb_viewer have neither. Direct tenant billing navigation is blocked for non-org_admin roles.
+
+The existing /ai-platform verification workspace is now exposed in the platform-admin sidebar and explicitly protected as super-admin-only; it is kept outside the tenant assistant shell. Subscription checkout and downgrade mutations now require the existing org:update permission for tenant users. No new permissions, schema, billing architecture, integration runtime, OAuth, persistence, egress, MCP, or deployment work was introduced.
+
+Verification remains pending for executable CI/current-head build and browser/deployment evidence. I-019 remains open pending a fresh production build after the TypeScript reference-tree exclusion correction. [architect-verified]
