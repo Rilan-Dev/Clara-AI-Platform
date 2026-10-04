@@ -500,3 +500,26 @@ The immediately preceding Phase 7-C reconciliation sentence stating **“I-014 r
 | UI alignment | Platform sidebar and billing route are now role-aware; billing is exposed only to org_admin users. |
 | Non-scope | No new permission, migration, billing architecture, or payment-flow redesign. |
 | Follow-up | Fresh CI/build evidence is still required before treating the repository verification surface as green. |
+
+
+## I-021 — Application lockfile drift for existing @e965/xlsx declaration
+
+| Field | Value |
+|---|---|
+| Issue ID | I-021 |
+| Title | @e965/xlsx declared in package.json but absent from package-lock.json |
+| Phase | Build / UI test readiness |
+| Severity | P1 |
+| Status | CORRECTED — executable build pending |
+| Date identified | 2026-10-05 |
+| Evidence | [user-provided] Docker build reached successful Next.js compilation, then failed resolving @e965/xlsx from the immutable/reference attachment path. |
+| Root cause | package.json already declared @e965/xlsx 0.20.3, but the lockfile had no node_modules/@e965/xlsx entry. |
+| Correction | [architect/ChatGPT] Added the exact npm registry lock entry for @e965/xlsx@0.20.3 using published integrity metadata; no immutable/reference source was changed. |
+| Correction commit | 63fcb5012c53ed0d52a50366b2b2a48ae5159edd |
+| Verification | Pending executable production build / CI install at the corrected head. |
+
+## 2026-10-05 — UI/RBAC/subscription test-readiness continuation
+
+The requested UI surface is already implemented and has now been tightened for testability: organisation navigation is role-aware; agent workspace sections are enabled; team management exposes Admin / Project manager / Editor / Viewer roles; usage meters surface effective plan limits; and Billing & Plan exposes plan status, usage, upgrade/downgrade flow, and explicit entitlement flags. Project managers are now prevented in the UI from granting elevated organisation roles; the server remains authoritative.
+
+Vercel project clara-backend is linked to Rilan-Dev/Clara-AI-Platform on feature/ai-core-from-doable-source. The ignored-build-step setting was cleared to allow the feature branch to produce a preview when the next commit is pushed. No production promotion was performed.
