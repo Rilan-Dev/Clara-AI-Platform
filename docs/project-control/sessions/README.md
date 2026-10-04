@@ -72,3 +72,5 @@ Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain 
 | SESSION-031 | 2026-10-05 | ChatGPT | Phase 7 whole-phase closure review | Architect PASS — Phase 7 CLOSED; I-014/I-015 resolved | See SESSION-031 |
 
 | SESSION-032 | 2026-10-05 | ChatGPT | Next capability planning — Integrations Framework; D-030 planning-only authorization | `docs/superpowers/plans/2026-10-05-clara-integrations-framework.md` |
+
+| SESSION-033 | 2026-10-05 | ChatGPT | Integrations I-1 host-neutral contract foundation; verification pending | D-031 |
