@@ -93,3 +93,9 @@ The current next action supersedes earlier “verification pending / I-015 open�
 3. The only remaining closure decision is whether the repository-wide typecheck/lint baseline can be formally accepted as an explicit project follow-up under the phase-gate contract, or whether a separately authorized infrastructure/baseline-cleanup phase is required. Do not alter immutable/reference trees to make these global gates green.
 4. I-015 is RESOLVED; I-014 remains OPEN and outside 7-C scope.
 5. Any final closure commit must update all five current-state members consistently and must be an explicit ChatGPT architect decision.
+
+## Current-state reconciliation — 2026-10-04 — after Phase 7-C closure
+
+D-028 is established and Phase 7-C is CLOSED with architect PASS. Do not reopen 7-C merely because the repository-wide Type Check/ESLint baseline remains non-green; those failures are explicitly recorded as a non-regressive follow-up and must not be “fixed” by mutating immutable/reference material.
+
+Phase 7 remains IN_PROGRESS. The next project-level work must be separately bounded and authorized. Current open/pending items include I-014 (mcp-servers immutable vendored-family absence), D-P2, D-P4, and the remaining project risks. I-015 is RESOLVED.
