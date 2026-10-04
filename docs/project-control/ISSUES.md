@@ -464,3 +464,22 @@ The issue records themselves remain append-only. This addendum reconciles the cu
 ## Correction — current I-014 terminal state (2026-10-05)
 
 The immediately preceding Phase 7-C reconciliation sentence stating **“I-014 remains OPEN”** is superseded by D-029 and the later terminal-state reconciliation in this file. **I-014 is RESOLVED.** The 31 previously absent `mcp-servers/**` files were restored from the authoritative Doable source commit and independently verified 31/31 against the immutable manifest with 0 mismatches. This correction is documentation-only and does not reopen Phase 7 or authorize additional immutable-source changes. [architect-verified]
+
+
+## I-019 — Immutable reference tree incorrectly included in application build type-check
+
+| Field | Value |
+|---|---|
+| Issue ID | I-019 |
+| Title | Next.js build traverses immutable/reference TypeScript trees |
+| Phase | Cross-cutting build verification / Integrations I-1 verification support |
+| Severity | P1 |
+| Status | VERIFICATION PENDING |
+| Date identified | 2026-10-05 |
+| Evidence | [user-provided] Local `docker compose up -d --build` reached successful compilation, then failed at `ai-platform-core/doable-source/services/api/src/ai/attachments.ts:20:23` because `@e965/xlsx` is not an application dependency. |
+| Root cause | Root TypeScript globs included immutable/reference snapshots that are not runtime application source. |
+| Correction | [architect/ChatGPT] `tsconfig.json` and `tsconfig.typecheck.json` now exclude `ai-platform-core/**` and `clara-core/**`. |
+| Safety boundary | No immutable/reference file was modified; no reference-only dependency was added; no runtime import boundary was changed. |
+| Correction commits | `6066131bf62d7911cf52a19169031b74ca1737b9`; `324a494d37fb970ffcfd35f72d6b9b3f5b031471` |
+| Remaining gate | Execute `docker compose up -d --build` or equivalent CI build at the current feature head. |
+| Closure rule | Do not mark I-019 RESOLVED until executable build evidence confirms the reference-tree type-check failure is gone and no new build blocker is introduced. |
