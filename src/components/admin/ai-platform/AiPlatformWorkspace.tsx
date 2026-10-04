@@ -89,6 +89,7 @@ export function AiPlatformWorkspace({
       { label: "Unified Tool Runtime", status: "Ready", icon: Wrench },
       { label: "OpenAI tool calling", status: toolCallingEnabled ? "Enabled" : "Default off", icon: Activity },
       { label: "Bounded agent loop", status: agentLoopEnabled ? "Enabled" : "Default off", icon: Bot },
+      { label: "Integrations I-1 contracts", status: "Implemented", icon: Plug },
     ],
     [toolCallingEnabled, agentLoopEnabled],
   );
@@ -268,7 +269,7 @@ export function AiPlatformWorkspace({
                 onClick={() => setTab("integrations")}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
               >
-                Inspect tools
+                Inspect Integrations
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -467,38 +468,55 @@ export function AiPlatformWorkspace({
             <div className="flex items-start gap-3">
               <GitBranch className="mt-0.5 h-5 w-5 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold">Phase 7-C verification</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Current UI reflects the implementation boundary; repository-level gates remain the authority for PASS/closure.
+                <h2 className="text-lg font-semibold">Integrations I-1 verification</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Gate C is the current blocker. The contract implementation has passed scope and
+                  architectural review, but executable CI evidence is still required before closure.
                 </p>
               </div>
             </div>
             <div className="mt-5 space-y-2">
               {[
-                "Host execution context + fail-closed adapter registry",
-                "Unified Tool Runtime + rag_search migration",
-                "Provider tool-calling pilot",
-                "Hard-bounded agentic loop",
-                "Cancellation and provider-error hardening",
-                "Focused tests, TypeScript and lint verification",
-                "Governance and model-configuration validation",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm">{item}</span>
+                ["Scope", "PASS", true],
+                ["Host-neutral contracts", "PASS", true],
+                ["Threat model", "PASS", true],
+                ["Focused Vitest / typecheck / lint", "PENDING CI", false],
+                ["Gate D final review", "PENDING", false],
+                ["Database / migrations", "NOT APPLICABLE", true],
+                ["Deployment", "NOT APPLICABLE", true],
+              ].map(([item, state, ok]) => (
+                <div key={item as string} className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
+                  {ok ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <CircleDot className="h-4 w-4 text-amber-500" />
+                  )}
+                  <span className="flex-1 text-sm">{item as string}</span>
+                  <span className={cn(
+                    "text-[11px] font-medium",
+                    ok ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
+                  )}>
+                    {state as string}
+                  </span>
                 </div>
               ))}
             </div>
           </section>
-          <section className="rounded-2xl border border-border bg-muted/20 p-5">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Repository-wide typecheck/lint still contain pre-existing reference-tree baseline failures.
-              They are intentionally not hidden by this product surface and do not get reclassified as
-              Phase 7-C runtime failures.
-            </p>
+          <section className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
+            <div className="flex items-start gap-3">
+              <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h3 className="font-medium">Next authorization boundary</h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  I-2 (Clara adapters), OAuth transport, persistence, credential storage,
+                  egress execution and integration actions remain locked until I-1 receives
+                  executable Gate-C evidence and final Gate-D review.
+                </p>
+              </div>
+            </div>
           </section>
         </div>
-      )}
+      )}}
     </div>
   );
 }
