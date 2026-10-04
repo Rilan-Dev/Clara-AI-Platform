@@ -1253,3 +1253,10 @@ Reviewed the active agent workspace UI against the requested ElevenLabs-style ex
 The user-provided Docker build exposed the immutable-reference TypeScript traversal problem. The repository already contains the correct boundary correction in tsconfig.json and tsconfig.typecheck.json, excluding ai-platform-core/** and clara-core/** from application type checking. A temporary attempt to add the reference-only @e965/xlsx dependency to the application manifest was identified as architecturally incorrect and immediately reverted; the app dependency boundary is restored.
 
 Current status: I-1 remains IMPLEMENTED — VERIFICATION PENDING; I-019 remains VERIFICATION PENDING until an executable production build confirms the TypeScript boundary correction. No I-2, OAuth, persistence, egress, integration runtime, deployment, billing, or Phase 8 work was introduced.
+
+
+## 2026-10-05 — AI Platform / Integrations I-1 UI verification surface
+
+[developer/ChatGPT] Added the dedicated `/ai-platform` product surface and admin navigation entry. The UI exposes the active Integrations I-1 contract boundary, Unified Tool Runtime, existing provider control plane, bounded agent-loop state, and I-1 verification/stopping boundary.
+
+The UI does not unlock OAuth, persistence, credential storage, outbound HTTP/egress, integration execution, Activepieces, billing, deployment, or I-2. Implementation is complete; browser/deployment verification remains pending because no fresh deployment or current Actions run is exposed through the connected surfaces.
