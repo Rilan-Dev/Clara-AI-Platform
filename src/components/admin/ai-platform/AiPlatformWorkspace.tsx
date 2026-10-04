@@ -516,7 +516,7 @@ export function AiPlatformWorkspace({
             </div>
           </section>
         </div>
-      )}}
+      )}
     </div>
   );
 }
