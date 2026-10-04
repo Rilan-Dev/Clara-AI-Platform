@@ -10,7 +10,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import {
   createUser, getUserByEmail, getUserById,
   createSession, deleteSession, deleteAllUserSessions,
-  getSessionByTokenHash, addOrgMember, listOrgMembers,
+  getSessionByTokenHash, addOrgMember, listOrgMembers, getOrgMembership,
   removeOrgMember, writeAuditLog, touchLastLogin, updateUser,
   recordFailedLogin, recordSuccessfulLogin, LOGIN_MAX_FAILURES,
 } from "../core/db";
@@ -430,6 +430,11 @@ export async function inviteOrgMemberHandler(req: NextRequest, orgId: string): P
     if (!role || !validRoles.includes(role))
       return NextResponse.json({ error: `role must be one of: ${validRoles.join(", ")}` }, { status: 400 });
 
+    const callerMembership = await getOrgMembership(orgId, auth.user.id);
+    if (callerMembership?.roleName === "project_manager" && !["kb_editor", "kb_viewer"].includes(role)) {
+      return NextResponse.json({ error: "Project managers can only grant Editor or Viewer access." }, { status: 403 });
+    }
+
     // Resolve the target: by id OR by email. Email invitations create the
     // account on the spot (random password) and email a set-password link —
     // the standard "invite anyone with an email" business flow.
@@ -561,6 +566,17 @@ export async function updateOrgMemberRoleHandler(
     const validRoles: RoleName[] = ["org_admin", "project_manager", "kb_editor", "kb_viewer"];
     if (!role || !validRoles.includes(role)) {
       return NextResponse.json({ error: `role must be one of: ${validRoles.join(", ")}` }, { status: 400 });
+    }
+    if (userId === auth.user.id) {
+      return NextResponse.json({ error: "You cannot change your own organisation role." }, { status: 400 });
+    }
+
+    const callerMembership = await getOrgMembership(orgId, auth.user.id);
+    const targetMembership = await getOrgMembership(orgId, userId);
+    if (!targetMembership) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    if (callerMembership?.roleName === "project_manager" &&
+        (targetMembership.roleName === "org_admin" || targetMembership.roleName === "project_manager" || !["kb_editor", "kb_viewer"].includes(role))) {
+      return NextResponse.json({ error: "Project managers can only manage Editor or Viewer members." }, { status: 403 });
     }
 
     const { query } = await import("@/lib/db");
