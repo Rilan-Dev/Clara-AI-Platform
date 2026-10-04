@@ -105,7 +105,7 @@ export async function runBoundedAgenticLoop(
           text += event.text;
         }
       }
-    } catch (error) {
+    } catch {
       return {
         status: "provider_error",
         text,
