@@ -430,3 +430,28 @@ The issue records themselves remain append-only. This addendum reconciles the cu
 - **I-016 — RESOLVED:** architect PASS after the fail-closed provenance/adapter corrections.
 - **I-017 — RESOLVED:** D-023 architect acceptance disposition plus correction; 7-B closed.
 - No Phase 7 P0/P1 blocker remains. [architect-verified]
+
+## I-018 — I-1 contract/test secret-boundary inconsistency
+
+| Field | Value |
+|---|---|
+| Issue ID | I-018 |
+| Title | I-1 contract/test boundary mismatch exposed forbidden generic secret-bearing fields |
+| Phase | Integrations I-1 |
+| Severity | P1 |
+| Status | RESOLVED |
+| Date identified | 2026-10-05 |
+| Reporter / role | ChatGPT architect review |
+| Finding | The I-1 test still constructed the previously removed generic connection `metadata` bag, the `IntegrationExecutionResult.error` contract still exposed a generic `details` bag despite the threat model forbidding arbitrary secret-bearing error details, and the test omitted the result type import. |
+| Evidence | [architect-verified] Exact implementation reviewed at `6cd93599b0338105602a655f3bf2529aaba0c7c9`; the inconsistency was directly observable in the contract/test sources. |
+| Affected commit | `6cd93599b0338105602a655f3bf2529aaba0c7c9` |
+| Affected files/areas | `src/modules/ai-platform-core/integrations/integration-contracts.ts`; `integration-contracts.test.ts` |
+| Acceptance criterion affected | I-1 credential/error redaction boundary and executable contract verification |
+| Security / tenancy impact | Generic error-detail and metadata bags could have become secret-bearing boundary surfaces if consumed by a future runtime. No runtime integration execution is authorized or present. |
+| Correction required | Remove the generic error-detail bag; align the test with explicit connection fields; retain compile-time negative coverage for forbidden metadata; import the result type used by the negative test. |
+| Correction scope | The two I-1 contract/test files only |
+| Explicit non-scope | No runtime integration execution, persistence, OAuth, credential vault, egress, deployment, billing, MCP, or I-2 work |
+| Expected verification | Focused Vitest, strict TypeScript, and ESLint CI execution on the corrected commit |
+| Developer correction commit | `b13e74487a5874b8b070da8ade97963e3f63f0d5`; `bfc40f671aea218def571c617f00789e15b45823` |
+| Resolution evidence | [architect-verified] ChatGPT reviewed the correction diff: only the two authorized I-1 contract/test files changed; generic `details` is removed; the test now uses `providerAccountId`, explicitly rejects generic metadata at compile time, and imports `IntegrationExecutionResult`. |
+| Follow-up | Gate C remains pending until executable CI evidence is observed; this issue itself is resolved. |
