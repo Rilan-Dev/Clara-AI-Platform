@@ -33,6 +33,13 @@ const ROLES: { id: string; label: string; desc: string; badge: string }[] = [
   { id: "kb_viewer",       label: "Viewer",           desc: "View knowledge bases and analytics — read only",              badge: "bg-muted text-muted-foreground border-border" },
 ];
 
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  org_admin: ["Members & roles", "Billing & plan", "Agents", "Knowledge bases", "Agent configuration"],
+  project_manager: ["Agents", "Knowledge bases", "Agent configuration", "Daily operations"],
+  kb_editor: ["Knowledge bases", "Documents & ingestion", "Knowledge analytics"],
+  kb_viewer: ["Knowledge bases", "Knowledge analytics (read only)"],
+};
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
@@ -298,6 +305,51 @@ export default function OrgMembersScreen() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {ROLES.map((r) => (<div key={r.id} className="rounded-xl border border-border/70 bg-muted/40 p-4"><div className="flex items-center justify-between gap-2"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${r.badge}`}>{r.label}</span><span className="text-[10px] font-mono text-muted-foreground/70">{r.id}</span></div><p className="mt-3 text-xs leading-5 text-muted-foreground">{r.desc}.</p></div>))}
+        </div>
+      </div>
+
+      {/* Permission matrix — makes the effective organisation access model
+          visible before an admin changes a role. Server-side RBAC remains authoritative. */}
+      <div className="mt-6 border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm">
+        <div className="flex items-start gap-3 mb-5">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Shield className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-foreground text-sm">Role permissions</h2>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Organisation roles control workspace access. Platform admins are separate and are not assigned an organisation role.
+            </p>
+          </div>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-border/70">
+          <table className="w-full min-w-[640px] text-left">
+            <thead className="bg-muted/50">
+              <tr className="border-b border-border">
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Role</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Effective access</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROLES.map((role) => (
+                <tr key={role.id} className="border-b last:border-0 border-border/70">
+                  <td className="px-4 py-3 align-top">
+                    <span className={`inline-flex text-[11px] font-semibold px-2 py-1 rounded-full border ${role.badge}`}>{role.label}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(ROLE_PERMISSIONS[role.id] ?? []).map((permission) => (
+                        <span key={permission} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary/60" aria-hidden />
+                          {permission}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
