@@ -1311,3 +1311,13 @@ No deployment was performed or required by D-027; no deployment configuration ch
 
 ### Closure determination
 Phase 7-C remains IN_PROGRESS — NOT CLOSED. The implementation itself is accepted at the changed-code scope, but the whole-branch verification matrix is not fully green because repository-wide typecheck/lint remain baseline failures. A future closure decision must explicitly determine whether that baseline is an accepted follow-up or requires a separately authorized infrastructure phase. No phase closure is inferred from tests alone. I-015 is RESOLVED; I-014 remains OPEN and unrelated to this phase.
+
+## Phase 7-C closure — 2026-10-04 — D-028 / architect PASS
+
+D-028 formally dispositions the repository-wide Type Check and ESLint failures as non-regressive baseline follow-up for Phase 7-C. Evidence: Type Check failures in CI run 37192496888 are concentrated in preserved Doable/reference trees and related baseline material; the global ESLint log contains 381 error lines and zero occurrences of Phase 7-C paths. The Phase 7-C focused lint/typecheck job passed.
+
+**Architect closure outcome: PASS. Phase 7-C CLOSED.**
+
+Gate A PASS [architect-verified]; Gate B PASS [architect-verified]; Gate C PASS [architect-verified from CI plus D-028 disposition]; Gate D PASS [architect-verified]; Gate E NOT_APPLICABLE; Gate F NOT_APPLICABLE. No P0/P1 blocker remains. I-015 RESOLVED; I-014 OPEN and outside the phase scope.
+
+The closure does not assert global repository Type Check/Lint success. D-028 explicitly forbids modifying immutable/reference material merely to make those baseline jobs green. A future baseline-cleanup operation requires its own bounded authorization.
