@@ -301,3 +301,21 @@ The repository remains under ChatGPT implementation ownership (D-024); GitHub st
 ChatGPT independently reviewed the Phase 7-C implementation and closure evidence at the current feature branch. Gate A/B/C evidence is satisfied by the authorized scope, focused verification, full regression suite, model configuration, governance validation, and CI npm-install evidence. Gate D is **PASS — architect-verified** by this review. Gate E and Gate F are **NOT_APPLICABLE** because no database or deployment surface changed. No P0/P1 closure blocker was introduced; I-014 remains an untriaged out-of-scope completeness issue and I-015 is resolved for its dependency/lockfile/environment condition.
 
 The current head after the implementation verification differs only by governance-document commits from the implementation-tested state; no Phase 7-C runtime source changed after the green CI verification. Global repository TypeScript/ESLint failures remain documented pre-existing baseline/reference-tree failures and were not altered to manufacture a green result. Phase 7-C is therefore **PASS — CLOSED**. Phase 7 remains **IN_PROGRESS** because project-level I-014 and other pending decisions remain outside this sub-phase.
+
+## Current-state reconciliation — 2026-10-05 — RBAC/UI continuation
+
+The current feature branch now includes the user-directed RBAC/UI enablement continuation. The exact current GitHub tip is the commit containing this reconciliation and its immediate UI/RBAC ancestors; GitHub remains authoritative.
+
+### Completed in this continuation
+- Existing organisation roles are surfaced from the existing org_members → roles relation to the admin UI.
+- Workspace navigation now reflects the existing role hierarchy: org_admin (Dashboard/Agents/Members/Billing), project_manager (Dashboard/Agents/Members), kb_editor/kb_viewer (Dashboard/Agents).
+- Non-org_admin direct access to tenant billing is redirected.
+- Subscription checkout and downgrade/cancel-scheduled-downgrade mutations now require existing org:update permission for tenant users.
+- /ai-platform is exposed to platform admins and explicitly super-admin-only; it is outside the tenant assistant shell.
+- No new permissions, migrations, schema changes, integration runtime, OAuth, credential storage, egress, MCP runtime, or deployment were introduced.
+
+### Remaining verification
+- Integrations I-1 Gate C executable focused CI evidence is still pending.
+- I-1 final Gate-D closure remains pending until Gate C is observed.
+- I-019 production Docker/Next build verification remains pending after the TypeScript reference-tree exclusion correction.
+- Browser/deployment verification for /ai-platform remains pending; no current-head Vercel deployment is available in the connected deployment list.
