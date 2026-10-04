@@ -114,7 +114,6 @@ export interface IntegrationExecutionResult {
       | "EGRESS_DENIED"
       | "EXECUTION_FAILED";
     readonly message: string;
-    readonly details?: Readonly<Record<string, unknown>>;
   };
 }
 
