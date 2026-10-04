@@ -1272,3 +1272,17 @@ GitHub Actions run 37192123977 (head 91e82d8e) produced:
 - Lint: **FAIL on pre-existing repository-wide baseline** (382 errors / 703 warnings); no lint findings were reported for the new Phase 7-C runtime files after correction.
 
 The focused Phase 7-C tests are included in the passing full suite: provider-tool-calling-pilot, agentic-loop, and OpenAI tool-calling tests all execute successfully in the run. Therefore Tasks 3–5 are implementation/test **PASS at the changed-code scope**, but Task 6 whole-branch verification is **NOT PASS** because the repository-wide typecheck/lint baseline remains non-green and the remaining immutable/reference-tree verification gates have not been re-run in this CI job.
+
+
+## 2026-10-04 — Task 6 verification matrix checkpoint
+
+GitHub Actions run 37192496888 / head 26af17f9 provides the current reproducible verification boundary:
+- Governance Verification: **PASS**.
+- Phase 7 Focused Verification: **PASS** (active Phase 7 source/test files lint and typecheck clean).
+- Test: **PASS** — 113/113 files, 1075/1075 tests.
+- Model configuration: **PASS**.
+- npm install: **PASS**; I-015 remains resolved.
+- Repository-wide Type Check: **FAIL** on pre-existing reference/extraction-tree and baseline application errors; no active Phase 7 file is in the remaining error set.
+- Repository-wide Lint: **FAIL** on the established global baseline (382 errors / 703 warnings); focused Phase 7 lint is clean.
+
+**Task 6 status:** verification substantially complete at the changed-code/governance boundary, but Phase 7-C closure is NOT authorized yet because the global baseline gates remain non-green and the remaining immutable/source/library/secret checks have not all been reproduced in this run. No global baseline errors are being “fixed” by modifying immutable/reference material.
