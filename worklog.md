@@ -1199,3 +1199,18 @@ D-031 authorized a bounded host-neutral contract/test slice only. ChatGPT implem
 No persistence, OAuth transport, credential vault, Activepieces runtime, outbound HTTP, egress execution, migration, deployment, or billing change was introduced.
 
 Current status: **IMPLEMENTED — VERIFICATION PENDING** because the connected GitHub integration has not exposed an Actions run for the current feature head. No PASS is claimed.
+
+
+---
+
+## 2026-10-05 — Integrations I-1 contract hardening and verification checkpoint — `IN_PROGRESS`
+
+| Field | Content |
+|---|---|
+| Authorization | D-031 — host-neutral Integrations Framework contracts/test foundation only |
+| Implementation | [developer/ChatGPT] I-1 contracts, focused tests, and platform-core export were implemented. Architect review identified two boundary weaknesses: generic connection metadata and generic error-detail bags could become secret-bearing surfaces, and connection-store/credential-vault operations were ambiguous for multiple connections. |
+| Correction | [developer/ChatGPT] Removed generic metadata/details bags and changed connection lookup/disconnect/credential-handle operations to use concrete connection IDs. Added compile-time negative tests for the forbidden secret-bearing fields. |
+| Verification | [architect-verified] Scope remains within D-031. Database/deployment gates are NOT_APPLICABLE. Focused I-1 Vitest/typecheck/lint verification was added to CI, but no Actions run is currently exposed through the connected GitHub integration, so Gate C remains MISSING. |
+| Review | [architect-verified] Gate D review completed with `PASS_WITH_FOLLOWUP`: the corrected contract is architect-reviewed, but I-1 cannot close until executable verification is observed. |
+| Current status | **IMPLEMENTED — VERIFICATION PENDING**. No I-2 or later integration work is authorized. |
+| Next action | Obtain executable I-1 CI evidence, then perform final Gate-D closure review and either close I-1 or issue a bounded correction. |
