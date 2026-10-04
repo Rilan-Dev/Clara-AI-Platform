@@ -460,3 +460,7 @@ The issue records themselves remain append-only. This addendum reconciles the cu
 ## 2026-10-05 — Phase 7-C closure reconciliation
 
 **I-014 remains OPEN. I-015 is RESOLVED.** The former I-014 current-field value was corrected because the immutable mcp-servers family remains absent and no architect triage/correction occurred. I-015 is resolved only for the manifest/lockfile/environment condition, based on executable CI npm-install evidence; this does not claim global typecheck/lint/build closure.
+
+## Correction — current I-014 terminal state (2026-10-05)
+
+The immediately preceding Phase 7-C reconciliation sentence stating **“I-014 remains OPEN”** is superseded by D-029 and the later terminal-state reconciliation in this file. **I-014 is RESOLVED.** The 31 previously absent `mcp-servers/**` files were restored from the authoritative Doable source commit and independently verified 31/31 against the immutable manifest with 0 mismatches. This correction is documentation-only and does not reopen Phase 7 or authorize additional immutable-source changes. [architect-verified]
