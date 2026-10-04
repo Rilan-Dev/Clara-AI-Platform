@@ -1260,3 +1260,17 @@ Current status: I-1 remains IMPLEMENTED — VERIFICATION PENDING; I-019 remains 
 [developer/ChatGPT] Added the dedicated `/ai-platform` product surface and admin navigation entry. The UI exposes the active Integrations I-1 contract boundary, Unified Tool Runtime, existing provider control plane, bounded agent-loop state, and I-1 verification/stopping boundary.
 
 The UI does not unlock OAuth, persistence, credential storage, outbound HTTP/egress, integration execution, Activepieces, billing, deployment, or I-2. Implementation is complete; browser/deployment verification remains pending because no fresh deployment or current Actions run is exposed through the connected surfaces.
+
+
+## 2026-10-05 — UI/RBAC/subscription readiness and build dependency correction
+
+Implemented directly on the feature branch:
+- tightened organisation-member role UI so project managers can invite/manage day-to-day Editor/Viewer access without being offered elevated Admin/Project-manager grants;
+- expanded Billing & Plan with explicit Voice, API/embed, custom branding, multilingual knowledge, SSO/SAML, priority support, analytics, and existing usage/limit visibility;
+- preserved server-side RBAC as the authoritative enforcement boundary;
+- reconciled the existing @e965/xlsx package declaration with package-lock.json using the published 0.20.3 integrity metadata;
+- cleared the Vercel clara-backend ignored-build-step so the feature branch can produce a preview on the next pushed commit.
+
+Commits: 298a57aa (role UI), c59678dc (plan entitlements), 63fcb501 (xlsx lockfile), 2df64eeb (governance). No production promotion performed.
+
+Verification remains pending: executable production build, current-head CI evidence, browser verification of /ai-platform and tenant-role redirects, and final I-1 Gate-D review.
