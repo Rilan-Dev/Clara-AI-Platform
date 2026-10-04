@@ -117,3 +117,11 @@ The previous Phase 7-B / Phase 7-C pending text above is historical. The current
 6. ChatGPT remains the implementation owner under D-024; historical Z.AI STOP records remain historical.
 
 **No Phase 8 product implementation is implicitly authorized by this entry.** [architect-verified]
+
+## Next bounded capability — Integrations Framework planning (D-030)
+
+D-030 authorizes **planning/review only** for the next capability: the host-neutral Integrations Framework. The canonical plan is `docs/superpowers/plans/2026-10-05-clara-integrations-framework.md`.
+
+The plan is intentionally implementation-blocking until a separate implementation authorization is recorded. It must resolve the credential-vault, OAuth state, connection-scope, egress/SSRF, Activepieces action-runner, Unified Tool Runtime bridge, and Gate-E persistence boundaries before code is started.
+
+**Current status:** Phase 7 remains CLOSED. The next implementation boundary is not yet authorized. [architect-verified]
