@@ -258,3 +258,15 @@ This append-only addendum is the authoritative current-state reconciliation and 
 ### Phase 7 architect closure evidence
 
 The closure review considered the actual implementation and governance trail through `SESSION-029` (7-C architect PASS), `SESSION-030` (I-014 architect PASS), D-028, D-029, the passing full test/focused verification evidence, the immutable manifest restoration evidence (31/31), the I-015 CI installation evidence, and the Phase 7 ordered-subphase boundary in `PHASE-7-PLAN.md`. No unresolved acceptance-violating correction remains. [architect-verified]
+
+
+## Current-state reconciliation — 2026-10-05 — Integrations I-1 active
+
+Phase 7 remains **PASS — CLOSED**. D-030 authorized planning for the next capability, and D-031 subsequently authorized only Integrations I-1 (host-neutral contracts/threat-model foundation).
+
+Current bounded state:
+- Integrations I-1 contracts are implemented under `src/modules/ai-platform-core/integrations/**`.
+- I-1 contains contracts, pure type-level boundaries, exports, and focused tests only.
+- No integration persistence, OAuth route/token exchange, credential-vault implementation, Activepieces runtime/dependency, outbound HTTP/egress execution, deployment, or database mutation has been introduced.
+- I-1 verification is **PENDING executable CI evidence**; no PASS is claimed from static review.
+- No I-2 or later integration runtime work is authorized yet.
