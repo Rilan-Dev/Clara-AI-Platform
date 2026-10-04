@@ -82,3 +82,6 @@ Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain 
 | `SESSION-036.md` | 2026-10-05 | ChatGPT | UI test-readiness review and Docker build-boundary checkpoint; reference-only dependency change reverted; I-1/I-019 remain pending executable verification | D-031 / I-019 |
 
 | `SESSION-037.md` | 2026-10-05 | ChatGPT | AI Platform / Integrations I-1 UI verification surface; implementation complete, browser/deployment verification pending | User-directed UI scope; D-031 runtime boundary preserved |
+
+
+| `SESSION-038.md` | 2026-10-05 | ChatGPT | RBAC, subscription-control, and AI Platform UI enablement; browser/deployment verification pending | User-directed UI/RBAC scope; D-031 runtime boundary preserved |
