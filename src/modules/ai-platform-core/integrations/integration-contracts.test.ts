@@ -6,6 +6,7 @@ import type {
   IntegrationConnectionRef,
   IntegrationCredentialHandle,
   IntegrationExecutionRequest,
+  IntegrationExecutionResult,
   IntegrationOAuthCallback,
   IntegrationRuntimeAdapters,
 } from "./integration-contracts";
@@ -25,7 +26,7 @@ describe("integration contracts", () => {
       scope: "user",
       userId: "user-1",
       status: "active",
-      metadata: { providerAccountId: "acct-1" },
+      providerAccountId: "acct-1",
     };
 
     expect(connection).not.toHaveProperty("credentials");
