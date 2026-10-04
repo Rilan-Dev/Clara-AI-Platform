@@ -111,7 +111,16 @@ export async function runBoundedAgenticLoop(
         text,
         events: Object.freeze([...events]),
         iterations: iteration,
-        error: (error as Error)?.message ?? String(error),
+        error: "Provider tool-calling request failed.",
+      };
+    }
+
+    if (signal?.aborted) {
+      return {
+        status: "cancelled",
+        text,
+        events: Object.freeze([...events]),
+        iterations: iteration,
       };
     }
 
@@ -138,6 +147,14 @@ export async function runBoundedAgenticLoop(
     });
 
     for (const call of toolCalls) {
+      if (signal?.aborted) {
+        return {
+          status: "cancelled",
+          text,
+          events: Object.freeze([...events]),
+          iterations: iteration,
+        };
+      }
       const result = await consumeProviderToolCall(call, context, runtime, { enabled: toolCallingEnabled });
       const toolResultEvent: ChatStreamEvent = result.error
         ? {
