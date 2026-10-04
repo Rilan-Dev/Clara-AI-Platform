@@ -1457,3 +1457,29 @@ No immutable/reference file, package manifest dependency, migration, runtime imp
 
 ### Verification
 **PENDING EXECUTABLE BUILD.** The ChatGPT execution environment cannot clone the repository or run Docker due unavailable outbound GitHub network resolution. Static repository review confirms the correction is limited to the TypeScript inclusion boundary. No build/typecheck PASS is claimed until the current feature head is executed in CI or the project build environment.
+
+
+## 2026-10-05 — UI/RBAC/subscription correction and build-readiness checkpoint
+
+### Current head
+`d0f2d5a1cda26114045aca891cf2239cad5f9ef0`
+
+### Implementation
+- Members UI visibly explains Admin / Project manager / Editor / Viewer roles.
+- Project managers are limited in the UI to Editor/Viewer grants.
+- Server-side member invitation and role-change handlers enforce the same hierarchy; project managers cannot grant or modify Admin/Project-manager roles and cannot change their own role.
+- Billing & Plan exposes knowledge-base, document, request, storage, Voice, API, Branding, and SSO entitlements on plan cards, alongside existing live usage and downgrade/upgrade flows.
+- `@e965/xlsx@0.20.3` is present in both `package.json` and `package-lock.json` with published integrity metadata. Immutable/reference trees remain unchanged.
+
+### Verification disposition
+| Gate | Status | Evidence |
+|---|---|---|
+| Scope | PASS — source review | Current correction delta contains only the RBAC/UI paths plus governance records; no migrations/reference/MCP/runtime-integration paths. |
+| RBAC implementation | PASS — source review | UI and server role hierarchy are aligned; executable behavior still needs CI/browser verification. |
+| Subscription UI | PASS — source review | Billing cards expose effective plan limits and entitlements; server-side plan guard remains authoritative. |
+| Production build | PENDING | User-provided build previously failed on missing `@e965/xlsx`; manifest/lock correction is now present but has not yet been executed at this head. |
+| CI current head | PENDING | Connected GitHub workflow-run surface has not exposed a run for the current feature head. |
+| Browser/Vercel preview | PENDING | No Vercel deployment exists for the current head; older feature deployments are cancelled. |
+| Immutable/reference integrity | PENDING current-head rerun | No changed paths touch immutable/reference material; fresh exact-head verification remains required. |
+
+**No new PASS/closure is claimed for I-1 or the overall project until executable evidence is observed.**
