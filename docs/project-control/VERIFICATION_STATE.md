@@ -2,7 +2,7 @@
 
 > Canonical register of verification evidence for the project-control system. **Strictly separates developer-reported evidence from architect-verified evidence.**
 > Since Phase 5 (2026-10-01) this register also carries the durable **verification and phase-gate contract** (§ below) — the binding rules every phase's closure evidence must satisfy from Phase 5 onward (DECISIONS.md D-020).
-> Snapshot date: **2026-10-01**. All commands listed here are read-only and re-runnable by any fresh session.
+> Snapshot date: **2026-10-05**. Phase 7-C closure evidence is recorded below; historical evidence remains unrewritten. All commands listed here are read-only and re-runnable by any fresh session.
 
 ## Evidence classes (definitions — used by ALL control documents)
 
@@ -1409,3 +1409,32 @@ Correction was applied within D-031 scope:
 Architect review of the correction: the changed paths remain strictly within the D-031 contract/test scope; no runtime, persistence, OAuth, credential, egress, billing, deployment, MCP, or later integration surface was introduced.
 
 **Gate C remains MISSING** because no executable GitHub Actions run is currently exposed for the current feature-head. Therefore I-1 remains `IMPLEMENTED — VERIFICATION PENDING`; no PASS or closure is claimed.
+
+
+## Phase 7-C final closure review — 2026-10-05
+
+### Architect review outcome
+**PASS — Phase 7-C CLOSED.** ChatGPT independently reviewed the authorized implementation and its complete continuation diff at the current feature branch. The implementation satisfies D-027's bounded scope: provider tool calling is additive and default-off; the Unified Tool Runtime is the only execution boundary; execution context provenance remains fail-closed; the agentic loop is hard-clamped to 8 iterations; cancellation is checked before provider turns and before tool invocation; provider failures are normalized to a bounded message; no autonomous memory, skills, MCP, integrations, or new billing architecture were introduced.
+
+### Closure gate matrix
+| Gate | Phase 7-C disposition | Evidence |
+|---|---|---|
+| A — Scope | **PASS** | Current compare shows the continuation after the implementation-tested head is governance-only; no migration, schema, MCP, integration, deployment, or Phase 8 paths were added. |
+| B — Implementation | **PASS** | Reviewed `provider-tool-calling-pilot.ts`, `agentic-loop.ts`, OpenAI tool-calling adapter/types, and focused regression tests. |
+| C — Validation | **PASS** | CI run 37192496888: 113/113 test files, 1075/1075 tests; Phase 7 Focused Verification PASS; Governance Verification PASS; model-config PASS; npm install PASS. Global TypeScript/ESLint failures remain pre-existing baseline/reference-tree conditions and no changed Phase 7-C runtime file remains in those error sets. |
+| D — Code review | **PASS — architect-verified** | ChatGPT independently reviewed the exact authorized implementation and the final continuation diff on 2026-10-05. |
+| E — Database | **NOT_APPLICABLE** | No database/schema/migration/Supabase surface changed. |
+| F — Deployment | **NOT_APPLICABLE** | No deployment configuration or production branch was changed. |
+
+### Immutable/reference/library/security checks
+The current branch retains the previously verified immutable-source invariants: 802 pinned / 771 present / 771/771 byte-verified / 0 mismatches / 31 absent, all confined to the pre-existing mcp-servers family (I-014). The four immutable tree OIDs and `vercel.json` blob identity remain unchanged. The library integrity validator remained PASS in the Phase 7 verification stream. Runtime import and secret scans were clean for the changed Phase 7-C paths. No subsequent application change occurred after those checks; the remaining commits after the tested implementation state are governance-only.
+
+### Baseline-gate disposition
+Repository-wide TypeScript and ESLint remain non-green because of pre-existing extraction/reference-tree and baseline application conditions. The Phase 7-C focused typecheck/lint job is green, the full test suite is green, and the changed runtime files are absent from the reported global error set. These baseline conditions are **not treated as Phase 7-C blockers**, and no immutable/reference material was modified to manufacture a green global result.
+
+### Issue reconciliation
+- **I-015: RESOLVED** for the manifest/lockfile/environment condition, supported by executable CI npm-install evidence; this does not claim global build/typecheck/lint closure.
+- **I-014: OPEN**, because the vendored mcp-servers family remains absent and no architect triage/correction has been performed.
+
+### Final state
+**Phase 7-A: PASS — CLOSED. Phase 7-B: PASS — CLOSED under D-023 / Option A. Phase 7-C: PASS — CLOSED. Phase 7: IN_PROGRESS.** No Phase 8 work is authorized by this closure. D-023 remains binding and first-class billable tool metering remains deferred.
