@@ -1254,3 +1254,9 @@ Verification classification: PENDING / NOT EXECUTED IN CURRENT SANDBOX. The repo
 The current branch package metadata now contains the previously missing `@vercel/functions ^3.9.9` root dependency and a matching `node_modules/@vercel/functions` lock entry at 3.9.9 with integrity data and its `@vercel/oidc 3.8.9` dependency; the matching `@vercel/oidc` lock entry is also present. This is sufficient to classify the lockfile metadata itself as reconciled against `package.json`.
 
 I-015 remains **OPEN** because the authoritative plan requires executable npm/typecheck verification after reconciliation, and the current ChatGPT sandbox does not contain the repository checkout and cannot clone GitHub. No typecheck/build PASS is inferred from static lockfile inspection.
+
+## 2026-10-04 — CI verification infrastructure correction
+
+I-015 lockfile consistency is now evidenced by repository inspection: the root lockfile dependency includes @vercel/functions ^3.9.9, and the package entry resolves 3.9.9 with integrity metadata. The active CI workflow was also updated to run on feature/ai-core-from-doable-source.
+
+This does not constitute a test/typecheck/lint PASS. A fresh GitHub Actions run for the new CI-trigger commit is not yet available in the repository workflow-run listing. Therefore the implementation remains VERIFICATION_PENDING and I-015 remains open pending executable verification of the complete matrix.
