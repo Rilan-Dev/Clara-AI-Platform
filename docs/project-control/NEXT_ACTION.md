@@ -125,3 +125,16 @@ D-030 authorizes **planning/review only** for the next capability: the host-neut
 The plan is intentionally implementation-blocking until a separate implementation authorization is recorded. It must resolve the credential-vault, OAuth state, connection-scope, egress/SSRF, Activepieces action-runner, Unified Tool Runtime bridge, and Gate-E persistence boundaries before code is started.
 
 **Current status:** Phase 7 remains CLOSED. The next implementation boundary is not yet authorized. [architect-verified]
+
+
+## Current-state reconciliation — 2026-10-05 — Integrations I-1 verification
+
+Phase 7 is closed. D-031 is the active bounded authorization.
+
+1. Run executable CI verification for the I-1 contract/test slice.
+2. Confirm focused lint/typecheck and the full regression suite introduce no new findings.
+3. Confirm no unauthorized paths were changed.
+4. Perform the architect review of I-1.
+5. Only after I-1 PASS may a separate I-2 authorization be considered.
+
+**Current status:** I-1 IMPLEMENTED / VERIFICATION PENDING. No I-2 implementation is authorized. [architect-verified]
