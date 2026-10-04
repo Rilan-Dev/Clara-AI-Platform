@@ -1230,3 +1230,8 @@ Correction commits:
 - `bfc40f671aea218def571c617f00789e15b45823`
 
 Architect verification confirms the correction diff is limited to the two authorized I-1 contract/test files. Gate C remains MISSING because no executable Actions run is exposed for the current feature head. I-1 therefore remains IMPLEMENTED — VERIFICATION PENDING; no closure is claimed. [architect-verified]
+
+
+## 2026-10-05 — Integrations I-1 current-state architect review
+
+ChatGPT independently re-read the current I-1 contract/test/threat-model state at the feature-branch tip `d9705441`. The corrected contract at `bfc40f67` is an ancestor of the current tip and removes the previously identified generic metadata/error-detail bags; concrete connection IDs and opaque credential handles remain enforced; the Unified Tool Runtime remains the only execution bridge. **Gate D: PASS_WITH_FOLLOWUP** for the corrected contract boundary. **Gate C remains pending** because the connected GitHub Actions surface exposes no workflow run for the current feature head. No I-2 or later integration work is authorized. [architect-verified]
