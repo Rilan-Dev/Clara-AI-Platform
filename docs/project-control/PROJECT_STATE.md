@@ -231,3 +231,7 @@ D-028 has been established and the architect closure review returned PASS. Phase
 Current HEAD remains on feature/ai-core-from-doable-source and contains the D-027 implementation plus governance closure records. The provider tool-calling pilot and bounded agentic loop are accepted as additive/default-off capabilities. No unauthorized MCP, integrations, memory, skills, billable tool metering, schema, migration, deployment, or Phase 8 work was introduced.
 
 The global Type Check and ESLint baseline remains non-green and is explicitly dispositioned by D-028 as a non-regressive follow-up. This does not make global CI green and does not authorize changing immutable/reference material. Phase 7-C closure is based on the phase-specific acceptance surface and the passing changed-code/full-test evidence.
+
+## I-014 closure reconciliation — 2026-10-04
+
+I-014 is now RESOLVED — architect PASS. The immutable extraction gap consisted of 31 absent mcp-servers files. All 31 were restored from the authoritative Doable commit and verified against the pinned manifest with zero SHA mismatches. The immutable boundary remains intact; no previously present pinned file was modified and no product/runtime behavior changed. I-015 remains RESOLVED; Phase 7 remains IN_PROGRESS.
