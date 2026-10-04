@@ -1260,3 +1260,15 @@ I-015 remains **OPEN** because the authoritative plan requires executable npm/ty
 I-015 lockfile consistency is now evidenced by repository inspection: the root lockfile dependency includes @vercel/functions ^3.9.9, and the package entry resolves 3.9.9 with integrity metadata. The active CI workflow was also updated to run on feature/ai-core-from-doable-source.
 
 This does not constitute a test/typecheck/lint PASS. A fresh GitHub Actions run for the new CI-trigger commit is not yet available in the repository workflow-run listing. Therefore the implementation remains VERIFICATION_PENDING and I-015 remains open pending executable verification of the complete matrix.
+
+
+## 2026-10-04 — Phase 7-C executable verification result
+
+GitHub Actions run 37192123977 (head 91e82d8e) produced:
+- Test: **PASS — 113/113 test files, 1075/1075 tests**.
+- Model configuration: **PASS**.
+- npm install: **PASS** in all jobs; I-015 dependency-install/lockfile condition is resolved.
+- Type Check: **FAIL on pre-existing reference/extraction-tree errors**; no remaining errors were reported from the changed Phase 7-C runtime files after correction. The immutable/reference trees and existing non-pilot application baseline continue to make repository-wide tsc non-green.
+- Lint: **FAIL on pre-existing repository-wide baseline** (382 errors / 703 warnings); no lint findings were reported for the new Phase 7-C runtime files after correction.
+
+The focused Phase 7-C tests are included in the passing full suite: provider-tool-calling-pilot, agentic-loop, and OpenAI tool-calling tests all execute successfully in the run. Therefore Tasks 3–5 are implementation/test **PASS at the changed-code scope**, but Task 6 whole-branch verification is **NOT PASS** because the repository-wide typecheck/lint baseline remains non-green and the remaining immutable/reference-tree verification gates have not been re-run in this CI job.
