@@ -1438,3 +1438,22 @@ Repository-wide TypeScript and ESLint remain non-green because of pre-existing e
 
 ### Final state
 **Phase 7-A: PASS — CLOSED. Phase 7-B: PASS — CLOSED under D-023 / Option A. Phase 7-C: PASS — CLOSED. Phase 7: IN_PROGRESS.** No Phase 8 work is authorized by this closure. D-023 remains binding and first-class billable tool metering remains deferred.
+
+## 2026-10-05 — Docker/Next build boundary correction
+
+### Finding
+A user-provided local Docker build reached `Compiled successfully` and then failed during Next.js type validation because the root TypeScript include glob traversed the immutable Doable reference tree. The first reported failure was:
+
+`ai-platform-core/doable-source/services/api/src/ai/attachments.ts:20:23 — Cannot find module '@e965/xlsx' or its corresponding type declarations.`
+
+This is a reference-snapshot dependency boundary failure, not an application runtime dependency failure. The reference snapshot must remain immutable and is not a runtime import source.
+
+### Correction
+[architect/ChatGPT] Updated `tsconfig.json` and `tsconfig.typecheck.json` to exclude:
+- `ai-platform-core/**`
+- `clara-core/**`
+
+No immutable/reference file, package manifest dependency, migration, runtime import, or product behavior was changed. The active reusable core remains `src/modules/ai-platform-core/**`.
+
+### Verification
+**PENDING EXECUTABLE BUILD.** The ChatGPT execution environment cannot clone the repository or run Docker due unavailable outbound GitHub network resolution. Static repository review confirms the correction is limited to the TypeScript inclusion boundary. No build/typecheck PASS is claimed until the current feature head is executed in CI or the project build environment.
