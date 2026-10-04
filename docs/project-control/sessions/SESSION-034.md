@@ -21,3 +21,18 @@ Gate C remains MISSING because the connected GitHub integration exposes no Actio
 
 ## Stopping boundary
 Await executable focused I-1 CI evidence and then perform final Gate-D closure review. No I-2 or later integration work is authorized.
+
+
+## 2026-10-05 — UI/RBAC/subscription readiness continuation
+
+The same session record now also covers the user-directed UI continuation after I-1 contract correction.
+
+- Members UI visibly explains Admin / Project manager / Editor / Viewer roles.
+- Project managers are limited to Editor/Viewer grants in the UI.
+- Server-side invitation and role-change handlers enforce the same hierarchy and reject self-role changes.
+- Billing & Plan cards expose KB, document/KB, request, storage, Voice, API, Branding, and SSO entitlements alongside existing usage meters and billing flows.
+- `@e965/xlsx@0.20.3` is now declared and locked with published integrity metadata; immutable/reference trees remain untouched.
+
+Source review confirms the correction delta from `8585f8db35b2806340e79f4e8ad55f61aa36ca52` to `845753cb347af678dae578c05fef17bed67a5abe` is limited to the RBAC/UI implementation paths.
+
+**Pending:** current-head production build, current-head CI evidence, browser verification, exact-head immutable/runtime-import/secret/governance checks, and final I-1 Gate-D closure review. No I-2 runtime, OAuth, persistence, egress, MCP runtime, or production promotion is authorized.
