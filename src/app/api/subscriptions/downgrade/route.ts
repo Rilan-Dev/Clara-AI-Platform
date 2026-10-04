@@ -23,7 +23,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth } from "@/modules/auth/core/rbac";
+import { requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { query, queryOne } from "@/lib/db";
 import { comparePlans, isSelfServePlan } from "@/lib/plans";
 import { evaluateDowngradeFit } from "@/lib/plan-guard";
@@ -63,13 +63,7 @@ async function assertMembership(req: NextRequest, orgId: string) {
   );
   if (!org) throw NextResponse.json({ error: "Organisation not found" }, { status: 404 });
 
-  if (!auth.user.isSuperAdmin) {
-    const membership = await queryOne(
-      "SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2",
-      [orgId, auth.user.id]
-    );
-    if (!membership) throw NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!auth.user.isSuperAdmin) await requireOrgPermission(auth, orgId, "org:update");
   return { auth, org };
 }
 
