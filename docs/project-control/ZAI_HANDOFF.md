@@ -3,7 +3,7 @@
 > Canonical developer-handoff protocol and active handoff instance for the Clara project-control system.
 > **Part I** is the durable, reusable handoff protocol — it applies to every implementation phase and changes only by architect direction.
 > **Part II** holds the **active handoff instance**: the current phase's assignment materialized in the authoritative format. When the architect issues a new phase handoff, the developer replaces Part II with the new instance; superseded instances remain recoverable in Git history (and, from Phase 4 onward, in the canonical worklog).
-> Snapshot date: **2026-10-02**. Repository state is authoritative — refresh it before acting (§I.6).
+> Snapshot date: **2026-10-05**. The historical Part II Z.AI closure/STOP record remains preserved; ChatGPT is the active implementation owner under D-024 and Phase 7-C is now closed by architect PASS. Repository state is authoritative — refresh it before acting (§I.6).
 > Canonical blank form: `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` — the only handoff template; no duplicate handoff formats may be created.
 
 ---
@@ -361,3 +361,14 @@ Current repository state: Phase 7 is **PASS — CLOSED**; 7-A, 7-B, and 7-C are 
 D-031 remains the only active I-1 implementation authorization. ChatGPT found and corrected I-018 in the I-1 contract/test boundary. The corrected implementation head is `bfc40f671aea218def571c617f00789e15b45823`.
 
 **STOP:** executable Gate-C evidence is still required. No I-1 closure is claimed until focused Vitest/strict TypeScript/ESLint evidence is observed. No I-2 or later integration work is authorized.
+
+
+## Part II current-state addendum — ChatGPT takeover and Phase 7-C closure — 2026-10-05
+
+The historical Phase 7-B Z.AI handoff in Part II remains preserved as an audit record and is not an active implementation assignment. Under D-024, ChatGPT is the active implementation owner.
+
+**Current status:** Phase 7-A PASS — CLOSED; Phase 7-B PASS — CLOSED under D-023 / Option A; **Phase 7-C PASS — CLOSED** after ChatGPT's independent architect review on 2026-10-05. I-015 is RESOLVED for the dependency/lockfile/environment condition. I-014 remains OPEN and awaits architect triage.
+
+**No active Z.AI assignment exists.** The Z.AI STOP boundary remains in force unless ChatGPT issues a new explicit handoff. No Phase 8 work, MCP/integrations work, first-class billable tool metering, deployment, schema/migration work, or unbounded agent-runtime work is authorized by the Phase 7-C closure.
+
+This addendum supersedes the operational effect of the older Part II STOP text while preserving that text unchanged as historical evidence.
