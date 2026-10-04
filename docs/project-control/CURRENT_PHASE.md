@@ -228,3 +228,21 @@ Verification is pending: the current sandbox does not contain the repository che
 D-024/D-027 govern the active continuation. ChatGPT is implementing the bounded Phase 7-C provider tool-calling and hard-bounded agentic-loop pilot. The implementation is additive and default-off; the Unified Tool Runtime is the only permitted tool execution path. No schema, migration, immutable/reference, MCP, integrations, billable tool metering, deployment, or Phase 8 work is included.
 
 Verification is pending because the current sandbox does not contain the repository checkout and outbound GitHub cloning is blocked. No Vitest, repository typecheck, lint, or full verification PASS is claimed. Historical Z.AI records remain unchanged.
+
+## Current-state reconciliation — 2026-10-04 — ChatGPT final Task-6 review
+
+This section is the authoritative current-state addendum and supersedes only the earlier paragraphs that described 7-C verification as pending before executable CI evidence was available; historical stage records remain unchanged.
+
+- Phase 7-C remains IN_PROGRESS — not closed.
+- D-027 authorization is active and the bounded provider tool-calling + hard-bounded agentic-loop implementation is present at current branch tip acd753d92ec6065ecfc8dbf845fbefb54ad49c9d.
+- Architect review of the actual Task 3–5 diff found the implementation conforms to D-027: default-off flags, Unified Tool Runtime as the sole tool execution boundary, provenance validation before execution, hard maximum of 8 provider iterations, cancellation checks before provider turns and tool execution, bounded provider-error output, and no direct provider-to-tool bypass. No security, tenant-isolation, or regression finding was identified in the reviewed delta.
+- Gate A scope: PASS [architect-verified] — compare from the Phase 7-C implementation baseline to current HEAD contains only the authorized provider/tool-loop, dependency-lockfile, CI, and governance changes; no database/schema/migration, immutable/reference-tree, MCP/integration, billable-metering, deployment, or Phase 8 change was introduced by Task 3–6.
+- Gate B implementation: PASS [architect-verified] — the reviewed requirements in the continuation plan Tasks 3–5 are implemented and covered by colocated tests; the existing text-only OpenAI path remains separate from the optional tool-calling path.
+- Gate C test verification: PASS at the Phase 7-C changed-code scope [architect-verified from CI evidence] — run 37192496888 passed the full Vitest suite (113/113 files, 1075/1075 tests), Phase 7 focused lint/typecheck, governance verification, model configuration, and npm installation. Repository-wide TypeScript and ESLint remain non-green because of established pre-existing reference/extraction-tree and unrelated baseline findings; those failures are explicitly recorded and were not “fixed” by modifying immutable/reference material.
+- Gate D code review: PASS [architect-verified] — ChatGPT independently reviewed the actual GitHub diff and the implementation/test contracts against D-027 and the continuation plan Review Focus. No unresolved Task 3–5 correctness, security, tenancy, or regression finding remains.
+- Gate E database: NOT_APPLICABLE [architect-verified] — no database/schema/migration surface changed and no database mutation was executed.
+- Gate F deployment: NOT_APPLICABLE [architect-verified] — no deployment was performed or required by D-027; no deployment configuration was changed.
+- Remaining closure blocker: the complete repository-wide verification matrix is not fully green because global typecheck/lint remain baseline failures. The phase therefore stays IN_PROGRESS rather than being falsely closed. This is a verification/baseline follow-up, not a discovered Phase 7-C runtime defect.
+- I-015 is RESOLVED for the dependency/lockfile condition, based on passing CI install evidence. I-014 remains OPEN and is unrelated to the bounded 7-C runtime scope.
+
+No historical Z.AI stage record is rewritten by this reconciliation. No new runtime scope is authorized beyond D-027.
