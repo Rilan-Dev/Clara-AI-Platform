@@ -32,6 +32,7 @@ const ADMIN_NAV = [
   { href: "/dashboard",     icon: LayoutDashboard, label: "Dashboard"     },
   { href: "/subscriptions", icon: CreditCard,      label: "Subscriptions" },
   { href: "/analytics",     icon: BarChart3,       label: "Analytics"     },
+  { href: "/ai-platform",   icon: Brain,            label: "AI Platform"    },
   { href: "/system-status", icon: Activity,        label: "System Status" },
 ];
 
