@@ -1349,3 +1349,23 @@ This append-only record is the final Phase 7 closure determination. Earlier Phas
 **PASS — Phase 7 CLOSED.** [architect-verified]
 
 This PASS closes the reviewed Phase 7 AI Platform Core Foundation program. It does not claim the repository-wide Type Check/Lint jobs are globally green, does not undo D-023/D-028, and does not authorize later capability implementation. The next phase requires a new bounded architecture/planning decision.
+
+
+## Integrations I-1 verification checkpoint — 2026-10-05
+
+D-031 authorizes only the host-neutral Integrations Framework contract foundation.
+
+Implemented:
+- `integration-contracts.ts`: catalog, connection, opaque credential-handle, OAuth protocol, action, egress, runner, and Unified Tool Runtime bridge ports;
+- `integration-contracts.test.ts`: focused contract/security-shape tests;
+- `src/modules/ai-platform-core/index.ts`: export of the contract surface.
+
+Architectural checks:
+- no raw credential fields exist in the connection reference or execution request;
+- credential access is represented by an opaque host-controlled handle;
+- tenant identity is carried by the provenance-verified Phase 7 execution context;
+- the integration bridge is typed against the Phase 7 `ToolDefinition`, preventing a parallel tool-execution contract;
+- connection lifecycle is explicit through connect/disconnect ports;
+- no persistence, OAuth transport, outbound HTTP, Activepieces dependency, migration, or deployment path was added.
+
+Verification classification: **PENDING**. The GitHub connector currently exposes no workflow run for the current feature head, so executable test/lint/typecheck evidence is not yet available for I-1. No PASS is asserted.
