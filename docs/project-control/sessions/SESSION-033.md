@@ -57,3 +57,9 @@ Focused I-1 CI verification was added for Vitest, strict TypeScript, and ESLint.
 **Gate D:** architect review = PASS_WITH_FOLLOWUP on the corrected contract.
 **I-1 status:** IMPLEMENTED — VERIFICATION PENDING.
 **Stopping boundary:** no I-2 or later integration implementation.
+
+## Final I-1 artifact checkpoint
+
+Added `src/modules/ai-platform-core/integrations/integration-threat-model.md` within D-031 scope. It records assets, trust boundaries, threat/control mappings, and explicit I-1 stopping boundaries. No runtime implementation was added.
+
+Current branch tip is governed by this checkpoint. I-1 remains IMPLEMENTED — VERIFICATION PENDING because executable Actions evidence is still unavailable through the connected GitHub integration.
