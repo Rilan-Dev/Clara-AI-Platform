@@ -483,3 +483,20 @@ The immediately preceding Phase 7-C reconciliation sentence stating **“I-014 r
 | Correction commits | `6066131bf62d7911cf52a19169031b74ca1737b9`; `324a494d37fb970ffcfd35f72d6b9b3f5b031471` |
 | Remaining gate | Execute `docker compose up -d --build` or equivalent CI build at the current feature head. |
 | Closure rule | Do not mark I-019 RESOLVED until executable build evidence confirms the reference-tree type-check failure is gone and no new build blocker is introduced. |
+
+
+## I-020 — Subscription mutation authorization gap — resolved by existing RBAC
+
+| Field | Value |
+|---|---|
+| Issue ID | I-020 |
+| Title | Tenant subscription checkout/downgrade mutations accepted membership instead of the existing org:update permission boundary |
+| Phase | Integrations I-1 / cross-cutting RBAC hardening |
+| Severity | P1 |
+| Status | RESOLVED — executable verification pending |
+| Date identified | 2026-10-05 |
+| Evidence | [architect-verified] Direct source review of the Razorpay order and subscription downgrade routes showed membership-only authorization; the existing RBAC model already defines org:update and org_admin owns that permission. |
+| Correction | [architect/ChatGPT] Replaced membership-only mutation checks with requireOrgPermission(auth, orgId, "org:update"). |
+| UI alignment | Platform sidebar and billing route are now role-aware; billing is exposed only to org_admin users. |
+| Non-scope | No new permission, migration, billing architecture, or payment-flow redesign. |
+| Follow-up | Fresh CI/build evidence is still required before treating the repository verification surface as green. |
