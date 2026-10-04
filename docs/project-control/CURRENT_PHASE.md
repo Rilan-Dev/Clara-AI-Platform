@@ -269,3 +269,24 @@ This closure is an architect acceptance of Phase 7-C, not a claim that the repos
 ## I-014 closure — 2026-10-04 — architect PASS
 
 I-014 is RESOLVED. The 31 missing mcp-servers immutable files were restored byte-for-byte from the pinned Doable source commit and independently SHA-verified 31/31 against the immutable manifest. No runtime scope was added. Phase 7 remains IN_PROGRESS for remaining project-level decisions and risks.
+
+
+## Current-state reconciliation — 2026-10-05 — Phase 7 CLOSED
+
+This append-only addendum supersedes only earlier current-state/header paragraphs that described 7-C or I-014 as pending. Historical implementation and review records remain unrewritten.
+
+**Canonical current status:**
+```text
+Phase 7:   PASS — CLOSED
+Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
+Phase 7-B: PASS — CLOSED
+Phase 7-C: PASS — CLOSED
+I-014:     RESOLVED — architect PASS (D-029)
+I-015:     RESOLVED — executable CI evidence
+I-016:     RESOLVED
+I-017:     RESOLVED
+```
+
+The Phase 7 closure is an architect PASS over the completed ordered sub-phases and their recorded correction/verification evidence. D-023 remains binding: first-class billable tool-usage metering is deferred and was not implemented. D-028 remains binding: repository-wide Type Check/Lint baseline failures are not claimed green and must not be “fixed” by mutating immutable/reference material. D-029 confirms the restored mcp-servers family is complete against the immutable manifest.
+
+**Stopping boundary:** Phase 7 is closed. No Phase 8 or later product implementation begins merely because Phase 7 closed. The next bounded action is a fresh architecture/planning package for the next capability, with its own explicit authorization and verification gates. [architect-verified]
