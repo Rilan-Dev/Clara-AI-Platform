@@ -419,3 +419,14 @@ I-014 remains OPEN and outside the closed Phase 7-C scope. Its 31 absent immutab
 Status: RESOLVED. The previously absent 31 immutable vendored files under docs/doable-source/doable-source/mcp-servers/** were restored directly from authoritative Doable source commit a6036d1fd6dca83c08ee5affa141e5c85e45f5af. The destination Git blob SHA for every one of the 31 manifest entries was independently fetched and matched the SHA pinned in docs/doable-source/verification/immutable-source-manifest.json — 31/31 PASS, 0 mismatches. No previously present immutable file was modified.
 
 The affected family remains reference/immutable source only; no runtime import or product behavior was introduced. The original finding was extraction incompleteness, not missing upstream source. Architect disposition: RESOLVED.
+
+
+## Current issue-state reconciliation — 2026-10-05
+
+The issue records themselves remain append-only. This addendum reconciles the current summary/header language with the architect-reviewed terminal states:
+
+- **I-014 — RESOLVED (D-029):** the 31 missing mcp-servers files were restored from pinned Doable commit `a6036d1fd6dca83c08ee5affa141e5c85e45f5af`; destination blobs were independently verified 31/31 with 0 mismatches. The restored material remains immutable/reference-only.
+- **I-015 — RESOLVED:** the declared `@vercel/functions ^3.9.9` dependency is represented in the lockfile and CI `npm install --legacy-peer-deps` succeeds. This resolves the dependency/lockfile condition; it does not make global Type Check/Lint green.
+- **I-016 — RESOLVED:** architect PASS after the fail-closed provenance/adapter corrections.
+- **I-017 — RESOLVED:** D-023 architect acceptance disposition plus correction; 7-B closed.
+- No Phase 7 P0/P1 blocker remains. [architect-verified]
