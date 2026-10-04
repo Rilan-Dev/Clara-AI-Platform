@@ -38,3 +38,22 @@ Focused tests statically review the credential/tenant boundary and adapter compl
 **I-1 IMPLEMENTED — VERIFICATION PENDING.**
 
 No I-2 or later integration implementation is authorized until executable verification and architect review of I-1 complete.
+
+
+## Architect review checkpoint
+
+The initial contract review found two trust-boundary weaknesses before closure:
+1. generic connection metadata could become a credential-bearing bag;
+2. generic error details could become a secret-bearing telemetry/result bag;
+3. connection-store and credential-vault operations were ambiguous when multiple connections exist.
+
+The implementation was corrected within D-031 scope:
+- generic metadata/details were removed;
+- concrete connection IDs are required for connection lookup/disconnect/credential-handle resolution;
+- compile-time negative tests were added for the forbidden generic secret-bearing fields.
+
+Focused I-1 CI verification was added for Vitest, strict TypeScript, and ESLint. The connected GitHub integration currently exposes no Actions run for the feature head, so executable Gate-C evidence remains unavailable.
+
+**Gate D:** architect review = PASS_WITH_FOLLOWUP on the corrected contract.
+**I-1 status:** IMPLEMENTED — VERIFICATION PENDING.
+**Stopping boundary:** no I-2 or later integration implementation.
