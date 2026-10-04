@@ -70,3 +70,21 @@ jobs:
         run: npx eslint src/modules/ai-platform-core/*.ts src/modules/ai-core/types.ts src/modules/ai-core/providers/openai.ts src/modules/ai-core/providers/openai-tool-calling.test.ts
       - name: Typecheck active Phase 7 files
         run: npx tsc --noEmit --strict --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --esModuleInterop --jsx preserve --types vitest/globals src/modules/ai-platform-core/agentic-loop.ts src/modules/ai-platform-core/agentic-loop.test.ts src/modules/ai-platform-core/provider-tool-calling-pilot.ts src/modules/ai-platform-core/provider-tool-calling-pilot.test.ts src/modules/ai-core/types.ts src/modules/ai-core/providers/openai.ts src/modules/ai-core/providers/openai-tool-calling.test.ts
+
+
+  governance-verification:
+    name: Governance Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --legacy-peer-deps
+      - name: Phase closure eligibility
+        run: bash docs/project-control/verification/phase-closure-eligibility-test.sh
+      - name: Correction cycle
+        run: bash docs/project-control/verification/correction-cycle-test.sh
+      - name: Model configuration
+        run: npm run validate:model-config
