@@ -413,3 +413,9 @@ I-014 remains OPEN because the 31 absent immutable vendored files remain confine
 I-015 remains RESOLVED for the dependency/lockfile condition.
 
 I-014 remains OPEN and outside the closed Phase 7-C scope. Its 31 absent immutable vendored files remain confined to the mcp-servers family. No Phase 7-C acceptance depends on resolving I-014.
+
+## I-014 resolution record — 2026-10-04 — architect PASS
+
+Status: RESOLVED. The previously absent 31 immutable vendored files under docs/doable-source/doable-source/mcp-servers/** were restored directly from authoritative Doable source commit a6036d1fd6dca83c08ee5affa141e5c85e45f5af. The destination Git blob SHA for every one of the 31 manifest entries was independently fetched and matched the SHA pinned in docs/doable-source/verification/immutable-source-manifest.json — 31/31 PASS, 0 mismatches. No previously present immutable file was modified.
+
+The affected family remains reference/immutable source only; no runtime import or product behavior was introduced. The original finding was extraction incompleteness, not missing upstream source. Architect disposition: RESOLVED.
