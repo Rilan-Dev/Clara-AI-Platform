@@ -65,7 +65,7 @@ export async function listOrgsHandler(req: NextRequest): Promise<NextResponse> {
          JOIN org_members om ON om.org_id = o.id AND om.user_id = $1
          LEFT JOIN agents a ON a.org_id = o.id
          LEFT JOIN knowledge_bases kb ON kb.agent_id = a.id
-        GROUP BY o.id
+        GROUP BY o.id, r.name
         ORDER BY o.name ASC`,
       [auth.user.id]
     );
