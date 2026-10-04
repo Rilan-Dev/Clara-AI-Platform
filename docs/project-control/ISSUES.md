@@ -390,3 +390,10 @@ The pre-Phase-6 entries below predate this system and are **preserved exactly as
 ## ChatGPT implementation takeover — current authorization and I-015 status (2026-10-04)
 
 D-024 is active: ChatGPT is the implementation owner for the current continuation. The historical Z.AI handoff/STOP records remain historical and are not rewritten. D-026 authorizes bounded I-015 dependency/lockfile remediation. The lockfile reconciliation commit b3ed15acac4de39e1eaff33d40bea9f045ff9c16 is implemented and structurally verified, but I-015 remains OPEN because npm typecheck/test/build execution is not available in the current execution environment. D-027 authorizes only the default-off Phase 7-C provider tool-calling and hard-bounded agentic-loop pilot; D-023 remains binding and no schema, migration, billable tool metering, MCP, integrations or deployment work is authorized.
+
+
+## 2026-10-04 — I-015 lockfile reconciliation checkpoint
+
+The current branch package metadata now contains the previously missing `@vercel/functions ^3.9.9` root dependency and a matching `node_modules/@vercel/functions` lock entry at 3.9.9 with integrity data and its `@vercel/oidc 3.8.9` dependency; the matching `@vercel/oidc` lock entry is also present. This is sufficient to classify the lockfile metadata itself as reconciled against `package.json`.
+
+I-015 remains **OPEN** because the authoritative plan requires executable npm/typecheck verification after reconciliation, and the current ChatGPT sandbox does not contain the repository checkout and cannot clone GitHub. No typecheck/build PASS is inferred from static lockfile inspection.
