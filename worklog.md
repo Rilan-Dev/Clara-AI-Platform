@@ -1134,3 +1134,10 @@ I-015 remains **OPEN** because the authoritative plan requires executable npm/ty
 Two concrete review defects were corrected on the active branch: (1) the provider-tool pilot result union now declares the runtime-returned `INVALID_CONTEXT` classification; (2) agent-loop tests now explicitly enable both the agent-loop and provider-tool feature flags where tool execution is expected. No safety boundary was weakened.
 
 The branch remains verification-pending. The current sandbox cannot execute the repository's npm/Vitest/typecheck/lint commands, and the connected GitHub integration exposes no Actions run for the current feature head. No PASS or phase closure is claimed.
+
+## 2026-10-04 — Verification infrastructure checkpoint
+
+- Confirmed the active branch lockfile contains the declared root @vercel/functions ^3.9.9 dependency and the resolved 3.9.9 package entry with registry URL, integrity, and @vercel/oidc dependency metadata.
+- Added the active feature branch to .github/workflows/ci.yml so the existing lint/typecheck/test/model-config workflow can execute against the implementation branch.
+- This is verification infrastructure only; no application, schema, migration, immutable-source, provider behavior, or deployment configuration was changed.
+- Repository-hosted CI has not yet produced a fresh run for the new commit, so Tasks 3–5 remain verification-pending.
