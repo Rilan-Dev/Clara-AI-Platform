@@ -1235,3 +1235,12 @@ Architect verification confirms the correction diff is limited to the two author
 ## 2026-10-05 — Integrations I-1 current-state architect review
 
 ChatGPT independently re-read the current I-1 contract/test/threat-model state at the feature-branch tip `d9705441`. The corrected contract at `bfc40f67` is an ancestor of the current tip and removes the previously identified generic metadata/error-detail bags; concrete connection IDs and opaque credential handles remain enforced; the Unified Tool Runtime remains the only execution bridge. **Gate D: PASS_WITH_FOLLOWUP** for the corrected contract boundary. **Gate C remains pending** because the connected GitHub Actions surface exposes no workflow run for the current feature head. No I-2 or later integration work is authorized. [architect-verified]
+
+
+## 2026-10-05 — Docker/Next build boundary correction — verification pending
+
+A user-provided local `docker compose up -d --build` run reached successful Next.js compilation but failed during the build type-check because the immutable/reference snapshot `ai-platform-core/doable-source/**` was included by the root TypeScript glob and imported `@e965/xlsx`, which is intentionally not an application dependency. Evidence: the build failed at `ai-platform-core/doable-source/services/api/src/ai/attachments.ts:20` with `Cannot find module '@e965/xlsx'`.
+
+[architect/ChatGPT] Corrected the build boundary without modifying the immutable snapshot or adding a reference-only dependency: `tsconfig.json` and `tsconfig.typecheck.json` now explicitly exclude the two non-runtime reference trees `ai-platform-core/**` and `clara-core/**`. The active runtime implementation remains under `src/modules/**` and is unaffected. Commits: `6066131b`, `324a494d`.
+
+Verification status: **PENDING EXECUTABLE BUILD**. The ChatGPT runtime cannot clone the GitHub repository or execute Docker because outbound GitHub network resolution is unavailable; no build PASS is inferred. The next executable check is `docker compose up -d --build` (or equivalent CI `npm run build`) from the current feature head. No immutable/reference source was changed.
