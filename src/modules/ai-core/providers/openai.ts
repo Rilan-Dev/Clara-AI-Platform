@@ -213,10 +213,7 @@ export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
   ): AsyncGenerator<string, void, unknown> {
     const model = this.config.chatModel ?? DEFAULT_CHAT_MODEL;
 
-    const openaiMessages: ChatCompletionMessageParam[] = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const openaiMessages: ChatCompletionMessageParam[] = messages.map(toOpenAIMessage);
 
     const request: ChatCompletionCreateParamsStreaming = {
       model,
