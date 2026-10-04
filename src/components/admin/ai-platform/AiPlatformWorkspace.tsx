@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   Activity,
   Bot,
@@ -116,22 +115,23 @@ export function AiPlatformWorkspace({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/settings/ai-platform"
+            <button
+              type="button"
+              onClick={() => setTab("providers")}
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
             >
-              Platform settings
+              Provider control plane
               <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/orgs"
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("agent-loop")}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
             >
-              Open Agents
+              Pilot status
               <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
+            </button>
+          </div>        </div>
 
         <div className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
           <div className="border-r border-border p-4 sm:p-5">
