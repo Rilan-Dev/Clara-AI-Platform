@@ -1244,3 +1244,12 @@ A user-provided local `docker compose up -d --build` run reached successful Next
 [architect/ChatGPT] Corrected the build boundary without modifying the immutable snapshot or adding a reference-only dependency: `tsconfig.json` and `tsconfig.typecheck.json` now explicitly exclude the two non-runtime reference trees `ai-platform-core/**` and `clara-core/**`. The active runtime implementation remains under `src/modules/**` and is unaffected. Commits: `6066131b`, `324a494d`.
 
 Verification status: **PENDING EXECUTABLE BUILD**. The ChatGPT runtime cannot clone the GitHub repository or execute Docker because outbound GitHub network resolution is unavailable; no build PASS is inferred. The next executable check is `docker compose up -d --build` (or equivalent CI `npm run build`) from the current feature head. No immutable/reference source was changed.
+
+
+## 2026-10-05 — UI test-readiness and build-boundary review
+
+Reviewed the active agent workspace UI against the requested ElevenLabs-style experience. The branch already contains the single organisation sidebar, agent workspace sections (Overview/Assistant/FAQ/Knowledge/Tools/Branches/Publish), global version/draft/publish topbar, branch creation/merge/archive controls, Branch History half-canvas flow, pending-change review, preview/publish controls, and responsive navigation. No duplicate sidebar or UI rewrite was required.
+
+The user-provided Docker build exposed the immutable-reference TypeScript traversal problem. The repository already contains the correct boundary correction in tsconfig.json and tsconfig.typecheck.json, excluding ai-platform-core/** and clara-core/** from application type checking. A temporary attempt to add the reference-only @e965/xlsx dependency to the application manifest was identified as architecturally incorrect and immediately reverted; the app dependency boundary is restored.
+
+Current status: I-1 remains IMPLEMENTED — VERIFICATION PENDING; I-019 remains VERIFICATION PENDING until an executable production build confirms the TypeScript boundary correction. No I-2, OAuth, persistence, egress, integration runtime, deployment, billing, or Phase 8 work was introduced.
