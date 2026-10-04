@@ -1397,3 +1397,15 @@ A subsequent architect review identified and corrected two trust-boundary defect
 
 ### Next
 Obtain the CI run for I-1, verify the focused tests/typecheck/lint plus existing immutable/import/secret/governance checks, then perform the final Gate-D closure review. No phase PASS is claimed.
+## 2026-10-05 — Integrations I-1 correction checkpoint — Gate C still pending
+
+ChatGPT's architect review of the exact I-1 implementation at `6cd93599b0338105602a655f3bf2529aaba0c7c9` found a contract/test inconsistency before executable closure: the test still constructed the removed generic `metadata` field, and `IntegrationExecutionResult.error` still exposed a generic `details` record contrary to the I-1 threat model. The test also omitted the `IntegrationExecutionResult` type import.
+
+Correction was applied within D-031 scope:
+- `src/modules/ai-platform-core/integrations/integration-contracts.ts`: removed generic `error.details`.
+- `src/modules/ai-platform-core/integrations/integration-contracts.test.ts`: uses the explicit `providerAccountId` field, retains a compile-time negative test for forbidden generic metadata, and imports `IntegrationExecutionResult`.
+- Correction commits: `b13e74487a5874b8b070da8ade97963e3f63f0d5` and `bfc40f671aea218def571c617f00789e15b45823`.
+
+Architect review of the correction: the changed paths remain strictly within the D-031 contract/test scope; no runtime, persistence, OAuth, credential, egress, billing, deployment, MCP, or later integration surface was introduced.
+
+**Gate C remains MISSING** because no executable GitHub Actions run is currently exposed for the current feature-head. Therefore I-1 remains `IMPLEMENTED — VERIFICATION PENDING`; no PASS or closure is claimed.
