@@ -20,10 +20,10 @@
 1. Integration HTTP tracing/logging was hardened so credential-bearing headers, URLs, bodies, and error text are redacted before trace/log emission; focused redaction tests were added.
 2. Integration-store FLOW keys are organisation-namespaced and reads/deletes are tenant-constrained; focused store tests were added.
 3. Organisation connection creation validates agent ownership and migration 061 adds the database agent/org consistency constraint.
-4. The repository manifest declares the Activepieces piece closure, but the current package-lock does **not** contain the corresponding `@activepieces/*` root dependency entries; lock synchronization still requires an executable npm install in an execution-capable environment.
+4. The repository manifest declares the Activepieces piece closure, but the current package-lock does **not** contain the corresponding `@activepieces/*` root dependency entries. Vercel has demonstrated that an executable `npm install --legacy-peer-deps --include=dev` environment exists, but the current head still lacks a completed successful build/test evidence run.
 5. Real connector/OAuth smoke, current-head browser verification, and immutable/runtime/secret/governance scans remain outstanding.
 
-**Review status: NO PASS.** I-2 remains open until the remaining executable evidence and final Gate-D review are complete.
+**Review status: NO PASS.** I-2 remains open until the current-head executable evidence, bounded connector/browser checks, and final Gate-D review are complete.
 
 ---
 
