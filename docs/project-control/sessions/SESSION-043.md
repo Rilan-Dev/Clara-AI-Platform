@@ -20,3 +20,8 @@ The requested UI/RBAC/subscription implementation is complete at source level. T
 ## 2026-10-05 — Preview build control cleared
 
 Vercel project `clara-backend` had retained an ignored-build-step command despite the earlier checkpoint. ChatGPT explicitly cleared `commandForIgnoringBuildStep`. The next feature-branch commit is the fresh preview/build verification trigger; production remains untouched.
+
+
+## 2026-10-05 — Deterministic Vercel preview trigger
+
+The project-level ignored-build-step control is now explicitly `node -e "process.exit(1)"`, forcing a preview build for the next feature-branch commit. This is a verification/deployment-control change only; no production promotion is authorized.
