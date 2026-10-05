@@ -342,6 +342,7 @@ async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
     maxDocsPerKb: plan.max_docs_per_kb,
     maxReqDay: plan.max_req_day,
     maxStorageMb: plan.max_storage_mb,
+    maxIntegrations: plan.max_integrations,
     voiceEnabled: plan.voice_enabled,
     apiAccess: plan.api_access,
     customBranding: plan.custom_branding,
