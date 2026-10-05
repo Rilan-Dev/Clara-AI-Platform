@@ -4,6 +4,7 @@ import { buildActionContext } from "./context-builder.js";
 import type { RunActionParams, RunActionResult } from "./types.js";
 import { xray } from "./xray.js";
 import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch.js";
+import { validateActionProps } from "./action-input-validation.js";
 import {
   customActions,
   pieceCache,
@@ -132,6 +133,11 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     // 0. Check for custom (non-piece) action first
     const customAction = customActions[params.integrationId]?.[params.actionName];
     if (customAction) {
+      const inputErrors = validateActionProps(customAction.props, params.props);
+      if (inputErrors.length > 0) {
+        xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
+        return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
+      }
       xr.phase("credential_lookup");
       const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.projectId);
       const auth = connection ? resolveAuth(def.authType, connection.credentials) : undefined;
@@ -201,6 +207,12 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     }
 
     const action = asActionShape(actionCandidate) as ActionShape & { run: (context: ReturnType<typeof buildActionContext>) => Promise<unknown> };
+
+    const inputErrors = validateActionProps(action.props, params.props);
+    if (inputErrors.length > 0) {
+      xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
+      return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
+    }
 
     // 3. Load credentials
     xr.phase("credential_lookup");
