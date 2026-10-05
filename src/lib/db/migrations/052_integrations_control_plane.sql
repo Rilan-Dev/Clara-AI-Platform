@@ -6,6 +6,9 @@
 ALTER TABLE subscription_plans
   ADD COLUMN IF NOT EXISTS max_integrations INTEGER NOT NULL DEFAULT 0;
 
+ALTER TABLE subscription_plan_versions
+  ADD COLUMN IF NOT EXISTS max_integrations INTEGER NOT NULL DEFAULT 0;
+
 UPDATE subscription_plans SET max_integrations = CASE id
   WHEN 'free' THEN 0
   WHEN 'starter' THEN 3
@@ -13,6 +16,11 @@ UPDATE subscription_plans SET max_integrations = CASE id
   WHEN 'enterprise' THEN -1
   ELSE max_integrations
 END;
+
+UPDATE subscription_plan_versions pv
+SET max_integrations = sp.max_integrations
+FROM subscription_plans sp
+WHERE sp.id = pv.plan_id;
 
 CREATE TABLE IF NOT EXISTS platform_integrations (
   integration_id TEXT PRIMARY KEY,
