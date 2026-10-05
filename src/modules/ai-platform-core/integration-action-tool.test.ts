@@ -1,0 +1,50 @@
+import { describe, expect, it, vi } from "vitest";
+
+const query = vi.fn();
+const runAction = vi.fn();
+
+vi.mock("@/lib/db", () => ({ query }));
+vi.mock("@/lib/plan-guard", () => ({
+  getOrgPlanLimits: vi.fn().mockResolvedValue({ plan_id: "pro", plan_name: "Pro" }),
+}));
+vi.mock("@/modules/integrations/registry", () => ({
+  getIntegration: vi.fn().mockReturnValue({
+    id: "example",
+    displayName: "Example",
+    authType: "none",
+  }),
+}));
+vi.mock("@/modules/integrations/runtime/runner-core", () => ({ runAction }));
+
+describe("integration action tool scope propagation", () => {
+  it("passes agentId separately from projectId to the runner", async () => {
+    query
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([{ id: "connection-1" }]);
+    runAction.mockResolvedValue({ success: true, output: { ok: true } });
+
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    const result = await tool.execute(
+      { integrationId: "example", actionName: "do_work", props: { value: 1 } },
+      {
+        tenantId: "org-1",
+        agentId: "agent-1",
+        userId: "user-1",
+        projectId: "project-1",
+        surface: "chat",
+      } as never,
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(runAction).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: "org-1",
+      projectId: "agent-1",
+      agentId: "agent-1",
+      userId: "user-1",
+    }));
+  });
+});
