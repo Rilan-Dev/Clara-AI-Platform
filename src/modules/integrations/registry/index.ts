@@ -1,5 +1,5 @@
 import type { IntegrationDefinition, IntegrationCategory } from "../types";
-import { REGISTRY as CURATED_REGISTRY } from "./curated";
+import { REGISTRY as CURATED_REGISTRY } from "../doable-registry";
 import { COMMUNICATION_INTEGRATIONS } from "./communication";
 import { PRODUCTIVITY_PART1 } from "./productivity-part1";
 import { PRODUCTIVITY_PART2 } from "./productivity-part2";
