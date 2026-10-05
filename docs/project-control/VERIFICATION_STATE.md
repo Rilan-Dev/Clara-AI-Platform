@@ -1676,3 +1676,11 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 ## 2026-10-06 — I-040 completion checkpoint
 
 [architect-verified] The bounded scope correction now covers both the Activepieces action context and the Unified Tool Runtime integration-action boundary: explicit agentId is propagated into the store/connections manager and into runAction. Focused regression tests cover both propagation points. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-041 post-refresh credential scope correction
+
+- [architect-verified] Source review found that the earlier I-037/I-040 agent-scope corrections left one credential-bearing path inconsistent: after OAuth token refresh, runAction() re-fetched the connection using projectId in the credentialVault.get() agent-scope position.
+- [architect-verified] Commit 1001819239fcba146061be84c35254a8a9fb30cb changes the post-refresh lookup to pass the explicit agentId.
+- I-041 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS because no executable current-head test/typecheck/lint/build PASS has been produced.
+- Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
