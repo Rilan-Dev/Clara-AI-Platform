@@ -1375,3 +1375,13 @@ Control-document headers were reconciled to the same current I-2 state. No new f
 ## 2026-10-06 — I-2 redirect egress hardening
 
 [architect-verified] Following the mandatory project-control recovery read, I-2 remained the active bounded implementation/verification work. Without waiting for GitHub Actions or Vercel, ChatGPT reviewed the current integration runner and identified that native fetch redirect-following could bypass the initial host egress/SSRF check. The generic runner was corrected to use manual redirect handling and fail closed on 3xx responses; a fetch-injection seam and focused regression tests cover private and public redirect responses. Recorded as I-036. No OAuth transport, MCP, billing, migration, production promotion, or unrelated scope was added. Control docs were reconciled to the correction. Current feature tip after the bounded correction is `ec399b7d3e3e1e2ab9ff429eaa9775087c21e122`; executable Gate-C evidence remains pending and I-2 is not closed.
+
+
+## 2026-10-06 — I-2 owner continuation: project/agent scope correction
+
+- ChatGPT re-ran the mandatory project-control recovery path and confirmed I-2 remains the active bounded work: IMPLEMENTED / VERIFICATION PENDING; Phase 7 is CLOSED; Z.AI is STOPPED.
+- Plan-to-implementation source review found that `credentialVault.get()` expects an optional agent scope, but `runAction()` passed `projectId` into that position. This conflated distinct identities and could prevent agent-scoped connections from resolving correctly.
+- Corrected `RunActionParams` with an explicit `agentId?: string` and changed both custom-action and piece-action credential lookups to pass `params.agentId`.
+- Correction commits: `8cad5e6759e79dfe54729257b68bc719319e7161`, `54fa672ce7e1df29d97cc2fbc5589403c5682ab0`.
+- Control documents updated: I-037 recorded as resolved by architect source review; Gate-C remains missing because executable current-head build/test/typecheck/lint evidence has not been produced.
+- No I-3, MCP expansion, production promotion, OAuth transport expansion, or unrelated implementation was started.
