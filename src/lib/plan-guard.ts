@@ -167,6 +167,9 @@ async function fetchPlanRow(
   const rows = await run.query<PlanLimits & { plan_name: string }>(
     `SELECT sp.id AS plan_id, sp.name AS plan_name,
             sp.max_kbs, sp.max_docs_per_kb, sp.max_req_day, sp.max_storage_mb,
+            COALESCE(sp.max_tts_chars_day, -1) AS max_tts_chars_day,
+            COALESCE(sp.max_stt_audio_sec_day, -1) AS max_stt_audio_sec_day,
+            COALESCE(sp.max_translation_chars_day, -1) AS max_translation_chars_day,
             sp.voice_enabled, sp.api_access, sp.custom_branding, sp.sso_enabled
        FROM subscription_plans sp
       WHERE sp.id = $1`,
