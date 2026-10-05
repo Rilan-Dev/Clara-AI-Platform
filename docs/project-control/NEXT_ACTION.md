@@ -4,6 +4,15 @@
 
 ## CURRENT AUTHORITATIVE ACTION
 
+## 2026-10-06 — I-047 owner continuation: direct-connection plan-limit correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. [architect-verified] Source review found that organisation-level connect could implicitly enable a previously-disabled integration without enforcing max_integrations. The bounded correction is committed at 846c8d39add3430a5014c5573b3cc4d5ad86ee37 with focused regression coverage 354e57f9fb658267f1667c1eec8b5dfbd63023ad. I-047 is resolved by architect source review.
+
+**Next bounded work:** continue source-level I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant isolation, and secret/egress review without waiting for GitHub Actions or Vercel. Then obtain executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
 **I-2 is the active bounded work.** The repository already contains the I-2 implementation. The immediate job is verification and security correction only.
 
 1. Obtain executable dependency/lock synchronization plus current-head build/test/typecheck/lint evidence.
