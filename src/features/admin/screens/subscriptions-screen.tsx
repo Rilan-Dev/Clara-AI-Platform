@@ -34,6 +34,9 @@ type Plan = {
   max_docs_per_kb: number;
   max_req_day: number;
   max_storage_mb: number;
+  max_tts_chars_day: number;
+  max_stt_audio_sec_day: number;
+  max_translation_chars_day: number;
   voice_enabled: boolean;
   api_access: boolean;
   custom_branding: boolean;
@@ -44,6 +47,8 @@ type Plan = {
   features: string[];
   published_version_id?: string;
   published_version?: number;
+  draft_version_id?: string;
+  draft_version?: number;
   version_count?: number;
 };
 
@@ -495,15 +500,32 @@ export default function AdminSubscriptionsScreen() {
     setPlanError(null);
     setPlanSuccess(null);
     try {
-      const body = { ...plan };
-      delete (body as Record<string, unknown>).version_count;
-      delete (body as Record<string, unknown>).published_version;
-      
-      const method = plan.id === "new" ? "POST" : "PUT";
-      const url = plan.id === "new" ? "/api/subscriptions/plans" : `/api/subscriptions/plans/${plan.id}`;
-      
-      const r = await fetch(apiUrl(url), {
-        method,
+      if (plan.id === "new") {
+        throw new Error("Clara plans are fixed platform tiers. Edit an existing tier to create a new version.");
+      }
+      const body = {
+        planId: plan.id,
+        name: plan.name,
+        description: plan.description,
+        priceUsd: plan.price_usd,
+        maxKbs: plan.max_kbs,
+        maxDocsPerKb: plan.max_docs_per_kb,
+        maxReqDay: plan.max_req_day,
+        maxStorageMb: plan.max_storage_mb,
+        maxTtsCharsDay: plan.max_tts_chars_day,
+        maxSttAudioSecDay: plan.max_stt_audio_sec_day,
+        maxTranslationCharsDay: plan.max_translation_chars_day,
+        voiceEnabled: plan.voice_enabled,
+        apiAccess: plan.api_access,
+        customBranding: plan.custom_branding,
+        ssoEnabled: plan.sso_enabled,
+        analyticsLevel: plan.analytics_level,
+        prioritySupport: plan.priority_support,
+        features: plan.features,
+        multilingualEmbeddings: plan.multilingual_embeddings,
+      };
+      const r = await fetch(apiUrl("/api/platform/subscription-plans"), {
+        method: "POST",
         headers: withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(body),
       });
@@ -524,10 +546,11 @@ export default function AdminSubscriptionsScreen() {
     setPlanError(null);
     setPlanSuccess(null);
     try {
-      const r = await fetch(apiUrl(`/api/subscriptions/plans/${plan.id}/publish`), {
-        method: "POST",
+      if (!plan.draft_version_id) throw new Error("No draft version exists. Edit and save the plan first.");
+      const r = await fetch(apiUrl("/api/platform/subscription-plans"), {
+        method: "PATCH",
         headers: withAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ note: planSuccess }),
+        body: JSON.stringify({ versionId: plan.draft_version_id, action: "publish" }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Failed to publish plan");
@@ -772,11 +795,11 @@ export default function AdminSubscriptionsScreen() {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-foreground">Plan Editions</h2>
-              <p className="hidden sm:block text-muted-foreground/70 text-sm mt-0.5">Editions are versioned. Publishing changes future subscriptions; existing customers keep their assigned version.</p>
+              <p className="hidden sm:block text-muted-foreground/70 text-sm mt-0.5">Editions are versioned. Publishing changes future subscriptions; existing customers keep their assigned version. Limits below are enforced by the plan guard.</p>
             </div>
-            <Button onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })} className="shrink-0 gap-1.5">
-              <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Create New Plan</span><span className="sm:hidden">New Plan</span>
-            </Button>
+            <div className="text-xs text-muted-foreground/70 rounded-lg border border-border bg-muted/30 px-3 py-2">
+              Edit a tier to create a draft version, then publish it.
+            </div>
           </div>
 
           <PlanMultilingualCard plans={plans} onChanged={loadData} />
@@ -825,6 +848,9 @@ export default function AdminSubscriptionsScreen() {
                     <span>Req/day: {plan.max_req_day === -1 ? "∞" : plan.max_req_day.toLocaleString()}</span>
                     <span>Storage: {plan.max_storage_mb === -1 ? "∞" : plan.max_storage_mb} MB</span>
                     <span>Docs/KB: {plan.max_docs_per_kb === -1 ? "∞" : plan.max_docs_per_kb}</span>
+                    <span>TTS/day: {plan.max_tts_chars_day === -1 ? "∞" : plan.max_tts_chars_day.toLocaleString()}</span>
+                    <span>STT/day: {plan.max_stt_audio_sec_day === -1 ? "∞" : Math.round(plan.max_stt_audio_sec_day / 60) + " min"}</span>
+                    <span>Translation/day: {plan.max_translation_chars_day === -1 ? "∞" : plan.max_translation_chars_day.toLocaleString()}</span>
                   </div>
 
                   <ul className="space-y-2 flex-1 mb-4 mt-3">
@@ -846,7 +872,7 @@ export default function AdminSubscriptionsScreen() {
                     <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditPlan(plan)}>
                       <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit Plan
                     </Button>
-                    <Button size="sm" className="flex-1" onClick={() => void publishPlan(plan)} disabled={!plan.published_version_id || savingPlan}>
+                    <Button size="sm" className="flex-1" onClick={() => void publishPlan(plan)} disabled={!plan.draft_version_id || savingPlan}>
                       <Send className="w-3.5 h-3.5 mr-1.5" /> Publish
                     </Button>
                   </div>
@@ -859,9 +885,7 @@ export default function AdminSubscriptionsScreen() {
             <div className="text-center py-12 text-muted-foreground/80">
               <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 mx-auto opacity-30 mb-3" />
               <p>No plans configured yet</p>
-              <Button className="mt-4" onClick={() => setEditPlan({ id: "new", name: "", description: "", price_usd: 0, max_kbs: 10, max_docs_per_kb: 100, max_req_day: 1000, max_storage_mb: 100, voice_enabled: false, api_access: false, custom_branding: false, sso_enabled: false, analytics_level: "basic", priority_support: false, features: [] })}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> Create First Plan
-              </Button>
+              <p className="text-xs text-muted-foreground/70">No platform plan tiers were returned.</p>
             </div>
           )}
 
