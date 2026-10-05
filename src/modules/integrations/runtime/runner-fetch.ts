@@ -200,11 +200,11 @@ export function createTracedFetch(
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
     const url = redactUrl(rawUrl);
 
-    // Skip tracing and egress policy for trusted internal Clara broadcast/WS calls.
-    if (url.includes('/internal/broadcast') || url.includes('/internal/collab') || url.includes('/internal/yjs')) {
-      return _originalFetch(input, init);
-    }
-
+    // All integration-originated requests are subject to the same egress policy.
+    // Internal-path substrings are not a trust boundary: an attacker-controlled
+    // URL can contain "/internal/broadcast" while still targeting loopback/private
+    // infrastructure. Trusted host-to-host calls must use a separate host-owned
+    // transport rather than bypassing this integration boundary.
     await assertSafeEgressUrl(rawUrl);
 
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
