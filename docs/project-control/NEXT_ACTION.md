@@ -6,10 +6,10 @@
 
 **I-2 is the active bounded work.** The repository already contains the I-2 implementation. The immediate job is verification and security correction only.
 
-1. Run executable current-head install/build/test/typecheck/lint evidence in the project environment.
-2. Execute migration 052/061 against the authorized database environment and verify encryption plus tenant/agent constraints.
-3. Run the new runtime redaction and store-isolation tests plus the existing registry/control-plane suites.
-4. Perform connector smoke testing and browser access/denial verification.
+1. Obtain executable dependency/lock synchronization plus current-head build/test/typecheck/lint evidence.
+2. Re-run the focused runtime redaction/store-isolation tests and integration registry/control-plane suites in that executable environment.
+3. Use the already-verified 060/061/062 database state as Gate-E evidence; do not re-run migrations merely to manufacture evidence unless a clean-install verification is explicitly required.
+4. Perform a bounded real connector/OAuth smoke where valid provider credentials/configuration are available, then browser-verify platform → organisation → agent access and denial paths.
 5. Re-run immutable-source, runtime-import, secret and governance gates.
 6. Perform I-2 Gate-D review. Only an explicit ChatGPT PASS closes I-2.
 
