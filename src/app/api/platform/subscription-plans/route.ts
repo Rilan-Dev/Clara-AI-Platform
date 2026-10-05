@@ -18,9 +18,6 @@ type PlanInput = {
   maxTtsCharsDay?: number;
   maxSttAudioSecDay?: number;
   maxTranslationCharsDay?: number;
-  maxTtsCharsDay?: number;
-  maxSttAudioSecDay?: number;
-  maxTranslationCharsDay?: number;
   voiceEnabled?: boolean;
   apiAccess?: boolean;
   customBranding?: boolean;
