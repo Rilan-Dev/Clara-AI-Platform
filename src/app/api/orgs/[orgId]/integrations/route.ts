@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!platform?.enabled) return NextResponse.json({ error: "This integration is disabled by the platform administrator", code: "INTEGRATION_DISABLED" }, { status: 403 });
     const limits = await getOrgPlanLimits(orgId);
     if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
-      return NextResponse.json({ error: `The ${limits.plan_name ?? limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+      return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
     }
 
     if (body.action === "enable" || body.action === "disable") {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const count = (await query<{count:number}>(`SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`, [orgId]))[0]?.count ?? 0;
         const max = limits.max_integrations ?? 0;
         if (max !== -1 && count >= max && !(await query(`SELECT 1 FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2`, [orgId, body.integrationId]))[0]) {
-          return NextResponse.json({ error: `Your ${limits.plan_name ?? limits.plan_id} plan allows ${max} integrations`, code: "INTEGRATION_LIMIT_REACHED", limit: max, current: count }, { status: 402 });
+          return NextResponse.json({ error: `Your ${limits.plan_id} plan allows ${max} integrations`, code: "INTEGRATION_LIMIT_REACHED", limit: max, current: count }, { status: 402 });
         }
       }
       await query(`INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,$3,$4)
