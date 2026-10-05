@@ -29,7 +29,7 @@
 
 - [architect-verified] The three successive I-2 runtime hardening deployments at commits `63fd942`, `863edd10`, and `cd883a45` all reached Vercel build execution but ended with `lint_or_type_error` / `npm run db:migrate && npm run build` exit 1.
 - [architect-verified] The `cd883a45` failure was traced to a real syntax regression in `src/modules/integrations/runtime/runner-helpers.ts`: the file was truncated at the `resolveAuth` tail (`368:44 Parsing error: '}' expected`).
-- [architect-verified] Commit `b6d102cb4d40e46f9f3f4c9635f13485ca851bcb` restores the missing helper tail, removes explicit `any` from the affected helper path, and is the latest reviewed I-2 implementation source. Current feature tip `8a9b9e59e1f032c84ed3d5db528c918d4186b038` contains only the subsequent project-control refresh.
+- [architect-verified] Commit `b6d102cb4d40e46f9f3f4c9635f13485ca851bcb` restores the missing helper tail, removes explicit `any` from the affected helper path, and is the latest reviewed I-2 implementation source. Current feature tip `875fb76db26dcb7d29d171522e01498e869eb3e5` contains only the subsequent project-control refresh.
 - [architect-verified] Later Vercel deployments based on the repaired runner-helper path were canceled before producing usable build logs; therefore they are not counted as build PASS evidence. No current-head Vercel deployment for `8a9b9e59` is presently available as executable PASS evidence.
 - [architect-verified] Static inspection of the current runtime files confirms the focused redaction/store tests and integration registry test are present and the corrected runtime files contain no explicit `any` type usage; this is source review evidence only, not executable Gate-C evidence.
 - [architect-verified] Current `package.json` declares 529 `@activepieces/*` root dependencies while the current `package-lock.json` contains none of those root entries. Vercel demonstrated that npm installation can execute, but lock synchronization remains unverified/uncommitted at the current head.
@@ -1663,6 +1663,11 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 ## 2026-10-06 — I-039 OAuth refresh redirect correction
 
 - [architect-verified] Source review found that `ensureTokenFresh()` egress-checked the configured OAuth token endpoint but allowed native fetch to follow a 3xx response to an unchecked destination.
-- [architect-verified] Commit `fddf00ca3c5cea63daa5c4146ae212908deb205a` sets OAuth refresh requests to `redirect: "manual"` and rejects 3xx responses.
+- [architect-verified] Commit `f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11` sets OAuth refresh requests to `redirect: "manual"` and rejects 3xx responses.
 - I-039 is resolved by source review. Gate-C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate-D remains IN_PROGRESS.
 - Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
+
+
+## 2026-10-06 — I-040 action-context scope correction checkpoint
+
+[architect-verified] Source review found that the prior I-037 credential-scope correction did not propagate the explicit agent scope into the Activepieces action context. The action-context PostgresStore and cross-integration ConnectionsManager were still constructed with projectId. Commits a5680cd51c6d9ca961ab93effd20fb069d0e2bbe and f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11 correct this, and test commit 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds focused regression coverage. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
