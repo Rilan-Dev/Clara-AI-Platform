@@ -354,3 +354,18 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub
 **Next bounded work:** continue I-2 executable verification and only further concrete I-2 corrections; then connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-2 owner continuation: AI availability plan-entitlement correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub Actions or Vercel, ChatGPT audited the AI-visible integration discovery boundary and found I-046: `integration_availability` exposed platform/org/agent-enabled integrations without applying the organisation's current plan allowlist.
+
+- Correction: `48a55826f4c45fe71c891bd68f71075fc363f8fc`.
+- Regression test: `b3d090a1644d1982e1709d095458db9c593a5d42`.
+- I-046: RESOLVED by architect source review.
+- `integration_availability` now filters by current plan; `integration_action` remains independently fail-closed.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+
+**Next bounded work:** continue I-2 executable verification and only concrete I-2 corrections found by source review; then connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
