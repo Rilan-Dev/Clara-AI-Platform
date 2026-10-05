@@ -42,6 +42,18 @@ function foldName(s: string): string {
 }
 
 /** All real action names known for an integration (custom actions + registry). */
+type ActionShape = {
+  name?: string;
+  displayName?: string;
+  description?: string;
+  props?: Record<string, unknown>;
+  run?: (context: ReturnType<typeof buildActionContext>) => Promise<unknown>;
+};
+
+function asActionShape(value: unknown): ActionShape {
+  return value && typeof value === "object" ? value as ActionShape : {};
+}
+
 function knownActionNames(integrationId: string): string[] {
   const custom = Object.keys(customActions[integrationId] ?? {});
   const piece = getIntegration(integrationId)?.actions ?? [];
@@ -130,21 +142,31 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     const resolvedActions = typeof piece.actions === "function" ? piece.actions() : piece.actions;
     const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
     const sanitizedActionName = sanitize(params.actionName);
-    const findAction = (name: string, acts: any) => {
-      if (Array.isArray(acts)) return acts.find((a: any) => a.name === name || sanitize(a.name) === sanitize(name));
-      return acts?.[name] ?? Object.values(acts ?? {}).find((a: any) => sanitize((a as any).name) === sanitize(name));
+    const findAction = (name: string, acts: unknown): unknown => {
+      if (Array.isArray(acts)) {
+        return acts.find((a: unknown) => {
+          const candidate = asActionShape(a);
+          return candidate.name === name || (typeof candidate.name === "string" && sanitize(candidate.name) === sanitize(name));
+        });
+      }
+      if (!acts || typeof acts !== "object") return undefined;
+      const record = acts as Record<string, unknown>;
+      return record[name] ?? Object.values(record).find((a: unknown) => {
+        const candidate = asActionShape(a);
+        return typeof candidate.name === "string" && sanitize(candidate.name) === sanitize(name);
+      });
     };
-    const action = typeof piece.getAction === "function"
+    const actionCandidate = typeof piece.getAction === "function"
       ? (piece.getAction(params.actionName) ?? piece.getAction(def.actions?.find((n: string) => sanitize(n) === sanitizedActionName) ?? params.actionName))
       : findAction(params.actionName, resolvedActions);
 
-    if (!action) {
+    if (!actionCandidate) {
       xr.end("error", `Action '${params.actionName}' not found`);
       // Include custom (Doable-owned) actions in the "Available" list too —
       // otherwise the error message hides Doable-custom actions like
       // `elevenlabs-speech-to-text` that are ONLY in customActions.
       const pieceNames = Array.isArray(resolvedActions)
-        ? resolvedActions.map((a: any) => a.name)
+        ? resolvedActions.map((a: unknown) => asActionShape(a).name).filter((name): name is string => Boolean(name))
         : resolvedActions && typeof resolvedActions === "object"
           ? Object.keys(resolvedActions)
           : [];
@@ -157,6 +179,8 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
         }`,
       };
     }
+
+    const action = asActionShape(actionCandidate) as ActionShape & { run: (context: ReturnType<typeof buildActionContext>) => Promise<unknown> };
 
     // 3. Load credentials
     xr.phase("credential_lookup");
@@ -234,7 +258,7 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
   const pieceActions = typeof piece.actions === "function"
     ? piece.actions()
     : Array.isArray(piece.actions)
-      ? Object.fromEntries(piece.actions.map((a: any) => [a.name, a]))
+      ? Object.fromEntries(piece.actions.map((a: unknown) => { const candidate = asActionShape(a); return [candidate.name ?? "", a]; }))
       : (piece.actions ?? {});
 
   let matchedAny = false;
@@ -260,7 +284,7 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
   if (matchRatio < 0.5 && Object.keys(pieceActions).length > 0) {
     actions.length = 0;
     for (const [actionName, action] of Object.entries(pieceActions)) {
-      const a = action as any;
+      const a = asActionShape(action);
       actions.push({
         name: actionName,
         displayName: a.displayName ?? actionName.replace(/[_-]/g, " "),
@@ -292,4 +316,3 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
 export function clearPieceCache(): void {
   pieceCache.clear();
 }
-
