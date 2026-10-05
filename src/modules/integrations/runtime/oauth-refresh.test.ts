@@ -75,6 +75,24 @@ describe("OAuth token refresh", () => {
     expect(vault.updateStatus).not.toHaveBeenCalled();
   });
 
+  it("fails closed when an expired OAuth token has no refresh token", async () => {
+    vault.decrypt.mockResolvedValue({
+      access_token: "expired-access",
+      expires_in: 60,
+      claimed_at: Math.floor(Date.now() / 1000) - 3600,
+      token_url: "https://oauth.example.com/token",
+      client_id: "client-id",
+      client_secret: "client-secret",
+      data: {},
+    });
+
+    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2"))
+      .rejects.toThrow("OAuth connection expired and cannot be refreshed");
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(vault.updateStatus).toHaveBeenCalledWith("connection-1", "org-1", "expired");
+  });
+
   it("marks the tenant-scoped connection expired on an invalid-grant response", async () => {
     vault.decrypt.mockResolvedValue({
       access_token: "old-access",
