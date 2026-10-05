@@ -25,6 +25,17 @@
 
 **Review status: NO PASS.** I-2 remains open until the current-head executable evidence, bounded connector/browser checks, and final Gate-D review are complete.
 
+### 2026-10-06 — Vercel build-evidence correction checkpoint
+
+- [architect-verified] The three successive I-2 runtime hardening deployments at commits `63fd942`, `863edd10`, and `cd883a45` all reached Vercel build execution but ended with `lint_or_type_error` / `npm run db:migrate && npm run build` exit 1.
+- [architect-verified] The `cd883a45` failure was traced to a real syntax regression in `src/modules/integrations/runtime/runner-helpers.ts`: the file was truncated at the `resolveAuth` tail (`368:44 Parsing error: '}' expected`).
+- [architect-verified] Commit `b6d102cb4d40e46f9f3f4c9635f13485ca851bcb` restores the missing helper tail, removes explicit `any` from the affected helper path, and is the latest reviewed I-2 implementation source. Current feature tip `8a9b9e59e1f032c84ed3d5db528c918d4186b038` contains only the subsequent project-control refresh.
+- [architect-verified] Later Vercel deployments based on the repaired runner-helper path were canceled before producing usable build logs; therefore they are not counted as build PASS evidence. No current-head Vercel deployment for `8a9b9e59` is presently available as executable PASS evidence.
+- [architect-verified] Static inspection of the current runtime files confirms the focused redaction/store tests and integration registry test are present and the corrected runtime files contain no explicit `any` type usage; this is source review evidence only, not executable Gate-C evidence.
+- [architect-verified] Current `package.json` declares 529 `@activepieces/*` root dependencies while the current `package-lock.json` contains none of those root entries. Vercel demonstrated that npm installation can execute, but lock synchronization remains unverified/uncommitted at the current head.
+
+**Gate-C remains MISSING and Gate-D remains IN_PROGRESS.** The runner-helper syntax regression is corrected, but the correction cannot be treated as phase acceptance until an executable current-head build/test/typecheck/lint run succeeds and the remaining bounded connector/browser/security/governance checks are completed.
+
 ---
 
 ## Evidence classes (definitions — used by ALL control documents)

@@ -611,3 +611,20 @@ Status: OPEN. GitHub Actions run 37301575945 failed across jobs without usable s
 ## I-030 — Current-head executable build evidence still incomplete
 
 Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel build. The build cloned the exact commit and reached `npm install --legacy-peer-deps --include=dev`, but produced no further event for an extended interval and was canceled. This proves build initiation, not success or failure. Cloud CI is restricted to Vercel-Prod, so the feature branch does not receive normal push CI execution. No PASS is inferred.
+
+## I-031 — I-2 runner-helper syntax regression observed in Vercel build — CORRECTED / VERIFICATION PENDING
+
+| Field | Value |
+|---|---|
+| Issue ID | I-031 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | CORRECTED — executable verification pending |
+| Finding | The Vercel build for commit `cd883a45` failed with `368:44 Error: Parsing error: '}' expected` in `src/modules/integrations/runtime/runner-helpers.ts`. Inspection showed the file had been truncated after the beginning of the `secret_text` auth-resolution branch, removing the remainder of `resolveAuth`, `ensureTokenFresh`, and `logUsage`. |
+| Evidence | [architect-verified] Vercel deployment `dpl_BTt7szKPYc2dbawbcLBPKZsMj33Q`; deployment error code `lint_or_type_error`; build log line `368:44 Parsing error: '}' expected`. |
+| Correction | Commit `b6d102cb4d40e46f9f3f4c9635f13485ca851bcb` restored the helper tail and removed explicit `any` usage from the affected auth-resolution path. |
+| Acceptance criterion affected | Gate-C executable build evidence; the implementation itself remains within I-2 scope. |
+| Verification | Source-level correction is architect-verified. Executable current-head build/test/typecheck/lint evidence is still missing, so I-031 is not yet eligible for final closure. |
+| Explicit non-scope | No OAuth transport implementation, no new integration providers, no MCP expansion, no production promotion, and no unrelated runtime refactor. |
+| Architect review | Correction inspected and accepted as the bounded source correction; final I-2 Gate-D remains pending until executable evidence is obtained. |
+
