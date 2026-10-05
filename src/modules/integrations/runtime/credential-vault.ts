@@ -40,4 +40,12 @@ export const credentialVault = {
       [status,connectionId,orgId],
     );
   },
+  async updateCredentials(connectionId: string, orgId: string, credentials: unknown): Promise<void> {
+    await query(
+      `UPDATE integration_connections
+          SET credentials_encrypted=pgp_sym_encrypt($1,$2), status='active', updated_at=now()
+        WHERE id=$3 AND org_id=$4`,
+      [JSON.stringify(credentials), ENCRYPTION_KEY, connectionId, orgId],
+    );
+  },
 };
