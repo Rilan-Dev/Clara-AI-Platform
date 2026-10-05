@@ -1,6 +1,6 @@
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
-> Canonical continuation instruction. Snapshot: **2026-10-05 — Integrations I-1 contract foundation implemented; verification and architect review pending.** GitHub repository state is authoritative.
+> Canonical continuation instruction. Snapshot: **2026-10-05 — Integrations I-2 implemented; verification pending.** GitHub repository state is authoritative. Current feature tip: `56f6be4529e6492cdae2e177e07f327c420b4d5e`.
 
 ## CURRENT AUTHORITATIVE ACTION
 
