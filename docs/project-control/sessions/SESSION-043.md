@@ -10,3 +10,8 @@ Expected next evidence:
 - Vercel build must reach READY or expose a concrete build failure.
 - The deployment must correspond to this commit.
 - No production promotion is authorized by this checkpoint.
+
+
+## 2026-10-05 — Final verification trigger
+
+The requested UI/RBAC/subscription implementation is complete at source level. This checkpoint triggers a fresh branch verification cycle only: production Docker build, I-1 focused tests/typecheck/lint, immutable/reference integrity, runtime-import and secret scans, and governance consistency. No product scope is expanded and no production promotion is authorized.
