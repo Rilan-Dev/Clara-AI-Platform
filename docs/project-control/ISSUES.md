@@ -719,3 +719,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth transport, provider expansion, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source correction reviewed. Executable typecheck/tests/build remain part of Gate-C and are not claimed here. |
 | Resolution evidence | [architect-verified] The runtime no longer passes projectId into the agent-scoped credential-vault parameter. |
+
+
+## I-038 — I-2 known credential values could remain in non-sensitive HTTP trace payloads
+
+| Field | Value |
+|---|---|
+| Issue ID | I-038 |
+| Title | Integration HTTP trace redaction did not scrub known credential values in non-sensitive payload text |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | Trace body redaction removed credential-like fields and patterns, but a provider response or request body could contain a known credential value under a non-sensitive field name or plain text. Without passing the already-resolved credential values into trace redaction, that value could remain in telemetry. |
+| Evidence | [architect-verified] Direct review of `redactBody()` and the runner call sites showed that redaction was key/pattern based but did not receive the connection's resolved secret values. |
+| Correction required | Allow trace-body redaction to receive known credential values and scrub exact matches before the trace-size limit; pass resolved integration credentials into the traced-fetch wrapper; add focused regression coverage for plain-text and non-sensitive JSON fields. |
+| Correction scope | `src/modules/integrations/runtime/runner-fetch.ts`; `src/modules/integrations/runtime/runner-core.ts`; focused trace-redaction test |
+| Explicit non-scope | No OAuth transport, provider expansion, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
+| Correction commits | `d288975526e40a67e4c22cdc402760f1ca6649af`; `1a19b95d10c03b9b4e8128628846827cf2b1676f`; `750e5da08150c1f09be0fb8db232413df23df25b` |
+| Verification | [architect-verified] `redactBody()` now accepts known secret values, JSON and non-JSON bodies are scrubbed with those values before truncation, and both custom-action and piece-action traced-fetch call sites pass resolved auth secret values. Focused regression tests cover plain-text and non-sensitive JSON payloads. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] The corrected runner-fetch implementation propagates known credential values into body redaction and the added test suite asserts that those values cannot remain in trace payloads. |
