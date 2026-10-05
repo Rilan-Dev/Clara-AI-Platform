@@ -216,7 +216,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
     // 3. Load credentials
     xr.phase("credential_lookup");
-    const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.projectId);
+    const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
 
     let auth: unknown = undefined;
     if (def.authType !== "none") {
