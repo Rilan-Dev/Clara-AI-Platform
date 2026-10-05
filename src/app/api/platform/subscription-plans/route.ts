@@ -18,6 +18,9 @@ type PlanInput = {
   maxTtsCharsDay?: number;
   maxSttAudioSecDay?: number;
   maxTranslationCharsDay?: number;
+  maxTtsCharsDay?: number;
+  maxSttAudioSecDay?: number;
+  maxTranslationCharsDay?: number;
   voiceEnabled?: boolean;
   apiAccess?: boolean;
   customBranding?: boolean;
@@ -100,10 +103,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const version = (await query<Record<string, unknown>>(`
       INSERT INTO subscription_plan_versions
         (plan_id, version, name, description, price_usd, max_kbs, max_docs_per_kb,
-         max_req_day, max_storage_mb, max_tts_chars_day, max_stt_audio_sec_day, max_translation_chars_day,
+         max_req_day, max_storage_mb, max_integrations, max_tts_chars_day, max_stt_audio_sec_day, max_translation_chars_day,
          voice_enabled, api_access, custom_branding, sso_enabled, analytics_level, priority_support,
          features, status, created_by, multilingual_embeddings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'draft',$20,$21)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'draft',$21,$22)
       RETURNING *
     `, [
       body.planId, nextVersion,
@@ -111,6 +114,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body.priceUsd ?? base.price_usd, body.maxKbs ?? base.max_kbs,
       body.maxDocsPerKb ?? base.max_docs_per_kb, body.maxReqDay ?? base.max_req_day,
       body.maxStorageMb ?? base.max_storage_mb,
+      body.maxIntegrations ?? base.max_integrations,
       body.maxTtsCharsDay ?? base.max_tts_chars_day ?? -1,
       body.maxSttAudioSecDay ?? base.max_stt_audio_sec_day ?? -1,
       body.maxTranslationCharsDay ?? base.max_translation_chars_day ?? -1,
