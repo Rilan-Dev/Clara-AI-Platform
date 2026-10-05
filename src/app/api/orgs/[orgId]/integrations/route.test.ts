@@ -148,4 +148,4 @@ describe("organisation integration entitlement enforcement", () => {
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to update integration access" });
     expect(withTransactionMock).toHaveBeenCalledTimes(1);
-  });
+  });\n\n  it(\n});\n
