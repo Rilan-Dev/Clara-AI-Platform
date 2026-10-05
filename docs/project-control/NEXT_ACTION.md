@@ -317,3 +317,16 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub
 - **Next:** continue bounded I-2 security/correctness review and implementation corrections; then obtain executable Gate-C evidence, connector/browser checks, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated feature work.
+
+## 2026-10-06 — I-2 owner continuation: credential-value error-boundary hardening
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub Actions or Vercel, ChatGPT reviewed the runner's final error boundary and found that provider error text could bypass value-based credential redaction when a provider echoed a resolved secret under a non-sensitive field name or plain-text message.
+
+- Correction commit: `a8a1997f958c37b524451618eb0d3bb4a3746b5f`
+- Scope: `src/modules/integrations/runtime/runner-core.ts`; retain resolved credential values for the request lifetime and apply value-based redaction to the final runner error before XRay, usage logging, and the returned error.
+- No new provider, OAuth callback/transport, MCP, billing, migration, production promotion, or unrelated feature work.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+
+**Next:** continue only bounded I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant-isolation and secret/egress review; then obtain executable Gate-C evidence and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
