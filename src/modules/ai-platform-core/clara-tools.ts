@@ -65,6 +65,7 @@ import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import { createExecutionContext } from "./execution-context";
 import { claraRuntime, type ClaraRuntimeContext } from "./clara-runtime";
 import { createToolRuntime, type ToolRuntime } from "./tool-registry";
+import { buildIntegrationAvailabilityTool } from "./integration-ai-tools";
 import type {
   ToolAuthorizationAdapter,
   ToolAuthorizationDecision,
@@ -339,6 +340,7 @@ export function buildClaraToolRuntime(overrides?: {
     meteringHook: overrides?.meteringHook ?? buildClaraToolMeteringHook(),
   });
   runtime.registerTool(buildRagSearchTool());
+  runtime.registerTool(buildIntegrationAvailabilityTool());
   return runtime;
 }
 
