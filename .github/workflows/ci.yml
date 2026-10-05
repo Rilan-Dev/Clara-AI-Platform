@@ -202,3 +202,31 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Clara backend image
         run: docker build --file Dockerfile --tag clara-backend:ci --build-arg SKIP_AUTH=true .
+
+  integration-control-plane:
+    name: Integration Control Plane Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --legacy-peer-deps
+      - name: Registry tests
+        run: npx vitest run src/modules/integrations/registry.test.ts
+      - name: Typecheck integration control plane
+        run: >
+          npx tsc --noEmit --strict --skipLibCheck --module esnext
+          --moduleResolution bundler --target es2022 --esModuleInterop
+          --jsx preserve --types vitest/globals
+          src/modules/integrations/types.ts
+          src/modules/integrations/registry/index.ts
+          src/modules/integrations/registry.test.ts
+          src/modules/ai-platform-core/integration-ai-tools.ts
+          src/app/api/platform/integrations/route.ts
+          src/app/api/orgs/[orgId]/integrations/route.ts
+          src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts
+          src/features/admin/screens/platform-integrations-screen.tsx
+          src/features/admin/screens/org-integrations-screen.tsx
+          src/features/admin/screens/agent-integrations-screen.tsx
