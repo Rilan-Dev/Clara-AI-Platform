@@ -162,7 +162,7 @@ export function redactValue(value: unknown, secretValues: readonly string[] = []
   return value;
 }
 
-export function redactBody(value: string | null): string | null {
+export function redactBody(value: string | null, secretValues: readonly string[] = []): string | null {
   if (value == null) return null;
 
   // Redact the complete payload before truncation. Truncating first can turn
@@ -170,12 +170,16 @@ export function redactBody(value: string | null): string | null {
   // truncation boundary, which would otherwise leak it into traces.
   let redacted: string;
   try {
-    redacted = JSON.stringify(redactValue(JSON.parse(value)));
+    redacted = JSON.stringify(redactValue(JSON.parse(value), secretValues));
   } catch {
     redacted = redactText(value) ?? "";
     if (SENSITIVE_KEY.test(value)) {
       redacted = redactText(value) ?? "[REDACTED_BODY]";
     }
+  }
+
+  for (const secret of secretValues.filter((s) => s.length >= 4)) {
+    redacted = redacted.split(secret).join("[REDACTED]");
   }
 
   return redacted.length > MAX_TRACE_BODY_CHARS
@@ -214,6 +218,7 @@ export function createTracedFetch(
   projectId?: string,
   xrayHandle?: XrayCallHandle | null,
   fetchImpl: typeof globalThis.fetch = _originalFetch,
+  secretValues: readonly string[] = [],
 ): typeof globalThis.fetch {
   return async function tracedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
@@ -236,9 +241,9 @@ export function createTracedFetch(
     try {
       if (init?.body) {
         if (typeof init.body === "string") {
-          requestBody = redactBody(init.body);
+          requestBody = redactBody(init.body, secretValues);
         } else if (init.body instanceof URLSearchParams) {
-          requestBody = redactBody(init.body.toString());
+          requestBody = redactBody(init.body.toString(), secretValues);
         } else {
           requestBody = "[non-string body]";
         }
@@ -291,7 +296,7 @@ export function createTracedFetch(
       try {
         const clone = res.clone();
         const raw = await clone.text();
-        bodyText = redactBody(raw);
+        bodyText = redactBody(raw, secretValues);
       } catch { /* body read failed — ok */ }
 
       const entry: HttpTraceEntry = { url, method, requestHeaders: reqHeaders, requestBody, statusCode: res.status, responseHeaders: resHeaders, durationMs, responseBody: bodyText };
