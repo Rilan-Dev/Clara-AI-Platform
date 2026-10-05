@@ -396,7 +396,7 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
   if (authType !== "oauth2") return;
 
   const creds = await credentialVault.decrypt(connectionId, orgId) as OAuth2TokenData | null;
-  if (!creds || !creds.refresh_token) return;
+  if (!creds) return;
 
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = (creds.claimed_at ?? 0) + (creds.expires_in ?? 3600);
@@ -404,6 +404,14 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
   // Refresh slightly before expiry so an action never starts with a token that
   // can expire while the provider request is in flight.
   if (now + 900 < expiresAt) return;
+
+  // An expired OAuth connection without a refresh token cannot be repaired
+  // safely by the runner. Never execute a provider action with a known-expired
+  // access token; mark the tenant-scoped connection unusable and fail closed.
+  if (!creds.refresh_token) {
+    await credentialVault.updateStatus(connectionId, orgId, "expired");
+    throw new Error("OAuth connection expired and cannot be refreshed");
+  }
 
   const tokenUrl = new URL(creds.token_url);
   if (tokenUrl.protocol !== "https:") {
