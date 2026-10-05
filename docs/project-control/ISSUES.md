@@ -943,3 +943,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] `48a55826f4c45fe71c891bd68f71075fc363f8fc` implements plan filtering and `b3d090a1644d1982e1709d095458db9c593a5d42` adds regression coverage. |
 | Resolution date | 2026-10-06 |
+
+
+## I-049 — I-2 organisation integration enable/connect mutation was not atomic
+
+| Field | Value |
+|---|---|
+| Issue ID | I-049 |
+| Title | Organisation integration entitlement check and connection creation must be atomic |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The organisation integration route performed the max-integrations count check and then separately enabled the organisation grant and inserted the connection. Concurrent enable/connect requests could both observe the same available slot, and a connection insert failure could leave the organisation integration enabled without a usable connection. |
+| Evidence | [architect-verified] Direct source review of `src/app/api/orgs/[orgId]/integrations/route.ts` showed count checks and subsequent mutations were separate pool queries with no transaction or per-organisation serialization. |
+| Correction | [architect/ChatGPT] Bounded `enable` and `connect` mutations now execute under `withTransaction()`. A transaction-scoped PostgreSQL advisory lock serializes integration-slot mutations per organisation; `connect` atomically commits the implicit organisation enablement with the encrypted connection insert, while failed inserts roll back both changes. |
+| Correction scope | `src/app/api/orgs/[orgId]/integrations/route.ts`; `src/app/api/orgs/[orgId]/integrations/route.test.ts` |
+| Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | `0f55d11dfc612b293fcf9046cb6d99c25451cdf9`; `cd35659c8b286dd89d6ba325307ce734cfe0b2dc`; regression `ccd1fb2d7ba0b06d1ebace779aea7854e9e034df` |
+| Verification | [architect-verified] Source review confirms the count/mutation path is transaction-bound and per-organisation serialized. Focused regression source covers limit rejection and connection-insert failure handling. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] The route now uses `withTransaction()` plus `pg_advisory_xact_lock(hashtextextended(orgId, 0))` for bounded integration-slot mutations, and the focused regression confirms the transaction path is exercised. |
+| Resolution date | 2026-10-06 |
