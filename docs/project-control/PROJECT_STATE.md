@@ -319,3 +319,6 @@ The current feature branch now includes the user-directed RBAC/UI enablement con
 - I-1 final Gate-D closure remains pending until Gate C is observed.
 - I-019 production Docker/Next build verification remains pending after the TypeScript reference-tree exclusion correction.
 - Browser/deployment verification for /ai-platform remains pending; no current-head Vercel deployment is available in the connected deployment list.
+
+## 2026-10-05 — Current owner reconciliation
+**Current branch tip:** `d5abb20e57a9e97b9cdb9e82d0a5cccf5e7945a0`. **Current state:** Phase 7 CLOSED; Integrations I-1 contract/test foundation implemented, verification pending. **UI/RBAC:** implemented and source-reviewed; role-aware navigation, least-privilege team management, billing authorization, subscription limit visibility, and platform-admin AI Platform workspace are enabled. **Build:** the current manifest/lockfile already declares `@e965/xlsx@0.20.3`; a dedicated production Docker build CI job was added, but executable current-head build evidence is still pending. **Preview:** draft PR #266 is the non-merge UI validation path; current Vercel feature-branch deployments are build-rate-limited/cancelled, so no live browser PASS is claimed.
