@@ -45,7 +45,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { useAgents } from "@/modules/admin-ui/hooks";
+import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { fetchKbs, type Agent, type KnowledgeBase } from "@/modules/admin-ui/api";
 import {
   checkAgentDefaultUpdate,
@@ -64,6 +64,7 @@ import {
 } from "@/features/admin/screens/agent-workspace/context-cache";
 import { DiffViewer, VersionBadge, WorkspaceButton } from "@/components/admin/ai-platform/shared";
 import { DraftPreviewPanel } from "./draft-preview-panel";
+import { hasOrgCapability } from "@/lib/org-role-capabilities";
 
 // ── Types & navigation model ─────────────────────────────────────────────────
 
@@ -351,18 +352,23 @@ function AgentsWorkspaceProvider({ orgId, agentId, children }: {
 /** Horizontal section tabs for phones — the sidebar rail is desktop-only. */
 function AgentMobileTabs() {
   const { agentId, orgId } = useAgentsWorkspace();
+  const { primaryOrgRole } = useAuth();
   const pathname = usePathname();
   if (!agentId || !orgId) return null;
 
   const base = `/orgs/${orgId}/agents/${agentId}`;
+  const canEdit = hasOrgCapability(primaryOrgRole, "editAgent");
+  const canKnowledge = hasOrgCapability(primaryOrgRole, "manageKnowledge");
   const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
     { href: base, label: "Overview", exact: true },
-    { href: `${base}/config`, label: "Main" },
-    { href: `${base}/faq`, label: "FAQ" },
-    { href: `${base}/knowledge`, label: "Knowledge" },
-    { href: `${base}/tools`, label: "Capabilities" },
-    { href: `${base}/versions`, label: "Branches" },
-    { href: `${base}/publish`, label: "Publish" },
+    ...(canEdit ? [
+      { href: `${base}/config`, label: "Main" },
+      { href: `${base}/faq`, label: "FAQ" },
+      { href: `${base}/tools`, label: "Capabilities" },
+      { href: `${base}/versions`, label: "Branches" },
+      { href: `${base}/publish`, label: "Publish" },
+    ] : []),
+    ...(canKnowledge ? [{ href: `${base}/knowledge`, label: "Knowledge" }] : []),
   ];
 
   return (
