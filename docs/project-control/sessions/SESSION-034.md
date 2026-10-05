@@ -36,3 +36,7 @@ The same session record now also covers the user-directed UI continuation after 
 Source review confirms the correction delta from `8585f8db35b2806340e79f4e8ad55f61aa36ca52` to `845753cb347af678dae578c05fef17bed67a5abe` is limited to the RBAC/UI implementation paths.
 
 **Pending:** current-head production build, current-head CI evidence, browser verification, exact-head immutable/runtime-import/secret/governance checks, and final I-1 Gate-D closure review. No I-2 runtime, OAuth, persistence, egress, MCP runtime, or production promotion is authorized.
+
+
+## Preview trigger
+A governance-only continuation commit is being used to request a fresh Vercel preview for browser verification. No application behavior or scope is changed by this trigger.
