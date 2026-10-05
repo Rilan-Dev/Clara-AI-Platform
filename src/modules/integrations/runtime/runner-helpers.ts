@@ -366,3 +366,69 @@ export function resolveAuth(authType: string, credentials: unknown): unknown {
       // credential was stored (apiKey, token, auth, or raw string).
       let rawValue: string | undefined;
       if (typeof credentials === "string") {
+        rawValue = credentials;
+      } else {
+        rawValue =
+          (credentials as any)?.secret_text ??
+          (credentials as any)?.apiKey ??
+          (credentials as any)?.token ??
+          (credentials as any)?.auth;
+      }
+      if (rawValue !== undefined) {
+        return { secret_text: rawValue };
+      }
+      return credentials;
+    }
+    case "custom_auth":
+      return { ...(credentials as Record<string, unknown>), props: credentials };
+    case "basic_auth":
+      return credentials;
+    case "none":
+      return undefined;
+    default:
+      return credentials;
+  }
+}
+
+// ─── Token Refresh Check ─────────────────────────────────
+
+export async function ensureTokenFresh(connectionId: string, authType: string): Promise<void> {
+  if (authType !== "oauth2") return;
+
+  const creds = await credentialVault.decrypt(connectionId) as OAuth2TokenData | null;
+  if (!creds || !creds.refresh_token) return;
+
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = (creds.claimed_at ?? 0) + (creds.expires_in ?? 3600);
+
+  if (now + 900 < expiresAt) return;
+
+  console.log(`[IntegrationRunner] Token for connection ${connectionId} needs refresh`);
+}
+
+// ─── Usage Logging ───────────────────────────────────────
+
+export async function logUsage(params: {
+  workspaceId: string;
+  userId: string;
+  integrationId: string;
+  actionName: string;
+  success: boolean;
+  durationMs: number;
+  errorMessage?: string;
+}): Promise<void> {
+  try {
+    await query`
+      INSERT INTO integration_usage_log (
+        workspace_id, user_id, integration_id, action_name,
+        success, duration_ms, error_message
+      ) VALUES (
+        ${params.workspaceId}, ${params.userId}, ${params.integrationId},
+        ${params.actionName}, ${params.success}, ${params.durationMs},
+        ${params.errorMessage ?? null}
+      )
+    `;
+  } catch (err) {
+    console.warn("[IntegrationRunner] Usage logging failed:", err);
+  }
+}
