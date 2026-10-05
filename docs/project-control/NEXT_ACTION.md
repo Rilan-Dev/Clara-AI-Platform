@@ -2,6 +2,21 @@
 
 > Canonical continuation instruction. Snapshot: **2026-10-05 — Integrations I-1 contract foundation implemented; verification and architect review pending.** GitHub repository state is authoritative.
 
+## CURRENT AUTHORITATIVE ACTION
+
+**I-2 is the active bounded work.** The repository already contains the I-2 implementation. The immediate job is verification and security correction only.
+
+1. Run executable current-head install/build/test/typecheck/lint evidence in the project environment.
+2. Execute migration 052/061 against the authorized database environment and verify encryption plus tenant/agent constraints.
+3. Run the new runtime redaction and store-isolation tests plus the existing registry/control-plane suites.
+4. Perform connector smoke testing and browser access/denial verification.
+5. Re-run immutable-source, runtime-import, secret and governance gates.
+6. Perform I-2 Gate-D review. Only an explicit ChatGPT PASS closes I-2.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+---
+
 ## Read this first
 
 Read, in order:
