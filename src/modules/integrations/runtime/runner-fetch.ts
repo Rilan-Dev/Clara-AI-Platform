@@ -105,7 +105,7 @@ export async function assertSafeEgressUrl(rawUrl: string): Promise<void> {
     return;
   }
 
-  let addresses: Array<{ address: string; family: 4 | 6 }>;
+  let addresses: Array<{ address: string; family: number }>;
   try {
     addresses = await dns.lookup(hostname, { all: true, verbatim: true });
   } catch {
