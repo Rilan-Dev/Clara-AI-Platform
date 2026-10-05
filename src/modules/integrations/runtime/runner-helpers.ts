@@ -327,29 +327,38 @@ export async function loadPiece(integrationId: string): Promise<IntegrationPiece
   try {
     const mod = await import(def.piecePackage);
     let piece: unknown = mod.default;
-    if (!piece?.displayName) {
+    if (!isIntegrationPiece(piece)) {
       for (const key of Object.keys(mod)) {
         const val: unknown = mod[key];
-        const candidate = val && typeof val === "object" ? val as Record<string, unknown> : undefined;
-        if (candidate?.displayName && (typeof candidate.actions === "function" || Array.isArray(candidate.actions) || typeof candidate.getAction === "function")) {
+        if (isIntegrationPiece(val)) {
           piece = val;
           break;
         }
       }
     }
 
-    if (!piece) {
+    if (!isIntegrationPiece(piece)) {
       throw new Error(`No piece export found in ${def.piecePackage}`);
     }
 
-    const typedPiece = piece as IntegrationPiece;
-    pieceCache.set(integrationId, typedPiece);
-    return typedPiece;
+    pieceCache.set(integrationId, piece);
+    return piece;
   } catch (err) {
     throw new Error(
       `Failed to load piece ${def.piecePackage}: ${err instanceof Error ? err.message : String(err)}`
     );
   }
+}
+
+function isIntegrationPiece(value: unknown): value is IntegrationPiece {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.displayName === "string" && (
+    typeof candidate.actions === "function" ||
+    Array.isArray(candidate.actions) ||
+    (candidate.actions !== null && typeof candidate.actions === "object") ||
+    typeof candidate.getAction === "function"
+  );
 }
 
 // ─── Auth Resolution ─────────────────────────────────────
