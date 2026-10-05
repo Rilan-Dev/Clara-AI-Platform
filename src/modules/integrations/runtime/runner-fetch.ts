@@ -63,6 +63,13 @@ export function redactUrl(rawUrl: string): string {
   } catch { return rawUrl; }
 }
 
+export function redactText(value: string | null): string | null {
+  if (value == null) return null;
+  return value
+    .replace(/Bearer\s+[A-Za-z0-9._-]{8,}/gi, "Bearer [REDACTED]")
+    .replace(/([?&](?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|password|secret)=)[^&\s]+/gi, "$1[REDACTED]");
+}
+
 export function redactBody(value: string | null): string | null {
   if (value == null) return null;
   const truncated = value.length > MAX_TRACE_BODY_CHARS
@@ -163,7 +170,7 @@ export function createTracedFetch(
       return res;
     } catch (err) {
       const durationMs = Date.now() - start;
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = redactText(err instanceof Error ? err.message : String(err)) ?? "Integration HTTP request failed";
       const entry: HttpTraceEntry = {
         url, method, requestHeaders: reqHeaders, requestBody, statusCode: null,
         responseHeaders: {}, durationMs, responseBody: null, error: errMsg,
