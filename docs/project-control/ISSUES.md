@@ -607,3 +607,7 @@ Status: CORRECTED — database verified. The first draft did not match the actua
 
 Status: OPEN. GitHub Actions run 37301575945 failed across jobs without usable step/log evidence, preventing trustworthy executable Gate-C claims.
 \n\n## I-029 — Duplicate migration sequence / deployment build blocker — CORRECTED — 2026-10-05\n\nThe I-2 control-plane migration originally used sequence 052, which collided with the pre-existing 052_platform_announcements.sql. The Sarvam realtime migration already occupied 060, so the final bounded sequence is now: 060_integrations_control_plane.sql, 061_integrations_tenant_hardening.sql, 062_integrations_data_api_hardening.sql, and 064_sarvam_realtime_streaming.sql. Current repository enumeration confirms no duplicate migration numbers in the 050–064 range.\n\nThe existing database retains its already-applied 052_integrations_control_plane.sql record; the renamed 060 migration is idempotent and preserves the same integration control-plane SQL for clean installs and future deployment migration ordering.\n
+
+## I-030 — Current-head executable build evidence still incomplete
+
+Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel build. The build cloned the exact commit and reached `npm install --legacy-peer-deps --include=dev`, but produced no further event for an extended interval and was canceled. This proves build initiation, not success or failure. Cloud CI is restricted to Vercel-Prod, so the feature branch does not receive normal push CI execution. No PASS is inferred.
