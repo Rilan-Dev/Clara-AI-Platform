@@ -79,6 +79,9 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (body.action === "enable") {
       const limitError = await withTransaction(async client => {
+        // Serialise all integration-slot mutations for this organisation so
+        // concurrent enable/connect requests cannot both pass the count check.
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [orgId]);
         const count = (await client.query<{count:number}>(
           `SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`,
           [orgId],
@@ -148,8 +151,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const count = (await client.query<{ count: number }>(
           `SELECT COUNT(*)::int AS count
              FROM organisation_integrations
-            WHERE org_id = $1 AND enabled = true
-            FOR UPDATE`,
+            WHERE org_id = $1 AND enabled = true`,
           [orgId],
         )).rows[0]?.count ?? 0;
         const max = limits?.max_integrations ?? 0;
