@@ -70,23 +70,38 @@ export function redactText(value: string | null): string | null {
     .replace(/([?&](?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|password|secret)=)[^&\s]+/gi, "$1[REDACTED]");
 }
 
+/** Recursively remove credential-like fields and known secret values from AI-visible data. */
+export function redactValue(value: unknown, secretValues: readonly string[] = []): unknown {
+  const secrets = secretValues.filter((s) => s.length >= 4);
+  const scrubString = (input: string): string => {
+    let out = redactText(input) ?? "";
+    for (const secret of secrets) {
+      out = out.split(secret).join("[REDACTED]");
+    }
+    return out;
+  };
+  if (typeof value === "string") return scrubString(value);
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, secrets));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        SENSITIVE_KEY.test(key) ? "[REDACTED]" : redactValue(item, secrets),
+      ]),
+    );
+  }
+  return value;
+}
+
 export function redactBody(value: string | null): string | null {
   if (value == null) return null;
   const truncated = value.length > MAX_TRACE_BODY_CHARS
     ? value.slice(0, MAX_TRACE_BODY_CHARS) + `... [${value.length - MAX_TRACE_BODY_CHARS} chars truncated]`
     : value;
   try {
-    const parsed: unknown = JSON.parse(truncated);
-    const redact = (v: unknown): unknown => {
-      if (Array.isArray(v)) return v.map(redact);
-      if (v && typeof v === "object") {
-        return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, SENSITIVE_KEY.test(k) ? "[REDACTED]" : redact(val)]));
-      }
-      return v;
-    };
-    return JSON.stringify(redact(parsed));
+    return JSON.stringify(redactValue(JSON.parse(truncated)));
   } catch {
-    return SENSITIVE_KEY.test(truncated) ? "[REDACTED_BODY]" : truncated;
+    return SENSITIVE_KEY.test(truncated) ? "[REDACTED_BODY]" : redactText(truncated);
   }
 }
 
