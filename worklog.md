@@ -1370,3 +1370,8 @@ Control-document headers were reconciled to the same current I-2 state. No new f
 [scope] Correction stays inside the already-authorized I-2 credential/security boundary. No OAuth transport, new provider, MCP, I-3, or production work was started.
 
 [verification] Code-level call-site review confirms the changed helper is invoked from the runner with `params.workspaceId`, which is the I-2 runtime's organisation/tenant context. Executable tests remain unavailable, so no Gate-C PASS is claimed.
+
+
+## 2026-10-06 — I-2 redirect egress hardening
+
+[architect-verified] Following the mandatory project-control recovery read, I-2 remained the active bounded implementation/verification work. Without waiting for GitHub Actions or Vercel, ChatGPT reviewed the current integration runner and identified that native fetch redirect-following could bypass the initial host egress/SSRF check. The generic runner was corrected to use manual redirect handling and fail closed on 3xx responses; a fetch-injection seam and focused regression tests cover private and public redirect responses. Recorded as I-036. No OAuth transport, MCP, billing, migration, production promotion, or unrelated scope was added. Control docs were reconciled to the correction. Current feature tip after the bounded correction is `ec399b7d3e3e1e2ab9ff429eaa9775087c21e122`; executable Gate-C evidence remains pending and I-2 is not closed.
