@@ -227,7 +227,10 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       }
 
       xr.phase("token_refresh_check");
-      await ensureTokenFresh(connection.id, params.workspaceId, connection.auth_type);
+      // The registry definition is authoritative for auth behavior. Never
+      // let a caller-controlled/stored connection auth_type suppress OAuth
+      // refresh or otherwise change the credential interpretation.
+      await ensureTokenFresh(connection.id, params.workspaceId, def.authType);
 
       xr.phase("credential_refetch");
       const freshConnection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
