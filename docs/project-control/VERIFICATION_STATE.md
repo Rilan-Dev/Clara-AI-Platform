@@ -1559,3 +1559,15 @@ Disposition: I-2 remains IMPLEMENTED — VERIFICATION PENDING. Gate-E is evidenc
 Current feature HEAD: `4200b0cf5180c607406b8f60fbe2a99376b0bcb1`.
 
 Gate-E: **EVIDENCED** for the six I-2 integration tables and associated pgcrypto/agent-org constraints. Gate-C: **OPEN**. Cloud CI is configured for Vercel-Prod only. A current-head Vercel build was observed cloning `4200b0c`, processing .vercelignore, and entering `npm install --legacy-peer-deps --include=dev`; it did not emit a completion result and was canceled. This is execution evidence of build initiation only, not a PASS.
+
+### Newly identified I-2 finding — credential mutation scope
+
+During the current plan-to-implementation audit, the architect found that the normal credential lookup was organisation-scoped, but `credentialVault.decrypt(connectionId)` and `credentialVault.updateStatus(connectionId,status)` accepted only a connection UUID. That left a secondary credential-management path without an explicit tenant predicate.
+
+Correction applied within the existing I-2 security boundary:
+- `decrypt(connectionId, orgId)` now requires `org_id=$3`.
+- `updateStatus(connectionId, orgId, status)` now requires `org_id=$3`.
+- OAuth token inspection now passes the organisation scope from `runAction`.
+- No new feature scope or OAuth transport was introduced.
+
+This is an implementation correction, not verification evidence. Executable tests remain pending, so Gate-C and final Gate-D remain open.
