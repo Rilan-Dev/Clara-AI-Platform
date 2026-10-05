@@ -322,3 +322,14 @@ The current feature branch now includes the user-directed RBAC/UI enablement con
 
 ## 2026-10-05 — Current owner reconciliation
 **Current branch tip:** `d5abb20e57a9e97b9cdb9e82d0a5cccf5e7945a0`. **Current state:** Phase 7 CLOSED; Integrations I-1 contract/test foundation implemented, verification pending. **UI/RBAC:** implemented and source-reviewed; role-aware navigation, least-privilege team management, billing authorization, subscription limit visibility, and platform-admin AI Platform workspace are enabled. **Build:** the current manifest/lockfile already declares `@e965/xlsx@0.20.3`; a dedicated production Docker build CI job was added, but executable current-head build evidence is still pending. **Preview:** draft PR #266 is the non-merge UI validation path; current Vercel feature-branch deployments are build-rate-limited/cancelled, so no live browser PASS is claimed.
+
+
+## 2026-10-05 — Integrations I-2 current state
+
+Phase 7 remains PASS — CLOSED. The next authorized capability is Integrations I-2 under D-032.
+
+I-2 has moved beyond the earlier I-1 contract-only boundary: persistence, platform/org/agent access, encrypted connections, Doable/Activepieces runner integration, and AI tool exposure are implemented. The extracted Doable registry now contributes 168 integration definitions.
+
+The immutable Doable source remains unchanged. Clara remains the host authorization boundary for tenant scope, RBAC, plan limits, connection scope, and AI tool invocation.
+
+I-2 is not yet accepted. Executable dependency installation/lock synchronization, migration/build/typecheck/lint, real connector execution, OAuth, browser, and final security/architecture gates remain pending.
