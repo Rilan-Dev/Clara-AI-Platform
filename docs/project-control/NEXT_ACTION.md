@@ -124,3 +124,5 @@ Still pending before Phase 7-C closure:
 3. Fresh-context review of all governance documents and compare against the Phase 7 authorization boundary.
 4. Decide and record the repository-wide typecheck/lint baseline disposition; do not modify immutable/reference material merely to make global gates green.
 5. Only after all closure evidence passes, perform the governance-only Phase 7-C closure update.
+
+- Latest UI/billing changes are implemented. Pending work is verification-only: fresh CI, immutable/library/secret/runtime gates, then final Phase 7-C closure review.
