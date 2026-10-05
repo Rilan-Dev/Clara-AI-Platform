@@ -116,3 +116,24 @@ Status: IMPLEMENTATION CORRECTION COMPLETE — VERIFICATION PENDING
 
 ### Remaining bounded security note
 The current policy validates the initial integration destination and blocks non-public DNS answers. Automatic HTTP redirect targets are not independently revalidated by the current fetch wrapper; this remains a bounded verification/security item and is not being claimed as fully closed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
+
+
+## 2026-10-06 — I-2 OAuth refresh egress and STT diagnostic hardening
+
+Authorization: D-032  
+Status: IMPLEMENTATION CORRECTION COMPLETE — VERIFICATION PENDING
+
+### Implemented
+- OAuth token refresh now explicitly calls the existing host-owned `assertSafeEgressUrl()` policy before contacting the provider token endpoint. This closes the pre-action-context egress gap in `ensureTokenFresh()`.
+- Removed the temporary server-side STT audio dump to `/tmp/stt-last.*`.
+- Removed verbose Scribe `wordsHead` logging; only bounded operational metadata remains.
+- Added focused regression coverage for private/loopback IPv4 and IPv6 destinations, non-HTTP protocols, and URL-embedded credentials.
+
+### Commits
+- 17ff52f0b54f0eb2b4d2c17408d3c6247d3a87ee — OAuth refresh egress + STT diagnostic hardening
+- 21331a5c2924ce983d6c075d4cfe4c8b256c15b4 — egress regression tests
+
+### Verification
+These are architect-executed source corrections only. Gate-C remains MISSING because executable current-head build/test/typecheck/lint evidence has not been produced. Gate-D remains IN_PROGRESS. I-2 remains open.
+
+No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
