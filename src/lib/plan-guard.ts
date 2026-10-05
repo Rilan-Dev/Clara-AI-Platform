@@ -107,7 +107,7 @@ export async function resolveOrgPlanLimits(
     current_period_end: string | null;
     max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
     voice_enabled: boolean; api_access: boolean; custom_branding: boolean; sso_enabled: boolean;
-    max_tts_chars_day: number; max_stt_audio_sec_day: number; max_translation_chars_day: number;
+    max_tts_chars_day: number; max_stt_audio_sec_day: number; max_translation_chars_day: number; max_integrations: number;
   }>(
     `SELECT os.plan_id,
             COALESCE(pv.name, sp.name)             AS plan_name,
@@ -117,6 +117,7 @@ export async function resolveOrgPlanLimits(
             COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
             COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
             COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+            sp.max_integrations AS max_integrations,
             COALESCE(pv.voice_enabled, sp.voice_enabled)   AS voice_enabled,
             COALESCE(pv.api_access, sp.api_access)         AS api_access,
             COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
