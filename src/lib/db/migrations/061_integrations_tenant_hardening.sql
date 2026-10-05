@@ -18,8 +18,8 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
   ALTER TABLE agent_integrations
-    ADD CONSTRAINT agent_integrations_agent_org_fk
-    FOREIGN KEY (agent_id, org_id)
-    REFERENCES agents(id, org_id)
+    ADD CONSTRAINT agent_integrations_agent_exists_fk
+    FOREIGN KEY (agent_id)
+    REFERENCES agents(id)
     ON DELETE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
