@@ -38,6 +38,12 @@
 
 ---
 
+### 2026-10-06 — I-2 trace-redaction hardening checkpoint
+
+- [architect-verified] Source review identified I-035: trace-body truncation occurred before structured redaction, allowing a sensitive JSON field beyond the 2048-character boundary to evade field-level redaction.
+- [architect-verified] The bounded correction at `f6b9f5f89a476743e48610b5dcc4d8d678ff6366` now redacts the complete payload before applying the trace-size limit.
+- [architect-verified] Regression coverage was added at `710565d1de3aa0a9bd96ea651f2c0be8ff7eaa1c` for late credential fields.
+- I-035 is RESOLVED by architect source review. Gate-C remains MISSING overall because executable current-head test/typecheck/lint/build evidence is still unavailable.
 ## Evidence classes (definitions — used by ALL control documents)
 
 | Class | Definition |
