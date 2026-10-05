@@ -33,3 +33,37 @@ No I-2, OAuth routes, persistence, credential-vault implementation, outbound HTT
 ## Stopping boundary
 
 I-1 remains IMPLEMENTED — VERIFICATION PENDING.
+
+## 2026-10-06 — Vercel build-boundary and install-path correction
+
+Authorization: D-032 / I-2 verification-correction boundary
+
+### Finding
+A real Vercel build for commit `085aa90b34767f18cc58059493ffcf7a732866eb` failed during Next.js type checking, not compilation. The failing file was `docs/doable-source/adapters/ui-inventory.ts`, a reference-only source file using `surface:"confirmation"` while its local reference type omitted that value.
+
+The application TypeScript globs were broad enough to traverse `docs/doable-source/**`. Modifying the immutable/reference file would be the wrong correction.
+
+### Duration diagnosis
+- `npm install --legacy-peer-deps --include=dev`: ~19 minutes.
+- `npm run db:migrate`: ~2 seconds; migrations were already applied.
+- Next.js compilation: ~93 seconds.
+- Lint/type check before the error: ~94 seconds.
+- The 681 npm vulnerability report and deprecation/Browserslist warnings did not cause the failure.
+
+### Corrections
+- Excluded `docs/doable-source/**` from `tsconfig.json` and `tsconfig.typecheck.json`.
+- Excluded `docs/doable-source/` from Vercel deployment input via `.vercelignore`; the reference source remains in Git.
+- Changed Vercel installation from `npm install --legacy-peer-deps --include=dev` to deterministic `npm ci --legacy-peer-deps --include=dev` using the committed lockfile.
+
+Commits: `990d414ccb4176cc5c6048dc2671f14d4a6a436d`, `ed86221a2e2a144d4c0566443ea0c3bf543cabb8`, `2f539729ee7f2958bee2724bb3a3ed69589667fd`, `0da813b174204692cf229b4b015e63a358a70acf`.
+
+### Ignore-file review
+- `.gitignore` is not responsible for the Vercel type-check traversal.
+- `.vercelignore` was missing the reference-only Doable tree and is now corrected.
+- `.npmignore` is absent; this is not relevant to the Vercel repository build because npmignore governs npm package publication.
+- `package-lock.json` exists and contains the declared `@e965/xlsx@0.20.3` entry.
+
+### Verification
+These are bounded source/build-path corrections only. No immutable/reference source was modified. Gate-C remains pending until corrected current-head build/test/typecheck/lint evidence is actually executed. I-2 remains open.
+
+No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
