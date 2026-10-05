@@ -1483,3 +1483,6 @@ No immutable/reference file, package manifest dependency, migration, runtime imp
 | Immutable/reference integrity | PENDING current-head rerun | No changed paths touch immutable/reference material; fresh exact-head verification remains required. |
 
 **No new PASS/closure is claimed for I-1 or the overall project until executable evidence is observed.**
+
+## 2026-10-05 — Current UI/build verification checkpoint
+UI/RBAC/subscription implementation is source-reviewed and complete. The role matrix consumes the existing RBAC roles/permissions without adding schema or permissions; billing and plan limits consume the existing subscription/plan-guard model; the platform-admin AI Platform workspace is explicitly exposed while runtime feature flags remain default-off. The user-provided Docker failure is addressed at the dependency/inclusion boundary: `@e965/xlsx@0.20.3` is declared and locked, and the immutable/reference tree remains unchanged. A dedicated production Docker build job was added to CI. **No executable Docker build PASS, browser PASS, or I-1 closure PASS is claimed yet.**
