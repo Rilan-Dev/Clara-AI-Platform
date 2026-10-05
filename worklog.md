@@ -1327,3 +1327,15 @@ Verification: source-level PASS; executable CI/browser verification remains pend
 Also corrected the user-reported Docker dependency boundary by declaring and locking @e965/xlsx@0.20.3 without modifying immutable/reference source. The full Doable Activepieces package closure (529 packages) is now declared in package.json; lock synchronization remains pending because the current execution environment has no external npm/GitHub network access.
 
 Current status: I-2 IMPLEMENTED — VERIFICATION PENDING. No PASS claimed.
+
+
+## 2026-10-05 — [architect-verified] I-2 recovery/security hardening
+
+- Recovered current repository state from GitHub and established Integrations I-2 as the active bounded work.
+- Reviewed the implemented integration runner, tracing, credential-vault access, store, API boundaries, and migration 052.
+- Corrected sensitive runtime observability exposure: request/response bodies, action properties, outputs, and raw errors are now redacted or omitted from integration traces/logs.
+- Corrected integration-store tenant isolation: FLOW keys include organisation scope and reads/deletes require org_id.
+- Corrected connection agent ownership: API validation requires the agent to belong to the target organisation and migration 061 adds a composite agent/org persistence constraint.
+- Added focused tests for trace/error redaction and store tenant isolation.
+- Reconciled the project-control state to I-2 IMPLEMENTED / VERIFICATION PENDING with Z.AI STOPPED.
+- I-2 remains open: executable Gate-C evidence, database Gate-E evidence, connector/browser verification, and final Gate-D review are still required.
