@@ -1,4 +1,4 @@
--- 060_sarvam_realtime_streaming.sql
+-- 064_sarvam_realtime_streaming.sql
 -- The Sarvam realtime voice agent now always streams (Saaras realtime STT
 -- WebSocket + Bulbul streaming TTS WebSocket). The one-shot REST STT/TTS
 -- pipeline moved to the chat window's Voice Chat.
