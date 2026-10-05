@@ -63,10 +63,10 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         });
 
         if (response.status >= 300 && response.status < 400) {
-    throw new Error("OAuth token refresh redirects are not allowed");
-  }
+          throw new Error("ElevenLabs API redirects are not allowed");
+        }
 
-  if (!response.ok) {
+        if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
