@@ -1360,3 +1360,13 @@ Newly re-confirmed blocker: `package.json` declares the large `@activepieces/*` 
 Vercel build evidence was also rechecked: deployment `dpl_5xj73TsgNcZNMD2Lu5aEYE9hqcvU` for commit `abf119cb` is still BUILDING and has progressed through npm installation with dependency deprecation warnings; it is not a PASS. The current feature tip `56f6be45` differs from `abf119cb` by governance-document commits only, but strict current-head executable evidence is still not claimed.
 
 Control-document headers were reconciled to the same current I-2 state. No new feature scope was started. Z.AI remains STOPPED and ChatGPT remains implementation owner.
+
+## 2026-10-05 — I-2 credential-vault tenant hardening
+
+[architect-verified] Re-audited the implemented I-2 plan against the runtime. Found a secondary tenant-boundary gap: credential-vault `decrypt` and `updateStatus` were connection-ID-only operations, unlike the normal tenant-scoped connection lookup.
+
+[implemented] Corrected `credential-vault.ts` so both operations require `connectionId + orgId` and apply an explicit `org_id` predicate. Updated OAuth token inspection in `runner-helpers.ts` and its `runner-core.ts` call site to propagate the organisation scope.
+
+[scope] Correction stays inside the already-authorized I-2 credential/security boundary. No OAuth transport, new provider, MCP, I-3, or production work was started.
+
+[verification] Code-level call-site review confirms the changed helper is invoked from the runner with `params.workspaceId`, which is the I-2 runtime's organisation/tenant context. Executable tests remain unavailable, so no Gate-C PASS is claimed.
