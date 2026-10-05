@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redactBody, redactText, redactUrl } from "@/modules/integrations/runtime/runner-fetch";
+import { redactBody, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
 
 describe("integration runtime trace redaction", () => {
   it("redacts credential-bearing JSON fields recursively", () => {
@@ -33,4 +33,17 @@ describe("integration runtime trace redaction", () => {
     const value = redactBody("ordinary payload");
     expect(value).toBe("ordinary payload");
   });
+  it("redacts credential fields and known credential values from returned action data", () => {
+    const value = redactValue({
+      access_token: "oauth-access-token",
+      nested: { apiKey: "api-secret-value", label: "safe" },
+      message: "the api-secret-value must not escape",
+    }, ["api-secret-value"]);
+    expect(value).toEqual({
+      access_token: "[REDACTED]",
+      nested: { apiKey: "[REDACTED]", label: "safe" },
+      message: "the [REDACTED] must not escape",
+    });
+  });
+
 });
