@@ -817,3 +817,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source correction reviewed. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
+
+## I-043 — I-2 integration tool boundary did not enforce agent/tenant ownership
+
+| Field | Value |
+|---|---|
+| Issue ID | I-043 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | The Unified Tool Runtime `integration_action` bridge checked the agent integration grant by agent_id and integration_id but did not bind that grant lookup to the execution tenant. The surrounding connection lookup was tenant-scoped, but the tool boundary itself could accept an agent identity that did not belong to the tenant context and rely on later checks to reject it. This weakened the fail-closed tenant/agent ownership boundary at the AI-visible tool surface. |
+| Evidence | [architect-verified] Direct review of `src/modules/ai-platform-core/integration-action-tool.ts` showed the agent grant query lacked an organisation predicate. The existing `agents` table provides the authoritative `agent_id → org_id` relationship. |
+| Correction | [architect/ChatGPT] Changed the agent-grant lookup to join `agents` and require `a.org_id=context.tenantId`. Updated the focused tool-boundary regression to assert the runner receives agentId without a fabricated projectId and to reject a cross-tenant agent grant before `runAction`. |
+| Correction scope | `src/modules/ai-platform-core/integration-action-tool.ts`; `integration-action-tool.test.ts` only |
+| Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | `870ac568d050a8a6f54c347684a1b6e4fe9015ca`; `b5a744cc57135e2e8f1037f7396c56ed57bc3656`; `26f0f5fd00d47641598854e0cbb813ac049b7459` |
+| Verification | [architect-verified] Source review confirms the agent grant is now tenant-bound through the authoritative agents.org_id relationship; the regression asserts cross-tenant rejection and confirms no runner execution occurs. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution date | 2026-10-06 |
+| Resolution evidence | [architect-verified] `870ac568...` adds the tenant-bound join; `b5a744cc...` aligns the scope regression with the I-042 contract; `26f0f5fd...` adds the cross-tenant rejection coverage. |
