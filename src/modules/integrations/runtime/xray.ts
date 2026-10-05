@@ -11,7 +11,7 @@ export const xray = {
       phase(){},
       httpStart(method,url){return {seq:0,method,url};},
       httpEnd(){},
-      end(status,error){console.log("[Integration:XRay] "+status+" "+input.integrationId+"/"+input.actionName+" "+(Date.now()-started)+"ms"+(error?" — "+error:""));},
+      end(status){console.log("[Integration:XRay] "+status+" "+input.integrationId+"/"+input.actionName+" "+(Date.now()-started)+"ms");},
     };
   },
 };
