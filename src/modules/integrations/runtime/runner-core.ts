@@ -229,7 +229,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       await ensureTokenFresh(connection.id, params.workspaceId, connection.auth_type);
 
       xr.phase("credential_refetch");
-      const freshConnection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.projectId);
+      const freshConnection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
       auth = resolveAuth(def.authType, freshConnection?.credentials);
     }
 
