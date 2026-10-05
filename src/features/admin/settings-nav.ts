@@ -21,6 +21,7 @@ import {
   Megaphone,
   Palette,
   Phone,
+  PlugZap,
   SlidersHorizontal,
   UserRound,
   type LucideIcon,
@@ -28,7 +29,7 @@ import {
 
 export type SettingsSection =
   | "account" | "appearance" | "ai" | "environment" | "embed"
-  | "payments" | "email" | "templates" | "phone" | "announcements";
+  | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations";
 
 export type SettingsGroup = "You" | "Platform" | "AI & voice" | "Billing" | "Communications" | "Channels";
 
@@ -80,6 +81,16 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
     label: "Website & widget",
     title: "Website & widget",
     description: "The key that lets the chat widget on your public website talk to Clara.",
+    group: "Platform",
+    audience: "Platform admin",
+  },
+  {
+    id: "integrations",
+    href: "/settings/integrations",
+    icon: PlugZap,
+    label: "Integrations",
+    title: "Integrations",
+    description: "Control the integration catalog exposed to organisations and their agents.",
     group: "Platform",
     audience: "Platform admin",
   },
