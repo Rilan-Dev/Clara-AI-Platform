@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { query } from "@/lib/db";
+import { query, withTransaction } from "@/lib/db";
 import { requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { getOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
@@ -77,44 +77,45 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
     }
 
-    // A direct connection request must not bypass the organisation integration
-    // count enforced by the enable path. Connecting implicitly enables the
-    // organisation grant, so only an already-enabled integration may connect
-    // without consuming another integration slot.
-    if (body.action === "connect" && limits) {
-      const current = (await query<{ enabled: boolean }>(
-        `SELECT enabled FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2`,
-        [orgId, body.integrationId],
-      ))[0];
-      if (!current?.enabled) {
-        const count = (await query<{ count: number }>(
+    if (body.action === "enable") {
+      const limitError = await withTransaction(async client => {
+        const count = (await client.query<{count:number}>(
           `SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`,
           [orgId],
-        ))[0]?.count ?? 0;
-        const max = limits.max_integrations ?? 0;
-        if (max !== -1 && count >= max) {
-          return NextResponse.json({
-            error: `Your ${limits.plan_id} plan allows ${max} integrations`,
+        )).rows[0]?.count ?? 0;
+        const existing = (await client.query(
+          `SELECT 1 FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2 AND enabled = true LIMIT 1`,
+          [orgId, body.integrationId],
+        )).rows[0];
+        const max = limits?.max_integrations ?? 0;
+        if (max !== -1 && count >= max && !existing) {
+          return {
+            error: `Your ${limits?.plan_id ?? "current"} plan allows ${max} integrations`,
             code: "INTEGRATION_LIMIT_REACHED",
             limit: max,
             current: count,
-          }, { status: 402 });
+          };
         }
-      }
+
+        await client.query(
+          `INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,true,$3)
+           ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
+          [orgId, body.integrationId, auth.user.id],
+        );
+        return null;
+      });
+
+      if (limitError) return NextResponse.json(limitError, { status: 402 });
+      return NextResponse.json({ ok: true, enabled: true });
     }
 
-    if (body.action === "enable" || body.action === "disable") {
-      if (body.action === "enable" && limits) {
-        const count = (await query<{count:number}>(`SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`, [orgId]))[0]?.count ?? 0;
-        const max = limits.max_integrations ?? 0;
-        if (max !== -1 && count >= max && !(await query(`SELECT 1 FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2`, [orgId, body.integrationId]))[0]) {
-          return NextResponse.json({ error: `Your ${limits.plan_id} plan allows ${max} integrations`, code: "INTEGRATION_LIMIT_REACHED", limit: max, current: count }, { status: 402 });
-        }
-      }
-      await query(`INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,$3,$4)
-        ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
-        [orgId, body.integrationId, body.action === "enable", auth.user.id]);
-      return NextResponse.json({ ok: true, enabled: body.action === "enable" });
+    if (body.action === "disable") {
+      await query(
+        `INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,false,$3)
+         ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
+        [orgId, body.integrationId, auth.user.id],
+      );
+      return NextResponse.json({ ok: true, enabled: false });
     }
 
     if (body.action === "disconnect") {
@@ -131,12 +132,51 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     if (body.credentials === undefined) return NextResponse.json({ error: "credentials are required" }, { status: 400 });
-    await query(`INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,true,$3)
-      ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=true,updated_at=now()`,
-      [orgId, body.integrationId, auth.user.id]);
-    await query(`INSERT INTO integration_connections(org_id,agent_id,user_id,integration_id,auth_type,credentials_encrypted,display_name)
-      VALUES($1,$2,$3,$4,$5,pgp_sym_encrypt($6,$7),$8)`,
-      [orgId, body.agentId ?? null, auth.user.id, body.integrationId, body.authType ?? def.authType, JSON.stringify(body.credentials), ENCRYPTION_KEY, body.displayName ?? def.displayName]);
+
+    // Connection creation and implicit organisation enablement must be one
+    // transaction. This prevents a failed connection insert from leaving the
+    // organisation grant enabled, and serialises the entitlement check with
+    // the mutation so concurrent connect requests cannot both consume the same
+    // integration slot.
+    const limitError = await withTransaction(async client => {
+      const current = (await client.query<{ enabled: boolean }>(
+        `SELECT enabled FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2 FOR UPDATE`,
+        [orgId, body.integrationId],
+      )).rows[0];
+
+      if (!current?.enabled) {
+        const count = (await client.query<{ count: number }>(
+          `SELECT COUNT(*)::int AS count
+             FROM organisation_integrations
+            WHERE org_id = $1 AND enabled = true
+            FOR UPDATE`,
+          [orgId],
+        )).rows[0]?.count ?? 0;
+        const max = limits?.max_integrations ?? 0;
+        if (max !== -1 && count >= max) {
+          return {
+            error: `Your ${limits?.plan_id ?? "current"} plan allows ${max} integrations`,
+            code: "INTEGRATION_LIMIT_REACHED",
+            limit: max,
+            current: count,
+          };
+        }
+      }
+
+      await client.query(
+        `INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,true,$3)
+         ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=true,updated_at=now()`,
+        [orgId, body.integrationId, auth.user.id],
+      );
+      await client.query(
+        `INSERT INTO integration_connections(org_id,agent_id,user_id,integration_id,auth_type,credentials_encrypted,display_name)
+         VALUES($1,$2,$3,$4,$5,pgp_sym_encrypt($6,$7),$8)`,
+        [orgId, body.agentId ?? null, auth.user.id, body.integrationId, body.authType ?? def.authType, JSON.stringify(body.credentials), ENCRYPTION_KEY, body.displayName ?? def.displayName],
+      );
+      return null;
+    });
+
+    if (limitError) return NextResponse.json(limitError, { status: 402 });
     return NextResponse.json({ ok: true, connected: true }, { status: 201 });
   } catch (err) {
     if (err instanceof NextResponse) return err;
