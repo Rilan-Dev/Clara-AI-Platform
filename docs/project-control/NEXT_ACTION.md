@@ -176,3 +176,4 @@ Still required: executable npm/build/test/typecheck/lint evidence; focused runti
 GitHub Actions current-head run 37301575945 failed without usable step logs, so no CI PASS is inferred.
 
 STOP: no I-3/MCP expansion, production promotion, or unrelated work.
+\n\n## 2026-10-05 — I-2 migration sequencing correction\n\nCompleted a bounded build-blocker correction: the integration control-plane migration was moved from the colliding 052 sequence to 060, while the pre-existing Sarvam 060 migration was moved to 064 so the integration sequence remains 060 → 061 → 062. Repository enumeration now reports no duplicate migration numbers.\n\nNext verification remains executable only: run the exact CI/build/test/typecheck/lint commands in an execution-capable environment, then perform connector/OAuth/browser/security/governance verification. No I-2 PASS is claimed until those gates execute successfully.\n
