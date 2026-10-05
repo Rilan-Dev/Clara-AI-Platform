@@ -1348,3 +1348,15 @@ Current status: I-2 IMPLEMENTED — VERIFICATION PENDING. No PASS claimed.
 - Confirmed `.github/workflows/ci.yml` now runs only for Vercel-Prod push/PR events, so the historical feature-branch GitHub Actions failures cannot serve as current-head CI evidence.
 - Started a genuine Vercel build for exact head `4200b0c`. It cloned the correct branch/commit, processed .vercelignore, and entered `npm install --legacy-peer-deps --include=dev`. No completion event appeared after extended observation, so the deployment was canceled rather than left consuming build resources.
 - No build/test/typecheck/lint PASS was inferred. I-2 remains IMPLEMENTED — VERIFICATION PENDING.
+
+## 2026-10-05 — I-2 authoritative implementation/plan reconciliation
+
+[architect-verified] Rechecked the active I-2 plan, D-032 authorization, current GitHub branch tip, implementation tree, database migrations, and verification records. Confirmed that the delivered I-2 scope is authorized by D-032: persistence, platform/org/agent access, encrypted credentials, Doable/Activepieces runner, and AI-tool exposure. Confirmed the immutable `docs/doable-source/**` reference remains separate from runtime imports.
+
+Completed corrections verified in repository state: integration HTTP trace/error redaction, organisation-scoped FLOW-store keys and access, agent/org ownership enforcement, migration sequencing (060/061/062 with no duplicate migration numbers), and Data API/RLS hardening. Supabase Gate-E evidence remains valid.
+
+Newly re-confirmed blocker: `package.json` declares the large `@activepieces/*` dependency closure, while the current `package-lock.json` root dependency set does not contain those Activepieces entries. An executable npm install is therefore still required before the dependency/build gate can be accepted.
+
+Vercel build evidence was also rechecked: deployment `dpl_5xj73TsgNcZNMD2Lu5aEYE9hqcvU` for commit `abf119cb` is still BUILDING and has progressed through npm installation with dependency deprecation warnings; it is not a PASS. The current feature tip `56f6be45` differs from `abf119cb` by governance-document commits only, but strict current-head executable evidence is still not claimed.
+
+Control-document headers were reconciled to the same current I-2 state. No new feature scope was started. Z.AI remains STOPPED and ChatGPT remains implementation owner.
