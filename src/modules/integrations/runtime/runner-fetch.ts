@@ -164,14 +164,23 @@ export function redactValue(value: unknown, secretValues: readonly string[] = []
 
 export function redactBody(value: string | null): string | null {
   if (value == null) return null;
-  const truncated = value.length > MAX_TRACE_BODY_CHARS
-    ? value.slice(0, MAX_TRACE_BODY_CHARS) + `... [${value.length - MAX_TRACE_BODY_CHARS} chars truncated]`
-    : value;
+
+  // Redact the complete payload before truncation. Truncating first can turn
+  // valid JSON into invalid JSON and hide a sensitive field beyond the
+  // truncation boundary, which would otherwise leak it into traces.
+  let redacted: string;
   try {
-    return JSON.stringify(redactValue(JSON.parse(truncated)));
+    redacted = JSON.stringify(redactValue(JSON.parse(value)));
   } catch {
-    return SENSITIVE_KEY.test(truncated) ? "[REDACTED_BODY]" : redactText(truncated);
+    redacted = redactText(value) ?? "";
+    if (SENSITIVE_KEY.test(value)) {
+      redacted = redactText(value) ?? "[REDACTED_BODY]";
+    }
   }
+
+  return redacted.length > MAX_TRACE_BODY_CHARS
+    ? redacted.slice(0, MAX_TRACE_BODY_CHARS) + `... [${redacted.length - MAX_TRACE_BODY_CHARS} chars truncated]`
+    : redacted;
 }
 
 export function redactHeaders(headers: Record<string, string>): Record<string, string> {
