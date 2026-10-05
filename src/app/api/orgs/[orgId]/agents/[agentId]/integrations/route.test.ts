@@ -29,7 +29,7 @@ vi.mock("@/lib/plan-guard", () => ({
 
 describe("agent integration entitlement enforcement", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }])
       .mockResolvedValueOnce([{ enabled: true }]);
