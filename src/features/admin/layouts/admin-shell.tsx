@@ -23,6 +23,7 @@ import {
   TopbarContextLabel,
 } from "@/features/admin/layouts/agent-topbar";
 import { LogoMark } from "@/components/brand/Logo";
+import { hasOrgCapability, type OrgRole } from "@/lib/org-role-capabilities";
 
 // ── Route configurations ───────────────────────────────────────────────────────
 
@@ -34,7 +35,6 @@ const ADMIN_NAV = [
   { href: "/analytics",     icon: BarChart3,       label: "Analytics"     },
   { href: "/ai-platform",   icon: Brain,            label: "AI Platform"    },
   { href: "/system-status", icon: Activity,        label: "System Status" },
-  { href: "/ai-platform",   icon: Brain,            label: "AI Platform" },
 ];
 
 // Settings sub-sections rendered as a dropdown group in the sidebar.
@@ -61,13 +61,14 @@ function orgSettingsNav(orgId: string | null): SettingsNavItem[] {
 // team → money). "Settings" stays personal (account) in its own group.
 function orgWorkspaceNav(orgId: string, role: string | null) {
   const base = `/orgs/${orgId}`;
-  const canManageMembers = role === "org_admin";
-  const canInvite = role === "org_admin" || role === "project_manager";
+  const orgRole = role as OrgRole | null;
+  const canInvite = hasOrgCapability(orgRole, "inviteMembers");
+  const canBilling = hasOrgCapability(orgRole, "manageBilling");
   return [
     { href: base, icon: LayoutDashboard, label: "Dashboard", exact: true },
     { href: `${base}/agents`, icon: Bot, label: "Agents", exact: false },
     ...(canInvite ? [{ href: `${base}/members`, icon: Users, label: "Members", exact: false }] : []),
-    ...(canManageMembers ? [{ href: `${base}/billing`, icon: CreditCard, label: "Billing", exact: false }] : []),
+    ...(canBilling ? [{ href: `${base}/billing`, icon: CreditCard, label: "Billing", exact: false }] : []),
   ];
 }
 
@@ -75,16 +76,20 @@ function orgWorkspaceNav(orgId: string, role: string | null) {
  * group (they briefly lived in a one-bar workspace navbar). The rail shows
  * them whenever an agent is open; on the agents index the rail lists the
  * org's agents themselves instead. */
-function agentSectionNav(orgId: string, agentId: string) {
+function agentSectionNav(orgId: string, agentId: string, role: string | null) {
   const base = `/orgs/${orgId}/agents/${agentId}`;
+  const canEdit = hasOrgCapability(role as OrgRole | null, "editAgent");
+  const canKnowledge = hasOrgCapability(role as OrgRole | null, "manageKnowledge");
   return [
-    { href: base,                icon: LayoutDashboard,        label: "Overview", exact: true  },
-    { href: `${base}/config`,    icon: Bot,                    label: "Agent",   exact: false },
-    { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
-    { href: `${base}/knowledge`, icon: BookOpen,               label: "Knowledge", exact: false },
-    { href: `${base}/tools`,     icon: Wrench,                 label: "Capabilities", exact: false },
-    { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
-    { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },
+    { href: base,                icon: LayoutDashboard,        label: "Overview", exact: true },
+    ...(canEdit ? [
+      { href: `${base}/config`,    icon: Bot,                    label: "Agent",   exact: false },
+      { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
+      { href: `${base}/tools`,     icon: Wrench,                 label: "Capabilities", exact: false },
+      { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
+      { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },
+    ] : []),
+    ...(canKnowledge ? [{ href: `${base}/knowledge`, icon: BookOpen, label: "Knowledge", exact: false }] : []),
   ];
 }
 
@@ -312,7 +317,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               />
 
               <nav className="space-y-0.5" aria-label="Agent sections">
-                {agentSectionNav(activeAgentOrgId, activeAgentId).map((item) => {
+                {agentSectionNav(activeAgentOrgId, activeAgentId, primaryOrgRole).map((item) => {
                   const active = item.exact
                     ? pathname === item.href
                     : pathname === item.href || pathname.startsWith(item.href + "/");
