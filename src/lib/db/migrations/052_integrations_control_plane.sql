@@ -1,4 +1,6 @@
 -- 052_integrations_control_plane.sql
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Clara AI Platform — platform/org/agent integration access control.
 -- Integration credentials are encrypted at rest. This migration does NOT add
 -- billable usage kinds; execution telemetry remains operational/audit-only.
