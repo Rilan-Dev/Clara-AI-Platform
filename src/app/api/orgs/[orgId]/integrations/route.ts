@@ -77,6 +77,32 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
     }
 
+    // A direct connection request must not bypass the organisation integration
+    // count enforced by the enable path. Connecting implicitly enables the
+    // organisation grant, so only an already-enabled integration may connect
+    // without consuming another integration slot.
+    if (body.action === "connect" && limits) {
+      const current = (await query<{ enabled: boolean }>(
+        `SELECT enabled FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2`,
+        [orgId, body.integrationId],
+      ))[0];
+      if (!current?.enabled) {
+        const count = (await query<{ count: number }>(
+          `SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`,
+          [orgId],
+        ))[0]?.count ?? 0;
+        const max = limits.max_integrations ?? 0;
+        if (max !== -1 && count >= max) {
+          return NextResponse.json({
+            error: `Your ${limits.plan_id} plan allows ${max} integrations`,
+            code: "INTEGRATION_LIMIT_REACHED",
+            limit: max,
+            current: count,
+          }, { status: 402 });
+        }
+      }
+    }
+
     if (body.action === "enable" || body.action === "disable") {
       if (body.action === "enable" && limits) {
         const count = (await query<{count:number}>(`SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`, [orgId]))[0]?.count ?? 0;
