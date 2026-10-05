@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeEgressUrl, redactBody, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
+import { assertSafeEgressUrl, createTracedFetch, redactBody, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
 
 describe("integration runtime trace redaction", () => {
   it("redacts credential-bearing JSON fields recursively", () => {
@@ -53,6 +53,13 @@ describe("integration runtime trace redaction", () => {
     await expect(assertSafeEgressUrl("http://169.254.169.254/latest/meta-data")).rejects.toThrow("not allowed");
     await expect(assertSafeEgressUrl("http://[::1]:8080/internal")).rejects.toThrow("not allowed");
     await expect(assertSafeEgressUrl("http://224.0.0.1/multicast")).rejects.toThrow("not allowed");
+  });
+
+  it("does not bypass egress policy for internal-looking URL paths", async () => {
+    const tracedFetch = createTracedFetch([], "project");
+    await expect(
+      tracedFetch("http://127.0.0.1:8787/internal/broadcast"),
+    ).rejects.toThrow("not allowed");
   });
 
   it("rejects non-HTTP protocols and URL userinfo", async () => {
