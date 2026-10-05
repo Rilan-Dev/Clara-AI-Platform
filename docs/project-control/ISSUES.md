@@ -165,6 +165,35 @@ The pre-Phase-6 entries below predate this system and are **preserved exactly as
 
 ## Resolved
 
+### I-047 — Direct organisation connection could bypass integration-count limit
+
+| Field | Value |
+|---|---|
+| Issue ID | I-047 |
+| Title | Direct connect could implicitly enable an organisation integration without enforcing max_integrations |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED |
+| Date identified | 2026-10-06 |
+| Reporter / role | Architect review / ChatGPT |
+| Finding | The organisation integration POST handler enforced max_integrations for the explicit enable action but the connect path also implicitly enabled the organisation grant without performing the same count check. A tenant at its plan limit could therefore bypass the configured integration-count entitlement by connecting a previously disabled integration directly. |
+| Evidence | [architect-verified] Source review of src/app/api/orgs/[orgId]/integrations/route.ts showed plan entitlement was checked for connect, but the integration-count check existed only in the enable/disable branch. |
+| Affected commit | 60a7a47d6238b541588bc814cdc9c6df3f6c9dc7 |
+| Affected files/areas | Organisation integration POST control plane |
+| Acceptance criterion affected | I-2 plan-based integration access control |
+| Security / tenancy impact | Plan-entitlement bypass; bounded tenant control-plane correctness issue |
+| Correction required | Enforce the same organisation integration-count limit when connect would implicitly enable a currently-disabled organisation integration; preserve connection creation when the organisation grant is already enabled. |
+| Correction scope | src/app/api/orgs/[orgId]/integrations/route.ts and its focused route test |
+| Explicit non-scope | No new OAuth transport, no provider rollout, no MCP work, no production promotion, no unrelated billing changes |
+| Expected verification | Focused route test plus current-head executable test/typecheck/lint/build evidence |
+| Developer correction commit | 846c8d39add3430a5014c5573b3cc4d5ad86ee37 + test 354e57f9fb658267f1667c1eec8b5dfbd63023ad |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT |
+| Resolution evidence | [architect-verified] The connect path now checks whether the organisation grant is already enabled; when it would consume a new slot it enforces max_integrations, while preserving direct connection for an already-enabled grant. A focused regression test covers the limit-bypass case. Executable Gate-C evidence remains pending separately. |
+| Resolution date | 2026-10-06 |
+| Related decision | D-032 |
+| Related worklog/session | 2026-10-06 I-047 owner continuation |
+
+
 ### I-003 — No durable in-repo project worklog (RESOLVED 2026-10-01)
 
 | Field | Value |
