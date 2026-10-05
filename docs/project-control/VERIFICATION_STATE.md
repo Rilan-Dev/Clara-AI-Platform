@@ -1684,3 +1684,10 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] Commit 1001819239fcba146061be84c35254a8a9fb30cb changes the post-refresh lookup to pass the explicit agentId.
 - I-041 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS because no executable current-head test/typecheck/lint/build PASS has been produced.
 - Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-042 Unified Tool Runtime project-scope correction
+
+- [architect-verified] Source review found that integration_action populated RunActionParams.projectId with context.agentId even though the host-neutral PlatformExecutionContext has no project identity field.
+- [architect-verified] Commit 3305c9027ddcef4fff0520d941dfebc73f9ef94a removes that fabricated mapping. The integration bridge now passes explicit tenant and agent identity only.
+- I-042 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS because no executable current-head test/typecheck/lint/build PASS has been produced.
+- Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
