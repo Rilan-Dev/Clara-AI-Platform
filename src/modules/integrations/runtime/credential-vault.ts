@@ -24,14 +24,20 @@ export const credentialVault = {
     if (!row) return null;
     return { ...row, credentials: JSON.parse(row.credentials_decrypted) };
   },
-  async decrypt(connectionId: string): Promise<unknown> {
+  async decrypt(connectionId: string, orgId: string): Promise<unknown> {
     const rows = await query<{credentials_decrypted:string}>(
-      `SELECT pgp_sym_decrypt(credentials_encrypted,$1) AS credentials_decrypted FROM integration_connections WHERE id=$2`,
-      [ENCRYPTION_KEY, connectionId],
+      `SELECT pgp_sym_decrypt(credentials_encrypted,$1) AS credentials_decrypted
+         FROM integration_connections
+        WHERE id=$2 AND org_id=$3
+        LIMIT 1`,
+      [ENCRYPTION_KEY, connectionId, orgId],
     );
     return rows[0] ? JSON.parse(rows[0].credentials_decrypted) : null;
   },
-  async updateStatus(connectionId: string, status: string): Promise<void> {
-    await query("UPDATE integration_connections SET status=$1,updated_at=now() WHERE id=$2",[status,connectionId]);
+  async updateStatus(connectionId: string, orgId: string, status: string): Promise<void> {
+    await query(
+      "UPDATE integration_connections SET status=$1,updated_at=now() WHERE id=$2 AND org_id=$3",
+      [status,connectionId,orgId],
+    );
   },
 };
