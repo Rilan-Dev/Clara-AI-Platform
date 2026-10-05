@@ -41,6 +41,13 @@
 ---
 
 
+
+### 2026-10-06 — I-050 AI availability tenant-binding correction
+
+- [architect-verified] Source review identified a P1 I-2 tenant-boundary defect: `integration_availability` did not bind the selected agent grant to the execution tenant.
+- [architect-verified] Commit `c9f71d7e776e0127d587d08e03132579c5ac9fad` now joins `agents` and requires `a.org_id = context.tenantId`; regression `c122dfab4a1deee1d3b40614cc8cb993f7812d56` covers the cross-tenant denial path.
+- I-050 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 ### 2026-10-06 — I-049 atomic organisation integration mutation correction
 
 - [architect-verified] Source review identified a P1 I-2 correctness/concurrency defect: organisation integration count enforcement and connection creation were separate mutations.
