@@ -101,7 +101,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
          max_req_day, max_storage_mb, max_tts_chars_day, max_stt_audio_sec_day, max_translation_chars_day,
          voice_enabled, api_access, custom_branding, sso_enabled, analytics_level, priority_support,
          features, status, created_by, multilingual_embeddings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'draft',$20,$21)
       RETURNING *
     `, [
       body.planId, nextVersion,
