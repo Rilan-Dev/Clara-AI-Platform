@@ -108,3 +108,19 @@ The requested role/permission and subscription UI work is implemented on the cur
 
 ## 2026-10-05 — Owner execution checkpoint
 Current bounded work is verification, not feature expansion. Completed: UI/RBAC/subscription implementation and production Docker-build CI instrumentation. Pending: (1) executable current-head Docker build, (2) executable I-1 focused Gate-C evidence, (3) browser verification through draft preview PR #266 or equivalent local environment, and (4) final I-1 Gate-D review. Do not start I-2 runtime/OAuth/persistence/egress/MCP work or merge the preview PR as part of this checkpoint.
+
+
+## UI/RBAC/Subcription checkpoint — 2026-10-05
+Completed in current continuation:
+- role-aware organisation navigation and direct-route guard;
+- role capability contract tests;
+- current versioned subscription-plan API wired into admin Plans UI;
+- TTS/STT/translation daily limits exposed and persisted in plan versions;
+- plan-guard fallback fixed for those limits.
+
+Still pending before Phase 7-C closure:
+1. Fresh CI run for the new UI verification job and changed subscription surfaces.
+2. Reproduce immutable-source/library-integrity/secret/runtime-boundary closure gates.
+3. Fresh-context review of all governance documents and compare against the Phase 7 authorization boundary.
+4. Decide and record the repository-wide typecheck/lint baseline disposition; do not modify immutable/reference material merely to make global gates green.
+5. Only after all closure evidence passes, perform the governance-only Phase 7-C closure update.
