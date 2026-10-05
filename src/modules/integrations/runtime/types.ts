@@ -197,7 +197,10 @@ export interface RunActionParams {
   actionName: string;
   props: Record<string, unknown>;
   userId: string;
+  /** Organisation/workspace tenant scope used for connection and credential isolation. */
   workspaceId: string;
+  /** Optional agent scope. Never infer this from projectId: project and agent are distinct identities. */
+  agentId?: string;
   projectId?: string;
 }
 
