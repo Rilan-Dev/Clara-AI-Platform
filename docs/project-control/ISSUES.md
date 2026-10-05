@@ -699,3 +699,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Non-scope | No OAuth transport, provider expansion, MCP, billing, migration, production promotion, or unrelated network refactor. |
 | Correction commits | e2a9131d04d567a79c3f3531e1cff63b60d5a81d; 452a998076fef63e97f08c804b9ab6e216daa7f6 |
 | Verification | Source correction is reviewed. Executable focused test/build evidence remains pending under Gate C. |
+
+
+## I-037 — I-2 runner conflated project scope with agent scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-037 |
+| Title | Integration runner passed projectId as agentId during credential resolution |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | The I-2 runner called `credentialVault.get(userId, integrationId, workspaceId, projectId)`, while the vault's fourth parameter is the agent scope. Project and agent are distinct identities in the I-2 contract. This could prevent legitimate agent-scoped connections from resolving and, more importantly, made tenant/resource scope implicit instead of explicit. |
+| Evidence | [architect-verified] Direct review of `RunActionParams` and `credentialVault.get()` showed `projectId` was supplied to the `agentId` position in both custom-action and piece-action credential lookup paths. |
+| Correction | [architect/ChatGPT] Added an explicit optional `agentId` field to `RunActionParams` and changed both runner credential lookups to pass `params.agentId`; projectId is no longer interpreted as agent scope. |
+| Correction commits | `8cad5e6759e79dfe54729257b68bc719319e7161`; `54fa672ce7e1df29d97cc2fbc5589403c5682ab0` |
+| Explicit non-scope | No OAuth transport, provider expansion, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source correction reviewed. Executable typecheck/tests/build remain part of Gate-C and are not claimed here. |
+| Resolution evidence | [architect-verified] The runtime no longer passes projectId into the agent-scoped credential-vault parameter. |
