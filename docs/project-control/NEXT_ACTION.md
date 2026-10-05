@@ -228,3 +228,14 @@ I-2 remains IMPLEMENTED — VERIFICATION PENDING. ChatGPT completed another boun
 **Next bounded work:** continue source-level I-2 review for concrete plan/implementation gaps without waiting for GitHub Actions or Vercel; prioritize credential/connection authorization, AI-tool exposure, runtime action validation, and tenant isolation. Then obtain executable test/typecheck/lint/build evidence, connector/OAuth smoke, browser verification, and final Gate-D review.
 
 **Stopping boundary:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — Current owner continuation after I-037
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review identified and corrected I-037: the integration runner had been passing `projectId` into the credential vault's agent-scope parameter. The runner now carries an explicit `agentId` field and no longer conflates project and agent identity.
+
+- Correction commits: `8cad5e6759e79dfe54729257b68bc719319e7161`, `54fa672ce7e1df29d97cc2fbc5589403c5682ab0`.
+- I-037: RESOLVED by architect source review.
+- Next bounded work: continue I-2 source review for concrete credential/connection authorization, AI-tool exposure, action-input validation, and tenant-isolation gaps; then obtain executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
