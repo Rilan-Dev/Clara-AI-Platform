@@ -184,191 +184,36 @@ Fresh-session read order for a Z.AI developer session:
 
 ## Part II — Active Handoff Instance
 
-> **Phase 7-B Closure / STOP record — the architect closure review `PASS` — Phase 7-B `PASS — CLOSED` under the D-023 / Option A acceptance** — the executed DH-005 decision-record instance (materialized 2026-10-04 from the architect's decision-recording handoff; recorded as the decision-record governance commit `8d124263fd4405bfaec0060bbabfd580a49e8821`) updated in place with the architect's closure outcome, per the established handoff convention (the superseded pre-closure decision-record instance remains recoverable in Git history at `8d124263`, the executed AH-004 analysis instance at `f7327d7b2fe76dbf1bfbcae3dbfc687e69653660`, and the executed CH-003 corrective instance at `4413bc83`; all identified in the canonical `worklog.md`). **The architect has now independently completed the closure review of the acceptance-redefined Phase 7-B state at `8d124263` and returned `PASS`** [architect-verified — ChatGPT performed the independent closure review and returned `PASS`]: **Phase 7-B — Unified Tool Runtime is `PASS — CLOSED` under the formally redefined D-023 / Option A acceptance** — an acceptance disposition, NOT a claim that the original usage-spine requirement was technically satisfied (the AH-004 finding stands unrewritten; `audit_logs` is operational observability, NOT the usage-metering spine); F-7B-01 `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`; F-7B-02 `RESOLVED`; I-017 `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`; first-class billable tool-usage metering remains deferred to a future explicitly authorized phase; **Phase 7-C remains NOT AUTHORIZED — STOP: await the next explicit architect authorization**. The decision-recording instance authorized ONLY the governance recording of that decision (fully executed); the architect's closure decision authorized ONLY the governance closure recording (executed by the closure-record commit — the immediate child of `8d124263`) — neither authorizes any application implementation, migration, schema change, `TOOL` usage kind invention, `query_events` semantics change, `rag_search` behavior change, billing redesign, 7-C authorization, MCP, integrations, deployment, or history rewrite (no amend/rebase/squash/cherry-pick/force-push). **Provenance note:** an earlier decision-recording handoff text (2026-10-04) arrived with the architect-decision slot left as an unfilled insertion placeholder; the developer correctly made ZERO repository changes at that boundary and reported the blocker rather than inferring or selecting a decision — that attempt was never materialized into repository state, and no unfilled decision placeholder exists anywhere in repository history. This instance is the first materialization of the architect's explicit decision.
+> **No active Z.AI implementation handoff.** Current repository state is Integrations I-2 — IMPLEMENTED / VERIFICATION PENDING. ChatGPT is the implementation owner under D-024. Z.AI is STOPPED and must not resume from any superseded Phase 7 or I-1 handoff.
 
-## 1. Decision-record identity
-
-| Field | Value |
-|---|---|
-| Record ID | `DH-005` (first decision-recording handoff; sequential after CH-001/CH-002/CH-003/AH-004) |
-| Record title | Phase 7-B F-7B-01 Architect Decision Recording — OPTION A — KEEP AUDIT-ONLY TELEMETRY |
-| Current status | **`CLOSED`** — the decision recorded 2026-10-04 as **D-023** (the decision-record commit `8d124263`); the architect closure review of the acceptance-redefined state then returned **`PASS`** (2026-10-04) — **Phase 7-B `PASS — CLOSED` under the D-023 / Option A acceptance**; the closure recorded governance-only by the developer (the closure-record commit — the immediate child of `8d124263`); Phase 7-C `NOT AUTHORIZED`; STOP: await the next explicit architect authorization |
-| Issued by | ChatGPT (architect / technical lead / reviewer / controller) |
-| Issue date | 2026-10-04 |
-| Repository | `Rilan-Dev/Clara-AI-Platform` |
-| Branch | `feature/ai-core-from-doable-source` |
-| Worktree | `/home/z/my-project/.worktrees/vc` |
-| Baseline | Decision recording: `f7327d7b2fe76dbf1bfbcae3dbfc687e69653660` (the AH-004 analysis commit; verified at execution: HEAD == origin; clean tree). **Closure recording: `8d124263fd4405bfaec0060bbabfd580a49e8821`** (the D-023 decision-record commit — the exact state the architect closure-reviewed `PASS`; verified at closure recording: HEAD == origin == `8d124263`; clean tree; `4413bc83` / `63bccded` / `74200bec` / `f7327d7b` present, unmodified, ancestors of HEAD) |
-
-## 2. The architect's decision (as supplied — recorded verbatim in substance)
-
-The architect explicitly decides:
-
-1. Keep the current Phase 7-B `buildClaraToolMeteringHook()` → `writeAuditLog()` implementation.
-2. Treat `tool.invoked` and `tool.denied` as **org-scoped tool invocation observability, not billable usage**.
-3. Do NOT insert tool invocations into `query_events`.
-4. Do NOT invent or add a `TOOL` `usage_events` kind.
-5. Do NOT create a migration.
-6. Do NOT create a new billing architecture.
-7. Do NOT change `rag_search` accounting semantics.
-8. Defer first-class billable tool-usage metering to a future explicitly authorized phase.
-9. Formally redefine/clarify the Phase 7-B acceptance criteria so that the Phase 7-B deliverable is tool-invocation observability through the existing audit infrastructure, while independent usage-spine/billing metering is explicitly deferred.
-10. F-7B-01 may be resolved as an **architect-authorized acceptance disposition**, not as a claim that the original usage-spine requirement was technically satisfied.
-11. I-017 may be resolved consistently with that disposition.
-12. Phase 7-B may proceed toward closure only after the acceptance redefinition and issue disposition are correctly recorded and independently validated.
-13. **Phase 7-C remains NOT AUTHORIZED.**
-
-"This decision is authoritative for this handoff. Do not reinterpret it. Do not broaden it. Do not select another option." — honored: recorded exactly as supplied; the developer selected nothing. [architect-verified — as communicated in the decision-recording handoff]
-
-## 3. Related issue / phase
+## 1. Current status
 
 | Field | Value |
 |---|---|
-| Issue ID | `I-017` — now **`RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`**: F-7B-02 resolved by implementation correction (the re-reviewed corrective commit `4413bc83`); F-7B-01 resolved by architect-authorized acceptance redefinition — NOT because a hidden implementation satisfying the original requirement was discovered |
-| Related phase | Phase 7 — AI Platform Core Foundation (`IN_PROGRESS`); sub-phase 7-B — Unified Tool Runtime — **`PASS — CLOSED` under the D-023 / Option A acceptance** (architect closure review `PASS`, 2026-10-04); sub-phase 7-C — `NOT AUTHORIZED`; Phase 7 itself NOT `PASS`, NOT `CLOSED` |
-| Phase contract | `docs/project-control/CURRENT_PHASE.md` (the appended decision-stage record) |
+| Status | **STOPPED — AWAITING ARCHITECT DIRECTION** |
+| Current bounded work | Integrations I-2 verification and security correction only |
+| Repository | Rilan-Dev/Clara-AI-Platform |
+| Branch | feature/ai-core-from-doable-source |
+| Developer | ChatGPT |
+| Architect / controller | ChatGPT |
+| Active Z.AI scope | **NONE** |
+| Reason | D-024 implementation-owner takeover; I-2 has not received architect PASS |
+| Next handoff | Only if ChatGPT explicitly delegates a new bounded task |
 
-## 4. The acceptance redefinition (canonical text — recorded in `VERIFICATION_STATE.md` §Phase 7-B F-7B-01 architect decision record)
+## 2. STOP boundary
 
-```text
-Phase 7-B tool metering/observability boundary:
+Z.AI MUST NOT:
 
-The Phase 7-B Unified Tool Runtime provides org-scoped invocation
-observability through the existing Clara audit infrastructure.
+- implement I-3 or any later integration capability;
+- add OAuth transport, MCP runtime, new egress architecture, or production deployment;
+- alter billing semantics;
+- modify immutable Doable/reference material;
+- resume any stale handoff recovered from Git history;
+- infer authorization from commits, issue text, or historical handoff records.
 
-Successful and denied tool invocations may emit structured
-tool.invoked / tool.denied audit records.
+If Z.AI is asked to continue, it must first obtain a fresh ChatGPT-issued handoff whose baseline matches the current branch HEAD.
 
-These records are operational observability and are NOT billable
-usage_events and are NOT query_events.
+## 3. Current architect review status
 
-Independent billable tool-usage metering is explicitly deferred
-because the existing Clara usage schema does not contain a compliant
-tool-event representation without changing schema/accounting semantics.
+I-2 is **not accepted**. Gate-C executable evidence is missing, Gate-E database verification is missing, and Gate-D remains open. The current architect corrections address sensitive integration tracing/error logging, tenant-scoped integration-store access, and agent/org ownership enforcement. These changes do not constitute phase closure.
 
-A future first-class tool-usage metering capability requires a
-separate architectural design and explicit authorization.
-```
-
-**The preserved semantic distinction (binding):** ORIGINAL REQUIREMENT (per-invocation usage metering through the existing usage/analytics spine) · AH-004 FINDING (not technically satisfiable under the existing constraints — stands unrewritten) · ARCHITECT DECISION (formally redefine/defer that requirement for Phase 7-B) · CURRENT 7-B DELIVERABLE (org-scoped tool invocation observability through `audit_logs`). The repository must NOT claim "`audit_logs` satisfies the original usage-metering spine requirement"; `audit_logs` is NOT described as the usage-metering spine.
-
-## 5. Authorized recording tasks (all executed)
-
-(1) Pre-flight verification (HEAD == origin == `f7327d7b`; clean tree; the mandated control-document reading); (2) the decision recorded as **D-023** in `DECISIONS.md` (the Phase 7 section — Decision / Context / Architectural decision / Deferred capability / Explicit non-goals, per the established register format); (3) F-7B-01 resolved in `ISSUES.md` strictly as `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION` (the resolution explanation distinguishing the original non-satisfaction, the AH-004 finding, the architect's redefinition, the accepted audit-only observability, and the deferred first-class billable tool usage); (4) I-017 resolved consistently (F-7B-02 by implementation correction; F-7B-01 by architect-authorized acceptance redefinition); (5) `CURRENT_PHASE.md` / `PROJECT_STATE.md` / `NEXT_ACTION.md` reconciled to `ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW`; (6) the architect-decision record appended to `VERIFICATION_STATE.md` (preserving the AH-004 analysis unrewritten); (7) this Part II instance replaced (no placeholder anywhere in the active state); (8) the append-only `worklog.md` entry + `SESSION-020.md` + its README index row; (9) the validation battery; (10) ONE governance-only commit + the normal push; (11) the required final report; (12) STOP at the architect closure review.
-
-## 6. Non-negotiable constraints (all honored)
-
-No application implementation; no migration; no schema change; no `TOOL` usage kind; no query-event semantics change; no billing redesign; no `rag_search` accounting change; no Phase 7-C; no MCP work; no integrations work; no deployment; no database access; no Phase 7-B closure claim (only ChatGPT may close 7-B); no amend/rebase/squash/cherry-pick/force-push; the decision recorded exactly as supplied — not reinterpreted, not broadened, no other option selected; the developer not represented as having selected the architecture; the architect decision / developer execution of the decision record / future authorization explicitly distinguished; the historical AH-004 analysis and the original finding preserved unrewritten.
-
-## 7. Git requirements (all honored)
-
-Baseline verified before starting (HEAD == origin == `f7327d7b`; clean tree); the single resulting commit is governance-only and clearly identified as a decision record (not a "fix" commit, not a closure commit) — the immediate child of `f7327d7b` on `feature/ai-core-from-doable-source`; normal (non-force) push; HEAD == origin verified after the push; history rewritten nowhere (`63bccded` / `74200bec` / `4413bc83` / `f7327d7b` all preserved unmodified).
-
-## 8. STOP boundary
-
-After delivering the decision record, the architect performed the closure review of the acceptance-redefined state and returned `PASS` (2026-10-04); after the closure-record commit and the required final report: **STOP. Z.AI performs no further work until the next explicit architect authorization arrives.** The canonical status:
-
-```text
-Phase 7-B: CLOSED — architect PASS
-Phase 7-C: NOT AUTHORIZED
-STOP: await next explicit architect authorization
-```
-
-Only ChatGPT may authorize 7-C or direct the next project action (the 7-C decision, the I-014/I-015 triages, the D-P2/D-P4 dispositions, the `clara-core` stale-extraction disposition, or other direction — the developer selects nothing on the architect's behalf). No implementation work is pending from the closure itself; first-class billable tool-usage metering is deferred to a future explicitly authorized design phase (not begun).
-
-### Closure record (sub-phase 7-B — 2026-10-04; the D-023 / Option A acceptance)
-
-**Architect closure review of the acceptance-redefined Phase 7-B state — outcome `PASS` → sub-phase 7-B: `PASS — CLOSED` under the formally redefined D-023 / Option A acceptance; F-7B-01: `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`; F-7B-02: `RESOLVED`; I-017: `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`.** Architect: **ChatGPT**. Developer: **Z.AI**. Reviewed state: `8d124263fd4405bfaec0060bbabfd580a49e8821` (the D-023 decision-record governance commit; verified: HEAD = origin = `8d124263`; clean tree). The architect independently completed the closure review and returned **`PASS`** [architect-verified — ChatGPT performed the independent closure review and returned `PASS`; an explicit architect closure decision — not reinterpreted here].
-
-**The binding semantic distinction:** the ORIGINAL REQUIREMENT (per-invocation usage metering through the existing usage/analytics spine) was **NOT technically satisfied** — the AH-004 FINDING stands unrewritten; the ARCHITECT DECISION (D-023 — OPTION A — KEEP AUDIT-ONLY TELEMETRY) formally redefined the Phase 7-B acceptance; the CURRENT 7-B DELIVERABLE is org-scoped tool invocation observability through `audit_logs` — operational observability, **NOT the usage-metering spine**; the closure is an **acceptance disposition, not a claim of technical satisfaction**. First-class billable tool-usage metering remains **deferred** to a future separately authorized design phase (not begun). **Phase 7-C remains NOT AUTHORIZED; Phase 7 itself remains `IN_PROGRESS`** (the unauthorized 7-C boundary plus I-014/I-015, D-P2/D-P4, and the `clara-core` stale-extraction disposition remain project-level matters).
-
-**Closure recording (developer, governance-only) [developer-reported]:** the closure record + closure validation + the two review-trail rows appended to `VERIFICATION_STATE.md` (the architect `PASS` row `[architect-verified]`; the developer recording row `[developer-reported]`); the CURRENT_PHASE closure record + header/status reconciliation; the PROJECT_STATE/NEXT_ACTION reconciliation to 7-B `PASS — CLOSED`; the I-017 closure-confirmation note (`ISSUES.md` — F-7B-02 = implementation correction; F-7B-01 = architect acceptance redefinition; the distinction preserved); this Part II closure/STOP record; the append-only worklog entry; `SESSION-021.md` + its README index row; ONE governance-only commit (`docs: close phase 7-b after architect pass` — the immediate child of `8d124263`) + the normal push. ZERO application/schema/migration/dependency/route/provider/`vercel.json`/immutable-source changes; no deployment; no database access.
-
-This instance is fully executed and its sub-phase is closed; it remains materialized here as the closure/STOP record until the architect issues the next handoff, at which point Part II is replaced per §I.12 (this instance remains recoverable in Git history at the closure-record commit and in the canonical `worklog.md`).
-
-## Part II execution-record addendum — DH-005 decision record (2026-10-04)
-
-> Dated addendum appended per the appended-record convention. This addendum records the execution of the **Phase 7-B F-7B-01 Architect Decision Recording** (DH-005). It is a decision record and acceptance-redefinition record, NOT a closure record and NOT an implementation record.
-
-**Executed** [developer-reported — the faithful recording of the architect's decision; the developer selected nothing]:
-
-1. **Baseline verification**: fresh `git fetch --prune origin`; branch `feature/ai-core-from-doable-source`; HEAD = origin = `f7327d7b2fe76dbf1bfbcae3dbfc687e69653660`; clean working tree; the mandated pre-edit reading completed (CURRENT_PHASE / PROJECT_STATE / NEXT_ACTION / ISSUES / VERIFICATION_STATE / ZAI_HANDOFF / DECISIONS / worklog / SESSION-019).
-2. **The decision recorded**: **D-023** in `DECISIONS.md` (the Phase 7 section) — OPTION A — KEEP AUDIT-ONLY TELEMETRY; the Phase 7-B acceptance boundary formally redefined; F-7B-01 resolved as an ARCHITECT ACCEPTANCE DISPOSITION (explicitly NOT a claim of technical satisfaction of the original §19(4)/§19(19) usage-spine requirement); first-class billable tool-usage metering deferred (the future-design scope enumerated); the explicit non-goals recorded.
-3. **The issue dispositions recorded** (`ISSUES.md` I-017): status → `RESOLVED` (lifecycle completed with the architect-authorized acceptance-disposition transition); the resolution evidence distinguishing F-7B-02 (implementation correction) from F-7B-01 (architect-authorized acceptance redefinition); the related-decision link to D-023; the resolution date.
-4. **The verification register updated** (`VERIFICATION_STATE.md`): the §Phase 7-B F-7B-01 architect decision record section appended (the decision; the decision authority; the twelve-point decision text; the AH-004 context preserved; the canonical acceptance-redefinition text; the preserved semantic distinction; the deferred capability; the explicit non-goals; the effect block; the resulting state; the provenance note about the earlier unfilled-placeholder attempt); the two 2026-10-04 decision review-trail rows appended; the outstanding-state paragraph updated; the Phase 7 header updated; the decision-boundary reconciliation paragraph appended to the Final State Contract section. The AH-004 analysis section stands unrewritten above it.
-5. **The current-state documents reconciled**: `CURRENT_PHASE.md` (the decision-stage record appended; the prior stage records preserved unrewritten); `PROJECT_STATE.md` (the snapshot date; the current-phase/phase-status/current-objective cells; the active-handoff-instance and session-records cells; the commit-state rows incl. the AH-004 durable reference + this decision-record commit; the last-architect-verification bullet; the active-blockers paragraph; the I-017 active-issues row; the current-next-action); `NEXT_ACTION.md` (the snapshot date; §1–§4).
-6. **This Part II instance replaced** (the superseded AH-004 instance recoverable in Git history at `f7327d7b`); the append-only `worklog.md` entry; `SESSION-020.md` + its README index row.
-7. **Validation** (see the session record and the worklog entry for the full results): the changed-files check (governance-only — `worklog.md` + `docs/project-control/**` only; zero `src/**` / migration / dependency / lockfile / immutable-source changes); the governance validators (`phase-closure-eligibility-test.sh` 8/8, exit 0; `correction-cycle-test.sh` 24/24, exit 0); `npm run validate:model-config` PASS; the immutable-source invariants re-verified (the four tree OIDs `a42aee79`/`ee07c362`/`b76b8f34`/`54606204` and `vercel.json` blob `3f26d343` identical at HEAD; the manifest blob verifier 802 pinned / 771 present / 771/771 byte-verified / 0 mismatches / 31 absent confined to `mcp-servers/`); git history not rewritten; ONE governance-only commit + the normal push; HEAD == origin verified after the push.
-8. **No deployment; no database access; no migration run.**
-
-**Canonical status after the decision recording**:
-
-```text
-Phase 7: IN_PROGRESS
-Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
-Phase 7-B: ACCEPTANCE REDEFINED / READY FOR ARCHITECT CLOSURE REVIEW
-           (F-7B-01 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION;
-            F-7B-02 RESOLVED; I-017 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION)
-Phase 7-C: NOT AUTHORIZED
-STOP: ARCHITECT CLOSURE REVIEW REQUIRED
-```
-
-The decision is the architect's [architect-verified — as communicated in the decision-recording handoff]; this commit is the developer's faithful recording of it. **No `PASS` is claimed for 7-B; 7-B is NOT closed by this record — the architect closure review is the next boundary.** Z.AI STOPs at the architect-closure-review boundary. [developer-reported]
-
-## Part II closure addendum — DH-005 closure outcome (2026-10-04)
-
-> Dated addendum appended per the appended-record convention. This addendum records the architect's closure outcome for the sub-phase bounded by the DH-005 decision record and the developer's governance closure recording. The decision-recording addendum above stands as history (the status it records was the state at its time).
-
-**Architect closure review — `PASS` (2026-10-04):** ChatGPT independently completed the architect closure review of the acceptance-redefined Phase 7-B state at `8d124263fd4405bfaec0060bbabfd580a49e8821` and returned **`PASS — Phase 7-B CLOSED under the formally redefined D-023 / Option A acceptance`** [architect-verified — ChatGPT performed the independent closure review and returned `PASS`; an explicit architect closure decision — not reinterpreted; never classified as developer-reported]. The closure: F-7B-01 `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`; F-7B-02 `RESOLVED`; I-017 `RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION`; the original usage-spine requirement NOT technically satisfied (acceptance disposition — the AH-004 finding preserved unrewritten; `audit_logs` = operational observability, NOT the usage-metering spine); the current deliverable = org-scoped tool invocation observability through `audit_logs`; first-class billable tool-usage metering deferred; Phase 7-C `NOT AUTHORIZED`; Phase 7 `IN_PROGRESS`; I-014/I-015 remain `OPEN`; no schema/migration/query-event/`rag_search`/billing change.
-
-**Closure recording executed** [developer-reported — the developer's faithful recording of the architect's closure decision]: the baseline `8d124263` verified (HEAD == origin == `8d124263`; clean tree; fresh fetch); the governance closure records (the VERIFICATION_STATE closure record + closure validation + review-trail rows; the CURRENT_PHASE closure record + header/status reconciliation; the PROJECT_STATE/NEXT_ACTION reconciliation; the I-017 closure-confirmation note; the Part II closure/STOP record above; the append-only worklog entry; SESSION-021 + its index row); the validation battery (governance 8/8 + 24/24; model-config PASS; the immutable-source invariants unchanged — 802/771/771/0/31-confined; the four tree OIDs + `vercel.json` `3f26d343` identical); ONE governance-only commit (`docs: close phase 7-b after architect pass` — the immediate child of `8d124263`) + the normal push; HEAD == origin verified after the push.
-
-**Canonical status after the closure recording:**
-
-```text
-Phase 7: IN_PROGRESS
-Phase 7-A: PASS — CORRECTION VERIFIED — CLOSED
-Phase 7-B: PASS — CLOSED
-           (F-7B-01 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION;
-            F-7B-02 RESOLVED; I-017 RESOLVED — ARCHITECT ACCEPTANCE DISPOSITION)
-Phase 7-C: NOT AUTHORIZED
-STOP: AWAIT NEXT EXPLICIT ARCHITECT AUTHORIZATION
-```
-
-The closure is the architect's [architect-verified — ChatGPT performed the independent closure review and returned `PASS`]; the closure-record commit is the developer's faithful recording of it. Phase 7-C creates no authorization and is NOT begun; Phase 7 itself is NOT `PASS` and NOT `CLOSED`; first-class billable tool-usage metering remains deferred to a future separately authorized design phase; I-014/I-015 remain OPEN. Z.AI STOPs at the post-closure boundary. [developer-reported]
-
-
-## ChatGPT implementation takeover — current authorization and I-015 status (2026-10-04)
-
-D-024 is active: ChatGPT is the implementation owner for the current continuation. The historical Z.AI handoff/STOP records remain historical and are not rewritten. D-026 authorizes bounded I-015 dependency/lockfile remediation. The lockfile reconciliation commit b3ed15acac4de39e1eaff33d40bea9f045ff9c16 is implemented and structurally verified, but I-015 remains OPEN because npm typecheck/test/build execution is not available in the current execution environment. D-027 authorizes only the default-off Phase 7-C provider tool-calling and hard-bounded agentic-loop pilot; D-023 remains binding and no schema, migration, billable tool metering, MCP, integrations or deployment work is authorized.
-
-## Current execution-owner reconciliation — 2026-10-04
-
-The historical Part II Z.AI handoff/STOP records remain preserved. They are no longer the active implementation assignment because D-024 explicitly transferred implementation ownership to ChatGPT. D-027 remains the active Phase 7-C authorization. Current state: Tasks 3–5 implemented; architect review PASS at changed-code scope; Gate A/B/D PASS; changed-code Gate C PASS from CI run 37192496888; Phase 7-C remains IN_PROGRESS and NOT CLOSED because repository-wide Type Check/Lint remain established baseline failures. I-015 is RESOLVED for its dependency/lockfile condition; I-014 remains OPEN. No new work outside D-027 is authorized.
-
-
-## Part II current-state addendum — 2026-10-05
-
-D-024 transferred implementation ownership to ChatGPT. The older Part II STOP records are preserved as historical execution records and are not the active assignment.
-
-Current repository state: Phase 7 is **PASS — CLOSED**; 7-A, 7-B, and 7-C are closed; I-014 and I-015 are resolved; D-023, D-028, and D-029 remain binding.
-
-**STOP boundary:** no new implementation is authorized merely by this closure. A new explicit bounded planning/implementation authorization must be recorded before the next capability begins. [architect-verified]
-
-
-## Part II current-state addendum — 2026-10-05 — I-1 correction checkpoint
-
-D-031 remains the only active I-1 implementation authorization. ChatGPT found and corrected I-018 in the I-1 contract/test boundary. The corrected implementation head is `bfc40f671aea218def571c617f00789e15b45823`.
-
-**STOP:** executable Gate-C evidence is still required. No I-1 closure is claimed until focused Vitest/strict TypeScript/ESLint evidence is observed. No I-2 or later integration work is authorized.
-
-
-## Part II current-state addendum — ChatGPT takeover and Phase 7-C closure — 2026-10-05
-
-The historical Phase 7-B Z.AI handoff in Part II remains preserved as an audit record and is not an active implementation assignment. Under D-024, ChatGPT is the active implementation owner.
-
-**Current status:** Phase 7-A PASS — CLOSED; Phase 7-B PASS — CLOSED under D-023 / Option A; **Phase 7-C PASS — CLOSED** after ChatGPT's independent architect review on 2026-10-05. I-015 is RESOLVED for the dependency/lockfile/environment condition. I-014 remains OPEN and awaits architect triage.
-
-**No active Z.AI assignment exists.** The Z.AI STOP boundary remains in force unless ChatGPT issues a new explicit handoff. No Phase 8 work, MCP/integrations work, first-class billable tool metering, deployment, schema/migration work, or unbounded agent-runtime work is authorized by the Phase 7-C closure.
-
-This addendum supersedes the operational effect of the older Part II STOP text while preserving that text unchanged as historical evidence.
