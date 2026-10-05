@@ -66,6 +66,7 @@ import { createExecutionContext } from "./execution-context";
 import { claraRuntime, type ClaraRuntimeContext } from "./clara-runtime";
 import { createToolRuntime, type ToolRuntime } from "./tool-registry";
 import { buildIntegrationAvailabilityTool } from "./integration-ai-tools";
+import { buildIntegrationActionTool } from "./integration-action-tool";
 import type {
   ToolAuthorizationAdapter,
   ToolAuthorizationDecision,
@@ -341,6 +342,7 @@ export function buildClaraToolRuntime(overrides?: {
   });
   runtime.registerTool(buildRagSearchTool());
   runtime.registerTool(buildIntegrationAvailabilityTool());
+  runtime.registerTool(buildIntegrationActionTool());
   return runtime;
 }
 
