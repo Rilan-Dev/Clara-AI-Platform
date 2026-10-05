@@ -1307,3 +1307,5 @@ Current status: **IMPLEMENTED — VERIFICATION PENDING**. Required next evidence
 - Fixed plan-guard fallback resolution so those three limits remain effective when a subscription falls back to base/free plan limits.
 - Existing dashboard/billing usage meters and member permission matrix remain the primary user-facing plan/RBAC surfaces.
 - No schema/migration changes, immutable Doable source changes, MCP changes, or D-023 billable tool metering changes.
+
+- Extended organisation Billing UI and `/api/orgs/subscription` to expose TTS/STT/translation limits alongside existing quotas; current plan-guard fallback and versioned plan APIs are aligned.
