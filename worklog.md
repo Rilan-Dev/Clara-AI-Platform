@@ -1,4 +1,9 @@
 
+## 2026-10-06 — I-047 direct-connection plan-limit correction
+
+[architect/ChatGPT] Continued the bounded I-2 plan-to-implementation review without waiting for CI or Vercel. Source review found that the organisation integration connect path checked current plan entitlement but could implicitly enable a previously-disabled integration without applying max_integrations. Corrected the POST control path so connect enforces the integration-count limit only when it would consume a new organisation slot; connections to an already-enabled organisation integration remain allowed. Implementation commit: 846c8d39add3430a5014c5573b3cc4d5ad86ee37. Focused regression: 354e57f9fb658267f1667c1eec8b5dfbd63023ad. I-047 is architect-resolved by source review. Gate-C remains pending executable evidence; no I-2 PASS is claimed.
+
+
 Current status: **IMPLEMENTED — VERIFICATION PENDING** because the connected GitHub integration has not exposed an Actions run for the current feature head. No PASS is claimed.
 
 
