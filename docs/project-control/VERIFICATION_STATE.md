@@ -40,6 +40,14 @@
 
 ---
 
+
+### 2026-10-06 — I-049 atomic organisation integration mutation correction
+
+- [architect-verified] Source review identified a P1 I-2 correctness/concurrency defect: organisation integration count enforcement and connection creation were separate mutations.
+- [architect-verified] Commits `0f55d11dfc612b293fcf9046cb6d99c25451cdf9` and `cd35659c8b286dd89d6ba325307ce734cfe0b2dc` move bounded enable/connect mutation paths into transactions and serialize integration-slot mutations per organisation with a transaction-scoped advisory lock.
+- [architect-verified] Regression `ccd1fb2d7ba0b06d1ebace779aea7854e9e034df` covers direct-connect limit rejection and connection-insert failure handling.
+- I-049 is RESOLVED by architect source review. Gate-C remains MISSING overall because executable current-head test/typecheck/lint/build evidence is still unavailable. Gate-D remains IN_PROGRESS.
+
 ### 2026-10-06 — I-047 direct-connection plan-limit correction
 
 - [architect-verified] Source review found that the organisation integration POST connect path checked plan entitlement but could implicitly enable a previously-disabled organisation integration without enforcing max_integrations.
