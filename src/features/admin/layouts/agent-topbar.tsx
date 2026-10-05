@@ -64,6 +64,8 @@ import {
 } from "@/features/admin/screens/agent-workspace/context-cache";
 import { WorkspaceButton, timeAgo } from "@/components/admin/ai-platform/shared";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/modules/admin-ui/hooks";
+import { hasOrgCapability } from "@/lib/org-role-capabilities";
 import { PublishMenu } from "./publish-menu";
 import { ReviewChangesDialog } from "./publish-review-dialog";
 
@@ -242,6 +244,8 @@ export function TopbarContextLabel({ isAdmin }: { isAdmin: boolean }) {
 
 export function AgentTopbarCluster() {
   const { orgId, agentId, context, loading } = useAgentTopbar();
+  const { primaryOrgRole } = useAuth();
+  const canPublish = hasOrgCapability(primaryOrgRole, "publishAgent");
   const [publishing, setPublishing] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
 
@@ -260,7 +264,7 @@ export function AgentTopbarCluster() {
     !!currentVersion &&
     deployment.versionNumber === currentVersion.versionNumber &&
     !draftEditedSinceVersion;
-  const canPublish = !loading && !!context && !productionUpToDate && !!currentVersion;
+  const canPublishNow = canPublish && !loading && !!context && !productionUpToDate && !!currentVersion;
 
   // One-click publish: draft edits are versioned automatically, then the
   // resulting (or already-saved) version is published live.
@@ -345,11 +349,11 @@ export function AgentTopbarCluster() {
           <ExternalLink className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Preview</span>
         </WorkspaceButton>
-        <div className="inline-flex">
+        {canPublish ? <div className="inline-flex">
           <WorkspaceButton
             variant="primary"
             onClick={() => void publishNow()}
-            disabled={!canPublish || publishing}
+            disabled={!canPublishNow || publishing}
             title={
               productionUpToDate
                 ? "Production is up to date — edit the draft to enable publishing"
@@ -371,7 +375,7 @@ export function AgentTopbarCluster() {
             hasPendingChanges={!!draftEditedSinceVersion}
             onViewPendingChanges={() => setDiffOpen(true)}
           />
-        </div>
+        </div> : null}
       </div>
 
       {/* Review Changes modal (Draft changes pill / Publish menu → View pending changes) */}
