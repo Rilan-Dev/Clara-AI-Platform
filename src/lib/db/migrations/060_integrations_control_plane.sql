@@ -1,4 +1,4 @@
--- 052_integrations_control_plane.sql
+-- 060_integrations_control_plane.sql
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Clara AI Platform — platform/org/agent integration access control.
