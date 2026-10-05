@@ -239,3 +239,15 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review identified a
 - Next bounded work: continue I-2 source review for concrete credential/connection authorization, AI-tool exposure, action-input validation, and tenant-isolation gaps; then obtain executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-2 owner continuation: known-secret trace redaction
+
+I-2 remains the active bounded work. Without waiting for GitHub Actions or Vercel, ChatGPT identified a remaining telemetry hardening gap: redaction was pattern/key based but did not scrub the exact credential values already resolved for an integration when a provider echoed them under a non-sensitive field name or plain text.
+
+- Implementation: `d288975526e40a67e4c22cdc402760f1ca6649af`
+- Runner call-site propagation: `1a19b95d10c03b9b4e8128628846827cf2b1676f`
+- Focused regression tests: `750e5da08150c1f09be0fb8db232413df23df25b`
+- I-038: RESOLVED by architect source review.
+- Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next: continue only bounded I-2 verification/security corrections; do not expand to I-3, MCP, production promotion, or unrelated implementation.
