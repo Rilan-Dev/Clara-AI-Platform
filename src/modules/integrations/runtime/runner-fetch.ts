@@ -247,8 +247,42 @@ export function createTracedFetch(
     const xrayHttp = xrayHandle?.httpStart(method, url, requestBody) ?? null;
 
     try {
-      const res = await _originalFetch(input, init);
+      // Do not let integration actions follow redirects implicitly. The initial
+      // destination is egress-checked above, but a 3xx Location can redirect the
+      // request to a private/metadata endpoint after that check. A host-owned
+      // integration transport may explicitly follow a provider redirect only after
+      // validating each hop; this generic runner fails closed instead.
+      const res = await _originalFetch(input, { ...init, redirect: "manual" });
       const durationMs = Date.now() - start;
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        if (location) {
+          try {
+            const redirectUrl = new URL(location, rawUrl).toString();
+            await assertSafeEgressUrl(redirectUrl);
+          } catch {
+            const errMsg = "Integration egress redirect is not allowed";
+            const entry: HttpTraceEntry = {
+              url, method, requestHeaders: reqHeaders, requestBody, statusCode: res.status,
+              responseHeaders: redactHeaders(headersToRecord(res.headers)), durationMs,
+              responseBody: null, error: errMsg,
+            };
+            traces.push(entry);
+            if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
+            throw new Error(errMsg);
+          }
+        }
+        const errMsg = "Integration egress redirects are not allowed";
+        const entry: HttpTraceEntry = {
+          url, method, requestHeaders: reqHeaders, requestBody, statusCode: res.status,
+          responseHeaders: redactHeaders(headersToRecord(res.headers)), durationMs,
+          responseBody: null, error: errMsg,
+        };
+        traces.push(entry);
+        if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
+        throw new Error(errMsg);
+      }
 
       const resHeaders = redactHeaders(headersToRecord(res.headers));
 
