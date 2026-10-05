@@ -246,3 +246,19 @@ I-041 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN
 Correction commit: `3305c9027ddcef4fff0520d941dfebc73f9ef94a`.
 
 I-042 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No executable CI/Vercel result was awaited or inferred. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-043 AI tool tenant-boundary correction
+
+[architect-verified] Mandatory project-control recovery confirmed I-2 remains the active bounded work and no executable CI/Vercel result is being awaited for source-level corrections.
+
+[architect-verified] Source review found that the Unified Tool Runtime `integration_action` bridge checked `agent_integrations` by agent_id/integration_id but did not bind the grant lookup to the execution tenant. The connection lookup was already tenant-scoped, but the AI-visible tool boundary should fail closed on an agent that does not belong to the current tenant.
+
+[implemented] The agent grant query now joins `agents` and requires `agents.org_id = context.tenantId`. Focused regression coverage now verifies that `runAction` receives explicit `agentId` without inventing `projectId`, and rejects a cross-tenant agent before execution.
+
+Correction commits:
+- `870ac568d050a8a6f54c347684a1b6e4fe9015ca`
+- `b5a744cc57135e2e8f1037f7396c56ed57bc3656`
+- `26f0f5fd00d47641598854e0cbb813ac049b7459`
+- control record: `f95328888a153af07f2e82e5d2cdc11bbed181b8`
+
+I-043 is resolved by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No executable GitHub Actions/Vercel result was awaited or inferred. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
