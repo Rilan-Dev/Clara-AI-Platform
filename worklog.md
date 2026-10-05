@@ -236,3 +236,13 @@ Control records:
 Correction commit: `1001819239fcba146061be84c35254a8a9fb30cb`.
 
 I-041 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No executable CI/Vercel result was awaited or inferred. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-042 Unified Tool Runtime project-scope correction
+
+[architect-verified] Source review found that the integration_action Unified Tool Runtime bridge passed `projectId: context.agentId` even though PlatformExecutionContext has no project identity. This fabricated a project scope from the agent identity.
+
+[implemented] Removed the projectId assignment. The bridge now passes the explicit tenant and agent identities only; runAction retains projectId as an optional field for hosts that actually possess a project identity.
+
+Correction commit: `3305c9027ddcef4fff0520d941dfebc73f9ef94a`.
+
+I-042 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No executable CI/Vercel result was awaited or inferred. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
