@@ -404,9 +404,65 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = (creds.claimed_at ?? 0) + (creds.expires_in ?? 3600);
 
+  // Refresh slightly before expiry so an action never starts with a token that
+  // can expire while the provider request is in flight.
   if (now + 900 < expiresAt) return;
 
-  console.log(`[IntegrationRunner] Token for connection ${connectionId} needs refresh`);
+  const tokenUrl = new URL(creds.token_url);
+  if (tokenUrl.protocol !== "https:") {
+    throw new Error("OAuth token endpoint must use HTTPS");
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: creds.refresh_token,
+    client_id: creds.client_id,
+    client_secret: creds.client_secret,
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+  } catch {
+    throw new Error("OAuth token refresh request failed");
+  }
+
+  if (!response.ok) {
+    const invalidGrant = response.status === 400 || response.status === 401;
+    if (invalidGrant) {
+      await credentialVault.updateStatus(connectionId, orgId, "expired");
+    }
+    throw new Error(`OAuth token refresh failed (${response.status})`);
+  }
+
+  const refreshed = await response.json() as Record<string, unknown>;
+  const accessToken = typeof refreshed.access_token === "string" ? refreshed.access_token : "";
+  if (!accessToken) {
+    throw new Error("OAuth token refresh returned no access token");
+  }
+
+  const expiresIn = typeof refreshed.expires_in === "number" && Number.isFinite(refreshed.expires_in)
+    ? refreshed.expires_in
+    : 3600;
+  const refreshToken = typeof refreshed.refresh_token === "string" && refreshed.refresh_token
+    ? refreshed.refresh_token
+    : creds.refresh_token;
+
+  await credentialVault.updateCredentials(connectionId, orgId, {
+    ...creds,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+    claimed_at: now,
+    data: {
+      ...creds.data,
+      ...refreshed,
+    },
+  });
 }
 
 // ─── Usage Logging ───────────────────────────────────────
