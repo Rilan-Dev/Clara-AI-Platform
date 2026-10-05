@@ -1691,3 +1691,13 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] Commit 3305c9027ddcef4fff0520d941dfebc73f9ef94a removes that fabricated mapping. The integration bridge now passes explicit tenant and agent identity only.
 - I-042 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS because no executable current-head test/typecheck/lint/build PASS has been produced.
 - Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-043 architect source-review correction
+
+[architect-verified] I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. A bounded plan-to-implementation review identified I-043 at the Unified Tool Runtime `integration_action` boundary: the agent integration grant query was not explicitly bound to the execution tenant. The correction joins `agent_integrations` to `agents` and requires the agent's authoritative `org_id` to equal `context.tenantId`.
+
+[architect-verified] Focused regression coverage now also reflects the I-042 scope contract: `runAction` receives explicit `agentId` and no fabricated `projectId`; a cross-tenant agent context is rejected before runner execution.
+
+Correction commits: `870ac568d050a8a6f54c347684a1b6e4fe9015ca`, `b5a744cc57135e2e8f1037f7396c56ed57bc3656`, `26f0f5fd00d47641598854e0cbb813ac049b7459`.
+
+I-043 is **RESOLVED** by architect source review. Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No executable GitHub Actions/Vercel result is inferred. No I-3/MCP/production/unrelated work is authorized.
