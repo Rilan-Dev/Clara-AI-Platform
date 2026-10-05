@@ -147,7 +147,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
       xr.phase("action_run");
       const output = await fetchCtx.run(
-        { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr), xrayHandle: xr, supabaseApiKey: null },
+        { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr, undefined, collectSecretValues(auth)), xrayHandle: xr, supabaseApiKey: null },
         () => customAction.run(params, auth),
       );
       const safeOutput = redactValue(output, collectSecretValues(auth));
@@ -248,7 +248,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
     xr.phase("action_run");
     const output = await fetchCtx.run(
-      { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr), xrayHandle: xr, supabaseApiKey },
+      { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr, undefined, collectSecretValues(auth)), xrayHandle: xr, supabaseApiKey },
       () => action.run(context),
     );
     const safeOutput = redactValue(output, collectSecretValues(auth));
