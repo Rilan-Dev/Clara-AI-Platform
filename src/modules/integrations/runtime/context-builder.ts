@@ -19,6 +19,7 @@ export function buildActionContext(params: {
   userId: string;
   workspaceId: string;
   projectId?: string;
+  agentId?: string;
 }): Record<string, unknown> {
   return {
     // ── Real implementations (used by 100% of actions) ──
@@ -27,14 +28,14 @@ export function buildActionContext(params: {
 
     // ── Real implementations (used by ~15% of actions) ──
     executionType: "BEGIN",
-    store: new PostgresStore(params.userId, params.workspaceId, params.projectId),
+    store: new PostgresStore(params.userId, params.workspaceId, params.agentId),
     files: new DoableFilesService(),
     server: {
       apiUrl: API_URL,
       publicUrl: PUBLIC_URL,
       token: "",
     },
-    connections: new DoableConnectionsManager(params.userId, params.workspaceId, params.projectId),
+    connections: new DoableConnectionsManager(params.userId, params.workspaceId, params.agentId),
 
     // ── Stubs (used by <1% of actions) ──
     tags: { add: async () => {} },
