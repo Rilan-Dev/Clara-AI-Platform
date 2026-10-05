@@ -46,3 +46,9 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. [architect-verified] Sourc
 ## 2026-10-06 — I-2 owner continuation: runner correctness correction
 
 [architect-verified] ChatGPT independently reviewed the current I-2 runner source and corrected a bounded ElevenLabs redirect error-message defect at `499feacf01907f82da9578b74cb8789931d10752`. The redirect remains fail-closed; only the action-specific error semantics were corrected. I-2 remains IMPLEMENTED — VERIFICATION PENDING, Gate-C remains MISSING, and Gate-D remains IN_PROGRESS. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
+
+## 2026-10-06 — I-044 credential-value error-boundary hardening
+
+[architect-verified] Source review found a bounded I-2 observability defect: the runner's final catch boundary only performed pattern-based redaction, so a provider could echo a resolved credential value under a non-sensitive field name and have that value reach XRay, usage logging, or the returned error. Commit `a8a1997f958c37b524451618eb0d3bb4a3746b5f` retains the resolved credential values for the active run and applies value-based redaction before the error is recorded or returned.
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
