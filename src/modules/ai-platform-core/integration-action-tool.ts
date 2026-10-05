@@ -66,6 +66,7 @@ export function buildIntegrationActionTool(): ToolDefinition {
       const result = await runAction({
         workspaceId: context.tenantId,
         projectId: context.agentId,
+        agentId: context.agentId,
         userId: context.userId!,
         integrationId: input.integrationId,
         actionName: input.actionName,
