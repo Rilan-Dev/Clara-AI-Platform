@@ -190,6 +190,7 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Crea
       maxDocsPerKb: planData.max_docs_per_kb,
       maxReqDay: planData.max_req_day,
       maxStorageMb: planData.max_storage_mb,
+          maxIntegrations: planData.max_integrations,
       voiceEnabled: planData.voice_enabled,
       apiAccess: planData.api_access,
       customBranding: planData.custom_branding,
