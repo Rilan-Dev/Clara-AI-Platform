@@ -3,6 +3,9 @@ import { NextRequest } from "next/server";
 
 const queryMock = vi.fn();
 const getOrgPlanLimitsMock = vi.fn();
+const withTransactionMock = vi.fn(async (fn: (client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }) => Promise<unknown>) =>
+  fn({ query: async (sql, params) => ({ rows: await queryMock(sql, params) }) }),
+);
 
 vi.mock("@/lib/db/migrate", () => ({
   ensureMigrated: vi.fn().mockResolvedValue(undefined),
@@ -10,6 +13,7 @@ vi.mock("@/lib/db/migrate", () => ({
 
 vi.mock("@/lib/db", () => ({
   query: queryMock,
+  withTransaction: withTransactionMock,
 }));
 
 vi.mock("@/modules/auth/core/rbac", () => ({
@@ -115,3 +119,33 @@ describe("organisation integration entitlement enforcement", () => {
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 });
+
+
+  it("uses one transaction for direct connection enablement and rolls back on connection failure", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
+      .mockResolvedValueOnce([{ enabled: false }])
+      .mockResolvedValueOnce([{ count: 0 }])
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("connection insert failed"));
+    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
+
+    const { POST } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        integrationId: "github",
+        action: "connect",
+        credentials: { access_token: "secret" },
+      }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Failed to update integration access" });
+    expect(withTransactionMock).toHaveBeenCalledTimes(1);
+  });
