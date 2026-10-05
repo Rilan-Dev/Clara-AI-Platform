@@ -1538,3 +1538,16 @@ Implemented surface: 168 Doable registry definitions; platform/org/agent access 
 Pending evidence: npm/lock synchronization for 529 Activepieces packages; migration execution; registry/runtime/API/UI tests; strict TypeScript/ESLint; real connector action smoke test; OAuth configuration/callback test; browser verification; immutable/secret/runtime-import checks; final architect review.
 
 The current environment cannot access external npm/GitHub endpoints, so no executable PASS is inferred from static source edits. [owner-verified]
+
+
+## 2026-10-05 — I-2 database verification checkpoint
+
+Current feature HEAD: `16e26e4d78ea01315859dc5f1b599b85ea5b8b69`.
+
+Gate-E database evidence obtained for I-2: migrations 052, corrected 061, and 062 executed successfully on the Clara Supabase project; pgcrypto is operational; integration agent/org constraints are present; and all six I-2 integration tables have RLS enabled with anon/authenticated access revoked. A composite agent/org index was added.
+
+GitHub Actions run 37301575945 for the current head failed across jobs without usable step/log evidence. Therefore no CI/test/typecheck/lint PASS is claimed. Real connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D remain unverified.
+
+Supabase Security Advisor still reports a pre-existing repository-wide RLS-disabled baseline across unrelated public tables. The six newly introduced I-2 integration tables are separately hardened; broader RLS remediation remains outside the current I-2 authorization boundary.
+
+Disposition: I-2 remains IMPLEMENTED — VERIFICATION PENDING. Gate-E is evidenced for the I-2 database surface; Gate-C remains missing.
