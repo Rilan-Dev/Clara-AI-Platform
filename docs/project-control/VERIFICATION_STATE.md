@@ -1720,3 +1720,8 @@ I-043 is **RESOLVED** by architect source review. Gate-C remains **MISSING** and
 - [architect-verified] Source review found that `knownSecretValues` was declared for the final runner error boundary but was never populated. A provider could therefore echo a resolved credential value under a non-sensitive field name and bypass the intended value-based redaction.
 - [architect-verified] Commit `ca2394e85e191a709f774a083137798e2cf90dc8` populates the active credential values after auth resolution (including the custom-action path) and applies value-based redaction before the final error is returned/logged.
 - This is a bounded I-2 security correction; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
+## 2026-10-06 — I-045 organisation downgrade-unwind correction
+
+[architect-verified] Source review found that the organisation integration control route evaluated current plan entitlement before branching on the requested action, so a downgraded tenant could be unable to disable an integration it was no longer entitled to use. Commit `4c653b18c488661a9000f21f73344ce90d669b1a` makes plan entitlement action-sensitive: `enable` and `connect` remain entitlement-gated; `disable` and `disconnect` remain available for downgrade unwind. Regression commit `289bb2a9dc8d40532479c62980f0ab110a600849` covers both the downgrade-disable and entitlement-rejection paths. I-045 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
