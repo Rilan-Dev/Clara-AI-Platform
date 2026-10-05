@@ -658,3 +658,29 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Scope | src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts; focused route test. |
 | Non-scope | No new permissions, migrations, OAuth transport, MCP, billing semantics, production promotion, or unrelated integration work. |
 | Verification | Source correction reviewed by ChatGPT; executable test/build evidence remains pending. |
+
+
+## I-035 — I-2 trace-body truncation could expose late credential fields
+
+| Field | Value |
+|---|---|
+| Issue ID | I-035 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | `redactBody()` truncated raw payloads before parsing/redaction. A valid JSON trace body with a sensitive credential field beyond the first 2048 characters could therefore fail JSON parsing and bypass field-level redaction, allowing the late credential value to enter integration telemetry. |
+| Evidence | [architect-verified] Direct source review of `src/modules/integrations/runtime/runner-fetch.ts` identified the truncate-before-redact ordering defect. |
+| Affected commit | `895f4aa4d593cff999e2fe6c9a0bec2c981450be` lineage |
+| Affected files/areas | `src/modules/integrations/runtime/runner-fetch.ts`; trace-redaction tests |
+| Acceptance criterion affected | I-2 credential redaction / no raw secrets in telemetry |
+| Security / tenancy impact | Credential disclosure through integration trace payloads; no tenant-boundary bypass identified |
+| Correction required | Redact the complete body before applying the trace-size limit; add a regression test with sensitive fields beyond the truncation boundary. |
+| Correction scope | `src/modules/integrations/runtime/runner-fetch.ts`; `src/modules/integrations/runtime/runner-fetch.test.ts` |
+| Explicit non-scope | No OAuth transport, new providers, MCP, billing, migrations, production promotion, or unrelated runtime refactor. |
+| Expected verification | Source review plus executable focused test when the build environment is available. |
+| Developer correction commit | `f6b9f5f89a476743e48610b5dcc4d8d678ff6366`; test commit `710565d1de3aa0a9bd96ea651f2c0be8ff7eaa1c` |
+| Verification | [architect-verified] Complete-payload redaction now occurs before truncation, and the regression test asserts both late-secret removal and bounded output. Executable Gate-C evidence remains pending for the phase overall. |
+| Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] `f6b9f5f89a476743e48610b5dcc4d8d678ff6366` moves redaction ahead of truncation; `710565d1de3aa0a9bd96ea651f2c0be8ff7eaa1c` adds the late-secret regression test. |
