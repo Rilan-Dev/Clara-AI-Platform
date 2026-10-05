@@ -7,7 +7,7 @@ import {
   Settings, LogOut, ChevronRight, ChevronDown, BarChart3,
   UserRound, Bot, Activity, Users, Building2,
   MoreHorizontal, X,
-  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion,
+  Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion, PlugZap,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
 import { ADMIN_SETTINGS_PAGES, groupSettingsPages } from "@/features/admin/settings-nav";
@@ -86,6 +86,7 @@ function agentSectionNav(orgId: string, agentId: string, role: string | null) {
       { href: `${base}/config`,    icon: Bot,                    label: "Agent",   exact: false },
       { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
       { href: `${base}/tools`,     icon: Wrench,                 label: "Capabilities", exact: false },
+    { href: `${base}/integrations`, icon: PlugZap,              label: "Integrations", exact: false },
       { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
       { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },
     ] : []),
