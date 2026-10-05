@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { assertSafeEgressUrl, createTracedFetch, redactBody, redactHeaders, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
 
 describe("integration runtime trace redaction", () => {
@@ -98,6 +98,31 @@ describe("integration runtime trace redaction", () => {
   it("rejects non-HTTP protocols and URL userinfo", async () => {
     await expect(assertSafeEgressUrl("file:///etc/passwd")).rejects.toThrow("protocol is not allowed");
     await expect(assertSafeEgressUrl("https://user:password@example.com")).rejects.toThrow("cannot contain credentials");
+  });
+
+  it("fails closed on HTTP redirects instead of following an unchecked Location", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, {
+      status: 302,
+      headers: { location: "http://127.0.0.1:8787/internal" },
+    }));
+    const traces: Array<Record<string, unknown>> = [];
+    const tracedFetch = createTracedFetch(traces as never, "project", null, fetchImpl);
+
+    await expect(tracedFetch("https://example.com/start")).rejects.toThrow("redirect is not allowed");
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://example.com/start",
+      expect.objectContaining({ redirect: "manual" }),
+    );
+  });
+
+  it("rejects even public HTTP redirects at the generic integration boundary", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, {
+      status: 302,
+      headers: { location: "https://example.com/final" },
+    }));
+    const tracedFetch = createTracedFetch([], "project", null, fetchImpl);
+
+    await expect(tracedFetch("https://example.com/start")).rejects.toThrow("redirects are not allowed");
   });
 
   it("allows a public IP destination", async () => {
