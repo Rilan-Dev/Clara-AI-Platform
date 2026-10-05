@@ -2,27 +2,28 @@
 
 > Canonical register of verification evidence for the project-control system. **Strictly separates developer-reported evidence from architect-verified evidence.**
 > Since Phase 5 (2026-10-01) this register also carries the durable **verification and phase-gate contract** (§ below) — the binding rules every phase's closure evidence must satisfy from Phase 5 onward (DECISIONS.md D-020).
-> Snapshot date: **2026-10-05**. Phase 7-C closure evidence is recorded below; historical evidence remains unrewritten. All commands listed here are read-only and re-runnable by any fresh session.
+> Snapshot date: **2026-10-05**. Historical evidence remains unrewritten.
 
 ## CURRENT I-2 VERIFICATION RECORD — 2026-10-05
 
 | Gate | Status | Current evidence |
 |---|---|---|
-| A — Scope | PASS WITH FINDINGS | I-2 implementation is present; current corrective changes remain inside the I-2 runtime/control-plane boundary. |
-| B — Implementation | IN_PROGRESS | I-2 implementation exists; tenant/logging hardening corrections have now been committed. |
-| C — Test | MISSING | Current-head GitHub Actions runs fail without exposed executable step logs; no trustworthy test result can be claimed from those runs. |
-| D — Code review | IN_PROGRESS | ChatGPT reviewed the implementation and identified credential-trace, tenant-store, and agent/org ownership findings; corrections are underway. No PASS. |
-| E — Database | REQUIRED / MISSING | I-2 changes migration 052 and new migration 061; remote execution/verification has not yet been performed in this recovery. |
+| A — Scope | PASS | D-032 authorizes the implemented I-2 control-plane/runtime boundary; current corrections remain within that authorization. |
+| B — Implementation | IMPLEMENTED / VERIFICATION PENDING | I-2 runtime/control-plane implementation exists and the identified redaction, tenant-scope, ownership, migration-sequence, and Data API hardening corrections are present. |
+| C — Test | MISSING | Feature-branch GitHub Actions runs failed without usable step logs; no trustworthy current-head test/typecheck/lint result can be claimed. |
+| D — Code review | IN_PROGRESS | ChatGPT has reviewed and corrected the identified security/tenancy findings. Final Gate-D acceptance is intentionally not issued. |
+| E — Database | EVIDENCED | I-2 migrations 060/061/062 were executed against the Clara Supabase project; pgcrypto, agent/org constraints, six-table RLS, and anon/authenticated access revocation were verified. |
 | F — Deployment | NOT_APPLICABLE | No production deployment or promotion is authorized for I-2 verification. |
 
-### Current architect findings
+### Current architect findings / remaining verification
 
-1. Integration HTTP tracing previously captured request/response bodies and runtime logs could expose action properties/output/error strings. Redaction hardening has been applied at the current feature head.
-2. Integration store FLOW keys were not organisation-namespaced and reads/deletes were not explicitly tenant-constrained. The runtime store and migration 061 now harden this boundary.
-3. Organisation connection creation accepted an arbitrary agentId; an explicit org ownership check plus a database composite agent/org foreign key have been added.
-4. Activepieces dependency closure remains present in package.json but executable lock/build synchronization evidence is still required.
+1. Integration HTTP tracing/logging was hardened so credential-bearing headers, URLs, bodies, and error text are redacted before trace/log emission; focused redaction tests were added.
+2. Integration-store FLOW keys are organisation-namespaced and reads/deletes are tenant-constrained; focused store tests were added.
+3. Organisation connection creation validates agent ownership and migration 061 adds the database agent/org consistency constraint.
+4. The repository manifest declares the Activepieces piece closure, but the current package-lock does **not** contain the corresponding `@activepieces/*` root dependency entries; lock synchronization still requires an executable npm install in an execution-capable environment.
+5. Real connector/OAuth smoke, current-head browser verification, and immutable/runtime/secret/governance scans remain outstanding.
 
-**Review status: NO PASS.** The I-2 phase remains open until executable evidence and the final Gate-D review are complete.
+**Review status: NO PASS.** I-2 remains open until the remaining executable evidence and final Gate-D review are complete.
 
 ---
 
