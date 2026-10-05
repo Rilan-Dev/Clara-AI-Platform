@@ -22,11 +22,15 @@
 Read, in order:
 1. `docs/project-control/PROJECT_STATE.md`
 2. `docs/project-control/CURRENT_PHASE.md`
-3. `docs/project-control/VERIFICATION_STATE.md` — current Integrations I-1 record
+3. `docs/project-control/VERIFICATION_STATE.md` — **current I-2 verification record**
 4. `docs/project-control/ISSUES.md`
-5. `docs/project-control/DECISIONS.md` — D-031
+5. `docs/project-control/DECISIONS.md` — **D-032 and current I-2 decisions**
 6. `docs/superpowers/plans/2026-10-05-clara-integrations-framework.md`
-7. `docs/project-control/sessions/SESSION-033.md`
+7. `docs/project-control/sessions/SESSION-033.md` and later I-2 verification/correction records
+
+**Important:** the I-1 material below is historical checkpoint prose. It is **not** the active authorization. The active work is I-2 verification/correction under D-032.
+
+## Historical I-1 record — non-authoritative
 
 ## Active work
 
