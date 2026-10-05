@@ -1309,3 +1309,12 @@ Current status: **IMPLEMENTED — VERIFICATION PENDING**. Required next evidence
 - No schema/migration changes, immutable Doable source changes, MCP changes, or D-023 billable tool metering changes.
 
 - Extended organisation Billing UI and `/api/orgs/subscription` to expose TTS/STT/translation limits alongside existing quotas; current plan-guard fallback and versioned plan APIs are aligned.
+
+
+## 2026-10-05 — Role assignment UI correction
+
+[developer/ChatGPT] Corrected the organisation Members role selector so an org_admin is offered all four defined roles, including Project manager. Project managers remain restricted to Editor/Viewer grants in the UI and server-side handlers; self-role changes remain rejected. No schema, permission-definition, or billing behavior changed.
+
+Commit: 43a2d8d81dc8af555063ee5da7cc358bf2e39b82.
+
+Verification: source-level PASS; executable CI/browser verification remains pending. Vercel preview is currently blocked by the provider's free-plan daily deployment limit, so no stale preview is treated as current-head evidence.
