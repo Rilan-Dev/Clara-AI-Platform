@@ -1625,3 +1625,12 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] No Activepieces package versions or generated lockfile entries were fabricated: package-lock synchronization still requires an environment with npm-registry access. This remains a verification blocker, not a claimed PASS.
 
 **Gate-C remains MISSING and Gate-D remains IN_PROGRESS.** The I-2 implementation/security correction boundary remains active; no I-2 closure is claimed.
+
+
+### 2026-10-06 — I-034 source-correction review
+
+- [architect-verified] I-034 identified and corrected in the agent integration PATCH path: plan entitlement is now enforced only for enable operations, while disable remains permitted after downgrade.
+- [architect-verified] Focused regression coverage was added for the downgrade/disable path; the route test auth mock was corrected so the test exercises the intended organisation ownership path.
+- Source correction commits: a590c0f1efb5cff240e7f81437d4c6f9afa27bcb and f6a2c5b40a403f17d37d83971ad57fddf57f0b61.
+- Gate-C remains OPEN/MISSING: no current-head executable test/typecheck/lint/build PASS has been observed.
+- Gate-D remains IN_PROGRESS. I-2 remains open; no PASS is claimed.
