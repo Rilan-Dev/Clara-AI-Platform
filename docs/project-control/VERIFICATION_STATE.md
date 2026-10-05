@@ -1658,3 +1658,11 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] Commit `750e5da08150c1f09be0fb8db232413df23df25b` adds focused regression coverage for plain-text and non-sensitive JSON payloads.
 - I-038 is resolved by source review. Gate-C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate-D remains IN_PROGRESS.
 - Scope remains strictly I-2. No I-3, MCP expansion, production promotion, OAuth transport expansion, or unrelated implementation was started.
+
+
+## 2026-10-06 — I-039 OAuth refresh redirect correction
+
+- [architect-verified] Source review found that `ensureTokenFresh()` egress-checked the configured OAuth token endpoint but allowed native fetch to follow a 3xx response to an unchecked destination.
+- [architect-verified] Commit `fddf00ca3c5cea63daa5c4146ae212908deb205a` sets OAuth refresh requests to `redirect: "manual"` and rejects 3xx responses.
+- I-039 is resolved by source review. Gate-C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate-D remains IN_PROGRESS.
+- Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
