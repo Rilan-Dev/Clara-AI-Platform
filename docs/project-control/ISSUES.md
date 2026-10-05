@@ -741,3 +741,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] `redactBody()` now accepts known secret values, JSON and non-JSON bodies are scrubbed with those values before truncation, and both custom-action and piece-action traced-fetch call sites pass resolved auth secret values. Focused regression tests cover plain-text and non-sensitive JSON payloads. Executable Gate-C evidence remains pending. |
 | Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] The corrected runner-fetch implementation propagates known credential values into body redaction and the added test suite asserts that those values cannot remain in trace payloads. |
+
+
+## I-039 — I-2 OAuth refresh transport could follow unchecked redirects
+
+| Field | Value |
+|---|---|
+| Issue ID | I-039 |
+| Title | OAuth token refresh request did not fail closed on HTTP redirects |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | The OAuth token refresh path validated the configured token endpoint before the request, but native fetch could follow a 3xx response to a second destination that had not passed the integration egress policy. |
+| Evidence | [architect-verified] Direct source review of `ensureTokenFresh()` showed the token endpoint was egress-checked before fetch, while the fetch call used the default redirect-following behavior. |
+| Correction required | Set OAuth refresh requests to manual redirect handling and fail closed on 3xx responses so a credential-bearing refresh request cannot be redirected to an unchecked destination. |
+| Correction scope | `src/modules/integrations/runtime/runner-helpers.ts` OAuth refresh transport only |
+| Explicit non-scope | No OAuth callback/authorization transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated network refactor. |
+| Correction commit | `fddf00ca3c5cea63daa5c4146ae212908deb205a` |
+| Verification | [architect-verified] The OAuth refresh fetch now uses `redirect: "manual"` and rejects all 3xx responses before any redirect can be followed. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] The credential-bearing refresh request can no longer automatically follow a redirect; this closes the identified redirect-based egress bypass within the existing OAuth refresh boundary. |
