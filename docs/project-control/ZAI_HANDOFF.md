@@ -2,8 +2,8 @@
 
 > Canonical developer-handoff protocol and active handoff instance for the Clara project-control system.
 > **Part I** is the durable, reusable handoff protocol — it applies to every implementation phase and changes only by architect direction.
-> **Part II** holds the **active handoff instance**: the current phase's assignment materialized in the authoritative format. When the architect issues a new phase handoff, the developer replaces Part II with the new instance; superseded instances remain recoverable in Git history (and, from Phase 4 onward, in the canonical worklog).
-> Snapshot date: **2026-10-05**. The historical Part II Z.AI closure/STOP record remains preserved; ChatGPT is the active implementation owner under D-024 and Phase 7-C is now closed by architect PASS. Repository state is authoritative — refresh it before acting (§I.6).
+> **Part II** has no active Z.AI implementation handoff. **Z.AI is STOPPED; ChatGPT is the implementation owner under D-024 for I-2 verification/correction.** Historical Part II records remain preserved below and in Git history.
+> Snapshot date: **2026-10-05**. Repository state is authoritative — refresh it before acting (§I.6).
 > Canonical blank form: `docs/project-control/templates/PHASE_HANDOFF_TEMPLATE.md` — the only handoff template; no duplicate handoff formats may be created.
 
 ---
