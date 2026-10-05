@@ -384,10 +384,10 @@ export function resolveAuth(authType: string, credentials: unknown): unknown {
 
 // ─── Token Refresh Check ─────────────────────────────────
 
-export async function ensureTokenFresh(connectionId: string, authType: string): Promise<void> {
+export async function ensureTokenFresh(connectionId: string, orgId: string, authType: string): Promise<void> {
   if (authType !== "oauth2") return;
 
-  const creds = await credentialVault.decrypt(connectionId) as OAuth2TokenData | null;
+  const creds = await credentialVault.decrypt(connectionId, orgId) as OAuth2TokenData | null;
   if (!creds || !creds.refresh_token) return;
 
   const now = Math.floor(Date.now() / 1000);
