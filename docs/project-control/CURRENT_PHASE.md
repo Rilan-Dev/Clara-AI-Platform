@@ -1,11 +1,11 @@
 # CURRENT_PHASE.md — Active-Phase Contract
 
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
-> **This block supersedes stale earlier checkpoint prose in this document.** Repository truth at feature HEAD is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**, with the project-control Final State Contract currently **BLOCKED** pending reconciliation and verification. Phase 7 is **PASS — CLOSED** and is not reopened. I-1 remains historical/incomplete where its Gate-C evidence was never independently observed. I-2 implementation exists, but no I-2 architect PASS has been issued.
+> **This block supersedes stale earlier checkpoint prose in this document.** The active bounded work is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 is not closed because Gate-C executable evidence and the final architect Gate-D review are still outstanding. Phase 7 remains **PASS — CLOSED** and is not reopened.
 >
-> Current HEAD / origin: **c7f34cfbd083005640acfa4744d62882f5a7f90f**. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current GitHub tip: **`56f6be4529e6492cdae2e177e07f327c420b4d5e`** on `feature/ai-core-from-doable-source`. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
-> I-2 verification blockers currently include: executable CI evidence not yet obtained; Activepieces manifest/lockfile synchronization still requiring an executable build environment; credential-bearing integration traces/errors required security hardening; tenant-scoped integration-store access required hardening; and agent/org ownership enforcement required at the persistence boundary. Corrections are being made only within the existing I-2 authorization. No I-3, MCP expansion, production promotion, or unrelated feature work is authorized.
+> Completed I-2 corrections: sensitive runtime observability redaction, organisation-scoped FLOW-store keys and access, agent/org ownership enforcement, migration sequence correction, and I-2 database/RLS hardening. Remaining verification is executable dependency/lock synchronization, build/test/typecheck/lint, connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and Gate-D. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
 
 
 > Canonical contract for the currently active phase of the Clara project-control system.
