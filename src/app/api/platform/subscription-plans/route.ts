@@ -14,6 +14,9 @@ type PlanInput = {
   maxDocsPerKb?: number;
   maxReqDay?: number;
   maxStorageMb?: number;
+  maxTtsCharsDay?: number;
+  maxSttAudioSecDay?: number;
+  maxTranslationCharsDay?: number;
   voiceEnabled?: boolean;
   apiAccess?: boolean;
   customBranding?: boolean;
@@ -44,6 +47,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
              COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
              COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+             COALESCE(pv.max_tts_chars_day, sp.max_tts_chars_day, -1) AS max_tts_chars_day,
+             COALESCE(pv.max_stt_audio_sec_day, sp.max_stt_audio_sec_day, -1) AS max_stt_audio_sec_day,
+             COALESCE(pv.max_translation_chars_day, sp.max_translation_chars_day, -1) AS max_translation_chars_day,
              COALESCE(pv.voice_enabled, sp.voice_enabled) AS voice_enabled,
              COALESCE(pv.api_access, sp.api_access) AS api_access,
              COALESCE(pv.custom_branding, sp.custom_branding) AS custom_branding,
@@ -53,6 +59,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              COALESCE(pv.priority_support, sp.priority_support) AS priority_support,
              COALESCE(pv.features, sp.features) AS features,
              pv.id AS published_version_id, pv.version AS published_version,
+             (SELECT v.id FROM subscription_plan_versions v WHERE v.plan_id = sp.id AND v.status = 'draft' ORDER BY v.version DESC LIMIT 1) AS draft_version_id,
+             (SELECT v.version FROM subscription_plan_versions v WHERE v.plan_id = sp.id AND v.status = 'draft' ORDER BY v.version DESC LIMIT 1) AS draft_version,
              (SELECT COUNT(*)::int FROM subscription_plan_versions all_versions WHERE all_versions.plan_id = sp.id) AS version_count
       FROM subscription_plans sp
       LEFT JOIN LATERAL (
@@ -90,16 +98,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const version = (await query<Record<string, unknown>>(`
       INSERT INTO subscription_plan_versions
         (plan_id, version, name, description, price_usd, max_kbs, max_docs_per_kb,
-         max_req_day, max_storage_mb, voice_enabled, api_access, custom_branding,
-         sso_enabled, analytics_level, priority_support, features, status, created_by, multilingual_embeddings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft',$17,$18)
+         max_req_day, max_storage_mb, max_tts_chars_day, max_stt_audio_sec_day, max_translation_chars_day,
+         voice_enabled, api_access, custom_branding, sso_enabled, analytics_level, priority_support,
+         features, status, created_by, multilingual_embeddings)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING *
     `, [
       body.planId, nextVersion,
       body.name ?? base.name, body.description ?? base.description,
       body.priceUsd ?? base.price_usd, body.maxKbs ?? base.max_kbs,
       body.maxDocsPerKb ?? base.max_docs_per_kb, body.maxReqDay ?? base.max_req_day,
-      body.maxStorageMb ?? base.max_storage_mb, body.voiceEnabled ?? base.voice_enabled,
+      body.maxStorageMb ?? base.max_storage_mb,
+      body.maxTtsCharsDay ?? base.max_tts_chars_day ?? -1,
+      body.maxSttAudioSecDay ?? base.max_stt_audio_sec_day ?? -1,
+      body.maxTranslationCharsDay ?? base.max_translation_chars_day ?? -1,
+      body.voiceEnabled ?? base.voice_enabled,
       body.apiAccess ?? base.api_access, body.customBranding ?? base.custom_branding,
       body.ssoEnabled ?? base.sso_enabled, body.analyticsLevel ?? base.analytics_level,
       body.prioritySupport ?? base.priority_support, JSON.stringify(body.features ?? base.features ?? []),
