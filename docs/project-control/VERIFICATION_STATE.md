@@ -38,6 +38,14 @@
 
 ---
 
+### 2026-10-06 — I-047 direct-connection plan-limit correction
+
+- [architect-verified] Source review found that the organisation integration POST connect path checked plan entitlement but could implicitly enable a previously-disabled organisation integration without enforcing max_integrations.
+- [architect-verified] Commit 846c8d39add3430a5014c5573b3cc4d5ad86ee37 now checks the existing organisation grant and enforces max_integrations when connect would consume a new slot; an already-enabled integration may still connect without consuming another slot.
+- [architect-verified] Focused regression coverage was added at 354e57f9fb658267f1667c1eec8b5dfbd63023ad.
+- I-047 is RESOLVED by architect source review. Gate-C remains MISSING overall because executable current-head test/typecheck/lint/build evidence is still outstanding. Gate-D remains IN_PROGRESS.
+
+
 ### 2026-10-06 — I-2 trace-redaction hardening checkpoint
 
 - [architect-verified] Source review identified I-035: trace-body truncation occurred before structured redaction, allowing a sensitive JSON field beyond the 2048-character boundary to evade field-level redaction.
