@@ -1,4 +1,4 @@
-import { REGISTRY, getIntegration } from "../registry/index.js";
+import { getIntegration } from "../registry/index.js";
 import { credentialVault } from "./credential-vault.js";
 import { buildActionContext } from "./context-builder.js";
 import type { RunActionParams, RunActionResult } from "./types.js";
