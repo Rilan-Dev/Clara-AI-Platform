@@ -274,7 +274,7 @@ export default function OrgMembersScreen() {
                         aria-label={`Change role for ${m.fullName ?? m.email}`}
                         className="bg-muted/50 border border-border rounded-lg px-2.5 py-2 text-base sm:text-xs text-muted-foreground focus:outline-none focus:border-primary disabled:opacity-40"
                       >
-                        {(canManageMembers ? ROLES : ROLES.filter((r) => r.id === "kb_editor" || r.id === "kb_viewer")).filter((r) => r.id === m.roleName || r.id === "kb_editor" || r.id === "kb_viewer").map((r) => (
+                        {(canManageMembers ? ROLES : ROLES.filter((r) => r.id === "kb_editor" || r.id === "kb_viewer")).map((r) => (
                           <option key={r.id} value={r.id} className="bg-popover">{r.label}</option>
                         ))}
                       </select>
