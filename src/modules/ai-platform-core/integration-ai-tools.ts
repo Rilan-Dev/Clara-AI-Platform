@@ -1,0 +1,50 @@
+import { z } from "zod";
+import { query } from "@/lib/db";
+import { listIntegrations } from "@/modules/integrations/registry";
+import type { PlatformExecutionContext } from "./contracts";
+import type { ToolDefinition } from "./tool-contracts";
+
+const input = z.object({ integrationId: z.string().min(1).optional() }).strip();
+
+export function buildIntegrationAvailabilityTool(): ToolDefinition {
+  return {
+    name: "integration_availability",
+    description: "List the third-party integrations enabled for this organisation and agent, including connection readiness and available actions.",
+    inputSchema: input,
+    authorization: {
+      allowedSurfaces: ["chat", "realtime", "embed"],
+      requiredPermission: null,
+      requiredCapability: null,
+      requireUserId: false,
+      requireSessionId: false,
+    },
+    async execute(raw, context: PlatformExecutionContext) {
+      const value = raw as { integrationId?: string };
+      const rows = await query<{integration_id:string;enabled:boolean}>(`
+        SELECT ai.integration_id, ai.enabled
+        FROM agent_integrations ai
+        WHERE ai.agent_id = $1 AND ai.enabled = TRUE
+      `, [context.agentId ?? "00000000-0000-0000-0000-000000000000"]);
+      const connected = await query<{integration_id:string}>(`
+        SELECT DISTINCT integration_id
+        FROM integration_connections
+        WHERE org_id = $1 AND status = 'active' AND (agent_id = $2 OR agent_id IS NULL)
+      `, [context.tenantId, context.agentId ?? null]);
+      const allowed = new Set(rows.map(r => r.integration_id));
+      const ready = new Set(connected.map(r => r.integration_id));
+      return listIntegrations()
+        .filter(def => !value.integrationId || def.id === value.integrationId)
+        .filter(def => allowed.has(def.id))
+        .map(def => ({
+          id: def.id,
+          name: def.displayName,
+          description: def.description,
+          connected: ready.has(def.id),
+          actions: def.actions,
+          help: ready.has(def.id)
+            ? `Use the connected ${def.displayName} integration through its supported actions.`
+            : `${def.displayName} is enabled for this agent but still needs credentials connected.`,
+        }));
+    },
+  };
+}
