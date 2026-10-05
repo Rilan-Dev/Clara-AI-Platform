@@ -67,16 +67,18 @@ export async function POST(req: NextRequest, { params }: Params) {
     const platform = (await query<{enabled:boolean;allowed_plans:string[]}>(`SELECT enabled, allowed_plans FROM platform_integrations WHERE integration_id = $1`, [body.integrationId]))[0];
     if (!platform?.enabled) return NextResponse.json({ error: "This integration is disabled by the platform administrator", code: "INTEGRATION_DISABLED" }, { status: 403 });
 
-    const limits = await getOrgPlanLimits(orgId);
-
-    if (body.action === "enable") {
-      if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
-        return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
-      }
+    // Enabling or connecting requires current plan entitlement. Disabling or
+    // disconnecting must remain available after a downgrade and therefore must
+    // not depend on the plan-limit service being readable.
+    const requiresPlanEntitlement = body.action === "enable" || body.action === "connect";
+    const limits = requiresPlanEntitlement ? await getOrgPlanLimits(orgId) : null;
+    if (requiresPlanEntitlement && limits && Array.isArray(platform.allowed_plans) &&
+        !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
+      return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
     }
 
     if (body.action === "enable" || body.action === "disable") {
-      if (body.action === "enable") {
+      if (body.action === "enable" && limits) {
         const count = (await query<{count:number}>(`SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = true`, [orgId]))[0]?.count ?? 0;
         const max = limits.max_integrations ?? 0;
         if (max !== -1 && count >= max && !(await query(`SELECT 1 FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2`, [orgId, body.integrationId]))[0]) {
