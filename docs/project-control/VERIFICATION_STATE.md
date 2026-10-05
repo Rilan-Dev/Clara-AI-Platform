@@ -1486,3 +1486,13 @@ No immutable/reference file, package manifest dependency, migration, runtime imp
 
 ## 2026-10-05 — Current UI/build verification checkpoint
 UI/RBAC/subscription implementation is source-reviewed and complete. The role matrix consumes the existing RBAC roles/permissions without adding schema or permissions; billing and plan limits consume the existing subscription/plan-guard model; the platform-admin AI Platform workspace is explicitly exposed while runtime feature flags remain default-off. The user-provided Docker failure is addressed at the dependency/inclusion boundary: `@e965/xlsx@0.20.3` is declared and locked, and the immutable/reference tree remains unchanged. A dedicated production Docker build job was added to CI. **No executable Docker build PASS, browser PASS, or I-1 closure PASS is claimed yet.**
+
+
+## 2026-10-05 — Role/RBAC and subscription UI verification checkpoint
+- Client capability matrix added for org_admin/project_manager/kb_editor/kb_viewer; server RBAC remains authoritative.
+- Navigation/direct-route UX now fails closed for foreign-org and role-incompatible organisation sections.
+- Role capability contract test added; focused UI lint/typecheck/test CI job added.
+- Subscription Plans UI now uses the current versioned platform-plan API; legacy absent endpoint calls were removed.
+- Plan version editing now includes max TTS characters/day, max STT audio seconds/day, and max translation characters/day.
+- Plan guard fallback now preserves those three limits.
+- Closure status remains OPEN pending fresh CI and final Phase 7-C evidence; no PASS claimed here.
