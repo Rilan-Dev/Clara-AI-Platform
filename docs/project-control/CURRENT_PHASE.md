@@ -3,7 +3,7 @@
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** The active bounded work is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 is not closed because Gate-C executable evidence and the final architect Gate-D review are still outstanding. Phase 7 remains **PASS — CLOSED** and is not reopened.
 >
-> Current GitHub tip must be read from GitHub at recovery time. Latest reviewed I-2 implementation source commit: **`3305c9027ddcef4fff0520d941dfebc73f9ef94a`** [architect-verified]; subsequent control-only reconciliation commits do not change the implementation scope. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current GitHub tip must be read from GitHub at recovery time. Latest bounded I-2 source correction reviewed here: **`4c653b18c488661a9000f21f73344ce90d669b1a`** [architect-verified]; regression coverage is **`289bb2a9dc8d40532479c62980f0ab110a600849`**. The current feature tip must still be read from GitHub at recovery time. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
 > Completed I-2 corrections: sensitive runtime observability redaction, organisation-scoped FLOW-store keys and access, agent/org ownership enforcement, migration sequence correction, I-2 database/RLS hardening, AI-visible action-output credential redaction, pre-execution action-input validation, and tenant-scoped OAuth access-token refresh with encrypted persistence, plus an outbound integration egress policy blocking non-public destinations and complete-payload trace redaction before truncation. Redirect following is also fail-closed in the generic runner (I-036). Project and agent scope are now modeled separately in the runner (I-037). Remaining verification is executable dependency/lock synchronization, build/test/typecheck/lint, connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and Gate-D. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
 
@@ -42,3 +42,8 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. [architect-verified] Sourc
 [architect-verified] The I-2 runner final error boundary now applies the same resolved-credential value redaction used for AI-visible outputs and HTTP traces, preventing provider-echoed credentials from bypassing field/pattern redaction in XRay, usage logs, or returned errors. Correction commit: `a8a1997f958c37b524451618eb0d3bb4a3746b5f`.
 
 I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-045 organisation downgrade-unwind correction
+
+[architect-verified] I-045 was identified and corrected within I-2: organisation-level `disable`/`disconnect` operations no longer depend on plan-limit resolution, while `enable`/`connect` remain fail-closed against current plan entitlement. Correction `4c653b18c488661a9000f21f73344ce90d669b1a`; focused regression `289bb2a9dc8d40532479c62980f0ab110a600849`. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
