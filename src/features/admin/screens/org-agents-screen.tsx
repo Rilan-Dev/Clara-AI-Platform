@@ -16,6 +16,8 @@ import Link from "next/link";
 import { BookOpen, Bot, ChevronRight, MousePointerClick, Plus, Sparkles } from "lucide-react";
 import { useAgentsWorkspace } from "@/features/admin/screens/agent-workspace/workspace-shell";
 import { WorkspaceButton } from "@/components/admin/ai-platform/shared";
+import { useAuth } from "@/modules/admin-ui/hooks";
+import { hasOrgCapability } from "@/lib/org-role-capabilities";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -25,6 +27,8 @@ function formatDate(value: string) {
 
 export default function OrgAgentsScreen() {
   const { agents, agentsLoading, kbs, kbsLoading, openCreate } = useAgentsWorkspace();
+  const { primaryOrgRole } = useAuth();
+  const canCreateAgent = hasOrgCapability(primaryOrgRole, "createAgent");
 
   const recent = [...agents]
     .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
@@ -82,9 +86,9 @@ export default function OrgAgentsScreen() {
             documents and building your knowledge base.
           </p>
           <div className="mt-5 flex justify-center">
-            <WorkspaceButton variant="primary" onClick={openCreate}>
+            {canCreateAgent && <WorkspaceButton variant="primary" onClick={openCreate}>
               <Plus className="h-3.5 w-3.5" /> New Agent
-            </WorkspaceButton>
+            </WorkspaceButton>}
           </div>
         </div>
       ) : (
@@ -98,9 +102,9 @@ export default function OrgAgentsScreen() {
               knowledge and tools.
             </p>
           </div>
-          <WorkspaceButton variant="secondary" onClick={openCreate} className="shrink-0">
+          {canCreateAgent && <WorkspaceButton variant="secondary" onClick={openCreate} className="shrink-0">
             <Plus className="h-3.5 w-3.5" /> New Agent
-          </WorkspaceButton>
+          </WorkspaceButton>}
         </div>
       )}
 
