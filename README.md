@@ -1,5 +1,7 @@
 # Clara AI Platform
 
+docker exec nginx-proxy-manager nginx -s reload
+
 Clara is a multi-tenant platform for building AI assistants on top of your own documents. Organisations create **agents**, attach **knowledge bases** (uploaded files and crawled websites), tune the assistant's persona and models, and publish it as a website chat widget, a hosted public page, a realtime voice agent or a phone line.
 
 Built with Next.js 15, TypeScript, Tailwind, PostgreSQL and Qdrant. Chat and voice run on OpenAI, Gemini, Sarvam and ElevenLabs, configured by the platform admin.
