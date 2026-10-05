@@ -139,7 +139,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
         return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
       }
       xr.phase("credential_lookup");
-      const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.projectId);
+      const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
       const auth = connection ? resolveAuth(def.authType, connection.credentials) : undefined;
 
       console.log(`[Integration] RUN custom ${params.integrationId}/${params.actionName}`);
