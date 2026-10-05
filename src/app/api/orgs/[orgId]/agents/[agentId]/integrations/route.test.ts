@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/modules/auth/core/rbac", () => ({
   requireAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-  requireAgentPermission: vi.fn().mockResolvedValue(undefined),
+  requireAgentPermission: vi.fn().mockResolvedValue({ orgId: "org-1" }),
 }));
 
 vi.mock("@/modules/integrations/registry", () => ({
@@ -56,5 +56,33 @@ describe("agent integration entitlement enforcement", () => {
     });
     expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows disabling an existing grant after a plan downgrade", async () => {
+    queryMock
+      .mockReset()
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([]);
+
+    const { PATCH } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/agents/agent-1/integrations", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ integrationId: "github", enabled: false }),
+    });
+
+    const response = await PATCH(request, {
+      params: Promise.resolve({ orgId: "org-1", agentId: "agent-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      integrationId: "github",
+      enabled: false,
+    });
+    expect(getOrgPlanLimitsMock).not.toHaveBeenCalled();
+    expect(queryMock).toHaveBeenCalledTimes(3);
   });
 });
