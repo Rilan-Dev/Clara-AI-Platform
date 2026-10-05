@@ -4,6 +4,17 @@
 
 ## CURRENT AUTHORITATIVE ACTION
 
+## 2026-10-06 — I-049 atomic integration mutation correction
+
+[architect-verified] The next bounded I-2 source correction closed a concurrency/partial-mutation defect in organisation integration enable/connect. `withTransaction()` now covers the entitlement count and mutation, and a transaction-scoped advisory lock serializes per-organisation integration-slot changes. Direct connect no longer leaves an enabled organisation grant behind if connection persistence fails.
+
+- Implementation commits: `0f55d11dfc612b293fcf9046cb6d99c25451cdf9`, `cd35659c8b286dd89d6ba325307ce734cfe0b2dc`
+- Regression: `ccd1fb2d7ba0b06d1ebace779aea7854e9e034df`
+- I-049: RESOLVED by architect source review.
+- Next bounded work: continue I-2 source-level authorization/egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-06 — I-048 auth-type authority correction
 
 [architect-verified] Source review found that runAction selected OAuth token-refresh behavior from the stored connection auth_type, while the connection API accepts authType input. Commit 86e08f0adc542a21c18ca7a4f3b6256c6e8c0126 now uses the authoritative integration registry def.authType for ensureTokenFresh, preventing a mismatched connection field from suppressing OAuth refresh. I-048 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
