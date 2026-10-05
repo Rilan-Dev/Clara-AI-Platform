@@ -379,3 +379,10 @@ No I-2 PASS is claimed until those gates are observed. [architect-verified]
 ## 2026-10-05 — I-2 database verification checkpoint
 
 I-2 remains the active bounded phase: IMPLEMENTED — VERIFICATION PENDING. Database verification is now materially complete for the I-2 surface through the Clara Supabase project. The phase is not closed because executable Gate-C evidence and final runtime/browser/security verification remain unavailable. No I-3/MCP/production promotion is authorized.
+
+
+## 2026-10-05 — I-2 current verification reconciliation
+
+Authoritative feature HEAD: `4200b0cf5180c607406b8f60fbe2a99376b0bcb1`.
+
+I-2 remains IMPLEMENTED — VERIFICATION PENDING. Gate-E database evidence is present. The current `.github/workflows/ci.yml` trigger is restricted to Vercel-Prod, so historical feature-branch Action failures with zero steps cannot be treated as current-head code evidence. A current-head Vercel build reached dependency installation but produced no terminal build result and was canceled; no executable build PASS is claimed.
