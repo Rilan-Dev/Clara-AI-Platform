@@ -1,4 +1,4 @@
-import { getIntegration } from "./registry/index.js";
+import { getIntegration } from "../registry/index.js";
 import { credentialVault } from "./credential-vault.js";
 import type { RunActionParams, OAuth2TokenData } from "./types.js";
 import { query } from "@/lib/db";
