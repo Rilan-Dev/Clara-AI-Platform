@@ -168,7 +168,7 @@ export function redactBody(value: string | null): string | null {
   }
 }
 
-function redactHeaders(headers: Record<string, string>): Record<string, string> {
+export function redactHeaders(headers: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) {
     const normalized = k.toLowerCase();
