@@ -90,6 +90,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ ok: true });
     }
 
+    if (body.agentId) {
+      const agent = (await query<{ id:string }>(
+        `SELECT id FROM agents WHERE id = $1 AND organisation_id = $2 LIMIT 1`,
+        [body.agentId, orgId],
+      ))[0];
+      if (!agent) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
+    }
+
     if (body.credentials === undefined) return NextResponse.json({ error: "credentials are required" }, { status: 400 });
     await query(`INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,true,$3)
       ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=true,updated_at=now()`,
