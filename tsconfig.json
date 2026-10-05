@@ -45,6 +45,7 @@
     "vitest.config.ts",
     "ai-platform-core/**",
     "clara-core/**",
-    "docs/clara-core/**"
+    "docs/clara-core/**",
+    "docs/doable-source/**"
   ]
 }
