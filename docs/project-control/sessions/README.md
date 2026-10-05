@@ -87,3 +87,8 @@ Superseded `ZAI_HANDOFF.md` Part II instances executed by these sessions remain 
 | `SESSION-038.md` | 2026-10-05 | ChatGPT | RBAC, subscription-control, and AI Platform UI enablement; browser/deployment verification pending | User-directed UI/RBAC scope; D-031 runtime boundary preserved |
 
 - `SESSION-040.md` — Role/RBAC and subscription UI enablement, plan-limit configuration, and verification state.
+
+
+## 2026-10-05 — Integrations I-2
+
+Added D-032 / Integrations I-2 implementation checkpoint. I-2 is IMPLEMENTED — VERIFICATION PENDING. See docs/superpowers/plans/2026-10-05-integrations-i2.md for the acceptance boundary.
