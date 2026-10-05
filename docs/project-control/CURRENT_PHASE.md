@@ -353,3 +353,16 @@ Verification remains pending for executable CI/current-head build and browser/de
 
 ## 2026-10-05 — Current owner checkpoint: UI/RBAC + build verification
 The authoritative current state is **Phase 7 CLOSED; Integrations I-1 IMPLEMENTED — VERIFICATION PENDING**. The stale historical Phase-7-C identity text above is retained for audit history; this addendum is the current-state reconciliation. The requested UI/RBAC/subscription surface is implemented. Current feature-head verification remains pending for production Docker build, I-1 Gate C/D, and browser verification. A draft preview PR (#266) exists specifically for UI validation and is not to be merged as part of this checkpoint. The current feature head is `d5abb20e57a9e97b9cdb9e82d0a5cccf5e7945a0`.
+
+
+## Current-state reconciliation — 2026-10-05 — Integrations I-2 active
+
+Phase 7 remains PASS — CLOSED. D-032 authorizes Integrations I-2.
+
+I-2 currently status: IMPLEMENTED — VERIFICATION PENDING.
+
+Completed in I-2: 168 extracted Doable integration definitions; platform enable/disable controls; organisation enablement; plan-based maximum integration limits; per-agent grants; encrypted connection persistence; scoped integration action store; Doable/Activepieces runner bridge; guarded Unified Tool Runtime integration availability/action tools; platform/org/agent UI and navigation; secure xlsx dependency correction.
+
+Pending: Activepieces dependency lock synchronization, executable migration/build/typecheck/lint evidence, OAuth provider configuration/callback smoke test, real connector action smoke test, browser verification, secret/runtime-boundary checks, and final architect review.
+
+No I-2 PASS is claimed until those gates are observed. [architect-verified]
