@@ -58,6 +58,39 @@ describe("organisation integration entitlement enforcement", () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects a direct connection that would implicitly exceed the organisation integration limit", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
+      .mockResolvedValueOnce([{ enabled: false }])
+      .mockResolvedValueOnce([{ count: 2 }]);
+    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
+
+    const { POST } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        integrationId: "github",
+        action: "connect",
+        credentials: { access_token: "secret" },
+      }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      error: "Your free plan allows 2 integrations",
+      code: "INTEGRATION_LIMIT_REACHED",
+      limit: 2,
+      current: 2,
+    });
+    expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
+    expect(queryMock).toHaveBeenCalledTimes(3);
+  });
+
   it("rejects enabling when the current plan is no longer entitled", async () => {
     queryMock.mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }]);
     getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 10 });
