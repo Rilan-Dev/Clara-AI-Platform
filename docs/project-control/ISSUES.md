@@ -593,3 +593,16 @@ Mitigation: run npm install --legacy-peer-deps, execute the integration migratio
 ## 2026-10-05 — I-2 architect review checkpoint
 
 I-2 implementation is real repository state but remains **IMPLEMENTED — VERIFICATION PENDING**. The project-control Final State Contract was reconciled to an explicit BLOCKED/verification state. No I-2 PASS is claimed. The next closure attempt requires executable CI/build evidence, database verification, connector smoke testing, security/governance scans, and a fresh ChatGPT Gate-D review.
+
+
+## I-026 — I-2 integration Data API exposure
+
+Status: CORRECTED — database verified. Migration 062 enables RLS on all six I-2 integration tables and revokes anon/authenticated access. Verification confirms RLS enabled and anon/authenticated SELECT on integration_connections is false. The broader pre-existing RLS-disabled baseline remains outside I-2 scope.
+
+## I-027 — I-2 migration 061 schema mismatch
+
+Status: CORRECTED — database verified. The first draft did not match the actual agent_integrations schema. The migration was corrected before successful execution; the intended integration_connections composite agent/org FK and agent_integrations agent FK are now present.
+
+## I-028 — Current-head CI evidence unavailable
+
+Status: OPEN. GitHub Actions run 37301575945 failed across jobs without usable step/log evidence, preventing trustworthy executable Gate-C claims.
