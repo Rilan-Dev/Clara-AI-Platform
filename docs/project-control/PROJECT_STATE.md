@@ -3,7 +3,7 @@
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** Repository truth at feature HEAD is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The project-control Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 remains open because executable Gate-C evidence and final Gate-D review are incomplete. Phase 7 is **PASS — CLOSED** and is not reopened. I-1 remains historical/incomplete where its Gate-C evidence was never independently observed.
 >
-> Current feature branch: `feature/ai-core-from-doable-source`; current GitHub tip must be read from GitHub at recovery time. Latest reviewed I-2 implementation source commit: **`fddf00ca3c5cea63daa5c4146ae212908deb205a`** [architect-verified]. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current feature branch: `feature/ai-core-from-doable-source`; current GitHub tip must be read from GitHub at recovery time. Latest reviewed I-2 implementation source commit: **`f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11`** [architect-verified]. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
 > Completed I-2 corrections now include runtime trace redaction, organisation-scoped integration-store access, agent/org ownership enforcement, migration sequencing, database/RLS hardening, AI-visible action-output credential redaction, pre-execution action-input validation, and tenant-scoped OAuth access-token refresh with encrypted persistence, plus an outbound integration egress policy blocking non-public destinations and complete-payload trace redaction before truncation. Redirect following is also fail-closed in the generic runner (I-036). Project and agent scope are now modeled separately in the runner (I-037). The remaining bounded blockers are: Activepieces package manifest/lockfile synchronization, executable current-head build/test/typecheck/lint evidence, connector/OAuth smoke, browser verification, real connector/OAuth smoke where credentials are available, current-head browser verification, and final immutable/runtime/secret/governance scans. No I-3, MCP expansion, production promotion, or unrelated feature work is authorized.
 
@@ -23,3 +23,7 @@
 | Authoritative source of truth | **GitHub repository state.** Chat/conversational memory is supplementary only (spec principle 6, DECISIONS.md D-001) | [architect-verified] spec |
 
 ## Current phase
+
+## 2026-10-06 — I-040 action-context scope correction checkpoint
+
+[architect-verified] Source review found that the prior I-037 credential-scope correction did not propagate the explicit agent scope into the Activepieces action context. The action-context PostgresStore and cross-integration ConnectionsManager were still constructed with projectId. Commits a5680cd51c6d9ca961ab93effd20fb069d0e2bbe and f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11 correct this, and test commit 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds focused regression coverage. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
