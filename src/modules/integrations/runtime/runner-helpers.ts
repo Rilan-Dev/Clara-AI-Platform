@@ -326,39 +326,29 @@ export async function loadPiece(integrationId: string): Promise<IntegrationPiece
 
   try {
     const mod = await import(def.piecePackage);
-    let piece: unknown = mod.default;
-    if (!isIntegrationPiece(piece)) {
+    let piece = mod.default;
+    if (!piece?.displayName) {
       for (const key of Object.keys(mod)) {
-        const val: unknown = mod[key];
-        if (isIntegrationPiece(val)) {
+        const val = mod[key];
+        if (val && typeof val === "object" && val.displayName && (typeof val.actions === "function" || Array.isArray(val.actions) || typeof val.getAction === "function")) {
           piece = val;
           break;
         }
       }
     }
 
-    if (!isIntegrationPiece(piece)) {
+    if (!piece) {
       throw new Error(`No piece export found in ${def.piecePackage}`);
     }
 
-    pieceCache.set(integrationId, piece);
-    return piece;
+    const typedPiece = piece as IntegrationPiece;
+    pieceCache.set(integrationId, typedPiece);
+    return typedPiece;
   } catch (err) {
     throw new Error(
       `Failed to load piece ${def.piecePackage}: ${err instanceof Error ? err.message : String(err)}`
     );
   }
-}
-
-function isIntegrationPiece(value: unknown): value is IntegrationPiece {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  return typeof candidate.displayName === "string" && (
-    typeof candidate.actions === "function" ||
-    Array.isArray(candidate.actions) ||
-    (candidate.actions !== null && typeof candidate.actions === "object") ||
-    typeof candidate.getAction === "function"
-  );
 }
 
 // ─── Auth Resolution ─────────────────────────────────────
@@ -377,11 +367,15 @@ export function resolveAuth(authType: string, credentials: unknown): unknown {
       if (typeof credentials === "string") {
         rawValue = credentials;
       } else {
-        const record = credentials && typeof credentials === "object"
-          ? credentials as Record<string, unknown>
-          : undefined;
-        const candidate = record?.secret_text ?? record?.apiKey ?? record?.token ?? record?.auth;
-        rawValue = typeof candidate === "string" ? candidate : undefined;
+        const credentialRecord = credentials as Record<string, unknown>;
+        const candidates = ["secret_text", "apiKey", "token", "auth"];
+        for (const key of candidates) {
+          const value = credentialRecord[key];
+          if (typeof value === "string") {
+            rawValue = value;
+            break;
+          }
+        }
       }
       if (rawValue !== undefined) {
         return { secret_text: rawValue };
