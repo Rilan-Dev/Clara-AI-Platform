@@ -1614,3 +1614,14 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] The branch tip was refreshed from GitHub: `f08ec23f0249c6f7260aaa073721413403371046` before the subsequent control-document reconciliation commits.
 - [architect-verified] `PROJECT_STATE.md` and `CURRENT_PHASE.md` were corrected so their current-state blocks no longer identify the stale `c9c09b0` implementation commit; the latest reviewed I-2 implementation state is `da18ead37c87a87f74165d2ee3065a8c96f5a43b`, with later changes in this checkpoint limited to bounded I-2 correction and governance records.
 - [architect-verified] Phase 7 remains PASS/CLOSED; I-2 remains IMPLEMENTED/VERIFICATION PENDING; Z.AI remains STOPPED; no I-3/MCP/production work is authorized.
+
+
+### 2026-10-06 — I-2 owner continuation: entitlement regression + install-mode hardening
+
+- [architect-verified] Commit `bad5a690d939c3cc63a5d5b9a7aab31b14fb2d6b` closes the identified plan-entitlement gap in the agent integration grant mutation by re-resolving the organisation's current plan before enabling the grant.
+- [architect-verified] Commit `0c273806b79459d8dc9cc8521a6a534e21c6e07a` adds a focused route regression test for the downgrade denial path and asserts the fail-closed `402 PLAN_NOT_ENTITLED` response.
+- [architect-verified] Commit `b5b51b6f93d1162b8bd83e6312490ee56256905f` adds root `.npmrc` with `legacy-peer-deps=true`, matching the existing Vercel install mode so the eventual Activepieces lockfile generation and later `npm ci` use the same peer-resolution semantics.
+- [architect-verified] Control/session records `SESSION-046` and `SESSION-047` record these bounded corrections. Current feature tip at this checkpoint is `3891bad4573e687fcdfcd88e20126a389790d15d`.
+- [architect-verified] No Activepieces package versions or generated lockfile entries were fabricated: package-lock synchronization still requires an environment with npm-registry access. This remains a verification blocker, not a claimed PASS.
+
+**Gate-C remains MISSING and Gate-D remains IN_PROGRESS.** The I-2 implementation/security correction boundary remains active; no I-2 closure is claimed.
