@@ -251,3 +251,13 @@ I-2 remains the active bounded work. Without waiting for GitHub Actions or Verce
 - I-038: RESOLVED by architect source review.
 - Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - Next: continue only bounded I-2 verification/security corrections; do not expand to I-3, MCP, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-2 owner continuation: OAuth refresh redirect hardening
+
+I-2 remains the active bounded work. Without waiting for GitHub Actions or Vercel, ChatGPT found that the credential-bearing OAuth token refresh request used default fetch redirect behavior after checking only the initial token endpoint.
+
+- Implementation: `fddf00ca3c5cea63daa5c4146ae212908deb205a`
+- I-039: RESOLVED by architect source review.
+- Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next: continue only bounded I-2 verification/security corrections; do not expand to I-3, MCP, production promotion, or unrelated implementation.
