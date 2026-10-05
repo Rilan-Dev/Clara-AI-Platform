@@ -861,3 +861,27 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] `4c653b18c488661a9000f21f73344ce90d669b1a` implements the bounded correction and `289bb2a9dc8d40532479c62980f0ab110a600849` adds regression coverage. |
 | Resolution date | 2026-10-06 |
+
+
+## I-046 — I-2 AI integration availability tool ignored current plan entitlement
+
+| Field | Value |
+|---|---|
+| Issue ID | I-046 |
+| Title | AI-visible integration availability must honor organisation plan allowlist |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | The Unified Tool Runtime `integration_availability` query required platform/org/agent enablement but did not apply the platform integration `allowed_plans` against the organisation's current plan. After a downgrade, the AI could therefore be told an integration was available even though `integration_action` would correctly reject execution. This created a plan-entitlement mismatch at the AI-visible capability-discovery boundary. |
+| Evidence | [architect-verified] Direct review of `src/modules/ai-platform-core/integration-ai-tools.ts` showed the availability query selected only enabled platform/org/agent grants and filtered solely by grant state. |
+| Correction | [architect/ChatGPT] Availability now resolves current organisation plan limits and filters the AI-visible integration set against each platform integration's `allowed_plans` (including wildcard `*`). Execution remains separately fail-closed in `integration_action`. |
+| Correction scope | `src/modules/ai-platform-core/integration-ai-tools.ts`; focused availability-tool regression test |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
+| Expected verification | Focused availability tests asserting a downgraded plan sees no non-entitled integration and an entitled plan sees the integration. |
+| Developer correction commit | `48a55826f4c45fe71c891bd68f71075fc363f8fc`; test `b3d090a1644d1982e1709d095458db9c593a5d42` — [architect/ChatGPT implementation owner] |
+| Verification | [architect-verified] Source review confirms plan filtering is now enforced at AI-visible capability discovery. Focused regression source covers both denied and allowed plans. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] `48a55826f4c45fe71c891bd68f71075fc363f8fc` implements plan filtering and `b3d090a1644d1982e1709d095458db9c593a5d42` adds regression coverage. |
+| Resolution date | 2026-10-06 |
