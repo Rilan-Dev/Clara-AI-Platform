@@ -1701,3 +1701,9 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 Correction commits: `870ac568d050a8a6f54c347684a1b6e4fe9015ca`, `b5a744cc57135e2e8f1037f7396c56ed57bc3656`, `26f0f5fd00d47641598854e0cbb813ac049b7459`.
 
 I-043 is **RESOLVED** by architect source review. Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No executable GitHub Actions/Vercel result is inferred. No I-3/MCP/production/unrelated work is authorized.
+### 2026-10-06 — I-2 owner continuation: ElevenLabs redirect error-boundary correction
+
+- [architect-verified] Current branch source review found a bounded correctness defect in the ElevenLabs TTS custom action: its manual 3xx failure path used the message `OAuth token refresh redirects are not allowed`, which was semantically incorrect for the action and could mislead callers/telemetry even though the redirect was already fail-closed.
+- [architect-verified] Commit `499feacf01907f82da9578b74cb8789931d10752` changes the message to `ElevenLabs API redirects are not allowed` and preserves the existing fail-closed redirect behavior.
+- This correction is within I-2 runtime hardening scope. No new OAuth callback/transport, provider rollout, MCP, billing, migration, production promotion, or unrelated refactor was introduced.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
