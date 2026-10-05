@@ -19,6 +19,11 @@
 [architect-verified] Source review found that organisation-level connect could implicitly enable a previously-disabled integration without enforcing max_integrations. Commit 846c8d39add3430a5014c5573b3cc4d5ad86ee37 now checks the organisation grant before connection creation and enforces the current plan's integration count when connect would consume a new slot. Regression coverage is 354e57f9fb658267f1667c1eec8b5dfbd63023ad. I-047 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
 
 
+## 2026-10-06 — I-048 auth-type authority correction
+
+[architect-verified] Source review found that runAction selected OAuth token-refresh behavior from the stored connection auth_type, while the connection API accepts authType input. Commit 86e08f0adc542a21c18ca7a4f3b6256c6e8c0126 now uses the authoritative integration registry def.authType for ensureTokenFresh, preventing a mismatched connection field from suppressing OAuth refresh. I-048 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
 ## 2026-10-06 — I-040 action-context scope correction checkpoint
 
 [architect-verified] Source review found that the prior I-037 credential-scope correction did not propagate the explicit agent scope into the Activepieces action context. The action-context PostgresStore and cross-integration ConnectionsManager were still constructed with projectId. Commits a5680cd51c6d9ca961ab93effd20fb069d0e2bbe and a58edb20d5c95ce0fbd711cc0e23bff0582fc5ed correct this, and test commit 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds focused regression coverage. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
