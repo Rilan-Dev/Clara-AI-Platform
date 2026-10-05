@@ -341,3 +341,12 @@ I-2 has moved beyond the earlier I-1 contract-only boundary: persistence, platfo
 The immutable Doable source remains unchanged. Clara remains the host authorization boundary for tenant scope, RBAC, plan limits, connection scope, and AI tool invocation.
 
 I-2 is not yet accepted. Executable dependency installation/lock synchronization, migration/build/typecheck/lint, real connector execution, OAuth, browser, and final security/architecture gates remain pending.
+
+
+## 2026-10-05 — I-2 database verification reconciliation
+
+Current authoritative feature HEAD at this checkpoint: `b3c0ca0dd0672fafaf04b1f4dfc97f220ef4587e`.
+
+I-2 remains IMPLEMENTED — VERIFICATION PENDING. Database Gate-E evidence is now present for the I-2 surface: 052, corrected 061, and 062 executed successfully; pgcrypto works; integration agent/org constraints are present; and all six I-2 integration tables are RLS-enabled with anon/authenticated access revoked.
+
+Gate-C remains missing because current GitHub Actions execution failed without usable step logs. Connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D remain open. No I-2 PASS or production promotion is claimed.
