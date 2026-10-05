@@ -225,3 +225,14 @@ Control records:
 - Gate-C remains MISSING.
 - Gate-D remains IN_PROGRESS.
 - No executable GitHub Actions/Vercel result was awaited or inferred.
+
+
+## 2026-10-06 — I-041 post-refresh credential scope correction
+
+[architect-verified] Mandatory project-control recovery confirmed I-2 remains the active bounded work. Source review found one remaining credential-scope inconsistency after I-037/I-040: the post-OAuth-refresh `freshConnection` lookup in `runAction()` still passed `projectId` to the agent-scoped credential-vault parameter.
+
+[implemented] Changed the post-refresh lookup to pass the explicit `agentId`.
+
+Correction commit: `1001819239fcba146061be84c35254a8a9fb30cb`.
+
+I-041 is resolved by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No executable CI/Vercel result was awaited or inferred. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
