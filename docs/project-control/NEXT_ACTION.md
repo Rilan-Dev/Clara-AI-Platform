@@ -4,6 +4,17 @@
 
 ## CURRENT AUTHORITATIVE ACTION
 
+## 2026-10-06 — I-050 AI availability tenant-binding correction
+
+[architect-verified] Source review found that the AI-visible integration availability query filtered agent grants by agent identity but did not verify that the agent belongs to the execution tenant. The bounded correction now joins `agents` and requires `a.org_id = context.tenantId` before exposing integration capabilities.
+
+- Implementation: `c9f71d7e776e0127d587d08e03132579c5ac9fad`
+- Regression: `c122dfab4a1deee1d3b40614cc8cb993f7812d56`
+- I-050: RESOLVED by architect source review.
+- Next bounded work: continue I-2 source-level authorization/egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-06 — I-049 atomic integration mutation correction
 
 [architect-verified] The next bounded I-2 source correction closed a concurrency/partial-mutation defect in organisation integration enable/connect. `withTransaction()` now covers the entitlement count and mutation, and a transaction-scoped advisory lock serializes per-organisation integration-slot changes. Direct connect no longer leaves an enabled organisation grant behind if connection persistence fails.
