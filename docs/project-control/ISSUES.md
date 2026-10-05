@@ -643,3 +643,18 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Scope | src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts only. |
 | Non-scope | No new permissions, migrations, OAuth transport, MCP, billing semantics, or production promotion. |
 | Verification | Current-head executable route/test/build evidence remains pending; source correction is architect-verified. |
+
+
+## I-034 — I-2 downgrade-safe agent integration disable path
+
+| Field | Value |
+|---|---|
+| Issue ID | I-034 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | CORRECTED — executable verification pending |
+| Finding | The I-033 plan-entitlement guard was applied to every agent integration PATCH, including disabling an existing grant. After a plan downgrade, a tenant could be prevented from removing an integration it was no longer entitled to enable. |
+| Correction | Plan entitlement is now checked only when enabled=true. Disabling an existing grant remains permitted so downgraded tenants can safely unwind access. A focused route test covers the downgrade/disable path and verifies the plan resolver is not called. |
+| Scope | src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts; focused route test. |
+| Non-scope | No new permissions, migrations, OAuth transport, MCP, billing semantics, production promotion, or unrelated integration work. |
+| Verification | Source correction reviewed by ChatGPT; executable test/build evidence remains pending. |
