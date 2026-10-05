@@ -262,3 +262,23 @@ Correction commits:
 - control record: `f95328888a153af07f2e82e5d2cdc11bbed181b8`
 
 I-043 is resolved by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No executable GitHub Actions/Vercel result was awaited or inferred. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-045 organisation integration downgrade-unwind correction
+
+[architect-verified] Mandatory project-control recovery confirmed I-2 remains the active bounded work. Source review found that the organisation integration POST route evaluated current plan entitlement before branching on the requested action, so a downgraded organisation could be blocked from disabling an integration it was no longer entitled to use.
+
+[implemented] Made plan enforcement action-sensitive: `enable` and `connect` require current plan entitlement; `disable` and `disconnect` remain available without plan-limit resolution so tenants can unwind access after downgrade.
+
+[implemented] Added focused route regression coverage for successful downgrade-disable without plan-limit resolution and for plan-entitlement rejection when enabling.
+
+Correction/test commits:
+- `4c653b18c488661a9000f21f73344ce90d669b1a`
+- `289bb2a9dc8d40532479c62980f0ab110a600849`
+
+Control records:
+- I-045 resolved by architect source review.
+- Gate-C remains MISSING.
+- Gate-D remains IN_PROGRESS.
+- Current feature tip after this bounded correction/control update: `d9331f8b019d18bb826854a86f56da09c9ff7331`.
+- No executable GitHub Actions/Vercel result was awaited or inferred.
+- No I-3, MCP expansion, production promotion, or unrelated implementation was started.
