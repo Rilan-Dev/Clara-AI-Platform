@@ -1318,3 +1318,12 @@ Current status: **IMPLEMENTED — VERIFICATION PENDING**. Required next evidence
 Commit: 43a2d8d81dc8af555063ee5da7cc358bf2e39b82.
 
 Verification: source-level PASS; executable CI/browser verification remains pending. Vercel preview is currently blocked by the provider's free-plan daily deployment limit, so no stale preview is treated as current-head evidence.
+
+
+## 2026-10-05 — Integrations I-2 owner implementation
+
+[developer/ChatGPT] Continued directly from the closed Phase 7 baseline under new authorization D-032. Imported the Doable integration registry families from docs/doable-source, yielding 168 integration definitions. Added platform/org/agent integration access persistence and UI, plan-based integration limits, encrypted credential storage, scoped action state, and a Clara-bound Doable/Activepieces action runner. Registered integration_availability and guarded integration_action in the existing Unified Tool Runtime so the same bounded AI loop can discover and execute permitted integrations across Chat/Realtime/Embed surfaces.
+
+Also corrected the user-reported Docker dependency boundary by declaring and locking @e965/xlsx@0.20.3 without modifying immutable/reference source. The full Doable Activepieces package closure (529 packages) is now declared in package.json; lock synchronization remains pending because the current execution environment has no external npm/GitHub network access.
+
+Current status: I-2 IMPLEMENTED — VERIFICATION PENDING. No PASS claimed.
