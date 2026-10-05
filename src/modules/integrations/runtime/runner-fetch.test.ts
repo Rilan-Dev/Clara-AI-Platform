@@ -46,6 +46,21 @@ describe("integration runtime trace redaction", () => {
     expect(value).toBe("Bearer [REDACTED] https://example.test/run?token=[REDACTED]");
   });
 
+  it("redacts sensitive JSON fields even when they occur beyond the trace truncation boundary", () => {
+    const prefix = "x".repeat(3000);
+    const value = redactBody(JSON.stringify({
+      prefix,
+      credentials: {
+        access_token: "late-secret-access-token",
+        client_secret: "late-client-secret",
+      },
+    }));
+    expect(value).not.toContain("late-secret-access-token");
+    expect(value).not.toContain("late-client-secret");
+    expect(value).toContain("[REDACTED]");
+    expect(value).toContain("chars truncated");
+  });
+
   it("does not expose arbitrary non-JSON bodies merely because they are large", () => {
     const value = redactBody("ordinary payload");
     expect(value).toBe("ordinary payload");
