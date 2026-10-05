@@ -9,11 +9,12 @@ export class DoableConnectionsManager {
   constructor(
     private userId: string,
     private workspaceId: string,
+    private agentId?: string,
   ) {}
 
   async get(key: string): Promise<unknown | null> {
     // key is typically the integration name (e.g., "slack")
-    const connection = await credentialVault.get(this.userId, key, this.workspaceId);
+    const connection = await credentialVault.get(this.userId, key, this.workspaceId, this.agentId);
     if (!connection) return null;
     return connection.credentials;
   }
