@@ -3,7 +3,7 @@
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** The active bounded work is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 is not closed because Gate-C executable evidence and the final architect Gate-D review are still outstanding. Phase 7 remains **PASS — CLOSED** and is not reopened.
 >
-> Current GitHub tip: **`56f6be4529e6492cdae2e177e07f327c420b4d5e`** on `feature/ai-core-from-doable-source`. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current GitHub tip: **`a25fde3d9740b584af3eac9a2a4a8b39cb20803a`** on `feature/ai-core-from-doable-source` [architect-verified from GitHub at reconciliation time]. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
 > Completed I-2 corrections: sensitive runtime observability redaction, organisation-scoped FLOW-store keys and access, agent/org ownership enforcement, migration sequence correction, and I-2 database/RLS hardening. Remaining verification is executable dependency/lock synchronization, build/test/typecheck/lint, connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and Gate-D. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
 
