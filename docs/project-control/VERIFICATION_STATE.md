@@ -1505,3 +1505,14 @@ UI/RBAC/subscription implementation is source-reviewed and complete. The role ma
 A final source review correction was applied to the existing Members UI: org_admin now sees all four defined organisation roles when changing a member, including project_manager. project_manager remains constrained to Editor/Viewer grants, matching the server-side RBAC handlers. Billing & Plan already exposes the effective plan limits and entitlements (KBs, documents/KB, rolling requests, storage, TTS, STT, translation, Voice, API/embed, Branding, SSO, multilingual knowledge, analytics and priority support).
 
 **Current disposition:** implementation complete; executable verification remains pending. The connected Vercel project has exhausted its free-plan daily deployment allowance, so older/cancelled previews are not treated as current-head browser evidence. No production promotion or merge is authorized by this checkpoint.
+
+
+## Integrations I-2 — 2026-10-05
+
+Status: IMPLEMENTED — VERIFICATION PENDING.
+
+Implemented surface: 168 Doable registry definitions; platform/org/agent access control; plan entitlement/max integration limits; encrypted connections; scoped integration store; Doable/Activepieces runner bridge; Unified Tool Runtime integration availability/action tools; platform/org/agent UI.
+
+Pending evidence: npm/lock synchronization for 529 Activepieces packages; migration execution; registry/runtime/API/UI tests; strict TypeScript/ESLint; real connector action smoke test; OAuth configuration/callback test; browser verification; immutable/secret/runtime-import checks; final architect review.
+
+The current environment cannot access external npm/GitHub endpoints, so no executable PASS is inferred from static source edits. [owner-verified]
