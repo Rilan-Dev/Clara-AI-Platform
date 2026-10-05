@@ -25,20 +25,20 @@ export class PostgresStore {
 
   async get<T>(key: string, scope?: string): Promise<T | null> {
     const scopeKey = this.buildKey(key, scope);
-    const rows = await query<{value:T}>(`SELECT value FROM integration_store WHERE scope_key=$1`,[scopeKey]);
+    const rows = await query<{value:T}>(`SELECT value FROM integration_store WHERE scope_key=$1 AND org_id=$2`,[scopeKey,this.workspaceId]);
     const row = rows[0];
     return row ? (row.value as T) : null;
   }
 
   async delete(key: string, scope?: string): Promise<void> {
     const scopeKey = this.buildKey(key, scope);
-    await query("DELETE FROM integration_store WHERE scope_key=$1",[scopeKey]);
+    await query("DELETE FROM integration_store WHERE scope_key=$1 AND org_id=$2",[scopeKey,this.workspaceId]);
   }
 
   private buildKey(key: string, scope?: string): string {
     // StoreScope.FLOW = "FLOW", StoreScope.PROJECT = "PROJECT"
     const prefix = scope === "FLOW"
-      ? `flow:${this.userId}`
+      ? `flow:${this.workspaceId}:${this.userId}`
       : `project:${this.workspaceId}:${this.agentId ?? "org"}`;
     return `${prefix}:${key}`;
   }
