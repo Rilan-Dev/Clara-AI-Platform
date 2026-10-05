@@ -25,6 +25,9 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
       const rows = await query<{integration_id:string;enabled:boolean;allowed_plans:string[]}>(`
         SELECT ai.integration_id, ai.enabled, pi.allowed_plans
         FROM agent_integrations ai
+        INNER JOIN agents a
+          ON a.id = ai.agent_id
+         AND a.org_id = $2
         JOIN organisation_integrations oi
           ON oi.org_id = $2
          AND oi.integration_id = ai.integration_id
