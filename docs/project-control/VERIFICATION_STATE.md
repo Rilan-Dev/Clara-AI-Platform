@@ -1600,3 +1600,17 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] Commit `bff8239ce19d4e264195d0c2f94a7c604f1e0ac0` applies the same sensitive-key pattern to non-standard credential-bearing HTTP headers.
 - [architect-verified] Commit `5f75866e81e21b685671a30cd6ade589071e028c` adds focused coverage for credential-bearing header redaction.
 - These are bounded I-2 runtime security corrections only. Gate C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-2 plan-entitlement correction
+
+- [architect-verified] Plan-to-implementation review found the agent integration grant mutation could enable an agent integration without re-checking the organisation's current plan after a downgrade.
+- [architect-verified] Commit `bad5a690d939c3cc63a5d5b9a7aab31b14fb2d6b` adds current `getOrgPlanLimits(orgId)` enforcement to the agent integration PATCH route and returns `PLAN_NOT_ENTITLED` when the integration is outside the plan allowlist.
+- [architect-verified] This is a bounded I-2 authorization correction only. No new permission, billing semantics, OAuth transport, MCP, migration, or production promotion was introduced.
+- Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No I-2 PASS is claimed.
+
+## 2026-10-06 — control-layer reconciliation
+
+- [architect-verified] The branch tip was refreshed from GitHub: `f08ec23f0249c6f7260aaa073721413403371046` before the subsequent control-document reconciliation commits.
+- [architect-verified] `PROJECT_STATE.md` and `CURRENT_PHASE.md` were corrected so their current-state blocks no longer identify the stale `c9c09b0` implementation commit; the latest reviewed I-2 implementation state is `da18ead37c87a87f74165d2ee3065a8c96f5a43b`, with later changes in this checkpoint limited to bounded I-2 correction and governance records.
+- [architect-verified] Phase 7 remains PASS/CLOSED; I-2 remains IMPLEMENTED/VERIFICATION PENDING; Z.AI remains STOPPED; no I-3/MCP/production work is authorized.
