@@ -59,7 +59,7 @@ function orgSettingsNav(orgId: string | null): SettingsNavItem[] {
 // directly from the sidebar (they used to be horizontal tabs; moving them
 // into the rail keeps every screen focused on one job: monitor → build →
 // team → money). "Settings" stays personal (account) in its own group.
-function orgWorkspaceNav(orgId: string, role: string | null) {
+function orgWorkspaceNav(orgId: string, role: string | null | undefined) {
   const base = `/orgs/${orgId}`;
   const orgRole = role as OrgRole | null;
   const canInvite = hasOrgCapability(orgRole, "inviteMembers");
