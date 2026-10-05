@@ -1498,3 +1498,10 @@ UI/RBAC/subscription implementation is source-reviewed and complete. The role ma
 - Closure status remains OPEN pending fresh CI and final Phase 7-C evidence; no PASS claimed here.
 
 - SESSION-040 records the bounded role/subscription UI enablement. Latest head remains OPEN pending fresh CI/closure evidence; no PASS claimed.
+
+
+## 2026-10-05 — Current UI/RBAC verification checkpoint
+
+A final source review correction was applied to the existing Members UI: org_admin now sees all four defined organisation roles when changing a member, including project_manager. project_manager remains constrained to Editor/Viewer grants, matching the server-side RBAC handlers. Billing & Plan already exposes the effective plan limits and entitlements (KBs, documents/KB, rolling requests, storage, TTS, STT, translation, Voice, API/embed, Branding, SSO, multilingual knowledge, analytics and priority support).
+
+**Current disposition:** implementation complete; executable verification remains pending. The connected Vercel project has exhausted its free-plan daily deployment allowance, so older/cancelled previews are not treated as current-head browser evidence. No production promotion or merge is authorized by this checkpoint.
