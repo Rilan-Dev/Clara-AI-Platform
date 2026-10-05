@@ -163,3 +163,16 @@ Next bounded actions:
 6. Re-run immutable-source, secret, runtime-import, and governance checks, then perform I-2 Gate-D review.
 
 Stopping boundary: no production promotion or claim of complete integrations until the above evidence exists.
+
+
+## 2026-10-05 — I-2 database verification checkpoint
+
+Current HEAD: `1ed4490e6266a6c52a4a307007c5c468714f9619`.
+
+Completed: migrations 052, corrected 061, and 062 executed and verified; pgcrypto operational; I-2 agent/org constraints verified; six I-2 integration tables RLS-enabled and anon/authenticated access revoked.
+
+Still required: executable npm/build/test/typecheck/lint evidence; focused runtime/API tests; real connector and OAuth smoke; current-head browser verification; immutable/runtime/secret/governance scans; final ChatGPT Gate-D review.
+
+GitHub Actions current-head run 37301575945 failed without usable step logs, so no CI PASS is inferred.
+
+STOP: no I-3/MCP expansion, production promotion, or unrelated work.
