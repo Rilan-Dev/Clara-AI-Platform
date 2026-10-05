@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { getOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
 import type { PlatformExecutionContext } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
@@ -33,7 +32,6 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
         FROM integration_connections
         WHERE org_id = $1 AND status = 'active' AND (agent_id = $2 OR agent_id IS NULL)
       `, [context.tenantId, context.agentId ?? null]);
-      const limits = await getOrgPlanLimits(context.tenantId);
       const allowed = new Set(rows.map(r => r.integration_id));
       const ready = new Set(connected.map(r => r.integration_id));
       return listIntegrations()
