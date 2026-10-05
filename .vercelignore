@@ -9,3 +9,7 @@ build
 .env.*
 !.env.example
 deploy/
+
+# Reference-only source snapshots are not required by the Next.js runtime.
+# Keep them in Git for provenance, but do not upload them to Vercel builds.
+docs/doable-source/
