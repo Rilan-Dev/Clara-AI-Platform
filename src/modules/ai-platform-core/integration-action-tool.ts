@@ -48,8 +48,11 @@ export function buildIntegrationActionTool(): ToolDefinition {
       if (!grant?.enabled) throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", `${def.displayName} is not enabled for this organisation.`);
 
       const agentGrant = (await query<{enabled:boolean}>(
-        "SELECT enabled FROM agent_integrations WHERE agent_id=$1 AND integration_id=$2",
-        [context.agentId ?? null, input.integrationId],
+        "SELECT ai.enabled
+           FROM agent_integrations ai
+           INNER JOIN agents a ON a.id=ai.agent_id
+          WHERE ai.agent_id=$1 AND a.org_id=$2 AND ai.integration_id=$3",
+        [context.agentId ?? null, context.tenantId, input.integrationId],
       ))[0];
       if (!context.agentId || !agentGrant?.enabled) {
         throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", `${def.displayName} is not enabled for this agent.`);
