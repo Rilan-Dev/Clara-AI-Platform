@@ -1296,3 +1296,14 @@ Current status: **IMPLEMENTED — VERIFICATION PENDING**. Required next evidence
 - Server RBAC remains fail-closed: tenant scope rejects platform-admin access to tenant resources, and org/agent/KB permissions are checked server-side.
 - Subscription enforcement remains server-side through `planGuard`; inactive subscriptions fall back to Free limits.
 - UI testing is authorized once a fresh branch preview reaches READY; the previously observed Vercel deployment was cancelled and is not treated as a valid test target.
+
+
+## 2026-10-05 — Role/Subscription UI enablement
+- Added client-only organisation capability matrix aligned to server RBAC: org_admin, project_manager, kb_editor, kb_viewer.
+- Updated existing sidebar/workspace navigation to hide unavailable member/billing/edit/publish surfaces; direct foreign-org and unauthorized section routes redirect to the caller's own workspace while server RBAC remains authoritative.
+- Added role capability contract tests and a focused CI UI verification job.
+- Fixed subscription plan management to use the current versioned platform-plan API instead of absent legacy endpoints.
+- Exposed/configured TTS character, STT seconds, and translation-character daily limits in public/admin plan reads, version creation, and plan editor UI.
+- Fixed plan-guard fallback resolution so those three limits remain effective when a subscription falls back to base/free plan limits.
+- Existing dashboard/billing usage meters and member permission matrix remain the primary user-facing plan/RBAC surfaces.
+- No schema/migration changes, immutable Doable source changes, MCP changes, or D-023 billable tool metering changes.
