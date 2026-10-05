@@ -105,7 +105,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.projectId);
       const auth = connection ? resolveAuth(def.authType, connection.credentials) : undefined;
 
-      console.log(`[Integration] RUN custom ${params.integrationId}/${params.actionName} props=${JSON.stringify(params.props).slice(0, 300)}`);
+      console.log(`[Integration] RUN custom ${params.integrationId}/${params.actionName}`);
       const httpTraces: HttpTraceEntry[] = [];
 
       xr.phase("action_run");
@@ -182,7 +182,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     const context = buildActionContext({ auth, props: params.props, userId: params.userId, workspaceId: params.workspaceId, projectId: params.projectId });
 
     // 5. Execute the action with per-call isolated HTTP tracing
-    console.log(`[Integration] RUN ${params.integrationId}/${params.actionName} props=${JSON.stringify(params.props).slice(0, 300)}`);
+    console.log(`[Integration] RUN ${params.integrationId}/${params.actionName}`);
 
     const httpTraces: HttpTraceEntry[] = [];
 
@@ -201,7 +201,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     xr.end("success");
     logUsage({ workspaceId: params.workspaceId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: true, durationMs });
 
-    console.log(`[Integration] DONE ${params.integrationId}/${params.actionName} ${durationMs}ms httpCalls=${httpTraces.length} output=${JSON.stringify(output).slice(0, 300)}`);
+    console.log(`[Integration] DONE ${params.integrationId}/${params.actionName} ${durationMs}ms httpCalls=${httpTraces.length}`);
 
     return { success: true, output, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
   } catch (err) {
