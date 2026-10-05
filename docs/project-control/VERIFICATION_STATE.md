@@ -1592,3 +1592,11 @@ This is an implementation correction, not verification evidence. Executable test
 - [architect-verified] The feature branch remains I-2 only. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
 
 Gate-C remains **MISSING** because these corrections were made without waiting for an executable CI/Vercel result. Gate-D remains **IN_PROGRESS**; this correction improves the reviewed implementation but does not constitute I-2 closure.
+
+## 2026-10-06 — I-2 runtime hardening continuation
+
+- [architect-verified] Continued the bounded I-2 security correction without waiting for GitHub Actions or Vercel completion.
+- [architect-verified] Commit `d1346a7f052ffa74ce84cedd64904a8e1a398608` removes request/response bodies and exception stacks from integration HTTP console logs; trace metadata remains redacted, and request headers now include headers carried by a `Request` input.
+- [architect-verified] Commit `bff8239ce19d4e264195d0c2f94a7c604f1e0ac0` applies the same sensitive-key pattern to non-standard credential-bearing HTTP headers.
+- [architect-verified] Commit `5f75866e81e21b685671a30cd6ade589071e028c` adds focused coverage for credential-bearing header redaction.
+- These are bounded I-2 runtime security corrections only. Gate C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate D remains IN_PROGRESS. No I-2 PASS is claimed.
