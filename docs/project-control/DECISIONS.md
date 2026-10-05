@@ -81,3 +81,10 @@
 | D-030 | 2026-10-05 | ACTIVE | **Next capability planning authorization — Integrations Framework.** After Phase 7 closure, ChatGPT is authorized to design and review a bounded, host-neutral integrations framework plan. Planning may inspect immutable/reference integration contracts and implementations, but implementation is not authorized by D-030. Any persistence, OAuth credential storage, egress/network policy, or runtime tool-bridge implementation requires its own bounded implementation authorization and Gate E/F applicability decision. | ChatGPT | User continuation authorization; Phase 7 closure; `docs/superpowers/plans/2026-10-05-clara-integrations-framework.md` |
 
 | D-031 | 2026-10-05 | ACTIVE | **Integrations I-1 implementation authorization.** Authorizes only the host-neutral Integrations Framework contracts and threat-model/test foundation described by D-030. Allowed: new type/contract definitions, pure validation helpers, unit tests, and exports under `src/modules/ai-platform-core/integrations/**`. Forbidden: database/schema/migrations, OAuth routes/token exchange, credential-vault implementation, Activepieces runtime/dependencies, outbound HTTP/egress execution, integration tool execution, deployment, and changes to D-023 billing semantics. | ChatGPT | D-030; `docs/superpowers/plans/2026-10-05-clara-integrations-framework.md` |
+
+
+## D-032 — Integrations I-2 implementation authorization — 2026-10-05
+
+The project owner explicitly authorized the next integrations capability after Phase 7 closure. I-2 may implement persistence, platform/org/agent access control, encrypted credentials, the Doable/Activepieces integration runner, and AI tool exposure, provided the immutable/reference source under docs/doable-source/** remains unchanged and Clara host tenancy/RBAC/plan enforcement remains authoritative.
+
+Binding constraints: no RBAC bypass; no cross-tenant connection resolution; no raw credential exposure to client/AI; no first-class billable tool metering; integration action telemetry remains audit/operational; OAuth app secrets remain server-side; no production promotion without verification gates.
