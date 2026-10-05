@@ -330,3 +330,12 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub
 **Next:** continue only bounded I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant-isolation and secret/egress review; then obtain executable Gate-C evidence and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-2 owner continuation: final error credential-value redaction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. A bounded source correction was applied without waiting for GitHub Actions or Vercel: the runner now preserves the resolved credential values for the active execution and applies value-based redaction at the final error boundary. This prevents provider-echoed credentials under non-sensitive field names from reaching returned errors, XRay, or usage logging.
+
+- Correction commit: `ca2394e85e191a709f774a083137798e2cf90dc8`.
+- Scope: I-2 runtime security/observability only.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- Next: continue bounded I-2 verification/security review; do not expand to I-3, MCP, production promotion, or unrelated work.
