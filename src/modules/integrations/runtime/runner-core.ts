@@ -141,6 +141,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       xr.phase("credential_lookup");
       const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
       const auth = connection ? resolveAuth(def.authType, connection.credentials) : undefined;
+      knownSecretValues = collectSecretValues(auth);
 
       console.log(`[Integration] RUN custom ${params.integrationId}/${params.actionName}`);
       const httpTraces: HttpTraceEntry[] = [];
@@ -231,6 +232,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       xr.phase("credential_refetch");
       const freshConnection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
       auth = resolveAuth(def.authType, freshConnection?.credentials);
+      knownSecretValues = collectSecretValues(auth);
     }
 
     // 4. Build ActionContext
@@ -263,7 +265,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     return { success: true, output: safeOutput, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const errorMsg = redactText(err instanceof Error ? err.message : String(err)) ?? "Integration action failed";
+    const errorMsg = redactText(redactValue(err instanceof Error ? err.message : String(err), knownSecretValues) as string) ?? "Integration action failed";
     console.error(`[Integration] FAILED ${params.integrationId}/${params.actionName} ${durationMs}ms: ${errorMsg}`);
     xr.end("error", errorMsg);
 
