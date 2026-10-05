@@ -40,3 +40,29 @@ Source review confirms the correction delta from `8585f8db35b2806340e79f4e8ad55f
 
 ## Preview trigger
 A governance-only continuation commit is being used to request a fresh Vercel preview for browser verification. No application behavior or scope is changed by this trigger.
+
+
+## 2026-10-06 — I-2 runtime security hardening continuation
+
+Authorization: D-032
+Status: IMPLEMENTATION CORRECTION COMPLETE — VERIFICATION PENDING
+
+The active bounded work is Integrations I-2. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+### Corrections
+- Added recursive `redactValue()` for AI-visible integration results and scrubbing of known credential values.
+- `runAction()` now returns sanitized outputs for both custom and Activepieces-backed actions.
+- Added pure `validateActionProps()` pre-execution validation for required fields, common primitive types, and nested object properties.
+- Unknown action properties remain allowed for forward compatibility.
+- Added regression tests for result redaction and action input validation.
+
+### Commits
+- `1d05f3de112e76437e4cdc1a78f12b01eb8199f7`
+- `504d74ecf819d1cee40432c69e661f882dd03e68`
+- `bf245d2be175fcd9ba457ef2e578801830ba7675`
+- `b045f6221fb36e05bf3ba621e293f90dc209d0e1`
+- `f68e65afc5ba4f7d6149c84ca1d24a6f082f5113`
+- Project-control reconciliation: `c370fc27882381aac8409371879fac022d14727e`, `4f62b86b87cddb8654d8b45b88a2d3cd865f0663`
+
+### Verification
+These changes are not Gate-C PASS: executable current-head test/typecheck/lint/build evidence is still outstanding. Remaining bounded I-2 verification is unchanged: dependency/lock synchronization, executable test/build evidence, connector/OAuth smoke where configured, browser access/denial verification, immutable/runtime/secret/governance scans, and final ChatGPT Gate-D review.
