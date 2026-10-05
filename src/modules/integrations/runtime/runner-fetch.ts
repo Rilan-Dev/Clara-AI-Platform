@@ -14,7 +14,7 @@ export const fetchCtx = new AsyncLocalStorage<FetchContext>();
 // One-time global fetch patch
 const _originalFetch = globalThis.fetch;
 
-globalThis.fetch = function patchedFetch(input: any, init?: RequestInit): Promise<Response> {
+globalThis.fetch = function patchedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const ctx = fetchCtx.getStore();
   if (ctx) {
     if (ctx.supabaseApiKey) {
@@ -98,7 +98,7 @@ function redactHeaders(headers: Record<string, string>): Record<string, string> 
   return out;
 }
 
-function headersToRecord(init?: any): Record<string, string> {
+function headersToRecord(init?: HeadersInit): Record<string, string> {
   if (!init) return {};
   if (typeof init === "object" && typeof init.forEach === "function") {
     const r: Record<string, string> = {};
@@ -118,7 +118,7 @@ export function createTracedFetch(
   projectId?: string,
   xrayHandle?: XrayCallHandle | null,
 ): typeof globalThis.fetch {
-  return async function tracedFetch(input: any, init?: RequestInit): Promise<Response> {
+  return async function tracedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
     const url = redactUrl(rawUrl);
 
