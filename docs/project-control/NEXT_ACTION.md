@@ -339,3 +339,18 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. A bounded source correctio
 - Scope: I-2 runtime security/observability only.
 - Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
 - Next: continue bounded I-2 verification/security review; do not expand to I-3, MCP, production promotion, or unrelated work.
+
+
+## 2026-10-06 — I-2 owner continuation: organisation downgrade-unwind correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub Actions or Vercel, ChatGPT audited plan-entitlement symmetry and found I-045: the organisation integration POST route blocked `disable` after a plan downgrade because it evaluated current plan entitlement before branching on the requested action.
+
+- Correction: `4c653b18c488661a9000f21f73344ce90d669b1a`.
+- Regression test: `289bb2a9dc8d40532479c62980f0ab110a600849`.
+- I-045: RESOLVED by architect source review.
+- `enable`/`connect` remain entitlement-gated; `disable`/`disconnect` remain available for downgrade unwind.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+
+**Next bounded work:** continue I-2 executable verification and only further concrete I-2 corrections; then connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
