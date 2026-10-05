@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeEgressUrl, createTracedFetch, redactBody, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
+import { assertSafeEgressUrl, createTracedFetch, redactBody, redactHeaders, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
 
 describe("integration runtime trace redaction", () => {
   it("redacts credential-bearing JSON fields recursively", () => {
@@ -22,6 +22,23 @@ describe("integration runtime trace redaction", () => {
     expect(value).not.toContain("token");
     expect(value).toContain("safe=value");
     expect(value).toContain("api_key=%5BREDACTED%5D");
+  });
+
+  it("redacts credential-bearing headers, including non-standard secret names", () => {
+    const value = redactHeaders({
+      Authorization: "Bearer secret",
+      "X-Api-Key": "secret-api-key",
+      "X-Client-Secret": "secret-client",
+      "X-Session-Token": "secret-session",
+      "Content-Type": "application/json",
+    });
+    expect(value).toEqual({
+      Authorization: "[REDACTED]",
+      "X-Api-Key": "[REDACTED]",
+      "X-Client-Secret": "[REDACTED]",
+      "X-Session-Token": "[REDACTED]",
+      "Content-Type": "application/json",
+    });
   });
 
   it("redacts bearer tokens and sensitive query parameters in errors", () => {
