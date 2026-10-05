@@ -207,3 +207,21 @@ Control records:
 - Gate-C remains MISSING.
 - Gate-D remains IN_PROGRESS.
 - No executable GitHub Actions/Vercel result was awaited or inferred.
+
+
+## 2026-10-06 — I-2 OAuth refresh redirect hardening
+
+[architect-verified] Mandatory project-control recovery confirmed I-2 remains the active bounded work.
+
+[architect-verified] Plan-to-implementation review found that `ensureTokenFresh()` checked the configured OAuth token endpoint with the integration egress policy, but native fetch could automatically follow a 3xx response to another destination.
+
+[implemented] OAuth refresh now uses manual redirect handling and fails closed on every 3xx response. This keeps the credential-bearing refresh request inside the existing host-owned egress boundary without adding OAuth callback/transport scope.
+
+Correction commit:
+- `fddf00ca3c5cea63daa5c4146ae212908deb205a`
+
+Control records:
+- I-039 resolved by architect source review.
+- Gate-C remains MISSING.
+- Gate-D remains IN_PROGRESS.
+- No executable GitHub Actions/Vercel result was awaited or inferred.
