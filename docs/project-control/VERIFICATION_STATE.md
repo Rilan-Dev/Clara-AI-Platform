@@ -1707,3 +1707,10 @@ I-043 is **RESOLVED** by architect source review. Gate-C remains **MISSING** and
 - [architect-verified] Commit `499feacf01907f82da9578b74cb8789931d10752` changes the message to `ElevenLabs API redirects are not allowed` and preserves the existing fail-closed redirect behavior.
 - This correction is within I-2 runtime hardening scope. No new OAuth callback/transport, provider rollout, MCP, billing, migration, production promotion, or unrelated refactor was introduced.
 - Gate-C remains MISSING; Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+### 2026-10-06 — I-044 architect source-review correction
+
+- [architect-verified] The I-2 runner final error boundary previously applied only pattern-based redaction. A provider could therefore echo a resolved credential under a non-sensitive field name and bypass the final sanitization boundary.
+- [architect-verified] Commit `a8a1997f958c37b524451618eb0d3bb4a3746b5f` retains the resolved credential values for the active run and applies value-based redaction to the final error before XRay, usage logging, and the returned error.
+- Scope is limited to I-2 runtime secret-handling hardening; no new OAuth callback/transport, provider rollout, MCP, billing, migration, production promotion, or unrelated refactor.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
