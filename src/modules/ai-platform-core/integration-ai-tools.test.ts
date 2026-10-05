@@ -59,4 +59,26 @@ describe("integration availability plan entitlement", () => {
       },
     ]);
   });
+
+  it("does not expose a cross-tenant agent grant", async () => {
+    getOrgPlanLimits.mockResolvedValue({ plan_id: "pro" });
+    query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ integration_id: "github" }]);
+
+    const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
+    const tool = buildIntegrationAvailabilityTool();
+
+    const result = await tool.execute(
+      {},
+      { tenantId: "org-1", agentId: "agent-from-org-2", surface: "chat" } as never,
+    );
+
+    expect(result).toEqual([]);
+    expect(query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("a.org_id = $2"),
+      ["agent-from-org-2", "org-1"],
+    );
+  });
 });
