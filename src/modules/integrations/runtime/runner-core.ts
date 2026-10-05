@@ -235,7 +235,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
     // 4. Build ActionContext
     xr.phase("context_build");
-    const context = buildActionContext({ auth, props: params.props, userId: params.userId, workspaceId: params.workspaceId, projectId: params.projectId });
+    const context = buildActionContext({ auth, props: params.props, userId: params.userId, workspaceId: params.workspaceId, agentId: params.agentId, projectId: params.projectId });
 
     // 5. Execute the action with per-call isolated HTTP tracing
     console.log(`[Integration] RUN ${params.integrationId}/${params.actionName}`);
