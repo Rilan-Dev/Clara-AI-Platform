@@ -1552,3 +1552,9 @@ Supabase Security Advisor still reports a pre-existing repository-wide RLS-disab
 
 Disposition: I-2 remains IMPLEMENTED — VERIFICATION PENDING. Gate-E is evidenced for the I-2 database surface; Gate-C remains missing.
 \n\n## 2026-10-05 — I-2 migration sequencing correction\n\nA concrete deployment blocker was found in repository migration enumeration: 052_integrations_control_plane.sql collided with the existing 052_platform_announcements.sql. The integration migration is now 060, the pre-existing Sarvam migration was moved to 064, and 061/062 remain the integration hardening sequence. Current GitHub directory enumeration confirms zero duplicate migration numbers. This correction is source-verified but still requires an executable deployment/build to establish Gate-C evidence.\n
+
+## 2026-10-05 — I-2 execution-path reconciliation
+
+Current feature HEAD: `4200b0cf5180c607406b8f60fbe2a99376b0bcb1`.
+
+Gate-E: **EVIDENCED** for the six I-2 integration tables and associated pgcrypto/agent-org constraints. Gate-C: **OPEN**. Cloud CI is configured for Vercel-Prod only. A current-head Vercel build was observed cloning `4200b0c`, processing .vercelignore, and entering `npm install --legacy-peer-deps --include=dev`; it did not emit a completion result and was canceled. This is execution evidence of build initiation only, not a PASS.
