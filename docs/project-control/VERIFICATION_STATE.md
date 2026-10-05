@@ -1663,11 +1663,16 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 ## 2026-10-06 — I-039 OAuth refresh redirect correction
 
 - [architect-verified] Source review found that `ensureTokenFresh()` egress-checked the configured OAuth token endpoint but allowed native fetch to follow a 3xx response to an unchecked destination.
-- [architect-verified] Commit `f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11` sets OAuth refresh requests to `redirect: "manual"` and rejects 3xx responses.
+- [architect-verified] Commit `a58edb20d5c95ce0fbd711cc0e23bff0582fc5ed` sets OAuth refresh requests to `redirect: "manual"` and rejects 3xx responses.
 - I-039 is resolved by source review. Gate-C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate-D remains IN_PROGRESS.
 - Scope remains strictly I-2. No OAuth callback expansion, I-3, MCP, production promotion, or unrelated implementation was started.
 
 
 ## 2026-10-06 — I-040 action-context scope correction checkpoint
 
-[architect-verified] Source review found that the prior I-037 credential-scope correction did not propagate the explicit agent scope into the Activepieces action context. The action-context PostgresStore and cross-integration ConnectionsManager were still constructed with projectId. Commits a5680cd51c6d9ca961ab93effd20fb069d0e2bbe and f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11 correct this, and test commit 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds focused regression coverage. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
+[architect-verified] Source review found that the prior I-037 credential-scope correction did not propagate the explicit agent scope into the Activepieces action context. The action-context PostgresStore and cross-integration ConnectionsManager were still constructed with projectId. Commits a5680cd51c6d9ca961ab93effd20fb069d0e2bbe and a58edb20d5c95ce0fbd711cc0e23bff0582fc5ed correct this, and test commit 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds focused regression coverage. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-040 completion checkpoint
+
+[architect-verified] The bounded scope correction now covers both the Activepieces action context and the Unified Tool Runtime integration-action boundary: explicit agentId is propagated into the store/connections manager and into runAction. Focused regression tests cover both propagation points. Gate-C remains MISSING and Gate-D remains IN_PROGRESS; no I-2 PASS is claimed.
