@@ -549,3 +549,47 @@ The Clara manifest now includes the Doable Activepieces piece dependency closure
 Impact: I-2 runtime execution is implemented in source but cannot be marked operationally verified until npm install/lock synchronization and a real connector smoke test run in the project build environment.
 
 Mitigation: run npm install --legacy-peer-deps, execute the integration migration, run focused tests/typecheck/lint, then smoke-test a connected connector. Do not modify immutable/reference material to bypass the gate.
+
+
+## I-023 — I-2 integration trace and error payload secret exposure
+
+| Field | Value |
+|---|---|
+| Issue ID | I-023 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | CORRECTED — executable verification pending |
+| Finding | Integration HTTP traces captured request/response bodies and runtime logs included action properties, outputs, and raw error messages. These surfaces can contain API keys, OAuth tokens, passwords, PII, or provider payloads. |
+| Correction | ChatGPT added recursive sensitive-key body redaction, sensitive query-parameter redaction, bearer/error redaction, removed credential-bearing action/output logs, and removed raw XRay error logging. |
+| Scope | Integration runtime tracing/logging only. |
+| Verification | Focused redaction tests added; executable CI/test evidence still pending. |
+
+## I-024 — I-2 integration store tenant isolation
+
+| Field | Value |
+|---|---|
+| Issue ID | I-024 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | CORRECTED — database/runtime verification pending |
+| Finding | FLOW store keys were not organisation-namespaced and get/delete queries did not explicitly constrain by org_id. |
+| Correction | FLOW keys now include organisation identity; get/delete require org_id; migration 061 re-keys legacy FLOW entries and hardens agent/org constraints. |
+| Scope | Integration runtime store + I-2 migration. |
+| Verification | Migration execution and focused store tests remain pending. |
+
+## I-025 — I-2 connection agent ownership boundary
+
+| Field | Value |
+|---|---|
+| Issue ID | I-025 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | CORRECTED — database verification pending |
+| Finding | Organisation connection creation accepted an agentId without first verifying that the agent belongs to the target organisation. |
+| Correction | API now verifies agent/org ownership; migration 061 adds a composite integration_connections agent/org foreign key referencing agents(id, org_id). |
+| Scope | Organisation integration API + I-2 migration. |
+| Verification | Execute migration and verify cross-organisation/cross-agent rejection. |
+
+## 2026-10-05 — I-2 architect review checkpoint
+
+I-2 implementation is real repository state but remains **IMPLEMENTED — VERIFICATION PENDING**. The project-control Final State Contract was reconciled to an explicit BLOCKED/verification state. No I-2 PASS is claimed. The next closure attempt requires executable CI/build evidence, database verification, connector smoke testing, security/governance scans, and a fresh ChatGPT Gate-D review.
