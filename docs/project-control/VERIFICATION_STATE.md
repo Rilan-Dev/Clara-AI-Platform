@@ -4,6 +4,28 @@
 > Since Phase 5 (2026-10-01) this register also carries the durable **verification and phase-gate contract** (§ below) — the binding rules every phase's closure evidence must satisfy from Phase 5 onward (DECISIONS.md D-020).
 > Snapshot date: **2026-10-05**. Phase 7-C closure evidence is recorded below; historical evidence remains unrewritten. All commands listed here are read-only and re-runnable by any fresh session.
 
+## CURRENT I-2 VERIFICATION RECORD — 2026-10-05
+
+| Gate | Status | Current evidence |
+|---|---|---|
+| A — Scope | PASS WITH FINDINGS | I-2 implementation is present; current corrective changes remain inside the I-2 runtime/control-plane boundary. |
+| B — Implementation | IN_PROGRESS | I-2 implementation exists; tenant/logging hardening corrections have now been committed. |
+| C — Test | MISSING | Current-head GitHub Actions runs fail without exposed executable step logs; no trustworthy test result can be claimed from those runs. |
+| D — Code review | IN_PROGRESS | ChatGPT reviewed the implementation and identified credential-trace, tenant-store, and agent/org ownership findings; corrections are underway. No PASS. |
+| E — Database | REQUIRED / MISSING | I-2 changes migration 052 and new migration 061; remote execution/verification has not yet been performed in this recovery. |
+| F — Deployment | NOT_APPLICABLE | No production deployment or promotion is authorized for I-2 verification. |
+
+### Current architect findings
+
+1. Integration HTTP tracing previously captured request/response bodies and runtime logs could expose action properties/output/error strings. Redaction hardening has been applied at the current feature head.
+2. Integration store FLOW keys were not organisation-namespaced and reads/deletes were not explicitly tenant-constrained. The runtime store and migration 061 now harden this boundary.
+3. Organisation connection creation accepted an arbitrary agentId; an explicit org ownership check plus a database composite agent/org foreign key have been added.
+4. Activepieces dependency closure remains present in package.json but executable lock/build synchronization evidence is still required.
+
+**Review status: NO PASS.** The I-2 phase remains open until executable evidence and the final Gate-D review are complete.
+
+---
+
 ## Evidence classes (definitions — used by ALL control documents)
 
 | Class | Definition |
