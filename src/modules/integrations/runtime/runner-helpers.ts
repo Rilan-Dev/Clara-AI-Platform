@@ -62,7 +62,11 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
           }),
         });
 
-        if (!response.ok) {
+        if (response.status >= 300 && response.status < 400) {
+    throw new Error("OAuth token refresh redirects are not allowed");
+  }
+
+  if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
@@ -423,6 +427,9 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
+      // Do not let an OAuth token endpoint redirect the credential-bearing
+      // refresh request to an unchecked destination.
+      redirect: "manual",
     });
   } catch {
     throw new Error("OAuth token refresh request failed");
