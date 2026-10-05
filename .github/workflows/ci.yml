@@ -159,3 +159,13 @@ jobs:
         run: npx tsc --noEmit --strict --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --esModuleInterop --jsx preserve --types vitest/globals src/modules/ai-platform-core/integrations/integration-contracts.ts src/modules/ai-platform-core/integrations/integration-contracts.test.ts src/modules/ai-platform-core/contracts.ts src/modules/ai-platform-core/tool-contracts.ts src/modules/ai-platform-core/index.ts
       - name: Lint I-1 contract surface
         run: npx eslint src/modules/ai-platform-core/integrations/integration-contracts.ts src/modules/ai-platform-core/integrations/integration-contracts.test.ts src/modules/ai-platform-core/index.ts
+
+
+  docker-production-build:
+    name: Production Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Clara backend image
+        run: docker build --file Dockerfile --tag clara-backend:ci --build-arg SKIP_AUTH=true .
