@@ -166,6 +166,7 @@ export async function PUT(req: NextRequest) {
       maxDocsPerKb: newPlan.max_docs_per_kb,
       maxReqDay: newPlan.max_req_day,
       maxStorageMb: newPlan.max_storage_mb,
+      maxIntegrations: newPlan.max_integrations,
       maxTtsCharsDay: newPlan.max_tts_chars_day,
       maxSttAudioSecDay: newPlan.max_stt_audio_sec_day,
       maxTranslationCharsDay: newPlan.max_translation_chars_day,
