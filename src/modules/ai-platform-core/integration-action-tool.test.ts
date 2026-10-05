@@ -42,9 +42,9 @@ describe("integration action tool scope propagation", () => {
     expect(result).toEqual({ ok: true });
     expect(runAction).toHaveBeenCalledWith(expect.objectContaining({
       workspaceId: "org-1",
-      projectId: "agent-1",
       agentId: "agent-1",
       userId: "user-1",
     }));
+    expect(runAction.mock.calls[0][0]).not.toHaveProperty("projectId");
   });
 });
