@@ -177,12 +177,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // "/orgs" list is admin-only; "/orgs/:id" is accessible to org users for their own org
       const isOrgsListPage = pathname === "/orgs";
 
-      const orgMatch = pathname.match(/^\\/orgs\\/([^/]+)/);
+      const orgMatch = pathname.match(/^\/orgs\/([^/]+)/);
       const requestedOrgId = orgMatch?.[1] ?? null;
       const ownsRequestedOrg = !requestedOrgId || requestedOrgId === primaryOrgId;
       const isOrgBillingPage = Boolean(requestedOrgId && pathname === `/orgs/${requestedOrgId}/billing`);
       const isOrgMembersPage = Boolean(requestedOrgId && pathname === `/orgs/${requestedOrgId}/members`);
-      const agentSectionMatch = pathname.match(/^\\/orgs\\/[^/]+\\/agents\\/[^/]+(?:\\/([^/]+))?/);
+      const agentSectionMatch = pathname.match(/^\/orgs\/[^/]+\/agents\/[^/]+(?:\/([^/]+))?/);
       const agentSection = agentSectionMatch?.[1] ?? null;
       const agentEditSection = ["config", "faq", "tools", "versions", "publish"].includes(agentSection ?? "");
       const agentKnowledgeSection = agentSection === "knowledge";
