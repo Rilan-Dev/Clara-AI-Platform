@@ -133,3 +133,18 @@ Still pending before Phase 7-C closure:
 The requested UI/RBAC/subscription implementation is complete. The Members UI role-assignment correction is committed; org_admin can assign all defined roles, while project_manager remains least-privilege constrained. Billing & Plan is enabled with live usage/limits and entitlement visibility.
 
 **Pending only:** executable current-head CI/production-build evidence and browser verification. Vercel preview evidence is temporarily blocked by the provider daily deployment quota; do not use the older cancelled preview as current-head evidence. No I-2 integration runtime, OAuth, persistence, egress, MCP runtime, production promotion, or Phase 8 work is authorized.
+
+
+## 2026-10-05 — Integrations I-2 implementation checkpoint
+
+I-2 is IMPLEMENTED — VERIFICATION PENDING under D-032.
+
+Next bounded actions:
+1. Run npm install --legacy-peer-deps in the executable build environment to synchronize the 529 Doable Activepieces package dependencies and lockfile.
+2. Execute the 052 integration migration and verify platform/org/agent connection persistence plus pgcrypto encryption.
+3. Run registry tests and strict typecheck/lint for the integration runtime, API, AI tools, and UI.
+4. Configure/test at least one real connector action using an organization/agent connection.
+5. Browser-verify platform admin → organisation → agent integration access and denial paths.
+6. Re-run immutable-source, secret, runtime-import, and governance checks, then perform I-2 Gate-D review.
+
+Stopping boundary: no production promotion or claim of complete integrations until the above evidence exists.
