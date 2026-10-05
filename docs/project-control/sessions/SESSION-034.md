@@ -92,3 +92,27 @@ The user-directed continuation does not wait on GitHub Actions or Vercel as a de
 
 ### Remaining bounded I-2 gaps
 OAuth callback/state transport is still not implemented as a complete end-to-end flow, so OAuth smoke cannot yet be represented as fully PASS. Dependency/lock synchronization and executable current-head test/typecheck/lint/build evidence also remain outstanding. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
+
+
+## 2026-10-06 — I-2 outbound egress/SSRF hardening continuation
+
+Authorization: D-032  
+Status: IMPLEMENTATION CORRECTION COMPLETE — VERIFICATION PENDING
+
+### Implemented
+- Added a host-owned outbound integration egress policy in runner-fetch.
+- HTTP/HTTPS are the only allowed integration protocols.
+- URL userinfo is rejected.
+- Literal and DNS-resolved destinations in loopback, private, link-local, carrier-grade NAT, documentation, multicast, and other non-public ranges are denied.
+- The policy is applied before external integration requests while preserving the existing trusted internal Clara broadcast/collaboration bypass.
+- Added regression coverage for private/loopback/metadata/multicast denial, protocol/userinfo rejection, and a public IP allow case.
+
+### Commits
+- c950c1f6fd8a71ea04b4928f60c52b8bcbb65664 — initial SSRF egress policy
+- 1e0561ca03ef883995d03c7eb88a38882a4a77fd — Node DNS typing correction
+- c913bf77f45808237df832e8fe60e0321b91bacf — SSRF regression tests
+- c9c09b068002535190daba66259233229640ab80 — preserve trusted internal fetch bypass ordering
+- 4eba8c473c06406c7ba57e48a1af0b8d9dc4ed6b / 8283c14c909ccdf31d9fdb906986960714ef2dfb — control-state reconciliation
+
+### Remaining bounded security note
+The current policy validates the initial integration destination and blocks non-public DNS answers. Automatic HTTP redirect targets are not independently revalidated by the current fetch wrapper; this remains a bounded verification/security item and is not being claimed as fully closed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
