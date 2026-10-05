@@ -306,13 +306,19 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
 
 // ─── Piece Cache ─────────────────────────────────────────
 
+export interface IntegrationPiece {
+  displayName?: string;
+  actions?: unknown[] | Record<string, unknown> | (() => unknown);
+  getAction?: (name: string) => unknown;
+}
+
 /** Cache loaded pieces to avoid repeated dynamic imports */
-export const pieceCache = new Map<string, any>();
+export const pieceCache = new Map<string, IntegrationPiece>();
 
 /**
  * Load a piece package by integration ID.
  */
-export async function loadPiece(integrationId: string): Promise<any> {
+export async function loadPiece(integrationId: string): Promise<IntegrationPiece> {
   if (pieceCache.has(integrationId)) return pieceCache.get(integrationId)!;
 
   const def = getIntegration(integrationId);
@@ -320,11 +326,12 @@ export async function loadPiece(integrationId: string): Promise<any> {
 
   try {
     const mod = await import(def.piecePackage);
-    let piece = mod.default;
+    let piece: unknown = mod.default;
     if (!piece?.displayName) {
       for (const key of Object.keys(mod)) {
-        const val = mod[key];
-        if (val && typeof val === "object" && val.displayName && (typeof val.actions === "function" || Array.isArray(val.actions) || typeof val.getAction === "function")) {
+        const val: unknown = mod[key];
+        const candidate = val && typeof val === "object" ? val as Record<string, unknown> : undefined;
+        if (candidate?.displayName && (typeof candidate.actions === "function" || Array.isArray(candidate.actions) || typeof candidate.getAction === "function")) {
           piece = val;
           break;
         }
@@ -335,8 +342,9 @@ export async function loadPiece(integrationId: string): Promise<any> {
       throw new Error(`No piece export found in ${def.piecePackage}`);
     }
 
-    pieceCache.set(integrationId, piece);
-    return piece;
+    const typedPiece = piece as IntegrationPiece;
+    pieceCache.set(integrationId, typedPiece);
+    return typedPiece;
   } catch (err) {
     throw new Error(
       `Failed to load piece ${def.piecePackage}: ${err instanceof Error ? err.message : String(err)}`
@@ -358,69 +366,3 @@ export function resolveAuth(authType: string, credentials: unknown): unknown {
       // credential was stored (apiKey, token, auth, or raw string).
       let rawValue: string | undefined;
       if (typeof credentials === "string") {
-        rawValue = credentials;
-      } else {
-        rawValue =
-          (credentials as any)?.secret_text ??
-          (credentials as any)?.apiKey ??
-          (credentials as any)?.token ??
-          (credentials as any)?.auth;
-      }
-      if (rawValue !== undefined) {
-        return { secret_text: rawValue };
-      }
-      return credentials;
-    }
-    case "custom_auth":
-      return { ...(credentials as Record<string, unknown>), props: credentials };
-    case "basic_auth":
-      return credentials;
-    case "none":
-      return undefined;
-    default:
-      return credentials;
-  }
-}
-
-// ─── Token Refresh Check ─────────────────────────────────
-
-export async function ensureTokenFresh(connectionId: string, orgId: string, authType: string): Promise<void> {
-  if (authType !== "oauth2") return;
-
-  const creds = await credentialVault.decrypt(connectionId, orgId) as OAuth2TokenData | null;
-  if (!creds || !creds.refresh_token) return;
-
-  const now = Math.floor(Date.now() / 1000);
-  const expiresAt = (creds.claimed_at ?? 0) + (creds.expires_in ?? 3600);
-
-  if (now + 900 < expiresAt) return;
-
-  console.log(`[IntegrationRunner] Token for connection ${connectionId} needs refresh`);
-}
-
-// ─── Usage Logging ───────────────────────────────────────
-
-export async function logUsage(params: {
-  workspaceId: string;
-  userId: string;
-  integrationId: string;
-  actionName: string;
-  success: boolean;
-  durationMs: number;
-  errorMessage?: string;
-}): Promise<void> {
-  try {
-    await query`
-      INSERT INTO integration_usage_log (
-        workspace_id, user_id, integration_id, action_name,
-        success, duration_ms, error_message
-      ) VALUES (
-        ${params.workspaceId}, ${params.userId}, ${params.integrationId},
-        ${params.actionName}, ${params.success}, ${params.durationMs},
-        ${params.errorMessage ?? null}
-      )
-    `;
-  } catch (err) {
-    console.warn("[IntegrationRunner] Usage logging failed:", err);
-  }
-}
