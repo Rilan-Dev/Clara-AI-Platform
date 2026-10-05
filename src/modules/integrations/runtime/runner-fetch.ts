@@ -53,6 +53,16 @@ const REDACTED_HEADERS = new Set([
 const MAX_TRACE_BODY_CHARS = 2048;
 const SENSITIVE_KEY = /(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|passwd|credential|private[_-]?key|session|cookie|jwt|token)/i;
 
+function redactUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    for (const key of Array.from(u.searchParams.keys())) {
+      if (SENSITIVE_KEY.test(key)) u.searchParams.set(key, "[REDACTED]");
+    }
+    return u.toString();
+  } catch { return rawUrl; }
+}
+
 function redactBody(value: string | null): string | null {
   if (value == null) return null;
   const truncated = value.length > MAX_TRACE_BODY_CHARS
@@ -102,7 +112,8 @@ export function createTracedFetch(
   xrayHandle?: XrayCallHandle | null,
 ): typeof globalThis.fetch {
   return async function tracedFetch(input: any, init?: RequestInit): Promise<Response> {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+    const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+    const url = redactUrl(rawUrl);
 
     // Skip tracing for internal broadcast/WS calls
     if (url.includes('/internal/broadcast') || url.includes('/internal/collab') || url.includes('/internal/yjs')) {
