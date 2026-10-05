@@ -310,3 +310,25 @@ Control records:
 - Gate-D remains IN_PROGRESS.
 - No executable GitHub Actions/Vercel result was awaited or inferred.
 - No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-049 atomic organisation integration mutation correction
+
+[architect-verified] Mandatory project-control recovery was performed before continuing. CHAT_CONTINUITY.md, NEXT_ACTION.md, PROJECT_STATE.md, CURRENT_PHASE.md, VERIFICATION_STATE.md, DECISIONS.md, ISSUES.md, and the I-2 planning/authorization boundary were re-read. GitHub branch truth is feature/ai-core-from-doable-source; I-2 remains IMPLEMENTED — VERIFICATION PENDING; Z.AI remains STOPPED.
+
+[architect-verified] Source review found a P1 I-2 correctness/concurrency defect in src/app/api/orgs/[orgId]/integrations/route.ts: max-integrations count checks and subsequent organisation-grant/connection mutations were separate pool operations. Concurrent enable/connect requests could both consume the same slot, and a failed connection insert could leave the organisation integration enabled without a usable connection.
+
+[implemented] Moved bounded enable and connect mutations into withTransaction(). Added a transaction-scoped PostgreSQL advisory lock keyed by organisation to serialize integration-slot mutations. Direct connect now atomically commits the implicit organisation enablement with the encrypted connection insert, so a failed insert rolls the grant back with the transaction.
+
+[implemented] Extended src/app/api/orgs/[orgId]/integrations/route.test.ts with focused coverage for transactional direct-connect limit enforcement and connection-insert failure handling.
+
+Implementation commits:
+- 0f55d11dfc612b293fcf9046cb6d99c25451cdf9
+- cd35659c8b286dd89d6ba325307ce734cfe0b2dc
+- regression ccd1fb2d7ba0b06d1ebace779aea7854e9e034df
+
+Control records:
+- I-049 resolved by architect source review.
+- Gate-C remains MISSING; executable current-head tests/typecheck/lint/build are not claimed.
+- Gate-D remains IN_PROGRESS.
+- No GitHub Actions/Vercel success was awaited or inferred.
+- No I-3, MCP expansion, production promotion, or unrelated implementation was started.
