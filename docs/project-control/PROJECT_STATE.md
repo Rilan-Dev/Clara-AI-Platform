@@ -350,3 +350,10 @@ Current authoritative feature HEAD at this checkpoint: `b3c0ca0dd0672fafaf04b1f4
 I-2 remains IMPLEMENTED — VERIFICATION PENDING. Database Gate-E evidence is now present for the I-2 surface: 052, corrected 061, and 062 executed successfully; pgcrypto works; integration agent/org constraints are present; and all six I-2 integration tables are RLS-enabled with anon/authenticated access revoked.
 
 Gate-C remains missing because current GitHub Actions execution failed without usable step logs. Connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D remain open. No I-2 PASS or production promotion is claimed.
+
+
+## 2026-10-05 — I-2 current verification reconciliation
+
+Authoritative branch tip at this checkpoint: `4200b0cf5180c607406b8f60fbe2a99376b0bcb1`.
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-E is materially evidenced for the I-2 database surface; prior text claiming Gate-E is missing is superseded by this dated reconciliation. GitHub Cloud CI is now intentionally configured to run only for Vercel-Prod push/PR events, so feature-branch CI runs are not a valid current-head execution path. A current-head Vercel deployment was started and reached `npm install --legacy-peer-deps --include=dev`, but stalled without a completion result and was canceled; therefore no build PASS is inferred.
