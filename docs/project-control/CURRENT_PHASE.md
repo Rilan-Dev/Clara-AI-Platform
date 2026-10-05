@@ -374,3 +374,8 @@ Completed in I-2: 168 extracted Doable integration definitions; platform enable/
 Pending: Activepieces dependency lock synchronization, executable migration/build/typecheck/lint evidence, OAuth provider configuration/callback smoke test, real connector action smoke test, browser verification, secret/runtime-boundary checks, and final architect review.
 
 No I-2 PASS is claimed until those gates are observed. [architect-verified]
+
+
+## 2026-10-05 — I-2 database verification checkpoint
+
+I-2 remains the active bounded phase: IMPLEMENTED — VERIFICATION PENDING. Database verification is now materially complete for the I-2 surface through the Clara Supabase project. The phase is not closed because executable Gate-C evidence and final runtime/browser/security verification remain unavailable. No I-3/MCP/production promotion is authorized.
