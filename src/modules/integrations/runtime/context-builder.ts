@@ -27,14 +27,14 @@ export function buildActionContext(params: {
 
     // ── Real implementations (used by ~15% of actions) ──
     executionType: "BEGIN",
-    store: new PostgresStore(params.userId, params.workspaceId),
+    store: new PostgresStore(params.userId, params.workspaceId, params.projectId),
     files: new DoableFilesService(),
     server: {
       apiUrl: API_URL,
       publicUrl: PUBLIC_URL,
       token: "",
     },
-    connections: new DoableConnectionsManager(params.userId, params.workspaceId),
+    connections: new DoableConnectionsManager(params.userId, params.workspaceId, params.projectId),
 
     // ── Stubs (used by <1% of actions) ──
     tags: { add: async () => {} },
