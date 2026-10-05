@@ -14,6 +14,7 @@ type PlanInput = {
   maxDocsPerKb?: number;
   maxReqDay?: number;
   maxStorageMb?: number;
+  maxIntegrations?: number;
   maxTtsCharsDay?: number;
   maxSttAudioSecDay?: number;
   maxTranslationCharsDay?: number;
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              COALESCE(pv.max_docs_per_kb, sp.max_docs_per_kb) AS max_docs_per_kb,
              COALESCE(pv.max_req_day, sp.max_req_day) AS max_req_day,
              COALESCE(pv.max_storage_mb, sp.max_storage_mb) AS max_storage_mb,
+             COALESCE(pv.max_integrations, sp.max_integrations) AS max_integrations,
              COALESCE(pv.max_tts_chars_day, sp.max_tts_chars_day, -1) AS max_tts_chars_day,
              COALESCE(pv.max_stt_audio_sec_day, sp.max_stt_audio_sec_day, -1) AS max_stt_audio_sec_day,
              COALESCE(pv.max_translation_chars_day, sp.max_translation_chars_day, -1) AS max_translation_chars_day,
