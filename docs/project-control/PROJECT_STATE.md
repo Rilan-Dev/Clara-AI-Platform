@@ -3,7 +3,7 @@
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** Repository truth at feature HEAD is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**, with the project-control Final State Contract currently **BLOCKED** pending reconciliation and verification. Phase 7 is **PASS — CLOSED** and is not reopened. I-1 remains historical/incomplete where its Gate-C evidence was never independently observed. I-2 implementation exists, but no I-2 architect PASS has been issued.
 >
-> Current HEAD / origin: **c7f34cfbd083005640acfa4744d62882f5a7f90f**. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current HEAD / origin: **ea8263efbc349c45660f5fd2d472fac27ebf3896**. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
 > I-2 verification blockers currently include: executable CI evidence not yet obtained; Activepieces manifest/lockfile synchronization still requiring an executable build environment; credential-bearing integration traces/errors required security hardening; tenant-scoped integration-store access required hardening; and agent/org ownership enforcement required at the persistence boundary. Corrections are being made only within the existing I-2 authorization. No I-3, MCP expansion, production promotion, or unrelated feature work is authorized.
 
@@ -26,19 +26,19 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Current phase | **Integrations Framework — I-2 IMPLEMENTED — VERIFICATION PENDING; Phase 7 CLOSED; control reconciliation BLOCKED** | [architect-verified GitHub state, 2026-10-05]
+| Current phase | **Integrations Framework — I-2 IMPLEMENTED — VERIFICATION PENDING** | [architect-verified GitHub state, 2026-10-05]
 | Current objective | **Verify and harden I-2 implementation, obtain executable Gate-C/E evidence, then perform architect Gate-D review.** | [D-032 + current architect review]
 | Phase contract | `docs/project-control/CURRENT_PHASE.md` (the Phase 7-A implementation-stage contract + the appended correction-stage record + the appended closure record; the planning-stage contract is preserved in Git history at `ac06ca72`; the implementation-stage contract at `688070a5`; the correction-stage contract at `577189d4`) | exists |
-| Active handoff instance | `docs/project-control/ZAI_HANDOFF.md` — Part I (durable protocol) + Part II (the **Phase 7-B closure/STOP record** — the executed DH-005 decision-record instance updated in place with the architect's closure outcome (`PASS` — 7-B `PASS — CLOSED` under the D-023 / Option A acceptance) and the post-closure STOP boundary; the superseded pre-closure decision-record instance recoverable in Git history at `8d124263`, the executed AH-004 analysis instance at `f7327d7b`, and the executed CH-003 corrective instance at `4413bc83`; the instance carries its execution-record addendum + the appended closure record) | exists |
+| Active handoff instance | `docs/project-control/ZAI_HANDOFF.md` — Part I durable protocol + Part II **no active Z.AI handoff / STOP**; ChatGPT is implementation owner under D-024 | exists |
 | Continuity procedure | `docs/project-control/CHAT_CONTINUITY.md` — fresh-ChatGPT initialization and recovery procedure (established Phase 3) | exists |
 | Canonical project worklog | repository-root `worklog.md` — historical audit trail, Phases 0–3 + the `b65725e5` event + the Phase 4 implementation/closure entries + the Phase 5 implementation entry (with its corrective-cycle note) + the Phase 5 closure entry + the Phase 6 implementation entry (with its appended corrective-cycle note) + the Phase 6 closure entry (2026-10-01) + the Phase 7 planning entry (2026-10-02) + the Phase 7-A implementation entry (2026-10-02) + the Phase 7-A correction entry (CH-002 / I-016, 2026-10-02) + the Phase 7-A closure entry (architect `PASS` — 7-A closed, 2026-10-02); **audit/history artifact, NOT current-state authority** (established Phase 4; D-018) | exists |
 | Session audit records | `docs/project-control/sessions/` — README + `SESSION-001`…`SESSION-034` (established Phase 4; D-019; SESSION-015–SESSION-018 record the Phase 7-B implementation/integration/final-synchronization/correction sessions; SESSION-019 records the AH-004 decision-analysis session; SESSION-020 records the architect-decision recording session (D-023 — OPTION A); **SESSION-021 records the Phase 7-B closure-recording session (architect closure review `PASS`)**) | exists |
 
-### Current continuation checkpoint — Integrations I-1
+### Current continuation checkpoint — Integrations I-2
 
 | Field | Value | Evidence |
 |---|---|---|
-| Current branch tip | `46160a048e6a1855b2148ca064961c79929f4630` — current governance tip; the I-1 implementation/correction state is preserved at `d9705441b016d565923f9e0813d7a22544aef8c8` with correction `bfc40f671aea218def571c617f00789e15b45823` as an ancestor | [architect-verified] GitHub compare from the I-1 checkpoint |
+| Current branch tip | `ea8263efbc349c45660f5fd2d472fac27ebf3896` — current GitHub feature-branch tip | [architect-verified] GitHub branch state
 | I-2 status | **IMPLEMENTED — VERIFICATION PENDING** | [architect-verified] implementation exists; current-head executable verification and Gate-D are incomplete |
 | Next authorization boundary | **No further integration capability is authorized beyond I-2 verification/correction.** | [architect-verified] D-032 + current STOP boundary |
 
