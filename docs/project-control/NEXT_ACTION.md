@@ -34,6 +34,16 @@ I-2 remains the active bounded work. A concrete security correction was implemen
 - Regression test: `710565d1de3aa0a9bd96ea651f2c0be8ff7eaa1c`
 - I-035: RESOLVED by architect source review.
 - Next: continue bounded I-2 verification/corrections; do not expand to I-3/MCP/production.
+## 2026-10-06 — I-2 owner continuation: action-context scope hardening
+
+I-2 remains the active bounded work. A source audit after the I-037 runner credential-scope correction found the same project/agent conflation inside the Activepieces action context: store and cross-integration connection-manager adapters were still receiving projectId. This was corrected without waiting for CI/Vercel.
+
+- Context correction: a5680cd51c6d9ca961ab93effd20fb069d0e2bbe
+- Runner propagation: f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11
+- Regression test: 550b751b745d7a8a4a52854edc1cc328d7c891b2
+- I-040: RESOLVED by architect source review.
+- Next: continue bounded I-2 verification/security review only; do not expand to I-3/MCP/production.
+
 ## Read this first
 
 Read, in order:
