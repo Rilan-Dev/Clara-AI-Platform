@@ -628,3 +628,18 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth transport implementation, no new integration providers, no MCP expansion, no production promotion, and no unrelated runtime refactor. |
 | Architect review | Correction inspected and accepted as the bounded source correction; final I-2 Gate-D remains pending until executable evidence is obtained. |
 
+
+
+## I-033 — I-2 agent integration grant could bypass current plan entitlement
+
+| Field | Value |
+|---|---|
+| Issue ID | I-033 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | CORRECTED — executable verification pending |
+| Finding | The agent integration PATCH route enforced platform and organisation enablement but did not re-check the organisation's current plan entitlement. After a plan downgrade, a project-level grant could therefore be enabled for an integration no longer allowed by the current plan. |
+| Correction | [architect/ChatGPT] Added getOrgPlanLimits(orgId) and fail-closed PLAN_NOT_ENTITLED handling to the agent grant mutation. |
+| Scope | src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts only. |
+| Non-scope | No new permissions, migrations, OAuth transport, MCP, billing semantics, or production promotion. |
+| Verification | Current-head executable route/test/build evidence remains pending; source correction is architect-verified. |
