@@ -73,7 +73,13 @@ for (const [network, prefix] of [
 function isBlockedAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 4) return PRIVATE_EGRESS.check(address, "ipv4");
-  if (family === 6) return PRIVATE_EGRESS.check(address, "ipv6");
+  if (family === 6) {
+    // IPv4-mapped IPv6 addresses can represent a private IPv4 destination
+    // while presenting as IPv6 to the first-pass BlockList check.
+    const mapped = address.match(/^::ffff:(\\d+\\.\\d+\\.\\d+\\.\\d+)$/i);
+    if (mapped) return PRIVATE_EGRESS.check(mapped[1], "ipv4");
+    return PRIVATE_EGRESS.check(address, "ipv6");
+  }
   return true;
 }
 
