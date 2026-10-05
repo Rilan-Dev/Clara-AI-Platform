@@ -2,9 +2,9 @@ name: Cloud CI — Lint, Type Check & Tests
 
 on:
   push:
-    branches: [main, Vite-Converted, Vercel-Prod, ci/cloud-runtime-verification]
+    branches: [Vercel-Prod]
   pull_request:
-    branches: [main, Vite-Converted, Vercel-Prod]
+    branches: [Vercel-Prod]
 
 jobs:
   lint:
