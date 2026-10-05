@@ -966,3 +966,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | `RESOLVED` — correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] The route now uses `withTransaction()` plus `pg_advisory_xact_lock(hashtextextended(orgId, 0))` for bounded integration-slot mutations, and the focused regression confirms the transaction path is exercised. |
 | Resolution date | 2026-10-06 |
+
+
+## I-050 — I-2 AI integration availability did not bind agent grants to tenant ownership
+
+| Field | Value |
+|---|---|
+| Issue ID | I-050 |
+| Title | AI-visible integration availability must enforce agent-to-tenant ownership |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The AI-visible `integration_availability` query filtered agent grants by `agent_id` but did not join the authoritative `agents.org_id` relationship. A cross-tenant agent identity could therefore be used to discover an integration that was enabled for the current tenant, weakening the fail-closed tenant boundary at capability discovery. |
+| Evidence | [architect-verified] Direct source review of `src/modules/ai-platform-core/integration-ai-tools.ts` showed the availability query lacked the same tenant-bound agent join already enforced by `integration_action`. |
+| Correction | [architect/ChatGPT] Added an `agents` join requiring `a.org_id = context.tenantId` before an agent integration grant can enter the availability surface. Added focused regression coverage for a cross-tenant agent identity. |
+| Correction scope | `src/modules/ai-platform-core/integration-ai-tools.ts`; `src/modules/ai-platform-core/integration-ai-tools.test.ts` |
+| Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | `c9f71d7e776e0127d587d08e03132579c5ac9fad`; regression `c122dfab4a1deee1d3b40614cc8cb993f7812d56` |
+| Verification | [architect-verified] Source review confirms the availability query is tenant-bound through the authoritative `agents.org_id` relationship and the focused regression asserts the tenant predicate. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] The availability query now requires both the explicit agent identity and its membership in the execution tenant before exposing enabled integration capabilities. |
+| Resolution date | 2026-10-06 |
