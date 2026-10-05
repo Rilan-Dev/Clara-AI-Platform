@@ -3,7 +3,7 @@
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** Repository truth at feature HEAD is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**, with the project-control Final State Contract currently **BLOCKED** pending reconciliation and verification. Phase 7 is **PASS — CLOSED** and is not reopened. I-1 remains historical/incomplete where its Gate-C evidence was never independently observed. I-2 implementation exists, but no I-2 architect PASS has been issued.
 >
-> Current HEAD / origin: **fe43b7aae9c1efc273082f50e93b509137b1493e**. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current HEAD / origin: **read from GitHub at recovery time; this procedure does not duplicate the live SHA.** ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
 > I-2 verification blockers currently include: executable CI evidence not yet obtained; Activepieces manifest/lockfile synchronization still requiring an executable build environment; credential-bearing integration traces/errors required security hardening; tenant-scoped integration-store access required hardening; and agent/org ownership enforcement required at the persistence boundary. Corrections are being made only within the existing I-2 authorization. No I-3, MCP expansion, production promotion, or unrelated feature work is authorized.
 
