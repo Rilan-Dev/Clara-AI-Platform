@@ -332,3 +332,22 @@ Control records:
 - Gate-D remains IN_PROGRESS.
 - No GitHub Actions/Vercel success was awaited or inferred.
 - No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-050 AI availability tenant-binding correction
+
+[architect-verified] Continued the bounded I-2 source review without waiting for GitHub Actions or Vercel. The AI-visible integration availability query was compared against the already-corrected integration_action tenant boundary.
+
+[architect-verified] Found that integration_availability filtered agent_integrations by agent_id but did not bind that agent to context.tenantId through the authoritative agents.org_id relationship. This could expose cross-tenant capability metadata.
+
+[implemented] Added the agents join with a.org_id = context.tenantId and added focused regression coverage proving a cross-tenant agent identity returns no available integrations.
+
+Implementation commits:
+- c9f71d7e776e0127d587d08e03132579c5ac9fad
+- regression c122dfab4a1deee1d3b40614cc8cb993f7812d56
+
+Control records:
+- I-050 resolved by architect source review.
+- Gate-C remains MISSING; executable current-head tests/typecheck/lint/build are not claimed.
+- Gate-D remains IN_PROGRESS.
+- No GitHub Actions/Vercel success was awaited or inferred.
+- No I-3, MCP expansion, production promotion, or unrelated implementation was started.
