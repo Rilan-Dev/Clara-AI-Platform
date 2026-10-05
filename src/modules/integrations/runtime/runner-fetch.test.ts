@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redactBody, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
+import { assertSafeEgressUrl, redactBody, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
 
 describe("integration runtime trace redaction", () => {
   it("redacts credential-bearing JSON fields recursively", () => {
@@ -46,4 +46,21 @@ describe("integration runtime trace redaction", () => {
     });
   });
 
+
+  it("blocks private, loopback, metadata-style and multicast IP destinations", async () => {
+    await expect(assertSafeEgressUrl("http://127.0.0.1:8080/internal")).rejects.toThrow("not allowed");
+    await expect(assertSafeEgressUrl("http://10.0.0.5/internal")).rejects.toThrow("not allowed");
+    await expect(assertSafeEgressUrl("http://169.254.169.254/latest/meta-data")).rejects.toThrow("not allowed");
+    await expect(assertSafeEgressUrl("http://[::1]:8080/internal")).rejects.toThrow("not allowed");
+    await expect(assertSafeEgressUrl("http://224.0.0.1/multicast")).rejects.toThrow("not allowed");
+  });
+
+  it("rejects non-HTTP protocols and URL userinfo", async () => {
+    await expect(assertSafeEgressUrl("file:///etc/passwd")).rejects.toThrow("protocol is not allowed");
+    await expect(assertSafeEgressUrl("https://user:password@example.com")).rejects.toThrow("cannot contain credentials");
+  });
+
+  it("allows a public IP destination", async () => {
+    await expect(assertSafeEgressUrl("https://1.1.1.1/health")).resolves.toBeUndefined();
+  });
 });
