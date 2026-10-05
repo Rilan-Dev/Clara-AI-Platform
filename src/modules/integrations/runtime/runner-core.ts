@@ -3,7 +3,7 @@ import { credentialVault } from "./credential-vault.js";
 import { buildActionContext } from "./context-builder.js";
 import type { RunActionParams, RunActionResult } from "./types.js";
 import { xray } from "./xray.js";
-import { fetchCtx, createTracedFetch, type HttpTraceEntry } from "./runner-fetch.js";
+import { fetchCtx, createTracedFetch, redactText, type HttpTraceEntry } from "./runner-fetch.js";
 import {
   customActions,
   pieceCache,
@@ -206,7 +206,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     return { success: true, output, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorMsg = redactText(err instanceof Error ? err.message : String(err)) ?? "Integration action failed";
     console.error(`[Integration] FAILED ${params.integrationId}/${params.actionName} ${durationMs}ms: ${errorMsg}`);
     xr.end("error", errorMsg);
 
