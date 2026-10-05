@@ -17,6 +17,14 @@
 
 ---
 
+## 2026-10-06 — I-2 owner continuation: trace-redaction hardening
+
+I-2 remains the active bounded work. A concrete security correction was implemented without waiting for GitHub Actions or Vercel: trace payloads are now fully redacted before truncation, closing the late-field credential exposure found as I-035.
+
+- Implementation: `f6b9f5f89a476743e48610b5dcc4d8d678ff6366`
+- Regression test: `710565d1de3aa0a9bd96ea651f2c0be8ff7eaa1c`
+- I-035: RESOLVED by architect source review.
+- Next: continue bounded I-2 verification/corrections; do not expand to I-3/MCP/production.
 ## Read this first
 
 Read, in order:
