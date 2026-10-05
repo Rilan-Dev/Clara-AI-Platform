@@ -36,6 +36,7 @@ type SubData = {
     current_period_end: string | null; current_period_start: string | null;
     cancel_at_period_end: boolean; price_usd: number;
     max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
+    max_tts_chars_day: number; max_stt_audio_sec_day: number; max_translation_chars_day: number;
     voice_enabled: boolean; api_access: boolean; custom_branding: boolean;
     multilingual_embeddings: boolean; sso_enabled: boolean;
     analytics_level: string; priority_support: boolean;
@@ -55,6 +56,7 @@ type DowngradeBlocker = { key: string; current: number; limit: number; label: st
 type Plan = {
   id: string; name: string; description: string; price_usd: number;
   max_kbs: number; max_docs_per_kb: number; max_req_day: number; max_storage_mb: number;
+  max_tts_chars_day: number; max_stt_audio_sec_day: number; max_translation_chars_day: number;
   voice_enabled: boolean; api_access: boolean; custom_branding: boolean;
   multilingual_embeddings: boolean; sso_enabled: boolean;
   analytics_level: string; priority_support: boolean; features: string[];
@@ -507,6 +509,9 @@ export default function OrgBillingScreen() {
                     <span className="text-muted-foreground">Docs / KB</span><span className="text-right text-foreground font-medium">{plan.max_docs_per_kb === -1 ? "Unlimited" : plan.max_docs_per_kb ?? "—"}</span>
                     <span className="text-muted-foreground">Requests / 24h</span><span className="text-right text-foreground font-medium">{plan.max_req_day === -1 ? "Unlimited" : plan.max_req_day?.toLocaleString() ?? "—"}</span>
                     <span className="text-muted-foreground">Storage</span><span className="text-right text-foreground font-medium">{plan.max_storage_mb === -1 ? "Unlimited" : plan.max_storage_mb != null ? plan.max_storage_mb.toLocaleString() + " MB" : "—"}</span>
+                    <span className="text-muted-foreground">TTS / day</span><span className="text-right text-foreground font-medium">{plan.max_tts_chars_day === -1 ? "Unlimited" : plan.max_tts_chars_day?.toLocaleString() ?? "—"}</span>
+                    <span className="text-muted-foreground">STT / day</span><span className="text-right text-foreground font-medium">{plan.max_stt_audio_sec_day === -1 ? "Unlimited" : plan.max_stt_audio_sec_day != null ? Math.round(plan.max_stt_audio_sec_day / 60).toLocaleString() + " min" : "—"}</span>
+                    <span className="text-muted-foreground">Translation / day</span><span className="text-right text-foreground font-medium">{plan.max_translation_chars_day === -1 ? "Unlimited" : plan.max_translation_chars_day?.toLocaleString() ?? "—"}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {[["Voice", plan.voice_enabled], ["API", plan.api_access], ["Branding", plan.custom_branding], ["SSO", plan.sso_enabled]].map(([label, enabled]) => (
