@@ -53,7 +53,7 @@ const REDACTED_HEADERS = new Set([
 const MAX_TRACE_BODY_CHARS = 2048;
 const SENSITIVE_KEY = /(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|passwd|credential|private[_-]?key|session|cookie|jwt|token)/i;
 
-function redactUrl(rawUrl: string): string {
+export function redactUrl(rawUrl: string): string {
   try {
     const u = new URL(rawUrl);
     for (const key of Array.from(u.searchParams.keys())) {
@@ -63,7 +63,7 @@ function redactUrl(rawUrl: string): string {
   } catch { return rawUrl; }
 }
 
-function redactBody(value: string | null): string | null {
+export function redactBody(value: string | null): string | null {
   if (value == null) return null;
   const truncated = value.length > MAX_TRACE_BODY_CHARS
     ? value.slice(0, MAX_TRACE_BODY_CHARS) + `... [${value.length - MAX_TRACE_BODY_CHARS} chars truncated]`
