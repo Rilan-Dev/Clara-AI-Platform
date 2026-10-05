@@ -261,3 +261,13 @@ ON CONFLICT (integration_id) DO NOTHING;
 
 -- Keep the reference catalog available to the control plane. Platform admins
 -- can disable any entry without deleting the registry definition.
+
+CREATE TABLE IF NOT EXISTS integration_store (
+  scope_key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  org_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS integration_store_org_idx ON integration_store(org_id, agent_id);
