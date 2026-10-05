@@ -684,3 +684,18 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] Complete-payload redaction now occurs before truncation, and the regression test asserts both late-secret removal and bounded output. Executable Gate-C evidence remains pending for the phase overall. |
 | Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] `f6b9f5f89a476743e48610b5dcc4d8d678ff6366` moves redaction ahead of truncation; `710565d1de3aa0a9bd96ea651f2c0be8ff7eaa1c` adds the late-secret regression test. |
+
+## I-036 — I-2 integration redirect-based egress bypass — RESOLVED — 2026-10-06
+
+| Field | Value |
+|---|---|
+| Issue ID | I-036 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Finding | The integration runner validated only the initial outbound URL. Native fetch redirect-following could then move an action request to a second destination that was never passed through the host egress policy, creating an SSRF/metadata-access bypass opportunity. |
+| Correction | [architect/ChatGPT] The generic integration transport now uses manual redirect handling and fails closed on 3xx responses. A redirect target is checked against the same egress policy before the runner can reject the hop; the generic runner does not follow redirects. A fetch transport injection seam and regression tests cover private and public redirect responses. |
+| Scope | src/modules/integrations/runtime/runner-fetch.ts; src/modules/integrations/runtime/runner-fetch.test.ts |
+| Non-scope | No OAuth transport, provider expansion, MCP, billing, migration, production promotion, or unrelated network refactor. |
+| Correction commits | e2a9131d04d567a79c3f3531e1cff63b60d5a81d; 452a998076fef63e97f08c804b9ab6e216daa7f6 |
+| Verification | Source correction is reviewed. Executable focused test/build evidence remains pending under Gate C. |
