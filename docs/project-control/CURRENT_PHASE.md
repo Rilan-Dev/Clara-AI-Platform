@@ -3,9 +3,9 @@
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** The active bounded work is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 is not closed because Gate-C executable evidence and the final architect Gate-D review are still outstanding. Phase 7 remains **PASS — CLOSED** and is not reopened.
 >
-> Current GitHub tip must be read from GitHub at recovery time. Latest reviewed I-2 implementation source commit: **`b6d102cb4d40e46f9f3f4c9635f13485ca851bcb`** [architect-verified]. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+> Current GitHub tip must be read from GitHub at recovery time. Latest reviewed I-2 implementation source commit: **`f68e65afc5ba4f7d6149c84ca1d24a6f082f5113`** [architect-verified]. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
 >
-> Completed I-2 corrections: sensitive runtime observability redaction, organisation-scoped FLOW-store keys and access, agent/org ownership enforcement, migration sequence correction, and I-2 database/RLS hardening. Remaining verification is executable dependency/lock synchronization, build/test/typecheck/lint, connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and Gate-D. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
+> Completed I-2 corrections: sensitive runtime observability redaction, organisation-scoped FLOW-store keys and access, agent/org ownership enforcement, migration sequence correction, I-2 database/RLS hardening, AI-visible action-output credential redaction, and pre-execution action-input validation. Remaining verification is executable dependency/lock synchronization, build/test/typecheck/lint, connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and Gate-D. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
 
 
 > Canonical contract for the currently active phase of the Clara project-control system.
