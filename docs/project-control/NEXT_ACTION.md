@@ -1,6 +1,6 @@
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
-> Canonical continuation instruction. Snapshot: **2026-10-05 — Integrations I-2 implemented; verification pending.** GitHub repository state is authoritative. Current feature tip: `56f6be4529e6492cdae2e177e07f327c420b4d5e`.
+> Canonical continuation instruction. Snapshot: **2026-10-05 — Integrations I-2 implemented; verification pending.** GitHub repository state is authoritative. Current feature tip: **read from GitHub at recovery time; do not duplicate a mutable SHA here**.
 
 ## CURRENT AUTHORITATIVE ACTION
 
