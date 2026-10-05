@@ -47,7 +47,31 @@ export interface HttpTraceEntry {
 const REDACTED_HEADERS = new Set([
   "authorization", "x-api-key", "cookie", "set-cookie",
   "x-access-token", "x-refresh-token", "proxy-authorization",
+  "apikey", "x-client-secret", "client-secret", "x-auth-token",
 ]);
+
+const MAX_TRACE_BODY_CHARS = 2048;
+const SENSITIVE_KEY = /(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|passwd|credential|private[_-]?key|session|cookie|jwt|token)/i;
+
+function redactBody(value: string | null): string | null {
+  if (value == null) return null;
+  const truncated = value.length > MAX_TRACE_BODY_CHARS
+    ? value.slice(0, MAX_TRACE_BODY_CHARS) + `... [${value.length - MAX_TRACE_BODY_CHARS} chars truncated]`
+    : value;
+  try {
+    const parsed: unknown = JSON.parse(truncated);
+    const redact = (v: unknown): unknown => {
+      if (Array.isArray(v)) return v.map(redact);
+      if (v && typeof v === "object") {
+        return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, SENSITIVE_KEY.test(k) ? "[REDACTED]" : redact(val)]));
+      }
+      return v;
+    };
+    return JSON.stringify(redact(parsed));
+  } catch {
+    return SENSITIVE_KEY.test(truncated) ? "[REDACTED_BODY]" : truncated;
+  }
+}
 
 function redactHeaders(headers: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -93,9 +117,9 @@ export function createTracedFetch(
     try {
       if (init?.body) {
         if (typeof init.body === "string") {
-          requestBody = init.body.length > 4096 ? init.body.slice(0, 4096) + `... [${init.body.length - 4096} chars truncated]` : init.body;
+          requestBody = redactBody(init.body);
         } else if (init.body instanceof URLSearchParams) {
-          requestBody = init.body.toString();
+          requestBody = redactBody(init.body.toString());
         } else {
           requestBody = "[non-string body]";
         }
@@ -114,7 +138,7 @@ export function createTracedFetch(
       try {
         const clone = res.clone();
         const raw = await clone.text();
-        bodyText = raw.length > 4096 ? raw.slice(0, 4096) + `... [${raw.length - 4096} chars truncated]` : raw;
+        bodyText = redactBody(raw);
       } catch { /* body read failed — ok */ }
 
       const entry: HttpTraceEntry = { url, method, requestHeaders: reqHeaders, requestBody, statusCode: res.status, responseHeaders: resHeaders, durationMs, responseBody: bodyText };
