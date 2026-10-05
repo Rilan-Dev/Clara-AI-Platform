@@ -1648,3 +1648,13 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - [architect-verified] Commit `8cad5e6759e79dfe54729257b68bc719319e7161` adds an explicit `agentId?: string` to `RunActionParams`; commit `54fa672ce7e1df29d97cc2fbc5589403c5682ab0` changes runner credential lookups to pass `params.agentId`.
 - [architect-verified] I-037 is resolved by source review. Gate-C remains missing because executable current-head test/typecheck/lint/build evidence is still not available.
 - Scope remains strictly I-2. No I-3, MCP expansion, production promotion, OAuth transport expansion, or unrelated implementation was started.
+
+
+## 2026-10-06 — I-038 known-secret trace redaction correction
+
+- [architect-verified] Source review found that integration trace redaction was pattern/key based but did not receive the already-resolved credential values. A provider could therefore echo a valid credential under a non-sensitive response field or plain-text payload and leave it in telemetry.
+- [architect-verified] Commit `d288975526e40a67e4c22cdc402760f1ca6649af` extends body redaction with an explicit known-secret list and scrubs exact matches before truncation.
+- [architect-verified] Commit `1a19b95d10c03b9b4e8128628846827cf2b1676f` passes resolved authentication secret values into both custom-action and piece-action traced-fetch paths.
+- [architect-verified] Commit `750e5da08150c1f09be0fb8db232413df23df25b` adds focused regression coverage for plain-text and non-sensitive JSON payloads.
+- I-038 is resolved by source review. Gate-C remains MISSING because no executable current-head test/build/typecheck/lint result has been produced; Gate-D remains IN_PROGRESS.
+- Scope remains strictly I-2. No I-3, MCP expansion, production promotion, OAuth transport expansion, or unrelated implementation was started.
