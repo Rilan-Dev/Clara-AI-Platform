@@ -171,7 +171,10 @@ export function redactBody(value: string | null): string | null {
 function redactHeaders(headers: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) {
-    out[k] = REDACTED_HEADERS.has(k.toLowerCase()) ? "[REDACTED]" : v;
+    const normalized = k.toLowerCase();
+    out[k] = REDACTED_HEADERS.has(normalized) || SENSITIVE_KEY.test(normalized)
+      ? "[REDACTED]"
+      : v;
   }
   return out;
 }
@@ -208,7 +211,9 @@ export function createTracedFetch(
     await assertSafeEgressUrl(rawUrl);
 
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-    const reqHeaders = redactHeaders(headersToRecord(init?.headers));
+    const inputHeaders = input instanceof Request ? headersToRecord(input.headers) : {};
+    const initHeaders = headersToRecord(init?.headers);
+    const reqHeaders = redactHeaders({ ...inputHeaders, ...initHeaders });
     const start = Date.now();
 
     let requestBody: string | null = null;
@@ -242,8 +247,7 @@ export function createTracedFetch(
       const entry: HttpTraceEntry = { url, method, requestHeaders: reqHeaders, requestBody, statusCode: res.status, responseHeaders: resHeaders, durationMs, responseBody: bodyText };
       traces.push(entry);
 
-      console.log(`[Integration:HTTP] ── REQUEST ──\n  ${method} ${url}\n  Headers: ${JSON.stringify(reqHeaders)}\n  Body: ${requestBody ?? "(none)"}`);
-      console.log(`[Integration:HTTP] ── RESPONSE ${res.status} (${durationMs}ms) ──\n  Headers: ${JSON.stringify(resHeaders)}\n  Body: ${bodyText ?? "(empty)"}`);
+      console.log(`[Integration:HTTP] REQUEST ${method} ${url} status=${res.status} durationMs=${durationMs} headers=${JSON.stringify(reqHeaders)}`);
 
       if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, bodyText);
 
@@ -256,8 +260,7 @@ export function createTracedFetch(
         responseHeaders: {}, durationMs, responseBody: null, error: errMsg,
       };
       traces.push(entry);
-      console.error(`[Integration:HTTP] ── REQUEST ──\n  ${method} ${url}\n  Headers: ${JSON.stringify(reqHeaders)}\n  Body: ${requestBody ?? "(none)"}`);
-      console.error(`[Integration:HTTP] ── FAILED (${durationMs}ms) ──\n  Error: ${errMsg}\n  Stack: ${err instanceof Error ? err.stack : "n/a"}`);
+      console.error(`[Integration:HTTP] FAILED ${method} ${url} durationMs=${durationMs} headers=${JSON.stringify(reqHeaders)} error=${errMsg}`);
 
       if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, null, durationMs, null, errMsg);
 
