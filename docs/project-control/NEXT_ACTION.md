@@ -271,3 +271,16 @@ I-2 remains the active bounded work. Without waiting for GitHub Actions or Verce
 - I-039: RESOLVED by architect source review.
 - Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - Next: continue only bounded I-2 verification/security corrections; do not expand to I-3, MCP, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-041 post-refresh credential scope correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. The source audit found one remaining project/agent conflation after the I-037/I-040 corrections: the post-OAuth-refresh credential refetch still passed projectId into the agent-scoped credential-vault parameter.
+
+- Correction: `1001819239fcba146061be84c35254a8a9fb30cb`
+- I-041: RESOLVED by architect source review.
+- Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+**Next bounded work:** continue only I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant-isolation, and secret/egress review; then obtain executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
