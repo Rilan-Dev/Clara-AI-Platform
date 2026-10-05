@@ -1582,3 +1582,13 @@ Correction applied within the existing I-2 security boundary:
 - No new feature scope or OAuth transport was introduced.
 
 This is an implementation correction, not verification evidence. Executable tests remain pending, so Gate-C and final Gate-D remain open.
+
+
+## 2026-10-06 — I-2 security correction checkpoint
+
+- [architect-verified] Static review of the current I-2 runner found a fail-open egress exception: URLs containing `/internal/broadcast`, `/internal/collab`, or `/internal/yjs` bypassed the integration SSRF/private-network policy based only on a path substring.
+- [architect-verified] Commit `aff196d4d412b61ef9f851c0eb7ca404af960cd8` removes that bypass. Integration-originated HTTP requests now always pass the egress policy; trusted host-to-host internal traffic must use a separate host-owned transport rather than this integration boundary.
+- [architect-verified] Commit `79dc0f8c919a3aef4a72840a387a26858094f900` adds a regression test proving an internal-looking URL targeting loopback is rejected by the traced integration fetch path.
+- [architect-verified] The feature branch remains I-2 only. No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+Gate-C remains **MISSING** because these corrections were made without waiting for an executable CI/Vercel result. Gate-D remains **IN_PROGRESS**; this correction improves the reviewed implementation but does not constitute I-2 closure.
