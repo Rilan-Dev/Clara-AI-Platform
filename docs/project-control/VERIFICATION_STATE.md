@@ -1714,3 +1714,9 @@ I-043 is **RESOLVED** by architect source review. Gate-C remains **MISSING** and
 - [architect-verified] Commit `a8a1997f958c37b524451618eb0d3bb4a3746b5f` retains the resolved credential values for the active run and applies value-based redaction to the final error before XRay, usage logging, and the returned error.
 - Scope is limited to I-2 runtime secret-handling hardening; no new OAuth callback/transport, provider rollout, MCP, billing, migration, production promotion, or unrelated refactor.
 - Gate-C remains MISSING; Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+### 2026-10-06 — I-2 final error credential-value redaction correction
+
+- [architect-verified] Source review found that `knownSecretValues` was declared for the final runner error boundary but was never populated. A provider could therefore echo a resolved credential value under a non-sensitive field name and bypass the intended value-based redaction.
+- [architect-verified] Commit `ca2394e85e191a709f774a083137798e2cf90dc8` populates the active credential values after auth resolution (including the custom-action path) and applies value-based redaction before the final error is returned/logged.
+- This is a bounded I-2 security correction; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
