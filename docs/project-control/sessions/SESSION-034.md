@@ -66,3 +66,29 @@ The active bounded work is Integrations I-2. No I-3, MCP expansion, production p
 
 ### Verification
 These changes are not Gate-C PASS: executable current-head test/typecheck/lint/build evidence is still outstanding. Remaining bounded I-2 verification is unchanged: dependency/lock synchronization, executable test/build evidence, connector/OAuth smoke where configured, browser access/denial verification, immutable/runtime/secret/governance scans, and final ChatGPT Gate-D review.
+
+
+## 2026-10-06 — I-2 OAuth refresh implementation continuation
+
+Authorization: D-032  
+Status: IMPLEMENTATION CORRECTION COMPLETE — VERIFICATION PENDING
+
+The user-directed continuation does not wait on GitHub Actions or Vercel as a development blocker. The bounded I-2 runtime was reviewed for remaining implementation gaps.
+
+### Implemented
+- credentialVault.updateCredentials(connectionId, orgId, credentials) added with an explicit organisation predicate and encrypted pgp_sym_encrypt() persistence.
+- ensureTokenFresh() now performs an OAuth 2 refresh when the access token enters the 15-minute safety window.
+- Refresh requests use the stored trusted HTTPS token endpoint and form-encoded OAuth refresh parameters.
+- Successful refresh preserves the prior refresh token when a provider omits a replacement and persists the new access token/expiry encrypted.
+- HTTP/network failures are normalized without exposing response bodies or credentials.
+- Invalid-grant-style 400/401 responses mark only the tenant-scoped connection as expired.
+- Added regression coverage for no-refresh, successful refresh, invalid-grant expiry, and HTTPS enforcement.
+
+### Commits
+- c874781611b105853489addbb9a05dd69ecff14f — tenant-scoped encrypted credential update
+- 32733343d8d0bb13322e2f64bd45c2fc977989d2 — OAuth access-token refresh
+- bda5dc7a98c1494721268caa7716035f2f47553e — OAuth refresh regression tests
+- 85392fcd8196d36907f90a5126044ebb5b71ddab / b5ed07730fe326a77c81b7a91b2d5aaee691a806 — control-state reconciliation
+
+### Remaining bounded I-2 gaps
+OAuth callback/state transport is still not implemented as a complete end-to-end flow, so OAuth smoke cannot yet be represented as fully PASS. Dependency/lock synchronization and executable current-head test/typecheck/lint/build evidence also remain outstanding. No I-3, MCP expansion, production promotion, or unrelated work is authorized.
