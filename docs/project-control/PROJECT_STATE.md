@@ -1,8 +1,16 @@
 # PROJECT_STATE.md — Authoritative Current-State Summary
 
+> ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
+> **This block supersedes stale earlier checkpoint prose in this document.** Repository truth at feature HEAD is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**, with the project-control Final State Contract currently **BLOCKED** pending reconciliation and verification. Phase 7 is **PASS — CLOSED** and is not reopened. I-1 remains historical/incomplete where its Gate-C evidence was never independently observed. I-2 implementation exists, but no I-2 architect PASS has been issued.
+>
+> Current HEAD / origin: **c7f34cfbd083005640acfa4744d62882f5a7f90f**. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
+>
+> I-2 verification blockers currently include: executable CI evidence not yet obtained; Activepieces manifest/lockfile synchronization still requiring an executable build environment; credential-bearing integration traces/errors required security hardening; tenant-scoped integration-store access required hardening; and agent/org ownership enforcement required at the persistence boundary. Corrections are being made only within the existing I-2 authorization. No I-3, MCP expansion, production promotion, or unrelated feature work is authorized.
+
+
 > Canonical project-control document for the Clara AI Platform.
 > A fresh ChatGPT/architect session reads this file first (after repository agent instructions) to reconstruct exact project state without chat history.
-> Snapshot date: **2026-10-05 — Phase 7 CLOSED; Integrations I-1 implemented, verification pending**. Repository state is authoritative; this file records a dated snapshot and always names the recovery command (see RISKS.md R-1: undated state drifts).
+> Snapshot date: **2026-10-05 — Phase 7 CLOSED; Integrations I-2 implemented, verification pending; control-layer reconciliation BLOCKED**. Repository state is authoritative; this file records a dated snapshot and always names the recovery command (see RISKS.md R-1: undated state drifts).
 > Evidence classification: every field below is labeled **[developer-reported]** or **[architect-verified]**. See VERIFICATION_STATE.md for the definitions and full evidence register.
 
 ## Identity
@@ -18,8 +26,8 @@
 
 | Field | Value | Evidence |
 |---|---|---|
-| Current phase | **Integrations Framework — I-1 `IMPLEMENTED — VERIFICATION PENDING`; Phase 7 CLOSED** | [ChatGPT implementation-owner state, 2026-10-05]
-| Current objective | **Complete I-1 host-neutral Integrations Framework contract/test foundation, obtain executable verification, then perform architect closure review. I-2 remains unauthorized.** | [D-031]
+| Current phase | **Integrations Framework — I-2 IMPLEMENTED — VERIFICATION PENDING; Phase 7 CLOSED; control reconciliation BLOCKED** | [architect-verified GitHub state, 2026-10-05]
+| Current objective | **Verify and harden I-2 implementation, obtain executable Gate-C/E evidence, then perform architect Gate-D review.** | [D-032 + current architect review]
 | Phase contract | `docs/project-control/CURRENT_PHASE.md` (the Phase 7-A implementation-stage contract + the appended correction-stage record + the appended closure record; the planning-stage contract is preserved in Git history at `ac06ca72`; the implementation-stage contract at `688070a5`; the correction-stage contract at `577189d4`) | exists |
 | Active handoff instance | `docs/project-control/ZAI_HANDOFF.md` — Part I (durable protocol) + Part II (the **Phase 7-B closure/STOP record** — the executed DH-005 decision-record instance updated in place with the architect's closure outcome (`PASS` — 7-B `PASS — CLOSED` under the D-023 / Option A acceptance) and the post-closure STOP boundary; the superseded pre-closure decision-record instance recoverable in Git history at `8d124263`, the executed AH-004 analysis instance at `f7327d7b`, and the executed CH-003 corrective instance at `4413bc83`; the instance carries its execution-record addendum + the appended closure record) | exists |
 | Continuity procedure | `docs/project-control/CHAT_CONTINUITY.md` — fresh-ChatGPT initialization and recovery procedure (established Phase 3) | exists |
@@ -31,8 +39,8 @@
 | Field | Value | Evidence |
 |---|---|---|
 | Current branch tip | `46160a048e6a1855b2148ca064961c79929f4630` — current governance tip; the I-1 implementation/correction state is preserved at `d9705441b016d565923f9e0813d7a22544aef8c8` with correction `bfc40f671aea218def571c617f00789e15b45823` as an ancestor | [architect-verified] GitHub compare from the I-1 checkpoint |
-| I-1 status | **IMPLEMENTED — VERIFICATION PENDING** | [architect-verified] Gate C is not yet executable/observed through the connected Actions surface |
-| Next authorization boundary | I-2 remains **NOT AUTHORIZED** | [architect-verified] D-031 |
+| I-2 status | **IMPLEMENTED — VERIFICATION PENDING** | [architect-verified] implementation exists; current-head executable verification and Gate-D are incomplete |
+| Next authorization boundary | **No further integration capability is authorized beyond I-2 verification/correction.** | [architect-verified] D-032 + current STOP boundary |
 
 ## Canonical status vocabulary (used by ALL control documents)
 
