@@ -17,6 +17,15 @@
 
 ---
 
+## 2026-10-06 — I-2 owner continuation: redirect egress hardening
+
+I-2 remains the active bounded work. A second security correction was implemented without waiting for GitHub Actions or Vercel: the generic integration HTTP runner no longer follows redirects implicitly, preventing an unchecked 3xx Location from bypassing the host egress/SSRF boundary. I-036 is resolved by source review; focused regression coverage was added. Executable Gate-C evidence remains pending.
+
+- Runner correction: `e2a9131d04d567a79c3f3531e1cff63b60d5a81d`
+- Regression tests: `452a998076fef63e97f08c804b9ab6e216daa7f6`
+- I-036: RESOLVED by architect source review.
+- Next: continue bounded I-2 verification/corrections only; do not expand to I-3/MCP/production.
+
 ## 2026-10-06 — I-2 owner continuation: trace-redaction hardening
 
 I-2 remains the active bounded work. A concrete security correction was implemented without waiting for GitHub Actions or Vercel: trace payloads are now fully redacted before truncation, closing the late-field credential exposure found as I-035.
