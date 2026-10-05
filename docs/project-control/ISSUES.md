@@ -838,3 +838,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution date | 2026-10-06 |
 | Resolution evidence | [architect-verified] `870ac568...` adds the tenant-bound join; `b5a744cc...` aligns the scope regression with the I-042 contract; `26f0f5fd...` adds the cross-tenant rejection coverage. |
+
+## I-045 — I-2 organisation integration disable path was incorrectly blocked by current plan entitlement
+
+| Field | Value |
+|---|---|
+| Issue ID | I-045 |
+| Title | Organisation integration disable/disconnect controls must remain available after plan downgrade |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | The organisation integration POST route loaded the current plan and rejected the request whenever the platform integration was not allowed for that plan before branching on the requested action. This meant a downgraded organisation could be unable to disable an integration it was no longer entitled to use, creating an operational dead-end and diverging from the already-established least-privilege behavior of the agent-grant route. |
+| Evidence | [architect-verified] Direct source review of `src/app/api/orgs/[orgId]/integrations/route.ts` showed plan-entitlement enforcement executed for both `enable` and `disable` actions. The agent-grant route already treats disabling as an allowed downgrade-unwind operation. |
+| Correction | [architect/ChatGPT] Plan entitlement is now required only for `enable` and `connect`. `disable` and `disconnect` no longer depend on plan-limit resolution, while enable/connect retain the existing fail-closed entitlement checks. |
+| Correction scope | `src/app/api/orgs/[orgId]/integrations/route.ts`; focused route regression test |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
+| Expected verification | Focused route test asserting downgrade disable succeeds without invoking plan-limit resolution, plus the existing entitlement rejection coverage for enable. |
+| Developer correction commit | `4c653b18c488661a9000f21f73344ce90d669b1a`; test `289bb2a9dc8d40532479c62980f0ab110a600849` — [architect/ChatGPT implementation owner] |
+| Verification | [architect-verified] Source review confirms the plan guard is action-sensitive: disable/disconnect bypass plan-limit resolution; enable/connect remain entitlement-gated. Focused regression source covers both paths. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] `4c653b18c488661a9000f21f73344ce90d669b1a` implements the bounded correction and `289bb2a9dc8d40532479c62980f0ab110a600849` adds regression coverage. |
+| Resolution date | 2026-10-06 |
