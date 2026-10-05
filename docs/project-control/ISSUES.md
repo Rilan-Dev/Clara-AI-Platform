@@ -165,6 +165,35 @@ The pre-Phase-6 entries below predate this system and are **preserved exactly as
 
 ## Resolved
 
+### I-048 — Runner token-refresh decision trusted mutable connection auth_type
+
+| Field | Value |
+|---|---|
+| Issue ID | I-048 |
+| Title | OAuth refresh behavior was selected from connection auth_type instead of the registry definition |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED |
+| Date identified | 2026-10-06 |
+| Reporter / role | Architect review / ChatGPT |
+| Finding | runAction selected ensureTokenFresh based on connection.auth_type. The organisation connection API accepts an authType value from the caller, while the registry definition is the authoritative integration contract. A mismatched stored auth_type could suppress OAuth refresh for an OAuth integration and alter credential lifecycle behavior. |
+| Evidence | [architect-verified] Source review of src/modules/integrations/runtime/runner-core.ts and the organisation connection API confirmed that connection.auth_type was caller-populable and was used to decide whether OAuth refresh ran. |
+| Affected commit | 86e08f0adc542a21c18ca7a4f3b6256c6e8c0126 |
+| Affected files/areas | Integration runner OAuth lifecycle decision |
+| Acceptance criterion affected | I-2 credential/OAuth safety and authoritative integration contract |
+| Security / tenancy impact | Bounded credential-lifecycle correctness risk; could execute with a stale OAuth access token |
+| Correction required | Use the registry integration definition's authType as the authoritative input to token-refresh behavior; do not let stored/caller-provided connection auth_type suppress the OAuth lifecycle. |
+| Correction scope | src/modules/integrations/runtime/runner-core.ts |
+| Explicit non-scope | No new OAuth callback transport, no provider rollout, no MCP work, no production promotion |
+| Expected verification | Focused runner/OAuth tests plus current-head executable test/typecheck/lint/build evidence |
+| Developer correction commit | 86e08f0adc542a21c18ca7a4f3b6256c6e8c0126 |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT |
+| Resolution evidence | [architect-verified] runAction now passes def.authType, sourced from the authoritative integration registry, to ensureTokenFresh. The connection's auth_type can no longer disable OAuth refresh for a registry-declared OAuth integration. |
+| Resolution date | 2026-10-06 |
+| Related decision | D-032 |
+| Related worklog/session | 2026-10-06 I-048 owner continuation |
+
+
 ### I-047 — Direct organisation connection could bypass integration-count limit
 
 | Field | Value |
