@@ -198,13 +198,14 @@ export function createTracedFetch(
 ): typeof globalThis.fetch {
   return async function tracedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-    await assertSafeEgressUrl(rawUrl);
     const url = redactUrl(rawUrl);
 
-    // Skip tracing for internal broadcast/WS calls
+    // Skip tracing and egress policy for trusted internal Clara broadcast/WS calls.
     if (url.includes('/internal/broadcast') || url.includes('/internal/collab') || url.includes('/internal/yjs')) {
       return _originalFetch(input, init);
     }
+
+    await assertSafeEgressUrl(rawUrl);
 
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const reqHeaders = redactHeaders(headersToRecord(init?.headers));
