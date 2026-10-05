@@ -799,3 +799,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth callback/authorization transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source correction reviewed. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
+
+## I-042 — I-2 Unified Tool Runtime bridge mapped agent identity into project scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-042 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | integration_action constructed RunActionParams with projectId=context.agentId even though PlatformExecutionContext defines agentId but no projectId. This fabricated a project identity from the agent identity and could leak the wrong resource identity into Activepieces ActionContext. |
+| Evidence | [architect-verified] Direct review of src/modules/ai-platform-core/integration-action-tool.ts and PlatformExecutionContext showed projectId was explicitly assigned from agentId. |
+| Correction | [architect/ChatGPT] Removed the projectId assignment. The tool bridge now supplies tenant and explicit agent scope only; a real project identity is not invented when the host execution context does not provide one. |
+| Correction commit | 3305c9027ddcef4fff0520d941dfebc73f9ef94a |
+| Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source correction reviewed. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
