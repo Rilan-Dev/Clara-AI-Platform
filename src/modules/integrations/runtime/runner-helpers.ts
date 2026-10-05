@@ -1,5 +1,6 @@
 import { getIntegration } from "../registry/index.js";
 import { credentialVault } from "./credential-vault.js";
+import { assertSafeEgressUrl } from "./runner-fetch.js";
 import type { RunActionParams, OAuth2TokenData } from "./types.js";
 import { query } from "@/lib/db";
 
@@ -141,14 +142,6 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         console.log(
           `[elevenlabs-stt] audioBytes=${audioBuffer.length} mimeType=${cleanMimeType} ext=${ext} language=${languageCode ?? "auto"}`,
         );
-        // TEMP DIAGNOSTIC: dump the received blob so we can eyeball it with
-        // `file` and `ffprobe` on the server. Keeps only the most recent one
-        // to avoid disk-fill. Remove once the empty-transcript root cause
-        // is confirmed and fixed.
-        try {
-          const { writeFile } = await import("node:fs/promises");
-          await writeFile(`/tmp/stt-last.${ext}`, audioBuffer);
-        } catch { /* diagnostic only */ }
         // Suppress non-speech audio-event tags. Scribe defaults to emitting
         // bracketed markers like `[music]`, `[laughter]`, `[outro jingle]`,
         // `[silence]` for non-speech regions, and when a short utterance is
@@ -209,7 +202,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
 
         const wordsArr = Array.isArray(data.words) ? (data.words as Array<Record<string, unknown>>) : [];
         console.log(
-          `[elevenlabs-stt] scribe response: text.length=${text.length} preview=${JSON.stringify(text.slice(0, 100))} durationSecs=${data.audio_duration_secs ?? "?"} langProb=${data.language_probability ?? "?"} language=${(data.language_code as string) ?? "?"} wordCount=${wordsArr.length} wordsHead=${JSON.stringify(wordsArr.slice(0, 5))}`,
+          `[elevenlabs-stt] scribe response: text.length=${text.length} durationSecs=${data.audio_duration_secs ?? "?"} langProb=${data.language_probability ?? "?"} language=${(data.language_code as string) ?? "?"} wordCount=${wordsArr.length}`,
         );
 
         return text;
@@ -419,6 +412,10 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
     client_id: creds.client_id,
     client_secret: creds.client_secret,
   });
+
+  // OAuth refresh runs before the action fetch context is established, so enforce
+  // the same host-owned egress policy explicitly at the token endpoint.
+  await assertSafeEgressUrl(tokenUrl.toString());
 
   let response: Response;
   try {
