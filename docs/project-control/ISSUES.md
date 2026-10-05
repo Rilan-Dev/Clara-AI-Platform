@@ -542,7 +542,7 @@ Vercel project clara-backend is linked to Rilan-Dev/Clara-AI-Platform on feature
 No new product blocker was introduced by the UI/RBAC continuation. I-019 remains a verification item until a current-head production Docker build executes successfully. Browser verification remains pending because current feature-branch Vercel deployments are cancelled by the connected Hobby build-rate limit. Draft PR #266 remains the intended preview-only validation surface and must not be merged as part of this checkpoint.
 
 
-## I-022 — Integrations I-2 dependency/verification gate — OPEN — 2026-10-05
+## I-032 — Integrations I-2 dependency/verification gate — OPEN — 2026-10-05
 
 The Clara manifest now includes the Doable Activepieces piece dependency closure (529 @activepieces packages) required by the extracted runner/registry. The local ChatGPT execution environment cannot reach npm/GitHub, so package-lock synchronization and executable build evidence cannot yet be produced here.
 
