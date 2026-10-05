@@ -3,7 +3,7 @@ import { credentialVault } from "./credential-vault.js";
 import { buildActionContext } from "./context-builder.js";
 import type { RunActionParams, RunActionResult } from "./types.js";
 import { xray } from "./xray.js";
-import { fetchCtx, createTracedFetch, redactText, type HttpTraceEntry } from "./runner-fetch.js";
+import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch.js";
 import {
   customActions,
   pieceCache,
@@ -52,6 +52,25 @@ type ActionShape = {
 
 function asActionShape(value: unknown): ActionShape {
   return value && typeof value === "object" ? value as ActionShape : {};
+}
+
+function collectSecretValues(value: unknown): string[] {
+  const found = new Set<string>();
+  const walk = (item: unknown): void => {
+    if (typeof item === "string") {
+      if (item.length >= 8) found.add(item);
+      return;
+    }
+    if (Array.isArray(item)) {
+      item.forEach(walk);
+      return;
+    }
+    if (item && typeof item === "object") {
+      Object.values(item).forEach(walk);
+    }
+  };
+  walk(value);
+  return [...found];
 }
 
 function knownActionNames(integrationId: string): string[] {
@@ -125,12 +144,13 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
         { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr), xrayHandle: xr, supabaseApiKey: null },
         () => customAction.run(params, auth),
       );
+      const safeOutput = redactValue(output, collectSecretValues(auth));
 
       const durationMs = Date.now() - startTime;
       xr.end("success");
       logUsage({ workspaceId: params.workspaceId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: true, durationMs });
 
-      return { success: true, output, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
+      return { success: true, output: safeOutput, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
     }
 
     // 1. Load the piece
@@ -219,6 +239,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr), xrayHandle: xr, supabaseApiKey },
       () => action.run(context),
     );
+    const safeOutput = redactValue(output, collectSecretValues(auth));
 
     const durationMs = Date.now() - startTime;
 
@@ -227,7 +248,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
     console.log(`[Integration] DONE ${params.integrationId}/${params.actionName} ${durationMs}ms httpCalls=${httpTraces.length}`);
 
-    return { success: true, output, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
+    return { success: true, output: safeOutput, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const errorMsg = redactText(err instanceof Error ? err.message : String(err)) ?? "Integration action failed";
