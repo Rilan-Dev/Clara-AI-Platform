@@ -213,6 +213,7 @@ export function createTracedFetch(
   traces: HttpTraceEntry[],
   projectId?: string,
   xrayHandle?: XrayCallHandle | null,
+  fetchImpl: typeof globalThis.fetch = _originalFetch,
 ): typeof globalThis.fetch {
   return async function tracedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
@@ -252,7 +253,7 @@ export function createTracedFetch(
       // request to a private/metadata endpoint after that check. A host-owned
       // integration transport may explicitly follow a provider redirect only after
       // validating each hop; this generic runner fails closed instead.
-      const res = await _originalFetch(input, { ...init, redirect: "manual" });
+      const res = await fetchImpl(input, { ...init, redirect: "manual" });
       const durationMs = Date.now() - start;
 
       if (res.status >= 300 && res.status < 400) {
