@@ -1,4 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { promises as dns } from "node:dns";
+import { BlockList, isIP } from "node:net";
 import type { XrayCallHandle } from "./xray.js";
 
 // ─── Per-call fetch isolation via AsyncLocalStorage ─────
@@ -52,6 +54,67 @@ const REDACTED_HEADERS = new Set([
 
 const MAX_TRACE_BODY_CHARS = 2048;
 const SENSITIVE_KEY = /(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|passwd|credential|private[_-]?key|session|cookie|jwt|token)/i;
+
+const PRIVATE_EGRESS = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+  ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24], ["203.0.113.0", 24],
+  ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) {
+  PRIVATE_EGRESS.addSubnet(network, prefix, "ipv4");
+}
+for (const [network, prefix] of [
+  ["::", 128], ["::1", 128], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8], ["2001:db8::", 32],
+] as const) {
+  PRIVATE_EGRESS.addSubnet(network, prefix, "ipv6");
+}
+
+function isBlockedAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 4) return PRIVATE_EGRESS.check(address, "ipv4");
+  if (family === 6) return PRIVATE_EGRESS.check(address, "ipv6");
+  return true;
+}
+
+/**
+ * Host-owned outbound policy for integration actions.
+ * Public internet destinations are allowed; loopback, link-local, private,
+ * documentation, multicast, carrier-grade NAT and other non-public ranges fail closed.
+ * DNS names are resolved before egress so a hostname that resolves into a blocked
+ * range cannot be used to reach an internal service through the integration runner.
+ */
+export async function assertSafeEgressUrl(rawUrl: string): Promise<void> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error("Integration egress URL is invalid");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Integration egress protocol is not allowed");
+  }
+  if (url.username || url.password) {
+    throw new Error("Integration egress URL cannot contain credentials");
+  }
+
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(hostname)) {
+    if (isBlockedAddress(hostname)) throw new Error("Integration egress destination is not allowed");
+    return;
+  }
+
+  let addresses: Array<{ address: string; family: 4 | 6 }>;
+  try {
+    addresses = await dns.lookup(hostname, { all: true, verbatim: true });
+  } catch {
+    throw new Error("Integration egress hostname could not be resolved");
+  }
+  if (addresses.length === 0 || addresses.some(({ address }) => isBlockedAddress(address))) {
+    throw new Error("Integration egress destination is not allowed");
+  }
+}
 
 export function redactUrl(rawUrl: string): string {
   try {
@@ -135,6 +198,7 @@ export function createTracedFetch(
 ): typeof globalThis.fetch {
   return async function tracedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+    await assertSafeEgressUrl(rawUrl);
     const url = redactUrl(rawUrl);
 
     // Skip tracing for internal broadcast/WS calls
