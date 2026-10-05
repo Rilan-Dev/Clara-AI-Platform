@@ -282,3 +282,21 @@ Control records:
 - Current feature tip after this bounded correction/control update: `d9331f8b019d18bb826854a86f56da09c9ff7331`.
 - No executable GitHub Actions/Vercel result was awaited or inferred.
 - No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+
+## 2026-10-06 — I-046 AI availability plan-entitlement correction
+
+[architect-verified] I-2 source review found that the AI-visible `integration_availability` tool did not apply the organisation's current plan allowlist, even though the execution tool already enforced plan entitlement. This could expose a capability to the model that execution would immediately reject after a downgrade.
+
+[implemented] Availability now resolves the current organisation plan and filters enabled agent integrations against platform `allowed_plans`, including wildcard `*`. Added focused regression coverage for denied and entitled plans.
+
+Correction/test commits:
+- `48a55826f4c45fe71c891bd68f71075fc363f8fc`
+- `b3d090a1644d1982e1709d095458db9c593a5d42`
+
+Control records:
+- I-046 resolved by architect source review.
+- Gate-C remains MISSING.
+- Gate-D remains IN_PROGRESS.
+- No executable GitHub Actions/Vercel result was awaited or inferred.
+- No I-3, MCP expansion, production promotion, or unrelated implementation was started.
