@@ -9,6 +9,7 @@ export class PostgresStore {
   constructor(
     private userId: string,
     private workspaceId: string,
+    private agentId?: string,
   ) {}
 
   async put<T>(key: string, value: T, scope?: string): Promise<T> {
@@ -17,7 +18,7 @@ export class PostgresStore {
       `INSERT INTO integration_store (scope_key,value,org_id,user_id,agent_id,updated_at)
        VALUES ($1,$2,$3,$4,$5,now())
        ON CONFLICT(scope_key) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`,
-      [scopeKey, JSON.stringify(value), this.workspaceId, this.userId, scope ?? null],
+      [scopeKey, JSON.stringify(value), this.workspaceId, this.userId, this.agentId ?? null],
     );
     return value;
   }
