@@ -777,7 +777,7 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Reporter / role | ChatGPT — architect review |
 | Finding | The earlier I-037 correction fixed credential-vault lookups to pass the explicit agentId, but buildActionContext() still constructed the Activepieces PostgresStore and DoableConnectionsManager with projectId as their third scope argument. This left action-level store and cross-integration connection resolution using the wrong resource identity whenever project and agent IDs differ. |
 | Correction | Added explicit optional agentId to the action-context builder contract, passed it from runAction(), and changed both PostgresStore and DoableConnectionsManager construction to use agentId. projectId remains available only as the project identity exposed through the action context. |
-| Correction commits | a5680cd51c6d9ca961ab93effd20fb069d0e2bbe; f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11 |
-| Regression coverage | 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds a focused context-builder test asserting the explicit agent scope reaches both store and connection-manager adapters. |
+| Correction commits | a5680cd51c6d9ca961ab93effd20fb069d0e2bbe; f3bd397dbbc7c0ddb8674b8b3c97358be8fa8a11; 6ed404ea237e4650035cad476f7d7943c0356861 |
+| Regression coverage | 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds a focused context-builder test asserting the explicit agent scope reaches both store and connection-manager adapters; a58edb20d5c95ce0fbd711cc0e23bff0582fc5ed adds tool-boundary coverage asserting the explicit agentId reaches runAction. |
 | Explicit non-scope | No OAuth callback/transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
 | Verification | Source correction and focused test source are architect-reviewed. Executable test/typecheck/lint/build evidence remains pending under Gate C. |
