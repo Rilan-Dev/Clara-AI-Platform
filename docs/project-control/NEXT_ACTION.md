@@ -284,3 +284,15 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. The source audit found one
 **Next bounded work:** continue only I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant-isolation, and secret/egress review; then obtain executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-042 Unified Tool Runtime project-scope correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. The source audit found the Unified Tool Runtime integration_action bridge was fabricating a project scope by assigning agentId to RunActionParams.projectId. The host execution context defines agentId but no projectId.
+
+- Correction: `3305c9027ddcef4fff0520d941dfebc73f9ef94a`
+- I-042: RESOLVED by architect source review.
+- Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+**Next bounded work:** continue only I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant-isolation, and secret/egress review; then obtain executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
