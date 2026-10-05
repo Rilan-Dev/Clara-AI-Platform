@@ -1640,3 +1640,11 @@ Gate-C remains **MISSING** because these corrections were made without waiting f
 - Source correction commits: a590c0f1efb5cff240e7f81437d4c6f9afa27bcb and f6a2c5b40a403f17d37d83971ad57fddf57f0b61.
 - Gate-C remains OPEN/MISSING: no current-head executable test/typecheck/lint/build PASS has been observed.
 - Gate-D remains IN_PROGRESS. I-2 remains open; no PASS is claimed.
+
+
+## 2026-10-06 — I-037 runner scope correction
+
+- [architect-verified] Source review found the I-2 runner passing `projectId` into the credential vault's `agentId` parameter in both custom-action and piece-action paths.
+- [architect-verified] Commit `8cad5e6759e79dfe54729257b68bc719319e7161` adds an explicit `agentId?: string` to `RunActionParams`; commit `54fa672ce7e1df29d97cc2fbc5589403c5682ab0` changes runner credential lookups to pass `params.agentId`.
+- [architect-verified] I-037 is resolved by source review. Gate-C remains missing because executable current-head test/typecheck/lint/build evidence is still not available.
+- Scope remains strictly I-2. No I-3, MCP expansion, production promotion, OAuth transport expansion, or unrelated implementation was started.
