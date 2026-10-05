@@ -781,3 +781,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Regression coverage | 550b751b745d7a8a4a52854edc1cc328d7c891b2 adds a focused context-builder test asserting the explicit agent scope reaches both store and connection-manager adapters; a58edb20d5c95ce0fbd711cc0e23bff0582fc5ed adds tool-boundary coverage asserting the explicit agentId reaches runAction. |
 | Explicit non-scope | No OAuth callback/transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
 | Verification | Source correction and focused test source are architect-reviewed. Executable test/typecheck/lint/build evidence remains pending under Gate C. |
+
+## I-041 — I-2 post-refresh credential lookup still used project scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-041 |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review |
+| Finding | After the I-037/I-040 agent-scope corrections, the OAuth refresh refetch path in runAction() still passed projectId as the credentialVault.get() agent-scope argument. A successful token refresh could therefore be followed by a refetch using the wrong resource identity. |
+| Evidence | [architect-verified] Direct source review of src/modules/integrations/runtime/runner-core.ts showed the initial lookup used params.agentId while the post-refresh freshConnection lookup still used params.projectId. |
+| Correction | [architect/ChatGPT] Changed the post-refresh credential lookup to pass params.agentId. projectId remains exclusively the project identity exposed to the action context. |
+| Correction commit | 1001819239fcba146061be84c35254a8a9fb30cb |
+| Explicit non-scope | No OAuth callback/authorization transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source correction reviewed. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
