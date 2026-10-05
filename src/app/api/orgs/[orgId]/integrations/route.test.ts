@@ -3,9 +3,11 @@ import { NextRequest } from "next/server";
 
 const queryMock = vi.fn();
 const getOrgPlanLimitsMock = vi.fn();
-const withTransactionMock = vi.fn(async (fn: (client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }) => Promise<unknown>) =>
-  fn({ query: async (sql, params) => ({ rows: await queryMock(sql, params) }) }),
-);
+const withTransactionMock = vi.fn(async (
+  fn: (client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }) => Promise<unknown>,
+) => fn({
+  query: async (sql, params) => ({ rows: await queryMock(sql, params) }),
+}));
 
 vi.mock("@/lib/db/migrate", () => ({
   ensureMigrated: vi.fn().mockResolvedValue(undefined),
@@ -93,6 +95,7 @@ describe("organisation integration entitlement enforcement", () => {
     });
     expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(withTransactionMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects enabling when the current plan is no longer entitled", async () => {
@@ -118,10 +121,8 @@ describe("organisation integration entitlement enforcement", () => {
     expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
-});
 
-
-  it("uses one transaction for direct connection enablement and rolls back on connection failure", async () => {
+  it("uses one transaction for direct connection enablement and does not return success after the connection insert fails", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
       .mockResolvedValueOnce([{ enabled: false }])
@@ -148,4 +149,5 @@ describe("organisation integration entitlement enforcement", () => {
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to update integration access" });
     expect(withTransactionMock).toHaveBeenCalledTimes(1);
-  });\n\n  it(\n});\n
+  });
+});
