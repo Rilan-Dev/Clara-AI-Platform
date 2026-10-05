@@ -1496,3 +1496,5 @@ UI/RBAC/subscription implementation is source-reviewed and complete. The role ma
 - Plan version editing now includes max TTS characters/day, max STT audio seconds/day, and max translation characters/day.
 - Plan guard fallback now preserves those three limits.
 - Closure status remains OPEN pending fresh CI and final Phase 7-C evidence; no PASS claimed here.
+
+- SESSION-040 records the bounded role/subscription UI enablement. Latest head remains OPEN pending fresh CI/closure evidence; no PASS claimed.
