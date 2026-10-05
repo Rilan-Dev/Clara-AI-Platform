@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -13,31 +9,17 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
-    "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true,
-    "baseUrl": ".",
     "ignoreDeprecations": "5.0",
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@clara/api-client": [
-        "./packages/api-client/src/index.ts"
-      ],
-      "@clara/types": [
-        "./packages/types/src/index.ts"
-      ],
-      "@clara/ui": [
-        "./packages/ui/src/index.tsx"
-      ]
+      "@/*": ["./src/*"],
+      "@clara/api-client": ["./packages/api-client/src/index.ts"],
+      "@clara/types": ["./packages/types/src/index.ts"],
+      "@clara/ui": ["./packages/ui/src/index.tsx"]
     },
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "plugins": [{"name": "next"}]
   },
   "include": [
     "**/*.ts",
@@ -62,6 +44,7 @@
     "tool-results",
     "vitest.config.ts",
     "ai-platform-core/**",
-    "clara-core/**"
+    "clara-core/**",
+    "docs/clara-core/**"
   ]
 }
