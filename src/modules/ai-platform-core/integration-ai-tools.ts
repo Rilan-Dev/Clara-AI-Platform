@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { query } from "@/lib/db";
+import { getOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
 import type { PlatformExecutionContext } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
@@ -20,20 +21,33 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
     },
     async execute(raw, context: PlatformExecutionContext) {
       const value = raw as { integrationId?: string };
-      const rows = await query<{integration_id:string;enabled:boolean}>(`
-        SELECT ai.integration_id, ai.enabled
+      const limits = await getOrgPlanLimits(context.tenantId);
+      const rows = await query<{integration_id:string;enabled:boolean;allowed_plans:string[]}>(`
+        SELECT ai.integration_id, ai.enabled, pi.allowed_plans
         FROM agent_integrations ai
-        JOIN organisation_integrations oi ON oi.org_id = $2 AND oi.integration_id = ai.integration_id AND oi.enabled = TRUE
-        JOIN platform_integrations pi ON pi.integration_id = ai.integration_id AND pi.enabled = TRUE
-        WHERE ai.agent_id = $1 AND ai.enabled = TRUE
+        JOIN organisation_integrations oi
+          ON oi.org_id = $2
+         AND oi.integration_id = ai.integration_id
+         AND oi.enabled = TRUE
+        JOIN platform_integrations pi
+          ON pi.integration_id = ai.integration_id
+         AND pi.enabled = TRUE
+        WHERE ai.agent_id = $1
+          AND ai.enabled = TRUE
       `, [context.agentId ?? "00000000-0000-0000-0000-000000000000", context.tenantId]);
       const connected = await query<{integration_id:string}>(`
         SELECT DISTINCT integration_id
         FROM integration_connections
         WHERE org_id = $1 AND status = 'active' AND (agent_id = $2 OR agent_id IS NULL)
       `, [context.tenantId, context.agentId ?? null]);
-      const allowed = new Set(rows.map(r => r.integration_id));
+
+      const allowed = new Set(
+        rows
+          .filter(r => Array.isArray(r.allowed_plans) && (r.allowed_plans.includes(limits.plan_id) || r.allowed_plans.includes("*")))
+          .map(r => r.integration_id),
+      );
       const ready = new Set(connected.map(r => r.integration_id));
+
       return listIntegrations()
         .filter(def => !value.integrationId || def.id === value.integrationId)
         .filter(def => allowed.has(def.id))
