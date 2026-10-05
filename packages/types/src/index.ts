@@ -20,6 +20,7 @@ export type PlanLimits = {
   maxDocumentsPerKb: number;
   maxRequestsPerDay: number;
   maxStorageMb: number;
+  maxIntegrations: number; // -1 = unlimited
   voiceEnabled: boolean;
   analyticsLevel: "basic" | "full" | "advanced" | "custom";
   apiAccessEnabled: boolean;
@@ -39,6 +40,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
       maxDocumentsPerKb: 10,
       maxRequestsPerDay: 100,
       maxStorageMb: 100,
+      maxIntegrations: 0,
       voiceEnabled: false,
       analyticsLevel: "basic",
       apiAccessEnabled: false,
@@ -58,6 +60,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
       maxDocumentsPerKb: 50,
       maxRequestsPerDay: 1000,
       maxStorageMb: 1000,
+      maxIntegrations: 3,
       voiceEnabled: true,
       analyticsLevel: "full",
       apiAccessEnabled: true,
@@ -77,6 +80,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
       maxDocumentsPerKb: 200,
       maxRequestsPerDay: 10000,
       maxStorageMb: 10000,
+      maxIntegrations: 10,
       voiceEnabled: true,
       analyticsLevel: "advanced",
       apiAccessEnabled: true,
@@ -96,6 +100,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
       maxDocumentsPerKb: -1,
       maxRequestsPerDay: -1,
       maxStorageMb: -1,
+      maxIntegrations: -1,
       voiceEnabled: true,
       analyticsLevel: "custom",
       apiAccessEnabled: true,
