@@ -32,6 +32,7 @@ export type PlanLimits = {
   max_docs_per_kb:  number;
   max_req_day:      number;
   max_storage_mb:   number;
+  max_integrations:  number; // -1 = unlimited
   voice_enabled:    boolean;
   api_access:       boolean;
   custom_branding:  boolean;
@@ -49,13 +50,14 @@ export type GuardResult =
   | { allowed: true }
   | { allowed: false; reason: string; limitKey: string; current: number; limit: number };
 
-export type LimitKey = "kbs" | "docs_per_kb" | "requests" | "storage" | "voice" | "api" | "branding" | "sso" | "tts" | "stt" | "translation";
+export type LimitKey = "kbs" | "docs_per_kb" | "requests" | "storage" | "integrations" | "voice" | "api" | "branding" | "sso" | "tts" | "stt" | "translation";
 
 const FREE_FALLBACK_LIMITS: PlanLimits = {
   max_kbs:         1,
   max_docs_per_kb: 10,
   max_req_day:     100,
   max_storage_mb:  100,
+  max_integrations: 0,
   voice_enabled:   false,
   api_access:      false,
   custom_branding: false,
@@ -166,7 +168,7 @@ async function fetchPlanRow(
   const run = via ?? { query };
   const rows = await run.query<PlanLimits & { plan_name: string }>(
     `SELECT sp.id AS plan_id, sp.name AS plan_name,
-            sp.max_kbs, sp.max_docs_per_kb, sp.max_req_day, sp.max_storage_mb,
+            sp.max_kbs, sp.max_docs_per_kb, sp.max_req_day, sp.max_storage_mb, sp.max_integrations,
             COALESCE(sp.max_tts_chars_day, -1) AS max_tts_chars_day,
             COALESCE(sp.max_stt_audio_sec_day, -1) AS max_stt_audio_sec_day,
             COALESCE(sp.max_translation_chars_day, -1) AS max_translation_chars_day,
@@ -387,6 +389,24 @@ export async function planGuard(
             limitKey: "max_storage_mb",
             current: current + incoming,
             limit: maxBytes,
+          };
+        }
+        return { allowed: true };
+      }
+
+      // ── Integration entitlement (platform catalog × org count) ──
+      case "integrations": {
+        if (limits.max_integrations === -1) return { allowed: true };
+        const countRow = await query<{ count: number }>(
+          `SELECT COUNT(*)::int AS count FROM organisation_integrations WHERE org_id = $1 AND enabled = TRUE`,
+          [orgId],
+        );
+        const current = countRow[0]?.count ?? 0;
+        if (current >= limits.max_integrations) {
+          return {
+            allowed: false,
+            reason: `Your ${limits.plan_name} plan allows a maximum of ${limits.max_integrations} enabled integrations.`,
+            limitKey: "max_integrations", current, limit: limits.max_integrations,
           };
         }
         return { allowed: true };
