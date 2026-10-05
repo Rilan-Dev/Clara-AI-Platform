@@ -307,3 +307,13 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. [architect-verified] Sourc
 - Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
 - Next bounded work: continue credential/connection authorization, AI-tool exposure, action-input validation, tenant-isolation and secret/egress review; then obtain executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 - **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+## 2026-10-06 — I-2 owner continuation: bounded runner correctness correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub Actions or Vercel, ChatGPT reviewed the current runner helper and found a bounded correctness defect in the ElevenLabs custom action: its 3xx failure path emitted an OAuth-refresh-specific error even though it was the ElevenLabs transport. The transport already fails closed on redirects; the correction only restores the correct action-specific error semantics.
+
+- Correction commit: `499feacf01907f82da9578b74cb8789931d10752`
+- Scope: `src/modules/integrations/runtime/runner-helpers.ts` ElevenLabs TTS redirect handling only.
+- No OAuth callback/transport expansion, provider rollout, MCP, billing, migration, production promotion, or unrelated runtime refactor.
+- **Next:** continue bounded I-2 security/correctness review and implementation corrections; then obtain executable Gate-C evidence, connector/browser checks, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated feature work.
