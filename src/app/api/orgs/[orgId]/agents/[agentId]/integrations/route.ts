@@ -40,9 +40,14 @@ export async function PATCH(req: NextRequest,{params}:Params){
     const platform=(await query<{enabled:boolean;allowed_plans:string[]}>(`SELECT enabled,allowed_plans FROM platform_integrations WHERE integration_id=$1`,[body.integrationId]))[0];
     const org=(await query<{enabled:boolean}>(`SELECT enabled FROM organisation_integrations WHERE org_id=$1 AND integration_id=$2`,[orgId,body.integrationId]))[0];
     if(!platform?.enabled||!org?.enabled)return NextResponse.json({error:"Integration is not enabled for this organisation",code:"INTEGRATION_NOT_AVAILABLE"},{status:403});
-    const limits = await getOrgPlanLimits(orgId);
-    if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
-      return NextResponse.json({error:`The ${limits.plan_id} plan cannot use this integration`,code:"PLAN_NOT_ENTITLED"},{status:402});
+    // A plan entitlement is required to enable a new agent grant. Disabling an
+    // existing grant must remain possible after a downgrade so tenants can
+    // safely unwind access they are no longer entitled to use.
+    if (body.enabled) {
+      const limits = await getOrgPlanLimits(orgId);
+      if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
+        return NextResponse.json({error:`The ${limits.plan_id} plan cannot use this integration`,code:"PLAN_NOT_ENTITLED"},{status:402});
+      }
     }
     const def=listIntegrations().find(i=>i.id===body.integrationId);
     if(!def)return NextResponse.json({error:"Integration not found"},{status:404});
