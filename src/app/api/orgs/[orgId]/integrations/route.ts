@@ -92,7 +92,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (body.agentId) {
       const agent = (await query<{ id:string }>(
-        `SELECT id FROM agents WHERE id = $1 AND organisation_id = $2 LIMIT 1`,
+        `SELECT id FROM agents WHERE id = $1 AND org_id = $2 LIMIT 1`,
         [body.agentId, orgId],
       ))[0];
       if (!agent) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
