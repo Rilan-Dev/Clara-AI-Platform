@@ -66,9 +66,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!def) return NextResponse.json({ error: "Integration not found" }, { status: 404 });
     const platform = (await query<{enabled:boolean;allowed_plans:string[]}>(`SELECT enabled, allowed_plans FROM platform_integrations WHERE integration_id = $1`, [body.integrationId]))[0];
     if (!platform?.enabled) return NextResponse.json({ error: "This integration is disabled by the platform administrator", code: "INTEGRATION_DISABLED" }, { status: 403 });
+
     const limits = await getOrgPlanLimits(orgId);
-    if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
-      return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+
+    if (body.action === "enable") {
+      if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
+        return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+      }
     }
 
     if (body.action === "enable" || body.action === "disable") {
