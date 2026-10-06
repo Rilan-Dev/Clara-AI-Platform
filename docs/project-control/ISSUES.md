@@ -1216,3 +1216,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source review confirms Management credential retrieval is now downstream of the same fail-closed authorization contract used by direct execution; focused regression covers authorization-before-read. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+
+## I-062 — I-2 Supabase Management API error body could expose a secondary credential
+
+| Field | Value |
+|---|---|
+| Issue ID | I-062 |
+| Title | Credential-bearing Supabase Management failures must not surface provider response bodies |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The custom `supabase.execute_sql` action correctly re-authorized the separate `supabase-mgmt` integration and preserved the executing agent scope, but its Management API error path included up to 500 characters of the provider response body in the thrown error. The secondary Management bearer token is resolved inside the custom action and is not part of the runner's primary integration credential set, so a provider that echoes that token in its error body could expose it through the returned error, XRay, or usage logging. |
+| Evidence | [architect-verified] Direct source review of `src/modules/integrations/runtime/runner-helpers.ts` showed the `supabase-mgmt` token was read locally and the non-2xx path appended `res.text()` to the thrown error. The outer runner's known-secret collection only covers the primary `supabase` action auth. |
+| Correction | [architect/ChatGPT] The credential-bearing Management API error path now reports only the HTTP status and never includes the provider response body. |
+| Correction scope | `src/modules/integrations/runtime/runner-helpers.ts`; focused regression `src/modules/integrations/runtime/runner-helpers.test.ts` |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | `40c410f8ee4542f44156c5fdf20fc7d21ff73004`; regression `eec44f0e478fc2eafe4302d7b857428369f1f43c` |
+| Verification | [architect-verified] Source review confirms the Management API error no longer incorporates provider response bodies, and the focused regression supplies a response containing a sentinel Management token and asserts that token cannot appear in the thrown error. Executable Gate-C evidence remains pending. |
+| Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] `40c410f8...` removes response-body propagation from the credential-bearing Management failure path; `eec44f0e...` adds the regression. |
+| Resolution date | 2026-10-06 |
