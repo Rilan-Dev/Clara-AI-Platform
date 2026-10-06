@@ -35,6 +35,17 @@
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
 
+## 2026-10-06 — I-062 Supabase Management error-body boundary
+
+[architect-verified] Source review found that the custom `supabase.execute_sql` action read a secondary `supabase-mgmt` bearer credential correctly scoped to the executing agent, but included the Management API provider response body in its thrown error. Because that secondary credential is resolved inside the custom action, the outer runner's known-secret collection did not necessarily contain it. The bounded correction now reports only the HTTP status and adds a focused regression proving a sentinel Management token cannot enter the thrown error.
+
+- Implementation: `40c410f8ee4542f44156c5fdf20fc7d21ff73004`
+- Regression: `eec44f0e478fc2eafe4302d7b857428369f1f43c`
+- I-062: RESOLVED by architect source review.
+- Next bounded work: continue I-2 credential/connection, custom-action, egress, secret, and tenant-boundary review; then obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## CURRENT AUTHORITATIVE ACTION
 
 ## 2026-10-06 — I-050 AI availability tenant-binding correction
