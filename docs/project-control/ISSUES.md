@@ -1367,3 +1367,20 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
 | Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-06. |
+
+## I-069 — I-2 agent-route focused test still configured the superseded plan helper
+
+| Field | Value |
+|---|---|
+| Issue ID | I-069 |
+| Phase | Integrations I-2 |
+| Severity | P2 |
+| Status | RESOLVED — test correction |
+| Date identified | 2026-10-06 |
+| Finding | After production authorization moved to resolveOrgPlanLimits, the agent integration route test still configured getOrgPlanLimits in its malformed-allowlist case. The fixture therefore did not exercise the current authorization implementation and could produce a false result. |
+| Evidence | [architect-verified] Direct inspection of the current feature-branch test showed the stale helper configuration. |
+| Correction | Removed the superseded mock and configured resolveOrgPlanLimits for the malformed-allowlist case; the downgrade-disable assertion now verifies the authoritative resolver is not called. |
+| Correction commit | 953bf1b698b52010bab1e00e4fcfac8b6603272f |
+| Explicit non-scope | No production authorization behavior, schema/migration, OAuth transport, provider rollout, MCP, billing, or deployment change. |
+| Verification status | Test source reviewed; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-06. |
