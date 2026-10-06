@@ -155,7 +155,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
       const durationMs = Date.now() - startTime;
       xr.end("success");
-      logUsage({ workspaceId: params.workspaceId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: true, durationMs });
+      logUsage({ orgId: params.workspaceId, agentId: params.agentId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: true, durationMs });
 
       return { success: true, output: safeOutput, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
     }
@@ -272,7 +272,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     console.error(`[Integration] FAILED ${params.integrationId}/${params.actionName} ${durationMs}ms: ${errorMsg}`);
     xr.end("error", errorMsg);
 
-    logUsage({ workspaceId: params.workspaceId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: false, durationMs, errorMessage: errorMsg });
+    logUsage({ orgId: params.workspaceId, agentId: params.agentId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: false, durationMs, errorMessage: errorMsg });
 
     return { success: false, output: null, error: errorMsg };
   }
