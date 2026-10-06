@@ -1,3 +1,10 @@
+
+
+### 2026-10-06 — I-059 Supabase Management API egress correction
+
+- [architect-verified] Source review identified a remaining credential-bearing native fetch in the custom Supabase Management API action that was outside the I-058 egress/redirect hardening.
+- [architect-verified] Commit `c7a2b7f4edb33cc919e2fe6c9a0bec2c981450be` adds `assertSafeEgressUrl()`, `redirect: "manual"`, and explicit 3xx rejection for the Management API request.
+- I-059 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 # VERIFICATION_STATE.md — Durable Verification Evidence Register
 
 > Canonical register of verification evidence for the project-control system. **Strictly separates developer-reported evidence from architect-verified evidence.**
