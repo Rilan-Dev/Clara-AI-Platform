@@ -1,6 +1,7 @@
 import { getIntegration } from "../registry/index.js";
 import { credentialVault } from "./credential-vault.js";
 import { assertSafeEgressUrl } from "./runner-fetch.js";
+import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
 import type { RunActionParams, OAuth2TokenData } from "./types.js";
 import { query } from "@/lib/db";
 
@@ -238,6 +239,15 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
 
         const creds = auth as Record<string, unknown> | undefined;
         const projectUrl = creds?.url as string | undefined;
+
+        // The Management API credential is a second integration capability.
+        // Re-authorize that integration before reading its credential so the
+        // supabase action cannot bypass supabase-mgmt platform/plan/grant scope.
+        await assertIntegrationExecutionAuthorized({
+          integrationId: "supabase-mgmt",
+          workspaceId: params.workspaceId,
+          agentId: params.agentId,
+        });
 
         // Strategy 1: Use Management API if we have an OAuth token
         const mgmtConn = await credentialVault.get(
