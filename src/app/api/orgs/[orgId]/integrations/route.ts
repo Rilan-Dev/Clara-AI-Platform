@@ -72,8 +72,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     // not depend on the plan-limit service being readable.
     const requiresPlanEntitlement = body.action === "enable" || body.action === "connect";
     const limits = requiresPlanEntitlement ? await getOrgPlanLimits(orgId) : null;
-    if (requiresPlanEntitlement && limits && Array.isArray(platform.allowed_plans) &&
-        !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
+    if (
+      requiresPlanEntitlement &&
+      limits &&
+      (!Array.isArray(platform.allowed_plans) ||
+        (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")))
+    ) {
       return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
     }
 
