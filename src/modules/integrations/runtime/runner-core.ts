@@ -275,7 +275,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     const durationMs = Date.now() - startTime;
 
     xr.end("success");
-    logUsage({ workspaceId: params.workspaceId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: true, durationMs });
+    logUsage({ orgId: params.workspaceId, agentId: params.agentId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: true, durationMs });
 
     console.log(`[Integration] DONE ${params.integrationId}/${params.actionName} ${durationMs}ms httpCalls=${httpTraces.length}`);
 
