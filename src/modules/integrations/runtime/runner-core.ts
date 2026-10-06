@@ -56,6 +56,13 @@ function asActionShape(value: unknown): ActionShape {
   return value && typeof value === "object" ? value as ActionShape : {};
 }
 
+function asActionRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+
 function collectSecretValues(value: unknown): string[] {
   const found = new Set<string>();
   const walk = (item: unknown): void => {
@@ -329,11 +336,11 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
 
   const actions: Array<{ name: string; displayName: string; description: string; props: Record<string, unknown> }> = [];
 
-  const pieceActions = typeof piece.actions === "function"
-    ? piece.actions()
+  const pieceActions: Record<string, unknown> = typeof piece.actions === "function"
+    ? asActionRecord(piece.actions())
     : Array.isArray(piece.actions)
       ? Object.fromEntries(piece.actions.map((a: unknown) => { const candidate = asActionShape(a); return [candidate.name ?? "", a]; }))
-      : (piece.actions ?? {});
+      : asActionRecord(piece.actions);
 
   let matchedAny = false;
   for (const actionName of def.actions) {
