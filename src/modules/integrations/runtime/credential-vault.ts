@@ -28,7 +28,7 @@ export const credentialVault = {
     const rows = await query<{credentials_decrypted:string}>(
       `SELECT pgp_sym_decrypt(credentials_encrypted,$1) AS credentials_decrypted
          FROM integration_connections
-        WHERE id=$2 AND org_id=$3
+        WHERE id=$2 AND org_id=$3 AND status='active'
         LIMIT 1`,
       [ENCRYPTION_KEY, connectionId, orgId],
     );
@@ -44,7 +44,7 @@ export const credentialVault = {
     await query(
       `UPDATE integration_connections
           SET credentials_encrypted=pgp_sym_encrypt($1,$2), status='active', updated_at=now()
-        WHERE id=$3 AND org_id=$4`,
+        WHERE id=$3 AND org_id=$4 AND status='active'`,
       [JSON.stringify(credentials), ENCRYPTION_KEY, connectionId, orgId],
     );
   },
