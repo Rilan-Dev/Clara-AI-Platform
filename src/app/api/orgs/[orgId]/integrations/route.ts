@@ -72,13 +72,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     // not depend on the plan-limit service being readable.
     const requiresPlanEntitlement = body.action === "enable" || body.action === "connect";
     let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>> | null = null;
-if (requiresPlanEntitlement) {
-try {
-limits = await resolveOrgPlanLimits(orgId);
-} catch {
-return NextResponse.json({ error: "Integration plan entitlement could not be verified" }, { status: 503 });
-}
-}
+    if (requiresPlanEntitlement) {
+      try {
+        limits = await resolveOrgPlanLimits(orgId);
+      } catch {
+        return NextResponse.json({ error: "Integration plan entitlement could not be verified" }, { status: 503 });
+      }
+    }
     if (
       requiresPlanEntitlement &&
       limits &&
