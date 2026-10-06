@@ -353,19 +353,11 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
     });
   }
 
-  const matchRatio = def.actions.length > 0 ? actions.length / def.actions.length : 0;
-  if (matchRatio < 0.5 && Object.keys(pieceActions).length > 0) {
-    actions.length = 0;
-    for (const [actionName, action] of Object.entries(pieceActions)) {
-      const a = asActionShape(action);
-      actions.push({
-        name: actionName,
-        displayName: a.displayName ?? actionName.replace(/[_-]/g, " "),
-        description: a.description ?? "",
-        props: a.props ?? {},
-      });
-    }
-  }
+  // The Clara registry is the authoritative capability surface. Never fall
+  // back to enumerating every action shipped by an external Activepieces
+  // package: an upstream package update must not silently advertise actions
+  // that the registry has not reviewed or approved. Missing package actions
+  // remain absent rather than expanding the public capability surface.
 
   // Append custom actions
   const customs = customActions[integrationId];
