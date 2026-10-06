@@ -1,3 +1,7 @@
+## 2026-10-06 — I-061 custom Management credential authorization correction
+
+[architect-verified] Source review found that custom `supabase.execute_sql` directly read the separate `supabase-mgmt` credential without re-checking that integration's platform/plan/organisation/agent authorization. Commit `5f6d044a2ec1d8ddacaf9bde553f17576c14732e` adds the fail-closed authorization check before credential retrieval; regression `3ebbbf7113e851a427d310aee2d3a057a6b8ba83` covers denial-before-read. I-061 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 
 
 ## 2026-10-06 — I-057 OAuth refresh disable-race correction
