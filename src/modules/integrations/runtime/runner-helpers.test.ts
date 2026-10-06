@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const credentialGet = vi.fn();
 const query = vi.fn();
 const assertSafeEgressUrl = vi.fn();
+const assertIntegrationExecutionAuthorized = vi.fn();
 
 vi.mock("./credential-vault.js", () => ({
   credentialVault: { get: credentialGet },
@@ -10,6 +11,10 @@ vi.mock("./credential-vault.js", () => ({
 
 vi.mock("./runner-fetch.js", () => ({
   assertSafeEgressUrl,
+}));
+
+vi.mock("./execution-authorization.js", () => ({
+  assertIntegrationExecutionAuthorized,
 }));
 
 vi.mock("../registry/index.js", () => ({
@@ -63,5 +68,10 @@ describe("custom integration credential scoping", () => {
       "org-1",
       "agent-1",
     );
+    expect(assertIntegrationExecutionAuthorized).toHaveBeenCalledWith({
+      integrationId: "supabase-mgmt",
+      workspaceId: "org-1",
+      agentId: "agent-1",
+    });
   });
 });
