@@ -3,7 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
 import { listIntegrations } from "@/modules/integrations/registry";
-import { getOrgPlanLimits, resolveOrgPlanLimits } from "@/lib/plan-guard";
+import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 
 type Params = { params: Promise<{ orgId: string; agentId: string }> };
 
@@ -45,11 +45,11 @@ export async function PATCH(req: NextRequest,{params}:Params){
     // safely unwind access they are no longer entitled to use.
     if (body.enabled) {
       let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
-try {
-limits = await resolveOrgPlanLimits(orgId);
-} catch {
-return NextResponse.json({error:"Integration plan entitlement could not be verified"},{status:503});
-}
+      try {
+        limits = await resolveOrgPlanLimits(orgId);
+      } catch {
+        return NextResponse.json({error:"Integration plan entitlement could not be verified"},{status:503});
+      }
       if (
         !Array.isArray(platform.allowed_plans) ||
         (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*"))
