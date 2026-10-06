@@ -58,6 +58,32 @@ describe("agent integration entitlement enforcement", () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
+  it("fails closed when the platform plan allowlist is malformed", async () => {
+    queryMock
+      .mockReset()
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: null }])
+      .mockResolvedValueOnce([{ enabled: true }]);
+    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro" });
+
+    const { PATCH } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/agents/agent-1/integrations", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ integrationId: "github", enabled: true }),
+    });
+
+    const response = await PATCH(request, {
+      params: Promise.resolve({ orgId: "org-1", agentId: "agent-1" }),
+    });
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      error: "The pro plan cannot use this integration",
+      code: "PLAN_NOT_ENTITLED",
+    });
+    expect(queryMock).toHaveBeenCalledTimes(2);
+  });
+
   it("allows disabling an existing grant after a plan downgrade", async () => {
     queryMock
       .mockReset()
