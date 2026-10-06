@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
-import { getOrgPlanLimits } from "@/lib/plan-guard";
+import { getOrgPlanLimits, resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     // disconnecting must remain available after a downgrade and therefore must
     // not depend on the plan-limit service being readable.
     const requiresPlanEntitlement = body.action === "enable" || body.action === "connect";
-    const limits = requiresPlanEntitlement ? await getOrgPlanLimits(orgId) : null;
+    let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>> | null = null;\n    if (requiresPlanEntitlement) {\n      try {\n        limits = await resolveOrgPlanLimits(orgId);\n      } catch {\n        return NextResponse.json({ error: "Integration plan entitlement could not be verified" }, { status: 503 });\n      }\n    }
     if (
       requiresPlanEntitlement &&
       limits &&
