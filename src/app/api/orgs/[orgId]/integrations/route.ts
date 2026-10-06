@@ -184,7 +184,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       await client.query(
         `INSERT INTO integration_connections(org_id,agent_id,user_id,integration_id,auth_type,credentials_encrypted,display_name)
          VALUES($1,$2,$3,$4,$5,pgp_sym_encrypt($6,$7),$8)`,
-        [orgId, body.agentId ?? null, auth.user.id, body.integrationId, body.authType ?? def.authType, JSON.stringify(body.credentials), ENCRYPTION_KEY, body.displayName ?? def.displayName],
+        [orgId, body.agentId ?? null, auth.user.id, body.integrationId, def.authType, JSON.stringify(body.credentials), ENCRYPTION_KEY, body.displayName ?? def.displayName],
       );
       return null;
     });
