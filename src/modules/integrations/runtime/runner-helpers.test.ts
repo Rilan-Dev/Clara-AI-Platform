@@ -44,8 +44,9 @@ describe("custom integration credential scoping", () => {
 
     const { customActions } = await import("./runner-helpers.js");
 
-    await expect(
-      customActions.supabase.execute_sql.run(
+    let thrown: unknown;
+    try {
+      await customActions.supabase.execute_sql.run(
         {
           userId: "user-1",
           workspaceId: "org-1",
@@ -56,23 +57,14 @@ describe("custom integration credential scoping", () => {
           props: { sql: "select 1" },
         },
         { url: "https://project-1.supabase.co" },
-      ),
-    ).rejects.toThrow("Supabase SQL execution failed (401)");
+      );
+    } catch (error) {
+      thrown = error;
+    }
 
-    await expect(
-      customActions.supabase.execute_sql.run(
-        {
-          userId: "user-1",
-          workspaceId: "org-1",
-          agentId: "agent-1",
-          integrationId: "supabase",
-          actionName: "execute_sql",
-          projectId: "project-1",
-          props: { sql: "select 1" },
-        },
-        { url: "https://project-1.supabase.co" },
-      ),
-    ).rejects.not.toThrow("management-secret-token");
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("Supabase SQL execution failed (401)");
+    expect((thrown as Error).message).not.toContain("management-secret-token");
   });
 
   it("scopes the Supabase Management credential lookup to the executing agent", async () => {
