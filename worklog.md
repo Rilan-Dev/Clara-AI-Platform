@@ -1,3 +1,12 @@
+## 2026-10-06 — I-067 integration egress correction
+
+ChatGPT continued the bounded I-2 source review without waiting for GitHub Actions or Vercel. The host egress guard was found to reject dotted IPv4-mapped IPv6 private destinations but not hexadecimal-mapped forms such as `::ffff:7f00:1`. The guard was corrected to decode both representations and apply the existing IPv4 private-range policy. Focused regression coverage was added for loopback and private mapped forms.
+
+- Implementation: `8d176739784d2d510f20d242b533a7383ac5de98`
+- Regression: `ee76381b577f5ffdeb658f4ccdc9b7dd27653cc0`
+- Control records: I-067 resolved; I-2 remains IMPLEMENTED — VERIFICATION PENDING.
+- No I-3/MCP/production/unrelated scope was started.
+
 
 ## 2026-10-06 — I-048 auth-type authority correction
 
