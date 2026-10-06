@@ -15,7 +15,12 @@ COPY packages ./packages
 COPY . ./
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# Docker production builds intentionally skip duplicate type/lint passes.\n# `npm run type-check` and `npm run lint` remain separate verification gates.\nARG CLARA_SKIP_TYPECHECK=1\nENV CLARA_SKIP_TYPECHECK=$CLARA_SKIP_TYPECHECK\n\n# Bake NEXT_PUBLIC env vars into the client bundle at build time.
+# Docker production builds intentionally skip duplicate type/lint passes.
+# `npm run type-check` and `npm run lint` remain separate verification gates.
+ARG CLARA_SKIP_TYPECHECK=1
+ENV CLARA_SKIP_TYPECHECK=$CLARA_SKIP_TYPECHECK
+
+# Bake NEXT_PUBLIC env vars into the client bundle at build time.
 ARG SKIP_AUTH=true
 ENV SKIP_AUTH=$SKIP_AUTH
 
