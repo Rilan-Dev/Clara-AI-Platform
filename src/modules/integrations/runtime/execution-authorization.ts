@@ -29,7 +29,7 @@ export async function assertIntegrationExecutionAuthorized(
     throw new Error(`Integration ${def.displayName} is disabled by the platform administrator`);
   }
 
-  // This is an authorization boundary: never use the UI-oriented helper that\n  // falls back to free limits when plan resolution fails. A database/plan\n  // resolution failure must deny execution rather than accidentally granting\n  // access to an integration that the real plan may permit.\n  let limits;\n  try {\n    limits = await resolveOrgPlanLimits(params.workspaceId);\n  } catch {\n    throw new Error("Integration plan entitlement could not be verified");\n  }
+  // This is an authorization boundary: never use the UI-oriented helper that\n  // falls back to free limits when plan resolution fails. A database/plan\n  // resolution failure must deny execution rather than accidentally granting\n  // access to an integration that the real plan may permit.\n  let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;\n  try {\n    limits = await resolveOrgPlanLimits(params.workspaceId);\n  } catch {\n    throw new Error("Integration plan entitlement could not be verified");\n  }
   if (
     !Array.isArray(platform.allowed_plans) ||
     (!platform.allowed_plans.includes(limits.plan_id) &&
