@@ -1088,3 +1088,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Correction commits | Implementation `3a17c31cb16bfa54cb79a48a13a757ae16486971`; regression `4f86976b505487906d18e526b6433be360e97a8b` |
 | Verification | [architect-verified] Source review confirms the credential read is now downstream of the same fail-closed authorization boundary used by direct runner execution; focused regression source covers both authorized retrieval and denial-before-read. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+
+## I-056 — I-2 execution authorization could fail open when plan resolution fails
+
+| Field | Value |
+|---|---|
+| Issue ID | I-056 |
+| Title | Integration execution authorization must deny when current plan entitlement cannot be resolved |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The I-2 execution boundary used `getOrgPlanLimits()`, which catches plan-resolution/database failures and returns free-plan limits. If a requested integration is allowed on the fallback free plan, execution authorization could therefore continue without proving the organisation's actual current entitlement. An authorization boundary must fail closed when entitlement cannot be verified. |
+| Evidence | [architect-verified] Direct review of `src/lib/plan-guard.ts` and `src/modules/integrations/runtime/execution-authorization.ts` confirmed `getOrgPlanLimits()` converts resolution errors into a free-plan result, while the runner treats the returned plan as authoritative for integration execution. |
+| Correction | [architect/ChatGPT] The execution boundary now calls `resolveOrgPlanLimits()` directly and converts any resolution failure into an explicit authorization denial. The UI-oriented fallback helper is no longer used for runtime integration authorization. |
+| Correction scope | `src/modules/integrations/runtime/execution-authorization.ts`; focused regression `src/modules/integrations/runtime/execution-authorization.test.ts` |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated plan-guard behavior changes. |
+| Correction commits | Implementation `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825`, type correction `9ac86755c94132a86afbde804a7ca3b927e0e83b`; regression `220d1a66fe7279bb55296d31d5f9d5c3133b78ef` |
+| Verification | [architect-verified] Source review confirms the execution boundary is now fail-closed on entitlement-resolution errors and focused regression source covers the denial path. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
