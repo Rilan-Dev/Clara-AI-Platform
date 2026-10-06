@@ -1817,3 +1817,8 @@ Focused regression source was added for both corrections.
 - [architect-verified] Commits `d4e3a44956da9f377be7afcd8b7a012b54a6c944` and `434316d642c26f7d088e216d0b91407049a16d57` add explicit egress validation and manual redirect handling.
 - [architect-verified] I-058 is RESOLVED by source review. This is a bounded I-2 runtime egress/security correction only.
 - Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-060 source-correction verification checkpoint
+
+[architect-verified] I-060 identified and corrected a custom Supabase Management credential-scope defect. The `supabase.execute_sql` action now passes the executing `agentId` into the `supabase-mgmt` credential lookup, preserving the same tenant/user/agent scope as the surrounding I-2 execution boundary. Implementation `a90254ee5e4a7910fd92291810fe0cdff72c2ee0`; focused regression `040cfafb0d4aad1b9b95de9aafa3d5dfa975bd35`. Gate-C remains MISSING; Gate-D remains IN_PROGRESS. This correction does not close I-2.
