@@ -1309,3 +1309,31 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review | [architect-verified] Source correction and focused regression reviewed on 2026-10-06; I-065 RESOLVED. |
 | Verification status | Executable Gate-C evidence remains pending; this issue itself is resolved by source review. |
 
+
+
+## I-066 — Integration mutation authorization must fail closed on plan-resolution errors
+
+| Field | Value |
+|---|---|
+| Issue ID | I-066 |
+| Title | Organisation/agent integration mutation entitlement checks must not fall back to free plan on resolution failure |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | Organisation enable/connect and agent integration enable mutation routes used `getOrgPlanLimits()`, whose documented failure fallback returns free-plan limits. A plan-resolution/database failure could therefore reach entitlement evaluation using synthetic free-plan state rather than failing closed. |
+| Evidence | [architect-verified] Current feature source showed `getOrgPlanLimits()` in both mutation authorization paths while `resolveOrgPlanLimits()` is the authoritative fail-closed resolver used by the runtime execution boundary. |
+| Affected commit | Current feature tip before correction |
+| Affected files/areas | `src/app/api/orgs/[orgId]/integrations/route.ts`; `src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts`; focused route tests |
+| Acceptance criterion affected | I-2 plan entitlement enforcement and fail-closed authorization |
+| Security / tenancy impact | P1 authorization impact: entitlement could be evaluated from fallback state when authoritative plan resolution fails. |
+| Correction required | Use `resolveOrgPlanLimits()` for enable/connect mutation authorization and return a non-success response when entitlement cannot be verified. |
+| Correction scope | Two integration mutation routes and their focused tests only. |
+| Explicit non-scope | No read-only UI plan helpers, OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated refactor. |
+| Expected verification | Source review confirms mutation paths use `resolveOrgPlanLimits()`; focused regressions prove plan-resolution failures return 503 and do not mutate integrations. |
+| Developer correction commits | `e496018850c01edd540b4163a19f565f3fcae4d4`, `575a3bec9d4b7f866a6b7ecfbfc7b11283c80c98` |
+| Regression commits | `c1fcacb702b1124ac4d0502b37172287c053244f`, `48a76874b7f5d42a967a07e75ca21d26d47b4750` |
+| Architect review | [architect-verified] Source correction and focused regressions reviewed on 2026-10-06; I-066 RESOLVED. |
+| Verification status | Executable Gate-C evidence remains pending; this issue itself is resolved by source review. |
+
