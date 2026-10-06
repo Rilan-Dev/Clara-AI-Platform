@@ -682,3 +682,14 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and remaining bounded smoke/browser/security scans.
 
 STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-07 — I-076 registry-authoritative action discovery
+
+[architect-verified] Continued bounded I-2 review found getIntegrationActions could fall back to enumerating every action shipped by the installed Activepieces package when fewer than half of Clara's registry actions matched. That could advertise unreviewed upstream actions even though runAction now correctly rejects them. The discovery fallback has been removed: capability discovery now exposes only registry-approved actions plus Clara-owned custom actions.
+
+- Implementation: 9435c6ce036634fe5f1126fa35c424db0e8582a2
+- Regression: 55271624623ec65ec1ae892bf8585063d2dc5371
+- I-076: RESOLVED by source correction and focused regression.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
