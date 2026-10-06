@@ -17,6 +17,12 @@
 [architect-verified] The I-2 credential refresh path was hardened against a concurrent disable: tenant-scoped decrypt/update now require an active connection, and the runner fails closed if the post-refresh active connection disappears. I-057 is RESOLVED by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 # PROJECT_STATE.md — Authoritative Current-State Summary
 
+## 2026-10-06 — I-065 OAuth expiry status must not overwrite an explicit disable
+
+[architect-verified] Source review of the current I-2 credential vault found that `updateStatus(connectionId, orgId, status)` could overwrite a concurrently applied tenant/admin `disabled` or disconnect state with `expired` during OAuth failure cleanup. The bounded correction changes the status transition to apply only while the connection is still `active`; regression `ac162b6ce439861c0c2ac9a2650971cd79411ef7` asserts the active-state predicate. Implementation `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7`. I-065 is RESOLVED by architect source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
+
 > ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** Repository truth at feature HEAD is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The project-control Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 remains open because executable Gate-C evidence and final Gate-D review are incomplete. Phase 7 is **PASS — CLOSED** and is not reopened. I-1 remains historical/incomplete where its Gate-C evidence was never independently observed.
 >
