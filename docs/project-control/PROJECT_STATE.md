@@ -1,4 +1,8 @@
 
+## 2026-10-06 — I-073 OAuth refresh endpoint integrity correction
+
+[architect-verified] Bounded I-2 source review found OAuth refresh trusted the connection-stored `token_url` even though the registry defines the authoritative OAuth token endpoint. Commits `59957d4ea03dfb89f8a90c9976322aae86821e73` and `6b781ed042003bd62f056d35b9f5952176b5cb73` bind refresh to `def.oauth2Config.tokenUrl`; regression `db0284111f94955c038e60bbb62fc59068d208a4` rejects mismatched endpoints and covers the matching path. I-073 is RESOLVED. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Continue bounded I-2 source review only; no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-06 — I-072 connection auth-type authority correction
 
 [architect-verified] Bounded I-2 source review found organisation connection creation persisted caller-supplied `authType` instead of the registry definition. Commit `879e3cbcc98392a48fe8e461255460f8d0e06c4b` now persists `def.authType`; regression `be01ab6ac2d97cf36c6400ef43d121c9c8699902` covers conflicting caller input. I-072 is RESOLVED. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Next bounded work remains concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. No I-3, MCP expansion, production promotion, or unrelated implementation.
