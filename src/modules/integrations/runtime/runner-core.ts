@@ -134,7 +134,8 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       ...def.actions,
       ...Object.keys(customActions[params.integrationId] ?? {}),
     ]));
-    xr.end("error", `Action '${params.actionName}' is not allowed for ${params.integrationId}`);
+    // XRay is initialized below for the normal execution path. This early
+    // capability rejection must not reference that later const before initialization.
     return {
       success: false,
       output: null,
