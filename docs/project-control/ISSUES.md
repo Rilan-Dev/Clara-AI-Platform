@@ -1425,3 +1425,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source review confirms custom credential-bearing provider errors no longer incorporate response bodies; focused regression covers the Supabase PostgREST failure body. Executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-06. |
+
+
+## I-072 — Connection creation trusted caller-supplied auth type
+
+| Field | Value |
+|---|---|
+| Issue ID | I-072 |
+| Title | Integration connection persistence must use the registry auth type |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | Organisation integration connection creation persisted `body.authType` when supplied by the caller, allowing stored connection metadata to disagree with the authoritative integration registry definition. I-048 already made the registry definition authoritative for runtime OAuth behavior; persistence must preserve the same invariant. |
+| Evidence | [architect-verified] Direct review of `src/app/api/orgs/[orgId]/integrations/route.ts` showed `body.authType ?? def.authType` being persisted despite `def.authType` being the authoritative registry contract. |
+| Correction | Connection creation now always persists `def.authType`; caller-supplied `authType` is not trusted for persisted connection semantics. Focused regression sends a conflicting `secret_text` value for a registry `oauth2` integration and asserts `oauth2` is persisted. |
+| Correction commit | 879e3cbcc98392a48fe8e461255460f8d0e06c4b |
+| Regression | be01ab6ac2d97cf36c6400ef43d121c9c8699902 |
+| Correction scope | `src/app/api/orgs/[orgId]/integrations/route.ts`; `src/app/api/orgs/[orgId]/integrations/route.test.ts` |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms connection persistence uses the registry auth type; focused regression covers conflicting caller input. Executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-06. |
