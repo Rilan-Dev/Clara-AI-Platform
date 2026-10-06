@@ -1,5 +1,17 @@
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
+## 2026-10-06 — I-063 Supabase Management fallback authorization correction
+
+[architect-verified] Source review found that supabase.execute_sql unconditionally required the separate supabase-mgmt integration authorization before even determining whether a Management connection existed. That contradicted the implemented action contract, which explicitly supports a service-role/PostgREST fallback when Management OAuth is unavailable. The bounded correction adds a tenant/user/agent-scoped active-connection existence check that does not decrypt credentials; only when a Management connection exists does the action re-check supabase-mgmt authorization and read its credential. A focused regression verifies the service-key fallback does not read the Management credential or invoke the Management authorization boundary.
+
+- Implementation: 6719be8; aa99287
+- Regression: 457b07d
+- I-063: RESOLVED by architect source review.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- Next bounded work: continue I-2 source-level credential/connection, custom-action, egress, secret, and tenant-boundary review; then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 > Canonical continuation instruction. Snapshot: **2026-10-06 — Integrations I-2 implemented; verification pending.** GitHub repository state is authoritative. Current feature tip: **read from GitHub at recovery time; do not duplicate a mutable SHA here**.
 
 ## 2026-10-06 — I-055 cross-integration credential authorization correction
