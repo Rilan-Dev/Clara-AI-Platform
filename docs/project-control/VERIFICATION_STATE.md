@@ -1793,3 +1793,12 @@ Focused regression source was added for both corrections.
 - [architect-verified] Focused regression source covers plan downgrade, cross-tenant agent grant, and missing agent scope.
 - Correction commits: `2d2383a196d83fba26dd93a4b4a1ec2ecec31207`, `facb32c99b5fc9bcdd0d05900e0a92bdf9c60e6d`, `e4110290c8cfa57c1f5357eaf4f57c719785a4ee`.
 - I-054 is RESOLVED by architect source review. Gate-C remains MISSING; Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-057 OAuth refresh disable-race correction
+
+- [architect-verified] Source review identified a concurrent-disable race in the OAuth refresh persistence path: tenant-scoped decrypt() and updateCredentials() did not require the connection to remain active, allowing an in-flight refresh to resurrect a deliberately disabled connection.
+- [architect-verified] Commit `a8e66489e57d84326e63b56b86914ba3b5ea3cf3` adds `status='active'` predicates to the tenant-scoped decrypt and credential-update operations.
+- [architect-verified] Commit `ac8d4bf5388c1cf993a9355c3032e8c8d090782f` makes the runner fail closed when the post-refresh active connection is no longer available.
+- [architect-verified] I-057 is RESOLVED by source review. This is a bounded I-2 credential/connection authorization correction only; no OAuth callback/transport expansion was introduced.
+- Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No I-2 PASS is claimed.
