@@ -1362,7 +1362,7 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Finding | The organisation integration POST route and agent integration PATCH route contained literal \\n sequences between TypeScript statements. This is invalid source structure and can block TypeScript parsing/building independent of the runtime authorization logic. |
 | Evidence | [architect-verified] Direct GitHub source inspection of the feature branch showed the literal escape text in both route files. |
 | Correction | Replaced only the literal escape sequences with actual statement newlines; no authorization or behavior change was introduced. |
-| Correction commit | c07b87596ffdc7959a4b507621b3a57d900c6a82 |
+| Correction commits | c07b87596ffdc7959a4b507621b3a57d900c6a82; dc3879afc78fb2745f84b861aaacb287427c733e; eb0e2db3851579d4ac254b6a22ae7568d1d77912 |
 | Correction scope | src/app/api/orgs/[orgId]/integrations/route.ts; src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts |
 | Explicit non-scope | No schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
 | Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
