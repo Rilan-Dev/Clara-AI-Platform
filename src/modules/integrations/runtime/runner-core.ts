@@ -5,6 +5,7 @@ import type { RunActionParams, RunActionResult } from "./types.js";
 import { xray } from "./xray.js";
 import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch.js";
 import { validateActionProps } from "./action-input-validation.js";
+import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
 import {
   customActions,
   pieceCache,
@@ -130,6 +131,11 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
   });
 
   try {
+    // Authorize again at the execution boundary. The AI tool performs the same
+    // checks for capability discovery, but grants/plan state can change between
+    // tool authorization and runner execution; the runtime must fail closed too.
+    await assertIntegrationExecutionAuthorized(params);
+
     // 0. Check for custom (non-piece) action first
     const customAction = customActions[params.integrationId]?.[params.actionName];
     if (customAction) {
