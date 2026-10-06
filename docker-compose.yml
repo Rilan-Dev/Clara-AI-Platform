@@ -178,7 +178,8 @@ services:
   clara-worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile
+      target: worker
     container_name: clara-worker
     restart: unless-stopped
     logging: *default-logging
