@@ -1552,3 +1552,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification status | Source correction and focused regression reviewed by ChatGPT; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-07. |
+
+## I-078 — I-2 early action-allowlist rejection referenced uninitialized XRay handle
+
+| Field | Value |
+|---|---|
+| Issue ID | I-078 |
+| Title | Runner must fail cleanly before normal trace initialization |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The newly enforced registry action allowlist rejected unreviewed piece actions before the normal XRay handle was initialized, but the rejection path called xr.end(), causing a temporal-dead-zone ReferenceError instead of the intended fail-closed result. |
+| Correction | Removed the pre-initialization XRay call. The allowlist rejection now returns the intended structured failure without touching the later trace handle. |
+| Correction commit | ddd38bbf84f274a7f2daa159007a080f964b3046 |
+| Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-07. |
