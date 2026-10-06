@@ -1,3 +1,10 @@
+## 2026-10-06 — I-064 AI integration-tool plan-resolution fail-closed correction
+
+[architect-verified] Source review found that the AI-visible integration_action and integration_availability tools still used the UI-oriented plan helper, which can fall back to free-plan limits when authoritative plan resolution fails. The bounded correction switches both capability boundaries to resolveOrgPlanLimits: execution denies with PLAN_NOT_ENTITLED on resolution failure, while availability returns no capabilities without querying integration state. Corrections: 0f5c2ad1372be0c60ed72b11863b9aad8e48fda6, f394054afa6aa92e8c33ef5dbf7bb0554bf18730, c857a8777f0a9f6ea7f535734966b1d2546d1ca8, 305f59663e83ab8deea910b350c746c2af1420b6. I-064: RESOLVED by architect source review. Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- Next bounded work: continue I-2 source-level credential/connection, custom-action, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
 ## 2026-10-06 — I-063 Supabase Management fallback authorization correction
