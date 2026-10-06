@@ -44,7 +44,12 @@ export async function PATCH(req: NextRequest,{params}:Params){
     // existing grant must remain possible after a downgrade so tenants can
     // safely unwind access they are no longer entitled to use.
     if (body.enabled) {
-      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;\n      try {\n        limits = await resolveOrgPlanLimits(orgId);\n      } catch {\n        return NextResponse.json({error:"Integration plan entitlement could not be verified"},{status:503});\n      }
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+try {
+limits = await resolveOrgPlanLimits(orgId);
+} catch {
+return NextResponse.json({error:"Integration plan entitlement could not be verified"},{status:503});
+}
       if (
         !Array.isArray(platform.allowed_plans) ||
         (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*"))
