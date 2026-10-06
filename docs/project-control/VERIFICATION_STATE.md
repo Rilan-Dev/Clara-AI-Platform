@@ -4,6 +4,12 @@
 > Since Phase 5 (2026-10-01) this register also carries the durable **verification and phase-gate contract** (§ below) — the binding rules every phase's closure evidence must satisfy from Phase 5 onward (DECISIONS.md D-020).
 > Snapshot date: **2026-10-06**. Historical evidence remains unrewritten.
 
+### 2026-10-06 — I-055 cross-integration credential authorization correction
+
+- [architect-verified] Source review identified that `DoableConnectionsManager.get()` could read another integration's active credential directly without re-checking the I-054 execution authorization contract.
+- [architect-verified] Commit `3a17c31cb16bfa54cb79a48a13a757ae16486971` now invokes `assertIntegrationExecutionAuthorized()` before credential retrieval; regression `4f86976b505487906d18e526b6433be360e97a8b` covers authorized lookup and denial-before-read.
+- I-055 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 ## CURRENT I-2 VERIFICATION RECORD — 2026-10-05
 
 | Gate | Status | Current evidence |
