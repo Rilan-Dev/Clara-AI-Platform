@@ -80,8 +80,9 @@ describe("custom integration credential scoping", () => {
 
     const { customActions } = await import("./runner-helpers.js");
 
-    await expect(
-      customActions.supabase.execute_sql.run(
+    let thrown: unknown;
+    try {
+      await customActions.supabase.execute_sql.run(
         {
           userId: "user-1",
           workspaceId: "org-1",
@@ -95,26 +96,14 @@ describe("custom integration credential scoping", () => {
           url: "https://project-1.supabase.co",
           apiKey: "service-key",
         },
-      ),
-    ).rejects.toThrow("PostgREST rpc/exec_sql returned: 401");
+      );
+    } catch (error) {
+      thrown = error;
+    }
 
-    await expect(
-      customActions.supabase.execute_sql.run(
-        {
-          userId: "user-1",
-          workspaceId: "org-1",
-          agentId: "agent-1",
-          integrationId: "supabase",
-          actionName: "execute_sql",
-          projectId: "project-1",
-          props: { sql: "select 1" },
-        },
-        {
-          url: "https://project-1.supabase.co",
-          apiKey: "service-key",
-        },
-      ),
-    ).rejects.not.toThrow("service-key");
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("Raw SQL execution requires Supabase OAuth (Sign in with Supabase) so we can use the Management API. Alternatively, create a Postgres function named `exec_sql(query text)` in your Supabase project to enable SQL via the service role key. PostgREST rpc/exec_sql returned: 401");
+    expect((thrown as Error).message).not.toContain("service-key");
   });
 
   it("uses the service-key fallback without requiring a Management connection", async () => {
