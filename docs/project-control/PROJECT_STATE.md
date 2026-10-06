@@ -26,6 +26,10 @@
 
 [architect-verified] A bounded I-2 credential-access bypass was corrected in the Activepieces ConnectionsManager. Cross-integration credential lookup now passes through the same tenant/plan/platform/agent authorization boundary as direct integration execution. Implementation `3a17c31cb16bfa54cb79a48a13a757ae16486971`; regression `4f86976b505487906d18e526b6433be360e97a8b`. I-055 is RESOLVED by architect source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING.
 
+## 2026-10-06 — I-056 execution authorization fail-closed correction
+
+[architect-verified] Source review found that the I-2 execution authorization boundary used the UI-oriented `getOrgPlanLimits()` helper, whose fallback converts plan-resolution/database failures into free-plan limits. This could allow an integration permitted on the free plan to execute without proving the organisation's actual entitlement. The bounded correction now calls `resolveOrgPlanLimits()` directly and denies execution when entitlement resolution fails. Implementation `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825`; type correction `9ac86755c94132a86afbde804a7ca3b927e0e83b`; focused regression `220d1a66fe7279bb55296d31d5f9d5c3133b78ef`. I-056 is RESOLVED by architect source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 ## Current phase
 
 ## 2026-10-06 — I-047 direct-connection limit correction
