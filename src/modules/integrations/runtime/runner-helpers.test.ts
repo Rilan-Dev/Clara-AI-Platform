@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const credentialGet = vi.fn();
+const hasActiveConnection = vi.fn();
 const query = vi.fn();
 const assertSafeEgressUrl = vi.fn();
 const assertIntegrationExecutionAuthorized = vi.fn();
 
 vi.mock("./credential-vault.js", () => ({
-  credentialVault: { get: credentialGet },
+  credentialVault: { get: credentialGet, hasActiveConnection },
 }));
 
 vi.mock("./runner-fetch.js", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/lib/db", () => ({
 describe("custom integration credential scoping", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasActiveConnection.mockResolvedValue(true);
     globalThis.fetch = vi.fn();
   });
 
@@ -65,6 +67,43 @@ describe("custom integration credential scoping", () => {
     expect(thrown).toBeInstanceOf(Error);
     expect((thrown as Error).message).toBe("Supabase SQL execution failed (401)");
     expect((thrown as Error).message).not.toContain("management-secret-token");
+  });
+
+  it("uses the service-key fallback without requiring a Management connection", async () => {
+    hasActiveConnection.mockResolvedValue(false);
+    credentialGet.mockResolvedValue(null);
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(JSON.stringify({ rows: [{ id: 1 }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const { customActions } = await import("./runner-helpers.js");
+
+    const result = await customActions.supabase.execute_sql.run(
+      {
+        userId: "user-1",
+        workspaceId: "org-1",
+        agentId: "agent-1",
+        integrationId: "supabase",
+        actionName: "execute_sql",
+        projectId: "project-1",
+        props: { sql: "select 1" },
+      },
+      {
+        url: "https://project-1.supabase.co",
+        apiKey: "service-key",
+      },
+    );
+
+    expect(result).toEqual({ rows: [{ id: 1 }] });
+    expect(credentialGet).not.toHaveBeenCalled();
+    expect(assertIntegrationExecutionAuthorized).not.toHaveBeenCalledWith({
+      integrationId: "supabase-mgmt",
+      workspaceId: "org-1",
+      agentId: "agent-1",
+    });
   });
 
   it("scopes the Supabase Management credential lookup to the executing agent", async () => {
