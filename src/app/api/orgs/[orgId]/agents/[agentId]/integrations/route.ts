@@ -45,7 +45,10 @@ export async function PATCH(req: NextRequest,{params}:Params){
     // safely unwind access they are no longer entitled to use.
     if (body.enabled) {
       const limits = await getOrgPlanLimits(orgId);
-      if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
+      if (
+        !Array.isArray(platform.allowed_plans) ||
+        (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*"))
+      ) {
         return NextResponse.json({error:`The ${limits.plan_id} plan cannot use this integration`,code:"PLAN_NOT_ENTITLED"},{status:402});
       }
     }
