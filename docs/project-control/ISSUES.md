@@ -1154,3 +1154,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] ElevenLabs TTS/STT and Supabase REST fallback paths are now bounded by explicit egress and manual redirect handling. |
 | Resolution date | 2026-10-06 |
+
+
+## I-059 — I-2 Supabase Management API custom action bypassed host egress/redirect boundary
+
+| Field | Value |
+|---|---|
+| Issue ID | I-059 |
+| Title | Custom Supabase Management API requests must use the same egress and redirect boundary |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The bounded I-058 correction protected the Supabase PostgREST fallback, but the custom Supabase Management API path still used native fetch without the host-owned egress assertion or explicit redirect policy. Because the request carries an OAuth bearer token, this left a credential-bearing custom transport outside the same outbound security boundary. |
+| Evidence | [architect-verified] Direct source review of `src/modules/integrations/runtime/runner-helpers.ts` identified the Management API fetch at the fixed `api.supabase.com` endpoint without `assertSafeEgressUrl()` or `redirect: "manual"`. |
+| Correction | [architect/ChatGPT] The Management API endpoint is now explicitly passed through `assertSafeEgressUrl()`, credential-bearing fetch uses `redirect: "manual"`, and 3xx responses fail closed with an action-specific error. |
+| Correction commit | `c7a2b7f4edb33cc919ebfe528d0fd316b4698136` |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms the previously unbounded custom Management API request is now inside the I-2 egress/redirect boundary. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
