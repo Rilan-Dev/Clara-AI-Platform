@@ -1174,3 +1174,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source review confirms the previously unbounded custom Management API request is now inside the I-2 egress/redirect boundary. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+
+
+## I-060 — I-2 custom Supabase Management credential lookup lacked explicit agent scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-060 |
+| Title | Custom Supabase Management API credential lookup must preserve the executing agent scope |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The custom `supabase.execute_sql` action was correctly reached only after the executing agent passed the I-2 runner authorization boundary, but its secondary lookup for the `supabase-mgmt` OAuth credential called `credentialVault.get()` without the executing `agentId`. That could select an organisation-scoped or different agent-scoped Management credential rather than preserving the action's explicit agent scope. |
+| Evidence | [architect-verified] Direct review of `src/modules/integrations/runtime/runner-helpers.ts` showed the Management credential lookup supplied userId and workspaceId but omitted agentId, while `credentialVault.get()` supports explicit agent scoping. |
+| Correction | [architect/ChatGPT] The Management credential lookup now passes `params.agentId`, and a focused regression asserts the exact four-argument tenant/user/agent scope before the credential-bearing Management API request. |
+| Correction scope | `src/modules/integrations/runtime/runner-helpers.ts`; `src/modules/integrations/runtime/runner-helpers.test.ts` |
+| Correction commits | Implementation `a90254ee5e4a7910fd92291810fe0cdff72c2ee0`; regression `040cfafb0d4aad1b9b95de9aafa3d5dfa975bd35` |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms the custom Management credential read now preserves the executing agent scope; executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
