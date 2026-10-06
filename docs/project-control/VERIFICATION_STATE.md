@@ -19,6 +19,14 @@
 - I-059 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 # VERIFICATION_STATE.md — Durable Verification Evidence Register
 
+### 2026-10-06 — I-065 OAuth expiry status-transition race correction
+
+- [architect-verified] Source review identified a remaining I-2 credential-vault race: OAuth expiry/invalid-grant cleanup called `updateStatus()` without requiring the connection to remain active, so a concurrent explicit disable/disconnect could be overwritten to `expired`.
+- [architect-verified] Commit `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7` changes the update predicate to `WHERE id=$2 AND org_id=$3 AND status='active'`; regression `ac162b6ce439861c0c2ac9a2650971cd79411ef7` asserts the active-state transition contract.
+- I-065 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
+
 > Canonical register of verification evidence for the project-control system. **Strictly separates developer-reported evidence from architect-verified evidence.**
 > Since Phase 5 (2026-10-01) this register also carries the durable **verification and phase-gate contract** (§ below) — the binding rules every phase's closure evidence must satisfy from Phase 5 onward (DECISIONS.md D-020).
 > Snapshot date: **2026-10-06**. Historical evidence remains unrewritten.
