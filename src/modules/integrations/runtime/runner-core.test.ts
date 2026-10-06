@@ -60,6 +60,23 @@ describe("integration runner action allowlist", () => {
     assertIntegrationExecutionAuthorized.mockResolvedValue(undefined);
   });
 
+  it("does not advertise unreviewed package actions when registry matching is sparse", async () => {
+    loadPiece.mockResolvedValue({
+      actions: [
+        { name: "approved_action", displayName: "Approved", description: "approved", props: {} },
+        { name: "unreviewed_piece_action", displayName: "Unreviewed", description: "must not escape", props: {} },
+        { name: "another_unreviewed_action", displayName: "Another", description: "must not escape", props: {} },
+      ],
+    });
+
+    const { getIntegrationActions } = await import("./runner-core.js");
+    const actions = await getIntegrationActions("example");
+
+    expect(actions.map((action) => action.name)).toContain("approved_action");
+    expect(actions.map((action) => action.name)).not.toContain("unreviewed_piece_action");
+    expect(actions.map((action) => action.name)).not.toContain("another_unreviewed_action");
+  });
+
   it("rejects a piece action that is not in Clara's registry allowlist", async () => {
     const { runAction } = await import("./runner-core.js");
 
