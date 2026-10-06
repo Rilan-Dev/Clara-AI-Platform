@@ -389,3 +389,10 @@ Control records:
 - [architect-verified] Implementation commits: `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825`, `9ac86755c94132a86afbde804a7ca3b927e0e83b`; regression `220d1a66fe7279bb55296d31d5f9d5c3133b78ef`.
 - [architect-verified] Recorded I-056 as RESOLVED in `docs/project-control/ISSUES.md`; refreshed `PROJECT_STATE.md`, `NEXT_ACTION.md`, and `VERIFICATION_STATE.md`.
 - [architect-verified] I-2 remains IMPLEMENTED — VERIFICATION PENDING. No Gate-C PASS or Gate-D PASS is claimed. No I-3/MCP/production/unrelated scope started.
+
+## 2026-10-06 — I-061 custom Management credential authorization correction
+
+- Source audit identified a secondary credential boundary: custom `supabase.execute_sql` read `supabase-mgmt` credentials directly without re-checking that integration's platform/plan/org/agent authorization.
+- Corrected in `5f6d044a2ec1d8ddacaf9bde553f17576c14732e`.
+- Added denial-before-read regression in `3ebbbf7113e851a427d310aee2d3a057a6b8ba83`.
+- Scope remains I-2 credential/connection authorization; no I-3/MCP/production work.
