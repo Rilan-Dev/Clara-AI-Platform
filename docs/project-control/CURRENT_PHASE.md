@@ -1,3 +1,7 @@
+## 2026-10-06 — I-063 Supabase Management fallback authorization correction
+
+[architect-verified] The custom supabase.execute_sql action no longer requires the separate supabase-mgmt authorization when no active Management connection exists. A tenant/user/agent-scoped non-decrypting connection-existence check now gates the optional Management credential path, preserving the service-role/PostgREST fallback. Implementation 6719be8bec7cf9f6deeae30fb1c3ff01b108a9ea and aa99287f844c7b99c381666df98071878050e5f5; regression 457b07d7db82736a1b7724e4da1476ff9477fbe7. I-063 is RESOLVED by architect source review. Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+
 ## 2026-10-06 — I-061 custom Management credential authorization correction
 
 [architect-verified] The custom `supabase.execute_sql` action now re-authorizes the separate `supabase-mgmt` integration before reading its OAuth credential, preventing a secondary credential lookup from bypassing platform/plan/organisation/agent authorization. Implementation `5f6d044a2ec1d8ddacaf9bde553f17576c14732e`; regression `3ebbbf7113e851a427d310aee2d3a057a6b8ba83`. I-061 is RESOLVED. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
