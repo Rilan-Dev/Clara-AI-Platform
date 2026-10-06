@@ -1,3 +1,8 @@
+
+## 2026-10-06 — I-071 custom integration error-body hardening
+
+[architect-verified] Bounded I-2 source review identified raw provider response bodies in credential-bearing custom ElevenLabs TTS/STT and Supabase PostgREST errors. Commit `9c1a838c54cf036f67ac05810b3b6bea0b1f9799` removes response-body propagation; regression `0d1494ea8686c3186589cf657a8dc361d3443af4` covers the PostgREST failure boundary. I-071 is RESOLVED. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Next bounded work remains concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. No I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-06 — I-067 IPv4-mapped IPv6 egress correction
 
 [architect-verified] Bounded I-2 source review identified an SSRF bypass in the host egress policy: IPv4-mapped IPv6 literals encoded with the final IPv4 address as hexadecimal (for example `::ffff:7f00:1`) were treated as IPv6 and could bypass the private IPv4 ranges. The egress guard now decodes both dotted-decimal and hexadecimal IPv4-mapped forms before applying the IPv4 deny ranges.
