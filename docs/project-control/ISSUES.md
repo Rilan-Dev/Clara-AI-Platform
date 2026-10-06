@@ -1131,3 +1131,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] Both the refresh persistence path and the post-refresh execution path are fail-closed on a concurrent disable. |
 | Resolution date | 2026-10-06 |
+
+
+## I-058 — I-2 custom integration actions bypassed runner egress/redirect controls
+
+| Field | Value |
+|---|---|
+| Issue ID | I-058 |
+| Title | Custom integration HTTP actions must use explicit egress and fail-closed redirect controls |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | Custom ElevenLabs TTS/STT and Supabase SQL actions used native fetch directly. The ElevenLabs paths checked for 3xx after fetch, but default fetch redirect behavior could follow a credential-bearing redirect before the check. The Supabase fallback used a credential-derived project URL without the host-owned egress policy and also followed redirects by default. These paths therefore bypassed the I-2 outbound egress/redirect boundary already enforced by the generic runner. |
+| Evidence | [architect-verified] Direct review of src/modules/integrations/runtime/runner-helpers.ts showed native fetch calls in the custom actions without assertSafeEgressUrl() and without redirect='manual' on the credential-bearing requests. |
+| Correction | [architect/ChatGPT] Custom ElevenLabs endpoints and the credential-derived Supabase REST endpoint now pass through assertSafeEgressUrl(); all credential-bearing custom-action fetches now use redirect='manual', retaining explicit 3xx rejection/fail-closed behavior. |
+| Correction scope | src/modules/integrations/runtime/runner-helpers.ts |
+| Explicit non-scope | No provider rollout, OAuth callback/transport expansion, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | d4e3a44956da9f377be7afcd8b7a012b54a6c944; 434316d642c26f7d088e216d0b91407049a16d57 |
+| Verification | [architect-verified] Source review confirms the custom endpoints now use the host egress guard and credential-bearing requests cannot silently follow redirects. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] ElevenLabs TTS/STT and Supabase REST fallback paths are now bounded by explicit egress and manual redirect handling. |
+| Resolution date | 2026-10-06 |
