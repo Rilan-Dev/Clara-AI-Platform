@@ -363,3 +363,21 @@ Control records:
 - Added focused regressions for malformed allowlist denial across all three boundaries.
 - No schema/migration changes, billing changes, OAuth transport expansion, MCP, production promotion, or unrelated implementation.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains open/missing and Gate-D remains in progress.
+
+
+## 2026-10-06 — I-055 cross-integration credential authorization correction
+
+[architect-verified] Continued the bounded I-2 source review without waiting for GitHub Actions or Vercel. The Activepieces `DoableConnectionsManager` was found to retrieve credentials for an arbitrary integration key directly from the credential vault without re-checking the authoritative execution authorization contract.
+
+[implemented] Added the same fail-closed platform enablement, plan entitlement, organisation grant, explicit agent scope, and agent-to-organisation checks used by direct integration execution before any cross-integration credential read. Unauthorized lookup now fails before `credentialVault.get()` is reached.
+
+Implementation/regression commits:
+- `3a17c31cb16bfa54cb79a48a13a757ae16486971`
+- `4f86976b505487906d18e526b6433be360e97a8b`
+
+Control records:
+- I-055 resolved by architect source review.
+- Gate-C remains MISSING; executable current-head tests/typecheck/lint/build are not claimed.
+- Gate-D remains IN_PROGRESS.
+- No GitHub Actions/Vercel success was awaited or inferred.
+- No I-3, MCP expansion, production promotion, or unrelated implementation was started.
