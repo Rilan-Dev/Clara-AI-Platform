@@ -11,7 +11,7 @@ import { PostgresStore } from "@/modules/integrations/runtime/store";
 describe("integration PostgresStore tenant isolation", () => {
   beforeEach(() => queryMock.mockReset());
 
-  it("binds FLOW keys to organisation and user", async () => {
+  it("binds FLOW keys to organisation, agent, and user", async () => {
     queryMock.mockResolvedValueOnce([{ value: { ok: true } }]);
     const store = new PostgresStore("user-1", "org-1", "agent-1");
 
@@ -19,7 +19,7 @@ describe("integration PostgresStore tenant isolation", () => {
 
     expect(queryMock).toHaveBeenCalledWith(
       "SELECT value FROM integration_store WHERE scope_key=$1 AND org_id=$2",
-      ["flow:org-1:user-1:connection-state", "org-1"],
+      ["flow:org-1:agent-1:user-1:connection-state", "org-1"],
     );
   });
 
@@ -31,7 +31,7 @@ describe("integration PostgresStore tenant isolation", () => {
 
     expect(queryMock).toHaveBeenCalledWith(
       "DELETE FROM integration_store WHERE scope_key=$1 AND org_id=$2",
-      ["flow:org-1:user-1:connection-state", "org-1"],
+      ["flow:org-1:agent-1:user-1:connection-state", "org-1"],
     );
   });
 });
