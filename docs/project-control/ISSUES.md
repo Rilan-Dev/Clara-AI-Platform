@@ -1,3 +1,13 @@
+## 2026-10-06 — I-067 IPv4-mapped IPv6 egress bypass
+
+- **Status:** RESOLVED — architect-verified.
+- **Scope:** I-2 integration runtime egress/SSRF boundary.
+- **Finding:** hexadecimal IPv4-mapped IPv6 literals could bypass private IPv4 deny ranges.
+- **Correction:** `assertSafeEgressUrl()` now decodes dotted-decimal and hexadecimal IPv4-mapped IPv6 forms before applying IPv4 private-range checks.
+- **Implementation:** `8d176739784d2d510f20d242b533a7383ac5de98`.
+- **Regression:** `ee76381b577f5ffdeb658f4ccdc9b7dd27653cc0`.
+- **Disposition:** resolved by source review; executable Gate-C evidence remains outstanding.
+
 # ISSUES.md — Durable Issue Register
 
 > Known defects, blockers, and discrepancies. Derived from Phase 0 reconnaissance findings (PHASE-0-RECONNAISSANCE.md §8) and observed project events — no defects are invented.
