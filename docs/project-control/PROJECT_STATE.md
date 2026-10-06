@@ -97,3 +97,8 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-06 — I-059 Supabase Management API egress correction
 
 [architect-verified] Source review identified a remaining credential-bearing native fetch in the custom Supabase Management API action outside the I-058 egress/redirect boundary. Commit `c7a2b7f4edb33cc919e2fe6c9a0bec2c981450be` now applies `assertSafeEgressUrl()`, manual redirect handling, and explicit 3xx rejection. I-059 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Next bounded work remains source-level I-2 authorization/credential/egress review, followed by executable Gate-C evidence and final Gate-D review. No I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-060 custom Management credential agent-scope correction
+
+[architect-verified] Source review identified a bounded I-2 credential-scope defect in the custom Supabase Management API action: its secondary `supabase-mgmt` credential lookup omitted the executing `agentId`. Commit `a90254ee5e4a7910fd92291810fe0cdff72c2ee0` now preserves explicit agent scope, with focused regression `040cfafb0d4aad1b9b95de9aafa3d5dfa975bd35`. I-060 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
