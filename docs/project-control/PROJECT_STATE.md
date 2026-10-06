@@ -137,3 +137,7 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-06 — I-060 custom Management credential agent-scope correction
 
 [architect-verified] Source review identified a bounded I-2 credential-scope defect in the custom Supabase Management API action: its secondary `supabase-mgmt` credential lookup omitted the executing `agentId`. Commit `a90254ee5e4a7910fd92291810fe0cdff72c2ee0` now preserves explicit agent scope, with focused regression `040cfafb0d4aad1b9b95de9aafa3d5dfa975bd35`. I-060 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+## 2026-10-06 — I-068 integration-route source correction
+
+[architect-verified] Bounded I-2 source review found literal \\n escape text embedded between TypeScript statements in the organisation integration POST route and agent integration PATCH route. The escapes were replaced with actual statement newlines in c07b87596ffdc7959a4b507621b3a57d900c6a82. No authorization behavior was changed. I-068 is resolved by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Continue bounded I-2 review only; do not wait for GitHub Actions or Vercel and do not expand to I-3/MCP/production.
