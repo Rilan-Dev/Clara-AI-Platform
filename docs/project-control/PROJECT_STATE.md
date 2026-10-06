@@ -171,3 +171,7 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-07 — I-076 registry-authoritative action discovery
 
 [architect-verified] Bounded I-2 source review found getIntegrationActions could advertise unreviewed Activepieces package actions through its sparse-match fallback, despite the runner execution boundary rejecting those actions. The fallback now stays within Clara's reviewed registry action set; custom Clara-owned actions remain exposed separately. Implementation 9435c6ce036634fe5f1126fa35c424db0e8582a2; focused regression 55271624623ec65ec1ae892bf8585063d2dc5371. I-076 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+## 2026-10-07 — I-077 Supabase credential URL error-boundary hardening
+
+[architect-verified] Bounded I-2 source review found the custom supabase.execute_sql action included credential-derived projectUrl in an error when project-ref parsing failed. The correction now returns a generic invalid-project-URL error. Implementation 6ae5663938c2144f2f880afe0d7ebdcd97ebf54a; focused regression 0f3347d8b679f0ea4110768fdf5f5c33de129d57. I-077 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
