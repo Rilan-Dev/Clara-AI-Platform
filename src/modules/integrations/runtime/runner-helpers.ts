@@ -244,6 +244,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
           params.userId,
           "supabase-mgmt",
           params.workspaceId,
+          params.agentId,
         );
         const mgmtToken =
           (mgmtConn?.credentials as Record<string, unknown>)?.access_token as string | undefined ??
