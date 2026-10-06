@@ -270,7 +270,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
 
         if (mgmtToken && projectUrl) {
           const refMatch = projectUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
-          if (!refMatch) throw new Error(`Cannot extract project ref from URL: ${projectUrl}`);
+          if (!refMatch) throw new Error("Supabase project URL is invalid");
           const projectRef = refMatch[1];
 
           const managementEndpoint = `https://api.supabase.com/v1/projects/${projectRef}/database/query`;
