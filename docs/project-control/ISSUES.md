@@ -1281,3 +1281,31 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] Current feature source at the post-correction tip imports resolveOrgPlanLimits in both AI integration tools and handles entitlement-resolution failure without exposing executable integration capability. |
 | Resolution date | 2026-10-06 |
+
+
+## I-065 — OAuth expiry cleanup must not overwrite an explicit connection disable
+
+| Field | Value |
+|---|---|
+| Issue ID | I-065 |
+| Title | OAuth expiry cleanup must preserve an explicit disabled/disconnected state |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The credential vault `updateStatus(connectionId, orgId, status)` updated by connection id and organisation only. During OAuth expiry or invalid-grant cleanup, a concurrent tenant/admin disable or disconnect could therefore be overwritten to `expired`, losing the explicit administrative state. |
+| Evidence | [architect-verified] Current feature source at the I-2 review tip showed `UPDATE integration_connections SET status=$1,updated_at=now() WHERE id=$2 AND org_id=$3` in `credential-vault.ts`. |
+| Affected commit | Current feature tip before correction |
+| Affected files/areas | `src/modules/integrations/runtime/credential-vault.ts`; focused vault regression |
+| Acceptance criterion affected | I-2 credential/connection state integrity and fail-closed tenant lifecycle behavior |
+| Security / tenancy impact | P1 correctness/tenant-control-plane impact; an explicit disable could be replaced by an automatic expiry state during a concurrent OAuth failure path. |
+| Correction required | Make runner-initiated status transitions conditional on the connection remaining active, so an explicit disable/disconnect wins the race. |
+| Correction scope | `src/modules/integrations/runtime/credential-vault.ts`; add focused regression test |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Expected verification | Source review confirms the SQL status update requires `status='active'`; focused regression asserts the exact active-state predicate. |
+| Developer correction commit | `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7` — `fix(integrations): preserve disabled state during oauth expiry` |
+| Regression commit | `ac162b6ce439861c0c2ac9a2650971cd79411ef7` — `test(integrations): protect disabled connections from expiry overwrite` |
+| Architect review | [architect-verified] Source correction and focused regression reviewed on 2026-10-06; I-065 RESOLVED. |
+| Verification status | Executable Gate-C evidence remains pending; this issue itself is resolved by source review. |
+
