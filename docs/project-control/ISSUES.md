@@ -8,6 +8,30 @@
 - **Regression:** `ee76381b577f5ffdeb658f4ccdc9b7dd27653cc0`.
 - **Disposition:** resolved by source review; executable Gate-C evidence remains outstanding.
 
+## I-073 — OAuth refresh endpoint must be registry-authoritative
+
+| Field | Value |
+|---|---|
+| Issue ID | I-073 |
+| Title | OAuth refresh could trust a connection-stored token endpoint |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The OAuth refresh path read `token_url` from decrypted connection credentials and used it as the credential-bearing refresh destination. The integration registry already defines the authoritative OAuth `oauth2Config.tokenUrl`; trusting mutable connection data could direct a stored client secret/refresh token to an unintended public HTTPS endpoint. |
+| Evidence | [architect-verified] `ensureTokenFresh()` constructed the refresh URL from `creds.token_url`, while registry definitions expose authoritative `oauth2Config.tokenUrl`. |
+| Affected files/areas | `src/modules/integrations/runtime/runner-helpers.ts`; `src/modules/integrations/runtime/runner-core.ts`; focused OAuth refresh tests |
+| Acceptance criterion affected | I-2 credential/connection integrity and OAuth execution safety |
+| Security / tenancy impact | P1 credential-exfiltration / outbound-destination integrity risk for OAuth refresh |
+| Correction | Require the runner to pass the registry OAuth token endpoint and reject any stored endpoint that differs; construct the refresh URL from the registry value. |
+| Correction scope | OAuth refresh helper, runner call site, focused regression tests only |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated refactor |
+| Expected verification | Source review confirms refresh cannot send client credentials to a connection-supplied endpoint; focused regression proves mismatch is rejected before fetch and matching registry endpoint is used. |
+| Architect review status | RESOLVED — reviewed directly by ChatGPT on 2026-10-06 |
+| Resolution evidence | [architect-verified] Commits `59957d4ea03dfb89f8a90c9976322aae86821e73`, `6b781ed042003bd62f056d35b9f5952176b5cb73`, and `db0284111f94955c038e60bbb62fc59068d208a4` bind refresh to the registry endpoint and add mismatch/matching-path regressions. |
+| Resolution date | 2026-10-06 |
+
 # ISSUES.md — Durable Issue Register
 
 > Known defects, blockers, and discrepancies. Derived from Phase 0 reconnaissance findings (PHASE-0-RECONNAISSANCE.md §8) and observed project events — no defects are invented.
