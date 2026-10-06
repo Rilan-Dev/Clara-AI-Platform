@@ -411,3 +411,18 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub
 I-2 source review found that buildActionContext() still defaulted project.id to workspaceId when no explicit project identity was supplied, despite the ratified I-037 separation of project and agent/tenant scope. ChatGPT corrected this bounded defect at 59e8d360180a6458d4b965406829185fc6224785; focused regression coverage is 327740e9aec6d0bf0b0260af717a344b03e3d8ed. I-051 is recorded RESOLVED by source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 **Next bounded work:** continue I-2 source-level credential/connection authorization, AI-tool exposure, action-input validation, tenant isolation, and secret/egress review; then obtain executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-2 owner continuation: telemetry schema + fail-closed entitlement corrections
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**.
+
+[architect-verified] Two concrete plan-to-implementation gaps were corrected without waiting for GitHub Actions or Vercel:
+- I-052: integration usage telemetry now matches the existing `integration_usage_log(org_id, agent_id, ...)` schema instead of attempting the non-existent `workspace_id` column.
+- I-053: malformed/null platform `allowed_plans` now fails closed on AI execution, organisation enable/connect, and agent enable rather than bypassing entitlement checks.
+
+Focused regression source was added for both corrections.
+
+**Next bounded work:** continue I-2 source-level authorization/connection, action-input, tenant-isolation, egress, and secret review; then obtain executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
