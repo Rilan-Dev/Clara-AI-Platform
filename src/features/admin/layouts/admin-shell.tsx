@@ -76,7 +76,7 @@ function orgWorkspaceNav(orgId: string, role: string | null | undefined) {
  * group (they briefly lived in a one-bar workspace navbar). The rail shows
  * them whenever an agent is open; on the agents index the rail lists the
  * org's agents themselves instead. */
-function agentSectionNav(orgId: string, agentId: string, role: string | null) {
+function agentSectionNav(orgId: string, agentId: string, role: string | null | undefined) {
   const base = `/orgs/${orgId}/agents/${agentId}`;
   const canEdit = hasOrgCapability(role as OrgRole | null, "editAgent");
   const canKnowledge = hasOrgCapability(role as OrgRole | null, "manageKnowledge");
