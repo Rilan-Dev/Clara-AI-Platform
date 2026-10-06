@@ -71,8 +71,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         }
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`);
+          throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
         }
 
         // Get audio data
@@ -178,8 +177,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`ElevenLabs STT error: ${response.status} ${response.statusText} - ${errorText}`);
+          throw new Error(`ElevenLabs STT error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json() as Record<string, unknown>;
@@ -335,7 +333,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         throw new Error(
           "Raw SQL execution requires Supabase OAuth (Sign in with Supabase) so we can use the Management API. " +
           "Alternatively, create a Postgres function named `exec_sql(query text)` in your Supabase project to enable SQL via the service role key. " +
-          `PostgREST rpc/exec_sql returned: ${rpcRes.status} ${(await rpcRes.text().catch(() => "")).slice(0, 300)}`,
+          `PostgREST rpc/exec_sql returned: ${rpcRes.status}`,
         );
       },
     },
