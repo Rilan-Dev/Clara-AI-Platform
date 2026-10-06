@@ -381,3 +381,11 @@ Control records:
 - Gate-D remains IN_PROGRESS.
 - No GitHub Actions/Vercel success was awaited or inferred.
 - No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+## 2026-10-06 — I-056 plan-entitlement fail-closed correction
+
+- [architect-verified] Reviewed the current I-2 execution authorization boundary after I-055. `getOrgPlanLimits()` was found to catch plan-resolution/database failures and return free-plan limits, which is unsafe for an authorization boundary because a free-plan-allowed integration could execute without proving current entitlement.
+- [architect-verified] Corrected `src/modules/integrations/runtime/execution-authorization.ts` to use `resolveOrgPlanLimits()` directly and deny execution when entitlement resolution fails. Added focused regression coverage for the failure path.
+- [architect-verified] Implementation commits: `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825`, `9ac86755c94132a86afbde804a7ca3b927e0e83b`; regression `220d1a66fe7279bb55296d31d5f9d5c3133b78ef`.
+- [architect-verified] Recorded I-056 as RESOLVED in `docs/project-control/ISSUES.md`; refreshed `PROJECT_STATE.md`, `NEXT_ACTION.md`, and `VERIFICATION_STATE.md`.
+- [architect-verified] I-2 remains IMPLEMENTED — VERIFICATION PENDING. No Gate-C PASS or Gate-D PASS is claimed. No I-3/MCP/production/unrelated scope started.
