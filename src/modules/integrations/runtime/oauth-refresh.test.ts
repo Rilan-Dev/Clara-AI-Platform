@@ -11,6 +11,8 @@ vi.mock("@/lib/db", () => ({ query: vi.fn() }));
 
 import { ensureTokenFresh } from "./runner-helpers.js";
 
+const TOKEN_URL = "https://oauth.example.com/token";
+
 describe("OAuth token refresh", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -23,13 +25,13 @@ describe("OAuth token refresh", () => {
       refresh_token: "refresh-token",
       expires_in: 3600,
       claimed_at: Math.floor(Date.now() / 1000),
-      token_url: "https://oauth.example.com/token",
+      token_url: TOKEN_URL,
       client_id: "client-id",
       client_secret: "client-secret",
       data: {},
     });
 
-    await ensureTokenFresh("connection-1", "org-1", "oauth2");
+    await ensureTokenFresh("connection-1", "org-1", "oauth2", TOKEN_URL);
 
     expect(fetch).not.toHaveBeenCalled();
     expect(vault.updateCredentials).not.toHaveBeenCalled();
@@ -42,7 +44,7 @@ describe("OAuth token refresh", () => {
       refresh_token: "old-refresh",
       expires_in: 60,
       claimed_at: now - 3600,
-      token_url: "https://oauth.example.com/token",
+      token_url: TOKEN_URL,
       client_id: "client-id",
       client_secret: "client-secret",
       data: { provider: "example" },
@@ -54,13 +56,14 @@ describe("OAuth token refresh", () => {
       token_type: "Bearer",
     }), { status: 200, headers: { "content-type": "application/json" } }));
 
-    await ensureTokenFresh("connection-1", "org-1", "oauth2");
+    await ensureTokenFresh("connection-1", "org-1", "oauth2", TOKEN_URL);
 
     expect(fetch).toHaveBeenCalledWith(
-      "https://oauth.example.com/token",
+      TOKEN_URL,
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        redirect: "manual",
       }),
     );
     expect(vault.updateCredentials).toHaveBeenCalledWith(
@@ -80,13 +83,13 @@ describe("OAuth token refresh", () => {
       access_token: "expired-access",
       expires_in: 60,
       claimed_at: Math.floor(Date.now() / 1000) - 3600,
-      token_url: "https://oauth.example.com/token",
+      token_url: TOKEN_URL,
       client_id: "client-id",
       client_secret: "client-secret",
       data: {},
     });
 
-    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2"))
+    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2", TOKEN_URL))
       .rejects.toThrow("OAuth connection expired and cannot be refreshed");
 
     expect(fetch).not.toHaveBeenCalled();
@@ -99,32 +102,52 @@ describe("OAuth token refresh", () => {
       refresh_token: "old-refresh",
       expires_in: 60,
       claimed_at: Math.floor(Date.now() / 1000) - 3600,
-      token_url: "https://oauth.example.com/token",
+      token_url: TOKEN_URL,
       client_id: "client-id",
       client_secret: "client-secret",
       data: {},
     });
     vi.mocked(fetch).mockResolvedValue(new Response("invalid_grant", { status: 400 }));
 
-    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2"))
+    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2", TOKEN_URL))
       .rejects.toThrow("OAuth token refresh failed (400)");
 
     expect(vault.updateStatus).toHaveBeenCalledWith("connection-1", "org-1", "expired");
   });
 
-  it("rejects non-HTTPS token endpoints before making a request", async () => {
+  it("rejects a stored token endpoint that differs from the registry endpoint", async () => {
     vault.decrypt.mockResolvedValue({
       access_token: "old-access",
       refresh_token: "old-refresh",
       expires_in: 60,
       claimed_at: Math.floor(Date.now() / 1000) - 3600,
-      token_url: "http://oauth.example.com/token",
+      token_url: "https://attacker.example.com/token",
       client_id: "client-id",
       client_secret: "client-secret",
       data: {},
     });
 
-    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2"))
+    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2", TOKEN_URL))
+      .rejects.toThrow("OAuth connection token endpoint does not match the integration registry");
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(vault.updateCredentials).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-HTTPS registry token endpoints before making a request", async () => {
+    const insecureUrl = "http://oauth.example.com/token";
+    vault.decrypt.mockResolvedValue({
+      access_token: "old-access",
+      refresh_token: "old-refresh",
+      expires_in: 60,
+      claimed_at: Math.floor(Date.now() / 1000) - 3600,
+      token_url: insecureUrl,
+      client_id: "client-id",
+      client_secret: "client-secret",
+      data: {},
+    });
+
+    await expect(ensureTokenFresh("connection-1", "org-1", "oauth2", insecureUrl))
       .rejects.toThrow("OAuth token endpoint must use HTTPS");
 
     expect(fetch).not.toHaveBeenCalled();
