@@ -62,6 +62,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
             model_id: "eleven_turbo_v2_5", // Free tier model
             output_format: "mp3_44100_128",
           }),
+          redirect: "manual",
         });
 
         if (response.status >= 300 && response.status < 400) {
@@ -292,6 +293,7 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
             Prefer: "return=representation",
           },
           body: JSON.stringify({ query: sqlQuery }),
+          redirect: "manual",
         });
 
         if (rpcRes.ok) {
