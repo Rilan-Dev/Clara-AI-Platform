@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { getOrgPlanLimits } from "@/lib/plan-guard";
+import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
 import type { PlatformExecutionContext } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
@@ -21,7 +21,14 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
     },
     async execute(raw, context: PlatformExecutionContext) {
       const value = raw as { integrationId?: string };
-      const limits = await getOrgPlanLimits(context.tenantId);
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+      try {
+        limits = await resolveOrgPlanLimits(context.tenantId);
+      } catch {
+        // Availability is capability discovery; do not expose integration names
+        // when the organisation entitlement cannot be authoritatively resolved.
+        return [];
+      }
       const rows = await query<{integration_id:string;enabled:boolean;allowed_plans:string[]}>(`
         SELECT ai.integration_id, ai.enabled, pi.allowed_plans
         FROM agent_integrations ai
