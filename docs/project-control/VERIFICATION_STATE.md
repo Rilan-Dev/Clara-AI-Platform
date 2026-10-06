@@ -1828,3 +1828,15 @@ Focused regression source was added for both corrections.
 ## 2026-10-06 — I-060 source-correction verification checkpoint
 
 [architect-verified] I-060 identified and corrected a custom Supabase Management credential-scope defect. The `supabase.execute_sql` action now passes the executing `agentId` into the `supabase-mgmt` credential lookup, preserving the same tenant/user/agent scope as the surrounding I-2 execution boundary. Implementation `a90254ee5e4a7910fd92291810fe0cdff72c2ee0`; focused regression `040cfafb0d4aad1b9b95de9aafa3d5dfa975bd35`. Gate-C remains MISSING; Gate-D remains IN_PROGRESS. This correction does not close I-2.
+
+
+## 2026-10-06 — I-063 Supabase Management fallback correction
+
+[architect-verified] I-2 source review identified that supabase.execute_sql required the separate supabase-mgmt authorization even when no Management connection existed, blocking the documented service-role/PostgREST fallback. The bounded correction adds a non-decrypting, tenant/user/agent-scoped active-connection existence check and gates the secondary authorization/credential read on that result.
+
+- Implementation: 6719be8bec7cf9f6deeae30fb1c3ff01b108a9ea; aa99287f844c7b99c381666df98071878050e5f5
+- Regression: 457b07d7db82736a1b7724e4da1476ff9477fbe7
+- I-063: RESOLVED by source review.
+- Gate-C remains MISSING because executable current-head test/build/typecheck/lint evidence has not been produced.
+- Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+- Scope remains strictly I-2; no I-3, MCP expansion, OAuth callback/transport expansion, production promotion, or unrelated implementation.
