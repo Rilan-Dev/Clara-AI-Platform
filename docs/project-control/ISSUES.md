@@ -1403,3 +1403,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification status | Source and focused regression reviewed; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-06. |
+
+
+## I-071 — Custom integration error paths exposed provider response bodies
+
+| Field | Value |
+|---|---|
+| Issue ID | I-071 |
+| Title | Credential-bearing custom integration failures must not propagate provider response bodies |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | Custom ElevenLabs TTS/STT and Supabase PostgREST failure paths included raw provider response bodies in thrown errors. These requests carry integration credentials, so an upstream provider echoing a credential or sensitive request material could reach the runner error boundary, telemetry, or callers. The generic runner already performs value-based redaction, but the custom actions must remain safe independently and avoid propagating untrusted provider bodies. |
+| Evidence | [architect-verified] Direct inspection of `src/modules/integrations/runtime/runner-helpers.ts` found raw `response.text()` content appended to ElevenLabs and PostgREST errors. |
+| Correction | Custom ElevenLabs TTS/STT errors now report only status/statusText; Supabase PostgREST errors now report only status. The existing Supabase Management API body-free error boundary remains intact. |
+| Correction commit | 9c1a838c54cf036f67ac05810b3b6bea0b1f9799 |
+| Regression | 0d1494ea8686c3186589cf657a8dc361d3443af4 |
+| Correction scope | `src/modules/integrations/runtime/runner-helpers.ts`; `src/modules/integrations/runtime/runner-helpers.test.ts` |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms custom credential-bearing provider errors no longer incorporate response bodies; focused regression covers the Supabase PostgREST failure body. Executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-06. |
