@@ -491,3 +491,15 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review found native
 - Next bounded work: continue I-2 source-level authorization, credential, egress and secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-059 Supabase Management API egress correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review found that the custom Supabase Management API action was the remaining credential-bearing native fetch path not covered by the I-058 egress/redirect correction.
+
+- Correction: `c7a2b7f4edb33cc919ebfe528d0fd316b4698136`
+- I-059: RESOLVED by architect source review.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- **Next bounded work:** continue only concrete I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant isolation, and secret/egress review. Do not wait for GitHub Actions or Vercel. After source-level review is exhausted, obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
