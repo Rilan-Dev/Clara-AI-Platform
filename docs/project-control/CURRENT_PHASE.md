@@ -1,6 +1,10 @@
 # CURRENT_PHASE.md — Active-Phase Contract
 
-> ## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
+> ## 2026-10-06 — I-055 cross-integration credential authorization correction
+
+[architect-verified] Source review found a bounded I-2 credential-access bypass in the Activepieces cross-integration ConnectionsManager. The adapter now re-checks the authoritative execution authorization contract before retrieving another integration's credentials. Implementation `3a17c31cb16bfa54cb79a48a13a757ae16486971`; regression `4f86976b505487906d18e526b6433be360e97a8b`. I-055 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+## CURRENT AUTHORITATIVE RECONCILIATION — 2026-10-05
 > **This block supersedes stale earlier checkpoint prose in this document.** The active bounded work is **Integrations Framework I-2 — IMPLEMENTED / VERIFICATION PENDING**. The Final State Contract is **RECONCILED / CONSISTENT** at this checkpoint; I-2 is not closed because Gate-C executable evidence and the final architect Gate-D review are still outstanding. Phase 7 remains **PASS — CLOSED** and is not reopened.
 >
 > Current GitHub tip must be read from GitHub at recovery time. Latest bounded I-2 corrections in this continuation: I-052 usage-telemetry schema alignment and I-053 fail-closed plan-allowlist enforcement. These remain source-verified corrections only; Gate-C executable evidence is still missing and Gate-D remains open. Latest bounded I-2 source correction reviewed here: **`846c8d39add3430a5014c5573b3cc4d5ad86ee37`** [architect-verified]; regression coverage is **`354e57f9fb658267f1667c1eec8b5dfbd63023ad`**. The current feature tip must still be read from GitHub at recovery time. ChatGPT is the implementation owner under D-024. **Z.AI is STOPPED; there is no active developer handoff.**
