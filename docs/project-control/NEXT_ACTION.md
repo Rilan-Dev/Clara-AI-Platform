@@ -704,3 +704,13 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-07 — I-078 runner early-rejection trace initialization correction
+
+[architect-verified] Continued bounded I-2 review found the registry action-allowlist rejection path referenced the normal XRay handle before that handle was initialized. The intended fail-closed rejection therefore could raise a temporal-dead-zone ReferenceError. The early rejection now returns directly without touching the later trace handle.
+
+- Correction: ddd38bbf84f274a7f2daa159007a080f964b3046
+- I-078: RESOLVED by source correction.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
