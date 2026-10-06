@@ -1067,3 +1067,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Correction commits | 2d2383a196d83fba26dd93a4b4a1ec2ecec31207; facb32c99b5fc9bcdd0d05900e0a92bdf9c60e6d; e4110290c8cfa57c1f5357eaf4f57c719785a4ee |
 | Verification | [architect-verified] Source review confirms the runner has an independent fail-closed authorization boundary and focused regression source covers plan downgrade, cross-tenant agent grant, and missing-agent scope. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+
+
+## I-055 — I-2 cross-integration connection lookup could bypass execution authorization
+
+| Field | Value |
+|---|---|
+| Issue ID | I-055 |
+| Title | Cross-integration credential lookup must enforce the same tenant and plan authorization boundary as direct execution |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | `DoableConnectionsManager.get()` directly read an active connection from `credentialVault` for an arbitrary integration key without re-checking platform enablement, current plan entitlement, organisation grant, explicit agent scope, or the agent-to-organisation relationship. An Activepieces action with cross-integration access could therefore retrieve credentials for an integration that was not authorized for the execution agent. |
+| Evidence | [architect-verified] Direct review of `src/modules/integrations/runtime/connections-manager.ts` showed the adapter called `credentialVault.get()` immediately, while the bounded I-054 execution boundary already defined the authoritative authorization contract. |
+| Correction | [architect/ChatGPT] Cross-integration credential lookup now invokes `assertIntegrationExecutionAuthorized()` for the requested integration before reading the credential vault. Unauthorized lookups fail closed and do not reach credential retrieval. |
+| Correction scope | `src/modules/integrations/runtime/connections-manager.ts`; focused regression `src/modules/integrations/runtime/connections-manager.test.ts` |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | Implementation `3a17c31cb16bfa54cb79a48a13a757ae16486971`; regression `4f86976b505487906d18e526b6433be360e97a8b` |
+| Verification | [architect-verified] Source review confirms the credential read is now downstream of the same fail-closed authorization boundary used by direct runner execution; focused regression source covers both authorized retrieval and denial-before-read. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
