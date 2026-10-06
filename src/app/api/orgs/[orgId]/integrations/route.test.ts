@@ -170,6 +170,38 @@ describe("organisation integration entitlement enforcement", () => {
     expect(withTransactionMock).not.toHaveBeenCalled();
   });
 
+  it("persists the registry auth type instead of caller-supplied auth type", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
+      .mockResolvedValueOnce([{ enabled: false }])
+      .mockResolvedValueOnce([{ count: 0 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "connection-1" }]);
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
+
+    const { POST } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        integrationId: "github",
+        action: "connect",
+        authType: "secret_text",
+        credentials: { access_token: "secret" },
+      }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+
+    expect(response.status).toBe(201);
+    const insertCall = queryMock.mock.calls.find(
+      ([sql]) => typeof sql === "string" && sql.includes("INSERT INTO integration_connections"),
+    );
+    expect(insertCall?.[1]?.[4]).toBe("oauth2");
+  });
+
   it("uses one transaction for direct connection enablement and does not return success after the connection insert fails", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
