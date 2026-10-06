@@ -17,6 +17,12 @@
 [architect-verified] I-2 source review found that an in-flight OAuth refresh could restore credentials as active after a concurrent disable. The credential vault now requires active status for tenant-scoped refresh reads/writes, and the runner fails closed if the post-refresh active connection disappears. I-057 is RESOLVED. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 # CURRENT_PHASE.md — Active-Phase Contract
 
+## 2026-10-06 — I-066 integration mutation entitlement resolution correction
+
+[architect-verified] I-2 source review found that organisation enable/connect and agent enable mutation routes could use free-plan fallback limits when authoritative plan resolution failed. The bounded correction uses `resolveOrgPlanLimits()` for mutation authorization and fails closed with 503 on resolution errors. Implementation commits `e496018850c01edd540b4163a19f565f3fcae4d4` and `575a3bec9d4b7f866a6b7ecfbfc7b11283c80c98`; focused regressions `c1fcacb702b1124ac4d0502b37172287c053244f` and `48a76874b7f5d42a967a07e75ca21d26d47b4750`. I-066 is RESOLVED. Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+
+
+
 ## 2026-10-06 — I-065 OAuth expiry status must preserve explicit disable state
 
 [architect-verified] Current I-2 source review found that OAuth expiry cleanup could overwrite a concurrent tenant/admin disable by updating connection status without requiring the current status to remain `active`. The bounded correction `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7` adds the active-state predicate; regression `ac162b6ce439861c0c2ac9a2650971cd79411ef7` covers the SQL contract. I-065 is RESOLVED by architect source review. Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
