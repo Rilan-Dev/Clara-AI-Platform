@@ -19,6 +19,14 @@
 - I-059 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 # VERIFICATION_STATE.md — Durable Verification Evidence Register
 
+### 2026-10-06 — I-066 integration mutation plan-resolution fail-closed correction
+
+- [architect-verified] Source review identified P1 I-2 authorization gaps in organisation enable/connect and agent integration enable: both mutation routes used fallback-capable `getOrgPlanLimits()`.
+- [architect-verified] Commits `e496018850c01edd540b4163a19f565f3fcae4d4` and `575a3bec9d4b7f866a6b7ecfbfc7b11283c80c98` now use `resolveOrgPlanLimits()` and return 503 when authoritative plan resolution fails; regressions `c1fcacb702b1124ac4d0502b37172287c053244f` and `48a76874b7f5d42a967a07e75ca21d26d47b4750` cover the fail-closed paths.
+- I-066 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
+
 ### 2026-10-06 — I-065 OAuth expiry status-transition race correction
 
 - [architect-verified] Source review identified a remaining I-2 credential-vault race: OAuth expiry/invalid-grant cleanup called `updateStatus()` without requiring the connection to remain active, so a concurrent explicit disable/disconnect could be overwritten to `expired`.
