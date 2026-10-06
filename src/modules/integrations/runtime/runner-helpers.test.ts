@@ -31,6 +31,50 @@ describe("custom integration credential scoping", () => {
     globalThis.fetch = vi.fn();
   });
 
+  it("does not expose Supabase Management response bodies on failure", async () => {
+    credentialGet.mockResolvedValue({
+      credentials: { access_token: "management-secret-token" },
+    });
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response("provider echoed management-secret-token", {
+        status: 401,
+        statusText: "Unauthorized",
+      }),
+    );
+
+    const { customActions } = await import("./runner-helpers.js");
+
+    await expect(
+      customActions.supabase.execute_sql.run(
+        {
+          userId: "user-1",
+          workspaceId: "org-1",
+          agentId: "agent-1",
+          integrationId: "supabase",
+          actionName: "execute_sql",
+          projectId: "project-1",
+          props: { sql: "select 1" },
+        },
+        { url: "https://project-1.supabase.co" },
+      ),
+    ).rejects.toThrow("Supabase SQL execution failed (401)");
+
+    await expect(
+      customActions.supabase.execute_sql.run(
+        {
+          userId: "user-1",
+          workspaceId: "org-1",
+          agentId: "agent-1",
+          integrationId: "supabase",
+          actionName: "execute_sql",
+          projectId: "project-1",
+          props: { sql: "select 1" },
+        },
+        { url: "https://project-1.supabase.co" },
+      ),
+    ).rejects.not.toThrow("management-secret-token");
+  });
+
   it("scopes the Supabase Management credential lookup to the executing agent", async () => {
     credentialGet.mockResolvedValue({
       credentials: { access_token: "management-token" },
