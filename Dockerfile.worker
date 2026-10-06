@@ -11,13 +11,14 @@ WORKDIR /app
 
 # Install ALL deps (including devDeps for tsx TypeScript runner).
 COPY package.json package-lock.json* ./
-RUN npm install --ignore-scripts --legacy-peer-deps && test -x node_modules/.bin/tsx
+RUN npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund && test -x node_modules/.bin/tsx
 
 # ── Runner ──────────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/playwright:v1.56.1-noble AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Dependencies
