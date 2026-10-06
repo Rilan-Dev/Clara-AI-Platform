@@ -479,3 +479,15 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub
 - Next bounded work: continue I-2 source-level credential/connection authorization and egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-058 custom integration egress/redirect correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review found native fetch paths in custom ElevenLabs and Supabase actions bypassing the generic egress/redirect boundary. The bounded correction adds explicit host egress checks and manual redirect handling for those credential-bearing requests.
+
+- Corrections: `d4e3a44956da9f377be7afcd8b7a012b54a6c944`, `434316d642c26f7d088e216d0b91407049a16d57`.
+- I-058: RESOLVED by architect source review.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- Next bounded work: continue I-2 source-level authorization, credential, egress and secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
