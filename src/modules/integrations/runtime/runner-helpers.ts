@@ -285,8 +285,12 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
           }
 
           if (!res.ok) {
-            const errText = await res.text().catch(() => "");
-            throw new Error(`Supabase SQL execution failed (${res.status}): ${errText.slice(0, 500)}`);
+            // Never surface provider response bodies from this credential-bearing
+            // Management API path. A provider error body is untrusted and may
+            // echo the bearer token or other sensitive request material; the
+            // outer runner cannot know this secondary credential value because
+            // it is resolved inside this custom action.
+            throw new Error(`Supabase SQL execution failed (${res.status})`);
           }
 
           return await res.json();
