@@ -41,8 +41,11 @@ export function buildActionContext(params: {
     tags: { add: async () => {} },
     output: { update: async () => {} },
     agent: { tools: async () => ({}) },
+    // Project identity is optional and must never be fabricated from the tenant
+    // or agent identity. Hosts that do not have a real project scope leave it
+    // undefined rather than leaking the organisation ID as an Activepieces project.
     project: {
-      id: params.projectId ?? params.workspaceId,
+      id: params.projectId,
       externalId: async () => undefined,
     },
     flows: {
