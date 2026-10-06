@@ -74,10 +74,27 @@ function isBlockedAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 4) return PRIVATE_EGRESS.check(address, "ipv4");
   if (family === 6) {
-    // IPv4-mapped IPv6 addresses can represent a private IPv4 destination
-    // while presenting as IPv6 to the first-pass BlockList check.
-    const mapped = address.match(/^::ffff:(\\d+\\.\\d+\\.\\d+\\.\\d+)$/i);
-    if (mapped) return PRIVATE_EGRESS.check(mapped[1], "ipv4");
+    // IPv4-mapped IPv6 addresses can encode the IPv4 destination either as
+    // dotted decimal (::ffff:127.0.0.1) or as the final 32 bits in hex
+    // (::ffff:7f00:1). Check both representations before applying the IPv6
+    // ranges, otherwise the hex form can bypass the private IPv4 policy.
+    const mapped = address.match(/^::ffff:(.+)$/i);
+    if (mapped) {
+      const suffix = mapped[1];
+      if (/^\d+\.\d+\.\d+\.\d+$/.test(suffix)) {
+        return PRIVATE_EGRESS.check(suffix, "ipv4");
+      }
+      const hex = suffix.replace(/:/g, "");
+      if (/^[0-9a-f]{8}$/i.test(hex)) {
+        const octets = [
+          parseInt(hex.slice(0, 2), 16),
+          parseInt(hex.slice(2, 4), 16),
+          parseInt(hex.slice(4, 6), 16),
+          parseInt(hex.slice(6, 8), 16),
+        ];
+        return PRIVATE_EGRESS.check(octets.join("."), "ipv4");
+      }
+    }
     return PRIVATE_EGRESS.check(address, "ipv6");
   }
   return true;
