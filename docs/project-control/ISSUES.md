@@ -1238,3 +1238,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | `RESOLVED` — source correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] `40c410f8...` removes response-body propagation from the credential-bearing Management failure path; `eec44f0e...` adds the regression. |
 | Resolution date | 2026-10-06 |
+
+## I-063 — I-2 Supabase Management fallback required unnecessary secondary authorization
+
+| Field | Value |
+|---|---|
+| Issue ID | I-063 |
+| Title | Supabase service-role fallback must not require an unrelated Management OAuth grant |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The custom supabase.execute_sql action unconditionally re-authorized the separate supabase-mgmt integration before checking whether a Management connection existed. The action contract explicitly supports a service-role/PostgREST fallback when Management OAuth is unavailable, so tenants using only the Supabase service-role connection could be denied by an unrelated secondary integration capability. |
+| Evidence | [architect-verified] Direct review of src/modules/integrations/runtime/runner-helpers.ts showed the supabase-mgmt authorization and credential lookup occurred before the fallback decision. |
+| Correction | [architect/ChatGPT] credentialVault now exposes a tenant/user/agent-scoped active-connection existence check that does not decrypt credentials. The custom action uses that check first; only when an active supabase-mgmt connection exists does it re-authorize supabase-mgmt and read its credential. |
+| Correction scope | src/modules/integrations/runtime/credential-vault.ts; src/modules/integrations/runtime/runner-helpers.ts; src/modules/integrations/runtime/runner-helpers.test.ts |
+| Correction commits | 6719be8bec7cf9f6deeae30fb1c3ff01b108a9ea; aa99287f844c7b99c381666df98071878050e5f5; 457b07d7db82736a1b7724e4da1476ff9477fbe7 |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms the optional Management credential is not read and its authorization boundary is not invoked when no active Management connection exists. Focused regression covers the service-key fallback. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06 |
