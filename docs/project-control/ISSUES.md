@@ -1009,3 +1009,40 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source correction reviewed. Focused regression source is present. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
+
+
+## I-052 — I-2 integration usage telemetry used a non-existent workspace column
+
+| Field | Value |
+|---|---|
+| Issue ID | I-052 |
+| Title | Integration usage telemetry must use the tenant-scoped control-plane schema |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | `integration_usage_log` defines `org_id` and `agent_id`, but `logUsage()` inserted into a non-existent `workspace_id` column. The logger swallowed the database error, so integration actions could succeed while operational telemetry silently failed. |
+| Evidence | [architect-verified] Direct comparison of `src/modules/integrations/runtime/runner-helpers.ts` with migration `060_integrations_control_plane.sql`. |
+| Correction | [architect/ChatGPT] `logUsage()` now inserts `org_id`, `agent_id`, `user_id`, integration/action and result fields using the existing I-2 schema. Runner call sites pass the explicit agent scope. |
+| Correction commits | `61c186b885084b9ff158d6e1f07636717527a184`; `2446b86aafa99799e66e2f303df348a8cea12772`; regression `83bf8c8737bb5d79590194f7efa3f30ffbb4dfd1` |
+| Explicit non-scope | No schema change, billing/metering redesign, OAuth expansion, MCP, production promotion, or unrelated refactor. |
+| Verification | [architect-verified] Source and focused regression confirm the telemetry contract now matches the existing database schema. Executable Gate-C evidence remains pending. |
+
+## I-053 — I-2 plan allowlist enforcement was fail-open for malformed values
+
+| Field | Value |
+|---|---|
+| Issue ID | I-053 |
+| Title | Integration plan allowlists must fail closed when malformed |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | AI integration execution and integration enable/connect mutations only enforced `allowed_plans` when the database value was an array. A null/malformed allowlist therefore bypassed entitlement checks. The AI availability discovery path already failed closed, creating inconsistent authorization behavior. |
+| Evidence | [architect-verified] Direct source review of `integration-action-tool.ts`, organisation integration POST route, and agent integration PATCH route. |
+| Correction | [architect/ChatGPT] Execution, organisation enable/connect, and agent enable now require a valid array allowlist containing the current plan or `*`; malformed/non-array values return `PLAN_NOT_ENTITLED`. Disable/disconnect downgrade-unwind semantics are unchanged. |
+| Correction commits | `cf2c74ec62343485148e9560e55e720092774f73`; `53a2bfe2c1a8bc5066974cfa12a1188167feef1e`; `5f9f6e3ae63314cc9d7b056f1e37d967282180fa`; regressions `3266c441f0c76398e51f9f36ab599444eb38f4c1`, `6f4ea246beda935a7e46e301612d0e8cc21fa7a1`, `b8312ed9348825a228677679730b1e04a619102d` |
+| Explicit non-scope | No schema change, billing semantics, OAuth transport, MCP, production promotion, or unrelated implementation. |
+| Verification | [architect-verified] Source review and focused regression source cover malformed allowlist denial across all three mutation/execution boundaries. Executable Gate-C evidence remains pending. |
