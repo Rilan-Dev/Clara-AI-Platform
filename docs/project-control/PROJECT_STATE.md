@@ -1,3 +1,7 @@
+## 2026-10-07 — I-075 Activepieces action allowlist correction
+
+[architect-verified] Bounded I-2 review corrected runner capability expansion: runAction() now enforces the Clara registry action allowlist before loading an external Activepieces piece. Implementation c1705ac81c4e77239feca6d518d3ef2afcd0403c; regression 3d41bdc09e125b3143bfb58ddf162b00bd335c8b. I-075 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Continue bounded I-2 review only; do not wait for GitHub Actions or Vercel and do not expand to I-3/MCP/production.
+
 ## 2026-10-07 — I-074 execution-authorization source correction
 
 [architect-verified] Bounded I-2 review corrected literal \\n escape text in `src/modules/integrations/runtime/execution-authorization.ts`. Commit `c6240da3ea64869ce4f49dafa4583cd9b626af88`. I-074 is RESOLVED by source correction. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Continue bounded I-2 review only; do not wait for GitHub Actions or Vercel and do not expand to I-3/MCP/production.
