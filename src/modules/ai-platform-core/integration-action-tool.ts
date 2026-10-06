@@ -37,7 +37,10 @@ export function buildIntegrationActionTool(): ToolDefinition {
       if (!platform?.enabled) throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", `Integration ${def.displayName} is disabled by the platform administrator.`);
 
       const limits = await getOrgPlanLimits(context.tenantId);
-      if (Array.isArray(platform.allowed_plans) && !platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*")) {
+      if (
+        !Array.isArray(platform.allowed_plans) ||
+        (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*"))
+      ) {
         throw new ToolExecutionError("PLAN_NOT_ENTITLED", `The ${limits.plan_name ?? limits.plan_id} plan cannot use ${def.displayName}.`);
       }
 
