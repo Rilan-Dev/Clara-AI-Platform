@@ -254,17 +254,24 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
           if (!refMatch) throw new Error(`Cannot extract project ref from URL: ${projectUrl}`);
           const projectRef = refMatch[1];
 
-          const res = await fetch(
-            `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${mgmtToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ query: sqlQuery }),
+          const managementEndpoint = `https://api.supabase.com/v1/projects/${projectRef}/database/query`;
+          await assertSafeEgressUrl(managementEndpoint);
+          const res = await fetch(managementEndpoint, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${mgmtToken}`,
+              "Content-Type": "application/json",
             },
-          );
+            body: JSON.stringify({ query: sqlQuery }),
+            // Never follow a credential-bearing redirect implicitly. A future
+            // host-owned transport may follow a validated provider redirect,
+            // but this custom action fails closed at the first 3xx response.
+            redirect: "manual",
+          });
+
+          if (res.status >= 300 && res.status < 400) {
+            throw new Error("Supabase Management API redirects are not allowed");
+          }
 
           if (!res.ok) {
             const errText = await res.text().catch(() => "");
