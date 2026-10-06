@@ -1258,3 +1258,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source review confirms the optional Management credential is not read and its authorization boundary is not invoked when no active Management connection exists. Focused regression covers the service-key fallback. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06 |
+
+
+## I-064 — I-2 AI integration tools could fail open on plan-resolution errors
+
+| Field | Value |
+|---|---|
+| Issue ID | I-064 |
+| Title | AI-visible integration capability checks must fail closed when plan entitlement cannot be resolved |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The AI-visible integration_action and integration_availability tools used the UI-oriented getOrgPlanLimits helper, whose failure fallback can return free-plan limits. This created inconsistent fail-open behavior at the AI capability boundary when authoritative plan resolution failed, even though the runner execution boundary had already been hardened to deny on plan-resolution failure. |
+| Evidence | [architect-verified] Direct source review of src/modules/ai-platform-core/integration-action-tool.ts and integration-ai-tools.ts showed both tools calling getOrgPlanLimits before plan allowlist evaluation. |
+| Correction | [architect/ChatGPT] Both AI integration tools now use resolveOrgPlanLimits directly. integration_action returns PLAN_NOT_ENTITLED when entitlement resolution fails; integration_availability returns no capabilities without querying integration state when entitlement resolution fails. |
+| Correction scope | src/modules/ai-platform-core/integration-action-tool.ts; src/modules/ai-platform-core/integration-action-tool.test.ts; src/modules/ai-platform-core/integration-ai-tools.ts; src/modules/ai-platform-core/integration-ai-tools.test.ts |
+| Correction commits | 0f5c2ad1372be0c60ed72b11863b9aad8e48fda6; f394054afa6aa92e8c33ef5dbf7bb0554bf18730; c857a8777f0a9f6ea7f535734966b1d2546d1ca8; 305f59663e83ab8deea910b350c746c2af1420b6 |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms the capability tools no longer use the fallback-capable plan helper. Focused regressions cover action-tool denial and availability suppression when plan resolution throws. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] Current feature source at the post-correction tip imports resolveOrgPlanLimits in both AI integration tools and handles entitlement-resolution failure without exposing executable integration capability. |
+| Resolution date | 2026-10-06 |
