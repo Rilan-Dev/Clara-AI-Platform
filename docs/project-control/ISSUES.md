@@ -989,3 +989,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | `RESOLVED` — correction independently reviewed by ChatGPT on 2026-10-06. |
 | Resolution evidence | [architect-verified] The availability query now requires both the explicit agent identity and its membership in the execution tenant before exposing enabled integration capabilities. |
 | Resolution date | 2026-10-06 |
+
+
+## I-051 — I-2 Activepieces context fabricated project identity from tenant scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-051 |
+| Title | Activepieces action context must not substitute tenant identity for project identity |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | `buildActionContext()` correctly received the explicit agent scope, but its `project.id` fallback still used `workspaceId` when no real `projectId` was supplied. This fabricated a project identity from the tenant identity and contradicted the I-037 scope-separation contract. |
+| Evidence | [architect-verified] Direct review of `src/modules/integrations/runtime/context-builder.ts` found `project.id = params.projectId ?? params.workspaceId`. The runner's `RunActionParams` explicitly models `workspaceId`, `agentId`, and `projectId` as distinct identities. |
+| Correction | [architect/ChatGPT] Removed the tenant fallback. `project.id` is now exactly the optional caller-supplied `projectId`; when no project identity exists it remains `undefined`. Added a focused regression covering both absent and explicit project scope. |
+| Correction commit | `59e8d360180a6458d4b965406829185fc6224785`; regression commit `327740e9aec6d0bf0b0260af717a344b03e3d8ed` |
+| Explicit non-scope | No schema/migration, OAuth callback expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source correction reviewed. Focused regression source is present. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — source correction independently reviewed by ChatGPT on 2026-10-06. |
