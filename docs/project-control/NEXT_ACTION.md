@@ -71,6 +71,17 @@
 - Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 
+## 2026-10-07 — I-075 Activepieces package action allowlist enforcement
+
+[architect-verified] Bounded I-2 source review found that runAction could execute an action exposed by the installed Activepieces package even when that action was absent from Clara's reviewed registry def.actions allowlist. This created capability expansion on upstream package updates. The runner now rejects non-registry piece actions before piece loading; Clara-owned custom actions remain explicitly allowed.
+
+- Implementation: c1705ac81c4e77239feca6d518d3ef2afcd0403c
+- Regression: 3d41bdc09e125b3143bfb58ddf162b00bd335c8b
+- I-075: RESOLVED by source correction and focused regression.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
 ## 2026-10-06 — I-066 plan-resolution fail-closed mutation correction
