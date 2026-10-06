@@ -13,6 +13,17 @@
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
 
+## 2026-10-06 — I-056 execution authorization fail-closed correction
+
+[architect-verified] Source review found that the I-2 execution authorization boundary called the UI-oriented `getOrgPlanLimits()` helper, which converts plan-resolution/database failures into free-plan limits. That fallback could allow an integration permitted to the free plan to execute without proving the organisation's actual entitlement. The bounded correction now calls `resolveOrgPlanLimits()` directly and denies execution when entitlement resolution fails.
+
+- Implementation: `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825`; type correction: `9ac86755c94132a86afbde804a7ca3b927e0e83b`
+- Regression: `220d1a66fe7279bb55296d31d5f9d5c3133b78ef`
+- I-056: RESOLVED by architect source review.
+- Next bounded work: continue I-2 credential/connection authorization, egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## CURRENT AUTHORITATIVE ACTION
 
 ## 2026-10-06 — I-050 AI availability tenant-binding correction
