@@ -5,7 +5,7 @@ const runAction = vi.fn();
 
 vi.mock("@/lib/db", () => ({ query }));
 vi.mock("@/lib/plan-guard", () => ({
-  getOrgPlanLimits: vi.fn().mockResolvedValue({ plan_id: "pro", plan_name: "Pro" }),
+  resolveOrgPlanLimits: vi.fn().mockResolvedValue({ plan_id: "pro", plan_name: "Pro" }),
 }));
 vi.mock("@/modules/integrations/registry", () => ({
   getIntegration: vi.fn().mockReturnValue({
@@ -46,6 +46,29 @@ describe("integration action tool scope propagation", () => {
       userId: "user-1",
     }));
     expect(runAction.mock.calls[0][0]).not.toHaveProperty("projectId");
+  });
+
+  it("fails closed when plan entitlement resolution fails", async () => {
+    query.mockReset();
+    runAction.mockReset();
+    const { resolveOrgPlanLimits } = await import("@/lib/plan-guard");
+    vi.mocked(resolveOrgPlanLimits).mockRejectedValueOnce(new Error("database unavailable"));
+
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      {
+        tenantId: "org-1",
+        agentId: "agent-1",
+        userId: "user-1",
+        surface: "chat",
+      } as never,
+    )).rejects.toMatchObject({ code: "PLAN_NOT_ENTITLED" });
+
+    expect(runAction).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when the platform plan allowlist is malformed", async () => {
