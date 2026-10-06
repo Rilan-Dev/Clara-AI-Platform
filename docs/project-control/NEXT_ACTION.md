@@ -7,6 +7,19 @@
 
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
+## 2026-10-06 — I-066 plan-resolution fail-closed mutation correction
+
+[architect-verified] Source review found two remaining I-2 mutation authorization paths using fallback-capable `getOrgPlanLimits()`: organisation enable/connect and agent integration enable. The bounded correction switches both to authoritative `resolveOrgPlanLimits()`; a resolution failure now returns 503 instead of evaluating entitlement against synthetic free-plan limits.
+
+- I-066: RESOLVED by architect source review.
+- Implementation: `e496018850c01edd540b4163a19f565f3fcae4d4`, `575a3bec9d4b7f866a6b7ecfbfc7b11283c80c98`.
+- Regressions: `c1fcacb702b1124ac4d0502b37172287c053244f`, `48a76874b7f5d42a967a07e75ca21d26d47b4750`.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+
 ## 2026-10-06 — I-065 OAuth expiry disable-race correction
 
 [architect-verified] Source review found a remaining I-2 state-transition race: credential-vault `updateStatus()` could change a connection from an explicit `disabled` state to `expired` during concurrent OAuth expiry cleanup. Commit `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7` now updates status only when the connection is still active; regression `ac162b6ce439861c0c2ac9a2650971cd79411ef7` covers the active-state predicate.
