@@ -22,6 +22,10 @@
 | Current branch | `feature/ai-core-from-doable-source` | [developer-reported, 2026-10-02] |
 | Authoritative source of truth | **GitHub repository state.** Chat/conversational memory is supplementary only (spec principle 6, DECISIONS.md D-001) | [architect-verified] spec |
 
+## 2026-10-06 — I-055 cross-integration credential authorization correction
+
+[architect-verified] A bounded I-2 credential-access bypass was corrected in the Activepieces ConnectionsManager. Cross-integration credential lookup now passes through the same tenant/plan/platform/agent authorization boundary as direct integration execution. Implementation `3a17c31cb16bfa54cb79a48a13a757ae16486971`; regression `4f86976b505487906d18e526b6433be360e97a8b`. I-055 is RESOLVED by architect source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING.
+
 ## Current phase
 
 ## 2026-10-06 — I-047 direct-connection limit correction
