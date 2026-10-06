@@ -1,3 +1,9 @@
+### 2026-10-06 — I-061 custom Management credential authorization correction
+
+- [architect-verified] Source review identified a secondary I-2 credential authorization boundary in custom `supabase.execute_sql`: the action could read `supabase-mgmt` credentials after only authorizing `supabase`.
+- [architect-verified] Commit `5f6d044a2ec1d8ddacaf9bde553f17576c14732e` now invokes `assertIntegrationExecutionAuthorized()` for `supabase-mgmt` before credential retrieval; regression `3ebbbf7113e851a427d310aee2d3a057a6b8ba83` covers denial-before-read.
+- I-061 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 
 
 ### 2026-10-06 — I-059 Supabase Management API egress correction
