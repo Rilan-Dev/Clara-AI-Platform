@@ -167,3 +167,7 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-06 — I-070 agent-scoped FLOW store correction
 
 [architect-verified] I-2 source review identified that FLOW store keys omitted agentId, allowing same-user cross-agent state collision inside one organisation. The bounded correction adds explicit agent scope to FLOW keys and focused regression coverage. Implementation f0f476e74b1fbd66ed3e716bdc23e9e6b775b; regression efc652c8096488e3cf8d2ac2422d108c345924ca. I-070 is resolved by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; continue bounded I-2 review only.
+
+## 2026-10-07 — I-076 registry-authoritative action discovery
+
+[architect-verified] Bounded I-2 source review found getIntegrationActions could advertise unreviewed Activepieces package actions through its sparse-match fallback, despite the runner execution boundary rejecting those actions. The fallback now stays within Clara's reviewed registry action set; custom Clara-owned actions remain exposed separately. Implementation 9435c6ce036634fe5f1126fa35c424db0e8582a2; focused regression 55271624623ec65ec1ae892bf8585063d2dc5371. I-076 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
