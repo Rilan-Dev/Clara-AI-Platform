@@ -71,7 +71,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     // disconnecting must remain available after a downgrade and therefore must
     // not depend on the plan-limit service being readable.
     const requiresPlanEntitlement = body.action === "enable" || body.action === "connect";
-    let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>> | null = null;\n    if (requiresPlanEntitlement) {\n      try {\n        limits = await resolveOrgPlanLimits(orgId);\n      } catch {\n        return NextResponse.json({ error: "Integration plan entitlement could not be verified" }, { status: 503 });\n      }\n    }
+    let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>> | null = null;
+if (requiresPlanEntitlement) {
+try {
+limits = await resolveOrgPlanLimits(orgId);
+} catch {
+return NextResponse.json({ error: "Integration plan entitlement could not be verified" }, { status: 503 });
+}
+}
     if (
       requiresPlanEntitlement &&
       limits &&
