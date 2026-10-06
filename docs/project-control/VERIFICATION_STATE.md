@@ -1772,3 +1772,12 @@ Focused regression source was added for both corrections.
 **Next bounded work:** continue I-2 source-level authorization/connection, action-input, tenant-isolation, egress, and secret review; then obtain executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-054 runner execution-authorization correction
+
+- [architect-verified] Source review found that AI-tool authorization was not independently re-checked by the integration runner itself. This created a stale-plan/grant window and left future direct runner callers without the same host authorization boundary.
+- [architect-verified] `runAction()` now invokes a fail-closed execution authorization check before any custom or Activepieces action. The check enforces platform enablement, current organisation plan allowlist, organisation grant, explicit agent scope, and the authoritative `agents.org_id` relationship.
+- [architect-verified] Focused regression source covers plan downgrade, cross-tenant agent grant, and missing agent scope.
+- Correction commits: `2d2383a196d83fba26dd93a4b4a1ec2ecec31207`, `facb32c99b5fc9bcdd0d05900e0a92bdf9c60e6d`, `e4110290c8cfa57c1f5357eaf4f57c719785a4ee`.
+- I-054 is RESOLVED by architect source review. Gate-C remains MISSING; Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
