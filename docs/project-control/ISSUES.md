@@ -1514,3 +1514,22 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification status | Source correction and focused regression reviewed by ChatGPT; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-07. |
+
+## I-076 — I-2 action discovery could advertise unreviewed Activepieces actions
+
+| Field | Value |
+|---|---|
+| Issue ID | I-076 |
+| Title | Integration capability discovery must remain registry-authoritative |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | getIntegrationActions used a sparse-match fallback that enumerated the installed Activepieces package's full action set. This could advertise capabilities Clara had not reviewed or approved, creating a discovery/execution mismatch and allowing upstream package updates to expand the visible capability surface. |
+| Correction | Removed the package-wide fallback. Discovery now exposes only actions declared by the Clara registry plus separately owned Clara custom actions. Missing upstream package implementations remain unavailable rather than causing capability expansion. |
+| Correction commit | 9435c6ce036634fe5f1126fa35c424db0e8582a2 |
+| Regression | 55271624623ec65ec1ae892bf8585063d2dc5371 |
+| Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification status | Source correction and focused regression reviewed by ChatGPT; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-07. |
