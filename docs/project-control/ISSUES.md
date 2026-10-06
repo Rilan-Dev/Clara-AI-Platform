@@ -1108,3 +1108,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Correction commits | Implementation `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825`, type correction `9ac86755c94132a86afbde804a7ca3b927e0e83b`; regression `220d1a66fe7279bb55296d31d5f9d5c3133b78ef` |
 | Verification | [architect-verified] Source review confirms the execution boundary is now fail-closed on entitlement-resolution errors and focused regression source covers the denial path. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+
+
+## I-057 — I-2 OAuth refresh could revive a connection disabled during refresh
+
+| Field | Value |
+|---|---|
+| Issue ID | I-057 |
+| Title | OAuth refresh must not resurrect a connection disabled during an in-flight refresh |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | ensureTokenFresh() re-read credentials by connection ID and organisation but the vault decrypt() query did not require the connection to remain active. Its subsequent updateCredentials() also unconditionally set status back to active. A concurrent disable could therefore be overwritten by an in-flight OAuth refresh, resurrecting a connection that had been intentionally disabled. The runner's post-refresh refetch could also receive no active connection and still pass undefined credentials into an action. |
+| Evidence | [architect-verified] Direct review of src/modules/integrations/runtime/credential-vault.ts and src/modules/integrations/runtime/runner-core.ts found decrypt()/updateCredentials() lacked an active-status predicate and the post-refresh refetch did not fail closed when the connection disappeared. |
+| Correction | [architect/ChatGPT] Tenant-scoped credential decrypt and credential update now require status='active'; an in-flight refresh can no longer reactivate a disabled connection. After refresh, runAction() requires an active connection to be returned before constructing the action auth context and otherwise fails closed. |
+| Correction scope | src/modules/integrations/runtime/credential-vault.ts; src/modules/integrations/runtime/runner-core.ts |
+| Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | a8e66489e57d84326e63b56b86914ba3b5ea3cf3; ac8d4bf5388c1cf993a9355c3032e8c8d090782f |
+| Verification | [architect-verified] Source review confirms disabled connections are excluded from refresh credential reads/updates and the runner rejects a missing post-refresh active connection. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+| Resolution evidence | [architect-verified] Both the refresh persistence path and the post-refresh execution path are fail-closed on a concurrent disable. |
+| Resolution date | 2026-10-06 |
