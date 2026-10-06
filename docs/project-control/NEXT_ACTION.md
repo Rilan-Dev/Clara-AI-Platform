@@ -60,6 +60,17 @@
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
 
+## 2026-10-07 — I-074 execution-authorization source newline correction
+
+[architect-verified] Bounded I-2 source review found literal \\n escape text embedded inside the fail-closed execution authorization block. The intended plan-resolution handling and tenant/agent checks were present, but the literal escapes could collapse statements into a single comment line and corrupt TypeScript source structure.
+
+- Correction: `c6240da3ea64869ce4f49dafa4583cd9b626af88`
+- Scope: `src/modules/integrations/runtime/execution-authorization.ts` only.
+- I-074: RESOLVED by source correction.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
 ## 2026-10-06 — I-066 plan-resolution fail-closed mutation correction
