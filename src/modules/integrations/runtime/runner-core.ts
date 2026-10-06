@@ -245,7 +245,10 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
       xr.phase("credential_refetch");
       const freshConnection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
-      auth = resolveAuth(def.authType, freshConnection?.credentials);
+      if (!freshConnection) {
+        throw new Error(`Integration connection ${params.integrationId} is no longer active`);
+      }
+      auth = resolveAuth(def.authType, freshConnection.credentials);
       knownSecretValues = collectSecretValues(auth);
     }
 
