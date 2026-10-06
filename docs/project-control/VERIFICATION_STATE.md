@@ -10,6 +10,12 @@
 - [architect-verified] Commit `3a17c31cb16bfa54cb79a48a13a757ae16486971` now invokes `assertIntegrationExecutionAuthorized()` before credential retrieval; regression `4f86976b505487906d18e526b6433be360e97a8b` covers authorized lookup and denial-before-read.
 - I-055 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 
+### 2026-10-06 — I-056 execution authorization fail-closed correction
+
+- [architect-verified] Source review identified a P1 I-2 authorization defect: the execution boundary called `getOrgPlanLimits()`, whose error fallback returns free-plan limits. This could allow an integration permitted on the free plan to execute without proving the organisation's actual entitlement when plan resolution fails.
+- [architect-verified] Commits `96873f410d4eb4f4dc0ae18ba92d6170e7dc0825` and `9ac86755c94132a86afbde804a7ca3b927e0e83b` change the execution boundary to call `resolveOrgPlanLimits()` directly and deny execution on resolution failure; regression `220d1a66fe7279bb55296d31d5f9d5c3133b78ef` covers the fail-closed path.
+- I-056 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 ## CURRENT I-2 VERIFICATION RECORD — 2026-10-05
 
 | Gate | Status | Current evidence |
