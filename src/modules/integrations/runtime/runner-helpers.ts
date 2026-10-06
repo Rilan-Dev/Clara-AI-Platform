@@ -49,7 +49,9 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         if (region === "eu") baseUrl = "https://api.eu.elevenlabs.io";
 
         // Use non-streaming endpoint with free-tier model
-        const response = await fetch(`${baseUrl}/v1/text-to-speech/${voice}`, {
+        const endpoint = `${baseUrl}/v1/text-to-speech/${voice}`;
+        await assertSafeEgressUrl(endpoint);
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "xi-api-key": apiKey,
@@ -161,13 +163,16 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         formData.append("diarize", "false");
         if (languageCode) formData.append("language_code", languageCode);
 
-        const response = await fetch(`${baseUrl}/v1/speech-to-text`, {
+        const endpoint = `${baseUrl}/v1/speech-to-text`;
+        await assertSafeEgressUrl(endpoint);
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "xi-api-key": apiKey,
             // Do NOT set Content-Type — let fetch set it automatically with correct boundary
           },
           body: formData,
+          redirect: "manual",
         });
 
         if (!response.ok) {
@@ -276,7 +281,9 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
           );
         }
 
-        const rpcRes = await fetch(`${projectUrl}/rest/v1/rpc/exec_sql`, {
+        const rpcEndpoint = new URL("/rest/v1/rpc/exec_sql", projectUrl).toString();
+        await assertSafeEgressUrl(rpcEndpoint);
+        const rpcRes = await fetch(rpcEndpoint, {
           method: "POST",
           headers: {
             apikey: apiKey,
