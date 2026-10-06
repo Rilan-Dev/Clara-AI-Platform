@@ -1,3 +1,9 @@
+### 2026-10-06 — I-064 AI integration-tool plan-resolution fail-closed correction
+
+- [architect-verified] Source review identified inconsistent I-2 plan authorization at the AI tool boundary: integration_action and integration_availability used the UI-oriented getOrgPlanLimits fallback instead of authoritative fail-closed plan resolution.
+- [architect-verified] Commits 0f5c2ad1372be0c60ed72b11863b9aad8e48fda6, f394054afa6aa92e8c33ef5dbf7bb0554bf18730, c857a8777f0a9f6ea7f535734966b1d2546d1ca8, and 305f59663e83ab8deea910b350c746c2af1420b6 replace the AI-tool plan resolution with resolveOrgPlanLimits and add denial/suppression regressions.
+- I-064 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 ### 2026-10-06 — I-061 custom Management credential authorization correction
 
 - [architect-verified] Source review identified a secondary I-2 credential authorization boundary in custom `supabase.execute_sql`: the action could read `supabase-mgmt` credentials after only authorizing `supabase`.
