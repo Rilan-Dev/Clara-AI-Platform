@@ -48,6 +48,28 @@ describe("integration action tool scope propagation", () => {
     expect(runAction.mock.calls[0][0]).not.toHaveProperty("projectId");
   });
 
+  it("fails closed when the platform plan allowlist is malformed", async () => {
+    query.mockReset();
+    runAction.mockReset();
+    query.mockResolvedValueOnce([{ enabled: true, allowed_plans: null }]);
+
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      {
+        tenantId: "org-1",
+        agentId: "agent-1",
+        userId: "user-1",
+        surface: "chat",
+      } as never,
+    )).rejects.toMatchObject({ code: "PLAN_NOT_ENTITLED" });
+
+    expect(runAction).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed when the agent grant does not belong to the execution tenant", async () => {
     query.mockReset();
     runAction.mockReset();
