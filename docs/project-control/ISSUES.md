@@ -1195,3 +1195,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source review confirms the custom Management credential read now preserves the executing agent scope; executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
+
+
+## I-061 — I-2 custom Supabase Management credential lookup bypassed the management integration authorization boundary
+
+| Field | Value |
+|---|---|
+| Issue ID | I-061 |
+| Title | Custom Supabase Management API credential lookup must re-check the management integration authorization boundary |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The custom `supabase.execute_sql` action was reached through authorization for the `supabase` integration, then directly read the `supabase-mgmt` OAuth credential. Because `supabase-mgmt` is a separate integration capability, this direct vault read could bypass its platform enablement, plan entitlement, organisation grant, and explicit agent scope. |
+| Evidence | [architect-verified] Direct review of `src/modules/integrations/runtime/runner-helpers.ts` showed the Management credential lookup occurred without calling the authoritative execution authorization boundary for `supabase-mgmt`. |
+| Correction | [architect/ChatGPT] The custom action now calls `assertIntegrationExecutionAuthorized({ integrationId: "supabase-mgmt", workspaceId, agentId })` before reading the Management credential. Unauthorized Management access therefore fails before credential retrieval. |
+| Correction scope | `src/modules/integrations/runtime/runner-helpers.ts`; focused regression `src/modules/integrations/runtime/runner-helpers.test.ts` |
+| Correction commits | Implementation `5f6d044a2ec1d8ddacaf9bde553f17576c14732e`; regression `3ebbbf7113e851a427d310aee2d3a057a6b8ba83` |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification | [architect-verified] Source review confirms Management credential retrieval is now downstream of the same fail-closed authorization contract used by direct execution; focused regression covers authorization-before-read. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
