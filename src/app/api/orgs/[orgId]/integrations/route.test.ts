@@ -122,6 +122,29 @@ describe("organisation integration entitlement enforcement", () => {
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 
+  it("fails closed when the platform plan allowlist is malformed", async () => {
+    queryMock.mockResolvedValueOnce([{ enabled: true, allowed_plans: null }]);
+    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro", max_integrations: 10 });
+
+    const { POST } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ integrationId: "github", action: "enable" }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      error: "The pro plan cannot use this integration",
+      code: "PLAN_NOT_ENTITLED",
+    });
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
   it("uses one transaction for direct connection enablement and does not return success after the connection insert fails", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
