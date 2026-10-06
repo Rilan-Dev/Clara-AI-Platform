@@ -69,6 +69,54 @@ describe("custom integration credential scoping", () => {
     expect((thrown as Error).message).not.toContain("management-secret-token");
   });
 
+  it("does not expose Supabase PostgREST response bodies on failure", async () => {
+    hasActiveConnection.mockResolvedValue(false);
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response("provider echoed service-key", {
+        status: 401,
+        statusText: "Unauthorized",
+      }),
+    );
+
+    const { customActions } = await import("./runner-helpers.js");
+
+    await expect(
+      customActions.supabase.execute_sql.run(
+        {
+          userId: "user-1",
+          workspaceId: "org-1",
+          agentId: "agent-1",
+          integrationId: "supabase",
+          actionName: "execute_sql",
+          projectId: "project-1",
+          props: { sql: "select 1" },
+        },
+        {
+          url: "https://project-1.supabase.co",
+          apiKey: "service-key",
+        },
+      ),
+    ).rejects.toThrow("PostgREST rpc/exec_sql returned: 401");
+
+    await expect(
+      customActions.supabase.execute_sql.run(
+        {
+          userId: "user-1",
+          workspaceId: "org-1",
+          agentId: "agent-1",
+          integrationId: "supabase",
+          actionName: "execute_sql",
+          projectId: "project-1",
+          props: { sql: "select 1" },
+        },
+        {
+          url: "https://project-1.supabase.co",
+          apiKey: "service-key",
+        },
+      ),
+    ).rejects.not.toThrow("service-key");
+  });
+
   it("uses the service-key fallback without requiring a Management connection", async () => {
     hasActiveConnection.mockResolvedValue(false);
     credentialGet.mockResolvedValue(null);
