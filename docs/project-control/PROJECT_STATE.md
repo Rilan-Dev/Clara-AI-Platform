@@ -92,3 +92,8 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-06 — I-058 custom integration egress/redirect correction
 
 [architect-verified] Custom ElevenLabs and Supabase integration HTTP paths now use explicit host egress validation and manual redirect handling. I-058 is RESOLVED by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
+## 2026-10-06 — I-059 Supabase Management API egress correction
+
+[architect-verified] Source review identified a remaining credential-bearing native fetch in the custom Supabase Management API action outside the I-058 egress/redirect boundary. Commit `c7a2b7f4edb33cc919e2fe6c9a0bec2c981450be` now applies `assertSafeEgressUrl()`, manual redirect handling, and explicit 3xx rejection. I-059 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Next bounded work remains source-level I-2 authorization/credential/egress review, followed by executable Gate-C evidence and final Gate-D review. No I-3, MCP expansion, production promotion, or unrelated implementation.
