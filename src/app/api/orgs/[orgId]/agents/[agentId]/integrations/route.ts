@@ -3,7 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
 import { listIntegrations } from "@/modules/integrations/registry";
-import { getOrgPlanLimits } from "@/lib/plan-guard";
+import { getOrgPlanLimits, resolveOrgPlanLimits } from "@/lib/plan-guard";
 
 type Params = { params: Promise<{ orgId: string; agentId: string }> };
 
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest,{params}:Params){
     // existing grant must remain possible after a downgrade so tenants can
     // safely unwind access they are no longer entitled to use.
     if (body.enabled) {
-      const limits = await getOrgPlanLimits(orgId);
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;\n      try {\n        limits = await resolveOrgPlanLimits(orgId);\n      } catch {\n        return NextResponse.json({error:"Integration plan entitlement could not be verified"},{status:503});\n      }
       if (
         !Array.isArray(platform.allowed_plans) ||
         (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*"))
