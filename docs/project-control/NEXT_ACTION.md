@@ -1,4 +1,15 @@
 
+## 2026-10-06 — I-073 OAuth refresh endpoint integrity correction
+
+[architect-verified] Bounded I-2 source review found that OAuth refresh used the connection-stored `token_url` as the credential-bearing destination even though the registry already defines the authoritative OAuth token endpoint. The runner now receives `def.oauth2Config?.tokenUrl`, rejects mismatched stored metadata, and constructs the refresh URL from the registry value.
+
+- Implementation: `59957d4ea03dfb89f8a90c9976322aae86821e73`, `6b781ed042003bd62f056d35b9f5952176b5cb73`
+- Regression: `db0284111f94955c038e60bbb62fc59068d208a4`
+- I-073: RESOLVED by architect source review.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; do not wait for GitHub Actions or Vercel.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-06 — I-072 connection auth-type authority correction
 
 [architect-verified] Bounded I-2 source review found organisation connection creation persisted caller-supplied `authType`, allowing stored connection metadata to diverge from the registry contract. The correction always persists the authoritative registry `def.authType`, with focused conflicting-input regression coverage.
