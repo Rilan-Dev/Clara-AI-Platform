@@ -1347,3 +1347,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review | [architect-verified] Source correction and focused regressions reviewed on 2026-10-06; I-066 RESOLVED. |
 | Verification status | Executable Gate-C evidence remains pending; this issue itself is resolved by source review. |
 
+
+## I-068 — I-2 route authorization source contained literal newline escapes
+
+| Field | Value |
+|---|---|
+| Issue ID | I-068 |
+| Title | Integration authorization routes contained literal \\n escape text in TypeScript source |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The organisation integration POST route and agent integration PATCH route contained literal \\n sequences between TypeScript statements. This is invalid source structure and can block TypeScript parsing/building independent of the runtime authorization logic. |
+| Evidence | [architect-verified] Direct GitHub source inspection of the feature branch showed the literal escape text in both route files. |
+| Correction | Replaced only the literal escape sequences with actual statement newlines; no authorization or behavior change was introduced. |
+| Correction commit | c07b87596ffdc7959a4b507621b3a57d900c6a82 |
+| Correction scope | src/app/api/orgs/[orgId]/integrations/route.ts; src/app/api/orgs/[orgId]/agents/[agentId]/integrations/route.ts |
+| Explicit non-scope | No schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
+| Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-06. |
