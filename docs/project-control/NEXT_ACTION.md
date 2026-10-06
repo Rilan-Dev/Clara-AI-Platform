@@ -7,6 +7,19 @@
 
 # NEXT_ACTION.md — Fresh-Session Continuation Instruction
 
+## 2026-10-06 — I-065 OAuth expiry disable-race correction
+
+[architect-verified] Source review found a remaining I-2 state-transition race: credential-vault `updateStatus()` could change a connection from an explicit `disabled` state to `expired` during concurrent OAuth expiry cleanup. Commit `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7` now updates status only when the connection is still active; regression `ac162b6ce439861c0c2ac9a2650971cd79411ef7` covers the active-state predicate.
+
+- I-065: RESOLVED by architect source review.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. Do not wait for GitHub Actions or Vercel. After source review is exhausted, obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+
 ## 2026-10-06 — I-063 Supabase Management fallback authorization correction
 
 [architect-verified] Source review found that supabase.execute_sql unconditionally required the separate supabase-mgmt integration authorization before even determining whether a Management connection existed. That contradicted the implemented action contract, which explicitly supports a service-role/PostgREST fallback when Management OAuth is unavailable. The bounded correction adds a tenant/user/agent-scoped active-connection existence check that does not decrypt credentials; only when a Management connection exists does the action re-check supabase-mgmt authorization and read its credential. A focused regression verifies the service-key fallback does not read the Management credential or invoke the Management authorization boundary.
