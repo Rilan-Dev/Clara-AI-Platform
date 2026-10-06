@@ -8,6 +8,19 @@ export type ClaraConnection = {
 };
 
 export const credentialVault = {
+  async hasActiveConnection(userId: string, integrationId: string, orgId: string, agentId?: string): Promise<boolean> {
+    const rows = await query<{ exists: boolean }>(
+      `SELECT EXISTS(
+         SELECT 1
+           FROM integration_connections
+          WHERE org_id=$1 AND integration_id=$2 AND status='active'
+            AND (agent_id=$3 OR agent_id IS NULL)
+            AND (user_id=$4 OR user_id IS NULL)
+       ) AS exists`,
+      [orgId, integrationId, agentId ?? null, userId || null],
+    );
+    return rows[0]?.exists === true;
+  },
   async get(userId: string, integrationId: string, orgId: string, agentId?: string): Promise<ClaraConnection | null> {
     const rows = await query<ClaraConnection & { credentials_decrypted: string }>(
       `SELECT id,org_id,agent_id,user_id,integration_id,auth_type,status,display_name,metadata,
