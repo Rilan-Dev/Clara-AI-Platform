@@ -1,4 +1,13 @@
 
+## 2026-10-06 — I-2 egress regression coverage: hexadecimal IPv4-mapped IPv6
+
+[architect-verified] Continued the bounded I-2 security review without waiting for GitHub Actions or Vercel. The egress guard already decoded hexadecimal IPv4-mapped IPv6 destinations; the regression suite now explicitly covers ::ffff:7f00:1 so that loopback encoded in hexadecimal cannot regress into an SSRF bypass.
+
+- Regression: e8403571572995d34053f2245b3c09c9cab28fa0
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; this is bounded verification-support work, not phase closure.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+- STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-06 — I-073 OAuth refresh endpoint integrity correction
 
 [architect-verified] Bounded I-2 source review found that OAuth refresh used the connection-stored `token_url` as the credential-bearing destination even though the registry already defines the authoritative OAuth token endpoint. The runner now receives `def.oauth2Config?.tokenUrl`, rejects mismatched stored metadata, and constructs the refresh URL from the registry value.
