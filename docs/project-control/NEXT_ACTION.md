@@ -693,3 +693,14 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-07 — I-077 Supabase credential URL error-boundary hardening
+
+[architect-verified] Bounded I-2 review found the custom supabase.execute_sql action included the credential-derived projectUrl in an error when project-ref parsing failed. Because projectUrl is credential material, that error could expose stored connection data through the runner error boundary. The correction now returns a generic invalid-project-URL error and adds focused regression coverage.
+
+- Implementation: 6ae5663938c2144f2f880afe0d7ebdcd97ebf54a
+- Regression: 0f3347d8b679f0ea4110768fdf5f5c33de129d57
+- I-077: RESOLVED by source correction and focused regression.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
