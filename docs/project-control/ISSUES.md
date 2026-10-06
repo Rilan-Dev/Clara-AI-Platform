@@ -1046,3 +1046,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Correction commits | `cf2c74ec62343485148e9560e55e720092774f73`; `53a2bfe2c1a8bc5066974cfa12a1188167feef1e`; `5f9f6e3ae63314cc9d7b056f1e37d967282180fa`; regressions `3266c441f0c76398e51f9f36ab599444eb38f4c1`, `6f4ea246beda935a7e46e301612d0e8cc21fa7a1`, `b8312ed9348825a228677679730b1e04a619102d` |
 | Explicit non-scope | No schema change, billing semantics, OAuth transport, MCP, production promotion, or unrelated implementation. |
 | Verification | [architect-verified] Source review and focused regression source cover malformed allowlist denial across all three mutation/execution boundaries. Executable Gate-C evidence remains pending. |
+
+
+## I-054 — I-2 runner execution boundary could rely on stale AI-tool authorization
+
+| Field | Value |
+|---|---|
+| Issue ID | I-054 |
+| Title | Integration execution must re-check tenant, agent, platform, and plan authorization at the runner boundary |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction architect-reviewed; executable verification pending |
+| Date identified | 2026-10-06 |
+| Reporter / role | ChatGPT — architect review / implementation owner |
+| Finding | The AI-visible integration_action tool performed platform, plan, organisation, agent, and connection checks before calling runAction, but the runner itself did not repeat the authorization contract. Plan/grant state could therefore change between capability authorization and runner execution, and a future direct runner caller could bypass the host authorization boundary entirely. |
+| Evidence | [architect-verified] Direct review of src/modules/integrations/runtime/runner-core.ts showed runAction() proceeded from integration lookup directly into custom/piece execution after the AI tool's prior checks. |
+| Correction | [architect/ChatGPT] Added a fail-closed execution authorization module and invoked it at the start of runAction(). The runner now re-checks platform enablement, current organisation plan allowlist, organisation integration grant, explicit agent scope, and the agent-to-organisation relationship before any custom or Activepieces action executes. |
+| Correction scope | src/modules/integrations/runtime/execution-authorization.ts; src/modules/integrations/runtime/execution-authorization.test.ts; src/modules/integrations/runtime/runner-core.ts |
+| Explicit non-scope | No schema/migration, OAuth callback/transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Correction commits | 2d2383a196d83fba26dd93a4b4a1ec2ecec31207; facb32c99b5fc9bcdd0d05900e0a92bdf9c60e6d; e4110290c8cfa57c1f5357eaf4f57c719785a4ee |
+| Verification | [architect-verified] Source review confirms the runner has an independent fail-closed authorization boundary and focused regression source covers plan downgrade, cross-tenant agent grant, and missing-agent scope. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-06. |
