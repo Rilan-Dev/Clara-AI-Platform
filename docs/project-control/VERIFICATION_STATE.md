@@ -1873,3 +1873,7 @@ Focused regression source was added for both corrections.
 - Gate-C remains MISSING because executable current-head test/build/typecheck/lint evidence has not been produced.
 - Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
 - Scope remains strictly I-2; no I-3, MCP expansion, OAuth callback/transport expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-070 bounded source correction
+
+[architect-verified] Current I-2 review identified an agent-isolation defect in PostgresStore FLOW scope: the key omitted agentId. Correction f0f476e74b1fbd66ed3e716346bdc23e9e6b775b and regression efc652c8096488e3cf8d2ac2422d108c345924ca add explicit agent scope. I-070 is resolved by source review. This does not constitute Gate-C or Gate-D closure; I-2 remains IMPLEMENTED — VERIFICATION PENDING.
