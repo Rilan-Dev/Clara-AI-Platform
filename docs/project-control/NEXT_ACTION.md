@@ -503,3 +503,14 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review found that t
 - **Next bounded work:** continue only concrete I-2 credential/connection authorization, AI-tool exposure, action-input validation, tenant isolation, and secret/egress review. Do not wait for GitHub Actions or Vercel. After source-level review is exhausted, obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-060 custom Management credential agent-scope correction
+
+[architect-verified] Source review found that the custom Supabase Management API action's secondary `supabase-mgmt` credential lookup omitted the executing `agentId`, despite the surrounding runner authorization being explicitly agent-scoped. The lookup now passes `params.agentId`, and focused regression coverage asserts tenant/user/agent scoping.
+
+- Implementation: `a90254ee5e4a7910fd92291810fe0cdff72c2ee0`
+- Regression: `040cfafb0d4aad1b9b95de9aafa3d5dfa975bd35`
+- I-060: RESOLVED by architect source review.
+- **Next bounded implementation review:** continue I-2 credential/connection and custom-action authorization/egress review only; then obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
