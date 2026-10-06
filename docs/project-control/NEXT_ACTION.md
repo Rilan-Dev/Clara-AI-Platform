@@ -592,3 +592,11 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review found that t
 - **Next bounded implementation review:** continue I-2 credential/connection and custom-action authorization/egress review only; then obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-068 route-source correction
+
+[architect-verified] Source review found and corrected literal \\n escape text embedded in two I-2 authorization route files. Correction commit: c07b87596ffdc7959a4b507621b3a57d900c6a82. No authorization semantics changed.
+
+Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. After source review is exhausted, obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
