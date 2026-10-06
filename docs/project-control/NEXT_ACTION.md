@@ -608,3 +608,11 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 Next bounded work: continue concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and remaining bounded smoke/browser/security scans.
 
 STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-070 agent-scoped FLOW store correction
+
+[architect-verified] I-2 source review found that FLOW-scoped Activepieces store keys omitted agentId. The store now keys FLOW state by organisation + agent + user, with a focused regression. Implementation f0f476e74b1fbd66ed3e716bdc23e9e6b775b; regression efc652c8096488e3cf8d2ac2422d108c345924ca.
+
+Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and remaining bounded smoke/browser/security scans.
+
+STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
