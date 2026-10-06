@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const queryMock = vi.fn();
-const getOrgPlanLimitsMock = vi.fn();
 const resolveOrgPlanLimitsMock = vi.fn();
 
 vi.mock("@/lib/db/migrate", () => ({
@@ -25,7 +24,6 @@ vi.mock("@/modules/integrations/registry", () => ({
 }));
 
 vi.mock("@/lib/plan-guard", () => ({
-  getOrgPlanLimits: getOrgPlanLimitsMock,
   resolveOrgPlanLimits: resolveOrgPlanLimitsMock,
 }));
 
@@ -65,7 +63,7 @@ describe("agent integration entitlement enforcement", () => {
       .mockReset()
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: null }])
       .mockResolvedValueOnce([{ enabled: true }]);
-    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro" });
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro" });
 
     const { PATCH } = await import("./route");
     const request = new NextRequest("http://localhost/api/orgs/org-1/agents/agent-1/integrations", {
@@ -132,7 +130,7 @@ describe("agent integration entitlement enforcement", () => {
       integrationId: "github",
       enabled: false,
     });
-    expect(getOrgPlanLimitsMock).not.toHaveBeenCalled();
+    expect(resolveOrgPlanLimitsMock).not.toHaveBeenCalled();
     expect(queryMock).toHaveBeenCalledTimes(3);
   });
 });
