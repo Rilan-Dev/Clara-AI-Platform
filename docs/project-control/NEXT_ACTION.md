@@ -1,3 +1,13 @@
+## 2026-10-07 — Docker build dependency-stage performance correction
+
+[architect-verified] Local Docker Compose build telemetry showed the backend and worker each executing a full `npm ci` concurrently from separate Dockerfiles. Both dependency stages consumed about 3408 seconds (~56m48s), while the RabbitMQ bridge image export/unpack consumed about 597 seconds (~10m) under the resulting host resource pressure. The root cause was duplicated installation of the large Activepieces dependency graph plus concurrent CPU/RAM/network contention.
+
+- The bounded Docker correction moves backend and worker to one multi-stage `Dockerfile` with a shared `deps` stage and BuildKit npm cache.
+- `docker-compose.yml` now builds `clara-worker` from the same Dockerfile using the `worker` target; the duplicate `Dockerfile.worker` is removed.
+- This is build-system/resource hardening only; I-2 remains **IMPLEMENTED — VERIFICATION PENDING** and no Gate-C/D PASS is inferred from the source change.
+- Required next evidence: rerun the local Compose build and capture elapsed time/resource behavior, then continue the existing Gate-C executable verification sequence.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 
 ## 2026-10-06 — I-2 egress regression coverage: hexadecimal IPv4-mapped IPv6
 
