@@ -7,15 +7,15 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm install --ignore-scripts --legacy-peer-deps
+RUN npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY packages ./packages
 COPY . ./
 ENV NODE_ENV=production
-
-# Bake NEXT_PUBLIC env vars into the client bundle at build time.
+ENV NEXT_TELEMETRY_DISABLED=1
+# Docker production builds intentionally skip duplicate type/lint passes.\n# `npm run type-check` and `npm run lint` remain separate verification gates.\nARG CLARA_SKIP_TYPECHECK=1\nENV CLARA_SKIP_TYPECHECK=$CLARA_SKIP_TYPECHECK\n\n# Bake NEXT_PUBLIC env vars into the client bundle at build time.
 ARG SKIP_AUTH=true
 ENV SKIP_AUTH=$SKIP_AUTH
 
