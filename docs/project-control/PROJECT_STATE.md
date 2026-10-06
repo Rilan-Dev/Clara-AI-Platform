@@ -141,3 +141,7 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-06 — I-068 integration-route source correction
 
 [architect-verified] Bounded I-2 source review found literal \\n escape text embedded between TypeScript statements in the organisation integration POST route and agent integration PATCH route. The escapes were replaced with actual statement newlines in c07b87596ffdc7959a4b507621b3a57d900c6a82. No authorization behavior was changed. I-068 is resolved by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Continue bounded I-2 review only; do not wait for GitHub Actions or Vercel and do not expand to I-3/MCP/production.
+
+## 2026-10-06 — I-070 agent-scoped FLOW store correction
+
+[architect-verified] I-2 source review identified that FLOW store keys omitted agentId, allowing same-user cross-agent state collision inside one organisation. The bounded correction adds explicit agent scope to FLOW keys and focused regression coverage. Implementation f0f476e74b1fbd66ed3e716bdc23e9e6b775b; regression efc652c8096488e3cf8d2ac2422d108c345924ca. I-070 is resolved by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; continue bounded I-2 review only.
