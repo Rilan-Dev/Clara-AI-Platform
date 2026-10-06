@@ -4,10 +4,13 @@ const credentialGet = vi.fn();
 const hasActiveConnection = vi.fn();
 const query = vi.fn();
 const assertSafeEgressUrl = vi.fn();
+const updateStatus = vi.fn();
+const decrypt = vi.fn();
+const updateCredentials = vi.fn();
 const assertIntegrationExecutionAuthorized = vi.fn();
 
 vi.mock("./credential-vault.js", () => ({
-  credentialVault: { get: credentialGet, hasActiveConnection },
+  credentialVault: { get: credentialGet, hasActiveConnection, updateStatus, decrypt, updateCredentials },
 }));
 
 vi.mock("./runner-fetch.js", () => ({
@@ -185,5 +188,64 @@ describe("custom integration credential scoping", () => {
       workspaceId: "org-1",
       agentId: "agent-1",
     });
+  });
+});
+
+
+describe("OAuth token refresh endpoint binding", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalThis.fetch = vi.fn();
+  });
+
+  it("rejects a stored token endpoint that differs from the registry endpoint", async () => {
+    decrypt.mockResolvedValue({
+      access_token: "access-token",
+      refresh_token: "refresh-token",
+      expires_in: 3600,
+      claimed_at: Math.floor(Date.now() / 1000) - 3600,
+      token_url: "https://attacker.example/token",
+      client_id: "client-id",
+      client_secret: "client-secret",
+      data: {},
+    });
+
+    const { ensureTokenFresh } = await import("./runner-helpers.js");
+
+    await expect(
+      ensureTokenFresh("connection-1", "org-1", "oauth2", "https://oauth.example/token"),
+    ).rejects.toThrow("OAuth connection token endpoint does not match the integration registry");
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(updateCredentials).not.toHaveBeenCalled();
+  });
+
+  it("uses the registry token endpoint for credential-bearing refresh", async () => {
+    decrypt.mockResolvedValue({
+      access_token: "old-token",
+      refresh_token: "refresh-token",
+      expires_in: 3600,
+      claimed_at: Math.floor(Date.now() / 1000) - 3600,
+      token_url: "https://oauth.example/token",
+      client_id: "client-id",
+      client_secret: "client-secret",
+      data: {},
+    });
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(JSON.stringify({ access_token: "new-token", expires_in: 3600 }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const { ensureTokenFresh } = await import("./runner-helpers.js");
+
+    await ensureTokenFresh("connection-1", "org-1", "oauth2", "https://oauth.example/token");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      new URL("https://oauth.example/token"),
+      expect.objectContaining({ method: "POST", redirect: "manual" }),
+    );
+    expect(updateCredentials).toHaveBeenCalled();
   });
 });
