@@ -175,3 +175,7 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-07 — I-077 Supabase credential URL error-boundary hardening
 
 [architect-verified] Bounded I-2 source review found the custom supabase.execute_sql action included credential-derived projectUrl in an error when project-ref parsing failed. The correction now returns a generic invalid-project-URL error. Implementation 6ae5663938c2144f2f880afe0d7ebdcd97ebf54a; focused regression 0f3347d8b679f0ea4110768fdf5f5c33de129d57. I-077 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+## 2026-10-07 — I-078 runner early-rejection trace initialization correction
+
+[architect-verified] Bounded I-2 source review found the registry action-allowlist rejection path referenced the normal XRay handle before initialization, causing a temporal-dead-zone ReferenceError instead of the intended structured fail-closed response. Correction ddd38bbf84f274a7f2daa159007a080f964b3046 removes that premature trace call. I-078 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
