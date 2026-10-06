@@ -85,6 +85,7 @@ describe("integration runtime trace redaction", () => {
     await expect(assertSafeEgressUrl("http://169.254.169.254/latest/meta-data")).rejects.toThrow("not allowed");
     await expect(assertSafeEgressUrl("http://[::1]:8080/internal")).rejects.toThrow("not allowed");
     await expect(assertSafeEgressUrl("http://[::ffff:127.0.0.1]:8080/internal")).rejects.toThrow("not allowed");
+    await expect(assertSafeEgressUrl("http://[::ffff:7f00:1]:8080/internal")).rejects.toThrow("not allowed");
     await expect(assertSafeEgressUrl("http://224.0.0.1/multicast")).rejects.toThrow("not allowed");
   });
 
