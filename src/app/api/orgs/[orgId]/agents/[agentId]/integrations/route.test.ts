@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const queryMock = vi.fn();
 const getOrgPlanLimitsMock = vi.fn();
+const resolveOrgPlanLimitsMock = vi.fn();
 
 vi.mock("@/lib/db/migrate", () => ({
   ensureMigrated: vi.fn().mockResolvedValue(undefined),
@@ -25,6 +26,7 @@ vi.mock("@/modules/integrations/registry", () => ({
 
 vi.mock("@/lib/plan-guard", () => ({
   getOrgPlanLimits: getOrgPlanLimitsMock,
+  resolveOrgPlanLimits: resolveOrgPlanLimitsMock,
 }));
 
 describe("agent integration entitlement enforcement", () => {
@@ -33,7 +35,7 @@ describe("agent integration entitlement enforcement", () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }])
       .mockResolvedValueOnce([{ enabled: true }]);
-    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free" });
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free" });
   });
 
   it("rejects an agent integration grant when the organisation plan is no longer entitled", async () => {
@@ -54,7 +56,7 @@ describe("agent integration entitlement enforcement", () => {
       error: "The free plan cannot use this integration",
       code: "PLAN_NOT_ENTITLED",
     });
-    expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
+    expect(resolveOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
@@ -81,6 +83,28 @@ describe("agent integration entitlement enforcement", () => {
       error: "The pro plan cannot use this integration",
       code: "PLAN_NOT_ENTITLED",
     });
+    expect(queryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed when authoritative plan resolution is unavailable", async () => {
+    resolveOrgPlanLimitsMock.mockRejectedValueOnce(new Error("plan lookup failed"));
+
+    const { PATCH } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/agents/agent-1/integrations", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ integrationId: "github", enabled: true }),
+    });
+
+    const response = await PATCH(request, {
+      params: Promise.resolve({ orgId: "org-1", agentId: "agent-1" }),
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "Integration plan entitlement could not be verified",
+    });
+    expect(resolveOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
