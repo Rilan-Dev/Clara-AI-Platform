@@ -87,3 +87,8 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-06 — I-054 runner execution-authorization correction
 
 [architect-verified] I-054 is RESOLVED. `runAction()` now re-checks platform enablement, current plan entitlement, organisation grant, explicit agent scope, and the authoritative `agents.org_id` relationship before any integration action executes. Focused regression source covers plan downgrade, cross-tenant agent grant, and missing agent scope. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. No I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-058 custom integration egress/redirect correction
+
+[architect-verified] Custom ElevenLabs and Supabase integration HTTP paths now use explicit host egress validation and manual redirect handling. I-058 is RESOLVED by source review. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
