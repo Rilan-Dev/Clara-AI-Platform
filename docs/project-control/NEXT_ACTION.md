@@ -467,3 +467,15 @@ Focused regression source was added for both corrections.
 - Next bounded work: continue I-2 source-level authorization/egress/secret review, then current-head executable verification, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — I-057 OAuth refresh disable-race correction
+
+I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Without waiting for GitHub Actions or Vercel, source review found I-057: an in-flight OAuth refresh could re-persist credentials with status='active' after a connection had been disabled, and the runner did not explicitly fail closed if the post-refresh active connection disappeared.
+
+- Corrections: `a8e66489e57d84326e63b56b86914ba3b5ea3cf3`, `ac8d4bf5388c1cf993a9355c3032e8c8d090782f`.
+- I-057: RESOLVED by architect source review.
+- Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+- Next bounded work: continue I-2 source-level credential/connection authorization and egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
