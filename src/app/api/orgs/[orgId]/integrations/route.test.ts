@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const queryMock = vi.fn();
 const getOrgPlanLimitsMock = vi.fn();
+const resolveOrgPlanLimitsMock = vi.fn();
 const withTransactionMock = vi.fn(async (
   fn: (client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }) => Promise<unknown>,
 ) => fn({
@@ -31,6 +32,7 @@ vi.mock("@/modules/integrations/registry", () => ({
 
 vi.mock("@/lib/plan-guard", () => ({
   getOrgPlanLimits: getOrgPlanLimitsMock,
+  resolveOrgPlanLimits: resolveOrgPlanLimitsMock,
 }));
 
 vi.mock("@/lib/secrets", () => ({
@@ -69,7 +71,7 @@ describe("organisation integration entitlement enforcement", () => {
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
       .mockResolvedValueOnce([{ enabled: false }])
       .mockResolvedValueOnce([{ count: 2 }]);
-    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
 
     const { POST } = await import("./route");
     const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
@@ -93,14 +95,14 @@ describe("organisation integration entitlement enforcement", () => {
       limit: 2,
       current: 2,
     });
-    expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
+    expect(resolveOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(3);
     expect(withTransactionMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects enabling when the current plan is no longer entitled", async () => {
     queryMock.mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }]);
-    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 10 });
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 10 });
 
     const { POST } = await import("./route");
     const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
@@ -118,13 +120,13 @@ describe("organisation integration entitlement enforcement", () => {
       error: "The free plan cannot use this integration",
       code: "PLAN_NOT_ENTITLED",
     });
-    expect(getOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
+    expect(resolveOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when the platform plan allowlist is malformed", async () => {
     queryMock.mockResolvedValueOnce([{ enabled: true, allowed_plans: null }]);
-    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro", max_integrations: 10 });
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro", max_integrations: 10 });
 
     const { POST } = await import("./route");
     const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
@@ -143,6 +145,29 @@ describe("organisation integration entitlement enforcement", () => {
       code: "PLAN_NOT_ENTITLED",
     });
     expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when authoritative plan resolution is unavailable", async () => {
+    queryMock.mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }]);
+    resolveOrgPlanLimitsMock.mockRejectedValueOnce(new Error("plan lookup failed"));
+
+    const { POST } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ integrationId: "github", action: "enable" }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "Integration plan entitlement could not be verified",
+    });
+    expect(resolveOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
+    expect(withTransactionMock).not.toHaveBeenCalled();
   });
 
   it("uses one transaction for direct connection enablement and does not return success after the connection insert fails", async () => {
