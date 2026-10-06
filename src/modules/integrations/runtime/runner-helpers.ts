@@ -431,7 +431,7 @@ export function resolveAuth(authType: string, credentials: unknown): unknown {
 
 // ─── Token Refresh Check ─────────────────────────────────
 
-export async function ensureTokenFresh(connectionId: string, orgId: string, authType: string): Promise<void> {
+export async function ensureTokenFresh(connectionId: string, orgId: string, authType: string, expectedTokenUrl?: string): Promise<void> {
   if (authType !== "oauth2") return;
 
   const creds = await credentialVault.decrypt(connectionId, orgId) as OAuth2TokenData | null;
@@ -452,7 +452,11 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
     throw new Error("OAuth connection expired and cannot be refreshed");
   }
 
-  const tokenUrl = new URL(creds.token_url);
+  if (!expectedTokenUrl || creds.token_url !== expectedTokenUrl) {
+    throw new Error("OAuth connection token endpoint does not match the integration registry");
+  }
+
+  const tokenUrl = new URL(expectedTokenUrl);
   if (tokenUrl.protocol !== "https:") {
     throw new Error("OAuth token endpoint must use HTTPS");
   }
