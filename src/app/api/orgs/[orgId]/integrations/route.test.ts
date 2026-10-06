@@ -177,7 +177,7 @@ describe("organisation integration entitlement enforcement", () => {
       .mockResolvedValueOnce([{ count: 0 }])
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error("connection insert failed"));
-    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
+    resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
 
     const { POST } = await import("./route");
     const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
