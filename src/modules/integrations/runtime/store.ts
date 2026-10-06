@@ -38,7 +38,7 @@ export class PostgresStore {
   private buildKey(key: string, scope?: string): string {
     // StoreScope.FLOW = "FLOW", StoreScope.PROJECT = "PROJECT"
     const prefix = scope === "FLOW"
-      ? `flow:${this.workspaceId}:${this.userId}`
+      ? `flow:${this.workspaceId}:${this.agentId ?? "org"}:${this.userId}`
       : `project:${this.workspaceId}:${this.agentId ?? "org"}`;
     return `${prefix}:${key}`;
   }
