@@ -426,3 +426,8 @@ Focused regression source was added for both corrections.
 **Next bounded work:** continue I-2 source-level authorization/connection, action-input, tenant-isolation, egress, and secret review; then obtain executable Gate-C evidence, bounded connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-06 — Vercel deployment blocker checkpoint
+
+[architect-verified] Deployment `dpl_2zSX7vRmLwJUDYXRdnE1YpeD1noL` failed before application compilation because `npm ci --legacy-peer-deps --include=dev` rejected an unsynchronized `package.json` / `package-lock.json`, with the newly declared `@activepieces/*` family missing from the lockfile. Bounded correction `3d87c000b7f3bdee337d524eeb06718094ebeb84` changes Vercel's install command to `npm install --legacy-peer-deps --include=dev` so the declared dependency graph can be resolved while strict lock synchronization remains open. A clean `npm install --package-lock-only` attempt in a Vercel sandbox ran ~13.8 minutes and failed; no generated lockfile was accepted. Fresh Vercel deployment is currently blocked by the team's `api-deployments-free-per-day` quota. Do not claim build success until a fresh deployment is actually observed. See `SESSION-049.md`.
