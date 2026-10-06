@@ -48,8 +48,11 @@ export const credentialVault = {
     return rows[0] ? JSON.parse(rows[0].credentials_decrypted) : null;
   },
   async updateStatus(connectionId: string, orgId: string, status: string): Promise<void> {
+    // Status transitions initiated by the runner are terminal-state cleanup
+    // (for example OAuth expiry). Never overwrite an explicit disable/disconnect
+    // performed concurrently by the tenant/admin.
     await query(
-      "UPDATE integration_connections SET status=$1,updated_at=now() WHERE id=$2 AND org_id=$3",
+      "UPDATE integration_connections SET status=$1,updated_at=now() WHERE id=$2 AND org_id=$3 AND status='active'",
       [status,connectionId,orgId],
     );
   },
