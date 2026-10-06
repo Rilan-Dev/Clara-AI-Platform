@@ -240,22 +240,32 @@ export const customActions: Record<string, Record<string, CustomAction>> = {
         const creds = auth as Record<string, unknown> | undefined;
         const projectUrl = creds?.url as string | undefined;
 
-        // The Management API credential is a second integration capability.
-        // Re-authorize that integration before reading its credential so the
-        // supabase action cannot bypass supabase-mgmt platform/plan/grant scope.
-        await assertIntegrationExecutionAuthorized({
-          integrationId: "supabase-mgmt",
-          workspaceId: params.workspaceId,
-          agentId: params.agentId,
-        });
-
-        // Strategy 1: Use Management API if we have an OAuth token
-        const mgmtConn = await credentialVault.get(
+        // Strategy 1: Use Management API only when an active, tenant-scoped
+        // Management connection exists. This preserves the documented fallback:
+        // a Supabase service-role connection must not require an unrelated
+        // supabase-mgmt grant merely because the optional OAuth path is absent.
+        let mgmtConn = null;
+        if (await credentialVault.hasActiveConnection(
           params.userId,
           "supabase-mgmt",
           params.workspaceId,
           params.agentId,
-        );
+        )) {
+          // The Management API credential is a second integration capability.
+          // Re-authorize that integration before reading its credential so the
+          // supabase action cannot bypass supabase-mgmt platform/plan/grant scope.
+          await assertIntegrationExecutionAuthorized({
+            integrationId: "supabase-mgmt",
+            workspaceId: params.workspaceId,
+            agentId: params.agentId,
+          });
+          mgmtConn = await credentialVault.get(
+            params.userId,
+            "supabase-mgmt",
+            params.workspaceId,
+            params.agentId,
+          );
+        }
         const mgmtToken =
           (mgmtConn?.credentials as Record<string, unknown>)?.access_token as string | undefined ??
           (mgmtConn?.credentials as Record<string, unknown>)?.accessToken as string | undefined;
