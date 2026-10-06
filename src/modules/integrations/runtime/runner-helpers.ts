@@ -480,7 +480,8 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
 // ─── Usage Logging ───────────────────────────────────────
 
 export async function logUsage(params: {
-  workspaceId: string;
+  orgId: string;
+  agentId?: string;
   userId: string;
   integrationId: string;
   actionName: string;
@@ -491,12 +492,12 @@ export async function logUsage(params: {
   try {
     await query`
       INSERT INTO integration_usage_log (
-        workspace_id, user_id, integration_id, action_name,
+        org_id, agent_id, user_id, integration_id, action_name,
         success, duration_ms, error_message
       ) VALUES (
-        ${params.workspaceId}, ${params.userId}, ${params.integrationId},
-        ${params.actionName}, ${params.success}, ${params.durationMs},
-        ${params.errorMessage ?? null}
+        ${params.orgId}, ${params.agentId ?? null}, ${params.userId},
+        ${params.integrationId}, ${params.actionName}, ${params.success},
+        ${params.durationMs}, ${params.errorMessage ?? null}
       )
     `;
   } catch (err) {
