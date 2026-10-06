@@ -1802,3 +1802,11 @@ Focused regression source was added for both corrections.
 - [architect-verified] Commit `ac8d4bf5388c1cf993a9355c3032e8c8d090782f` makes the runner fail closed when the post-refresh active connection is no longer available.
 - [architect-verified] I-057 is RESOLVED by source review. This is a bounded I-2 credential/connection authorization correction only; no OAuth callback/transport expansion was introduced.
 - Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No I-2 PASS is claimed.
+
+
+## 2026-10-06 — I-058 custom integration egress/redirect correction
+
+- [architect-verified] Source review found custom ElevenLabs TTS/STT and Supabase SQL paths using native fetch outside the generic runner egress boundary; the ElevenLabs 3xx checks were ineffective under default redirect-following behavior, and the Supabase credential-derived URL had no explicit egress check.
+- [architect-verified] Commits `d4e3a44956da9f377be7afcd8b7a012b54a6c944` and `434316d642c26f7d088e216d0b91407049a16d57` add explicit egress validation and manual redirect handling.
+- [architect-verified] I-058 is RESOLVED by source review. This is a bounded I-2 runtime egress/security correction only.
+- Gate-C remains **MISSING** and Gate-D remains **IN_PROGRESS**. No I-2 PASS is claimed.
