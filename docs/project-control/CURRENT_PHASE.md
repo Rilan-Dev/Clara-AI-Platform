@@ -17,6 +17,12 @@
 [architect-verified] I-2 source review found that an in-flight OAuth refresh could restore credentials as active after a concurrent disable. The credential vault now requires active status for tenant-scoped refresh reads/writes, and the runner fails closed if the post-refresh active connection disappears. I-057 is RESOLVED. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 # CURRENT_PHASE.md — Active-Phase Contract
 
+## 2026-10-06 — I-065 OAuth expiry status must preserve explicit disable state
+
+[architect-verified] Current I-2 source review found that OAuth expiry cleanup could overwrite a concurrent tenant/admin disable by updating connection status without requiring the current status to remain `active`. The bounded correction `c3ecd5d72940a2e8af4a53266e368c9d9e3dc8f7` adds the active-state predicate; regression `ac162b6ce439861c0c2ac9a2650971cd79411ef7` covers the SQL contract. I-065 is RESOLVED by architect source review. Gate-C remains MISSING; Gate-D remains IN_PROGRESS.
+
+
+
 > ## 2026-10-06 — I-055 cross-integration credential authorization correction
 
 [architect-verified] Source review found a bounded I-2 credential-access bypass in the Activepieces cross-integration ConnectionsManager. The adapter now re-checks the authoritative execution authorization contract before retrieving another integration's credentials. Implementation `3a17c31cb16bfa54cb79a48a13a757ae16486971`; regression `4f86976b505487906d18e526b6433be360e97a8b`. I-055 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
