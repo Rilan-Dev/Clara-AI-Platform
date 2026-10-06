@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { getOrgPlanLimits } from "@/lib/plan-guard";
+import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getIntegration } from "@/modules/integrations/registry";
 import { runAction } from "@/modules/integrations/runtime/runner-core";
 import { ToolExecutionError } from "./tool-contracts";
@@ -36,7 +36,12 @@ export function buildIntegrationActionTool(): ToolDefinition {
       ))[0];
       if (!platform?.enabled) throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", `Integration ${def.displayName} is disabled by the platform administrator.`);
 
-      const limits = await getOrgPlanLimits(context.tenantId);
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+      try {
+        limits = await resolveOrgPlanLimits(context.tenantId);
+      } catch {
+        throw new ToolExecutionError("PLAN_NOT_ENTITLED", "Integration plan entitlement could not be verified.");
+      }
       if (
         !Array.isArray(platform.allowed_plans) ||
         (!platform.allowed_plans.includes(limits.plan_id) && !platform.allowed_plans.includes("*"))
