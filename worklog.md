@@ -351,3 +351,15 @@ Control records:
 - Gate-D remains IN_PROGRESS.
 - No GitHub Actions/Vercel success was awaited or inferred.
 - No I-3, MCP expansion, production promotion, or unrelated implementation was started.
+
+
+## 2026-10-06 — I-2 owner continuation: telemetry schema + entitlement fail-closed corrections
+
+[architect-verified] Continued the bounded I-2 implementation review without waiting for CI/Vercel.
+
+- I-052: corrected integration usage telemetry to use the existing `integration_usage_log.org_id` and `agent_id` schema; runner call sites now pass explicit agent scope.
+- Added focused regression coverage for the tenant/agent telemetry SQL contract.
+- I-053: corrected plan entitlement enforcement so malformed/null `allowed_plans` values fail closed on AI execution, organisation enable/connect, and agent enable.
+- Added focused regressions for malformed allowlist denial across all three boundaries.
+- No schema/migration changes, billing changes, OAuth transport expansion, MCP, production promotion, or unrelated implementation.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains open/missing and Gate-D remains in progress.
