@@ -1471,3 +1471,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No OAuth callback/transport expansion, provider rollout, schema/migration, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification | [architect-verified] Source review confirms connection persistence uses the registry auth type; focused regression covers conflicting caller input. Executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-06. |
+
+
+## I-074 — I-2 execution authorization source contained literal newline escapes
+
+| Field | Value |
+|---|---|
+| Issue ID | I-074 |
+| Title | Execution authorization source must not contain literal newline escape text |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | `src/modules/integrations/runtime/execution-authorization.ts` contained literal \\n escape text inside the plan-resolution authorization block. The intended fail-closed logic was correct conceptually, but the source text could comment out subsequent statements and break TypeScript parsing/behavior. |
+| Evidence | [architect-verified] Direct GitHub source inspection of the feature branch showed the literal escape sequences between the authorization statements. |
+| Correction | Replaced the literal escape sequences with real source newlines only; authorization semantics were not broadened or weakened. |
+| Correction commit | `c6240da3ea64869ce4f49dafa4583cd9b626af88` |
+| Correction scope | `src/modules/integrations/runtime/execution-authorization.ts` |
+| Explicit non-scope | No schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
+| Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-07. |
+
