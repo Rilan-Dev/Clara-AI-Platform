@@ -1533,3 +1533,22 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification status | Source correction and focused regression reviewed by ChatGPT; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-07. |
+
+## I-077 — I-2 Supabase credential-derived project URL could enter errors
+
+| Field | Value |
+|---|---|
+| Issue ID | I-077 |
+| Title | Supabase custom action must not expose credential-derived project URL in errors |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | supabase.execute_sql interpolated the stored credential-derived projectUrl into an error when project-ref parsing failed. The outer runner can return and log this error, so malformed connection metadata could expose credential material. |
+| Correction | Replaced the interpolated URL error with a generic invalid-project-URL message. |
+| Correction commit | 6ae5663938c2144f2f880afe0d7ebdcd97ebf54a |
+| Regression | 0f3347d8b679f0ea4110768fdf5f5c33de129d57 |
+| Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification status | Source correction and focused regression reviewed by ChatGPT; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-07. |
