@@ -1,4 +1,16 @@
 
+## 2026-10-06 — I-072 connection auth-type authority correction
+
+[architect-verified] Bounded I-2 source review found organisation connection creation persisted caller-supplied `authType`, allowing stored connection metadata to diverge from the registry contract. The correction always persists the authoritative registry `def.authType`, with focused conflicting-input regression coverage.
+
+- Implementation: `879e3cbcc98392a48fe8e461255460f8d0e06c4b`
+- Regression: `be01ab6ac2d97cf36c6400ef43d121c9c8699902`
+- I-072: RESOLVED by architect source review.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; do not wait for GitHub Actions or Vercel.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
 ## 2026-10-06 — I-071 custom integration error-body hardening
 
 [architect-verified] Bounded I-2 source review found raw provider response bodies being appended to credential-bearing custom ElevenLabs TTS/STT and Supabase PostgREST errors. The correction removes provider response-body propagation and adds focused regression coverage.
