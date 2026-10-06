@@ -121,7 +121,12 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
   // any lookup runs. Keeps runtime forgiving while the model's naming drifts.
   params.actionName = resolveActionAlias(params.integrationId, params.actionName);
 
-  // Keep resolved credential values available to the final error boundary so provider\n  // error text cannot bypass value-based redaction when it uses a non-sensitive\n  // field name (for example, echoing a token in a generic `message` field).\n  let knownSecretValues: string[] = [];\n\n  const xr = xray.start({
+  // Keep resolved credential values available to the final error boundary so provider
+  // error text cannot bypass value-based redaction when it uses a non-sensitive
+  // field name (for example, echoing a token in a generic `message` field).
+  let knownSecretValues: string[] = [];
+
+  const xr = xray.start({
     kind: "integration",
     integrationId: params.integrationId,
     actionName: params.actionName,
