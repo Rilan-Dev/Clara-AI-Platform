@@ -1,3 +1,7 @@
+## 2026-10-06 — I-064 AI integration-tool plan-resolution fail-closed correction
+
+[architect-verified] Source review identified inconsistent fail-open plan resolution in the AI-visible integration_action and integration_availability boundaries. Both now use resolveOrgPlanLimits directly; execution denies on resolution failure and availability exposes no capabilities without authoritative entitlement. Implementation/test commits: 0f5c2ad1372be0c60ed72b11863b9aad8e48fda6, f394054afa6aa92e8c33ef5dbf7bb0554bf18730, c857a8777f0a9f6ea7f535734966b1d2546d1ca8, 305f59663e83ab8deea910b350c746c2af1420b6. I-064 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
 ## 2026-10-06 — I-063 Supabase Management fallback authorization correction
 
 [architect-verified] Source review found that the custom supabase.execute_sql action required the separate supabase-mgmt authorization even when no active Management connection existed, preventing the documented service-role/PostgREST fallback. The bounded correction adds a tenant/user/agent-scoped active-connection existence check without decrypting credentials; Management authorization and credential retrieval occur only when that optional connection exists. Implementation commits 6719be8bec7cf9f6deeae30fb1c3ff01b108a9ea and aa99287f844c7b99c381666df98071878050e5f5; regression 457b07d7db82736a1b7724e4da1476ff9477fbe7. I-063 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
