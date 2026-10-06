@@ -1384,3 +1384,22 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No production authorization behavior, schema/migration, OAuth transport, provider rollout, MCP, billing, or deployment change. |
 | Verification status | Test source reviewed; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-06. |
+
+## I-070 — Activepieces FLOW store key omitted agent scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-070 |
+| Title | FLOW-scoped integration store state could collide across agents for the same organisation/user |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-06 |
+| Finding | PostgresStore FLOW keys used organisation + user but omitted agentId. Because scope_key is the conflict identity, two agents sharing a user could overwrite/read each other's FLOW-scoped integration state. |
+| Evidence | [architect-verified] Direct source review of src/modules/integrations/runtime/store.ts and its focused test showed FLOW keys were flow:org:user while the project scope already carried agent identity. |
+| Correction | FLOW keys now include organisation, explicit agent scope (or org fallback when no agent exists), and user identity. Existing organisation predicates on read/delete remain unchanged. |
+| Implementation | f0f476e74b1fbd66ed3e716346bdc23e9e6b775b |
+| Regression | efc652c8096488e3cf8d2ac2422d108c345924ca |
+| Explicit non-scope | No schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification status | Source and focused regression reviewed; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-06. |
