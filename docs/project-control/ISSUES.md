@@ -1493,3 +1493,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-07. |
 
+
+
+## I-075 — I-2 runner could execute unreviewed Activepieces package actions
+
+| Field | Value |
+|---|---|
+| Issue ID | I-075 |
+| Title | Integration runner must enforce the Clara registry action allowlist |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | runAction resolved and executed actions from the installed Activepieces piece package broadly, while Clara's registry def.actions is the reviewed capability allowlist. An upstream package update could therefore add an executable action without Clara review or AI capability authorization. |
+| Evidence | [architect-verified] Direct inspection of src/modules/integrations/runtime/runner-core.ts showed piece.getAction / piece action lookup could run names not present in def.actions. |
+| Correction | The runner now checks the canonical action name against def.actions before loading/executing the external piece. Clara-owned custom actions remain separately allowed. Action alias resolution is also derived from the reviewed registry allowlist rather than every package action. |
+| Correction commit | c1705ac81c4e77239feca6d518d3ef2afcd0403c |
+| Regression | 3d41bdc09e125b3143bfb58ddf162b00bd335c8b |
+| Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
+| Verification status | Source correction and focused regression reviewed by ChatGPT; executable Gate-C evidence remains pending. |
+| Architect review | RESOLVED by source review on 2026-10-07. |
