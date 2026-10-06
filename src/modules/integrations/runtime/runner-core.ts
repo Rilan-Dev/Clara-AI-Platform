@@ -76,9 +76,13 @@ function collectSecretValues(value: unknown): string[] {
 }
 
 function knownActionNames(integrationId: string): string[] {
+  // The Clara registry is the authoritative action allowlist. Never derive
+  // executable capability from every action currently shipped by an external
+  // Activepieces package because package upgrades can add actions that Clara
+  // has not reviewed or exposed.
   const custom = Object.keys(customActions[integrationId] ?? {});
-  const piece = getIntegration(integrationId)?.actions ?? [];
-  return Array.from(new Set([...custom, ...piece]));
+  const allowed = getIntegration(integrationId)?.actions ?? [];
+  return Array.from(new Set([...custom, ...allowed]));
 }
 
 /**
@@ -120,6 +124,23 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
   // Rewrite hallucinated actionNames onto the canonical registry ids before
   // any lookup runs. Keeps runtime forgiving while the model's naming drifts.
   params.actionName = resolveActionAlias(params.integrationId, params.actionName);
+
+  // Enforce the Clara registry action allowlist before loading or executing
+  // any external piece action. Custom Clara-owned actions are independently
+  // registered and remain valid even when absent from def.actions.
+  const customAction = customActions[params.integrationId]?.[params.actionName];
+  if (!customAction && !def.actions.includes(params.actionName)) {
+    const available = Array.from(new Set([
+      ...def.actions,
+      ...Object.keys(customActions[params.integrationId] ?? {}),
+    ]));
+    xr.end("error", `Action '${params.actionName}' is not allowed for ${params.integrationId}`);
+    return {
+      success: false,
+      output: null,
+      error: `Action '${params.actionName}' is not allowed for ${params.integrationId}. Available: ${available.length > 0 ? available.join(", ") : "unknown"}`,
+    };
+  }
 
   // Keep resolved credential values available to the final error boundary so provider
   // error text cannot bypass value-based redaction when it uses a non-sensitive
