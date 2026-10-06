@@ -600,3 +600,11 @@ I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Source review found that t
 Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. After source review is exhausted, obtain executable Gate-C evidence, bounded connector/OAuth smoke, browser access/denial verification, immutable/runtime/secret/governance scans, and final Gate-D review.
 
 STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+## 2026-10-06 — I-069 focused-test alignment
+
+[architect-verified] I-2 source review found a stale plan-guard mock in the agent integration route test after the production route had moved to resolveOrgPlanLimits. The test now configures the authoritative resolver and verifies downgrade-disable does not call it. Correction: 953bf1b698b52010bab1e00e4fcfac8b6603272f.
+
+Next bounded work: continue concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and remaining bounded smoke/browser/security scans.
+
+STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
