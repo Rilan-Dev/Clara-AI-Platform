@@ -2,6 +2,17 @@
 
 > Canonical continuation instruction. Snapshot: **2026-10-06 — Integrations I-2 implemented; verification pending.** GitHub repository state is authoritative. Current feature tip: **read from GitHub at recovery time; do not duplicate a mutable SHA here**.
 
+## 2026-10-06 — I-055 cross-integration credential authorization correction
+
+[architect-verified] Source review found that Activepieces cross-integration credential lookup could bypass the I-054 execution authorization boundary. `DoableConnectionsManager.get()` now re-checks platform enablement, current plan entitlement, organisation grant, explicit agent scope, and tenant ownership before reading another integration's credentials.
+
+- Implementation: `3a17c31cb16bfa54cb79a48a13a757ae16486971`
+- Regression: `4f86976b505487906d18e526b6433be360e97a8b`
+- I-055: RESOLVED by architect source review.
+- Next bounded work: continue I-2 source-level credential/connection authorization, egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## CURRENT AUTHORITATIVE ACTION
 
 ## 2026-10-06 — I-050 AI availability tenant-binding correction
