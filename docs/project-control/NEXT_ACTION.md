@@ -24,6 +24,17 @@
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
 
+## 2026-10-06 — I-061 custom Supabase Management credential authorization correction
+
+[architect-verified] Source review found that the custom `supabase.execute_sql` action directly read the `supabase-mgmt` credential after the outer `supabase` execution authorization, bypassing the separate `supabase-mgmt` platform/plan/organisation/agent authorization boundary. The bounded correction now re-authorizes `supabase-mgmt` before reading its credential and adds a denial-before-read regression.
+
+- Implementation: `5f6d044a2ec1d8ddacaf9bde553f17576c14732e`
+- Regression: `3ebbbf7113e851a427d310aee2d3a057a6b8ba83`
+- I-061: RESOLVED by architect source review.
+- Next bounded work: continue I-2 source-level credential/connection authorization, egress/secret review, then executable Gate-C evidence, bounded connector/OAuth smoke, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## CURRENT AUTHORITATIVE ACTION
 
 ## 2026-10-06 — I-050 AI availability tenant-binding correction
