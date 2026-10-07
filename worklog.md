@@ -1,3 +1,18 @@
+## 2026-10-08 — I-3 strict schema + egress boundary continuation
+
+[architect/ChatGPT] Continued the owner-authorized I-3 Action Runner implementation without waiting for GitHub Actions, Vercel, Gate-C, or Gate-D.
+
+- Re-read the authoritative project-control state and confirmed I-3 remains the active bounded implementation phase; I-2 external verification remains deliberately deferred.
+- Tightened the generic runner egress boundary so DNS-resolved private destinations use the host-owned `EGRESS_BLOCKED` classification instead of a generic execution error.
+- Moved egress validation inside the traced request boundary so blocked outbound attempts produce a redacted failure trace without invoking the network implementation.
+- Changed generic redirect rejection to the explicit `REDIRECT_BLOCKED` classification.
+- Extended strict action-input validation to recursively validate array item schemas, including nested object required/type/unknown-property checks.
+- Added focused regressions for typed DNS egress failure, redacted blocked-request tracing, typed redirect rejection, and strict array-item validation.
+- Commits: `57f5fd9e22904eee39759a8c06891e73fc8fd513`, `99a574e60efd217463628eaa26369c6d515cdfb7`, `9e921b24a53d00fb14287db9a7e274fdf376da8b`, `ef1044273b5fcc143585ddb5fb682dceb08be1b8`, `70ba919fede3c0652a9ced5d6feee88e5119fcbb`, `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
+- No I-4/I-5, MCP, production promotion, or unrelated implementation was introduced.
+
+Current status: **I-3 IN PROGRESS**. Next bounded implementation remains deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage.
+
 ## 2026-10-08 — I-3 typed authorization boundary continuation
 
 [architect/ChatGPT] Continued the bounded I-3 Action Runner review without waiting for CI, Vercel, or gates.
