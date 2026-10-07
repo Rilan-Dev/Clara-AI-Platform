@@ -12,6 +12,7 @@ import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
 import { ToolExecutionError } from "./tool-contracts";
 import { buildClaraToolRuntime } from "./clara-tools";
+import { ToolRegistrationError } from "./tool-registry";
 import type { ToolRuntime } from "./tool-registry";
 
 export const MCP_TOOL_FLAG = "ENABLE_MCP";
@@ -235,7 +236,16 @@ export async function buildMcpToolRuntime(
     }
 
     registeredMcpIdentities.set(definition.name, identity);
-    runtime.registerTool(definition);
+    try {
+      runtime.registerTool(definition);
+    } catch (error) {
+      // A host resolver is not trusted to supply a structurally valid tool
+      // definition. Registration failures make that capability unavailable;
+      // they must not turn into a partially trusted executable capability or
+      // prevent unrelated allowlisted MCP tools from being registered.
+      if (error instanceof ToolRegistrationError) continue;
+      throw error;
+    }
   }
 
   return runtime;
