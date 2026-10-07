@@ -2,11 +2,16 @@
 
 [architect-verified] By explicit owner authorization, implementation advances to **Integrations Framework I-3 — Action Runner**. I-2 remains implementation-complete with external verification deferred; no I-2 PASS is inferred. I-3 is now the active bounded implementation track.
 
-I-3 deliverables: bounded integration execution, strict/pre-execution action validation, host-owned egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage. Current source corrections also normalize early unknown-integration/action-denial/input/action-lookup failures into the same error contract, classify 408/429/rate-limit failures as retryable, and restore the strict input-validation regression suite structure.
+I-3 deliverables: bounded integration execution, strict/pre-execution action validation, host-owned egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage. Current source corrections keep DNS/private egress failures and redirect rejection on explicit host-owned error classifications and extend strict validation through array item schemas.
+
+Latest continuation commits: `57f5fd9`, `99a574e`, `9e921b2`, `ef10442`, `70ba919`, `5b83952`.
+
+**Next implementation:** continue bounded I-3 acceptance review for remaining deterministic result propagation, strict schema edge cases, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
 
 **STOP:** no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
 
 ---
+
 ## 2026-10-06 — I-067 IPv4-mapped IPv6 egress correction
 
 [architect-verified] Bounded I-2 source review identified an SSRF bypass in the host egress policy: IPv4-mapped IPv6 literals encoded with the final IPv4 address as hexadecimal (for example `::ffff:7f00:1`) were treated as IPv6 and could bypass the private IPv4 ranges. The egress guard now decodes both dotted-decimal and hexadecimal IPv4-mapped forms before applying the IPv4 deny ranges.
