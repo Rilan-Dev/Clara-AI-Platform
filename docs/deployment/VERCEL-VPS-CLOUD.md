@@ -1,5 +1,7 @@
 # Clara AI — Vercel + VPS + Cloud deployment
 
+> **Current owner deployment policy (2026-10-07):** Git-triggered Vercel deployments are disabled. Deploy Clara to Vercel manually from the linked local checkout/CLI. GitHub Actions is also manual-only (`workflow_dispatch`). Self-hosted Docker deployments must use `bash scripts/vps-deploy.sh`, which serializes image builds and the Compose file applies explicit runtime resource ceilings.
+
 Deployment contract:
 - Vite-Converted = development / Vercel Preview.
 - Vercel-Prod = production / Vercel Production.
@@ -13,7 +15,7 @@ Deployment contract:
 - Qdrant Cloud = vector database.
 - CloudAMQP = RabbitMQ.
 
-Vercel must run the normal Next.js build. Do not run scripts/start.mjs on Vercel; the repository custom server owns long-lived voice/phone WebSockets on the VPS.
+Vercel must run the normal Next.js build. Git pushes are not a deployment mechanism for Clara while manual-only mode is active. Do not run scripts/start.mjs on Vercel; the repository custom server owns long-lived voice/phone WebSockets on the VPS.
 
 Required Vercel variables:
 
