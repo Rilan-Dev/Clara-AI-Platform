@@ -1,3 +1,12 @@
+## 2026-10-08 — I-3 redirect trace deduplication
+
+[architect-verified] Continued the authorized I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
+
+- Found that redirect rejection emitted a trace before throwing and the outer failure catch emitted a second trace for the same request.
+- Added a per-request trace-recorded guard so explicit redirect outcomes are emitted once; ordinary failures still receive the catch-generated trace.
+- Implementation: `f4c827749065f679d1f79bcdace581f1c5e15903`; regression: `8cd183ed2601ac4af43fdba84661fb05f87b5924`.
+- I-3 remains IN PROGRESS; no Gate-C/Gate-D PASS is inferred.
+
 ## 2026-10-08 — I-3 failed-result trace regression
 
 [architect-verified] Added focused runner-core regression coverage for the failure-result trace propagation correction.
