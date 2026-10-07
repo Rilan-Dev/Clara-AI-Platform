@@ -514,7 +514,7 @@ export async function ensureTokenFresh(
     ? refreshed.refresh_token
     : creds.refresh_token;
 
-  await credentialVault.updateCredentials(connectionId, orgId, {
+  const persisted = await credentialVault.updateCredentials(connectionId, orgId, {
     ...creds,
     access_token: accessToken,
     refresh_token: refreshToken,
@@ -525,6 +525,13 @@ export async function ensureTokenFresh(
       ...refreshed,
     },
   }, userId, agentId);
+
+  // The connection may have been disabled or moved to another tenant scope
+  // while the provider refresh was in flight. Never continue with a refreshed
+  // token unless the scoped write actually affected the same active connection.
+  if (!persisted) {
+    throw new Error("OAuth connection changed while refreshing; action aborted");
+  }
 }
 
 // ─── Usage Logging ───────────────────────────────────────
