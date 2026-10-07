@@ -7,7 +7,8 @@
 - I-4 Tool Runtime bridge, I-5 provider rollout, MCP, production promotion, and unrelated work remain out of scope.
 - Latest I-3 continuation commits: `57f5fd9e22904eee39759a8c06891e73fc8fd513`
 - Latest I-3 continuation commits now include `d3c18c3669555f062dd0fae3613cdb9d39ef79ba` and `62ef2fea18c93225dbc2815cbde67f1da72af621`, which make action-lookup and strict-input failures explicit typed runner results and add regressions for deterministic propagation., `99a574e60efd217463628eaa26369c6d515cdfb7`, `9e921b24a53d00fb14287db9a7e274fdf376da8b`, `ef1044273b5fcc143585ddb5fb682dceb08be1b8`, `70ba919fede3c0652a9ced5d6feee88e5119fcbb`, `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
-- These corrections keep egress/DNS/redirect failures on the host-owned typed error contract, record redacted trace entries for blocked outbound attempts, and validate array item schemas recursively in strict action-input mode.
+- These corrections keep egress/DNS/redirect failures
+- Latest I-3 continuation also includes `d0799b370801d1b1319910876f7053e41d92f66d` and `c764fa4bea306fee7f5447ca8e025ec4c2a330d2`, which scrub known secret values from arbitrary fetch errors before trace emission and add a focused regression. on the host-owned typed error contract, record redacted trace entries for blocked outbound attempts, and validate array item schemas recursively in strict action-input mode.
 - External CI/Vercel execution is not awaited.
 
 **Current next implementation:** continue bounded I-3 acceptance review, focusing on remaining deterministic result propagation, strict schema edge cases, redirect/egress boundary coverage, redacted trace invariants, and tenant-isolation regression coverage.
