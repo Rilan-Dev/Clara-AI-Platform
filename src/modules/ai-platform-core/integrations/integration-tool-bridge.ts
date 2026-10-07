@@ -185,7 +185,7 @@ async function buildDefinitions(
 
   const actions = await getIntegrationActions(integrationId);
   return actions.map((action) =>
-    buildIntegrationToolDefinition(actionDefinition(integrationId, action)),
+    buildIntegrationToolDefinition(buildIntegrationActionDefinition(integrationId, action)),
   );
 }
 
@@ -212,7 +212,7 @@ export function buildIntegrationToolBridgeAdapter(): IntegrationToolBridgeAdapte
       }
 
       const definition = buildIntegrationToolDefinition(
-        actionDefinition(request.integrationId, action),
+        buildIntegrationActionDefinition(request.integrationId, action),
       );
       // Dynamic integration tools are tenant-contextual capabilities. Use an
       // isolated instance of the existing Unified Tool Runtime so one tenant's
