@@ -170,6 +170,26 @@ describe("integration runtime trace redaction", () => {
     await expect(tracedFetch("https://example.com/start")).rejects.toThrow("redirects are not allowed");
   });
 
+  it("scrubs known secret values from arbitrary fetch errors in traces", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("provider failed with secret-value-123");
+    });
+    const traces: Array<Record<string, unknown>> = [];
+    const tracedFetch = createTracedFetch(
+      traces as never,
+      "project",
+      null,
+      fetchImpl,
+      ["secret-value-123"],
+    );
+
+    await expect(tracedFetch("https://example.com/fail")).rejects.toThrow("secret-value-123");
+    expect(traces[0]).toMatchObject({
+      error: "provider failed with [REDACTED]",
+    });
+    expect(JSON.stringify(traces)).not.toContain("secret-value-123");
+  });
+
   it("allows a public IP destination", async () => {
     await expect(assertSafeEgressUrl("https://1.1.1.1/health")).resolves.toBeUndefined();
   });
