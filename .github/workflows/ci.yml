@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - run: npm run lint
 
   typecheck:
@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - run: npx tsc --noEmit
 
   test:
@@ -44,7 +44,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - run: npm run test -- --run
 
   model-config:
@@ -56,7 +56,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - run: npm run validate:model-config
 
 
@@ -69,7 +69,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Lint active Phase 7 files
         run: npx eslint src/modules/ai-platform-core/*.ts src/modules/ai-core/types.ts src/modules/ai-core/providers/openai.ts src/modules/ai-core/providers/openai-tool-calling.test.ts
       - name: Typecheck active Phase 7 files
@@ -85,7 +85,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Role capability contract tests
         run: npx vitest run src/lib/org-role-capabilities.test.ts
       - name: Typecheck role-aware UI surface
@@ -118,7 +118,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Phase closure eligibility
         run: bash docs/project-control/verification/phase-closure-eligibility-test.sh
       - name: Correction cycle
@@ -189,13 +189,53 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Run I-1 contract tests
         run: npx vitest run src/modules/ai-platform-core/integrations/integration-contracts.test.ts
       - name: Typecheck I-1 contract surface
         run: npx tsc --noEmit --strict --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --esModuleInterop --jsx preserve --types vitest/globals src/modules/ai-platform-core/integrations/integration-contracts.ts src/modules/ai-platform-core/integrations/integration-contracts.test.ts src/modules/ai-platform-core/contracts.ts src/modules/ai-platform-core/tool-contracts.ts src/modules/ai-platform-core/index.ts
       - name: Lint I-1 contract surface
         run: npx eslint src/modules/ai-platform-core/integrations/integration-contracts.ts src/modules/ai-platform-core/integrations/integration-contracts.test.ts src/modules/ai-platform-core/index.ts
+
+
+  integrations-i2-focused:
+    name: Integrations I-2 Focused Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Runtime redaction and egress tests
+        run: npx vitest run src/modules/integrations/runtime/runner-fetch.test.ts src/modules/integrations/runtime/runner-helpers.test.ts
+      - name: Credential vault and runner tests
+        run: npx vitest run src/modules/integrations/runtime/credential-vault.test.ts src/modules/integrations/runtime/runner-core.test.ts
+      - name: AI integration authorization/readiness tests
+        run: npx vitest run src/modules/ai-platform-core/integration-action-tool.test.ts src/modules/ai-platform-core/integration-ai-tools.test.ts
+      - name: Integration registry and control-plane tests
+        run: npx vitest run src/modules/integrations/registry.test.ts
+      - name: I-2 focused typecheck
+        run: >
+          npx tsc --noEmit --strict --skipLibCheck --module esnext
+          --moduleResolution bundler --target es2022 --esModuleInterop
+          --jsx preserve --types vitest/globals
+          src/modules/integrations/runtime/credential-vault.ts
+          src/modules/integrations/runtime/runner-core.ts
+          src/modules/integrations/runtime/runner-fetch.ts
+          src/modules/integrations/runtime/runner-helpers.ts
+          src/modules/ai-platform-core/integration-action-tool.ts
+          src/modules/ai-platform-core/integration-ai-tools.ts
+      - name: I-2 focused lint
+        run: >
+          npx eslint
+          src/modules/integrations/runtime/credential-vault.ts
+          src/modules/integrations/runtime/runner-core.ts
+          src/modules/integrations/runtime/runner-fetch.ts
+          src/modules/integrations/runtime/runner-helpers.ts
+          src/modules/ai-platform-core/integration-action-tool.ts
+          src/modules/ai-platform-core/integration-ai-tools.ts
 
 
   docker-production-build:
@@ -216,7 +256,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --legacy-peer-deps
+      - run: npm ci --legacy-peer-deps
       - name: Registry tests
         run: npx vitest run src/modules/integrations/registry.test.ts
       - name: Typecheck integration control plane
