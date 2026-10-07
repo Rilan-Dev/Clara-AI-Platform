@@ -92,6 +92,32 @@ describe("integration runner action allowlist", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("not allowed for example");
     expect(result.error).toContain("approved_action");
+    expect(result.errorCode).toBe("ACTION_NOT_ALLOWED");
+    expect(result.retryable).toBe(false);
+    expect(loadPiece).not.toHaveBeenCalled();
+    expect(credentialGet).not.toHaveBeenCalled();
+  });
+
+  it("normalizes an unknown integration into the stable runner result contract", async () => {
+    getIntegration.mockReturnValue(undefined);
+
+    const { runAction } = await import("./runner-core.js");
+    const result = await runAction({
+      integrationId: "missing",
+      actionName: "send",
+      props: {},
+      userId: "user-1",
+      workspaceId: "org-1",
+      agentId: "agent-1",
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      output: null,
+      errorCode: "UNKNOWN_INTEGRATION",
+      retryable: false,
+    });
+    expect(result.error).toContain("Unknown integration");
     expect(loadPiece).not.toHaveBeenCalled();
     expect(credentialGet).not.toHaveBeenCalled();
   });
