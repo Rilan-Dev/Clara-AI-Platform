@@ -2,6 +2,15 @@
 
 ## 2026-10-08 — I-6 execution-context binding correction
 
+## 2026-10-08 — I-6 malformed-capability registration hardening
+
+[architect-verified] Source review found that a host resolver can return a structurally invalid descriptor despite the TypeScript contract. The MCP runtime builder now treats Unified Tool Runtime registration failure as capability unavailability, skipping only that malformed capability instead of creating a partially trusted path or aborting registration of unrelated allowlisted tools. A focused regression covers the malformed-schema case.
+
+- Corrections: 9eb58ab63dc37f53642ed22dc155d93e4d0ac526, ddaa02bcf7f8aa1ea077f6cc55abcb3261604ced.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
+- **Next bounded implementation review:** exact MCP server/tool authorization pairing and remaining resolver/registration edge cases.
+
+
 [architect-verified] Source review found that a resolved MCP ToolDefinition could be invoked later with a different provenance-valid PlatformExecutionContext than the context used during resolver discovery. I-6 now binds the resolved capability to the exact resolution context identity and rejects substitution with TENANT_SCOPE_VIOLATION. Focused regressions also cover the default-off runtime builder and registration through the Unified Tool Runtime.
 
 - Corrections: 635b5126d5b89f21076ed387a9f64f5d3248d4a0, 55e7f36c189c9e2369824f671727937389f680d1, 02bff62a4ba9f189fec63e065b4638a4f817dfb1.
