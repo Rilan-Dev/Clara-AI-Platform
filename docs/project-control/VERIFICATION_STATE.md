@@ -1,3 +1,12 @@
+## 2026-10-08 — I-3 failure-result trace propagation verification record
+
+[architect-verified] Source review confirms the failure boundary now returns the same redacted per-run `httpTraces` collection that was previously retained only internally. This closes the identified result-propagation gap without changing authorization, credential scope, egress policy, or persistence.
+
+- Correction commit: `77b806f65d002b53bb6a7d04294ec0164dc392d5`
+- Verification class: source-level architect review only.
+- Gate-C/Gate-D remain open; no phase closure is inferred.
+
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-3 ACTIVE / I-2 VERIFICATION DEFERRED
 
 [architect-verified] Owner instruction explicitly authorizes I-3 implementation without waiting for I-2 external Gate-C/Gate-D evidence. I-2 remains **VERIFICATION DEFERRED**, not PASS or CLOSED. I-3 is an implementation track and has not yet received Gate-C/D closure.
