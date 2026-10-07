@@ -1,5 +1,15 @@
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
+[architect-verified] I-6 exact authorization now uses a server/tool pair allowlist. The coarse server boundary remains required, while the authoritative pair entry must match both identities exactly. This prevents cross-product authorization when multiple MCP servers/tools are configured.
+
+- Implementation: `37ae1f648df78cd651bd7eecec0bcce1fd3847c0`
+- Regression: `a0ac98adacadbd77d78e98cb88bd49fac49e7167`
+- Status: IN PROGRESS — bounded source hardening; external verification deferred.
+
+---
+
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
+
 [architect-verified] Owner instruction advances implementation to **Integrations Framework I-6 — MCP Tool Bridge**. I-3 is already implemented and I-4/I-5 are source-complete; this phase does not reopen them. External CI/Vercel/Gate-C/Gate-D evidence remains deferred.
 
 ### I-6 implementation contract
