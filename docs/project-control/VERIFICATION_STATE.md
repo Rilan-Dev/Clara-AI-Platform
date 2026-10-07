@@ -1,30 +1,19 @@
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 SOURCE IMPLEMENTATION ACTIVE / EXTERNAL VERIFICATION DEFERRED
 
-[architect-verified] Source-level review records the start of I-6 MCP Tool Bridge implementation. No external CI, Vercel, Gate-C, or Gate-D execution was awaited.
+[architect-verified] Source-level review records the current I-6 MCP Tool Bridge implementation continuation. No external CI, Vercel, Gate-C, or Gate-D execution was awaited.
 
-- The bridge accepts already-resolved MCP descriptors through a host adapter.
-- Exact server/tool allowlisting is enforced before registration.
-- `ENABLE_MCP` is default-off.
-- The bridge creates ordinary Clara `ToolDefinition` objects and uses the existing Unified Tool Runtime.
-- No persistence, migration, transport, OAuth, or credential store was introduced.
-- Source implementation commits: `9e855c7`, `012aca0`, `95b75a8`.
+- Resolver output is bound to the exact allowlisted server/tool request; identity drift fails closed.
+- Resolver discovery exceptions now fail closed rather than escaping as transport/provider errors.
+- `ENABLE_MCP` remains default-off.
+- MCP descriptors become ordinary Clara `ToolDefinition` objects and execute through the existing Unified Tool Runtime lifecycle.
+- Runtime-level regressions now cover caller-context preservation and Zod schema rejection before resolver invocation.
+- The bridge is exported through the public `src/modules/ai-platform-core/index.ts` seam.
+- No persistence, migration, transport, OAuth, billing, or credential-store change was introduced.
+- Latest I-6 implementation commits: `b59f1c9`, `827eae5`, `d571813`, `0b1856b`.
 
 **Disposition:** I-6 remains IN PROGRESS. Source implementation evidence only; external verification deferred.
 
 ---
-## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-4/I-5 SOURCE IMPLEMENTATION COMPLETE / EXTERNAL VERIFICATION DEFERRED
-
-[architect-verified] Source review completed the authorized I-4/I-5 implementation scope.
-
-- I-4 converts connected integration actions into context-local Clara `ToolDefinition` capabilities and invokes them through the existing Unified Tool Runtime implementation.
-- I-5 provides an exact, default-off Firecrawl `search` pilot.
-- Tenant-specific runtime registration is isolated from the global singleton.
-- Focused source regressions cover the bridge and pilot boundaries.
-- No persistence/migration change was introduced by I-4/I-5.
-- No external CI/Vercel/Gate-C/Gate-D evidence was awaited or used as acceptance evidence.
-
-**Disposition:** implementation complete at source level; external verification deferred. No phase closure is inferred.
-
 ---
 
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-4/I-5 IMPLEMENTATION ACTIVE
