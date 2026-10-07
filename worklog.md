@@ -1,3 +1,13 @@
+## 2026-10-08 — I-3 failure-result trace propagation correction
+
+[architect-verified] Continued the explicitly authorized I-3 Action Runner implementation without waiting for GitHub Actions, Vercel, or gates.
+
+- Source review found that `runAction()` accumulated redacted HTTP traces during execution but returned no `httpTraces` on failure, so callers lost deterministic trace evidence precisely when an action failed.
+- Corrected `src/modules/integrations/runtime/runner-core.ts` to maintain one per-run trace collection across custom/piece execution and include it in failed `RunActionResult` responses.
+- Correction commit: `77b806f65d002b53bb6a7d04294ec0164dc392d5`.
+- No schema, OAuth transport, MCP, I-4/I-5, production, immutable-reference, or unrelated scope was introduced.
+- I-3 remains IN PROGRESS; no Gate-C/Gate-D PASS or phase closure is inferred.
+
 ## 2026-10-08 — I-3 trace secret-value hardening
 
 [architect/ChatGPT] Continued the bounded I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
