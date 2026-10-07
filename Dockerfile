@@ -72,6 +72,7 @@ RUN mkdir -p .next/standalone/node_modules/@elevenlabs .next/standalone/node_mod
     cp -r node_modules/@ioredis/commands .next/standalone/node_modules/@ioredis/commands && \
     cp -r node_modules/cluster-key-slot .next/standalone/node_modules/cluster-key-slot && \
     cp -r node_modules/debug .next/standalone/node_modules/debug && \
+    cp -r node_modules/ms .next/standalone/node_modules/ms && \
     cp -r node_modules/denque .next/standalone/node_modules/denque && \
     cp -r node_modules/lodash.defaults .next/standalone/node_modules/lodash.defaults && \
     cp -r node_modules/lodash.isarguments .next/standalone/node_modules/lodash.isarguments && \
