@@ -524,7 +524,7 @@ export async function ensureTokenFresh(
       ...creds.data,
       ...refreshed,
     },
-  });
+  }, userId, agentId);
 }
 
 // ─── Usage Logging ───────────────────────────────────────
