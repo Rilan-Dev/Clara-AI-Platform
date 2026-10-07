@@ -24,4 +24,15 @@ describe("normalizeIntegrationError", () => {
     expect(result.code).toBe("EXECUTION_FAILED");
     expect(result.retryable).toBe(false);
   });
+  it("classifies unknown integrations and action lookup failures", () => {
+    expect(normalizeIntegrationError(new Error("Unknown integration: gmail")).code).toBe("UNKNOWN_INTEGRATION");
+    expect(normalizeIntegrationError(new Error("Action 'send' not found in gmail")).code).toBe("ACTION_NOT_ALLOWED");
+  });
+
+  it("marks rate limits and request timeouts retryable", () => {
+    expect(normalizeIntegrationError(new Error("Provider returned 429")).retryable).toBe(true);
+    expect(normalizeIntegrationError(new Error("Provider returned 408")).retryable).toBe(true);
+    expect(normalizeIntegrationError(new Error("Provider returned 400")).retryable).toBe(false);
+  });
+
 });
