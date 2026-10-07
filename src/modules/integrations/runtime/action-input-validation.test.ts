@@ -49,4 +49,31 @@ describe("integration action input validation", () => {
       "options.unexpected is not allowed",
     ]);
   });
+
+  it("validates array item schemas and nested strict properties", () => {
+    const arraySchema = {
+      recipients: {
+        required: true,
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            email: { required: true, type: "STRING" },
+            priority: { type: "NUMBER" },
+          },
+        },
+      },
+    };
+
+    expect(validateActionProps(arraySchema, {
+      recipients: [
+        { email: "ok@example.com", priority: 1 },
+        { priority: "high", unexpected: true },
+      ],
+    }, true)).toEqual([
+      "recipients[1].unexpected is not allowed",
+      "recipients[1].email is required",
+      "recipients[1].priority must be of type NUMBER",
+    ]);
+  });
 });
