@@ -25,10 +25,16 @@ function isMissing(value: unknown): boolean {
 export function validateActionProps(
   definitions: Record<string, unknown> | undefined,
   props: Record<string, unknown>,
+  strict = false,
 ): string[] {
   if (!definitions || typeof definitions !== "object") return [];
 
   const errors: string[] = [];
+  if (strict) {
+    for (const name of Object.keys(props)) {
+      if (!(name in definitions)) errors.push(`${name} is not allowed`);
+    }
+  }
   for (const [name, rawDefinition] of Object.entries(definitions)) {
     if (!rawDefinition || typeof rawDefinition !== "object") continue;
     const definition = rawDefinition as ActionPropDefinition;
@@ -57,6 +63,7 @@ export function validateActionProps(
         ...validateActionProps(
           definition.properties,
           value as Record<string, unknown>,
+          strict,
         ).map((error) => `${name}.${error}`),
       );
     }
