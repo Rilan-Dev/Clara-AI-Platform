@@ -197,6 +197,42 @@ describe("MCP tool bridge", () => {
     expect(receivedName).toBe("lookup");
   });
 
+  it("binds resolved capabilities to the resolution context", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      policy,
+      resolver,
+    );
+    expect(tool).not.toBeNull();
+
+    const otherContext = createExecutionContext({
+      orgId: "org-2",
+      kbId: "kb-2",
+      agentId: "agent-2",
+      userId: "user-2",
+      sessionId: "session-2",
+      surface: "chat",
+    });
+
+    const runtime = createRuntime();
+    runtime.registerTool(tool!);
+    const result = await runtime.invoke(tool!.name, { id: "abc" }, otherContext);
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "TENANT_SCOPE_VIOLATION" },
+    });
+  });
+
   it("rejects a resolver descriptor that changes the allowlisted server", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
