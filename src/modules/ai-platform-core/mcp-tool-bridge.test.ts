@@ -43,8 +43,21 @@ function createRuntime() {
 
 describe("MCP tool bridge", () => {
   it("creates deterministic bounded tool names", () => {
-    expect(mcpToolName("demo", "lookup")).toBe("mcp_demo_lookup");
+    expect(mcpToolName("demo", "lookup")).toHaveLength(64);
     expect(mcpToolName("demo", "a".repeat(200))).toHaveLength(64);
+    expect(mcpToolName("a-b", "lookup")).not.toBe(
+      mcpToolName("a_b", "lookup"),
+    );
+  });
+
+  it("fails closed for an explicitly empty surface allowlist", () => {
+    expect(() =>
+      buildMcpToolDefinition(
+        { ...descriptor, allowedSurfaces: [] },
+        policy,
+        {} as McpToolResolver,
+      ),
+    ).toThrow("no allowed Clara surface");
   });
 
   it("fails closed for tools outside the allowlist", () => {
