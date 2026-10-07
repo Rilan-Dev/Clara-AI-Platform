@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { assertExecutionContext } from "./execution-context";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
-import type { ToolDefinition, ToolAuthorizationDecision } from "./tool-contracts";
+import type { ToolDefinition } from "./tool-contracts";
 import { ToolExecutionError } from "./tool-contracts";
 import { buildClaraToolRuntime } from "./clara-tools";
 import type { ToolRuntime } from "./tool-registry";
@@ -208,20 +208,13 @@ export async function buildMcpToolRuntime(
 }
 
 /**
- * Small adapter helper for hosts that need to inspect a policy decision
- * before constructing a tool. The bridge itself never replaces Clara's
- * Unified Tool Runtime authorization adapter.
+ * Static allowlist inspection only. Full authorization remains the
+ * responsibility of the Unified Tool Runtime, which also enforces surface,
+ * identity, RBAC, plan entitlement, and tenant checks.
  */
-export function authorizeMcpTool(
+export function isMcpToolAllowlisted(
   descriptor: McpToolDescriptor,
   policy: McpToolBridgePolicy,
-): ToolAuthorizationDecision {
-  if (!isAllowed(descriptor, policy)) {
-    return {
-      allowed: false,
-      code: "TENANT_SCOPE_VIOLATION",
-      message: `MCP tool is not allowlisted: ${descriptor.serverId}/${descriptor.name}`,
-    };
-  }
-  return { allowed: true };
+): boolean {
+  return isAllowed(descriptor, policy);
 }
