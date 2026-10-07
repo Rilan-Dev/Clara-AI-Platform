@@ -431,10 +431,17 @@ export function resolveAuth(authType: string, credentials: unknown): unknown {
 
 // ─── Token Refresh Check ─────────────────────────────────
 
-export async function ensureTokenFresh(connectionId: string, orgId: string, authType: string, expectedTokenUrl?: string): Promise<void> {
+export async function ensureTokenFresh(
+  connectionId: string,
+  orgId: string,
+  authType: string,
+  expectedTokenUrl?: string,
+  userId?: string,
+  agentId?: string,
+): Promise<void> {
   if (authType !== "oauth2") return;
 
-  const creds = await credentialVault.decrypt(connectionId, orgId) as OAuth2TokenData | null;
+  const creds = await credentialVault.decrypt(connectionId, orgId, userId, agentId) as OAuth2TokenData | null;
   if (!creds) return;
 
   const now = Math.floor(Date.now() / 1000);
@@ -448,7 +455,7 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
   // safely by the runner. Never execute a provider action with a known-expired
   // access token; mark the tenant-scoped connection unusable and fail closed.
   if (!creds.refresh_token) {
-    await credentialVault.updateStatus(connectionId, orgId, "expired");
+    await credentialVault.updateStatus(connectionId, orgId, "expired", userId, agentId);
     throw new Error("OAuth connection expired and cannot be refreshed");
   }
 
