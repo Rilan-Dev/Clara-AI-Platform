@@ -1,3 +1,15 @@
+## 2026-10-08 — I-3 trace secret-value hardening
+
+[architect/ChatGPT] Continued the bounded I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
+
+- Found the generic traced-fetch error path only applied pattern-based redaction, so arbitrary provider errors could retain a known resolved secret value.
+- Changed the failure-trace boundary to scrub the runner's known secret values before storing or logging the error.
+- Added a focused regression proving arbitrary thrown errors do not enter the trace with the known secret.
+- Commits: `d0799b370801d1b1319910876f7053e41d92f66d`, `c764fa4bea306fee7f5447ca8e025ec4c2a330d2`.
+- No I-4/I-5, MCP, production promotion, or unrelated implementation was introduced.
+
+Current status: **I-3 IN PROGRESS**. Next bounded implementation remains deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage.
+
 ## 2026-10-08 — I-3 deterministic runner result propagation
 
 [architect/ChatGPT] Continued the bounded I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
