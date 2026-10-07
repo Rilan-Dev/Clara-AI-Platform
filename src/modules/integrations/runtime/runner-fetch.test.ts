@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { assertSafeEgressUrl, createTracedFetch, redactBody, redactHeaders, redactText, redactUrl, redactValue } from "@/modules/integrations/runtime/runner-fetch";
+import { IntegrationRunnerError } from "@/modules/integrations/runtime/error-normalization";
 
 describe("integration runtime trace redaction", () => {
   it("redacts credential-bearing JSON fields recursively", () => {
@@ -94,6 +95,47 @@ describe("integration runtime trace redaction", () => {
     await expect(
       tracedFetch("http://127.0.0.1:8787/internal/broadcast"),
     ).rejects.toThrow("not allowed");
+  });
+
+  it("returns a typed egress classification and redacted trace when DNS resolves privately", async () => {
+    const dnsLookup = vi.fn(async () => [{ address: "127.0.0.1", family: 4 }]);
+    const traces: Array<Record<string, unknown>> = [];
+    const fetchImpl = vi.fn(async () => new Response("should-not-run"));
+    const tracedFetch = createTracedFetch(traces as never, "project", null, fetchImpl);
+
+    const dns = await import("node:dns");
+    const lookupSpy = vi.spyOn(dns.promises, "lookup").mockImplementation(dnsLookup as never);
+
+    try {
+      await expect(tracedFetch("https://attacker-controlled.example/run?token=secret-token")).rejects.toMatchObject({
+        code: "EGRESS_BLOCKED",
+        retryable: false,
+      });
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(traces).toHaveLength(1);
+      expect(traces[0]).toMatchObject({
+        statusCode: null,
+        error: "Integration egress destination is not allowed",
+      });
+      expect(traces[0].url).not.toContain("secret-token");
+    } finally {
+      lookupSpy.mockRestore();
+    }
+  });
+
+  it("uses the typed redirect classification for public redirects too", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, {
+      status: 302,
+      headers: { location: "https://example.com/final" },
+    }));
+    const traces: Array<Record<string, unknown>> = [];
+    const tracedFetch = createTracedFetch(traces as never, "project", null, fetchImpl);
+
+    await expect(tracedFetch("https://example.com/start")).rejects.toBeInstanceOf(IntegrationRunnerError);
+    await expect(tracedFetch("https://example.com/start")).rejects.toMatchObject({
+      code: "REDIRECT_BLOCKED",
+      retryable: false,
+    });
   });
 
   it("rejects non-HTTP protocols and URL userinfo", async () => {
