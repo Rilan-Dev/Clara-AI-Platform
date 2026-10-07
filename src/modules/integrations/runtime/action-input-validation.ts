@@ -2,6 +2,7 @@ export type ActionPropDefinition = {
   required?: boolean;
   type?: string;
   properties?: Record<string, ActionPropDefinition>;
+  items?: ActionPropDefinition;
 };
 
 const TYPE_CHECKS: Record<string, (value: unknown) => boolean> = {
@@ -66,6 +67,27 @@ export function validateActionProps(
           strict,
         ).map((error) => `${name}.${error}`),
       );
+    }
+
+    if (definition.items && Array.isArray(value)) {
+      for (const [index, item] of value.entries()) {
+        if (definition.items.type === "OBJECT" && definition.items.properties && item && typeof item === "object" && !Array.isArray(item)) {
+          errors.push(
+            ...validateActionProps(
+              definition.items.properties,
+              item as Record<string, unknown>,
+              strict,
+            ).map((error) => `${name}[${index}].${error}`),
+          );
+        } else {
+          const itemErrors = validateActionProps(
+            { value: definition.items },
+            { value: item },
+            strict,
+          );
+          errors.push(...itemErrors.map((error) => `${name}[${index}].${error.replace(/^value\\.?/, "")}`));
+        }
+      }
     }
   }
   return errors;
