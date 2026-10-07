@@ -54,11 +54,10 @@ export interface McpToolBridgePolicy {
 }
 
 function normalizeMcpToolName(serverId: string, toolName: string): string {
-  const base = `mcp_${serverId}_${toolName}`
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "_");
-  if (base.length <= 64) return base;
-  return `${base.slice(0, 55)}_${simpleHash(base)}`;
+  const identity = `mcp_${serverId}_${toolName}`;
+  const base = identity.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+  const suffix = simpleHash(identity);
+  return `${base.slice(0, 55)}_${suffix}`;
 }
 
 function simpleHash(value: string): string {
@@ -104,11 +103,12 @@ export function buildMcpToolDefinition(
     );
   }
 
-  const allowedSurfaces = descriptor.allowedSurfaces?.length
-    ? descriptor.allowedSurfaces.filter((surface) =>
-        ALLOWED_MCP_SURFACES.includes(surface),
-      )
-    : ALLOWED_MCP_SURFACES;
+  const allowedSurfaces =
+    descriptor.allowedSurfaces === undefined
+      ? ALLOWED_MCP_SURFACES
+      : descriptor.allowedSurfaces.filter((surface) =>
+          ALLOWED_MCP_SURFACES.includes(surface),
+        );
 
   if (allowedSurfaces.length === 0) {
     throw new ToolExecutionError(
