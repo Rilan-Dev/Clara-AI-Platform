@@ -1,11 +1,15 @@
+# AUTOMATIC EXECUTION IS DISABLED BY PROJECT OWNER.
+# Re-enable when desired by restoring the push/pull_request triggers below.
+# Manual runs remain available from GitHub Actions via workflow_dispatch.
 name: Cloud CI — Lint, Type Check & Tests
 
 on:
-  push:
-    branches: [Vercel-Prod]
-  pull_request:
-    branches: [Vercel-Prod]
-
+  workflow_dispatch:
+  # To re-enable automatic CI, restore:
+  # push:
+  #   branches: [Vercel-Prod]
+  # pull_request:
+  #   branches: [Vercel-Prod]
 jobs:
   lint:
     name: Lint
