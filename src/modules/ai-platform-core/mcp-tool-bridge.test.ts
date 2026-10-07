@@ -14,7 +14,7 @@ import { createToolRuntime } from "./tool-registry";
 
 const policy = {
   allowedServers: ["demo"],
-  allowedTools: ["lookup"],
+  allowedToolPairs: [{ serverId: "demo", toolName: "lookup" }],
 };
 
 const descriptor = {
@@ -60,6 +60,26 @@ describe("MCP tool bridge", () => {
         {} as McpToolResolver,
       ),
     ).toThrow("no allowed Clara surface");
+  });
+
+  it("requires the exact server/tool allowlist pairing", () => {
+    const crossProductPolicy = {
+      allowedServers: ["demo", "admin"],
+      allowedToolPairs: [{ serverId: "demo", toolName: "lookup" }],
+    };
+
+    expect(
+      isMcpToolAllowlisted(
+        { ...descriptor, serverId: "admin" },
+        crossProductPolicy,
+      ),
+    ).toBe(false);
+    expect(
+      isMcpToolAllowlisted(
+        { ...descriptor, name: "delete" },
+        crossProductPolicy,
+      ),
+    ).toBe(false);
   });
 
   it("fails closed for tools outside the allowlist", () => {
@@ -214,7 +234,7 @@ describe("MCP tool bridge", () => {
   it("snapshots allowlist and descriptor identity against post-registration mutation", async () => {
     const mutablePolicy = {
       allowedServers: ["demo"],
-      allowedTools: ["lookup"],
+      allowedToolPairs: [{ serverId: "demo", toolName: "lookup" }],
     };
     const mutableDescriptor = { ...descriptor };
 
@@ -237,7 +257,7 @@ describe("MCP tool bridge", () => {
     const runtime = createRuntime();
     runtime.registerTool(tool);
 
-    mutablePolicy.allowedTools.length = 0;
+    mutablePolicy.allowedToolPairs.length = 0;
     mutableDescriptor.name = "delete";
 
     const result = await runtime.invoke(tool.name, { id: "abc" }, context);
