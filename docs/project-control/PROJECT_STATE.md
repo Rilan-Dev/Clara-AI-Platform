@@ -1,3 +1,12 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-3 ACTIVE
+
+[architect-verified] Owner authorization explicitly advances implementation to **Integrations Framework I-3 — Action Runner** while I-2 executable verification remains deferred. I-2 is not claimed PASS/CLOSED. The active implementation scope is I-3 only; I-4/I-5, MCP, production promotion, and unrelated work remain out of scope.
+
+Current I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`.
+
+**Recovery rule:** this block supersedes older checkpoint prose below; historical I-2 entries remain historical evidence and must not be interpreted as the current active phase.
+
+---
 ## 2026-10-07 — I-075 Activepieces action allowlist correction
 
 [architect-verified] Bounded I-2 review corrected runner capability expansion: runAction() now enforces the Clara registry action allowlist before loading an external Activepieces piece. Implementation c1705ac81c4e77239feca6d518d3ef2afcd0403c; regression 3d41bdc09e125b3143bfb58ddf162b00bd335c8b. I-075 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Continue bounded I-2 review only; do not wait for GitHub Actions or Vercel and do not expand to I-3/MCP/production.
@@ -254,3 +263,5 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-07 — Gate-C execution readiness
 
 [architect-verified] Gate-C preparation is complete at the repository level: CI remains manual-only and the platform health schedule is disabled. Gate-C is not falsely marked PASS; its sole remaining gap is executable current-head evidence. After that evidence exists, the next planned architect work is Gate-D final review.
+
+
