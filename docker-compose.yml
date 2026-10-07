@@ -205,7 +205,7 @@ services:
     # (clara-backend:3000 on the nginx-proxy_default network) you can bind
     # this to 127.0.0.1 as well.
     ports:
-      - "${APP_BIND_ADDRESS:-0.0.0.0}:3000:3000"
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:4000:3000"
     depends_on:
       postgres:
         condition: service_healthy
