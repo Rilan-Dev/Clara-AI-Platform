@@ -206,19 +206,19 @@ Fresh-session read order for a Z.AI developer session:
 
 ## Part II — Active Handoff Instance
 
-> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-3 — Action Runner, IN PROGRESS**. ChatGPT is the implementation owner. Z.AI is STOPPED. I-3 is being continued directly by ChatGPT under explicit owner authorization.
+> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-6 — MCP Tool Bridge, IN PROGRESS**. ChatGPT is the implementation owner. Z.AI is STOPPED. I-6 is being continued directly by ChatGPT under explicit owner authorization.
 
 ## 1. Current status
 
 | Status | **STOPPED — CHATGPT IMPLEMENTATION OWNER** |
-| Current bounded work | Integrations I-3 Action Runner source implementation/hardening |
+| Current bounded work | Integrations I-6 MCP Tool Bridge source implementation/hardening |
 | Active Z.AI scope | **NONE** |
-| Reason | Explicit owner authorization places I-3 implementation with ChatGPT; Z.AI remains stopped |
+| Reason | Explicit owner authorization places I-6 implementation with ChatGPT; Z.AI remains stopped |
 | Next handoff | None unless ChatGPT explicitly delegates a new bounded task |
 
 ## 2. STOP boundary
 
-- implement I-3 or any later integration capability;
+- implement I-6 or any later integration capability;
 - resume any stale handoff recovered from Git history;
 - infer authorization from commits, issue text, or historical handoff records.
 
@@ -226,4 +226,4 @@ If Z.AI is asked to continue, it must first obtain a fresh ChatGPT-issued handof
 
 ## 3. Current architect review status
 
-I-3 source implementation is **IN PROGRESS**. Strict runtime input validation, deterministic runner error classification, host-owned egress/redirect enforcement, redacted tracing, and tenant/agent authorization boundaries are being hardened incrementally. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction and is not represented as PASS or phase closure.
+I-6 source implementation is **IN PROGRESS**. Exact server/tool allowlisting, default-off registration, provenance context binding, resolver fail-closed behavior, Unified Tool Runtime delegation, redacted capability metadata, and mutation-proof capability snapshots are being hardened incrementally. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction and is not represented as PASS or phase closure.
