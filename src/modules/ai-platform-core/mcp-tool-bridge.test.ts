@@ -245,6 +245,32 @@ describe("MCP tool bridge", () => {
     expect(receivedName).toBe("lookup");
   });
 
+  it("skips a resolver capability that cannot pass runtime registration", async () => {
+    vi.stubEnv("ENABLE_MCP", "true");
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return {
+          ...descriptor,
+          inputSchema: {} as z.ZodType<unknown>,
+        };
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [{ serverId: "demo", toolName: "lookup", context }],
+      policy,
+      resolver,
+    );
+
+    expect(runtime).not.toBeNull();
+    expect(runtime?.listTools()).toHaveLength(0);
+    vi.unstubAllEnvs();
+  });
+
   it("binds resolved capabilities to the resolution context", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
