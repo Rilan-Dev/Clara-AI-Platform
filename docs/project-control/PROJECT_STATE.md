@@ -211,3 +211,13 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-07 — I-082 OAuth refresh credential-scope correction
+
+[architect-verified] OAuth refresh now preserves the execution user and agent scope through credential-vault decrypt, expiry status updates, and refreshed-credential persistence. This closes a bounded I-2 scope gap where the initial connection lookup was user/agent scoped but subsequent refresh mutations used only connectionId + organisation.
+
+- I-082 is RESOLVED by source review.
+- Corrections: f74d3928ce875e40ebafba473e92da4c90305ca0; 4ea030a1d75e31983605e59026437de4336d5e16; bd238eaa379d51f11c9d867434cd0a77dc5ab1a0.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- No I-2 PASS is claimed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
