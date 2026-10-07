@@ -1806,3 +1806,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated runtime refactor. |
 | Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08 |
 | Related session | `docs/project-control/sessions/SESSION-061.md` |
+
+
+## I-088 — MCP bridge helper must not masquerade as full authorization
+
+| Field | Value |
+|---|---|
+| Issue ID | I-088 |
+| Title | MCP static allowlist helper name overstated the authorization boundary |
+| Phase | Integrations I-6 |
+| Severity | P2 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-08 |
+| Finding | The exported `authorizeMcpTool()` helper returned an authorization-shaped decision while checking only the static server/tool allowlist. The actual Unified Tool Runtime also enforces surface, user/session identity, RBAC, plan entitlement, and tenant authorization. The old helper name could therefore be misused as a complete authorization result. |
+| Correction | Replaced the helper with `isMcpToolAllowlisted()`, explicitly documenting that it is a static allowlist check only. Full authorization remains exclusively in the Unified Tool Runtime. Updated focused regression and public export. |
+| Correction commits | `6d37d607689a3379a253659ebd50046d6b1b8727`; `f6454910c436d14b29c768180f344e02159dd908`; `8504c42a058fce9c8e38979c3d93899fd95345a2` |
+| Verification | [architect-verified] Source review confirms the helper name and return type now express only static allowlist semantics; runtime authorization remains the enforcement boundary. |
+| Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated implementation. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08 |
