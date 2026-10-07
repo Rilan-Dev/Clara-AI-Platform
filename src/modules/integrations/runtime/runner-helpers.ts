@@ -547,16 +547,22 @@ export async function logUsage(params: {
   errorMessage?: string;
 }): Promise<void> {
   try {
-    await query`
-      INSERT INTO integration_usage_log (
+    await query(
+      `INSERT INTO integration_usage_log (
         org_id, agent_id, user_id, integration_id, action_name,
         success, duration_ms, error_message
-      ) VALUES (
-        ${params.orgId}, ${params.agentId ?? null}, ${params.userId},
-        ${params.integrationId}, ${params.actionName}, ${params.success},
-        ${params.durationMs}, ${params.errorMessage ?? null}
-      )
-    `;
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        params.orgId,
+        params.agentId ?? null,
+        params.userId,
+        params.integrationId,
+        params.actionName,
+        params.success,
+        params.durationMs,
+        params.errorMessage ?? null,
+      ],
+    );
   } catch (err) {
     console.warn("[IntegrationRunner] Usage logging failed:", err);
   }
