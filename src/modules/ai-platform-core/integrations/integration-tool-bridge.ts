@@ -25,7 +25,7 @@ import type {
 import type { ToolDefinition } from "../tool-contracts";
 import type { ToolRuntime } from "../tool-registry";
 import { ToolExecutionError } from "../tool-contracts";
-import { getClaraToolRuntime } from "../clara-tools";
+import { buildClaraToolRuntime } from "../clara-tools";
 
 const ALLOWED_SURFACES: readonly SurfaceKind[] = ["chat", "realtime", "embed"];
 
@@ -214,10 +214,11 @@ export function buildIntegrationToolBridgeAdapter(): IntegrationToolBridgeAdapte
       const definition = buildIntegrationToolDefinition(
         actionDefinition(request.integrationId, action),
       );
-      const runtime = getClaraToolRuntime();
-      if (!runtime.hasTool(definition.name)) {
-        runtime.registerTool(definition);
-      }
+      // Dynamic integration tools are tenant-contextual capabilities. Use an
+      // isolated instance of the existing Unified Tool Runtime so one tenant's
+      // connected-tool discovery can never become global registry state.
+      const runtime = buildClaraToolRuntime();
+      runtime.registerTool(definition);
 
       const outcome = await runtime.invoke(
         definition.name,
@@ -249,10 +250,11 @@ export function buildIntegrationToolBridgeAdapter(): IntegrationToolBridgeAdapte
  * runtime. Registration is idempotent and deliberately does not expose
  * credential material or create another execution engine.
  */
-export async function registerConnectedIntegrationTools(
+export async function buildConnectedIntegrationToolRuntime(
   context: PlatformExecutionContext,
-  runtime: ToolRuntime = getClaraToolRuntime(),
-): Promise<readonly string[]> {
+): Promise<ToolRuntime> {
+  assertExecutionContext(context);
+  const runtime = buildClaraToolRuntime();
   const rows = await query<{ integration_id: string }>(
     `SELECT DISTINCT ic.integration_id
        FROM integration_connections ic
@@ -270,15 +272,13 @@ export async function registerConnectedIntegrationTools(
     [context.tenantId, context.agentId ?? null, context.userId],
   );
 
-  const registered: string[] = [];
   for (const row of rows) {
     const definitions = await buildDefinitions(context, row.integration_id);
     for (const definition of definitions) {
       if (!runtime.hasTool(definition.name)) {
         runtime.registerTool(definition);
       }
-      registered.push(definition.name);
     }
   }
-  return registered;
+  return runtime;
 }
