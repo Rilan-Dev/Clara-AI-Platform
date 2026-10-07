@@ -48,9 +48,20 @@ export interface McpToolResolver {
   ): Promise<unknown>;
 }
 
+export interface McpToolAllowlistEntry {
+  readonly serverId: string;
+  readonly toolName: string;
+}
+
 export interface McpToolBridgePolicy {
+  /**
+   * Coarse server boundary plus the authoritative server/tool pair allowlist.
+   * A tool is allowed only when BOTH the server is allowed and the exact pair
+   * is present; independent server/tool membership must never authorize a
+   * cross-product pairing.
+   */
   readonly allowedServers: readonly string[];
-  readonly allowedTools: readonly string[];
+  readonly allowedToolPairs: readonly McpToolAllowlistEntry[];
   readonly requireUserId?: boolean;
 }
 
@@ -76,7 +87,11 @@ function isAllowed(
 ): boolean {
   return (
     policy.allowedServers.includes(descriptor.serverId) &&
-    policy.allowedTools.includes(descriptor.name)
+    policy.allowedToolPairs.some(
+      (entry) =>
+        entry.serverId === descriptor.serverId &&
+        entry.toolName === descriptor.name,
+    )
   );
 }
 
@@ -125,7 +140,14 @@ export function buildMcpToolDefinition(
   // would let post-registration mutation widen or redirect the capability.
   const boundPolicy: McpToolBridgePolicy = Object.freeze({
     allowedServers: Object.freeze([...policy.allowedServers]),
-    allowedTools: Object.freeze([...policy.allowedTools]),
+    allowedToolPairs: Object.freeze(
+      policy.allowedToolPairs.map((entry) =>
+        Object.freeze({
+          serverId: entry.serverId,
+          toolName: entry.toolName,
+        }),
+      ),
+    ),
     requireUserId: policy.requireUserId ?? true,
   });
   const boundDescriptor: McpToolDescriptor = Object.freeze({
