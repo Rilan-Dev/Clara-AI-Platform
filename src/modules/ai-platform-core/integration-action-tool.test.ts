@@ -46,6 +46,37 @@ describe("integration action tool scope propagation", () => {
       userId: "user-1",
     }));
     expect(runAction.mock.calls[0][0]).not.toHaveProperty("projectId");
+    expect(query).toHaveBeenLastCalledWith(
+      expect.stringContaining("(user_id=$4 OR user_id IS NULL)"),
+      ["org-1", "example", "agent-1", "user-1"],
+    );
+  });
+
+  it("does not treat another user's connection as current-user readiness", async () => {
+    query
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([]);
+
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      {
+        tenantId: "org-1",
+        agentId: "agent-1",
+        userId: "user-2",
+        surface: "chat",
+      } as never,
+    )).rejects.toMatchObject({ code: "EXECUTION_FAILED" });
+
+    expect(runAction).not.toHaveBeenCalled();
+    expect(query).toHaveBeenLastCalledWith(
+      expect.stringContaining("(user_id=$4 OR user_id IS NULL)"),
+      ["org-1", "example", "agent-1", "user-2"],
+    );
   });
 
   it("fails closed when plan entitlement resolution fails", async () => {
@@ -99,7 +130,6 @@ describe("integration action tool scope propagation", () => {
     query
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
       .mockResolvedValueOnce([{ enabled: true }])
-      // Agent grant lookup is tenant-bound by joining agents on org_id.
       .mockResolvedValueOnce([]);
 
     const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
