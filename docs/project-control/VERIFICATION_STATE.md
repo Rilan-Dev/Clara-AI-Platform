@@ -1264,3 +1264,12 @@ git show --stat HEAD                                                     # docum
 git status --porcelain                                                   # clean tree
 git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal after push
 # Aggregate closure-record validation suite (persisted read-only script, agent workspace, outside the repository):
+
+## 2026-10-08 — I-6 MCP bridge bounded hardening
+
+[architect-verified] Source review found and corrected two fail-closed gaps in the active I-6 bridge. `allowedSurfaces: []` now denies all surfaces instead of defaulting to chat/realtime/embed, while omitted `allowedSurfaces` retains the documented default. Normalized MCP tool names now include an identity-derived deterministic suffix so distinct server/tool identifiers that sanitize similarly do not receive the same ordinary runtime name.
+
+- Implementation: `2cd0a2be62f7bbdb81327b3991f8c65177d34dc6`
+- Regression: `d4bfbe112863696c99ad7abb81857a9399f079c2`
+- Source-level architect verification only; no external execution evidence was awaited.
+- I-6 remains IN PROGRESS. No Gate-C/Gate-D PASS or phase closure is inferred.
