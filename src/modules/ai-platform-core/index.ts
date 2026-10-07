@@ -119,3 +119,17 @@ export {
   isIntegrationProviderPilotEnabled,
   buildFirstProviderPilotRuntime,
 } from "./integration-provider-pilot";
+
+export {
+  MCP_TOOL_FLAG,
+  authorizeMcpTool,
+  buildMcpToolDefinition,
+  buildMcpToolRuntime,
+  isMcpEnabled,
+  mcpToolName,
+  resolveMcpToolDefinition,
+  type McpToolBridgePolicy,
+  type McpToolDescriptor,
+  type McpToolResolutionRequest,
+  type McpToolResolver,
+} from "./mcp-tool-bridge";
