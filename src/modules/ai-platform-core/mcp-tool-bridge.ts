@@ -154,6 +154,20 @@ export function buildMcpToolDefinition(
           "MCP tool is no longer allowlisted.",
         );
       }
+      if (
+        boundContext !== undefined &&
+        (context.tenantId !== boundContext.tenantId ||
+          context.kbId !== boundContext.kbId ||
+          context.agentId !== boundContext.agentId ||
+          context.userId !== boundContext.userId ||
+          context.sessionId !== boundContext.sessionId ||
+          context.surface !== boundContext.surface)
+      ) {
+        throw new ToolExecutionError(
+          "TENANT_SCOPE_VIOLATION",
+          "MCP tool execution context does not match the resolution context.",
+        );
+      }
       return resolver.invoke(boundDescriptor, input, context);
     },
   };
