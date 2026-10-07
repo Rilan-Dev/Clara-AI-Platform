@@ -1,3 +1,14 @@
+## 2026-10-07 — OAuth concurrent-refresh stale-write correction
+
+[architect-verified] Continued the bounded I-2 credential/connection review. The OAuth refresh path already failed closed on disabled/disconnected connections, but concurrent refreshes could still both read the same pre-refresh credential state and a later stale refresh could overwrite a newer rotated token. The credential vault now supports an optional expectedClaimedAt compare-and-update predicate over the encrypted credential JSON; the refresh path supplies the timestamp it actually refreshed from. A stale concurrent writer therefore updates zero rows and the runner aborts rather than overwriting newer credentials.
+
+- Credential-vault correction: `0ef4a40038c8fc8059b09980c2ffc830f45c1c72`
+- Refresh-path correction: `03b4b46dbef176fd8acaa2cbe7061e8cdd313848`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**.
+- **Next planned work:** continue only concrete bounded I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, tenant-boundary, or deployment-resource corrections if identified. Do not wait for CI/Vercel/gates.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-07 — Optional multilingual embeddings resource containment correction
 
 [architect-verified] Bounded self-hosted resource-hardening review found the opt-in multilingual embeddings service was the remaining Compose service without explicit CPU/RAM/PID ceilings. Although it is not started by the normal deployment script, enabling the profile could bypass the host resource-containment policy while loading the multi-GB embedding model.
