@@ -64,6 +64,17 @@ function asActionRecord(value: unknown): Record<string, unknown> {
 }
 
 
+function failureResult(error: unknown): RunActionResult {
+  const normalized = normalizeIntegrationError(error);
+  return {
+    success: false,
+    output: null,
+    error: normalized.message,
+    errorCode: normalized.code,
+    retryable: normalized.retryable,
+  };
+}
+
 function collectSecretValues(value: unknown): string[] {
   const found = new Set<string>();
   const walk = (item: unknown): void => {
@@ -126,7 +137,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
   const def = getIntegration(params.integrationId);
 
   if (!def) {
-    return { success: false, output: null, error: `Unknown integration: ${params.integrationId}` };
+    return failureResult(new Error(`Unknown integration: ${params.integrationId}`));
   }
 
   // Rewrite hallucinated actionNames onto the canonical registry ids before
@@ -144,11 +155,11 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     ]));
     // XRay is initialized below for the normal execution path. This early
     // capability rejection must not reference that later const before initialization.
-    return {
-      success: false,
-      output: null,
-      error: `Action '${params.actionName}' is not allowed for ${params.integrationId}. Available: ${available.length > 0 ? available.join(", ") : "unknown"}`,
-    };
+    return failureResult(
+      new Error(
+        `Action '${params.actionName}' is not allowed for ${params.integrationId}. Available: ${available.length > 0 ? available.join(", ") : "unknown"}`,
+      ),
+    );
   }
 
   // Keep resolved credential values available to the final error boundary so provider
@@ -177,7 +188,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       const inputErrors = validateActionProps(customAction.props, params.props, true);
       if (inputErrors.length > 0) {
         xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
-        return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
+        return failureResult(new Error(`Invalid action input: ${inputErrors.join("; ")}`));
       }
       xr.phase("credential_lookup");
       const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
@@ -240,12 +251,13 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
           : [];
       const customNames = Object.keys(customActions[params.integrationId] ?? {});
       const available = Array.from(new Set([...pieceNames, ...customNames]));
-      return {
-        success: false, output: null,
-        error: `Action '${params.actionName}' not found in ${params.integrationId}. Available: ${
-          available.length > 0 ? available.join(", ") : "unknown"
-        }`,
-      };
+      return failureResult(
+        new Error(
+          `Action '${params.actionName}' not found in ${params.integrationId}. Available: ${
+            available.length > 0 ? available.join(", ") : "unknown"
+          }`,
+        ),
+      );
     }
 
     const action = asActionShape(actionCandidate) as ActionShape & { run: (context: ReturnType<typeof buildActionContext>) => Promise<unknown> };
@@ -253,7 +265,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     const inputErrors = validateActionProps(action.props, params.props, true);
     if (inputErrors.length > 0) {
       xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
-      return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
+      return failureResult(new Error(`Invalid action input: ${inputErrors.join("; ")}`));
     }
 
     // 3. Load credentials
@@ -264,7 +276,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     if (def.authType !== "none") {
       if (!connection) {
         xr.end("error", "Not connected");
-        return { success: false, output: null, error: `Not connected to ${def.displayName}. Please connect the integration first.` };
+        return failureResult(new Error("Not connected"));
       }
 
       xr.phase("token_refresh_check");
