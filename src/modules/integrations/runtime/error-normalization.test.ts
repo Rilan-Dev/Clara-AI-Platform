@@ -10,6 +10,7 @@ describe("normalizeIntegrationError", () => {
   it("classifies network policy failures separately from redirects", () => {
     expect(normalizeIntegrationError(new Error("Integration egress destination is not allowed")).code).toBe("EGRESS_BLOCKED");
     expect(normalizeIntegrationError(new Error("Integration egress redirects are not allowed")).code).toBe("REDIRECT_BLOCKED");
+    expect(normalizeIntegrationError(new Error("Action is not allowed for this integration")).code).toBe("ACTION_NOT_ALLOWED");
   });
 
   it("marks transient upstream failures retryable", () => {
