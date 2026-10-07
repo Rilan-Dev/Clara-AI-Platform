@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { promises as dns } from "node:dns";
 import { BlockList, isIP } from "node:net";
 import type { XrayCallHandle } from "./xray.js";
+import { integrationError } from "./error-normalization.js";
 
 // ─── Per-call fetch isolation via AsyncLocalStorage ─────
 
@@ -112,19 +113,19 @@ export async function assertSafeEgressUrl(rawUrl: string): Promise<void> {
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new Error("Integration egress URL is invalid");
+    throw integrationError("EGRESS_BLOCKED", "Integration egress URL is invalid");
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Integration egress protocol is not allowed");
+    throw integrationError("EGRESS_BLOCKED", "Integration egress protocol is not allowed");
   }
   if (url.username || url.password) {
-    throw new Error("Integration egress URL cannot contain credentials");
+    throw integrationError("EGRESS_BLOCKED", "Integration egress URL cannot contain credentials");
   }
 
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   if (isIP(hostname)) {
-    if (isBlockedAddress(hostname)) throw new Error("Integration egress destination is not allowed");
+    if (isBlockedAddress(hostname)) throw integrationError("EGRESS_BLOCKED", "Integration egress destination is not allowed");
     return;
   }
 
@@ -132,7 +133,7 @@ export async function assertSafeEgressUrl(rawUrl: string): Promise<void> {
   try {
     addresses = await dns.lookup(hostname, { all: true, verbatim: true });
   } catch {
-    throw new Error("Integration egress hostname could not be resolved");
+    throw integrationError("EGRESS_BLOCKED", "Integration egress hostname could not be resolved");
   }
   if (addresses.length === 0 || addresses.some(({ address }) => isBlockedAddress(address))) {
     throw new Error("Integration egress destination is not allowed");
@@ -290,7 +291,7 @@ export function createTracedFetch(
             };
             traces.push(entry);
             if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
-            throw new Error(errMsg);
+            throw integrationError("REDIRECT_BLOCKED", errMsg);
           }
         }
         const errMsg = "Integration egress redirects are not allowed";
