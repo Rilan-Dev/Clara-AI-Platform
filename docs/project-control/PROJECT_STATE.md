@@ -2,7 +2,7 @@
 
 [architect-verified] The active phase remains **Integrations Framework I-3 — Action Runner**. Owner instruction explicitly permits continued implementation without waiting for GitHub Actions, Vercel, or phase gates.
 
-- Current branch tip after bounded implementation: `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
+- Current feature-branch tip must be read from GitHub at recovery time; the latest bounded I-3 implementation commits are listed below and no stale SHA is treated as authoritative.
 - Latest I-3 corrections: typed egress/DNS/redirect failure propagation
 - Latest I-3 continuation commits: `d3c18c3`
 - Latest I-3 trace-hardening commits: `d0799b3` and `c764fa4`; arbitrary thrown HTTP errors now scrub known resolved secrets before trace storage., `62ef2fe`; action lookup and strict input rejection now use explicit host-owned error classifications rather than message parsing. with redacted blocked-request traces; recursive array-item action-input validation in strict mode; focused regression coverage for both.
