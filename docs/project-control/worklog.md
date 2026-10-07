@@ -38,3 +38,13 @@
 - Replaced the exported `authorizeMcpTool()` helper with `isMcpToolAllowlisted()` because the former name implied full authorization while only evaluating static server/tool allowlists.
 - `6d37d607689a3379a253659ebd50046d6b1b8727`, `f6454910c436d14b29c768180f344e02159dd908`, and `8504c42a058fce9c8e38979c3d93899fd95345a2` align implementation, regression, and public export.
 - Full surface/identity/RBAC/plan/tenant authorization remains owned by the Unified Tool Runtime.
+
+
+### I-6 continued source hardening — 2026-10-08
+- `635b5126`: resolved MCP capabilities are now bound to the exact provenance-verified execution-context identity used during resolver discovery; cross-context invocation fails closed with `TENANT_SCOPE_VIOLATION`.
+- `55e7f36c`: regression covers cross-context invocation against a different tenant context.
+- `02bff62a`: regressions cover default-off runtime construction and registration through the Unified Tool Runtime.
+- `9eb58ab6`: malformed resolver descriptors are treated as unavailable capabilities when Unified Tool Runtime registration rejects them; unrelated valid capabilities can still register.
+- `ddaa02bc`: regression covers malformed resolver schema output.
+- Project-control NEXT_ACTION/PROJECT_STATE/VERIFICATION_STATE records updated.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction; no PASS/closure is claimed.
