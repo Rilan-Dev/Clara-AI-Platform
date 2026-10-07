@@ -1,3 +1,19 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-4/I-5 IMPLEMENTATION ACTIVE
+
+[architect-verified] Owner instruction explicitly advances implementation to I-4/I-5 while external verification remains deferred.
+
+- I-4 source implementation introduces no new persistence, migration, credential store, or executor. It converts connected integration actions into existing Unified Tool Runtime `ToolDefinition` objects and delegates execution to `runAction()`.
+- I-5 source implementation is a default-off Firecrawl `search` pilot with an exact integration/action allowlist.
+- Focused source regressions cover deterministic tool naming, strict action-property schema enforcement, provider allowlisting, and feature-flag behavior.
+- External CI/Vercel/Gate-C/Gate-D are intentionally not used as acceptance evidence under owner instruction.
+- I-2 and I-3 verification records remain historical/deferred evidence; no closed-phase claim is inferred.
+
+Current implementation commits: `f44caf5`, `a86ffd5`, `6be5dd5`, `9d746ed`, `8927e2c`, `829667e`, `b5f9640`, `92c611a`.
+
+**Verification disposition:** source-level architect review is active; executable external evidence is deferred.
+
+---
+
 ## 2026-10-08 — I-3 strict array-item schema correction
 
 [architect-verified] Source review confirms strict array elements now receive type validation independently of parent-field missing-value semantics. Primitive null/empty/wrong-type elements are rejected and nested object/array schemas remain covered by recursive validation.
