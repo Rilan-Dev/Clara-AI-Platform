@@ -204,10 +204,14 @@ export interface RunActionParams {
   projectId?: string;
 }
 
+import type { IntegrationErrorCode } from "./error-normalization.js";
+
 export interface RunActionResult {
   success: boolean;
   output: unknown;
   error?: string;
+  errorCode?: IntegrationErrorCode;
+  retryable?: boolean;
   /** HTTP calls made during piece execution (when tracing is active) */
   httpTraces?: Array<{
     url: string;
