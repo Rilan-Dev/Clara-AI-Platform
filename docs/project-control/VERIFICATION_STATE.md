@@ -2,6 +2,14 @@
 
 ## 2026-10-08 — I-6 resolution-context binding correction
 
+## 2026-10-08 — I-6 malformed-capability registration hardening
+
+[architect-verified] Source review found that resolver output can violate the declared descriptor shape at runtime. The I-6 runtime builder now catches Unified Tool Runtime registration validation failures and treats the affected MCP capability as unavailable, while preserving registration of unrelated valid capabilities. Focused regression covers malformed resolver schema output.
+
+- Implementation commits: 9eb58ab63dc37f53642ed22dc155d93e4d0ac526, ddaa02bcf7f8aa1ea077f6cc55abcb3261604ced.
+- Verification class: source-level architect review only; no external Gate-C/Gate-D closure is inferred.
+
+
 [architect-verified] Source review identified a tenant-binding gap: a resolved MCP capability was not intrinsically bound to the provenance-verified execution-context identity used during resolver discovery, so a later invocation could substitute another valid context. The bridge now snapshots that resolution context identity and fails closed with TENANT_SCOPE_VIOLATION on substitution. Focused regressions cover cross-context invocation, default-off behavior, and runtime registration.
 
 - Implementation commits: 635b5126d5b89f21076ed387a9f64f5d3248d4a0, 55e7f36c189c9e2369824f671727937389f680d1, 02bff62a4ba9f189fec63e065b4638a4f817dfb1.
