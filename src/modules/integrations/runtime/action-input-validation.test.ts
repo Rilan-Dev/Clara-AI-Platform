@@ -13,6 +13,11 @@ describe("integration action input validation", () => {
     },
   };
 
+  it("rejects non-object action props before schema traversal", () => {
+    expect(validateActionProps(schema, null, true)).toEqual(["props must be an object"]);
+    expect(validateActionProps(schema, ["unexpected"], true)).toEqual(["props must be an object"]);
+  });
+
   it("rejects missing required values", () => {
     expect(validateActionProps(schema, { count: 2 })).toEqual(["to is required"]);
   });
