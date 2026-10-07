@@ -307,6 +307,46 @@ describe("MCP tool bridge", () => {
     });
   });
 
+  it("rejects same-tenant execution with a different caller identity", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      policy,
+      resolver,
+    );
+    expect(tool).not.toBeNull();
+
+    const otherUserContext = createExecutionContext({
+      orgId: context.tenantId,
+      kbId: context.kbId,
+      agentId: context.agentId,
+      userId: "user-2",
+      sessionId: context.sessionId,
+      surface: context.surface,
+    });
+
+    const runtime = createRuntime();
+    runtime.registerTool(tool!);
+    const result = await runtime.invoke(
+      tool!.name,
+      { id: "abc" },
+      otherUserContext,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "TENANT_SCOPE_VIOLATION" },
+    });
+  });
+
   it("rejects a resolver descriptor that changes the allowlisted server", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
