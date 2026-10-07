@@ -253,7 +253,8 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       const customNames = Object.keys(customActions[params.integrationId] ?? {});
       const available = Array.from(new Set([...pieceNames, ...customNames]));
       return failureResult(
-        new Error(
+        integrationError(
+          "ACTION_NOT_ALLOWED",
           `Action '${params.actionName}' not found in ${params.integrationId}. Available: ${
             available.length > 0 ? available.join(", ") : "unknown"
           }`,
@@ -266,7 +267,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     const inputErrors = validateActionProps(action.props, params.props, true);
     if (inputErrors.length > 0) {
       xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
-      return failureResult(new Error(`Invalid action input: ${inputErrors.join("; ")}`));
+      return failureResult(integrationError("INVALID_INPUT", `Invalid action input: ${inputErrors.join("; ")}`));
     }
 
     // 3. Load credentials
