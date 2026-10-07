@@ -26,3 +26,10 @@
 - `0b1856b`: public `src/modules/ai-platform-core/index.ts` now exports the I-6 MCP bridge; this corrected a source-level seam gap found during architect review.
 - Project-control current-state blocks were reconciled to I-6 and the stale Part-II Z.AI handoff state was removed; Z.AI remains STOPPED and ChatGPT remains implementation owner.
 - External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
+
+### I-6 bounded hardening — 2026-10-08
+- Source review found two bridge fail-closed gaps: explicit empty surface allowlists widened to the default surface set, and sanitized server/tool identifiers could collide.
+- `2cd0a2be62f7bbdb81327b3991f8c65177d34dc6` fixes both boundaries: omitted surfaces use the default, explicit empty surfaces deny all; normalized names carry an identity-derived suffix within the 64-character contract.
+- `d4bfbe112863696c99ad7abb81857a9399f079c2` adds focused regressions for both cases.
+- Session: `docs/project-control/sessions/SESSION-061.md`.
+- External CI/Vercel/Gate-C/Gate-D remain deferred; I-6 stays IN PROGRESS.
