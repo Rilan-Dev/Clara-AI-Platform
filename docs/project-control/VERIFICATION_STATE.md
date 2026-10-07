@@ -1,3 +1,13 @@
+## 2026-10-08 — I-3 strict array-item schema correction
+
+[architect-verified] Source review confirms strict array elements now receive type validation independently of parent-field missing-value semantics. Primitive null/empty/wrong-type elements are rejected and nested object/array schemas remain covered by recursive validation.
+
+- Implementation: `6db1b45e0213bba4b53a2675c328bad0f7bdcb7c`
+- Regression: `d12d43509463eedeba712b1b657c04cecb8475bb`
+- Verification class: source-level architect review only.
+- Gate-C/Gate-D remain open; no phase closure is inferred.
+
+
 ## 2026-10-08 — I-3 failure-result trace propagation verification record
 
 [architect-verified] Source review confirms the failure boundary now returns the same redacted per-run `httpTraces` collection that was previously retained only internally. This closes the identified result-propagation gap without changing authorization, credential scope, egress policy, or persistence.
