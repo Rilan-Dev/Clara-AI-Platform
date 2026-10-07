@@ -20,7 +20,7 @@ function isMissing(value: unknown): boolean {
 
 /**
  * Validate the subset of Activepieces action schemas that is stable across
- * pieces. Unknown properties remain allowed for forward compatibility.
+ * pieces. Unknown properties remain allowed by default; callers may enable strict mode
  */
 export function validateActionProps(
   definitions: Record<string, unknown> | undefined,
