@@ -154,11 +154,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     if (body.agentId) {
-      const agent = (await query<{ id:string }>(
-        `SELECT id FROM agents WHERE id = $1 AND org_id = $2 LIMIT 1`,
-        [body.agentId, orgId],
-      ))[0];
-      if (!agent) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
+      // Organisation config permission alone must not grant mutation rights over
+      // an agent-scoped connection. Re-authorize the target agent before any
+      // enable/connect/disconnect mutation reaches the database.
+      const agentContext = await requireAgentPermission(auth, body.agentId, "config:update");
+      if (agentContext.orgId !== orgId) {
+        return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
+      }
     }
 
     if (body.credentials === undefined) return NextResponse.json({ error: "credentials are required" }, { status: 400 });
