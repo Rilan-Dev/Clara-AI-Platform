@@ -25,7 +25,8 @@ import type {
   IntegrationExecutionResult,
   IntegrationToolBridgeAdapter,
 } from "./integration-contracts";
-import type { ToolDefinition } from "../tool-contracts";\nimport type { ToolRuntime } from "../tool-registry";
+import type { ToolDefinition } from "../tool-contracts";
+import type { ToolRuntime } from "../tool-registry";
 import { ToolExecutionError } from "../tool-contracts";
 import { getClaraToolRuntime } from "../clara-tools";
 
