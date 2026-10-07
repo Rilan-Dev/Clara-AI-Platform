@@ -587,3 +587,13 @@ Disposition:
 - Regression: 8ac329d38af49a6c3acba22ac25935fb8b151c3c
 - I-3 remains IN PROGRESS; no CI/Vercel/Gate-C/Gate-D result was awaited.
 - Next bounded work: strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
+
+
+## 2026-10-08 — I-6 MCP binding hardening
+
+- [architect-verified] Recovered the current project-control state from GitHub. I-3 and I-4/I-5 are already implementation-complete for the owner's continuation boundary; I-6 is the active bounded capability. External CI/Vercel/Gate-C/Gate-D remain intentionally deferred.
+- [architect-verified] Source review identified a mutation-boundary defect in `src/modules/ai-platform-core/mcp-tool-bridge.ts`: caller-owned policy arrays and MCP descriptor objects were captured live by the executable closure. TypeScript readonly did not provide runtime immutability.
+- [architect-verified] Corrected with `ff64b9b95e11e90f078646379a322d28e589e700`: policy/identity/surface values are snapshot-bound and frozen; invocation uses the bound descriptor.
+- [architect-verified] Corrected normalized-name collision handling with `12815df1d0caa27da3937fd7a9d7abba4411c434`: distinct MCP identities that converge on one runtime name fail closed instead of silently skipping the later capability.
+- [architect-verified] Added focused regression `d90cddbe1b90e2b00d1c3f6a49e844a670d5a548` proving post-registration policy/descriptor mutation cannot redirect the bound capability.
+- [architect-verified] Recorded I-089 as RESOLVED and reconciled PROJECT_STATE/CURRENT_PHASE/NEXT_ACTION to the I-6 continuation. No gate was closed and no external execution was awaited.
