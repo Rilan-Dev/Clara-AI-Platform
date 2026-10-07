@@ -1,7 +1,9 @@
 import { z } from "zod";
+import { vi } from "vitest";
 import {
   isMcpToolAllowlisted,
   buildMcpToolDefinition,
+  buildMcpToolRuntime,
   isMcpEnabled,
   mcpToolName,
   resolveMcpToolDefinition,
@@ -80,6 +82,52 @@ describe("MCP tool bridge", () => {
     expect(isMcpEnabled({ ENABLE_MCP: undefined })).toBe(false);
     expect(isMcpEnabled({ ENABLE_MCP: "false" })).toBe(false);
     expect(isMcpEnabled({ ENABLE_MCP: "true" })).toBe(true);
+  });
+
+  it("keeps the runtime builder default-off", async () => {
+    vi.stubEnv("ENABLE_MCP", "false");
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    await expect(
+      buildMcpToolRuntime(
+        context,
+        [{ serverId: "demo", toolName: "lookup", context }],
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+    vi.unstubAllEnvs();
+  });
+
+  it("registers resolved MCP capabilities in the Unified Tool Runtime when enabled", async () => {
+    vi.stubEnv("ENABLE_MCP", "true");
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [{ serverId: "demo", toolName: "lookup", context }],
+      policy,
+      resolver,
+    );
+
+    expect(runtime).not.toBeNull();
+    expect(runtime?.listTools()).toHaveLength(1);
+    expect(runtime?.listTools()[0]?.name).toBe(mcpToolName("demo", "lookup"));
+    vi.unstubAllEnvs();
   });
 
   it("preserves the caller execution context through resolver invocation", async () => {
