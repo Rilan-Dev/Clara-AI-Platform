@@ -1081,3 +1081,16 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-6 remains IN PROGRESS; external verification is deferred.
 
 **Next implementation:** continue bounded I-6 source-level acceptance review for remaining runtime registration, default-off, resolver, context, schema, and tenant-boundary gaps.
+
+
+## 2026-10-08 — I-3 malformed action-props boundary correction
+
+[architect-verified] Continued I-3 source review found that runtime callers could bypass the compile-time Record<string, unknown> assumption by supplying null or an array as action props. The strict validator now rejects malformed top-level props deterministically before schema traversal.
+
+- Implementation: 7aa1ebc8521c377684c711d97710e0614f66b4e3
+- Regression: 8ac329d38af49a6c3acba22ac25935fb8b151c3c
+- I-3 remains IN PROGRESS; external CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instruction.
+
+Next implementation: continue bounded I-3 acceptance review for strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
+
+STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
