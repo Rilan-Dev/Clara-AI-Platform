@@ -10,11 +10,21 @@
 - I-6: active — bounded MCP Tool Bridge.
 
 ## Next implementation
-1. Complete the remaining I-6 source-level acceptance review and reconcile the current project-control checkpoint.
-2. Keep the bridge host-adapter-driven, exact-allowlisted, default-off, context-preserving, and Unified Tool Runtime-backed.
-3. Keep resolver discovery failure, identity drift, invalid context, invalid input, and unauthorized server/tool paths fail-closed.
-4. Do not add MCP transport/server hosting, persistence/OAuth, marketplace, billing changes, production promotion, or unrelated work.
-5. External CI/Vercel/Gate-C/Gate-D remain deferred and are not development blockers.
+1. Continue the remaining bounded I-6 source-level acceptance review from the current implementation tip.
+2. Preserve the new mutation-proof binding snapshot and collision fail-closed invariants.
+3. Keep the bridge host-adapter-driven, exact-allowlisted, default-off, context-preserving, and Unified Tool Runtime-backed.
+4. Keep resolver discovery failure, identity drift, invalid context, invalid input, and unauthorized server/tool paths fail-closed.
+5. Do not add MCP transport/server hosting, persistence/OAuth, marketplace, billing changes, production promotion, or unrelated work.
+6. External CI/Vercel/Gate-C/Gate-D remain deferred and are not development blockers.
+
+## 2026-10-08 — I-6 binding-hardening checkpoint
+
+[architect-verified] Source review found a P1 mutation-boundary defect in the MCP bridge: caller-owned policy arrays and descriptor objects remained live inside the executable closure. The bridge now snapshots/freeze-binds those values, and the runtime builder refuses distinct MCP identities that collide on one normalized tool name instead of silently skipping the later capability.
+
+- Corrections: ff64b9b95e11e90f078646379a322d28e589e700; 12815df1d0caa27da3937fd7a9d7abba4411c434.
+- Regression: d90cddbe1b90e2b00d1c3f6a49e844a670d5a548.
+- I-089 is RESOLVED by architect source review.
+- Executable tests, CI, Vercel, Gate-C, and Gate-D remain deferred by owner instruction.
 
 ---
 ---
