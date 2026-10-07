@@ -405,3 +405,19 @@ Control records:
 - Corrected in `5f6d044a2ec1d8ddacaf9bde553f17576c14732e`.
 - Added denial-before-read regression in `3ebbbf7113e851a427d310aee2d3a057a6b8ba83`.
 - Scope remains I-2 credential/connection authorization; no I-3/MCP/production work.
+
+## 2026-10-08 — I-3 Action Runner implementation authorized and started
+
+[architect-verified] Owner explicitly authorized moving implementation beyond the I-2 verification boundary without waiting for CI, Vercel, or gates. I-2 remains verification-deferred, not PASS/CLOSED. I-3 is now the active bounded implementation track.
+
+Implemented:
+- stable `IntegrationErrorCode` + `NormalizedIntegrationError` contract;
+- deterministic classification of authorization, entitlement, input, egress, redirect, upstream, and execution failures;
+- `RunActionResult.errorCode` and `retryable` metadata;
+- runner catch-boundary propagation of normalized error metadata;
+- regression coverage for deterministic classifications;
+- corrected matcher ordering so egress/redirect errors are not misclassified as generic “not allowed” errors.
+
+Commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `e1477cb`, `bf58cdd`, `301b589`.
+
+No CI/Vercel execution was awaited. No I-4/I-5/MCP/production/unrelated work was started.
