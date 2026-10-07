@@ -185,7 +185,22 @@
 - Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 
-# NEXT_ACTION.md — Fresh-Session Continuation Instruction
+# NEXT_ACTION.md
+
+## 2026-10-08 — I-3 typed runner error boundary hardening
+
+[architect-verified] Continued bounded I-3 Action Runner review found that deterministic classification still depended primarily on matching provider/error message text. The runner now has a host-owned `IntegrationRunnerError` with explicit `IntegrationErrorCode` and retryability, and the core runner plus egress policy use typed classifications for key boundary failures. Legacy/provider errors retain conservative compatibility heuristics. A focused regression verifies explicit classifications take precedence over misleading provider wording.
+
+- Corrections: `6deba78a0ce6a167bb3004164cb0bea8a84c4153`, `3128347169fc107d444bb6b5d5004cdd26a6c9b9`, `2a867bff3b3a19a68d40ad16a9a90fa9f590eef3`, `3a93d4b371b12e966effc80c9a73fc73480fd8ee`.
+- Scope: I-3 Action Runner error contract, egress failure classification, and focused regression only.
+- No CI, Vercel, Gate-C, Gate-D, or continuous verification was awaited.
+- I-2 remains implementation-complete with external verification deferred; I-3 remains the active implementation phase.
+
+**Next implementation:** continue bounded I-3 acceptance review for remaining action-runner gaps, especially strict input-schema coverage, egress/redirect boundaries, redacted trace invariants, deterministic result propagation, and tenant-isolation regression coverage.
+
+**STOP:** no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
+
+ — Fresh-Session Continuation Instruction
 
 ## 2026-10-06 — I-066 plan-resolution fail-closed mutation correction
 
