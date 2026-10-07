@@ -1,5 +1,10 @@
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
+## 2026-10-08 — I-6 resolution-context binding correction
+
+[architect-verified] I-6 now binds each resolved MCP capability to the exact provenance-verified execution context used for resolver discovery; cross-context invocation fails closed. Focused regressions cover the context-binding boundary, default-off runtime builder, and runtime registration. Latest correction commits: 635b5126, 55e7f36c, 02bff62a.
+
+
 [architect-verified] The owner has directed continuation to the next bounded integrations capability without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification. Repository branch `feature/ai-core-from-doable-source` is in the I-6 implementation continuation; the live branch tip must be read from GitHub at recovery time.
 
 - I-3 Action Runner implementation is already present; it is not the current pending implementation.
