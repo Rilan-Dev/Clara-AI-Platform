@@ -59,7 +59,7 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
 # package and small dependency closure into standalone instead of running a
 # second npm install. This preserves the exact lockfile-resolved versions and
 # removes the multi-minute registry/resolution/install step.
-RUN mkdir -p .next/standalone/node_modules/@elevenlabs && \
+RUN mkdir -p .next/standalone/node_modules/@elevenlabs .next/standalone/node_modules/@ioredis && \
     cp -r node_modules/@elevenlabs/elevenlabs-js .next/standalone/node_modules/@elevenlabs/elevenlabs-js && \
     cp -r node_modules/command-exists .next/standalone/node_modules/command-exists && \
     cp -r node_modules/node-fetch .next/standalone/node_modules/node-fetch && \
@@ -67,7 +67,17 @@ RUN mkdir -p .next/standalone/node_modules/@elevenlabs && \
     cp -r node_modules/fetch-blob .next/standalone/node_modules/fetch-blob && \
     cp -r node_modules/formdata-polyfill .next/standalone/node_modules/formdata-polyfill && \
     cp -r node_modules/node-domexception .next/standalone/node_modules/node-domexception && \
-    cp -r node_modules/web-streams-polyfill .next/standalone/node_modules/web-streams-polyfill
+    cp -r node_modules/web-streams-polyfill .next/standalone/node_modules/web-streams-polyfill && \
+    cp -r node_modules/ioredis .next/standalone/node_modules/ioredis && \
+    cp -r node_modules/@ioredis/commands .next/standalone/node_modules/@ioredis/commands && \
+    cp -r node_modules/cluster-key-slot .next/standalone/node_modules/cluster-key-slot && \
+    cp -r node_modules/debug .next/standalone/node_modules/debug && \
+    cp -r node_modules/denque .next/standalone/node_modules/denque && \
+    cp -r node_modules/lodash.defaults .next/standalone/node_modules/lodash.defaults && \
+    cp -r node_modules/lodash.isarguments .next/standalone/node_modules/lodash.isarguments && \
+    cp -r node_modules/redis-errors .next/standalone/node_modules/redis-errors && \
+    cp -r node_modules/redis-parser .next/standalone/node_modules/redis-parser && \
+    cp -r node_modules/standard-as-callback .next/standalone/node_modules/standard-as-callback
 
 FROM base AS runner
 WORKDIR /app
