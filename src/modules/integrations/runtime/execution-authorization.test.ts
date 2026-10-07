@@ -23,7 +23,7 @@ describe("integration execution authorization", () => {
       integrationId: "example",
       workspaceId: "org-1",
       agentId: "agent-1",
-    })).rejects.toThrow("current plan cannot use Example");
+    })).rejects.toMatchObject({ code: "PLAN_NOT_ENTITLED", retryable: false });
 
     expect(query).toHaveBeenCalledTimes(1);
   });
@@ -39,7 +39,7 @@ describe("integration execution authorization", () => {
       integrationId: "example",
       workspaceId: "org-1",
       agentId: "agent-1",
-    })).rejects.toThrow("plan entitlement could not be verified");
+    })).rejects.toMatchObject({ code: "PLAN_NOT_ENTITLED", retryable: false });
 
     expect(query).toHaveBeenCalledTimes(1);
   });
@@ -57,7 +57,7 @@ describe("integration execution authorization", () => {
       integrationId: "example",
       workspaceId: "org-1",
       agentId: "agent-1",
-    })).rejects.toThrow("not enabled for this agent");
+    })).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED", retryable: false });
 
     expect(query).toHaveBeenLastCalledWith(
       expect.stringContaining("a.org_id=$2"),
@@ -76,6 +76,6 @@ describe("integration execution authorization", () => {
     await expect(assertIntegrationExecutionAuthorized({
       integrationId: "example",
       workspaceId: "org-1",
-    })).rejects.toThrow("requires an explicitly scoped agent");
+    })).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED", retryable: false });
   });
 });
