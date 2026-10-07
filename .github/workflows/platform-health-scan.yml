@@ -16,9 +16,9 @@ name: Platform Health Scanner
 # Runtime budget: ~4320 runs/month at ~15-20s per run ≈ 1.4k Actions
 # minutes — fits the private-repo free tier (2,000 min/month).
 
+# AUTOMATIC EXECUTION IS DISABLED BY PROJECT OWNER.
+# Manual health scans remain available through workflow_dispatch.
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 concurrency:
