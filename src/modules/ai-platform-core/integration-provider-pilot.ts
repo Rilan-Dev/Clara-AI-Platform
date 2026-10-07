@@ -44,15 +44,16 @@ export async function buildFirstProviderPilotTool(
   if (!isIntegrationProviderPilotEnabled()) return null;
   if (!context.userId || !context.agentId) return null;
 
-  const actions = await getIntegrationActions(FIRST_PROVIDER_INTEGRATION_ID);
-  const action = actions.find((candidate) =>
-    isFirstProviderPilotAction(FIRST_PROVIDER_INTEGRATION_ID, candidate.name),
+  const definitions = await buildIntegrationToolBridgeAdapter().listToolDefinitions(
+    context,
+    FIRST_PROVIDER_INTEGRATION_ID,
   );
-  if (!action) return null;
-
-  return buildIntegrationToolDefinition(
-    buildIntegrationActionDefinition(FIRST_PROVIDER_INTEGRATION_ID, action),
-  );
+  return definitions.find((definition) =>
+    definition.name === integrationToolName(
+      FIRST_PROVIDER_INTEGRATION_ID,
+      FIRST_PROVIDER_ACTION,
+    ),
+  ) ?? null;
 }
 
 /**
