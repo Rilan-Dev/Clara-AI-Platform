@@ -1,3 +1,13 @@
+## 2026-10-08 — I-3 strict array-item schema correction
+
+[architect-verified] Continued the authorized I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
+
+- Found that strict array validation treated null/empty primitive elements as missing values, allowing typed arrays to accept invalid elements.
+- Corrected `src/modules/integrations/runtime/action-input-validation.ts` so array elements are validated as values; primitive null/empty/wrong-type items are rejected while nested object/array schemas remain recursive.
+- Implementation: `6db1b45e0213bba4b53a2675c328bad0f7bdcb7c`; regression: `d12d43509463eedeba712b1b657c04cecb8475bb`.
+- No I-4/I-5, MCP, OAuth transport, schema/migration, production, immutable-reference, or unrelated scope was introduced.
+- I-3 remains IN PROGRESS; no Gate-C/Gate-D PASS is inferred.
+
 ## 2026-10-08 — I-3 failure-result trace propagation correction
 
 [architect-verified] Continued the explicitly authorized I-3 Action Runner implementation without waiting for GitHub Actions, Vercel, or gates.
