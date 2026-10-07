@@ -1,3 +1,11 @@
+## 2026-10-08 — I-3 failed-result trace regression
+
+[architect-verified] Added focused runner-core regression coverage for the failure-result trace propagation correction.
+
+- Regression: `7243bd778d641e528c6f708a1ad2f4de08ecb5ba`.
+- The test exercises a failed traced HTTP execution and asserts the returned `RunActionResult` retains the redacted trace entry.
+- No CI, Vercel, or gate execution was awaited.
+
 ## 2026-10-08 — I-3 strict array-item schema correction
 
 [architect-verified] Continued the authorized I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
