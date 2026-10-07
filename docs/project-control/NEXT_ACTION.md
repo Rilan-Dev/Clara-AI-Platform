@@ -1,3 +1,17 @@
+# ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-3 AUTHORIZED
+
+[architect-verified] The owner has now explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while deliberately deferring I-2 external verification. This is an implementation-track transition, not an I-2 Gate-C/Gate-D PASS and not a production promotion.
+
+- I-2 application implementation is treated as complete for implementation purposes; its executable/current-head verification remains deferred by owner instruction.
+- I-3 scope is restricted to the existing Integrations Framework plan §6.3: bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
+- I-3 must not expand into I-4 Unified Tool Runtime bridging, I-5 provider rollout, MCP, production promotion, or unrelated work.
+- New I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`.
+- External CI/Vercel execution is not awaited.
+
+**Current next implementation:** continue I-3 Action Runner work from the current feature-branch tip, review the runner against the I-3 acceptance criteria, and implement only remaining bounded I-3 gaps.
+
+---
+
 ## 2026-10-08 — Agent-scoped integration disconnect authorization correction
 
 [architect-verified] Continued bounded I-2 authorization review found that the prior agent-scoped permission correction ran only after the `disconnect` branch, so an `agentId` supplied to disconnect could reach the database under organisation-level permission alone. The route now imports and applies `requireAgentPermission(auth, agentId, "config:update")` before all agent-scoped enable/connect/disconnect mutations, retaining the organisation identity check. This also corrects the missing RBAC import introduced by the prior correction.
