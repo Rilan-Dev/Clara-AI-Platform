@@ -1273,3 +1273,14 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - Regression: `d4bfbe112863696c99ad7abb81857a9399f079c2`
 - Source-level architect verification only; no external execution evidence was awaited.
 - I-6 remains IN PROGRESS. No Gate-C/Gate-D PASS or phase closure is inferred.
+
+
+## 2026-10-08 — I-6 authorization-helper semantic hardening
+
+[architect-verified] Source review found that the public `authorizeMcpTool()` helper name implied complete authorization although it checked only static server/tool allowlists. It is now `isMcpToolAllowlisted()`, returning a boolean and documenting that full authorization remains exclusively in the Unified Tool Runtime.
+
+- Implementation: `6d37d607689a3379a253659ebd50046d6`
+- Regression: `f6454910c436d14b29c768180f344e02159dd908`
+- Public export correction: `8504c42a058fce9c8e38979c3d93899fd95345a2`
+- Source-level architect verification only; no external execution evidence was awaited.
+- I-6 remains IN PROGRESS; no Gate-C/Gate-D PASS or closure is inferred.
