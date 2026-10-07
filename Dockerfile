@@ -54,16 +54,20 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
     cp -r node_modules/ws .next/standalone/node_modules/ws
 
 # The ElevenLabs Speech Engine is imported by the custom server entry point,
-# which is outside Next.js's standalone dependency tracing graph. Install the
-# SDK into the standalone runtime so scripts/elevenlabs-speech-engine.mjs can
-# resolve it (and its transitive runtime dependencies) in production.
-RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-    npm install \
-      --prefix .next/standalone \
-      --no-save \
-      --no-package-lock \
-      --ignore-scripts \
-      @elevenlabs/elevenlabs-js@2.68.0
+# which is outside Next.js's standalone dependency tracing graph. The SDK is
+# already installed in the shared dependency layer, so copy only its runtime
+# package and small dependency closure into standalone instead of running a
+# second npm install. This preserves the exact lockfile-resolved versions and
+# removes the multi-minute registry/resolution/install step.
+RUN mkdir -p .next/standalone/node_modules/@elevenlabs && \
+    cp -r node_modules/@elevenlabs/elevenlabs-js .next/standalone/node_modules/@elevenlabs/elevenlabs-js && \
+    cp -r node_modules/command-exists .next/standalone/node_modules/command-exists && \
+    cp -r node_modules/node-fetch .next/standalone/node_modules/node-fetch && \
+    cp -r node_modules/data-uri-to-buffer .next/standalone/node_modules/data-uri-to-buffer && \
+    cp -r node_modules/fetch-blob .next/standalone/node_modules/fetch-blob && \
+    cp -r node_modules/formdata-polyfill .next/standalone/node_modules/formdata-polyfill && \
+    cp -r node_modules/node-domexception .next/standalone/node_modules/node-domexception && \
+    cp -r node_modules/web-streams-polyfill .next/standalone/node_modules/web-streams-polyfill
 
 FROM base AS runner
 WORKDIR /app
