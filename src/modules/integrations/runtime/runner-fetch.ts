@@ -136,7 +136,7 @@ export async function assertSafeEgressUrl(rawUrl: string): Promise<void> {
     throw integrationError("EGRESS_BLOCKED", "Integration egress hostname could not be resolved");
   }
   if (addresses.length === 0 || addresses.some(({ address }) => isBlockedAddress(address))) {
-    throw new Error("Integration egress destination is not allowed");
+    throw integrationError("EGRESS_BLOCKED", "Integration egress destination is not allowed");
   }
 }
 
@@ -239,13 +239,6 @@ export function createTracedFetch(
     const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
     const url = redactUrl(rawUrl);
 
-    // All integration-originated requests are subject to the same egress policy.
-    // Internal-path substrings are not a trust boundary: an attacker-controlled
-    // URL can contain "/internal/broadcast" while still targeting loopback/private
-    // infrastructure. Trusted host-to-host calls must use a separate host-owned
-    // transport rather than bypassing this integration boundary.
-    await assertSafeEgressUrl(rawUrl);
-
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const inputHeaders = input instanceof Request ? headersToRecord(input.headers) : {};
     const initHeaders = headersToRecord(init?.headers);
@@ -268,6 +261,13 @@ export function createTracedFetch(
     const xrayHttp = xrayHandle?.httpStart(method, url, requestBody) ?? null;
 
     try {
+      // All integration-originated requests are subject to the same egress policy.
+      // Internal-path substrings are not a trust boundary: an attacker-controlled
+      // URL can contain "/internal/broadcast" while still targeting loopback/private
+      // infrastructure. Trusted host-to-host calls must use a separate host-owned
+      // transport rather than bypassing this integration boundary.
+      await assertSafeEgressUrl(rawUrl);
+
       // Do not let integration actions follow redirects implicitly. The initial
       // destination is egress-checked above, but a 3xx Location can redirect the
       // request to a private/metadata endpoint after that check. A host-owned
@@ -302,7 +302,7 @@ export function createTracedFetch(
         };
         traces.push(entry);
         if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
-        throw new Error(errMsg);
+        throw integrationError("REDIRECT_BLOCKED", errMsg);
       }
 
       const resHeaders = redactHeaders(headersToRecord(res.headers));
