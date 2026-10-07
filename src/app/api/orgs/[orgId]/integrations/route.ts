@@ -143,8 +143,11 @@ export async function POST(req: NextRequest, { params }: Params) {
         // creation/removal has a deterministic transaction order.
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [orgId]);
         await client.query(
-          `DELETE FROM integration_connections WHERE org_id=$1 AND integration_id=$2 AND ($3::uuid IS NULL OR agent_id=$3)`,
-          [orgId, body.integrationId, body.agentId ?? null],
+          `DELETE FROM integration_connections
+            WHERE org_id=$1 AND integration_id=$2
+              AND (user_id=$3 OR user_id IS NULL)
+              AND ($4::uuid IS NULL OR agent_id=$4)`,
+          [orgId, body.integrationId, auth.user.id, body.agentId ?? null],
         );
       });
       return NextResponse.json({ ok: true });
