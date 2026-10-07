@@ -1,5 +1,14 @@
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
+## 2026-10-08 — I-6 execution-context binding correction
+
+[architect-verified] Source review found that a resolved MCP ToolDefinition could be invoked later with a different provenance-valid PlatformExecutionContext than the context used during resolver discovery. I-6 now binds the resolved capability to the exact resolution context identity and rejects substitution with TENANT_SCOPE_VIOLATION. Focused regressions also cover the default-off runtime builder and registration through the Unified Tool Runtime.
+
+- Corrections: 635b5126d5b89f21076ed387a9f64f5d3248d4a0, 55e7f36c189c9e2369824f671727937389f680d1, 02bff62a4ba9f189fec63e065b4638a4f817dfb1.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
+- **Next bounded implementation review:** exact MCP server/tool authorization pairing and remaining resolver/registration edge cases; do not add transport, persistence/OAuth, marketplace, production promotion, or unrelated scope.
+
+
 [architect-verified] The owner explicitly instructed continuation of the next pending implementation and not to wait for GitHub Actions, Vercel, continuous verification, or phase gates. Repository review shows I-3 and I-4/I-5 implementation work is already present, so the active bounded capability is I-6.
 
 ## Current boundary
