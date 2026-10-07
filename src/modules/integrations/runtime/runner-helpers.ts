@@ -524,7 +524,7 @@ export async function ensureTokenFresh(
       ...creds.data,
       ...refreshed,
     },
-  }, userId, agentId);
+  }, userId, agentId, creds.claimed_at);
 
   // The connection may have been disabled or moved to another tenant scope
   // while the provider refresh was in flight. Never continue with a refreshed
