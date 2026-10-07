@@ -1284,3 +1284,14 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - Public export correction: `8504c42a058fce9c8e38979c3d93899fd95345a2`
 - Source-level architect verification only; no external execution evidence was awaited.
 - I-6 remains IN PROGRESS; no Gate-C/Gate-D PASS or closure is inferred.
+
+
+## 2026-10-08 — I-3 owner implementation checkpoint: malformed action-props rejection
+
+[architect-verified] ChatGPT continued the explicitly authorized I-3 Action Runner source acceptance review without waiting for CI, Vercel, Gate-C, or Gate-D. Runtime action props are now fail-closed when the actual value is null or an array, producing the deterministic validation error "props must be an object" before schema traversal. Focused regression coverage records both malformed shapes.
+
+- Implementation commit: 7aa1ebc8521c377684c711d97710e0614f66b4e3
+- Regression commit: 8ac329d38af49a6c3acba22ac25935fb8b151c3c
+- I-3 remains IN PROGRESS.
+- This is implementation evidence, not Gate-C execution evidence and not a phase closure.
+- Next bounded source work remains strict schema coverage, deterministic result propagation, egress/redirect invariants, redacted tracing, and tenant-isolation regression review.
