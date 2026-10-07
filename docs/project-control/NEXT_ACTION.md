@@ -1,3 +1,30 @@
+# ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-4/I-5 AUTHORIZED
+
+[architect-verified] Owner instruction explicitly authorizes ChatGPT to continue implementation through **I-4 Unified Tool Runtime bridge** and **I-5 First Provider Pilot**, without waiting for CI, Vercel, Gate-C, Gate-D, or continuous verification.
+
+## Current implementation boundary
+
+- I-2: implementation-complete; external verification deferred.
+- I-3: prerequisite Action Runner implementation completed for continuation; external verification deferred.
+- I-4: connected integration actions -> Clara `ToolDefinition` -> Unified Tool Runtime -> existing `runAction()`.
+- I-5: Firecrawl `search` only, default-off, exact allowlist.
+- No MCP, broad provider rollout, production promotion, billing changes, or unrelated work.
+
+## Completed source increments
+- `f44caf5` — initial I-4 bridge.
+- `a86ffd5` — direct runtime-contract binding.
+- `6be5dd5` — public platform-core export.
+- `9d746ed` — canonical action-definition builder.
+- `8927e2c` — focused I-4/I-5 boundary regressions.
+- `829667e` / `b5f9640` / `92c611a` — default-off Firecrawl pilot and exports.
+
+## Next implementation
+1. Reconcile the active phase/control records to this owner-authorized I-4/I-5 boundary.
+2. Finish source-level integration of the bridge/pilot into the Clara runtime surface without introducing a parallel executor.
+3. Add/retain focused regressions for deterministic naming, schema enforcement, tenant/connection readiness, pilot allowlisting and flag-off behavior.
+4. Update session/worklog evidence.
+5. Do not wait for external CI/Vercel/gates; they remain deferred evidence.
+
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-3 AUTHORIZED
 
 [architect-verified] The owner has explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while I-2 external verification remains deliberately deferred. This is not an I-2 Gate-C/Gate-D PASS and not a production promotion.
