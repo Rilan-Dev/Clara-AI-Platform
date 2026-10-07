@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getIntegration } from "../registry/index.js";
 import type { RunActionParams } from "./types.js";
+import { integrationError } from "./error-normalization.js";
 
 /**
  * Re-check integration authorization at the actual execution boundary.
@@ -17,7 +18,7 @@ export async function assertIntegrationExecutionAuthorized(
 ): Promise<void> {
   const def = getIntegration(params.integrationId);
   if (!def) {
-    throw new Error(`Unknown integration: ${params.integrationId}`);
+    throw integrationError("UNKNOWN_INTEGRATION", `Unknown integration: ${params.integrationId}`);
   }
 
   const platform = (await query<{ enabled: boolean; allowed_plans: unknown }>(
@@ -26,7 +27,7 @@ export async function assertIntegrationExecutionAuthorized(
   ))[0];
 
   if (!platform?.enabled) {
-    throw new Error(`Integration ${def.displayName} is disabled by the platform administrator`);
+    throw integrationError("AUTHORIZATION_DENIED", `Integration ${def.displayName} is disabled by the platform administrator`);
   }
 
   // This is an authorization boundary: never use the UI-oriented helper that
@@ -37,14 +38,14 @@ export async function assertIntegrationExecutionAuthorized(
   try {
     limits = await resolveOrgPlanLimits(params.workspaceId);
   } catch {
-    throw new Error("Integration plan entitlement could not be verified");
+    throw integrationError("PLAN_NOT_ENTITLED", "Integration plan entitlement could not be verified");
   }
   if (
     !Array.isArray(platform.allowed_plans) ||
     (!platform.allowed_plans.includes(limits.plan_id) &&
       !platform.allowed_plans.includes("*"))
   ) {
-    throw new Error(`The current plan cannot use ${def.displayName}`);
+    throw integrationError("PLAN_NOT_ENTITLED", `The current plan cannot use ${def.displayName}`);
   }
 
   const organisationGrant = (
@@ -55,11 +56,11 @@ export async function assertIntegrationExecutionAuthorized(
   )[0];
 
   if (!organisationGrant?.enabled) {
-    throw new Error(`${def.displayName} is not enabled for this organisation`);
+    throw integrationError("AUTHORIZATION_DENIED", `${def.displayName} is not enabled for this organisation`);
   }
 
   if (!params.agentId) {
-    throw new Error(`${def.displayName} requires an explicitly scoped agent`);
+    throw integrationError("AUTHORIZATION_DENIED", `${def.displayName} requires an explicitly scoped agent`);
   }
 
   const agentGrant = (
@@ -75,6 +76,6 @@ export async function assertIntegrationExecutionAuthorized(
   )[0];
 
   if (!agentGrant?.enabled) {
-    throw new Error(`${def.displayName} is not enabled for this agent`);
+    throw integrationError("AUTHORIZATION_DENIED", `${def.displayName} is not enabled for this agent`);
   }
 }
