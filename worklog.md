@@ -421,3 +421,13 @@ Implemented:
 Commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `e1477cb`, `bf58cdd`, `301b589`.
 
 No CI/Vercel execution was awaited. No I-4/I-5/MCP/production/unrelated work was started.
+
+## 2026-10-08 — I-3 strict action-input boundary
+
+[architect-verified] Continued I-3 Action Runner implementation. The existing validator allowed undeclared properties, which did not satisfy the I-3 strict pre-execution validation requirement. Added opt-in strict validation and enabled it at both custom-action and Activepieces action execution boundaries. Nested object schemas inherit strict mode.
+
+- Implementation: `68d06ae`, `12b1153`, `80b9c18`
+- Regression: `373242a`
+- Default non-strict validation remains available for compatibility; the runner is strict.
+- No CI, Vercel, Gate-C, or Gate-D execution was awaited.
+- No I-4/I-5/MCP/production/unrelated work was started.
