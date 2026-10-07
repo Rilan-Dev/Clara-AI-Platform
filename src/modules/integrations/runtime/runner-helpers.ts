@@ -489,7 +489,7 @@ export async function ensureTokenFresh(connectionId: string, orgId: string, auth
   if (!response.ok) {
     const invalidGrant = response.status === 400 || response.status === 401;
     if (invalidGrant) {
-      await credentialVault.updateStatus(connectionId, orgId, "expired");
+      await credentialVault.updateStatus(connectionId, orgId, "expired", userId, agentId);
     }
     throw new Error(`OAuth token refresh failed (${response.status})`);
   }
