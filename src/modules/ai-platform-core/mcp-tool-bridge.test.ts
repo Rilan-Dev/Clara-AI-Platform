@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  authorizeMcpTool,
+  isMcpToolAllowlisted,
   buildMcpToolDefinition,
   isMcpEnabled,
   mcpToolName,
@@ -62,10 +62,10 @@ describe("MCP tool bridge", () => {
 
   it("fails closed for tools outside the allowlist", () => {
     expect(
-      authorizeMcpTool(
+      isMcpToolAllowlisted(
         { ...descriptor, name: "delete" },
         policy,
-      ).allowed,
+      ),
     ).toBe(false);
     expect(() =>
       buildMcpToolDefinition(
