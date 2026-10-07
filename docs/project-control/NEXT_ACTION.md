@@ -1061,3 +1061,13 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - [x] Do not block feature development on Gate-C/Gate-D execution
 
 **Next planned work:** remain at the I-2 boundary until the owner re-enables external verification or explicitly authorizes the next phase. Do not silently expand scope.
+
+## 2026-10-08 — I-6 bounded hardening checkpoint
+
+[architect-verified] Source-level acceptance review corrected two I-6 fail-closed boundary gaps: explicit empty MCP surface allowlists no longer widen to all surfaces, and normalized server/tool identifiers now receive an identity-derived suffix to prevent ordinary sanitization collisions.
+
+- Corrections: `2cd0a2be62f7bbdb81327b3991f8c65177d34dc6`, `d4bfbe112863696c99ad7abb81857a9399f079c2`.
+- Session: `SESSION-061.md`.
+- I-6 remains IN PROGRESS; external CI/Vercel/Gate-C/Gate-D are deferred by owner instruction.
+
+**Next implementation:** continue the bounded I-6 source-level acceptance review for remaining resolver, registration, authorization, context, schema, and runtime-seam gaps. Do not add MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated work.
