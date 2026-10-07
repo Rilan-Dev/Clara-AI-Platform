@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeIntegrationError } from "./error-normalization.js";
+import { integrationError, normalizeIntegrationError } from "./error-normalization.js";
 
 describe("normalizeIntegrationError", () => {
   it("classifies connection and input failures deterministically", () => {
@@ -17,6 +17,17 @@ describe("normalizeIntegrationError", () => {
     const result = normalizeIntegrationError(new Error("Provider returned 503"));
     expect(result.code).toBe("UPSTREAM_ERROR");
     expect(result.retryable).toBe(true);
+  });
+
+  it("preserves explicit host-owned classifications over message heuristics", () => {
+    const result = normalizeIntegrationError(
+      integrationError("AUTHORIZATION_DENIED", "provider says not allowed", false),
+    );
+    expect(result).toEqual({
+      code: "AUTHORIZATION_DENIED",
+      message: "provider says not allowed",
+      retryable: false,
+    });
   });
 
   it("keeps unknown failures non-retryable", () => {
