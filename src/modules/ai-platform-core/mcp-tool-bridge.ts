@@ -190,6 +190,7 @@ export async function buildMcpToolRuntime(
   if (!isMcpEnabled()) return null;
 
   const runtime = buildClaraToolRuntime();
+  const registeredMcpIdentities = new Map<string, string>();
 
   for (const request of requests) {
     if (request.context !== context) {
@@ -202,15 +203,14 @@ export async function buildMcpToolRuntime(
     const definition = await resolveMcpToolDefinition(request, policy, resolver);
     if (!definition) continue;
 
-    if (runtime.hasTool(definition.name)) {
+    const identity = `${request.serverId}\0${request.toolName}`;
+    const registeredIdentity = registeredMcpIdentities.get(definition.name);
+    if (registeredIdentity !== undefined) {
       // Never let a normalized-name collision silently shadow one MCP
       // capability with another. Identical requests are harmless duplicates;
       // distinct server/tool identities that converge on one runtime name
       // are an ambiguous capability set and fail closed.
-      const existing = runtime.getTool(definition.name);
-      const existingServerTool = existing.description;
-      const currentServerTool = definition.description;
-      if (existingServerTool !== currentServerTool) {
+      if (registeredIdentity !== identity) {
         throw new ToolExecutionError(
           "TENANT_SCOPE_VIOLATION",
           "MCP tool-name collision detected; refusing ambiguous capability registration.",
@@ -219,6 +219,7 @@ export async function buildMcpToolRuntime(
       continue;
     }
 
+    registeredMcpIdentities.set(definition.name, identity);
     runtime.registerTool(definition);
   }
 
