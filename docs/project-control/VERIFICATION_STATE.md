@@ -4,7 +4,8 @@
 
 I-3 source implementation now has explicit host-owned error classifications at the generic fetch boundary, redacted trace capture for blocked egress attempts, and recursive strict validation for array item schemas. Focused regression coverage was added for typed egress/redirect failures and array item validation. These are source-level implementation corrections, not Gate-C/D closure evidence.
 
-Latest I-3 continuation commits: `57f5fd9e22904eee39759a8c06891e73fc8fd513`, `99a574e60efd217463628eaa26369c6d515cdfb7`, `9e921b24a53d00fb14287db9a7e274fdf376da8b`, `ef1044273b5fcc143585ddb5fb682dceb08be1b8`, `70ba919fede3c0652a9ced5d6feee88e5119fcbb`, `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
+Latest I-3 continuation commits: `57f5fd9e22904eee39759a8c06891e73fc8fd513`
+Latest I-3 continuation commits also include `d3c18c3669555f062dd0fae3613cdb9d39ef79ba` and `62ef2fea18c93225dbc2815cbde67f1da72af621`; focused regressions cover deterministic action-lookup and strict-input result propagation. These remain source-level implementation evidence, not Gate-C/D closure evidence., `99a574e60efd217463628eaa26369c6d515cdfb7`, `9e921b24a53d00fb14287db9a7e274fdf376da8b`, `ef1044273b5fcc143585ddb5fb682dceb08be1b8`, `70ba919fede3c0652a9ced5d6feee88e5119fcbb`, `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
 
 Verification remains intentionally deferred; no external CI/Vercel result is being used as acceptance evidence.
 
