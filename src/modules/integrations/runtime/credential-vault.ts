@@ -79,14 +79,16 @@ export const credentialVault = {
     credentials: unknown,
     userId?: string,
     agentId?: string,
-  ): Promise<void> {
-    await query(
+  ): Promise<boolean> {
+    const rows = await query<{ id: string }>(
       `UPDATE integration_connections
           SET credentials_encrypted=pgp_sym_encrypt($1,$2), status='active', updated_at=now()
         WHERE id=$3 AND org_id=$4 AND status='active'
           AND ($5::uuid IS NULL OR user_id=$5 OR user_id IS NULL)
-          AND ($6::uuid IS NULL OR agent_id=$6 OR agent_id IS NULL)`,
+          AND ($6::uuid IS NULL OR agent_id=$6 OR agent_id IS NULL)
+        RETURNING id`,
       [JSON.stringify(credentials), ENCRYPTION_KEY, connectionId, orgId, userId ?? null, agentId ?? null],
     );
+    return rows.length > 0;
   },
 };
