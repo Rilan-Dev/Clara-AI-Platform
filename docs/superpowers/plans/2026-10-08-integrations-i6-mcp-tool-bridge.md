@@ -53,3 +53,11 @@ This phase is deliberately a bridge/contract phase. It does not introduce an MCP
 I-6 implementation is complete when an already-resolved MCP tool can be represented as a Clara `ToolDefinition`, is allowlisted and default-off, preserves the caller's tenant context, invokes only through the existing Unified Tool Runtime, fails closed on resolver/identity drift, and is exported from the AI Platform Core seam.
 
 External CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instruction.
+
+
+## 2026-10-08 — I-6 bounded hardening checkpoint
+
+- `2cd0a2be62f7bbdb81327b3991f8c65177d34dc6` makes MCP tool names deterministic at the full 64-character boundary with an identity-derived suffix, preventing collisions caused by sanitizing distinct server/tool identifiers to the same string.
+- `d4bfbe112863696c99ad7abb81857a9399f079c2` adds regressions for name-collision resistance and explicit empty surface allowlists.
+- An explicitly supplied empty `allowedSurfaces` list is now treated as no permitted surface and fails closed; only an omitted list receives the default Clara surface set.
+- External CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instruction.
