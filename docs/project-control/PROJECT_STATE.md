@@ -221,3 +221,10 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Corrections: f74d3928ce875e40ebafba473e92da4c90305ca0; 4ea030a1d75e31983605e59026437de4336d5e16; bd238eaa379d51f11c9d867434cd0a77dc5ab1a0.
 - I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - No I-2 PASS is claimed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
+
+
+## 2026-10-07 — Owner CI/CD pause control
+
+[architect-verified] Automatic GitHub Actions triggers were disabled in .github/workflows/ci.yml by replacing push/pull_request execution with workflow_dispatch only; the file contains short restoration guidance. Vercel project clara-backend was paused because Git deployment-source controls are unavailable on the current Hobby plan. This is an operational owner control and does not change I-2 application behavior.
+
+I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D remains IN PROGRESS. No CI, Vercel build, or Gate result was awaited.
