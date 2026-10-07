@@ -17,13 +17,41 @@ export interface NormalizedIntegrationError {
 }
 
 /**
+ * Host-owned error carrying an explicit classification. Runtime boundaries
+ * should prefer this over encoding control-flow semantics in provider strings.
+ */
+export class IntegrationRunnerError extends Error {
+  readonly code: IntegrationErrorCode;
+  readonly retryable: boolean;
+
+  constructor(code: IntegrationErrorCode, message: string, retryable = false) {
+    super(message);
+    this.name = "IntegrationRunnerError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+export function integrationError(
+  code: IntegrationErrorCode,
+  message: string,
+  retryable = false,
+): IntegrationRunnerError {
+  return new IntegrationRunnerError(code, message, retryable);
+}
+
+/**
  * Convert runner failures into a stable host-owned error contract.
- * Provider-specific detail is retained only in the already-redacted message;
- * callers can branch on code without parsing provider strings.
+ * Explicit host classifications take precedence; legacy/provider errors use
+ * conservative compatibility heuristics.
  */
 export function normalizeIntegrationError(
   error: unknown,
 ): NormalizedIntegrationError {
+  if (error instanceof IntegrationRunnerError) {
+    return { code: error.code, message: error.message, retryable: error.retryable };
+  }
+
   const message =
     error instanceof Error && error.message
       ? error.message
@@ -39,9 +67,6 @@ export function normalizeIntegrationError(
   if (lower.includes("not connected")) {
     return { code: "NOT_CONNECTED", message, retryable: false };
   }
-  // Policy-specific messages must be classified before the generic
-  // "not allowed" matcher because egress/redirect failures intentionally
-  // use that wording.
   if (lower.includes("egress redirect") || lower.includes("redirects are not allowed")) {
     return { code: "REDIRECT_BLOCKED", message, retryable: false };
   }
