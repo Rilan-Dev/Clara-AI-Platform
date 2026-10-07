@@ -1,3 +1,16 @@
+## 2026-10-08 — I-3 typed authorization boundary continuation
+
+[architect/ChatGPT] Continued the bounded I-3 Action Runner review without waiting for CI, Vercel, or gates.
+
+- Reviewed the execution authorization boundary against the I-3 deterministic error contract.
+- Found authorization and plan-resolution failures still constructed generic `Error` instances, forcing the runner to recover classifications through message heuristics.
+- Corrected `execution-authorization.ts` to emit host-owned `IntegrationRunnerError` classifications: `UNKNOWN_INTEGRATION`, `AUTHORIZATION_DENIED`, and `PLAN_NOT_ENTITLED`.
+- Updated focused authorization regressions to assert the stable error code/retryability contract.
+- Commits: `2b986887b4f2c8964b3755b3aead5b93e871eb93`, `2002524a1ce4f9f0fef174b5b7bf4cb5dae84125`.
+- No I-4/I-5/MCP/production/unrelated scope introduced.
+
+Current status: **I-3 IN PROGRESS**. Next bounded implementation review remains strict schema coverage, egress/redirect invariants, redacted trace behavior, deterministic result propagation, and tenant-isolation regression coverage.
+
 ## 2026-10-08 — I-3 Action Runner continuation
 
 [architect/ChatGPT] Continued the owner-authorized I-3 implementation track without waiting for GitHub Actions, Vercel, Gate-C, or Gate-D.
