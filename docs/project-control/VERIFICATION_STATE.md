@@ -1,5 +1,13 @@
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 SOURCE IMPLEMENTATION ACTIVE / EXTERNAL VERIFICATION DEFERRED
 
+## 2026-10-08 — I-6 resolution-context binding correction
+
+[architect-verified] Source review identified a tenant-binding gap: a resolved MCP capability was not intrinsically bound to the provenance-verified execution-context identity used during resolver discovery, so a later invocation could substitute another valid context. The bridge now snapshots that resolution context identity and fails closed with TENANT_SCOPE_VIOLATION on substitution. Focused regressions cover cross-context invocation, default-off behavior, and runtime registration.
+
+- Implementation commits: 635b5126d5b89f21076ed387a9f64f5d3248d4a0, 55e7f36c189c9e2369824f671727937389f680d1, 02bff62a4ba9f189fec63e065b4638a4f817dfb1.
+- Verification class: source-level architect review only; no external Gate-C/Gate-D closure is inferred.
+
+
 [architect-verified] Source-level review records the current I-6 MCP Tool Bridge implementation continuation. No external CI, Vercel, Gate-C, or Gate-D execution was awaited.
 
 - Resolver output is bound to the exact allowlisted server/tool request; identity drift fails closed.
