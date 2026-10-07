@@ -200,7 +200,25 @@ export async function buildMcpToolRuntime(
     }
 
     const definition = await resolveMcpToolDefinition(request, policy, resolver);
-    if (!definition || runtime.hasTool(definition.name)) continue;
+    if (!definition) continue;
+
+    if (runtime.hasTool(definition.name)) {
+      // Never let a normalized-name collision silently shadow one MCP
+      // capability with another. Identical requests are harmless duplicates;
+      // distinct server/tool identities that converge on one runtime name
+      // are an ambiguous capability set and fail closed.
+      const existing = runtime.getTool(definition.name);
+      const existingServerTool = existing.description;
+      const currentServerTool = definition.description;
+      if (existingServerTool !== currentServerTool) {
+        throw new ToolExecutionError(
+          "TENANT_SCOPE_VIOLATION",
+          "MCP tool-name collision detected; refusing ambiguous capability registration.",
+        );
+      }
+      continue;
+    }
+
     runtime.registerTool(definition);
   }
 
