@@ -779,3 +779,10 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 **Next bounded work:** continue I-2 source implementation/review only, without waiting for CI, Vercel, Gate-C, or Gate-D. Gate-C remains MISSING and Gate-D remains IN PROGRESS. After bounded source work is exhausted, the existing plan still calls for executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review when the owner chooses to resume verification.
 
 **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-07 — I-084 OAuth refresh scope drift corrected
+
+[architect-verified] Bounded source review found I-082's recorded OAuth refresh scope was not fully reflected in current runner-helpers.ts. ensureTokenFresh now accepts and propagates userId/agentId through credential decrypt, expiry status, and refreshed credential persistence. No tests, CI, Vercel build, Gate-C, or Gate-D result was awaited.
+
+**Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. Then executable Gate-C evidence and final Gate-D review when verification is deliberately resumed.
