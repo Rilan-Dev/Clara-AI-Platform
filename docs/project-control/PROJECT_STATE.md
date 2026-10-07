@@ -2,8 +2,8 @@
 
 [architect-verified] The active phase remains **Integrations Framework I-3 — Action Runner**. Owner instruction explicitly permits continued implementation without waiting for GitHub Actions, Vercel, or phase gates.
 
-- Current branch tip after bounded implementation: `4a78b90481a4ddd7dcb9572a49e0cb319605f75a`.
-- I-3 support corrections in this continuation: `93d5211333cc4f919981476b27dc8a782b407555` restored the strict action-input regression test structure; `05ec7cfc9e81beb100684ddb885f84d818d79482` added stable runner error metadata regression coverage.
+- Current branch tip after bounded implementation: `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
+- Latest I-3 corrections: typed egress/DNS/redirect failure propagation with redacted blocked-request traces; recursive array-item action-input validation in strict mode; focused regression coverage for both.
 - I-3 remains **IN PROGRESS**; no I-3 PASS/closure is inferred.
 - I-2 remains implementation-complete with external verification deferred.
 - **STOP:** no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
@@ -12,7 +12,7 @@
 
 [architect-verified] Owner authorization explicitly advances implementation to **Integrations Framework I-3 — Action Runner** while I-2 executable verification remains deferred. I-2 is not claimed PASS/CLOSED. The active implementation scope is I-3 only; I-4/I-5, MCP, production promotion, and unrelated work remain out of scope.
 
-Current I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f`, `5f8a130`, `c293ad4`, `234e3d5`. The latest bounded correction fixes the strict action-input regression suite's test-block structure. The latest bounded corrections complete the stable failure-result contract across early runner exits and extend deterministic upstream retry classification.
+Current I-3 implementation/support commits: `57f5fd9`, `99a574e`, `9e921b2`, `ef10442`, `70ba919`, `5b83952`. The latest bounded corrections complete typed egress/redirect classification at the fetch boundary and extend strict input validation into array items.
 
 **Recovery rule:** this block supersedes older checkpoint prose below; historical I-2 entries remain historical evidence and must not be interpreted as the current active phase.
 
