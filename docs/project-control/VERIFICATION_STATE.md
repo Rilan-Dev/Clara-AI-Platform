@@ -2,7 +2,7 @@
 
 [architect-verified] Owner instruction explicitly authorizes I-3 implementation without waiting for I-2 external Gate-C/Gate-D evidence. I-2 remains **VERIFICATION DEFERRED**, not PASS or CLOSED. I-3 is an implementation track and has not yet received Gate-C/D closure.
 
-I-3 source implementation now includes a stable `IntegrationErrorCode` contract and runner propagation of `errorCode` + `retryable` metadata, with focused normalization tests. Follow-up corrections normalize early unknown-integration/action-denial/input/action-lookup failures and classify 408/429/rate-limit failures as retryable. Commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f6d8095a0e861f938e5ab76c75fb0fdbb9`, `5f8a1301ff47ee2ebaeadd0ab4fda44cfe03a42c`, `c293ad4ca843ad8ebc0a6f1106b4da169c62102b`.
+I-3 source implementation now includes a stable `IntegrationErrorCode` contract and runner propagation of `errorCode` + `retryable` metadata, with focused normalization tests. Follow-up corrections normalize early unknown-integration/action-denial/input/action-lookup failures and classify 408/429/rate-limit failures as retryable; the strict input-validation regression suite was also structurally corrected. Commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f6d8095a0e861f938e5ab76c75fb0fdbb9`, `5f8a1301ff47ee2ebaeadd0ab4fda44cfe03a42c`, `c293ad4ca843ad8ebc0a6f1106b4da169c62102b`, `234e3d564d2247a043803e10351863077c7cf3eb`.
 
 Verification remains intentionally deferred; no external CI/Vercel result is being used as acceptance evidence.
 
