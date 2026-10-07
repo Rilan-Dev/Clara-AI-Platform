@@ -1696,3 +1696,32 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 - Runner correction: eb4a3bed89204d6b7b2670d4f4bc045873ed7be8
 - I-085: RESOLVED by source correction.
 - No generated-code tests, CI, Vercel build, Gate-C, or Gate-D verification was awaited.
+
+
+## I-086 — Organisation integration connect limit check was not serialized for a missing grant row
+
+| Field | Value |
+|---|---|
+| Issue ID | I-086 |
+| Title | Organisation integration connect must serialize slot checks even when the grant row does not yet exist |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The organisation integration connect transaction locked the existing `organisation_integrations` row with `FOR UPDATE`, but when that grant row did not yet exist there was nothing to lock. Concurrent connect requests for different integrations could therefore both observe the same integration count below the plan limit and both consume a slot. The comment claiming that the mutation was serialized was not true for the missing-row case. |
+| Evidence | [architect-verified] Direct source review of `src/app/api/orgs/[orgId]/integrations/route.ts` showed the connect transaction acquired only a per-integration row lock before counting enabled organisation integrations; the row can be absent for a first-time connection. |
+| Affected commit | `44c14e460dcf0bd78e2d441e242bf1e2f0ed4292` |
+| Affected files/areas | `src/app/api/orgs/[orgId]/integrations/route.ts`; organisation integration enable/connect/disconnect mutation boundary |
+| Acceptance criterion affected | I-2 integration entitlement and tenant mutation concurrency boundary |
+| Security / tenancy impact | P1 entitlement/correctness risk: concurrent requests could exceed the organisation's configured integration-slot limit. |
+| Correction required | Serialize the complete organisation integration mutation domain before reading the slot count, including first-time grant creation; serialize disable/disconnect against connect mutations as part of the same bounded mutation domain. |
+| Correction scope | `src/app/api/orgs/[orgId]/integrations/route.ts` only; use the existing PostgreSQL transaction/advisory-lock mechanism; no schema or migration change |
+| Explicit non-scope | No provider rollout, OAuth transport expansion, MCP, billing, production promotion, unrelated runtime refactor, or new persistence model |
+| Expected verification | Source review confirms connect/enable/disable/disconnect use the same organisation-level transaction lock and the slot count is read only after that lock is acquired. Executable Gate-C evidence remains pending. |
+| Developer correction commit | `51c14f65b7dac8812ccae353bc23e9cf07694d8c` — architect implementation owner; no Z.AI handoff used |
+| Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-07 |
+| Resolution evidence | [architect-verified] The connect transaction now acquires the organisation advisory transaction lock before checking the existing grant/count, closing the missing-row race. Disable and disconnect also acquire the same lock, so all organisation integration mutations share one serialization boundary. |
+| Resolution date | 2026-10-07 |
+| Related decision | none |
+| Related worklog/session | `docs/project-control/sessions/SESSION-057.md` |
