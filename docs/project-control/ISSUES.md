@@ -1785,3 +1785,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Resolution date | 2026-10-07 |
 | Related decision | none |
 | Related worklog/session | `docs/project-control/sessions/SESSION-057.md` |
+
+
+## I-087 — MCP bridge surface and normalized-name boundary hardening
+
+| Field | Value |
+|---|---|
+| Issue ID | I-087 |
+| Title | MCP bridge must fail closed for explicit empty surfaces and prevent normalized tool-name collisions |
+| Phase | Integrations I-6 |
+| Severity | P1 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | `buildMcpToolDefinition()` treated `allowedSurfaces: []` as equivalent to an omitted field, widening the tool to all Clara surfaces. Separately, normalizing server/tool identifiers by replacing non-alphanumeric characters could map distinct identities to the same runtime tool name and silently shadow a capability. |
+| Correction | Explicit empty `allowedSurfaces` now yields no allowed surface and fails closed. MCP tool names now include an identity-derived deterministic suffix while remaining within the 64-character runtime name limit. |
+| Scope | `src/modules/ai-platform-core/mcp-tool-bridge.ts`; focused regressions in `mcp-tool-bridge.test.ts` |
+| Correction commits | `2cd0a2be62f7bbdb81327b3991f8c65177d34dc6`; `d4bfbe112863696c99ad7abb81857a9399f079c2` |
+| Verification | [architect-verified] Direct source review confirms omitted versus explicit-empty surface semantics are distinct and normalized names retain identity entropy; focused regression source is present. Executable test evidence remains deferred. |
+| Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated runtime refactor. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08 |
+| Related session | `docs/project-control/sessions/SESSION-061.md` |
