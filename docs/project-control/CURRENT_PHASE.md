@@ -1,3 +1,13 @@
+## 2026-10-08 — I-3 strict array-item schema correction
+
+[architect-verified] Bounded I-3 source review found strict array validation treated null/empty primitive elements as missing and therefore skipped type enforcement. The validator now treats array elements as values and rejects null, empty, or wrong-typed primitive items; nested object/array validation remains recursive.
+
+- Implementation: `6db1b45e0213bba4b53a2675c328bad0f7bdcb7c`
+- Regression: `d12d43509463eedeba712b1b657c04cecb8475bb`
+- No CI, Vercel, Gate-C, or Gate-D execution was awaited.
+- I-3 remains IN PROGRESS; no phase closure is inferred.
+
+
 ## 2026-10-08 — I-3 failure-result trace propagation
 
 [architect-verified] Bounded I-3 source review found that `runAction()` accumulated redacted HTTP traces during execution but omitted them from failed `RunActionResult` responses. The runner now keeps one per-run trace collection across custom/piece execution and returns the redacted trace set on failure.
