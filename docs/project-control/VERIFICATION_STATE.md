@@ -1905,3 +1905,61 @@ Gate-D may proceed as architect source review after this execution evidence is o
 - Existing source corrections through I-086 remain architect-reviewed; their executable verification status is unchanged.
 - This is an architect control decision, not a request to wait on CI/Vercel. The owner-controlled manual execution path remains the only missing evidence path currently visible to ChatGPT.
 - **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
+
+
+## 2026-10-07 — Gate-C execution contract completed; external execution intentionally deferred
+
+[architect-verified] The Gate-C implementation-side gap is now closed. The manual CI workflow has been strengthened to use `npm ci --legacy-peer-deps` (lockfile-enforcing installation) and now contains a dedicated `integrations-i2-focused` job covering runtime redaction/egress, credential-vault/runner behavior, AI integration authorization/readiness, registry/control-plane tests, focused typecheck, and focused lint.
+
+- Workflow correction: `4714e5f5f2d157a8c868e118df5b26149b98c9cd`.
+- Automatic CI remains disabled by owner directive; `workflow_dispatch` remains available.
+- Gate-C is therefore **IMPLEMENTATION-COMPLETE / EXECUTION-DEFERRED**, not falsely marked verified.
+- GitHub/Vercel execution evidence is explicitly skipped under the current owner instruction not to wait on external gates.
+- I-2 application implementation is complete; remaining items are verification/operational evidence only.
+- Gate-D is likewise skipped/deferred because its closure depends on Gate-C evidence and the owner has instructed that external gates must not block development.
+- No I-3, MCP expansion, production promotion, or unrelated feature implementation is authorized by the current project-control boundary.
+
+### I-2 owner checklist — 2026-10-07
+
+**DONE — implementation**
+- [x] Registry-authoritative integration/action capability model
+- [x] Organisation/agent/user authorization boundaries
+- [x] Fail-closed plan entitlement resolution
+- [x] Connection auth-type authority
+- [x] OAuth token endpoint authority
+- [x] OAuth refresh user/agent scope preservation
+- [x] OAuth refresh disable/disconnect race protection
+- [x] Fail-closed scoped credential persistence
+- [x] Activepieces reviewed-action allowlist
+- [x] Registry-authoritative action discovery
+- [x] AI integration action user-scoped readiness
+- [x] AI integration availability user/tenant-scoped readiness
+- [x] Custom Supabase Management credential authorization/fallback boundary
+- [x] Secret/error/trace redaction
+- [x] SSRF/private-network egress protection and redirect hardening
+- [x] FLOW/store tenant isolation
+- [x] Agent/org ownership enforcement
+- [x] Organisation integration mutation serialization
+- [x] Integration slot entitlement concurrency protection
+- [x] I-2 migration/control-plane source implementation
+- [x] Gate-C manual workflow contract
+
+**PENDING — external verification only**
+- [ ] Current-head GitHub workflow execution evidence
+- [ ] Current-head production Docker build evidence
+- [ ] Database migration/runtime execution evidence where environment access is required
+- [ ] Real connector/OAuth smoke with valid provider credentials
+- [ ] Browser allow/deny-path verification
+- [ ] Immutable-source/runtime-import/secret/governance execution evidence
+- [ ] Final Gate-D closure review
+
+**IN PROGRESS**
+- [ ] None in application implementation. I-2 source implementation is complete; external verification is deliberately not allowed to block the plan.
+
+**DEFERRED/SKIPPED BY OWNER CONTROL**
+- [x] Do not wait for GitHub Actions
+- [x] Do not wait for Vercel
+- [x] Do not run continuous verification
+- [x] Do not block feature development on Gate-C/Gate-D execution
+
+**Next planned work:** remain at the I-2 boundary until the owner re-enables external verification or explicitly authorizes the next phase. Do not silently expand scope.
