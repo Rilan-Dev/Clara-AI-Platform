@@ -68,3 +68,9 @@ External CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instructi
 - `d4bfbe112863696c99ad7abb81857a9399f079c2` adds regressions for name-collision resistance and explicit empty surface allowlists.
 - An explicitly supplied empty `allowedSurfaces` list is now treated as no permitted surface and fails closed; only an omitted list receives the default Clara surface set.
 - External CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instruction.
+
+## 2026-10-08 — I-6 helper contract hardening
+
+- The public static helper is now named `isMcpToolAllowlisted`; it returns only whether the exact server/tool pair is statically allowlisted.
+- Full authorization remains exclusively in the Unified Tool Runtime (surface, required identity, host RBAC, plan entitlement, and tenant checks).
+- This prevents a convenience helper from being mistaken for the authoritative authorization boundary.
