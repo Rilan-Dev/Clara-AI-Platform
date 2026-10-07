@@ -59,7 +59,7 @@ function buildInputSchema(
   });
 }
 
-function actionDefinition(
+export function buildIntegrationActionDefinition(
   integrationId: string,
   action: {
     name: string;
