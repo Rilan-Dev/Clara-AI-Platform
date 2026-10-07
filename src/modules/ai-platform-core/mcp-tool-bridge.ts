@@ -156,7 +156,15 @@ export async function resolveMcpToolDefinition(
     return null;
   }
 
-  const descriptor = await resolver.resolve(request);
+  let descriptor: McpToolDescriptor | null;
+  try {
+    descriptor = await resolver.resolve(request);
+  } catch {
+    // Resolver availability is an infrastructure boundary. Discovery must
+    // fail closed rather than leak provider/transport errors or construct a
+    // capability from an unavailable adapter.
+    return null;
+  }
   if (!descriptor) return null;
 
   // The resolver is not trusted to widen identity after the allowlist check.
