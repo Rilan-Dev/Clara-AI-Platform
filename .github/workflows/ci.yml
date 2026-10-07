@@ -160,7 +160,7 @@ jobs:
       - name: Vercel provenance
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD:vercel.json)" = "3f26d343"
+          test "$(git rev-parse HEAD:vercel.json)" = "65e5f9bb29875e1120d2f597ee4e914708f9cdc0"
 
       - name: Runtime import boundary
         run: |
