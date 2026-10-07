@@ -1877,3 +1877,18 @@ Focused regression source was added for both corrections.
 ## 2026-10-06 — I-070 bounded source correction
 
 [architect-verified] Current I-2 review identified an agent-isolation defect in PostgresStore FLOW scope: the key omitted agentId. Correction f0f476e74b1fbd66ed3e716346bdc23e9e6b775b and regression efc652c8096488e3cf8d2ac2422d108c345924ca add explicit agent scope. I-070 is resolved by source review. This does not constitute Gate-C or Gate-D closure; I-2 remains IMPLEMENTED — VERIFICATION PENDING.
+
+
+## 2026-10-07 — Gate-C completion preparation at current head
+
+Current branch head: `bd958a7df2fe54fa2fb9d14bc490ffcf79787b1e`.
+
+Gate-C was re-audited against the active I-2 contract. The implementation-side checklist is executable from the repository: `.github/workflows/ci.yml` retains a manual `workflow_dispatch` path with the lint, type-check, test, model-config, focused Phase-7, governance, immutable-source, secret-scan, I-1, Docker-build, and integration-control-plane jobs. Automatic CI triggers remain disabled by owner instruction. The previously scheduled platform-health workflow has also been converted to manual-only.
+
+**Gate-C status: EXECUTION-READY / NOT YET VERIFIED.** The only remaining Gate-C gap is an executable run against the current branch head. The GitHub connector available to ChatGPT exposes workflow-run reads but no workflow-dispatch write operation, and the local execution environment has no repository checkout or outbound GitHub/npm connectivity. Therefore no current-head execution result is fabricated or promoted to PASS.
+
+The prior workflow results are not current-head evidence: the latest observed CI failure was for older commit `2d896e206e500b96d42ffc9917229637f9e2799d`, while the current head is `bd958a7df2fe54fa2fb9d14bc490ffcf79787b1e`.
+
+Required one-time evidence action when execution access is available: run the manual `Cloud CI — Lint, Type Check & Tests` workflow on `feature/ai-core-from-doable-source`, then record the completed run's job results and any accepted pre-existing baseline conditions. No source correction is authorized merely to manufacture green global baseline checks.
+
+Gate-D may proceed as architect source review after this execution evidence is obtained; Gate-D closure still requires ChatGPT's final review and cannot be inferred from CI alone.
