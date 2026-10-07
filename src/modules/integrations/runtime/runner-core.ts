@@ -5,6 +5,7 @@ import type { RunActionParams, RunActionResult } from "./types.js";
 import { xray } from "./xray.js";
 import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch.js";
 import { validateActionProps } from "./action-input-validation.js";
+import { normalizeIntegrationError } from "./error-normalization.js";
 import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
 import {
   customActions,
@@ -311,13 +312,14 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     return { success: true, output: safeOutput, httpTraces: httpTraces.length > 0 ? httpTraces : undefined };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const errorMsg = redactText(redactValue(err instanceof Error ? err.message : String(err), knownSecretValues) as string) ?? "Integration action failed";
-    console.error(`[Integration] FAILED ${params.integrationId}/${params.actionName} ${durationMs}ms: ${errorMsg}`);
+    const normalized = normalizeIntegrationError(err);
+    const errorMsg = redactText(redactValue(normalized.message, knownSecretValues) as string) ?? "Integration action failed";
+    console.error(`[Integration] FAILED ${params.integrationId}/${params.actionName} ${durationMs}ms code=${normalized.code} retryable=${normalized.retryable}: ${errorMsg}`);
     xr.end("error", errorMsg);
 
     logUsage({ orgId: params.workspaceId, agentId: params.agentId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: false, durationMs, errorMessage: errorMsg });
 
-    return { success: false, output: null, error: errorMsg };
+    return { success: false, output: null, error: errorMsg, errorCode: normalized.code, retryable: normalized.retryable };
   }
 }
 
