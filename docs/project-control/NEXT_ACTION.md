@@ -1,3 +1,24 @@
+# ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
+
+[architect-verified] The owner explicitly instructed continuation of the next pending implementation and not to wait for GitHub Actions, Vercel, continuous verification, or phase gates. Repository review shows I-3 and I-4/I-5 implementation work is already present, so the next bounded capability is I-6.
+
+## Current boundary
+- I-2: implementation-complete; external verification deferred.
+- I-3: implementation-complete; external verification deferred.
+- I-4: implementation-complete.
+- I-5: implementation-complete, Firecrawl search default-off.
+- I-6: active — bounded MCP Tool Bridge.
+
+## Next implementation
+1. Harden the I-6 bridge contract and failure semantics.
+2. Add focused regressions for context preservation, schema validation, allowlist drift, disabled flag, and runtime-only invocation.
+3. Integrate the bridge into the Clara AI Platform Core export/seam without creating a second executor.
+4. Keep MCP transport/server hosting, persistence/OAuth, marketplace, billing changes, production promotion, and unrelated work out of scope.
+5. Record the implementation checkpoint in the project-control session/worklog.
+
+External CI/Vercel/Gate-C/Gate-D evidence remains deferred and must not be used as a development stop or represented as PASS.
+
+---
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-4/I-5 IMPLEMENTATION COMPLETE
 
 [architect-verified] I-4/I-5 source implementation is complete under the explicit owner instruction to continue without waiting for external gates.
