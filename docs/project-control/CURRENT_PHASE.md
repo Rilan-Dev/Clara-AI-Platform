@@ -5,6 +5,7 @@
 I-3 deliverables: bounded integration execution, strict/pre-execution action validation, host-owned egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage. Current source corrections keep DNS/private egress failures and redirect rejection on explicit host-owned error classifications and extend strict validation through array item schemas.
 
 Latest continuation commits: `57f5fd9`, `99a574e`, `9e921b2`, `ef10442`, `70ba919`, `5b83952`.
+Latest continuation commits now also include `d3c18c3` and `62ef2fe`, making registry-approved/package-missing action lookup and strict input rejection deterministic typed runner failures.
 
 **Next implementation:** continue bounded I-3 acceptance review for remaining deterministic result propagation, strict schema edge cases, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
 
