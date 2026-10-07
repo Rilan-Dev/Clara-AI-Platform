@@ -1,3 +1,13 @@
+## 2026-10-08 — I-6 exact MCP server/tool allowlist pairing hardening
+
+[architect-verified] Continued the owner-authorized I-6 MCP Tool Bridge implementation without waiting for external CI, Vercel, Gate-C, or continuous verification. Source review found that independent server and tool allowlists authorized their cross-product, so a tool name permitted for one MCP server could be accepted for another permitted server. The bridge now requires an exact `serverId` + `toolName` pair in addition to the coarse server boundary and snapshots those pair identities into the executable definition.
+
+- Implementation: `37ae1f648df78cd651bd7eecec0bcce1fd3847c0`
+- Regression: `a0ac98adacadbd77d78e98cb88bd49fac49e7167`
+- Control reconciliation: `0cf678537f5698122dc1cab320bbe7c87475bbc1` and subsequent I-6 state-record commits.
+- I-6 remains IN PROGRESS; this is source implementation evidence, not Gate-C/Gate-D closure.
+- Next bounded work: continue I-6 resolver/registration and capability-authorization edge-case review.
+
 ## 2026-10-08 — I-6 resolution-context execution binding correction
 
 [architect/ChatGPT] Continued the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
