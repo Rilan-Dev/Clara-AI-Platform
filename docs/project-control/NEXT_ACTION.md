@@ -736,3 +736,14 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-07 — I-080 AI availability regression alignment
+
+[architect-verified] Continued bounded I-2 review found a stale test mock reference to the removed `getOrgPlanLimits` helper in the cross-tenant AI availability regression. The test now configures the authoritative `resolveOrgPlanLimits` resolver.
+
+- Correction: `3ed83c8ddcde22e05ddfa415bce134e7773fca75`
+- I-080: RESOLVED by test-source correction.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
