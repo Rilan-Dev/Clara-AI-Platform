@@ -341,3 +341,8 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - I-6 remains the active implementation capability.
 - External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction.
 - **Next implementation:** continue bounded I-6 source-level acceptance review; no MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated implementation.
+
+
+## 2026-10-08 — I-3 action-props hardening checkpoint
+
+[architect-verified] Current-state continuation remains Integrations I-3 — Action Runner, IN PROGRESS. The malformed runtime action-props boundary is corrected at 7aa1ebc8521c377684c711d97710e0614f66b4e3 with focused regression 8ac329d38af49a6c3acba22ac25935fb8b151c3c. I-2 external verification remains deferred; no I-2 PASS is inferred. No I-4/I-5/MCP/production scope is authorized.
