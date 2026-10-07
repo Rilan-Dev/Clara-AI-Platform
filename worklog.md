@@ -577,3 +577,13 @@ Disposition:
 - I-5 implementation: COMPLETE at source level.
 - External CI/Vercel/Gate-C/Gate-D: deliberately deferred; no PASS inferred.
 - No MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated work.
+
+
+## 2026-10-08 — I-3 malformed action-props boundary correction
+
+[architect-verified] ChatGPT continued the owner-authorized Integrations I-3 Action Runner implementation. Source review found that the compile-time Record<string, unknown> contract did not protect runtime callers from null or array props. The validator now rejects those malformed top-level values before schema traversal and the focused regression covers both cases.
+
+- Implementation: 7aa1ebc8521c377684c711d97710e0614f66b4e3
+- Regression: 8ac329d38af49a6c3acba22ac25935fb8b151c3c
+- I-3 remains IN PROGRESS; no CI/Vercel/Gate-C/Gate-D result was awaited.
+- Next bounded work: strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
