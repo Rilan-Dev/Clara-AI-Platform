@@ -3,6 +3,21 @@
 [architect-verified] The owner has explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while I-2 external verification remains deliberately deferred. This is not an I-2 Gate-C/Gate-D PASS and not a production promotion.
 
 - I-2 application implementation is treated as complete for implementation purposes; executable/current-head verification remains deferred by owner instruction.
+- I-3 remains restricted to bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
+- I-4 Tool Runtime bridge, I-5 provider rollout, MCP, production promotion, and unrelated work remain out of scope.
+- Latest I-3 continuation commits: `57f5fd9e22904eee39759a8c06891e73fc8fd513`, `99a574e60efd217463628eaa26369c6d515cdfb7`, `9e921b24a53d00fb14287db9a7e274fdf376da8b`, `ef1044273b5fcc143585ddb5fb682dceb08be1b8`, `70ba919fede3c0652a9ced5d6feee88e5119fcbb`, `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
+- These corrections keep egress/DNS/redirect failures on the host-owned typed error contract, record redacted trace entries for blocked outbound attempts, and validate array item schemas recursively in strict action-input mode.
+- External CI/Vercel execution is not awaited.
+
+**Current next implementation:** continue bounded I-3 acceptance review, focusing on remaining deterministic result propagation, strict schema edge cases, redirect/egress boundary coverage, redacted trace invariants, and tenant-isolation regression coverage.
+
+---
+
+# ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-3 AUTHORIZED
+
+[architect-verified] The owner has explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while I-2 external verification remains deliberately deferred. This is not an I-2 Gate-C/Gate-D PASS and not a production promotion.
+
+- I-2 application implementation is treated as complete for implementation purposes; executable/current-head verification remains deferred by owner instruction.
 - I-3 is restricted to bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
 - I-4 Tool Runtime bridge, I-5 provider rollout, MCP, production promotion, and unrelated work remain out of scope.
 - Latest I-3 implementation/support commits: `4e4b8bf06bd9db8e8456f85a47d411f5d61b4685`, `93d5211333cc4f919981476b27dc8a782b407555`, `05ec7cfc9e81beb100684ddb885f84d818d79482`.
