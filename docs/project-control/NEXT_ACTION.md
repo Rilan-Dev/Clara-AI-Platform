@@ -13,21 +13,6 @@
 
 ---
 
-# ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-3 AUTHORIZED
-
-[architect-verified] The owner has explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while I-2 external verification remains deliberately deferred. This is not an I-2 Gate-C/Gate-D PASS and not a production promotion.
-
-- I-2 application implementation is treated as complete for implementation purposes; executable/current-head verification remains deferred by owner instruction.
-- I-3 is restricted to bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
-- I-4 Tool Runtime bridge, I-5 provider rollout, MCP, production promotion, and unrelated work remain out of scope.
-- Latest I-3 implementation/support commits: `4e4b8bf06bd9db8e8456f85a47d411f5d61b4685`, `93d5211333cc4f919981476b27dc8a782b407555`, `05ec7cfc9e81beb100684ddb885f84d818d79482`.
-- The strict action-input regression suite structure has now been restored on the actual feature branch, and runner early-failure results now have explicit regression coverage for `errorCode`/`retryable`.
-- External CI/Vercel execution is not awaited.
-
-**Current next implementation:** continue the bounded I-3 acceptance review from the feature-branch tip, focusing on remaining action-runner gaps in strict schema coverage, egress/redirect boundaries, redacted trace invariants, deterministic result propagation, and tenant-isolation regression coverage.
-
----
-
 ## 2026-10-08 — Agent-scoped integration disconnect authorization correction
 
 [architect-verified] Continued bounded I-2 authorization review found that the prior agent-scoped permission correction ran only after the `disconnect` branch, so an `agentId` supplied to disconnect could reach the database under organisation-level permission alone. The route now imports and applies `requireAgentPermission(auth, agentId, "config:update")` before all agent-scoped enable/connect/disconnect mutations, retaining the organisation identity check. This also corrects the missing RBAC import introduced by the prior correction.
