@@ -91,3 +91,22 @@ No GitHub Actions, Vercel build, Gate-C, or Gate-D execution was awaited. Source
 - Keep focused regressions aligned with the final source.
 - Reconcile the root `worklog.md`.
 - No MCP/broad provider/production work.
+
+## Source review corrections
+
+[architect-verified] Final I-4/I-5 source review found and corrected:
+- tenant-specific dynamic tools must not mutate the global Clara runtime singleton;
+- the I-4 bridge now builds context-local instances of the existing Unified Tool Runtime;
+- the Firecrawl pilot uses the same context-local runtime and requires the I-4 connection/readiness boundary;
+- stale action-definition references and generated literal-newline formatting were removed.
+
+Corrections:
+- `19edcdad3cbdbe369141028376b632ea2a6421f0`
+- `3f9479cd88af01e4cee14f74a85df2ace77a0767`
+- `ab9a2623eab210ab1166a6b6022abe822aa1e98d`
+- `ee4103ab831a46b1740f220ce6e2fe75b3580b4f`
+- `2b7ea16d67ecfd0e86810938d993c673ac9ce410`
+
+## Final disposition
+
+I-4 and I-5 implementation is complete at source level. External execution evidence remains deliberately deferred and is not represented as PASS.
