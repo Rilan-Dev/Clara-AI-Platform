@@ -157,7 +157,18 @@ export async function resolveMcpToolDefinition(
   }
 
   const descriptor = await resolver.resolve(request);
-  if (!descriptor || !isAllowed(descriptor, policy)) return null;
+  if (!descriptor) return null;
+
+  // The resolver is not trusted to widen identity after the allowlist check.
+  // Its resolved descriptor must exactly match the already-authorized request.
+  if (
+    descriptor.serverId !== request.serverId ||
+    descriptor.name !== request.toolName
+  ) {
+    return null;
+  }
+
+  if (!isAllowed(descriptor, policy)) return null;
   return buildMcpToolDefinition(descriptor, policy, resolver);
 }
 
