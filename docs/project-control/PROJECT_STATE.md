@@ -179,3 +179,14 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-07 — I-078 runner early-rejection trace initialization correction
 
 [architect-verified] Bounded I-2 source review found the registry action-allowlist rejection path referenced the normal XRay handle before initialization, causing a temporal-dead-zone ReferenceError instead of the intended structured fail-closed response. Correction ddd38bbf84f274a7f2daa159007a080f964b3046 removes that premature trace call. I-078 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+
+
+## 2026-10-07 — I-079 AI action readiness user-scope correction
+
+[architect-verified] Continued bounded I-2 source review found that `integration_action` readiness checked for any active organisation/agent connection but omitted the current `userId`. Because the runner already enforces tenant/user/agent credential scope, this was a readiness correctness issue rather than a credential-access bypass: another user's connection could make the AI tool report readiness for the current user, followed by a later runner failure. The readiness query now requires the same user scope and prioritizes the current user's connection.
+
+- Implementation: `9e168851bc2e978f68c0576235e084eba63be4a2`
+- Regression: `f2b3dc2ac263d5112dc8d6e7649acfdd76bc735a`
+- I-079: RESOLVED by architect source review.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- No I-2 PASS is claimed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
