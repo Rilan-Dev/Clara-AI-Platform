@@ -1824,3 +1824,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] Source review confirms the helper name and return type now express only static allowlist semantics; runtime authorization remains the enforcement boundary. |
 | Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated implementation. |
 | Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08 |
+
+
+## I-089 — MCP bridge bindings could drift through caller-owned mutation
+
+| Field | Value |
+|---|---|
+| Issue ID | I-089 |
+| Title | MCP bridge must snapshot authorization and descriptor identity after registration |
+| Phase | Integrations I-6 |
+| Severity | P1 |
+| Status | RESOLVED — architect source correction + regression |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The MCP bridge captured caller-owned policy arrays and descriptor objects in the executable closure. TypeScript readonly is compile-time only; a mutable caller could change the allowlist or descriptor identity after registration, potentially causing the invocation boundary to observe a different authorization set or target identity than the registered capability. |
+| Correction | The MCP definition builder now snapshots the server/tool allowlist, user requirement, allowed surfaces, and descriptor identity into frozen bound values. Invocation uses the bound descriptor/policy. A focused regression mutates the original policy and descriptor after registration and verifies the registered capability remains bound to its original identity. The runtime builder also refuses distinct MCP identities that converge on one normalized tool name instead of silently skipping the later capability. |
+| Scope | src/modules/ai-platform-core/mcp-tool-bridge.ts; focused regression in mcp-tool-bridge.test.ts |
+| Correction commits | ff64b9b95e11e90f078646379a322d28e589e700; 12815df1d0caa27da3937fd7a9d7abba4411c434; regression d90cddbe1b90e2b00d1c3f6a49e844a670d5a548 |
+| Verification | [architect-verified] Direct source review confirms mutable caller-owned policy/descriptor values are no longer consulted after definition construction; the focused regression source is present. Executable test evidence remains deferred by owner instruction. |
+| Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, broad provider rollout, or unrelated refactor. |
+| Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
