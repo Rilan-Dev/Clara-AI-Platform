@@ -102,4 +102,20 @@ export {
 // Next capability — Integrations Framework I-1 host-neutral contracts.
 export * from "./integrations/integration-contracts";
 
-export {\n  buildIntegrationActionDefinition,\n  buildIntegrationToolBridgeAdapter,\n  buildIntegrationToolDefinition,\n  integrationToolName,\n  registerConnectedIntegrationTools,\n} from "./integrations/integration-tool-bridge";\n\nexport {\n  FIRST_PROVIDER_ACTION,\n  FIRST_PROVIDER_INTEGRATION_ID,\n  INTEGRATION_PROVIDER_PILOT_FLAG,\n  buildFirstProviderPilotTool,\n  isFirstProviderPilotAction,\n  isIntegrationProviderPilotEnabled,\n  registerFirstProviderPilotTool,\n} from "./integration-provider-pilot";\n
+export {
+  buildIntegrationActionDefinition,
+  buildIntegrationToolBridgeAdapter,
+  buildIntegrationToolDefinition,
+  integrationToolName,
+  registerConnectedIntegrationTools,
+} from "./integrations/integration-tool-bridge";
+
+export {
+  FIRST_PROVIDER_ACTION,
+  FIRST_PROVIDER_INTEGRATION_ID,
+  INTEGRATION_PROVIDER_PILOT_FLAG,
+  buildFirstProviderPilotTool,
+  isFirstProviderPilotAction,
+  isIntegrationProviderPilotEnabled,
+  registerFirstProviderPilotTool,
+} from "./integration-provider-pilot";
