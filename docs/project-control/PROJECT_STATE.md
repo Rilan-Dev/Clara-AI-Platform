@@ -2,6 +2,11 @@
 
 ## 2026-10-08 — I-6 resolution-context binding correction
 
+## 2026-10-08 — I-6 malformed-capability registration hardening
+
+[architect-verified] I-6 now treats malformed resolver descriptors as unavailable capabilities when Unified Tool Runtime registration rejects them, preserving unrelated valid registrations. Latest correction commits: 9eb58ab6, ddaa02bc.
+
+
 [architect-verified] I-6 now binds each resolved MCP capability to the exact provenance-verified execution context used for resolver discovery; cross-context invocation fails closed. Focused regressions cover the context-binding boundary, default-off runtime builder, and runtime registration. Latest correction commits: 635b5126, 55e7f36c, 02bff62a.
 
 
