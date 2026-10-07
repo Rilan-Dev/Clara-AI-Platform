@@ -122,7 +122,7 @@ export {
 
 export {
   MCP_TOOL_FLAG,
-  authorizeMcpTool,
+  isMcpToolAllowlisted,
   buildMcpToolDefinition,
   buildMcpToolRuntime,
   isMcpEnabled,
