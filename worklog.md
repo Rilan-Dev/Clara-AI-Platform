@@ -533,3 +533,26 @@ No CI/Vercel execution was awaited. No I-4/I-5/MCP/production/unrelated work was
 - Default non-strict validation remains available for compatibility; the runner is strict.
 - No CI, Vercel, Gate-C, or Gate-D execution was awaited.
 - No I-4/I-5/MCP/production/unrelated work was started.
+
+
+## 2026-10-08 — I-4/I-5 Unified Tool Runtime bridge + first-provider pilot
+
+[architect-verified] Owner explicitly authorized continued implementation through I-4 and I-5 without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification. I-2 remains external-verification-deferred. I-3 prerequisite implementation is treated as complete for continuation; external verification remains deferred.
+
+[implemented] I-4 created `src/modules/ai-platform-core/integrations/integration-tool-bridge.ts`. Connected integration actions are converted into Clara-owned `ToolDefinition` objects, strict action-property validation is reused through Zod refinement, deterministic bounded tool names are generated, and platform/plan/org/agent/connection readiness is checked before exposure. Invocation uses the existing Unified Tool Runtime and delegates to the existing I-3 `runAction()`; no parallel executor or credential-bearing tool metadata is introduced.
+
+[implemented] I-5 created `src/modules/ai-platform-core/integration-provider-pilot.ts`. The first provider pilot is Firecrawl `search`, chosen as a read-oriented bounded action. It is exact-allowlisted and default-off behind `ENABLE_INTEGRATION_PROVIDER_PILOT`. The existing I-2 connection lifecycle remains authoritative for connect/disconnect.
+
+[implemented] Added focused regression coverage for deterministic bridge naming, strict action-input schema enforcement, exact Firecrawl/search allowlisting, and default-off flag behavior.
+
+[implemented] Added `docs/superpowers/plans/2026-10-08-integrations-i4-i5.md` and reconciled the active project-control records plus SESSION-059.
+
+Implementation commits:
+- `f44caf5`, `a86ffd5`, `6be5dd5`, `9d746ed`, `8927e2c`
+- `829667e`, `b5f9640`, `92c611a`
+- plan/control/session: `e753938`, `bf15cece`, `5a878a47`, `5cad82a`, `ef5b600`, `2fa421a`, `13fd739`
+
+Verification disposition:
+- No CI/Vercel/Gate-C/Gate-D execution was awaited.
+- Source-level implementation review remains the current evidence class.
+- No MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated implementation was started.
