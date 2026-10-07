@@ -217,13 +217,10 @@ export function redactHeaders(headers: Record<string, string>): Record<string, s
 
 function headersToRecord(init?: HeadersInit): Record<string, string> {
   if (!init) return {};
-  if (typeof init === "object" && typeof init.forEach === "function") {
-    const r: Record<string, string> = {};
-    init.forEach((v: string, k: string) => { r[k] = v; });
-    return r;
-  }
-  if (Array.isArray(init)) return Object.fromEntries(init);
-  return { ...init } as Record<string, string>;
+  const headers = new Headers(init);
+  const r: Record<string, string> = {};
+  headers.forEach((v, k) => { r[k] = v; });
+  return r;
 }
 
 /**
