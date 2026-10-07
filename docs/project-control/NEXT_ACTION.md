@@ -1,14 +1,15 @@
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-3 AUTHORIZED
 
-[architect-verified] The owner has now explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while deliberately deferring I-2 external verification. This is an implementation-track transition, not an I-2 Gate-C/Gate-D PASS and not a production promotion.
+[architect-verified] The owner has explicitly authorized advancing implementation to **Integrations Framework I-3 — Action Runner**, while I-2 external verification remains deliberately deferred. This is not an I-2 Gate-C/Gate-D PASS and not a production promotion.
 
-- I-2 application implementation is treated as complete for implementation purposes; its executable/current-head verification remains deferred by owner instruction.
-- I-3 scope is restricted to the existing Integrations Framework plan §6.3: bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
-- I-3 must not expand into I-4 Unified Tool Runtime bridging, I-5 provider rollout, MCP, production promotion, or unrelated work.
-- New I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f6d8095a0e861f938e5ab76c75fb0fdbb9`, `5f8a1301ff47ee2ebaeadd0ab4fda44cfe03a42c`, `c293ad4ca843ad8ebc0a6f1106b4da169c62102b`. The runner now returns normalized error metadata for early capability/connection/input/action-lookup failures, has deterministic retry classification for rate limits/request timeouts, and the strict input-validation regression suite is syntactically closed correctly.
+- I-2 application implementation is treated as complete for implementation purposes; executable/current-head verification remains deferred by owner instruction.
+- I-3 is restricted to bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
+- I-4 Tool Runtime bridge, I-5 provider rollout, MCP, production promotion, and unrelated work remain out of scope.
+- Latest I-3 implementation/support commits: `4e4b8bf06bd9db8e8456f85a47d411f5d61b4685`, `93d5211333cc4f919981476b27dc8a782b407555`, `05ec7cfc9e81beb100684ddb885f84d818d79482`.
+- The strict action-input regression suite structure has now been restored on the actual feature branch, and runner early-failure results now have explicit regression coverage for `errorCode`/`retryable`.
 - External CI/Vercel execution is not awaited.
 
-**Current next implementation:** continue I-3 Action Runner work from the current feature-branch tip, review the runner against the I-3 acceptance criteria, and implement only remaining bounded I-3 gaps.
+**Current next implementation:** continue the bounded I-3 acceptance review from the feature-branch tip, focusing on remaining action-runner gaps in strict schema coverage, egress/redirect boundaries, redacted trace invariants, deterministic result propagation, and tenant-isolation regression coverage.
 
 ---
 
