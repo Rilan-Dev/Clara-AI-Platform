@@ -1,5 +1,16 @@
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 SOURCE IMPLEMENTATION ACTIVE / EXTERNAL VERIFICATION DEFERRED
 
+[architect-verified] Source review identified that independent `allowedServers` and `allowedTools` membership could authorize an unintended server/tool cross-product. I-6 now requires an exact server/tool pair entry and snapshots those pair identities at definition construction. Focused regression covers rejection of a cross-product pairing.
+
+- Implementation: `37ae1f648df78cd651bd7eecec0bcce1fd3847c0`
+- Regression: `a0ac98adacadbd77d78e98cb88bd49fac49e7167`
+- Verification class: source-level architect review only; external CI/Vercel/Gate-C/Gate-D remain deferred.
+- Disposition: I-6 remains IN PROGRESS.
+
+---
+
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 SOURCE IMPLEMENTATION ACTIVE / EXTERNAL VERIFICATION DEFERRED
+
 ## 2026-10-08 — I-6 resolution-context binding correction
 
 ## 2026-10-08 — I-6 malformed-capability registration hardening
