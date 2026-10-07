@@ -76,7 +76,7 @@ describe("integration availability plan entitlement", () => {
   });
 
   it("does not expose a cross-tenant agent grant", async () => {
-    getOrgPlanLimits.mockResolvedValue({ plan_id: "pro" });
+    resolveOrgPlanLimits.mockResolvedValue({ plan_id: "pro" });
     query
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ integration_id: "github" }]);
