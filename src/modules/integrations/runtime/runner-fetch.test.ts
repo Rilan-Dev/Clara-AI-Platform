@@ -154,6 +154,8 @@ describe("integration runtime trace redaction", () => {
     const tracedFetch = createTracedFetch(traces as never, "project", null, fetchImpl);
 
     await expect(tracedFetch("https://example.com/start")).rejects.toThrow("redirect is not allowed");
+    expect(traces).toHaveLength(1);
+    expect(traces[0]).toMatchObject({ statusCode: 302, error: "Integration egress redirect is not allowed" });
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://example.com/start",
       expect.objectContaining({ redirect: "manual" }),
