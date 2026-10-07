@@ -1676,3 +1676,13 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Evidence | [architect-verified] GitHub workflow source updated in commit 6d87d5ca5e01b47df8285e5c69c0f8bc62715d01; Vercel project pause operation completed. |
 | Manual re-enable | GitHub: restore the commented triggers in .github/workflows/ci.yml. Vercel: unpause clara-backend, then manually deploy the intended commit/branch. Detailed guidance is in docs/project-control/sessions/SESSION-056.md. |
 | Non-scope | No application feature behavior, I-2 authorization semantics, Gate-C evidence, Gate-D closure, or production promotion was changed. |
+
+
+## I-084 — OAuth refresh scope correction drift
+
+[architect-verified] Continued bounded I-2 source review found that the previously recorded I-082 OAuth refresh scope correction was not fully present in the current branch source: ensureTokenFresh had reverted to a four-argument signature while runner-core passed user and agent scope, and refresh decrypt/status/write paths were therefore inconsistent. The helper now accepts userId and agentId and propagates them through decrypt, expiry status, and refreshed credential writes.
+
+- Correction: bd6a7a58819d8ff9b203a9638c3d806d5e5caa15 and f5bc88e57667d886100f875b81fff9b1e71cd435
+- I-084: RESOLVED by source correction.
+- No generated-code tests or CI/Vercel verification was awaited.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN PROGRESS.
