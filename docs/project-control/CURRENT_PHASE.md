@@ -1,3 +1,23 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
+
+[architect-verified] Owner instruction advances implementation to **Integrations Framework I-6 — MCP Tool Bridge**. I-3 is already implemented and I-4/I-5 are source-complete; this phase does not reopen them. External CI/Vercel/Gate-C/Gate-D evidence remains deferred.
+
+### I-6 implementation contract
+- MCP tools arrive through an injected, already-resolved host adapter.
+- Server/tool identity is exact-allowlisted.
+- MCP is default-off through `ENABLE_MCP`.
+- MCP tools become existing Clara `ToolDefinition` objects.
+- Invocation uses the existing Unified Tool Runtime; no second executor is created.
+- Provenance-verified `PlatformExecutionContext` is mandatory.
+- Tool schemas are supplied by the resolver and validated by the Unified Tool Runtime.
+- Tenant context is preserved; no credentials enter definitions or metadata.
+- No MCP transport, persistence, OAuth callback, marketplace, or deployment work is in scope.
+
+Implementation commits: `f2fe146`, `9e855c7`, `012aca0`, `95b75a8`, `66abcf8`.
+
+**Status:** IN PROGRESS — source implementation started; external verification deferred.
+
+---
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-4/I-5 IMPLEMENTATION COMPLETE / VERIFICATION DEFERRED
 
 [architect-verified] The owner-authorized I-4/I-5 implementation boundary is complete at source level. External CI/Vercel/Gate-C/Gate-D evidence remains intentionally deferred.
