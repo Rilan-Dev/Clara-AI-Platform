@@ -41,7 +41,8 @@ ENV CLARA_SKIP_TYPECHECK=$CLARA_SKIP_TYPECHECK
 ARG SKIP_AUTH=true
 ENV SKIP_AUTH=$SKIP_AUTH
 
-RUN npm run build
+RUN --mount=type=secret,id=clara_integration_encryption_key,env=INTEGRATION_ENCRYPTION_KEY \
+    npm run build
 
 # Next standalone output contains the application server and production
 # dependencies. The custom relay entry point and ws package are added beside it.
