@@ -101,3 +101,5 @@ export {
 
 // Next capability — Integrations Framework I-1 host-neutral contracts.
 export * from "./integrations/integration-contracts";
+
+export {\n  buildIntegrationToolBridgeAdapter,\n  buildIntegrationToolDefinition,\n  integrationToolName,\n  registerConnectedIntegrationTools,\n} from "./integrations/integration-tool-bridge";\n
