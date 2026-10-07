@@ -1,32 +1,20 @@
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
-[architect-verified] The owner has directed continuation to the next bounded integrations capability without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification. Repository branch `feature/ai-core-from-doable-source` is currently at `1e4495ebcc737074e958b15e6dcf2228d36d1d75` before the I-6 implementation commits recorded below.
+[architect-verified] The owner has directed continuation to the next bounded integrations capability without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification. Repository branch `feature/ai-core-from-doable-source` is in the I-6 implementation continuation; the live branch tip must be read from GitHub at recovery time.
 
 - I-3 Action Runner implementation is already present; it is not the current pending implementation.
 - I-4 Unified Tool Runtime bridge is implementation-complete.
 - I-5 Firecrawl search pilot is implementation-complete and default-off.
 - I-6 is the active bounded capability: MCP tools resolved by a host adapter are represented as Clara `ToolDefinition` capabilities and executed only through the existing Unified Tool Runtime.
-- I-6 does not implement MCP transport, server hosting, OAuth/persistence, marketplace, billing changes, production promotion, or unrelated features.
-- I-6 implementation commits: `f2fe146`, `9e855c7`, `012aca0`, `95b75a8`, `66abcf8`.
+- I-6 hardening now includes resolver identity binding, resolver-failure fail-closed behavior, runtime schema/context regressions, and public AI Platform Core export.
+- Latest I-6 implementation commits: `9e855c7`, `012aca0`, `95b75a8`, `fb326688`, `b59f1c9`, `827eae5`, `d571813`, `0b1856b`.
 - External execution evidence remains deferred by owner instruction and is not represented as Gate-C/Gate-D PASS.
 
-**Next implementation:** continue bounded I-6 MCP bridge hardening and integration into the existing runtime seam.
+**Next implementation:** finish the remaining bounded I-6 source-level acceptance/reconciliation work; do not wait on external CI/Vercel.
 
 **STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
 
 ---
-## 2026-10-08 — I-4/I-5 implementation completion checkpoint
-
-[architect-verified] Source-level implementation review completed the owner-authorized I-4/I-5 scope without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
-
-- I-4 implementation complete: connected integration actions are context-local `ToolDefinition` capabilities and execute through the existing Unified Tool Runtime implementation into I-3 `runAction()`.
-- I-5 implementation complete: Firecrawl `search` is exact-allowlisted and default-off, uses the I-4 bridge, and requires an existing tenant/user/agent-scoped connection.
-- Tenant-specific tools are never registered in the global Clara runtime singleton; context-local runtime instances prevent cross-tenant discovery leakage.
-- Focused source regression covers naming, strict schema enforcement, pilot allowlisting, and flag-off behavior.
-- Latest implementation corrections: `19edcda`, `3f9479c`, `ab9a262`, `ee4103a`, `2b7ea16`.
-- External execution evidence remains deferred by owner instruction; this is not a Gate-C/Gate-D PASS.
-- **STOP:** I-4/I-5 implementation scope is complete. No MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated implementation without a new authorization.
-
 ---
 
 ## 2026-10-08 — I-4/I-5 owner-authorized implementation continuation
