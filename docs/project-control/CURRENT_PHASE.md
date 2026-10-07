@@ -1,3 +1,29 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-4/I-5 ACTIVE
+
+[architect-verified] Explicit owner authorization advances implementation to **Integrations Framework I-4/I-5** without waiting for external CI/Vercel or phase gates. I-2 remains externally unverified; I-3 external verification is likewise deferred. This is an implementation continuation, not a Gate-C/Gate-D closure.
+
+### I-4 — Unified Tool Runtime bridge
+- Connected integration actions are represented as Clara-owned `ToolDefinition` objects.
+- Input schemas reuse the I-3 strict action-property validator through Zod refinement.
+- Tool names are deterministic and bounded to the Phase 7 runtime contract.
+- Connected action discovery checks platform, plan, organisation, agent and active user/agent connection scope.
+- Invocation delegates to the existing Unified Tool Runtime and then `runAction()`; credentials never enter the tool definition.
+
+### I-5 — First Provider Pilot
+- Provider: Firecrawl.
+- Action: `search`.
+- Feature flag: `ENABLE_INTEGRATION_PROVIDER_PILOT`.
+- Exact allowlist; default-off.
+- Existing I-2 connection lifecycle supplies connect/disconnect; I-4 supplies runtime execution.
+
+Current implementation commits: `f44caf5`, `a86ffd5`, `6be5dd5`, `9d746ed`, `8927e2c`, `829667e`, `b5f9640`, `92c611a`.
+
+**Next implementation:** finish I-4/I-5 source integration, focused regressions, project-control/worklog reconciliation, and then treat external CI/Vercel/Gate-C/Gate-D as deferred evidence rather than a development blocker.
+
+**STOP:** no MCP expansion, broad provider rollout, production promotion, or unrelated work.
+
+---
+
 ## 2026-10-08 — I-3 strict array-item schema correction
 
 [architect-verified] Bounded I-3 source review found strict array validation treated null/empty primitive elements as missing and therefore skipped type enforcement. The validator now treats array elements as values and rejects null, empty, or wrong-typed primitive items; nested object/array validation remains recursive.
