@@ -29,7 +29,7 @@ describe("integration action input validation", () => {
     ]);
   });
 
-  it("allows extra properties for forward compatibility", () => {
+  it("allows extra properties for forward compatibility by default", () => {
     expect(validateActionProps(schema, {
       to: "user@example.com",
       count: 1,
@@ -38,3 +38,15 @@ describe("integration action input validation", () => {
     })).toEqual([]);
   });
 });
+
+  it("rejects unknown properties in strict mode", () => {
+    expect(validateActionProps(schema, {
+      to: "user@example.com",
+      count: 1,
+      options: { urgent: true, unexpected: "blocked" },
+      futureField: "blocked",
+    }, true)).toEqual([
+      "futureField is not allowed",
+      "options.unexpected is not allowed",
+    ]);
+  });
