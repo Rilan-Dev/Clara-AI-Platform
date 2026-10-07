@@ -235,3 +235,8 @@ I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D
 [architect-verified] Current branch source was re-audited after I-082 and exposed a partial regression: runner-core passed user/agent scope to ensureTokenFresh, but the helper signature and some vault calls had reverted to unscoped form. The helper now propagates userId/agentId across decrypt, expiry status, and credential persistence. Corrections: bd6a7a58819d8ff9b203a9638c3d806d5e5caa15 and f5bc88e57667d886100f875b81fff9b1e71cd435.
 
 I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D remains IN PROGRESS.
+
+
+## 2026-10-07 — I-085 OAuth refresh lost-scope fail-closed correction
+
+[architect-verified] Source review found a race boundary where an OAuth refresh could successfully obtain a new provider token but its scoped persistence update could match zero rows after concurrent connection state changes; the runner had no explicit signal and could continue. updateCredentials now returns success/failure from the scoped UPDATE, and ensureTokenFresh aborts when persistence loses the active connection scope. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D remains IN PROGRESS.
