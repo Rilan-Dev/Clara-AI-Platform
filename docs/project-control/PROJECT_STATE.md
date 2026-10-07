@@ -190,3 +190,12 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - I-079: RESOLVED by architect source review.
 - I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - No I-2 PASS is claimed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
+
+
+## 2026-10-07 — I-080 AI availability regression alignment
+
+[architect-verified] Continued bounded I-2 review found a stale `getOrgPlanLimits` mock reference in the AI availability cross-tenant regression after production had migrated to `resolveOrgPlanLimits`. Correction `3ed83c8ddcde22e05ddfa415bce134e7773fca75` aligns the test with the authoritative resolver; no production behavior changed.
+
+- I-080 is RESOLVED by test-source correction.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- No I-2 PASS is claimed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
