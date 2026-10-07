@@ -1,3 +1,23 @@
+# ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-4/I-5 IMPLEMENTATION COMPLETE
+
+[architect-verified] I-4/I-5 source implementation is complete under the explicit owner instruction to continue without waiting for external gates.
+
+## Final implementation state
+
+- I-4 Unified Tool Runtime bridge: COMPLETE.
+- I-5 Firecrawl `search` first-provider pilot: COMPLETE.
+- I-2/I-3 external verification: DEFERRED, not PASS.
+- Z.AI: STOPPED; ChatGPT implementation owner.
+- Latest corrections: `19edcda`, `3f9479c`, `ab9a262`, `ee4103a`, `2b7ea16`.
+
+## Next action
+
+No further I-4/I-5 implementation remains within the authorized scope. If development is to continue, a new bounded phase/authorization must define the next capability. MCP expansion and broad provider rollout remain outside the current authorization.
+
+External CI/Vercel/Gate-C/Gate-D evidence remains deferred and must not be represented as PASS.
+
+---
+
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-4/I-5 AUTHORIZED
 
 [architect-verified] Owner instruction explicitly authorizes ChatGPT to continue implementation through **I-4 Unified Tool Runtime bridge** and **I-5 First Provider Pilot**, without waiting for CI, Vercel, Gate-C, Gate-D, or continuous verification.
