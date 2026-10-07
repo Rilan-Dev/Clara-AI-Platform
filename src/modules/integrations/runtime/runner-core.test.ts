@@ -121,4 +121,53 @@ describe("integration runner action allowlist", () => {
     expect(loadPiece).not.toHaveBeenCalled();
     expect(credentialGet).not.toHaveBeenCalled();
   });
+
+  it("normalizes registry-approved but package-missing actions as non-retryable action failures", async () => {
+    loadPiece.mockResolvedValue({ actions: [] });
+
+    const { runAction } = await import("./runner-core.js");
+    const result = await runAction({
+      integrationId: "example",
+      actionName: "approved_action",
+      props: {},
+      userId: "user-1",
+      workspaceId: "org-1",
+      agentId: "agent-1",
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      output: null,
+      errorCode: "ACTION_NOT_ALLOWED",
+      retryable: false,
+    });
+    expect(result.error).toContain("not found in example");
+  });
+
+  it("normalizes strict action-input rejection without relying on message parsing", async () => {
+    loadPiece.mockResolvedValue({
+      actions: [
+        { name: "approved_action", displayName: "Approved", description: "approved", props: { required: { required: true, type: "STRING" } } },
+      ],
+    });
+    const validation = await import("./action-input-validation.js");
+    vi.mocked(validation.validateActionProps).mockReturnValue(["required is required"]);
+
+    const { runAction } = await import("./runner-core.js");
+    const result = await runAction({
+      integrationId: "example",
+      actionName: "approved_action",
+      props: {},
+      userId: "user-1",
+      workspaceId: "org-1",
+      agentId: "agent-1",
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      output: null,
+      errorCode: "INVALID_INPUT",
+      retryable: false,
+    });
+  });
 });
