@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
+
+[architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest correction
+The MCP bridge now requires an exact `serverId` + `toolName` allowlist pair in addition to the coarse server boundary. Independent server/tool membership can no longer authorize an unintended cross-product pairing. Implementation `37ae1f648df78cd651bd7eecec0bcce1fd3847c0`; regression `a0ac98adacadbd77d78e98cb88bd49fac49e7167`.
+
+**Next implementation:** continue bounded I-6 source acceptance/reconciliation work, especially remaining resolver/registration edge cases and capability authorization invariants.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # NEXT_ACTION.md
 
 ## CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
