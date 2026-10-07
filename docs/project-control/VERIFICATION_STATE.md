@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 SOURCE IMPLEMENTATION ACTIVE / EXTERNAL VERIFICATION DEFERRED
+
+[architect-verified] Source-level review records the start of I-6 MCP Tool Bridge implementation. No external CI, Vercel, Gate-C, or Gate-D execution was awaited.
+
+- The bridge accepts already-resolved MCP descriptors through a host adapter.
+- Exact server/tool allowlisting is enforced before registration.
+- `ENABLE_MCP` is default-off.
+- The bridge creates ordinary Clara `ToolDefinition` objects and uses the existing Unified Tool Runtime.
+- No persistence, migration, transport, OAuth, or credential store was introduced.
+- Source implementation commits: `9e855c7`, `012aca0`, `95b75a8`.
+
+**Disposition:** I-6 remains IN PROGRESS. Source implementation evidence only; external verification deferred.
+
+---
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-4/I-5 SOURCE IMPLEMENTATION COMPLETE / EXTERNAL VERIFICATION DEFERRED
 
 [architect-verified] Source review completed the authorized I-4/I-5 implementation scope.
