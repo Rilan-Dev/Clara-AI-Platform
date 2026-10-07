@@ -4,7 +4,8 @@
 
 - Current branch tip after bounded implementation: `5b839525bd46de4cc9d07834970e351c2ac2e06e`.
 - Latest I-3 corrections: typed egress/DNS/redirect failure propagation
-- Latest I-3 continuation commits: `d3c18c3`, `62ef2fe`; action lookup and strict input rejection now use explicit host-owned error classifications rather than message parsing. with redacted blocked-request traces; recursive array-item action-input validation in strict mode; focused regression coverage for both.
+- Latest I-3 continuation commits: `d3c18c3`
+- Latest I-3 trace-hardening commits: `d0799b3` and `c764fa4`; arbitrary thrown HTTP errors now scrub known resolved secrets before trace storage., `62ef2fe`; action lookup and strict input rejection now use explicit host-owned error classifications rather than message parsing. with redacted blocked-request traces; recursive array-item action-input validation in strict mode; focused regression coverage for both.
 - I-3 remains **IN PROGRESS**; no I-3 PASS/closure is inferred.
 - I-2 remains implementation-complete with external verification deferred.
 - **STOP:** no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
