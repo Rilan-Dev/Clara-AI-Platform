@@ -28,7 +28,6 @@ describe("integration action input validation", () => {
       "options.urgent must be of type BOOLEAN",
     ]);
   });
-});
 
   it("allows extra properties for forward compatibility by default", () => {
     expect(validateActionProps(schema, {
@@ -38,6 +37,7 @@ describe("integration action input validation", () => {
       futureField: "accepted",
     })).toEqual([]);
   });
+
   it("rejects unknown properties in strict mode", () => {
     expect(validateActionProps(schema, {
       to: "user@example.com",
@@ -49,3 +49,4 @@ describe("integration action input validation", () => {
       "options.unexpected is not allowed",
     ]);
   });
+});
