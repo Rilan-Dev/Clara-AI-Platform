@@ -14,11 +14,8 @@ import {
   runAction,
 } from "@/modules/integrations/runtime/runner-core";
 import { validateActionProps } from "@/modules/integrations/runtime/action-input-validation";
-import {
-  assertExecutionContext,
-  type PlatformExecutionContext,
-  type SurfaceKind,
-} from "../index";
+import { assertExecutionContext } from "../execution-context";
+import type { PlatformExecutionContext, SurfaceKind } from "../contracts";
 import type {
   IntegrationActionDefinition,
   IntegrationExecutionRequest,
