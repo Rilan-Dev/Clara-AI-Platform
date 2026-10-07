@@ -1,3 +1,13 @@
+## 2026-10-08 — I-3 failure-result trace propagation
+
+[architect-verified] Bounded I-3 source review found that `runAction()` accumulated redacted HTTP traces during execution but omitted them from failed `RunActionResult` responses. The runner now keeps one per-run trace collection across custom/piece execution and returns the redacted trace set on failure.
+
+- Correction: `77b806f65d002b53bb6a7d04294ec0164dc392d5`
+- No CI, Vercel, Gate-C, or Gate-D execution was awaited.
+- I-3 remains IN PROGRESS; this is implementation evidence only.
+- Next bounded work remains strict schema edge cases, deterministic result propagation, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage.
+
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-3 ACTIVE
 
 [architect-verified] By explicit owner authorization, implementation advances to **Integrations Framework I-3 — Action Runner**. I-2 remains implementation-complete with external verification deferred; no I-2 PASS is inferred. I-3 is now the active bounded implementation track.
