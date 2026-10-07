@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db";
 import { hashPassword } from "@/modules/auth/core/password";
+import { listIntegrations } from "@/modules/integrations/registry";
 
 /**
  * Production seed — bootstrap data a real deployment needs to function.
@@ -397,6 +398,45 @@ async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
   );
 }
 
+async function seedPlatformIntegrations(client: PoolClient, logger: Logger) {
+  const definitions = listIntegrations();
+  for (const def of definitions) {
+    await client.query(
+      `INSERT INTO platform_integrations (integration_id, enabled, allowed_plans)
+       VALUES ($1, TRUE, '[\"starter\",\"pro\",\"enterprise\"]'::jsonb)
+       ON CONFLICT (integration_id) DO UPDATE SET
+         enabled = TRUE,
+         allowed_plans = EXCLUDED.allowed_plans,
+         updated_at = now()`,
+      [def.id],
+    );
+  }
+  logger.log(`[seed:prod] integration catalog ready → ${definitions.length} registered integrations`);
+}
+
+async function seedDemoIntegrationAccess(client: PoolClient, logger: Logger) {
+  const definitions = listIntegrations();
+  for (const def of definitions) {
+    await client.query(
+      `INSERT INTO organisation_integrations (org_id, integration_id, enabled, created_by)
+       VALUES ($1, $2, TRUE, $3)
+       ON CONFLICT (org_id, integration_id) DO UPDATE SET
+         enabled = TRUE,
+         updated_at = now()`,
+      [IDS.demoOrgId, def.id, IDS.adminUserId],
+    );
+    await client.query(
+      `INSERT INTO agent_integrations (agent_id, integration_id, enabled, created_by)
+       VALUES ($1, $2, TRUE, $3)
+       ON CONFLICT (agent_id, integration_id) DO UPDATE SET
+         enabled = TRUE,
+         updated_at = now()`,
+      [IDS.demoAgentId, def.id, IDS.adminUserId],
+    );
+  }
+  logger.log(`[seed:prod] demo integration access ready → ${definitions.length} organisation + agent grants`);
+}
+
 export async function seedProductionData(options?: { logger?: Logger }) {
   const logger = options?.logger ?? console;
   const client = await pool.connect();
@@ -404,9 +444,11 @@ export async function seedProductionData(options?: { logger?: Logger }) {
   try {
     await client.query("BEGIN");
     await seedPlatformAdmin(client, logger);
+    await seedPlatformIntegrations(client, logger);
     await seedPlatformSettings(client, logger);
     await seedLandingDemo(client, logger);
     await seedDemoOrgAccess(client, logger);
+    await seedDemoIntegrationAccess(client, logger);
     await client.query("COMMIT");
     logger.log("[seed:prod] production seed complete.");
   } catch (error) {
