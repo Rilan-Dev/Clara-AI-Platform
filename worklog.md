@@ -1,3 +1,16 @@
+## 2026-10-08 — I-3 Action Runner continuation
+
+[architect/ChatGPT] Continued the owner-authorized I-3 implementation track without waiting for GitHub Actions, Vercel, Gate-C, or Gate-D.
+
+- Re-read the mandatory repository instructions and project-control transition. Repository truth confirms I-3 is the active implementation phase; I-2 external verification remains deferred by owner control.
+- Reviewed the I-3 plan acceptance criteria and current runner/error/egress/input-validation implementation.
+- Found the actual feature branch's strict action-input regression test still had two `it()` blocks outside the enclosing `describe()` block despite project-control text claiming the structure was restored. Corrected the test structure in `93d5211333cc4f919981476b27dc8a782b407555`.
+- Added runner-core regression coverage asserting the stable `errorCode`/`retryable` result contract for unknown integrations and allowlist rejection in `05ec7cfc9e81beb100684ddb885f84d818d79482`.
+- Updated the authoritative project-control transition/current-state records to preserve cross-chat continuity.
+- No I-4, I-5, MCP, production promotion, or unrelated implementation was introduced.
+
+Current status: **I-3 IN PROGRESS**. Next bounded implementation remains the I-3 acceptance review, with focus on strict schema coverage, egress/redirect boundaries, redacted trace invariants, deterministic result propagation, and tenant-isolation regressions.
+
 ## 2026-10-06 — I-067 integration egress correction
 
 ChatGPT continued the bounded I-2 source review without waiting for GitHub Actions or Vercel. The host egress guard was found to reject dotted IPv4-mapped IPv6 private destinations but not hexadecimal-mapped forms such as `::ffff:7f00:1`. The guard was corrected to decode both representations and apply the existing IPv4 private-range policy. Focused regression coverage was added for loopback and private mapped forms.
