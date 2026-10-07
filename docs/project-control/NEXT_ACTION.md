@@ -1,3 +1,20 @@
+## 2026-10-07 — Self-hosted resource containment + Vercel manual-only deployment
+
+[architect-verified] Owner-directed deployment hardening was applied after Clara Docker deployments were observed making the Linux home server/VPS unreachable under resource pressure. The root cause was not one runaway runtime container alone: backend and worker builds could contend concurrently for CPU/RAM/disk, while the runtime stack had no explicit container CPU/RAM/PID ceilings. The stack now has explicit runtime limits, worker concurrency defaults are reduced to 1/1, and `scripts/vps-deploy.sh` builds backend, worker, and RabbitMQ bridge serially before starting services. This prevents Docker image creation from competing across heavyweight targets and prevents a runtime service from consuming the whole host.
+
+- Runtime ceilings are intentionally conservative and can be raised per host only after observing stable resource usage.
+- Multilingual embeddings remains opt-in via its existing Compose profile and is not started by the normal deployment script.
+- `vercel.json` now sets `git.deploymentEnabled: false`; GitHub Actions already has only `workflow_dispatch`. Vercel automatic Git deployments are therefore disabled by repository configuration, while manual CLI/API deployment remains the intended path. Vercel's current Hobby plan does not expose the higher-level deployment-policy API, so no unsupported dashboard policy mutation is claimed.
+- The Vercel config provenance check was updated to the new file blob SHA so the manual CI workflow remains internally consistent.
+- This is deployment/resource hardening only. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; no Gate-C/D PASS is inferred.
+
+**Self-hosted deployment:** use `bash scripts/vps-deploy.sh`, not `docker compose up -d --build`. The latter can reintroduce concurrent heavy builds on small hosts.
+
+**Vercel deployment:** use an explicit manual deployment from the linked local checkout, for example `vercel --prod`, after linking the checkout to `clara-backend`. Do not rely on Git push to deploy.
+
+**STOP:** no I-3, MCP expansion, production promotion through Git automation, or unrelated implementation.
+
+
 ## 2026-10-07 — Docker build dependency-stage performance correction
 
 [architect-verified] Local Docker Compose build telemetry showed the backend and worker each executing a full `npm ci` concurrently from separate Dockerfiles. Both dependency stages consumed about 3408 seconds (~56m48s), while the RabbitMQ bridge image export/unpack consumed about 597 seconds (~10m) under the resulting host resource pressure. The root cause was duplicated installation of the large Activepieces dependency graph plus concurrent CPU/RAM/network contention.
