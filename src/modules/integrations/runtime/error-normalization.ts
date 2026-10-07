@@ -33,6 +33,9 @@ export function normalizeIntegrationError(
 
   const lower = message.toLowerCase();
 
+  if (lower.includes("unknown integration")) {
+    return { code: "UNKNOWN_INTEGRATION", message, retryable: false };
+  }
   if (lower.includes("not connected")) {
     return { code: "NOT_CONNECTED", message, retryable: false };
   }
@@ -54,13 +57,19 @@ export function normalizeIntegrationError(
   if (lower.includes("not allowed")) {
     return { code: "ACTION_NOT_ALLOWED", message, retryable: false };
   }
+  if (lower.includes("action '") && lower.includes(" not found")) {
+    return { code: "ACTION_NOT_ALLOWED", message, retryable: false };
+  }
   if (lower.includes("authorization") || lower.includes("permission") || lower.includes("forbidden")) {
     return { code: "AUTHORIZATION_DENIED", message, retryable: false };
   }
-  if (/(?:^|\s)(?:4\d\d)(?:\s|$)/.test(message) || lower.includes("unauthorized")) {
+  if (/(?:^|\s)(?:408|429)(?:\s|$)/.test(message) || lower.includes("rate limit") || lower.includes("too many requests")) {
+    return { code: "UPSTREAM_ERROR", message, retryable: true };
+  }
+  if (/(?:^|\s)4\d\d(?:\s|$)/.test(message) || lower.includes("unauthorized")) {
     return { code: "UPSTREAM_ERROR", message, retryable: false };
   }
-  if (/(?:^|\s)(?:5\d\d)(?:\s|$)/.test(message) || lower.includes("timeout") || lower.includes("temporarily unavailable")) {
+  if (/(?:^|\s)5\d\d(?:\s|$)/.test(message) || lower.includes("timeout") || lower.includes("temporarily unavailable")) {
     return { code: "UPSTREAM_ERROR", message, retryable: true };
   }
 
