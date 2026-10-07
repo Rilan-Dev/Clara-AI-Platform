@@ -36,21 +36,23 @@ export function normalizeIntegrationError(
   if (lower.includes("not connected")) {
     return { code: "NOT_CONNECTED", message, retryable: false };
   }
-  if (lower.includes("not allowed") || lower.includes("not entitled")) {
-    return {
-      code: lower.includes("entitled") ? "PLAN_NOT_ENTITLED" : "ACTION_NOT_ALLOWED",
-      message,
-      retryable: false,
-    };
-  }
-  if (lower.includes("invalid action input")) {
-    return { code: "INVALID_INPUT", message, retryable: false };
+  // Policy-specific messages must be classified before the generic
+  // "not allowed" matcher because egress/redirect failures intentionally
+  // use that wording.
+  if (lower.includes("egress redirect") || lower.includes("redirects are not allowed")) {
+    return { code: "REDIRECT_BLOCKED", message, retryable: false };
   }
   if (lower.includes("egress destination") || lower.includes("egress protocol") || lower.includes("egress hostname")) {
     return { code: "EGRESS_BLOCKED", message, retryable: false };
   }
-  if (lower.includes("egress redirect") || lower.includes("redirects are not allowed")) {
-    return { code: "REDIRECT_BLOCKED", message, retryable: false };
+  if (lower.includes("invalid action input")) {
+    return { code: "INVALID_INPUT", message, retryable: false };
+  }
+  if (lower.includes("not entitled")) {
+    return { code: "PLAN_NOT_ENTITLED", message, retryable: false };
+  }
+  if (lower.includes("not allowed")) {
+    return { code: "ACTION_NOT_ALLOWED", message, retryable: false };
   }
   if (lower.includes("authorization") || lower.includes("permission") || lower.includes("forbidden")) {
     return { code: "AUTHORIZATION_DENIED", message, retryable: false };
