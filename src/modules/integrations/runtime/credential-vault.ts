@@ -79,6 +79,7 @@ export const credentialVault = {
     credentials: unknown,
     userId?: string,
     agentId?: string,
+    expectedClaimedAt?: number,
   ): Promise<boolean> {
     const rows = await query<{ id: string }>(
       `UPDATE integration_connections
@@ -86,8 +87,12 @@ export const credentialVault = {
         WHERE id=$3 AND org_id=$4 AND status='active'
           AND ($5::uuid IS NULL OR user_id=$5 OR user_id IS NULL)
           AND ($6::uuid IS NULL OR agent_id=$6 OR agent_id IS NULL)
+          AND (
+            $7::bigint IS NULL OR
+            ((pgp_sym_decrypt(credentials_encrypted,$2)::jsonb ->> 'claimed_at')::bigint = $7)
+          )
         RETURNING id`,
-      [JSON.stringify(credentials), ENCRYPTION_KEY, connectionId, orgId, userId ?? null, agentId ?? null],
+      [JSON.stringify(credentials), ENCRYPTION_KEY, connectionId, orgId, userId ?? null, agentId ?? null, expectedClaimedAt ?? null],
     );
     return rows.length > 0;
   },
