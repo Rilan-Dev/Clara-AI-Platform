@@ -4,8 +4,11 @@ import {
   buildMcpToolDefinition,
   isMcpEnabled,
   mcpToolName,
+  resolveMcpToolDefinition,
   type McpToolResolver,
 } from "./mcp-tool-bridge";
+import { createExecutionContext } from "./execution-context";
+import { createToolRuntime } from "./tool-registry";
 
 const policy = {
   allowedServers: ["demo"],
@@ -18,6 +21,25 @@ const descriptor = {
   description: "Lookup a record",
   inputSchema: z.object({ id: z.string().min(1) }),
 };
+
+const context = createExecutionContext({
+  orgId: "org-1",
+  kbId: "kb-1",
+  agentId: "agent-1",
+  userId: "user-1",
+  sessionId: "session-1",
+  surface: "chat",
+});
+
+function createRuntime() {
+  return createToolRuntime({
+    authorizationAdapter: {
+      async authorize() {
+        return { allowed: true };
+      },
+    },
+  });
+}
 
 describe("MCP tool bridge", () => {
   it("creates deterministic bounded tool names", () => {
@@ -47,21 +69,47 @@ describe("MCP tool bridge", () => {
     expect(isMcpEnabled({ ENABLE_MCP: "true" })).toBe(true);
   });
 
-  it("delegates through the injected resolver without owning transport", async () => {
-    const calls: string[] = [];
+  it("preserves the caller execution context through resolver invocation", async () => {
+    let receivedContext: unknown;
     const resolver: McpToolResolver = {
       async resolve() {
         return descriptor;
       },
-      async invoke(_descriptor, input, context) {
-        calls.push(`${context.tenantId}:${JSON.stringify(input)}`);
+      async invoke(_descriptor, input, received) {
+        receivedContext = received;
+        expect(input).toEqual({ id: "abc" });
         return { ok: true };
       },
     };
 
     const tool = buildMcpToolDefinition(descriptor, policy, resolver);
-    expect(tool.name).toBe("mcp_demo_lookup");
-    expect(calls).toEqual([]);
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result.ok).toBe(true);
+    expect(receivedContext).toBe(context);
+  });
+
+  it("rejects invalid input through the Unified Tool Runtime schema boundary", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        throw new Error("resolver must not execute for invalid input");
+      },
+    };
+
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver);
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    const result = await runtime.invoke(tool.name, { id: "" }, context);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_ARGUMENTS" },
+    });
   });
 
   it("rejects a resolver descriptor that changes the allowlisted identity", async () => {
@@ -74,16 +122,24 @@ describe("MCP tool bridge", () => {
       },
     };
 
-    const { resolveMcpToolDefinition } = await import("./mcp-tool-bridge");
-    const { createExecutionContext } = await import("./execution-context");
-    const context = createExecutionContext({
-      orgId: "org-1",
-      kbId: "kb-1",
-      agentId: "agent-1",
-      userId: "user-1",
-      sessionId: "session-1",
-      surface: "chat",
-    });
+    await expect(
+      resolveMcpToolDefinition(
+        { serverId: "demo", toolName: "lookup", context },
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("rejects a resolver descriptor that changes the allowlisted server", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return { ...descriptor, serverId: "other-server" };
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
 
     await expect(
       resolveMcpToolDefinition(
