@@ -174,7 +174,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     // 0. Check for custom (non-piece) action first
     const customAction = customActions[params.integrationId]?.[params.actionName];
     if (customAction) {
-      const inputErrors = validateActionProps(customAction.props, params.props);
+      const inputErrors = validateActionProps(customAction.props, params.props, true);
       if (inputErrors.length > 0) {
         xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
         return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
@@ -250,7 +250,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
     const action = asActionShape(actionCandidate) as ActionShape & { run: (context: ReturnType<typeof buildActionContext>) => Promise<unknown> };
 
-    const inputErrors = validateActionProps(action.props, params.props);
+    const inputErrors = validateActionProps(action.props, params.props, true);
     if (inputErrors.length > 0) {
       xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
       return { success: false, output: null, error: `Invalid action input: ${inputErrors.join("; ")}` };
