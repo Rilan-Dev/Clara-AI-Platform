@@ -556,3 +556,24 @@ Verification disposition:
 - No CI/Vercel/Gate-C/Gate-D execution was awaited.
 - Source-level implementation review remains the current evidence class.
 - No MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated implementation was started.
+
+## 2026-10-08 — I-4/I-5 final source-review corrections and completion
+
+[architect-verified] Final source review found that tenant-specific integration ToolDefinitions must not be placed in the global Clara Tool Runtime singleton because tool discovery itself is tenant-sensitive. I-4 now builds context-local instances of the existing Unified Tool Runtime for dynamic connected integrations; no second executor was introduced.
+
+[architect-verified] The Firecrawl pilot now obtains its ToolDefinition through the I-4 bridge, requires the connected/readiness boundary, and uses a context-local existing Unified Tool Runtime instance when enabled. It remains exact-allowlisted and default-off.
+
+[architect-verified] Corrected generated literal-newline source artifacts and stale action-definition references. Focused regression source remains aligned with the final bridge/pilot boundaries.
+
+Final correction commits:
+- `19edcdad3cbdbe369141028376b632ea2a6421f0`
+- `3f9479cd88af01e4cee14f74a85df2ace77a0767`
+- `ab9a2623eab210ab1166a6b6022abe822aa1e98d`
+- `ee4103ab831a46b1740f220ce6e2fe75b3580b4f`
+- `2b7ea16d67ecfd0e86810938d993c673ac9ce410`
+
+Disposition:
+- I-4 implementation: COMPLETE at source level.
+- I-5 implementation: COMPLETE at source level.
+- External CI/Vercel/Gate-C/Gate-D: deliberately deferred; no PASS inferred.
+- No MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated work.
