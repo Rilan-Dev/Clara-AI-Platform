@@ -1,3 +1,13 @@
+## 2026-10-08 — Integration disconnect tenant/user-scope correction
+
+[architect-verified] Bounded I-2 source review found the organisation integration disconnect mutation could delete every connection for an integration across the organisation when no agentId was supplied. Because connection rows carry user ownership, an org-level configuration request must not implicitly delete another user's credential-bearing connection. The delete is now constrained to the requesting user (while retaining explicitly shared org connections with NULL user_id) and the optional agent scope.
+
+- Correction: `ef9978245c09c980e37f9208e708695508d13ee6`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**.
+- **Next planned work:** continue only concrete bounded I-2 credential/connection, authorization, custom-action, egress, secret, AI-tool, tenant-boundary, or deployment-resource corrections if identified.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-07 — Credential-vault contract coverage alignment
 
 [architect-verified] Bounded source review found the credential-vault focused test contract had remained on the older unscoped `updateStatus()` SQL shape after the I-2 credential lifecycle hardening. The test fixture is now aligned with the current scoped status-transition contract and the newly introduced optimistic `claimed_at` refresh-write guard. This is verification-support maintenance only; no test execution was performed.
