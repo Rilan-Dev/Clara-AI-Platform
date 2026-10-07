@@ -14,6 +14,7 @@
 - Runner correction: `77b806f65d002b53bb6a7d04294ec0164dc392d5` now preserves the per-run redacted HTTP trace collection in failed `RunActionResult` responses, so failure results retain deterministic trace evidence instead of dropping it.
 
 - I-3 strict-schema correction: `6db1b45e0213bba4b53a2675c328bad0f7bdcb7c` rejects null/empty/wrong-typed array elements instead of treating them as optional missing fields; regression `d12d43509463eedeba712b1b657c04cecb8475bb` covers primitive array items.
+- I-3 trace correction: `f4c827749065f679d1f79bcdace581f1c5e15903` prevents redirect failures from being recorded twice; regression `8cd183ed2601ac4af43fdba84661fb05f87b5924` asserts one deterministic trace entry.
 **Current next implementation:** continue bounded I-3 acceptance review, focusing on remaining deterministic result propagation, strict schema edge cases, redirect/egress boundary coverage, redacted trace invariants, and tenant-isolation regression coverage.
 
 ---
