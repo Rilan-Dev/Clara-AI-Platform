@@ -1,3 +1,14 @@
+## 2026-10-07 — Optional multilingual embeddings resource containment correction
+
+[architect-verified] Bounded self-hosted resource-hardening review found the opt-in multilingual embeddings service was the remaining Compose service without explicit CPU/RAM/PID ceilings. Although it is not started by the normal deployment script, enabling the profile could bypass the host resource-containment policy while loading the multi-GB embedding model.
+
+- Correction: `18ce0d907ab32969ff3259a6c933a5ebc83134b4`.
+- `docker-compose.yml` now caps embeddings at 2 CPU, 4096 MiB memory, and 512 PIDs, with a 2048 MiB memory reservation and matching swap ceiling.
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; this is deployment/resource hardening within the existing bounded scope.
+- **Next planned work:** continue only concrete bounded I-2/deployment resource-control corrections if identified; otherwise remain at the I-2 boundary. Do not wait for CI, Vercel, or gates.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-07 — Self-hosted resource containment + Vercel manual-only deployment
 
 [architect-verified] Owner-directed deployment hardening was applied after Clara Docker deployments were observed making the Linux home server/VPS unreachable under resource pressure. The root cause was not one runaway runtime container alone: backend and worker builds could contend concurrently for CPU/RAM/disk, while the runtime stack had no explicit container CPU/RAM/PID ceilings. The stack now has explicit runtime limits, worker concurrency defaults are reduced to 1/1, and `scripts/vps-deploy.sh` builds backend, worker, and RabbitMQ bridge serially before starting services. This prevents Docker image creation from competing across heavyweight targets and prevents a runtime service from consuming the whole host.
