@@ -14,7 +14,8 @@ import {
   integrationToolName,
 } from "./integrations/integration-tool-bridge";
 import { getIntegrationActions } from "@/modules/integrations/runtime/runner-core";
-import { getClaraToolRuntime } from "./clara-tools";
+import { buildClaraToolRuntime } from "./clara-tools";
+import type { ToolRuntime } from "./tool-registry";
 
 export const INTEGRATION_PROVIDER_PILOT_FLAG = "ENABLE_INTEGRATION_PROVIDER_PILOT";
 export const FIRST_PROVIDER_INTEGRATION_ID = "firecrawl";
@@ -61,16 +62,16 @@ export async function buildFirstProviderPilotTool(
  * Registration itself does not expose credentials and does not create a
  * second execution path; the definition delegates to the I-4 bridge runner.
  */
-export async function registerFirstProviderPilotTool(
+export async function buildFirstProviderPilotRuntime(
   context: PlatformExecutionContext,
-): Promise<string | null> {
+): Promise<ToolRuntime | null> {
   if (!isIntegrationProviderPilotEnabled()) return null;
-  if (!isFirstProviderPilotAction(FIRST_PROVIDER_INTEGRATION_ID, FIRST_PROVIDER_ACTION)) return null;
-
   const tool = await buildFirstProviderPilotTool(context);
   if (!tool) return null;
 
-  const runtime = getClaraToolRuntime();
-  if (!runtime.hasTool(tool.name)) runtime.registerTool(tool);
-  return integrationToolName(FIRST_PROVIDER_INTEGRATION_ID, FIRST_PROVIDER_ACTION);
+  // Tenant-specific pilot capabilities stay in a context-local instance of
+  // the existing Unified Tool Runtime; never mutate the global singleton.
+  const runtime = buildClaraToolRuntime();
+  runtime.registerTool(tool);
+  return runtime;
 }
