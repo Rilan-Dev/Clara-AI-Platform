@@ -1,3 +1,13 @@
+## 2026-10-08 — I-3 continuation checkpoint
+
+[architect-verified] The active phase remains **Integrations Framework I-3 — Action Runner**. Owner instruction explicitly permits continued implementation without waiting for GitHub Actions, Vercel, or phase gates.
+
+- Current branch tip after bounded implementation: `4a78b90481a4ddd7dcb9572a49e0cb319605f75a`.
+- I-3 support corrections in this continuation: `93d5211333cc4f919981476b27dc8a782b407555` restored the strict action-input regression test structure; `05ec7cfc9e81beb100684ddb885f84d818d79482` added stable runner error metadata regression coverage.
+- I-3 remains **IN PROGRESS**; no I-3 PASS/closure is inferred.
+- I-2 remains implementation-complete with external verification deferred.
+- **STOP:** no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-3 ACTIVE
 
 [architect-verified] Owner authorization explicitly advances implementation to **Integrations Framework I-3 — Action Runner** while I-2 executable verification remains deferred. I-2 is not claimed PASS/CLOSED. The active implementation scope is I-3 only; I-4/I-5, MCP, production promotion, and unrelated work remain out of scope.
