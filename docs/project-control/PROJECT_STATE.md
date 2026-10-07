@@ -1,5 +1,9 @@
 ## 2026-10-08 — I-3 continuation checkpoint
 
+[architect-verified] I-3 correction `77b806f65d002b53bb6a7d04294ec0164dc392d5` preserves redacted per-run HTTP traces in failed runner results; failure responses now retain deterministic trace evidence.
+- No CI, Vercel, Gate-C, or Gate-D execution was awaited.
+- Next bounded I-3 work remains strict schema edge cases, deterministic result propagation, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage.
+
 [architect-verified] The active phase remains **Integrations Framework I-3 — Action Runner**. Owner instruction explicitly permits continued implementation without waiting for GitHub Actions, Vercel, or phase gates.
 
 - Current feature-branch tip must be read from GitHub at recovery time; the latest bounded I-3 implementation commits are listed below and no stale SHA is treated as authoritative.
