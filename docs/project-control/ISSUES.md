@@ -1686,3 +1686,13 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 - I-084: RESOLVED by source correction.
 - No generated-code tests or CI/Vercel verification was awaited.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN PROGRESS.
+
+
+## I-085 — OAuth refresh lost-scope persistence fail-closed
+
+[architect-verified] Continued bounded I-2 source review found that a scoped OAuth refresh write could affect zero rows after a concurrent disable/disconnect or scope change, while the runner would otherwise continue with the newly refreshed in-memory token. Credential persistence now returns whether the scoped active row was updated, and OAuth refresh aborts when that write loses its scope/race boundary.
+
+- Credential-vault correction: 45ab1758a30e2c1088f165452c2d550a72d669d1
+- Runner correction: eb4a3bed89204d6b7b2670d4f4bc045873ed7be8
+- I-085: RESOLVED by source correction.
+- No generated-code tests, CI, Vercel build, Gate-C, or Gate-D verification was awaited.
