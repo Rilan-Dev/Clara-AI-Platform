@@ -1,3 +1,19 @@
+## 2026-10-08 — I-4/I-5 owner-authorized implementation continuation
+
+[architect-verified] The owner explicitly directed continued development through **Integrations Framework I-4 — Unified Tool Runtime bridge** and **I-5 — First Provider Pilot**, without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+- I-2 remains implementation-complete with external verification deferred; no I-2 PASS/CLOSED is inferred.
+- I-3 source implementation is treated as the prerequisite implementation track completed for continuation; external verification remains deferred and is not acceptance evidence.
+- I-4/I-5 are now the active implementation scope.
+- I-4 implementation commits: `f44caf5`, `a86ffd5`, `6be5dd5`, `9d746ed`, `8927e2c`.
+- I-5 implementation commits: `829667e`, `b5f9640`, `92c611a`.
+- Planning contract: `docs/superpowers/plans/2026-10-08-integrations-i4-i5.md`.
+- I-4 uses the existing Phase 7 Unified Tool Runtime and delegates execution to the existing I-3 `runAction()`; no parallel executor exists.
+- I-5 is default-off and limited to Firecrawl `search`; connection lifecycle remains the existing I-2 path.
+- **STOP:** no MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 ## 2026-10-08 — I-3 continuation checkpoint
 
 [architect-verified] I-3 correction `77b806f65d002b53bb6a7d04294ec0164dc392d5` preserves redacted per-run HTTP traces in failed runner results; failure responses now retain deterministic trace evidence.
