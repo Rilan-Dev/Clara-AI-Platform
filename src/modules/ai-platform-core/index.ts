@@ -117,5 +117,5 @@ export {
   buildFirstProviderPilotTool,
   isFirstProviderPilotAction,
   isIntegrationProviderPilotEnabled,
-  registerFirstProviderPilotTool,
+  buildFirstProviderPilotRuntime,
 } from "./integration-provider-pilot";
