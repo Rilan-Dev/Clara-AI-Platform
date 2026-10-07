@@ -246,6 +246,7 @@ export function createTracedFetch(
     const start = Date.now();
 
     let requestBody: string | null = null;
+    let traceRecorded = false;
     try {
       if (init?.body) {
         if (typeof init.body === "string") {
@@ -290,6 +291,7 @@ export function createTracedFetch(
               responseBody: null, error: errMsg,
             };
             traces.push(entry);
+            traceRecorded = true;
             if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
             throw integrationError("REDIRECT_BLOCKED", errMsg);
           }
@@ -301,6 +303,7 @@ export function createTracedFetch(
           responseBody: null, error: errMsg,
         };
         traces.push(entry);
+        traceRecorded = true;
         if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
         throw integrationError("REDIRECT_BLOCKED", errMsg);
       }
@@ -316,6 +319,7 @@ export function createTracedFetch(
 
       const entry: HttpTraceEntry = { url, method, requestHeaders: reqHeaders, requestBody, statusCode: res.status, responseHeaders: resHeaders, durationMs, responseBody: bodyText };
       traces.push(entry);
+      traceRecorded = true;
 
       console.log(`[Integration:HTTP] REQUEST ${method} ${url} status=${res.status} durationMs=${durationMs} headers=${JSON.stringify(reqHeaders)}`);
 
@@ -332,7 +336,9 @@ export function createTracedFetch(
         url, method, requestHeaders: reqHeaders, requestBody, statusCode: null,
         responseHeaders: {}, durationMs, responseBody: null, error: errMsg,
       };
-      traces.push(entry);
+      if (!traceRecorded) {
+        traces.push(entry);
+      }
       console.error(`[Integration:HTTP] FAILED ${method} ${url} durationMs=${durationMs} headers=${JSON.stringify(reqHeaders)} error=${errMsg}`);
 
       if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, null, durationMs, null, errMsg);
