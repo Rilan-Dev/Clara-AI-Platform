@@ -786,3 +786,10 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 [architect-verified] Bounded source review found I-082's recorded OAuth refresh scope was not fully reflected in current runner-helpers.ts. ensureTokenFresh now accepts and propagates userId/agentId through credential decrypt, expiry status, and refreshed credential persistence. No tests, CI, Vercel build, Gate-C, or Gate-D result was awaited.
 
 **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review. Then executable Gate-C evidence and final Gate-D review when verification is deliberately resumed.
+
+
+## 2026-10-07 — I-085 OAuth refresh lost-scope fail-closed correction
+
+[architect-verified] The bounded I-2 OAuth refresh path now fails closed if the scoped credential persistence update affects zero rows, preventing an in-flight refresh from continuing after a concurrent connection disable/disconnect or scope change. Corrections: 45ab1758a30e2c1088f165452c2d550a72d669d1 and eb4a3bed89204d6b7b2670d4f4bc045873ed7be8.
+
+**Next planned work:** continue the bounded I-2 credential/connection and authorization review, especially connection mutation and runner authorization race boundaries; then move to the remaining custom-action, AI-tool, egress/secret, and tenant-isolation gaps. Do not wait for CI, Vercel, Gate-C, or Gate-D.
