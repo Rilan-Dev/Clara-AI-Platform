@@ -144,6 +144,60 @@ describe("integration runner action allowlist", () => {
     expect(result.error).toContain("not found in example");
   });
 
+  it("preserves redacted HTTP traces on failed execution results", async () => {
+    loadPiece.mockResolvedValue({
+      actions: [
+        {
+          name: "approved_action",
+          displayName: "Approved",
+          description: "approved",
+          props: {},
+          run: vi.fn(),
+        },
+      ],
+    });
+
+    const runnerFetch = await import("./runner-fetch.js");
+    vi.mocked(runnerFetch.createTracedFetch).mockImplementationOnce((traces) => {
+      traces.push({
+        url: "https://example.com/run",
+        method: "GET",
+        requestHeaders: {},
+        requestBody: null,
+        statusCode: null,
+        responseHeaders: {},
+        durationMs: 1,
+        responseBody: null,
+        error: "upstream failed",
+      });
+      return vi.fn(async () => {
+        throw new Error("upstream failed");
+      });
+    });
+    vi.mocked(runnerFetch.fetchCtx.run).mockImplementationOnce(async (ctx) => {
+      await ctx.tracedFetch("https://example.com/run");
+      return undefined;
+    });
+
+    const { runAction } = await import("./runner-core.js");
+    const result = await runAction({
+      integrationId: "example",
+      actionName: "approved_action",
+      props: {},
+      userId: "user-1",
+      workspaceId: "org-1",
+      agentId: "agent-1",
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      errorCode: "EXECUTION_FAILED",
+      retryable: false,
+    });
+    expect(result.httpTraces).toHaveLength(1);
+    expect(result.httpTraces?.[0]?.error).toBe("upstream failed");
+  });
+
   it("normalizes strict action-input rejection without relying on message parsing", async () => {
     loadPiece.mockResolvedValue({
       actions: [
