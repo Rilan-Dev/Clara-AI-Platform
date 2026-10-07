@@ -29,6 +29,10 @@ x-logging: &default-logging
     max-size: "20m"
     max-file: "5"
 
+secrets:
+  clara_integration_encryption_key:
+    environment: INTEGRATION_ENCRYPTION_KEY
+
 services:
   # ───────────────── Infrastructure ─────────────────
 
@@ -186,6 +190,8 @@ services:
       # The Dockerfile ends with the worker stage, so select the HTTP backend
       # runner explicitly for this Compose service.
       target: runner
+      secrets:
+        - clara_integration_encryption_key
     container_name: clara-backend
     restart: unless-stopped
     logging: *default-logging
