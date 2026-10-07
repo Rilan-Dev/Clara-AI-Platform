@@ -95,6 +95,7 @@ export function buildMcpToolDefinition(
   descriptor: McpToolDescriptor,
   policy: McpToolBridgePolicy,
   resolver: McpToolResolver,
+  boundContext?: PlatformExecutionContext,
 ): ToolDefinition {
   if (!isAllowed(descriptor, policy)) {
     throw new ToolExecutionError(
@@ -191,7 +192,7 @@ export async function resolveMcpToolDefinition(
   }
 
   if (!isAllowed(descriptor, policy)) return null;
-  return buildMcpToolDefinition(descriptor, policy, resolver);
+  return buildMcpToolDefinition(descriptor, policy, resolver, request.context);
 }
 
 export async function buildMcpToolRuntime(
