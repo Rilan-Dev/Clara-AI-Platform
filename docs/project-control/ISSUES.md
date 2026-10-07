@@ -1618,3 +1618,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Resolution evidence | [architect-verified] The undefined legacy helper reference is removed; the regression now configures `resolveOrgPlanLimits` before executing the tenant-boundary assertion. |
 | Resolution date | 2026-10-07 |
 | Related worklog/session | SESSION-052 |
+
+
+## I-081 — I-2 AI availability readiness was not user-scoped
+
+| Field | Value |
+|---|---|
+| Issue ID | I-081 |
+| Title | AI integration availability must scope connection readiness to the current user |
+| Phase | Integrations I-2 |
+| Severity | P2 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-07 |
+| Finding | `integration_availability` reported an integration as connected whenever any active connection existed for the organisation/agent, even when that connection belonged to a different user. Because the tool returns connection readiness to the AI surface, this could produce a false readiness signal before `integration_action` later failed at the user-scoped credential boundary. |
+| Correction | Availability now requires a userId and filters active connections by organisation + agent + current user (while retaining organisation-scoped connections via `user_id IS NULL`). The authorization contract now requires user context. |
+| Scope | `src/modules/ai-platform-core/integration-ai-tools.ts`; focused regression in `integration-ai-tools.test.ts` |
+| Explicit non-scope | No credential-vault redesign, runner authorization change, schema/migration, OAuth transport, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
+| Developer correction commits | Implementation `f9dc068c0ca6b4067d0cda6d44743d4f91ac82a5`; regression `0e53c6a42fa316ddb776b565b32dd5b03599a69a` |
+| Verification | [architect-verified] Source review confirms availability readiness now uses the same user-aware connection scope as the execution tool. Executable Gate-C evidence remains pending. |
+| Resolution date | 2026-10-07 |
+| Related session | SESSION-053 |
