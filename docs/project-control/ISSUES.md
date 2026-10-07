@@ -1570,3 +1570,27 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Explicit non-scope | No provider rollout, schema/migration, OAuth transport expansion, MCP, billing, production promotion, or unrelated runtime refactor. |
 | Verification status | Source correction reviewed by ChatGPT; executable Gate-C evidence remains pending. |
 | Architect review | RESOLVED by source review on 2026-10-07. |
+
+
+## I-079 — I-2 AI action readiness check must preserve user credential scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-079 |
+| Title | AI integration action readiness must not treat another user's connection as the current user's connection |
+| Phase | Integrations I-2 |
+| Severity | P2 |
+| Status | RESOLVED — source + regression |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The AI-visible `integration_action` tool checked for any active connection in the execution organisation/agent scope but did not constrain the readiness query by the current `userId`. The runner itself correctly performs the final credential lookup with tenant/user/agent scope, so this did not grant cross-user credential access; however, the AI tool could falsely report that a credential was ready for a user who did not have access to that connection. |
+| Evidence | [architect-verified] Direct source review of `src/modules/ai-platform-core/integration-action-tool.ts` showed the readiness query filtered by `org_id`, integration, active status, and agent scope but omitted `user_id`, while `runAction()` and `credentialVault.get()` require the current user scope. |
+| Correction | The readiness query now requires `(user_id=$4 OR user_id IS NULL)` and prioritizes the current user's connection before an organisation-scoped connection. The runner credential boundary remains unchanged. |
+| Correction scope | `src/modules/ai-platform-core/integration-action-tool.ts`; focused regression in `integration-action-tool.test.ts` |
+| Explicit non-scope | No runner authorization redesign, schema/migration, OAuth transport expansion, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
+| Developer correction commits | Implementation `9e168851bc2e978f68c0576235e084eba63be4a2`; regression `f2b3dc2ac263d5112dc8d6e7649acfdd76bc735a` |
+| Verification | [architect-verified] Source review confirms AI readiness now uses the same tenant/user/agent credential scope as execution; focused regression covers a different user's connection being treated as not ready. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — correction independently reviewed by ChatGPT on 2026-10-07. |
+| Resolution evidence | [architect-verified] The readiness SQL now matches the credential-vault scope contract and no longer reports another user's active connection as current-user readiness. |
+| Resolution date | 2026-10-07 |
+| Related worklog/session | SESSION-051 |
