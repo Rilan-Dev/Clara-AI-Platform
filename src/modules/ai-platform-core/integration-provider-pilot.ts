@@ -9,7 +9,8 @@
 import type { PlatformExecutionContext } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
 import {
-  buildIntegrationActionDefinition,\n  buildIntegrationToolDefinition,
+  buildIntegrationActionDefinition,
+  buildIntegrationToolDefinition,
   integrationToolName,
 } from "./integrations/integration-tool-bridge";
 import { getIntegrationActions } from "@/modules/integrations/runtime/runner-core";
@@ -37,7 +38,23 @@ export function isFirstProviderPilotAction(
   );
 }
 
-export async function buildFirstProviderPilotTool(\n  context: PlatformExecutionContext,\n): Promise<ToolDefinition | null> {\n  if (!isIntegrationProviderPilotEnabled()) return null;\n  if (!context.userId || !context.agentId) return null;\n\n  const actions = await getIntegrationActions(FIRST_PROVIDER_INTEGRATION_ID);\n  const action = actions.find((candidate) =>\n    isFirstProviderPilotAction(FIRST_PROVIDER_INTEGRATION_ID, candidate.name),\n  );\n  if (!action) return null;\n\n  return buildIntegrationToolDefinition(\n    buildIntegrationActionDefinition(FIRST_PROVIDER_INTEGRATION_ID, action),\n  );\n}\n
+export async function buildFirstProviderPilotTool(
+  context: PlatformExecutionContext,
+): Promise<ToolDefinition | null> {
+  if (!isIntegrationProviderPilotEnabled()) return null;
+  if (!context.userId || !context.agentId) return null;
+
+  const actions = await getIntegrationActions(FIRST_PROVIDER_INTEGRATION_ID);
+  const action = actions.find((candidate) =>
+    isFirstProviderPilotAction(FIRST_PROVIDER_INTEGRATION_ID, candidate.name),
+  );
+  if (!action) return null;
+
+  return buildIntegrationToolDefinition(
+    buildIntegrationActionDefinition(FIRST_PROVIDER_INTEGRATION_ID, action),
+  );
+}
+
 /**
  * Registers the pilot action only when the owner-controlled flag is enabled.
  * Registration itself does not expose credentials and does not create a
