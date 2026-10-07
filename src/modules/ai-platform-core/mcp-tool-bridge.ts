@@ -105,7 +105,7 @@ export function buildMcpToolDefinition(
 
   const allowedSurfaces =
     descriptor.allowedSurfaces === undefined
-      ? ALLOWED_MCP_SURFACES
+      ? [...ALLOWED_MCP_SURFACES]
       : descriptor.allowedSurfaces.filter((surface) =>
           ALLOWED_MCP_SURFACES.includes(surface),
         );
@@ -117,28 +117,42 @@ export function buildMcpToolDefinition(
     );
   }
 
+  // Snapshot every policy/identity value used after registration. TypeScript
+  // readonly does not make caller-owned arrays immutable at runtime, and the
+  // resolver descriptor is also an external object. A live closure over either
+  // would let post-registration mutation widen or redirect the capability.
+  const boundPolicy: McpToolBridgePolicy = Object.freeze({
+    allowedServers: Object.freeze([...policy.allowedServers]),
+    allowedTools: Object.freeze([...policy.allowedTools]),
+    requireUserId: policy.requireUserId ?? true,
+  });
+  const boundDescriptor: McpToolDescriptor = Object.freeze({
+    ...descriptor,
+    allowedSurfaces: Object.freeze([...allowedSurfaces]),
+  });
+
   return {
-    name: mcpToolName(descriptor.serverId, descriptor.name),
+    name: mcpToolName(boundDescriptor.serverId, boundDescriptor.name),
     description:
-      descriptor.description ||
-      `Invoke MCP tool ${descriptor.name} from ${descriptor.serverId}.`,
-    inputSchema: descriptor.inputSchema,
+      boundDescriptor.description ||
+      `Invoke MCP tool ${boundDescriptor.name} from ${boundDescriptor.serverId}.`,
+    inputSchema: boundDescriptor.inputSchema,
     authorization: {
-      allowedSurfaces,
+      allowedSurfaces: Object.freeze([...allowedSurfaces]),
       requiredPermission: null,
       requiredCapability: null,
-      requireUserId: policy.requireUserId ?? true,
+      requireUserId: boundPolicy.requireUserId ?? true,
       requireSessionId: false,
     },
     async execute(input, context) {
       assertExecutionContext(context);
-      if (!isAllowed(descriptor, policy)) {
+      if (!isAllowed(boundDescriptor, boundPolicy)) {
         throw new ToolExecutionError(
           "TENANT_SCOPE_VIOLATION",
           "MCP tool is no longer allowlisted.",
         );
       }
-      return resolver.invoke(descriptor, input, context);
+      return resolver.invoke(boundDescriptor, input, context);
     },
   };
 }
