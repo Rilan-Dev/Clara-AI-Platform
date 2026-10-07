@@ -1,3 +1,17 @@
+## 2026-10-08 — I-4/I-5 implementation completion checkpoint
+
+[architect-verified] Source-level implementation review completed the owner-authorized I-4/I-5 scope without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+- I-4 implementation complete: connected integration actions are context-local `ToolDefinition` capabilities and execute through the existing Unified Tool Runtime implementation into I-3 `runAction()`.
+- I-5 implementation complete: Firecrawl `search` is exact-allowlisted and default-off, uses the I-4 bridge, and requires an existing tenant/user/agent-scoped connection.
+- Tenant-specific tools are never registered in the global Clara runtime singleton; context-local runtime instances prevent cross-tenant discovery leakage.
+- Focused source regression covers naming, strict schema enforcement, pilot allowlisting, and flag-off behavior.
+- Latest implementation corrections: `19edcda`, `3f9479c`, `ab9a262`, `ee4103a`, `2b7ea16`.
+- External execution evidence remains deferred by owner instruction; this is not a Gate-C/Gate-D PASS.
+- **STOP:** I-4/I-5 implementation scope is complete. No MCP expansion, broad provider rollout, production promotion, billing redesign, or unrelated implementation without a new authorization.
+
+---
+
 ## 2026-10-08 — I-4/I-5 owner-authorized implementation continuation
 
 [architect-verified] The owner explicitly directed continued development through **Integrations Framework I-4 — Unified Tool Runtime bridge** and **I-5 — First Provider Pilot**, without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
