@@ -1,3 +1,13 @@
+## 2026-10-08 — Agent-scoped integration mutation authorization correction
+
+[architect-verified] Bounded I-2 authorization review found the organisation integration mutation route accepted an optional `agentId` while checking only organisation-level `config:update`. That allowed an organisation member with the org permission to target an agent without an explicit agent-level permission check. Agent-scoped enable/connect/disconnect mutations now require `requireAgentPermission(auth, agentId, "config:update")` and retain the organisation identity check before database mutation.
+
+- Correction: `7b5bed88519884278fa8863d5878ece8d2fc3875`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-2 remains **IMPLEMENTED — VERIFICATION PENDING**.
+- **Next planned work:** continue only concrete bounded I-2 credential/connection, authorization, custom-action, egress, secret, AI-tool, tenant-boundary, or deployment-resource corrections if identified.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
 ## 2026-10-08 — Integration disconnect tenant/user-scope correction
 
 [architect-verified] Bounded I-2 source review found the organisation integration disconnect mutation could delete every connection for an integration across the organisation when no agentId was supplied. Because connection rows carry user ownership, an org-level configuration request must not implicitly delete another user's credential-bearing connection. The delete is now constrained to the requesting user (while retaining explicitly shared org connections with NULL user_id) and the optional agent scope.
