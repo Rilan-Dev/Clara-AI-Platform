@@ -1,3 +1,23 @@
+## I-089 — I-3 redirect failures duplicated HTTP trace entries
+
+| Field | Value |
+|---|---|
+| Issue ID | I-089 |
+| Title | Redirect rejection must emit one deterministic HTTP trace entry |
+| Phase | Integrations Framework I-3 |
+| Severity | P2 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The generic traced-fetch redirect boundary recorded a redacted redirect trace and then threw into the outer catch, which recorded a second failure trace for the same request. |
+| Correction | Added a per-request trace-recorded guard so explicitly recorded redirect outcomes are not duplicated by the outer failure boundary. Normal fetch failures still receive the catch-generated trace entry. |
+| Correction scope | `src/modules/integrations/runtime/runner-fetch.ts` and focused regression |
+| Implementation commit | `f4c827749065f679d1f79bcdace581f1c5e15903` |
+| Regression commit | `8cd183ed2601ac4af43fdba84661fb05f87b5924` |
+| Explicit non-scope | No egress policy relaxation, authorization, credential, OAuth transport, schema/migration, MCP, I-4/I-5, production, or immutable/reference changes. |
+| Verification | [architect-verified] Source review confirms redirect paths mark their trace as recorded before throwing and the regression asserts exactly one trace entry. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08. |
+
 ## I-088 — I-3 strict array validation accepted invalid primitive elements
 
 | Field | Value |
