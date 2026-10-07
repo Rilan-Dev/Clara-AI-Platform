@@ -1,3 +1,11 @@
+# CURRENT HANDOFF STATE — 2026-10-08 — I-3 CHATGPT IMPLEMENTATION OWNER
+
+[architect-verified] There is **no active Z.AI handoff**. By explicit owner authorization, ChatGPT is the implementation owner for **Integrations Framework I-3 — Action Runner**. Z.AI remains STOPPED. No stale I-2 handoff grants permission for I-3 work.
+
+The I-3 implementation boundary is limited to bounded action execution, input validation, egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation coverage. I-4/I-5, MCP, production promotion, and unrelated implementation remain prohibited.
+
+---
+
 # ZAI_HANDOFF.md — Z.AI Developer Handoff System
 
 > Canonical developer-handoff protocol and active handoff instance for the Clara project-control system.
@@ -222,3 +230,4 @@ I-2 is **not accepted**. Gate-C executable evidence is missing, Gate-E database 
 ## 2026-10-05 — I-2 current verification reconciliation
 
 The prior Part II sentence stating that Gate-E database verification is missing is superseded by the dated current-state record: Gate-E is materially evidenced for the I-2 database surface. Z.AI remains STOPPED; ChatGPT remains implementation owner. No new Z.AI handoff is authorized.
+
