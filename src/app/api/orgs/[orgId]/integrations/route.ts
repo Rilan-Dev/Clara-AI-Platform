@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
-import { requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
+import { requireAuth, requireAgentPermission, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { getOrgPlanLimits, resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
@@ -88,6 +88,16 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this integration`, code: "PLAN_NOT_ENTITLED" }, { status: 402 });
     }
 
+    if (body.agentId) {
+      // Agent-scoped mutations must be authorized at the target-agent boundary,
+      // including disconnect. Organisation config permission alone must not
+      // grant rights over another agent's credential-bearing connection.
+      const agentContext = await requireAgentPermission(auth, body.agentId, "config:update");
+      if (agentContext.orgId !== orgId) {
+        return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
+      }
+    }
+
     if (body.action === "enable") {
       const limitError = await withTransaction(async client => {
         // Serialise all integration-slot mutations for this organisation so
@@ -151,16 +161,6 @@ export async function POST(req: NextRequest, { params }: Params) {
         );
       });
       return NextResponse.json({ ok: true });
-    }
-
-    if (body.agentId) {
-      // Organisation config permission alone must not grant mutation rights over
-      // an agent-scoped connection. Re-authorize the target agent before any
-      // enable/connect/disconnect mutation reaches the database.
-      const agentContext = await requireAgentPermission(auth, body.agentId, "config:update");
-      if (agentContext.orgId !== orgId) {
-        return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
-      }
     }
 
     if (body.credentials === undefined) return NextResponse.json({ error: "credentials are required" }, { status: 400 });
