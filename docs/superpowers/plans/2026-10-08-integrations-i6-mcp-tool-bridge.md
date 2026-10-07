@@ -4,7 +4,7 @@ Date: 2026-10-08
 Owner: ChatGPT
 Authorization: Explicit owner instruction to continue the next pending implementation
 Baseline: `1e4495ebcc737074e958b15e6dcf2228d36d1d75`
-Status: IMPLEMENTATION ACTIVE
+Status: IMPLEMENTATION ACTIVE — BOUNDED HARDENING
 
 ## Objective
 
@@ -22,6 +22,8 @@ This phase is deliberately a bridge/contract phase. It does not introduce an MCP
 6. Keep MCP default-off through the existing runtime flag.
 7. Add focused source regressions for deterministic naming, allowlisting, flag-off behavior, context binding, and delegation.
 8. Export the bridge from the existing AI Platform Core public seam.
+9. Treat resolver discovery failures as unavailable capabilities and fail closed.
+10. Prove runtime-level schema validation and exact execution-context preservation through the Unified Tool Runtime.
 
 ## Security contract
 
@@ -48,6 +50,6 @@ This phase is deliberately a bridge/contract phase. It does not introduce an MCP
 
 ## Acceptance contract
 
-I-6 implementation is complete when an already-resolved MCP tool can be represented as a Clara `ToolDefinition`, is allowlisted and default-off, preserves the caller's tenant context, and invokes only through the existing Unified Tool Runtime.
+I-6 implementation is complete when an already-resolved MCP tool can be represented as a Clara `ToolDefinition`, is allowlisted and default-off, preserves the caller's tenant context, invokes only through the existing Unified Tool Runtime, fails closed on resolver/identity drift, and is exported from the AI Platform Core seam.
 
 External CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instruction.
