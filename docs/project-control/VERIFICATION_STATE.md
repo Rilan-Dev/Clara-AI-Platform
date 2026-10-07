@@ -1295,3 +1295,15 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - I-3 remains IN PROGRESS.
 - This is implementation evidence, not Gate-C execution evidence and not a phase closure.
 - Next bounded source work remains strict schema coverage, deterministic result propagation, egress/redirect invariants, redacted tracing, and tenant-isolation regression review.
+
+
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-3 ACTIVE / I-2 VERIFICATION DEFERRED
+
+[architect-verified] The control layer has been reconciled to the owner-authorized I-3 Action Runner implementation track. Earlier I-6/I-4/I-5 current-state blocks are historical transition records and are superseded by this newer I-3 authoritative block; they do not authorize MCP or later capability work.
+
+- I-3 remains IN PROGRESS.
+- Latest I-3 implementation correction: 7aa1ebc8521c377684c711d97710e0614f66b4e3.
+- Latest I-3 focused regression: 8ac329d38af49a6c3acba22ac25935fb8b151c3c.
+- External CI/Vercel/Gate-C/Gate-D execution remains deferred by owner instruction.
+- No PASS/closure is inferred.
+- Next bounded implementation: strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
