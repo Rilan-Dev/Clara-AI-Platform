@@ -5,7 +5,7 @@
 - I-2 application implementation is treated as complete for implementation purposes; its executable/current-head verification remains deferred by owner instruction.
 - I-3 scope is restricted to the existing Integrations Framework plan §6.3: bounded action execution, strict input validation, host egress/SSRF enforcement, deterministic error normalization, redacted tracing, and tenant-isolation regression coverage.
 - I-3 must not expand into I-4 Unified Tool Runtime bridging, I-5 provider rollout, MCP, production promotion, or unrelated work.
-- New I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f6d8095a0e861f938e5ab76c75fb0fdbb9`, `5f8a1301ff47ee2ebaeadd0ab4fda44cfe03a42c`, `c293ad4ca843ad8ebc0a6f1106b4da169c62102b`. The runner now returns normalized error metadata for early capability/connection/input failures and has deterministic retry classification for rate limits/request timeouts.
+- New I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f6d8095a0e861f938e5ab76c75fb0fdbb9`, `5f8a1301ff47ee2ebaeadd0ab4fda44cfe03a42c`, `c293ad4ca843ad8ebc0a6f1106b4da169c62102b`. The runner now returns normalized error metadata for early capability/connection/input/action-lookup failures, has deterministic retry classification for rate limits/request timeouts, and the strict input-validation regression suite is syntactically closed correctly.
 - External CI/Vercel execution is not awaited.
 
 **Current next implementation:** continue I-3 Action Runner work from the current feature-branch tip, review the runner against the I-3 acceptance criteria, and implement only remaining bounded I-3 gaps.
