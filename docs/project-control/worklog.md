@@ -33,3 +33,8 @@
 - `d4bfbe112863696c99ad7abb81857a9399f079c2` adds focused regressions for both cases.
 - Session: `docs/project-control/sessions/SESSION-061.md`.
 - External CI/Vercel/Gate-C/Gate-D remain deferred; I-6 stays IN PROGRESS.
+
+### I-6 authorization-surface contract hardening — 2026-10-08
+- Replaced the exported `authorizeMcpTool()` helper with `isMcpToolAllowlisted()` because the former name implied full authorization while only evaluating static server/tool allowlists.
+- `6d37d607689a3379a253659ebd50046d6b1b8727`, `f6454910c436d14b29c768180f344e02159dd908`, and `8504c42a058fce9c8e38979c3d93899fd95345a2` align implementation, regression, and public export.
+- Full surface/identity/RBAC/plan/tenant authorization remains owned by the Unified Tool Runtime.
