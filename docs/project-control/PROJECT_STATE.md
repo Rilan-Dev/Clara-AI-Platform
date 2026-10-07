@@ -240,3 +240,12 @@ I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D
 ## 2026-10-07 — I-085 OAuth refresh lost-scope fail-closed correction
 
 [architect-verified] Source review found a race boundary where an OAuth refresh could successfully obtain a new provider token but its scoped persistence update could match zero rows after concurrent connection state changes; the runner had no explicit signal and could continue. updateCredentials now returns success/failure from the scoped UPDATE, and ensureTokenFresh aborts when persistence loses the active connection scope. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D remains IN PROGRESS.
+
+
+## 2026-10-07 — I-086 organisation integration mutation serialization correction
+
+[architect-verified] Continued bounded I-2 source review identified a concurrency gap in the organisation integration connect path: its `FOR UPDATE` lock protected only an existing `organisation_integrations` row, so first-time connects with no existing grant row could race through the `max_integrations` count check. Commit `51c14f65b7dac8812ccae353bc23e9cf07694d8c` now acquires the organisation-level PostgreSQL advisory transaction lock before the connect grant/count read; disable and disconnect acquire the same lock to serialize the complete organisation integration mutation domain.
+
+I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERIFICATION PENDING**; Gate-C remains MISSING and Gate-D remains IN PROGRESS. No CI, Vercel, Gate-C, or Gate-D result was awaited. No I-2 PASS is claimed.
+
+**Next planned implementation:** continue only the bounded I-2 credential/connection and authorization race review, then remaining custom-action, AI-tool, egress/secret, action-input, and tenant-isolation gaps. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
