@@ -1,3 +1,10 @@
+# CURRENT HANDOFF STATE — 2026-10-08 — I-4/I-5 CHATGPT IMPLEMENTATION OWNER
+
+[architect-verified] There is **no active Z.AI handoff**. By explicit owner authorization, ChatGPT is the implementation owner for **Integrations Framework I-4 — Unified Tool Runtime bridge** and **I-5 — First Provider Pilot**. Z.AI remains STOPPED.
+
+The active implementation boundary is limited to the existing Phase 7 Unified Tool Runtime, the existing I-3 Action Runner, connected integration action exposure, and the default-off Firecrawl `search` pilot. No MCP, broad provider rollout, production promotion, or unrelated implementation is authorized.
+
+---
 # CURRENT HANDOFF STATE — 2026-10-08 — I-3 CHATGPT IMPLEMENTATION OWNER
 
 [architect-verified] There is **no active Z.AI handoff**. By explicit owner authorization, ChatGPT is the implementation owner for **Integrations Framework I-3 — Action Runner**. Z.AI remains STOPPED. No stale I-2 handoff grants permission for I-3 work.
