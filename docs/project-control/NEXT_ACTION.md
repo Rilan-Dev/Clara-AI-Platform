@@ -1,3 +1,17 @@
+# NEXT_ACTION.md
+
+## CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
+
+[architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest correction
+The MCP bridge now enforces the resolution-context identity already passed into buildMcpToolDefinition(); same-tenant/different-user execution is explicitly rejected. Implementation 2ddb3cf94cbdf0678e36276bf389b71e064a406d; regression 4093ac64c082bb6965edf0ba1479b1f8343d181c.
+
+**Next implementation:** continue bounded I-6 source acceptance/reconciliation work.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
+
+---
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
 ## 2026-10-08 — I-6 execution-context binding correction
