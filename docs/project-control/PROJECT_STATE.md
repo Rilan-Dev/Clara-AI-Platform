@@ -2,7 +2,7 @@
 
 [architect-verified] Owner authorization explicitly advances implementation to **Integrations Framework I-3 — Action Runner** while I-2 executable verification remains deferred. I-2 is not claimed PASS/CLOSED. The active implementation scope is I-3 only; I-4/I-5, MCP, production promotion, and unrelated work remain out of scope.
 
-Current I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f`, `5f8a130`, `c293ad4`. The latest bounded corrections complete the stable failure-result contract across early runner exits and extend deterministic upstream retry classification.
+Current I-3 implementation commits: `77e7c31`, `48c364d`, `ab31558`, `e01a6f4`, `f2ae82f`, `5f8a130`, `c293ad4`, `234e3d5`. The latest bounded correction fixes the strict action-input regression suite's test-block structure. The latest bounded corrections complete the stable failure-result contract across early runner exits and extend deterministic upstream retry classification.
 
 **Recovery rule:** this block supersedes older checkpoint prose below; historical I-2 entries remain historical evidence and must not be interpreted as the current active phase.
 
