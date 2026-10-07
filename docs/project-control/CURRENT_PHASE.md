@@ -14,7 +14,9 @@
 - The bridge is exported through the public `ai-platform-core` seam.
 - No MCP transport, persistence, OAuth callback, marketplace, or deployment work is in scope.
 
-Latest I-6 implementation commits: `9e855c7`, `012aca0`, `95b75a8`, `fb326688`, `b59f1c9`, `827eae5`, `d571813`, `0b1856b`.
+Latest I-6 implementation commits: `9e855c7`, `012aca0`, `95b75a8`, `fb326688`, `b59f1c9`, `827eae5`, `d571813`, `0b1856b`, `ff64b9b`, `12815df`, `d90cddbe`.
+
+Latest hardening: caller-owned policy/descriptor mutation is snapshot-bound at definition construction; normalized-name collisions are fail-closed instead of silently skipped.
 
 **Status:** IN PROGRESS — bounded source hardening; external verification deferred.
 
