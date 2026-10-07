@@ -206,28 +206,28 @@ Fresh-session read order for a Z.AI developer session:
 
 ## Part II — Active Handoff Instance
 
-> **No active Z.AI implementation handoff.** Current repository state is Integrations I-2 — IMPLEMENTED / VERIFICATION PENDING. ChatGPT is the implementation owner under D-024. Z.AI is STOPPED and must not resume from any superseded Phase 7 or I-1 handoff.
+> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-6 — MCP Tool Bridge, IN PROGRESS**. ChatGPT is the implementation owner. Z.AI is STOPPED. I-6 is being continued directly by ChatGPT under explicit owner authorization.
 
 ## 1. Current status
 
 | Field | Value |
 |---|---|
-| Status | **STOPPED — AWAITING ARCHITECT DIRECTION** |
-| Current bounded work | Integrations I-2 verification and security correction only |
+| Status | **STOPPED — CHATGPT IMPLEMENTATION OWNER** |
+| Current bounded work | Integrations I-6 MCP Tool Bridge source implementation/hardening |
 | Repository | Rilan-Dev/Clara-AI-Platform |
 | Branch | feature/ai-core-from-doable-source |
 | Developer | ChatGPT |
 | Architect / controller | ChatGPT |
 | Active Z.AI scope | **NONE** |
-| Reason | D-024 implementation-owner takeover; I-2 has not received architect PASS |
-| Next handoff | Only if ChatGPT explicitly delegates a new bounded task |
+| Reason | Explicit owner authorization places I-6 implementation with ChatGPT; Z.AI remains stopped |
+| Next handoff | None unless ChatGPT explicitly delegates a new bounded task |
 
 ## 2. STOP boundary
 
 Z.AI MUST NOT:
 
-- implement I-3 or any later integration capability;
-- add OAuth transport, MCP runtime, new egress architecture, or production deployment;
+- implement I-6 or any later integration capability;
+- add MCP transport/server hosting, OAuth/persistence, marketplace, or production deployment;
 - alter billing semantics;
 - modify immutable Doable/reference material;
 - resume any stale handoff recovered from Git history;
@@ -237,11 +237,4 @@ If Z.AI is asked to continue, it must first obtain a fresh ChatGPT-issued handof
 
 ## 3. Current architect review status
 
-I-2 is **not accepted**. Gate-C executable evidence is missing, Gate-E database verification is missing, and Gate-D remains open. The current architect corrections address sensitive integration tracing/error logging, tenant-scoped integration-store access, and agent/org ownership enforcement. These changes do not constitute phase closure.
-
-
-
-## 2026-10-05 — I-2 current verification reconciliation
-
-The prior Part II sentence stating that Gate-E database verification is missing is superseded by the dated current-state record: Gate-E is materially evidenced for the I-2 database surface. Z.AI remains STOPPED; ChatGPT remains implementation owner. No new Z.AI handoff is authorized.
-
+I-6 source implementation is **IN PROGRESS**. Resolver identity/failure hardening, runtime schema/context regressions, and the public AI Platform Core export are implemented. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction and is not represented as PASS or phase closure.
