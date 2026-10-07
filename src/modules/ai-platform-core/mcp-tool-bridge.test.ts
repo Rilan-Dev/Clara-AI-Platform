@@ -131,6 +131,25 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("fails closed when resolver discovery is unavailable", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        throw new Error("transport unavailable");
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    await expect(
+      resolveMcpToolDefinition(
+        { serverId: "demo", toolName: "lookup", context },
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("rejects a resolver descriptor that changes the allowlisted server", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
