@@ -124,16 +124,29 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     if (body.action === "disable") {
-      await query(
-        `INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,false,$3)
-         ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
-        [orgId, body.integrationId, auth.user.id],
-      );
+      await withTransaction(async client => {
+        // Share the same organisation-level lock as connect/enable so a
+        // concurrent mutation cannot bypass the integration-slot boundary.
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [orgId]);
+        await client.query(
+          `INSERT INTO organisation_integrations(org_id,integration_id,enabled,created_by) VALUES($1,$2,false,$3)
+           ON CONFLICT(org_id,integration_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
+          [orgId, body.integrationId, auth.user.id],
+        );
+      });
       return NextResponse.json({ ok: true, enabled: false });
     }
 
     if (body.action === "disconnect") {
-      await query(`DELETE FROM integration_connections WHERE org_id=$1 AND integration_id=$2 AND ($3::uuid IS NULL OR agent_id=$3)`, [orgId, body.integrationId, body.agentId ?? null]);
+      await withTransaction(async client => {
+        // Serialise disconnect against connect so concurrent connection
+        // creation/removal has a deterministic transaction order.
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [orgId]);
+        await client.query(
+          `DELETE FROM integration_connections WHERE org_id=$1 AND integration_id=$2 AND ($3::uuid IS NULL OR agent_id=$3)`,
+          [orgId, body.integrationId, body.agentId ?? null],
+        );
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -153,6 +166,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     // the mutation so concurrent connect requests cannot both consume the same
     // integration slot.
     const limitError = await withTransaction(async client => {
+      // Lock the whole organisation's integration-slot mutation domain. A
+      // per-integration row lock is insufficient when the organisation grant
+      // row does not yet exist, because concurrent connects could both observe
+      // the same slot count and then create the missing grant.
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [orgId]);
+
       const current = (await client.query<{ enabled: boolean }>(
         `SELECT enabled FROM organisation_integrations WHERE org_id = $1 AND integration_id = $2 FOR UPDATE`,
         [orgId, body.integrationId],
