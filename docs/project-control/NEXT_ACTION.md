@@ -11,6 +11,8 @@
 - Latest I-3 continuation also includes `d0799b370801d1b1319910876f7053e41d92f66d` and `c764fa4bea306fee7f5447ca8e025ec4c2a330d2`, which scrub known secret values from arbitrary fetch errors before trace emission and add a focused regression. on the host-owned typed error contract, record redacted trace entries for blocked outbound attempts, and validate array item schemas recursively in strict action-input mode.
 - External CI/Vercel execution is not awaited.
 
+- Runner correction: `77b806f65d002b53bb6a7d04294ec0164dc392d5` now preserves the per-run redacted HTTP trace collection in failed `RunActionResult` responses, so failure results retain deterministic trace evidence instead of dropping it.
+
 **Current next implementation:** continue bounded I-3 acceptance review, focusing on remaining deterministic result propagation, strict schema edge cases, redirect/egress boundary coverage, redacted trace invariants, and tenant-isolation regression coverage.
 
 ---
