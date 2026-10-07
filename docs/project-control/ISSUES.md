@@ -1,3 +1,23 @@
+## I-088 — I-3 strict array validation accepted invalid primitive elements
+
+| Field | Value |
+|---|---|
+| Issue ID | I-088 |
+| Title | Strict action schemas must type-check array elements rather than treating them as optional fields |
+| Phase | Integrations Framework I-3 |
+| Severity | P2 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The strict validator reused object-property missing-value semantics for array elements. Null or empty primitive elements could therefore bypass the declared item type. |
+| Correction | Array elements are now validated as values: null, empty, and wrong-typed primitive items are rejected before nested object/array recursion. |
+| Correction scope | `src/modules/integrations/runtime/action-input-validation.ts` and focused regression |
+| Implementation commit | `6db1b45e0213bba4b53a2675c328bad0f7bdcb7c` |
+| Regression commit | `d12d43509463eedeba712b1b657c04cecb8475bb` |
+| Explicit non-scope | No authorization, credential, egress, OAuth transport, schema/migration, MCP, I-4/I-5, production, or immutable/reference changes. |
+| Verification | [architect-verified] Source review confirms primitive array items are type-checked independently of parent-property missing semantics. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08. |
+
 ## I-087 — I-3 failed runner results dropped redacted HTTP traces
 
 | Field | Value |
