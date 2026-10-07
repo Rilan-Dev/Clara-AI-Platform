@@ -131,11 +131,13 @@ describe("integration runtime trace redaction", () => {
     const traces: Array<Record<string, unknown>> = [];
     const tracedFetch = createTracedFetch(traces as never, "project", null, fetchImpl);
 
-    await expect(tracedFetch("https://example.com/start")).rejects.toBeInstanceOf(IntegrationRunnerError);
-    await expect(tracedFetch("https://example.com/start")).rejects.toMatchObject({
+    const error = await tracedFetch("https://example.com/start").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(IntegrationRunnerError);
+    expect(error).toMatchObject({
       code: "REDIRECT_BLOCKED",
       retryable: false,
     });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("rejects non-HTTP protocols and URL userinfo", async () => {
