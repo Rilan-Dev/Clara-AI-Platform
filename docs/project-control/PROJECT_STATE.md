@@ -228,3 +228,10 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 [architect-verified] Automatic GitHub Actions triggers were disabled in .github/workflows/ci.yml by replacing push/pull_request execution with workflow_dispatch only; the file contains short restoration guidance. Vercel project clara-backend was paused because Git deployment-source controls are unavailable on the current Hobby plan. This is an operational owner control and does not change I-2 application behavior.
 
 I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D remains IN PROGRESS. No CI, Vercel build, or Gate result was awaited.
+
+
+## 2026-10-07 — I-084 OAuth refresh scope drift correction
+
+[architect-verified] Current branch source was re-audited after I-082 and exposed a partial regression: runner-core passed user/agent scope to ensureTokenFresh, but the helper signature and some vault calls had reverted to unscoped form. The helper now propagates userId/agentId across decrypt, expiry status, and credential persistence. Corrections: bd6a7a58819d8ff9b203a9638c3d806d5e5caa15 and f5bc88e57667d886100f875b81fff9b1e71cd435.
+
+I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING; Gate-D remains IN PROGRESS.
