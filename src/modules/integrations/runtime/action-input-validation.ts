@@ -71,21 +71,46 @@ export function validateActionProps(
 
     if (definition.items && Array.isArray(value)) {
       for (const [index, item] of value.entries()) {
-        if (definition.items.type === "OBJECT" && definition.items.properties && item && typeof item === "object" && !Array.isArray(item)) {
+        const itemDefinition = definition.items;
+        const itemPath = `${name}[${index}]`;
+        const itemType = itemDefinition.type?.toUpperCase();
+        const itemCheck = itemType ? TYPE_CHECKS[itemType] : undefined;
+
+        // Array elements are values, not optional object properties. Do not let
+        // the parent-field missing-value rule silently accept null/empty items.
+        if (item === undefined || item === null || (typeof item === "string" && item.trim() === "")) {
+          if (itemType) errors.push(`${itemPath} must be of type ${itemType}`);
+          continue;
+        }
+
+        if (itemCheck && !itemCheck(item)) {
+          errors.push(`${itemPath} must be of type ${itemType}`);
+          continue;
+        }
+
+        if (
+          itemDefinition.properties &&
+          item !== null &&
+          typeof item === "object" &&
+          !Array.isArray(item)
+        ) {
           errors.push(
             ...validateActionProps(
-              definition.items.properties,
+              itemDefinition.properties,
               item as Record<string, unknown>,
               strict,
-            ).map((error) => `${name}[${index}].${error}`),
+            ).map((error) => `${itemPath}.${error}`),
           );
-        } else {
-          const itemErrors = validateActionProps(
-            { value: definition.items },
-            { value: item },
-            strict,
+        }
+
+        if (itemDefinition.items && Array.isArray(item)) {
+          errors.push(
+            ...validateActionProps(
+              { value: itemDefinition.items },
+              { value: item },
+              strict,
+            ).map((error) => `${itemPath}.${error.replace(/^value\b\s*/, "")}`),
           );
-          errors.push(...itemErrors.map((error) => `${name}[${index}].${error.replace(/^value\b\s*/, "")}`));
         }
       }
     }
