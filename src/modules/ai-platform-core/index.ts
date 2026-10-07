@@ -107,7 +107,7 @@ export {
   buildIntegrationToolBridgeAdapter,
   buildIntegrationToolDefinition,
   integrationToolName,
-  registerConnectedIntegrationTools,
+  buildConnectedIntegrationToolRuntime,
 } from "./integrations/integration-tool-bridge";
 
 export {
