@@ -1071,3 +1071,13 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-6 remains IN PROGRESS; external CI/Vercel/Gate-C/Gate-D are deferred by owner instruction.
 
 **Next implementation:** continue the bounded I-6 source-level acceptance review for remaining resolver, registration, authorization, context, schema, and runtime-seam gaps. Do not add MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated work.
+
+
+## 2026-10-08 — I-6 authorization-helper hardening
+
+[architect-verified] The public MCP helper now explicitly exposes only static allowlist inspection (`isMcpToolAllowlisted`). It no longer presents an authorization-shaped result that could be confused with the Unified Tool Runtime's complete authorization stage.
+
+- Corrections: `6d37d607689a3379a253659ebd50046d6`, `f6454910c436d14b29c768180f344e02159dd908`, `8504c42a058fce9c8e38979c3d93899fd95345a2`.
+- I-6 remains IN PROGRESS; external verification is deferred.
+
+**Next implementation:** continue bounded I-6 source-level acceptance review for remaining runtime registration, default-off, resolver, context, schema, and tenant-boundary gaps.
