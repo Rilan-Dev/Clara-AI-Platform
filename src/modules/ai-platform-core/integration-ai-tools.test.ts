@@ -27,7 +27,7 @@ describe("integration availability plan entitlement", () => {
 
     const result = await tool.execute(
       {},
-      { tenantId: "org-1", agentId: "agent-1", surface: "chat" } as never,
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
     );
 
     expect(result).toEqual([]);
@@ -45,7 +45,7 @@ describe("integration availability plan entitlement", () => {
 
     const result = await tool.execute(
       {},
-      { tenantId: "org-1", agentId: "agent-1", surface: "chat" } as never,
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
     );
 
     expect(result).toEqual([
@@ -68,7 +68,7 @@ describe("integration availability plan entitlement", () => {
 
     const result = await tool.execute(
       {},
-      { tenantId: "org-1", agentId: "agent-1", surface: "chat" } as never,
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
     );
 
     expect(result).toEqual([]);
@@ -86,7 +86,7 @@ describe("integration availability plan entitlement", () => {
 
     const result = await tool.execute(
       {},
-      { tenantId: "org-1", agentId: "agent-from-org-2", surface: "chat" } as never,
+      { tenantId: "org-1", agentId: "agent-from-org-2", userId: "user-1", surface: "chat" } as never,
     );
 
     expect(result).toEqual([]);
@@ -95,5 +95,43 @@ describe("integration availability plan entitlement", () => {
       expect.stringContaining("a.org_id = $2"),
       ["agent-from-org-2", "org-1"],
     );
+    expect(query).not.toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("(user_id = $3 OR user_id IS NULL)"),
+      expect.anything(),
+    );
   });
+
+  it("does not report another user's connection as current-user readiness", async () => {
+    resolveOrgPlanLimits.mockResolvedValue({ plan_id: "pro" });
+    query
+      .mockResolvedValueOnce([{ integration_id: "github", enabled: true, allowed_plans: ["pro"] }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
+    const tool = buildIntegrationAvailabilityTool();
+
+    const result = await tool.execute(
+      {},
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-2", surface: "chat" } as never,
+    );
+
+    expect(result).toEqual([
+      {
+        id: "github",
+        name: "GitHub",
+        description: "GitHub API",
+        connected: false,
+        actions: ["list_repos"],
+        help: "GitHub is enabled for this agent but still needs credentials connected.",
+      },
+    ]);
+    expect(query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("(user_id = $3 OR user_id IS NULL)"),
+      ["org-1", "agent-1", "user-2"],
+    );
+  });
+
 });
