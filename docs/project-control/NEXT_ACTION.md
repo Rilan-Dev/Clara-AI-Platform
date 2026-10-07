@@ -770,3 +770,12 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN PROGRESS.
 - **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-07 — Owner CI/CD pause control
+
+[architect-verified] Per owner directive, automatic GitHub Actions execution is disabled: .github/workflows/ci.yml now retains only workflow_dispatch, with the original push/pull_request triggers preserved as commented re-enable guidance. Vercel clara-backend is paused because deployment-source controls are unavailable on the current Hobby plan; this prevents automatic deployments until the owner deliberately unpauses the project. No CI/Vercel result is being awaited.
+
+**Next bounded work:** continue I-2 source implementation/review only, without waiting for CI, Vercel, Gate-C, or Gate-D. Gate-C remains MISSING and Gate-D remains IN PROGRESS. After bounded source work is exhausted, the existing plan still calls for executable Gate-C evidence, connector/OAuth smoke where configuration exists, browser verification, immutable/runtime/secret/governance scans, and final Gate-D review when the owner chooses to resume verification.
+
+**STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
