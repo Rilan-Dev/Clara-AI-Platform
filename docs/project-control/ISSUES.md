@@ -1659,3 +1659,20 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] Source review confirms OAuth credential decrypt/status/update paths now retain user and agent scope. Executable Gate-C evidence remains pending. |
 | Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-07. |
 | Related session | SESSION-054 |
+
+
+## I-083 — Owner-controlled CI/CD automation pause
+
+| Field | Value |
+|---|---|
+| Issue ID | I-083 |
+| Title | Automatic GitHub Actions and Vercel deployments are paused by owner directive |
+| Phase | Integrations I-2 |
+| Severity | P2 |
+| Status | RESOLVED — owner operational control |
+| Date | 2026-10-07 |
+| Finding | The project owner requested that automatic GitHub Actions execution and automatic Vercel CI/CD deployment stop, while implementation continues without waiting on CI, Vercel builds, or gates. |
+| Correction | .github/workflows/ci.yml now exposes only workflow_dispatch; automatic push/pull_request triggers are commented with re-enable guidance. Vercel clara-backend is paused because Git deployment-source controls are unavailable on the current Hobby plan. |
+| Evidence | [architect-verified] GitHub workflow source updated in commit 6d87d5ca5e01b47df8285e5c0f8bc62715d01; Vercel project pause operation completed. |
+| Manual re-enable | GitHub: restore the commented triggers in .github/workflows/ci.yml. Vercel: unpause clara-backend, then manually deploy the intended commit/branch. Detailed guidance is in docs/project-control/sessions/SESSION-056.md. |
+| Non-scope | No application feature behavior, I-2 authorization semantics, Gate-C evidence, Gate-D closure, or production promotion was changed. |
