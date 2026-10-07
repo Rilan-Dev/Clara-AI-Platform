@@ -1,3 +1,15 @@
+## 2026-10-08 — I-3 deterministic runner result propagation
+
+[architect/ChatGPT] Continued the bounded I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
+
+- Converted registry-approved but package-missing action lookup failures to the explicit `ACTION_NOT_ALLOWED` host error classification.
+- Converted piece-action strict input rejection to the explicit `INVALID_INPUT` host error classification.
+- Added focused runner regressions proving these results expose stable `errorCode`/retryability without depending on provider-message parsing.
+- Commits: `d3c18c3669555f062dd0fae3613cdb9d39ef79ba`, `62ef2fea18c93225dbc2815cbde67f1da72af621`.
+- No I-4/I-5, MCP, production promotion, or unrelated implementation was introduced.
+
+Current status: **I-3 IN PROGRESS**.
+
 ## 2026-10-08 — I-3 strict schema + egress boundary continuation
 
 [architect/ChatGPT] Continued the owner-authorized I-3 Action Runner implementation without waiting for GitHub Actions, Vercel, Gate-C, or Gate-D.
