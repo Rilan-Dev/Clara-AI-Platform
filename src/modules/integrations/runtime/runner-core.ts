@@ -5,7 +5,7 @@ import type { RunActionParams, RunActionResult } from "./types.js";
 import { xray } from "./xray.js";
 import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch.js";
 import { validateActionProps } from "./action-input-validation.js";
-import { normalizeIntegrationError } from "./error-normalization.js";
+import { integrationError, normalizeIntegrationError } from "./error-normalization.js";
 import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
 import {
   customActions,
@@ -137,7 +137,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
   const def = getIntegration(params.integrationId);
 
   if (!def) {
-    return failureResult(new Error(`Unknown integration: ${params.integrationId}`));
+    return failureResult(integrationError("UNKNOWN_INTEGRATION", `Unknown integration: ${params.integrationId}`));
   }
 
   // Rewrite hallucinated actionNames onto the canonical registry ids before
@@ -156,7 +156,8 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     // XRay is initialized below for the normal execution path. This early
     // capability rejection must not reference that later const before initialization.
     return failureResult(
-      new Error(
+      integrationError(
+        "ACTION_NOT_ALLOWED",
         `Action '${params.actionName}' is not allowed for ${params.integrationId}. Available: ${available.length > 0 ? available.join(", ") : "unknown"}`,
       ),
     );
@@ -188,7 +189,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       const inputErrors = validateActionProps(customAction.props, params.props, true);
       if (inputErrors.length > 0) {
         xr.end("error", `Invalid action input: ${inputErrors.join("; ")}`);
-        return failureResult(new Error(`Invalid action input: ${inputErrors.join("; ")}`));
+        return failureResult(integrationError("INVALID_INPUT", `Invalid action input: ${inputErrors.join("; ")}`));
       }
       xr.phase("credential_lookup");
       const connection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
@@ -276,7 +277,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     if (def.authType !== "none") {
       if (!connection) {
         xr.end("error", "Not connected");
-        return failureResult(new Error("Not connected"));
+        return failureResult(integrationError("NOT_CONNECTED", "Not connected"));
       }
 
       xr.phase("token_refresh_check");
