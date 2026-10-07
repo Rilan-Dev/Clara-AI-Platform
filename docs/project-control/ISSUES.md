@@ -1,3 +1,23 @@
+## I-087 — I-3 failed runner results dropped redacted HTTP traces
+
+| Field | Value |
+|---|---|
+| Issue ID | I-087 |
+| Title | Failed I-3 action results must preserve the run's redacted HTTP trace evidence |
+| Phase | Integrations Framework I-3 |
+| Severity | P2 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | `runAction()` accumulated per-run HTTP traces for custom and Activepieces execution, but the catch boundary returned a failure result without the `httpTraces` field. This made failure results less deterministic and discarded useful redacted execution evidence exactly on error paths. |
+| Correction | A single per-run `httpTraces` collection now spans the execution path and is returned on failed `RunActionResult` responses when entries exist. Existing redaction and egress boundaries remain unchanged. |
+| Correction scope | `src/modules/integrations/runtime/runner-core.ts` only |
+| Correction commit | `77b806f65d002b53bb6a7d04294ec0164dc392d5` |
+| Explicit non-scope | No authorization redesign, credential-vault change, schema/migration, OAuth transport, MCP, I-4/I-5, production promotion, or immutable/reference change. |
+| Verification | [architect-verified] Source review confirms the failure result now returns the same redacted trace collection maintained during execution. No CI/Vercel/Gate-C execution was awaited. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08. |
+| Related worklog/session | I-3 continuation, 2026-10-08 |
+
 ## 2026-10-06 — I-067 IPv4-mapped IPv6 egress bypass
 
 - **Status:** RESOLVED — architect-verified.
