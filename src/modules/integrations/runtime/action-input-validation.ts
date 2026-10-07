@@ -25,21 +25,26 @@ function isMissing(value: unknown): boolean {
  */
 export function validateActionProps(
   definitions: Record<string, unknown> | undefined,
-  props: Record<string, unknown>,
+  props: unknown,
   strict = false,
 ): string[] {
-  if (!definitions || typeof definitions !== "object") return [];
+  if (!definitions || typeof definitions !== "object" || Array.isArray(definitions)) return [];
 
+  if (props === null || typeof props !== "object" || Array.isArray(props)) {
+    return ["props must be an object"];
+  }
+
+  const propRecord = props as Record<string, unknown>;
   const errors: string[] = [];
   if (strict) {
-    for (const name of Object.keys(props)) {
+    for (const name of Object.keys(propRecord)) {
       if (!(name in definitions)) errors.push(`${name} is not allowed`);
     }
   }
   for (const [name, rawDefinition] of Object.entries(definitions)) {
     if (!rawDefinition || typeof rawDefinition !== "object") continue;
     const definition = rawDefinition as ActionPropDefinition;
-    const value = props[name];
+    const value = propRecord[name];
 
     if (definition.required && isMissing(value)) {
       errors.push(`${name} is required`);
