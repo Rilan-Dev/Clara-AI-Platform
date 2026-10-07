@@ -324,7 +324,10 @@ export function createTracedFetch(
       return res;
     } catch (err) {
       const durationMs = Date.now() - start;
-      const errMsg = redactText(err instanceof Error ? err.message : String(err)) ?? "Integration HTTP request failed";
+      const errMsg = redactValue(
+        err instanceof Error ? err.message : String(err),
+        secretValues,
+      ) as string || "Integration HTTP request failed";
       const entry: HttpTraceEntry = {
         url, method, requestHeaders: reqHeaders, requestBody, statusCode: null,
         responseHeaders: {}, durationMs, responseBody: null, error: errMsg,
