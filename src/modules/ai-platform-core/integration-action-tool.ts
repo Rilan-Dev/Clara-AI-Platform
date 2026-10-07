@@ -62,9 +62,13 @@ export function buildIntegrationActionTool(): ToolDefinition {
         throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", `${def.displayName} is not enabled for this agent.`);
       }
 
+      // Readiness must use the same tenant/user/agent credential scope as the
+      // runner. Without the user predicate, another user's connection could
+      // make this AI tool report a credential as ready even though runAction
+      // would correctly deny the current user's credential lookup.
       const connection = (await query<{id:string}>(
-        "SELECT id FROM integration_connections WHERE org_id=$1 AND integration_id=$2 AND status='active' AND (agent_id=$3 OR agent_id IS NULL) ORDER BY CASE WHEN agent_id=$3 THEN 0 ELSE 1 END, updated_at DESC LIMIT 1",
-        [context.tenantId, input.integrationId, context.agentId],
+        "SELECT id FROM integration_connections WHERE org_id=$1 AND integration_id=$2 AND status='active' AND (agent_id=$3 OR agent_id IS NULL) AND (user_id=$4 OR user_id IS NULL) ORDER BY CASE WHEN agent_id=$3 THEN 0 ELSE 1 END, CASE WHEN user_id=$4 THEN 0 ELSE 1 END, updated_at DESC LIMIT 1",
+        [context.tenantId, input.integrationId, context.agentId, context.userId],
       ))[0];
       if (!connection && def.authType !== "none") {
         throw new ToolExecutionError("EXECUTION_FAILED", `${def.displayName} is enabled but has no active connection.`);
