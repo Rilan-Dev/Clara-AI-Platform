@@ -199,3 +199,15 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - I-080 is RESOLVED by test-source correction.
 - I-2 remains **IMPLEMENTED — VERIFICATION PENDING**. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - No I-2 PASS is claimed. No I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
+
+
+## 2026-10-07 — I-081 AI availability user-scope correction
+
+[architect-verified] Bounded I-2 review found `integration_availability` could report another user's active connection as connected. Availability now requires user context and applies organisation + agent + user connection scope, preserving organisation-scoped connections.
+
+- Implementation: `f9dc068c0ca6b4067d0cda6d44743d4f91ac82a5`
+- Regression: `0e53c6a42fa316ddb776b565b32dd5b03599a69a`
+- I-081: RESOLVED by source correction and focused regression.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
