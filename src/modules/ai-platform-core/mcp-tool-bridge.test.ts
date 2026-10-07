@@ -63,4 +63,34 @@ describe("MCP tool bridge", () => {
     expect(tool.name).toBe("mcp_demo_lookup");
     expect(calls).toEqual([]);
   });
+
+  it("rejects a resolver descriptor that changes the allowlisted identity", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return { ...descriptor, name: "different-tool" };
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const { resolveMcpToolDefinition } = await import("./mcp-tool-bridge");
+    const { createExecutionContext } = await import("./execution-context");
+    const context = createExecutionContext({
+      orgId: "org-1",
+      kbId: "kb-1",
+      agentId: "agent-1",
+      userId: "user-1",
+      sessionId: "session-1",
+      surface: "chat",
+    });
+
+    await expect(
+      resolveMcpToolDefinition(
+        { serverId: "demo", toolName: "lookup", context },
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+  });
 });
