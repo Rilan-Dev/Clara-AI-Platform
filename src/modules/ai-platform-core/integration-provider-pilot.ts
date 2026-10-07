@@ -9,11 +9,9 @@
 import type { PlatformExecutionContext } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
 import {
-  buildIntegrationActionDefinition,
-  buildIntegrationToolDefinition,
+  buildIntegrationToolBridgeAdapter,
   integrationToolName,
 } from "./integrations/integration-tool-bridge";
-import { getIntegrationActions } from "@/modules/integrations/runtime/runner-core";
 import { buildClaraToolRuntime } from "./clara-tools";
 import type { ToolRuntime } from "./tool-registry";
 
