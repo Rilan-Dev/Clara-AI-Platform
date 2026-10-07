@@ -4,43 +4,21 @@
 
 ### I-6 implementation contract
 - MCP tools arrive through an injected, already-resolved host adapter.
-- Server/tool identity is exact-allowlisted.
+- Server/tool identity is exact-allowlisted and resolver output must match the authorized request exactly.
 - MCP is default-off through `ENABLE_MCP`.
 - MCP tools become existing Clara `ToolDefinition` objects.
 - Invocation uses the existing Unified Tool Runtime; no second executor is created.
-- Provenance-verified `PlatformExecutionContext` is mandatory.
+- Provenance-verified `PlatformExecutionContext` is mandatory and preserved unchanged through invocation.
 - Tool schemas are supplied by the resolver and validated by the Unified Tool Runtime.
-- Tenant context is preserved; no credentials enter definitions or metadata.
+- Resolver discovery failures fail closed; credentials never enter definitions or metadata.
+- The bridge is exported through the public `ai-platform-core` seam.
 - No MCP transport, persistence, OAuth callback, marketplace, or deployment work is in scope.
 
-Implementation commits: `f2fe146`, `9e855c7`, `012aca0`, `95b75a8`, `66abcf8`.
+Latest I-6 implementation commits: `9e855c7`, `012aca0`, `95b75a8`, `fb326688`, `b59f1c9`, `827eae5`, `d571813`, `0b1856b`.
 
-**Status:** IN PROGRESS — source implementation started; external verification deferred.
+**Status:** IN PROGRESS — bounded source hardening; external verification deferred.
 
 ---
-## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-4/I-5 IMPLEMENTATION COMPLETE / VERIFICATION DEFERRED
-
-[architect-verified] The owner-authorized I-4/I-5 implementation boundary is complete at source level. External CI/Vercel/Gate-C/Gate-D evidence remains intentionally deferred.
-
-### I-4
-- Connected integration actions are converted to `ToolDefinition`.
-- Strict action-property validation is reused through Zod.
-- Platform/plan/org/agent/connection readiness is checked before discovery.
-- Tenant-specific tool registration uses context-local instances of the existing Unified Tool Runtime.
-- Invocation flows through the Unified Tool Runtime and then the existing I-3 `runAction()`.
-
-### I-5
-- Firecrawl `search` only.
-- Exact allowlist and default-off `ENABLE_INTEGRATION_PROVIDER_PILOT`.
-- Requires the existing I-2 connection lifecycle and I-4 bridge.
-- No provider SDK or second executor.
-
-Latest correction commits: `19edcda`, `3f9479c`, `ab9a262`, `ee4103a`, `2b7ea16`.
-
-**Implementation disposition:** COMPLETE at source level; verification remains deferred and is not phase closure.
-
-**STOP:** no MCP expansion, broad provider rollout, production promotion, or unrelated implementation.
-
 ---
 
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-4/I-5 ACTIVE
