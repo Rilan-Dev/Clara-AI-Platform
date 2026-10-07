@@ -793,3 +793,15 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 [architect-verified] The bounded I-2 OAuth refresh path now fails closed if the scoped credential persistence update affects zero rows, preventing an in-flight refresh from continuing after a concurrent connection disable/disconnect or scope change. Corrections: 45ab1758a30e2c1088f165452c2d550a72d669d1 and eb4a3bed89204d6b7b2670d4f4bc045873ed7be8.
 
 **Next planned work:** continue the bounded I-2 credential/connection and authorization review, especially connection mutation and runner authorization race boundaries; then move to the remaining custom-action, AI-tool, egress/secret, and tenant-isolation gaps. Do not wait for CI, Vercel, Gate-C, or Gate-D.
+
+
+## 2026-10-07 — I-086 organisation integration mutation serialization correction
+
+[architect-verified] Bounded I-2 source review found that the organisation-level connect transaction locked only an existing integration-grant row. When the row was absent, concurrent first-time connects could both pass the `max_integrations` count check. The connect transaction now acquires the existing organisation advisory transaction lock before reading the grant/count; disable and disconnect use the same lock so the mutation domain is serialized consistently.
+
+- I-086: RESOLVED by architect source correction.
+- Correction: `51c14f65b7dac8812ccae353bc23e9cf07694d8c`.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN PROGRESS.
+- No CI, Vercel build, Gate-C, or Gate-D result was awaited.
+- **Next planned work:** continue the bounded I-2 credential/connection and authorization race review, then inspect remaining custom-action, AI-tool, egress/secret, action-input, and tenant-isolation gaps. Continue implementation directly without waiting for CI, Vercel, or gates.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
