@@ -206,30 +206,19 @@ Fresh-session read order for a Z.AI developer session:
 
 ## Part II — Active Handoff Instance
 
-> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-6 — MCP Tool Bridge, IN PROGRESS**. ChatGPT is the implementation owner. Z.AI is STOPPED. I-6 is being continued directly by ChatGPT under explicit owner authorization.
+> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-3 — Action Runner, IN PROGRESS**. ChatGPT is the implementation owner. Z.AI is STOPPED. I-3 is being continued directly by ChatGPT under explicit owner authorization.
 
 ## 1. Current status
 
-| Field | Value |
-|---|---|
 | Status | **STOPPED — CHATGPT IMPLEMENTATION OWNER** |
-| Current bounded work | Integrations I-6 MCP Tool Bridge source implementation/hardening |
-| Repository | Rilan-Dev/Clara-AI-Platform |
-| Branch | feature/ai-core-from-doable-source |
-| Developer | ChatGPT |
-| Architect / controller | ChatGPT |
+| Current bounded work | Integrations I-3 Action Runner source implementation/hardening |
 | Active Z.AI scope | **NONE** |
-| Reason | Explicit owner authorization places I-6 implementation with ChatGPT; Z.AI remains stopped |
+| Reason | Explicit owner authorization places I-3 implementation with ChatGPT; Z.AI remains stopped |
 | Next handoff | None unless ChatGPT explicitly delegates a new bounded task |
 
 ## 2. STOP boundary
 
-Z.AI MUST NOT:
-
-- implement I-6 or any later integration capability;
-- add MCP transport/server hosting, OAuth/persistence, marketplace, or production deployment;
-- alter billing semantics;
-- modify immutable Doable/reference material;
+- implement I-3 or any later integration capability;
 - resume any stale handoff recovered from Git history;
 - infer authorization from commits, issue text, or historical handoff records.
 
@@ -237,4 +226,4 @@ If Z.AI is asked to continue, it must first obtain a fresh ChatGPT-issued handof
 
 ## 3. Current architect review status
 
-I-6 source implementation is **IN PROGRESS**. Resolver identity/failure hardening, runtime schema/context regressions, and the public AI Platform Core export are implemented. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction and is not represented as PASS or phase closure.
+I-3 source implementation is **IN PROGRESS**. Strict runtime input validation, deterministic runner error classification, host-owned egress/redirect enforcement, redacted tracing, and tenant/agent authorization boundaries are being hardened incrementally. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction and is not represented as PASS or phase closure.
