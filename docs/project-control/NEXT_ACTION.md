@@ -724,3 +724,15 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 - I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
 - Next bounded work: continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
 - STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-07 — I-079 AI action readiness user-scope correction
+
+[architect-verified] Bounded I-2 source review found that the AI `integration_action` readiness query could report another user's active connection as ready because it omitted `user_id`, even though the downstream runner correctly enforced tenant/user/agent credential scope. The readiness query now applies the same user scope and prioritizes the current user's connection.
+
+- Implementation: `9e168851bc2e978f68c0576235e084eba63be4a2`
+- Regression: `f2b3dc2ac263d5112dc8d6e7649acfdd76bc735a`
+- I-079: RESOLVED by source correction and focused regression.
+- I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+- **Next bounded work:** continue only concrete I-2 credential/connection, custom-action, authorization, egress, secret, AI-tool, and tenant-boundary review; then executable Gate-C evidence and final Gate-D review.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation.
