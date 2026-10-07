@@ -225,3 +225,17 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 [architect-verified] Source review identified a remaining credential-bearing native fetch in the custom Supabase Management API action outside the I-058 egress/redirect boundary. Commit `c7a2b7f4edb33cc919e2fe6c9a0bec2c981450be` now applies `assertSafeEgressUrl()`, manual redirect handling, and explicit 3xx rejection. I-059 is RESOLVED. I-2 remains IMPLEMENTED — VERIFICATION PENDING; Gate-C remains MISSING and Gate-D remains IN_PROGRESS. Next bounded work remains source-level I-2 authorization/credential/egress review, followed by executable Gate-C evidence and final Gate-D review. No I-3, MCP expansion, production promotion, or unrelated implementation.
 
 
+
+
+## 2026-10-08 — I-3 malformed action-props boundary correction
+
+[architect-verified] Continued bounded I-3 Action Runner review found a runtime-input gap: RunActionParams.props is typed as a record, but AI/direct callers can still supply null or an array at runtime. The strict validator previously traversed such values as if they were valid property maps, risking an exception or a misleading downstream execution failure instead of a deterministic pre-execution INVALID_INPUT result.
+
+- Implementation: 7aa1ebc8521c377684c711d97710e0614f66b4e3
+- Regression: 8ac329d38af49a6c3acba22ac25935fb8b151c3c
+- Scope: runtime action-props shape validation only; no integration behavior, authorization, persistence, or schema semantics changed.
+- I-3 remains IN PROGRESS; no Gate-C/Gate-D execution or phase closure is inferred.
+
+Next implementation: continue bounded I-3 acceptance review for strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
+
+STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
