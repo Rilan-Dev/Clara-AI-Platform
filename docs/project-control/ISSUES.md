@@ -1638,3 +1638,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] Source review confirms availability readiness now uses the same user-aware connection scope as the execution tool. Executable Gate-C evidence remains pending. |
 | Resolution date | 2026-10-07 |
 | Related session | SESSION-053 |
+
+
+## I-082 — I-2 OAuth credential mutations could outlive execution user/agent scope
+
+| Field | Value |
+|---|---|
+| Issue ID | I-082 |
+| Title | OAuth refresh credential reads/writes must preserve execution user and agent scope |
+| Phase | Integrations I-2 |
+| Severity | P1 |
+| Status | RESOLVED — source correction |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The runner selected a connection with organisation + user + agent scope, but ensureTokenFresh() subsequently called credential-vault decrypt/status/update operations using only connectionId + orgId. If connection ownership/scope changed concurrently, the refresh mutation boundary did not independently preserve the executing user/agent scope. |
+| Correction | Credential-vault decrypt, updateStatus, and updateCredentials now accept and enforce the executing user/agent scope while preserving organisation-scoped (NULL) connections. The runner passes params.userId and params.agentId into OAuth refresh. This keeps token refresh reads and writes bound to the same authorization scope as the original connection selection. |
+| Scope | src/modules/integrations/runtime/credential-vault.ts; src/modules/integrations/runtime/runner-helpers.ts; src/modules/integrations/runtime/runner-core.ts |
+| Correction commits | f74d3928ce875e40ebafba473e92da4c90305ca0; 4ea030a1d75e31983605e59026437de4336d5e16; bd238eaa379d51f11c9d867434cd0a77dc5ab1a0 |
+| Explicit non-scope | No schema/migration, OAuth provider transport expansion, MCP, billing, production promotion, or unrelated refactor. |
+| Verification | [architect-verified] Source review confirms OAuth credential decrypt/status/update paths now retain user and agent scope. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-07. |
+| Related session | SESSION-054 |
