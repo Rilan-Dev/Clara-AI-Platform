@@ -128,6 +128,7 @@ export {
   isMcpEnabled,
   mcpToolName,
   resolveMcpToolDefinition,
+  type McpToolAllowlistEntry,
   type McpToolBridgePolicy,
   type McpToolDescriptor,
   type McpToolResolutionRequest,
