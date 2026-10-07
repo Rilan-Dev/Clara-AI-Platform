@@ -63,6 +63,7 @@ export async function listOrgsHandler(req: NextRequest): Promise<NextResponse> {
               COUNT(DISTINCT kb.id)::int AS kb_count
          FROM organisations o
          JOIN org_members om ON om.org_id = o.id AND om.user_id = $1
+         JOIN roles r ON r.id = om.role_id
          LEFT JOIN agents a ON a.org_id = o.id
          LEFT JOIN knowledge_bases kb ON kb.agent_id = a.id
         GROUP BY o.id, r.name
