@@ -13,7 +13,7 @@
  * Run: node scripts/loadtest-elevenlabs-tts.js [concurrency=50] [total=200]
  */
 
-const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:4000";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@clara.ai";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Admin1234!";
 

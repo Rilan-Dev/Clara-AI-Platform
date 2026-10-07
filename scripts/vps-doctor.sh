@@ -113,7 +113,7 @@ else
 fi
 
 hdr "App"
-if HOUT=$(curl -fsS -m 10 http://127.0.0.1:3000/api/health 2>/dev/null); then echo "  $HOUT" | head -c 800; echo; else bad "/api/health not answering (or reports degraded) on 127.0.0.1:3000"; fi
+if HOUT=$(curl -fsS -m 10 http://127.0.0.1:4000/api/health 2>/dev/null); then echo "  $HOUT" | head -c 800; echo; else bad "/api/health not answering (or reports degraded) on 127.0.0.1:3000"; fi
 echo "  recent backend errors:"
 docker logs --since 6h clara-backend 2>&1 | grep -Ei "error|timed out|timeout|ECONN|FATAL|unhealthy" | tail -n 25 | sed 's/^/    /'
 echo "  recent worker errors:"

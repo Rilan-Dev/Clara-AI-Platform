@@ -98,7 +98,7 @@ Confirm the compose project can start:
 Check:
 
     docker compose ps
-    curl -fsS http://127.0.0.1:3000/api/health
+    curl -fsS http://127.0.0.1:4000/api/health
 
 The health endpoint must return HTTP 200.
 
@@ -168,7 +168,7 @@ VPS:
 
     cd /opt/clara-ai-platform
     docker compose ps
-    curl -fsS http://127.0.0.1:3000/api/health
+    curl -fsS http://127.0.0.1:4000/api/health
 
 If health fails:
 
@@ -233,7 +233,7 @@ Run:
 ### Health check failed
 Run:
 
-    curl -i http://127.0.0.1:3000/api/health
+    curl -i http://127.0.0.1:4000/api/health
     docker compose ps
     docker compose logs --tail=200 clara-backend
 

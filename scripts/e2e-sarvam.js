@@ -20,7 +20,7 @@
  * Run: node scripts/e2e-sarvam.js   (server must be up; BASE_URL overrides :3000)
  */
 
-const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:4000";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@clara.ai";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Admin1234!";
 

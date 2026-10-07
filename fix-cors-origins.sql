@@ -23,7 +23,7 @@ SET allowed_origins = (
     'http://localhost:5173',
     'http://localhost:4173',
     'http://127.0.0.1:8080',
-    'http://127.0.0.1:3000'
+    'http://127.0.0.1:4000'
   ]) AS t(origin)
 )
 WHERE key_prefix = 'clr_b9b4d8';

@@ -13,3 +13,6 @@ deploy/
 # Reference-only source snapshots are not required by the Next.js runtime.
 # Keep them in Git for provenance, but do not upload them to Vercel builds.
 docs/doable-source/
+
+# Clara Core is a Git-tracked reference snapshot, not part of the Vercel runtime.
+docs/clara-core/
