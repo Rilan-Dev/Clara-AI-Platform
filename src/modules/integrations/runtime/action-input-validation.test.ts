@@ -50,6 +50,30 @@ describe("integration action input validation", () => {
     ]);
   });
 
+  it("rejects null, empty, and wrong-typed primitive array items", () => {
+    const arraySchema = {
+      tags: {
+        required: true,
+        type: "ARRAY",
+        items: { type: "STRING" },
+      },
+      counts: {
+        type: "ARRAY",
+        items: { type: "NUMBER" },
+      },
+    };
+
+    expect(validateActionProps(arraySchema, {
+      tags: ["ok", null, ""],
+      counts: [1, "2", null],
+    }, true)).toEqual([
+      "tags[1] must be of type STRING",
+      "tags[2] must be of type STRING",
+      "counts[1] must be of type NUMBER",
+      "counts[2] must be of type NUMBER",
+    ]);
+  });
+
   it("validates array item schemas and nested strict properties", () => {
     const arraySchema = {
       recipients: {
