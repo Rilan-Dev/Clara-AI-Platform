@@ -1,6 +1,6 @@
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
-[architect-verified] The owner explicitly instructed continuation of the next pending implementation and not to wait for GitHub Actions, Vercel, continuous verification, or phase gates. Repository review shows I-3 and I-4/I-5 implementation work is already present, so the next bounded capability is I-6.
+[architect-verified] The owner explicitly instructed continuation of the next pending implementation and not to wait for GitHub Actions, Vercel, continuous verification, or phase gates. Repository review shows I-3 and I-4/I-5 implementation work is already present, so the active bounded capability is I-6.
 
 ## Current boundary
 - I-2: implementation-complete; external verification deferred.
@@ -10,14 +10,13 @@
 - I-6: active — bounded MCP Tool Bridge.
 
 ## Next implementation
-1. Harden the I-6 bridge contract and failure semantics.
-2. Add focused regressions for context preservation, schema validation, allowlist drift, disabled flag, and runtime-only invocation.
-3. Integrate the bridge into the Clara AI Platform Core export/seam without creating a second executor.
-4. Keep MCP transport/server hosting, persistence/OAuth, marketplace, billing changes, production promotion, and unrelated work out of scope.
-5. Record the implementation checkpoint in the project-control session/worklog.
+1. Complete the remaining I-6 source-level acceptance review and reconcile the current project-control checkpoint.
+2. Keep the bridge host-adapter-driven, exact-allowlisted, default-off, context-preserving, and Unified Tool Runtime-backed.
+3. Keep resolver discovery failure, identity drift, invalid context, invalid input, and unauthorized server/tool paths fail-closed.
+4. Do not add MCP transport/server hosting, persistence/OAuth, marketplace, billing changes, production promotion, or unrelated work.
+5. External CI/Vercel/Gate-C/Gate-D remain deferred and are not development blockers.
 
-External CI/Vercel/Gate-C/Gate-D evidence remains deferred and must not be used as a development stop or represented as PASS.
-
+---
 ---
 # ACTIVE AUTHORITATIVE TRANSITION — 2026-10-08 — I-4/I-5 IMPLEMENTATION COMPLETE
 
