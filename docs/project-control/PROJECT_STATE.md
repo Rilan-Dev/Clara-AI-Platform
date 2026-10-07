@@ -7,10 +7,11 @@
 - I-5 Firecrawl search pilot is implementation-complete and default-off.
 - I-6 is the active bounded capability: MCP tools resolved by a host adapter are represented as Clara `ToolDefinition` capabilities and executed only through the existing Unified Tool Runtime.
 - I-6 hardening now includes resolver identity binding, resolver-failure fail-closed behavior, runtime schema/context regressions, and public AI Platform Core export.
-- Latest I-6 implementation commits: `9e855c7`, `012aca0`, `95b75a8`, `fb326688`, `b59f1c9`, `827eae5`, `d571813`, `0b1856b`.
+- Latest I-6 implementation commits: `9e855c7`, `012aca0`, `95b75a8`, `fb326688`, `b59f1c9`, `827eae5`, `d571813`, `0b1856b`, `ff64b9b`, `12815df`, `d90cddbe`.
+- I-089 mutation-boundary hardening is source-corrected: policy/descriptor bindings are snapshotted and normalized-name collisions fail closed.
 - External execution evidence remains deferred by owner instruction and is not represented as Gate-C/Gate-D PASS.
 
-**Next implementation:** finish the remaining bounded I-6 source-level acceptance/reconciliation work; do not wait on external CI/Vercel.
+**Next implementation:** continue the remaining bounded I-6 source-level acceptance/reconciliation work; do not wait on external CI/Vercel.
 
 **STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
 
