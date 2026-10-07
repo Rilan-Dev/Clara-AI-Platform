@@ -163,6 +163,40 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("snapshots allowlist and descriptor identity against post-registration mutation", async () => {
+    const mutablePolicy = {
+      allowedServers: ["demo"],
+      allowedTools: ["lookup"],
+    };
+    const mutableDescriptor = { ...descriptor };
+
+    let receivedName = "";
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return mutableDescriptor;
+      },
+      async invoke(boundDescriptor) {
+        receivedName = boundDescriptor.name;
+        return { ok: true };
+      },
+    };
+
+    const tool = buildMcpToolDefinition(
+      mutableDescriptor,
+      mutablePolicy,
+      resolver,
+    );
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    mutablePolicy.allowedTools.length = 0;
+    mutableDescriptor.name = "delete";
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result).toMatchObject({ ok: true, data: { ok: true } });
+    expect(receivedName).toBe("lookup");
+  });
+
   it("rejects a resolver descriptor that changes the allowlisted server", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
