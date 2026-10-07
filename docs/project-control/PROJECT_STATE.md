@@ -1,5 +1,16 @@
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
+[architect-verified] I-6 now requires an exact server/tool allowlist pairing; separate server and tool membership can no longer authorize a cross-product capability. Implementation `37ae1f648df78cd651bd7eecec0bcce1fd3847c0`; regression `a0ac98adacadbd77d78e98cb88bd49fac49e7167`.
+
+- I-6 remains IN PROGRESS — bounded source hardening.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction and are not represented as PASS.
+
+**Next implementation:** continue remaining bounded I-6 source acceptance/reconciliation work.
+
+---
+
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
+
 ## 2026-10-08 — I-6 resolution-context binding correction
 
 ## 2026-10-08 — I-6 malformed-capability registration hardening
