@@ -1892,3 +1892,16 @@ The prior workflow results are not current-head evidence: the latest observed CI
 Required one-time evidence action when execution access is available: run the manual `Cloud CI — Lint, Type Check & Tests` workflow on `feature/ai-core-from-doable-source`, then record the completed run's job results and any accepted pre-existing baseline conditions. No source correction is authorized merely to manufacture green global baseline checks.
 
 Gate-D may proceed as architect source review after this execution evidence is obtained; Gate-D closure still requires ChatGPT's final review and cannot be inferred from CI alone.
+
+
+## 2026-10-07 — Gate-D final architect precondition review
+
+[architect-verified] Gate-D final closure review was attempted against the live feature branch state. The current branch resolves to commit `895f4aa4d593cff999e2fe6c9a0bec2c981450be` (the current `NEXT_ACTION.md` control state is also served from this branch tip). GitHub exposes **zero workflow runs for this exact current-head commit**, so there is no executable current-head Gate-C evidence to review.
+
+- Gate-C: **NOT VERIFIED** — no current-head workflow run is exposed.
+- Gate-D: **BLOCKED / NOT CLOSURE-ELIGIBLE** — the Gate-D acceptance precondition requiring current-head executable evidence is unsatisfied.
+- I-2: remains **IMPLEMENTED — VERIFICATION PENDING**.
+- No PASS, PASS_WITH_FOLLOWUP, or closure is fabricated from older runs, source review, or build-initiation evidence.
+- Existing source corrections through I-086 remain architect-reviewed; their executable verification status is unchanged.
+- This is an architect control decision, not a request to wait on CI/Vercel. The owner-controlled manual execution path remains the only missing evidence path currently visible to ChatGPT.
+- **STOP:** no I-3, MCP expansion, production promotion, or unrelated implementation is authorized.
