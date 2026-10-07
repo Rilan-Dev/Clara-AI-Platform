@@ -1,3 +1,14 @@
+## 2026-10-08 — I-6 resolution-context execution binding correction
+
+[architect/ChatGPT] Continued the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+- Source review found that buildMcpToolDefinition() accepted a boundContext intended to pin a resolved MCP capability to its resolution context, but the executor did not actually compare the invocation context with that bound identity.
+- Corrected the executor to fail closed with TENANT_SCOPE_VIOLATION when tenant, KB, agent, user, session, or surface identity differs from the resolution context.
+- Added focused regression coverage for a same-tenant caller with a different user identity.
+- Implementation: 2ddb3cf94cbdf0678e36276bf389b71e064a406d; regression: 4093ac64c082bb6965edf0ba1479b1f8343d181c.
+- No MCP transport, persistence, OAuth, production promotion, or unrelated implementation was introduced.
+
+Current status: **I-6 IN PROGRESS**. External verification remains deliberately deferred.
 ## 2026-10-08 — I-3 redirect trace deduplication
 
 [architect-verified] Continued the authorized I-3 Action Runner implementation without waiting for CI, Vercel, or gates.
