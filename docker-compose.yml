@@ -135,6 +135,19 @@ services:
     container_name: clara-embeddings
     restart: unless-stopped
     logging: *default-logging
+    # The multilingual embedding service is opt-in but can consume several GB
+    # of RAM while loading the model. Keep it inside the same host resource
+    # policy so enabling the profile cannot bypass the production containment
+    # controls used by the core services.
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: "4096M"
+          pids: 512
+        reservations:
+          memory: "2048M"
+    memswap_limit: "4096M"
     command:
       - --model-id
       - ${MULTILINGUAL_EMBEDDINGS_MODEL:-intfloat/multilingual-e5-large-instruct}
