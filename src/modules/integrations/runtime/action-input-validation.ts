@@ -85,7 +85,7 @@ export function validateActionProps(
             { value: item },
             strict,
           );
-          errors.push(...itemErrors.map((error) => `${name}[${index}].${error.replace(/^value\\.?/, "")}`));
+          errors.push(...itemErrors.map((error) => `${name}[${index}].${error.replace(/^value\b\s*/, "")}`));
         }
       }
     }
