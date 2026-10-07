@@ -2,7 +2,7 @@
 # Clara AI — self-hosted production stack (VPS / Docker)
 # ═══════════════════════════════════════════════════════════════════════════════
 #   cp .env.example .env            # fill in secrets (CRON_SECRET, REDIS_PASSWORD…)
-#   docker compose up -d --build
+#   sh scripts/vps-deploy.sh
 #   docker compose ps               # every service should read "healthy"/"running"
 #   sh scripts/vps-doctor.sh        # full health report
 #
@@ -15,6 +15,10 @@
 #   ssh -p 2253 -L 5432:127.0.0.1:1234 root@<server>
 # Only if something outside this host must reach them, set
 # INFRA_BIND_ADDRESS=0.0.0.0 in .env (and set passwords/API keys first).
+#
+# Resource policy: production containers have explicit CPU/RAM/PID ceilings so
+# a runaway worker, vector workload, or queue service cannot consume the whole
+# host. Use scripts/vps-deploy.sh to build images serially on small hosts.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 x-logging: &default-logging
@@ -33,6 +37,15 @@ services:
     container_name: clara-redis
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: "384M"
+          pids: 256
+        reservations:
+          memory: "128M"
+    memswap_limit: "384M"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
@@ -55,6 +68,15 @@ services:
     container_name: clara-postgres
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: "1024M"
+          pids: 512
+        reservations:
+          memory: "256M"
+    memswap_limit: "1024M"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-clara}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarapassword}
@@ -78,6 +100,15 @@ services:
     container_name: clara-qdrant
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: "1280M"
+          pids: 512
+        reservations:
+          memory: "256M"
+    memswap_limit: "1280M"
     ports:
       - "${INFRA_BIND_ADDRESS:-127.0.0.1}:6333:6333"
       - "${INFRA_BIND_ADDRESS:-127.0.0.1}:6334:6334"
@@ -121,6 +152,15 @@ services:
     container_name: clara-rabbitmq
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: "384M"
+          pids: 512
+        reservations:
+          memory: "128M"
+    memswap_limit: "384M"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-clara}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-clara-rabbitmq-local}
@@ -146,6 +186,15 @@ services:
     container_name: clara-backend
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: "1536M"
+          pids: 768
+        reservations:
+          memory: "384M"
+    memswap_limit: "1536M"
     env_file:
       - .env
     environment:
@@ -183,13 +232,22 @@ services:
     container_name: clara-worker
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: "1024M"
+          pids: 768
+        reservations:
+          memory: "256M"
+    memswap_limit: "1024M"
     env_file:
       - .env
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      CRAWL_WORKER_CONCURRENCY: 2
-      RETRY_WORKER_CONCURRENCY: 3
+      CRAWL_WORKER_CONCURRENCY: ${CRAWL_WORKER_CONCURRENCY:-1}
+      RETRY_WORKER_CONCURRENCY: ${RETRY_WORKER_CONCURRENCY:-1}
     depends_on:
       redis:
         condition: service_healthy
@@ -211,6 +269,15 @@ services:
     container_name: clara-rabbitmq-bridge
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: "256M"
+          pids: 256
+        reservations:
+          memory: "64M"
+    memswap_limit: "256M"
     env_file:
       - .env
     environment:
