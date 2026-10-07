@@ -344,11 +344,12 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
 
   let matchedAny = false;
   for (const actionName of def.actions) {
-    const action = typeof piece.getAction === "function"
+    const actionCandidate = typeof piece.getAction === "function"
       ? piece.getAction(actionName)
       : pieceActions[actionName];
 
-    if (!action) continue;
+    if (!actionCandidate) continue;
+    const action = asActionShape(actionCandidate);
     matchedAny = true;
 
     if (def.actionOverrides?.[actionName]?.hidden) continue;
