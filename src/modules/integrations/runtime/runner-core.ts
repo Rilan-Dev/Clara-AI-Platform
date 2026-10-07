@@ -167,6 +167,10 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
   // error text cannot bypass value-based redaction when it uses a non-sensitive
   // field name (for example, echoing a token in a generic `message` field).
   let knownSecretValues: string[] = [];
+  // Preserve the per-run HTTP trace collection across both success and failure
+  // paths so deterministic runner results can return the same redacted trace
+  // evidence regardless of where execution fails.
+  const httpTraces: HttpTraceEntry[] = [];
 
   const xr = xray.start({
     kind: "integration",
@@ -197,8 +201,6 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       knownSecretValues = collectSecretValues(auth);
 
       console.log(`[Integration] RUN custom ${params.integrationId}/${params.actionName}`);
-      const httpTraces: HttpTraceEntry[] = [];
-
       xr.phase("action_run");
       const output = await fetchCtx.run(
         { tracedFetch: createTracedFetch(httpTraces, params.projectId, xr, undefined, collectSecretValues(auth)), xrayHandle: xr, supabaseApiKey: null },
@@ -303,8 +305,6 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
     // 5. Execute the action with per-call isolated HTTP tracing
     console.log(`[Integration] RUN ${params.integrationId}/${params.actionName}`);
 
-    const httpTraces: HttpTraceEntry[] = [];
-
     const supabaseApiKey = (params.integrationId === "supabase" && auth && typeof auth === "object" && "apiKey" in auth)
       ? (auth as Record<string, unknown>).apiKey as string
       : null;
@@ -333,7 +333,14 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
 
     logUsage({ orgId: params.workspaceId, agentId: params.agentId, userId: params.userId, integrationId: params.integrationId, actionName: params.actionName, success: false, durationMs, errorMessage: errorMsg });
 
-    return { success: false, output: null, error: errorMsg, errorCode: normalized.code, retryable: normalized.retryable };
+    return {
+      success: false,
+      output: null,
+      error: errorMsg,
+      errorCode: normalized.code,
+      retryable: normalized.retryable,
+      httpTraces: httpTraces.length > 0 ? httpTraces : undefined,
+    };
   }
 }
 
