@@ -1,3 +1,20 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
+
+[architect-verified] The owner has directed continuation to the next bounded integrations capability without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification. Repository branch `feature/ai-core-from-doable-source` is currently at `1e4495ebcc737074e958b15e6dcf2228d36d1d75` before the I-6 implementation commits recorded below.
+
+- I-3 Action Runner implementation is already present; it is not the current pending implementation.
+- I-4 Unified Tool Runtime bridge is implementation-complete.
+- I-5 Firecrawl search pilot is implementation-complete and default-off.
+- I-6 is the active bounded capability: MCP tools resolved by a host adapter are represented as Clara `ToolDefinition` capabilities and executed only through the existing Unified Tool Runtime.
+- I-6 does not implement MCP transport, server hosting, OAuth/persistence, marketplace, billing changes, production promotion, or unrelated features.
+- I-6 implementation commits: `f2fe146`, `9e855c7`, `012aca0`, `95b75a8`, `66abcf8`.
+- External execution evidence remains deferred by owner instruction and is not represented as Gate-C/Gate-D PASS.
+
+**Next implementation:** continue bounded I-6 MCP bridge hardening and integration into the existing runtime seam.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
+
+---
 ## 2026-10-08 — I-4/I-5 implementation completion checkpoint
 
 [architect-verified] Source-level implementation review completed the owner-authorized I-4/I-5 scope without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
