@@ -13,3 +13,8 @@
 - Reconciled the authoritative project-control headers to I-6 active state.
 - I-6 is source implementation IN PROGRESS; no external gate or build result is claimed.
 - Non-scope: MCP transport/server hosting, OAuth/persistence, marketplace, billing redesign, production promotion, unrelated features.
+
+### I-6 continuation — MCP resolver identity hardening
+- `aa062df`: resolver output must exactly match the already-allowlisted server/tool identity; mismatched descriptors are rejected before registration.
+- `fb326688`: focused regression covers resolver identity drift.
+- External execution remains deferred by owner instruction.
