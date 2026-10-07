@@ -270,7 +270,7 @@ export async function runAction(params: RunActionParams): Promise<RunActionResul
       // The registry definition is authoritative for auth behavior. Never
       // let a caller-controlled/stored connection auth_type suppress OAuth
       // refresh or otherwise change the credential interpretation.
-      await ensureTokenFresh(connection.id, params.workspaceId, def.authType, def.oauth2Config?.tokenUrl);
+      await ensureTokenFresh(connection.id, params.workspaceId, def.authType, def.oauth2Config?.tokenUrl, params.userId, params.agentId);
 
       xr.phase("credential_refetch");
       const freshConnection = await credentialVault.get(params.userId, params.integrationId, params.workspaceId, params.agentId);
