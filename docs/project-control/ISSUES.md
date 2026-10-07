@@ -1594,3 +1594,27 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Resolution evidence | [architect-verified] The readiness SQL now matches the credential-vault scope contract and no longer reports another user's active connection as current-user readiness. |
 | Resolution date | 2026-10-07 |
 | Related worklog/session | SESSION-051 |
+
+
+## I-080 — I-2 AI availability regression referenced a removed plan helper
+
+| Field | Value |
+|---|---|
+| Issue ID | I-080 |
+| Title | AI availability cross-tenant regression must use the authoritative plan resolver mock |
+| Phase | Integrations I-2 |
+| Severity | P2 |
+| Status | RESOLVED — test correction |
+| Date identified | 2026-10-07 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | The `integration-ai-tools.test.ts` cross-tenant regression referenced `getOrgPlanLimits`, but production code had already migrated to the fail-closed `resolveOrgPlanLimits` resolver. The stale symbol could make the regression suite fail with a ReferenceError before exercising the intended tenant-boundary assertion. |
+| Evidence | [architect-verified] Direct inspection of the current feature-branch test showed `getOrgPlanLimits.mockResolvedValue(...)` while the test imports only `resolveOrgPlanLimits` and the production tool uses `resolveOrgPlanLimits`. |
+| Correction | Replace the stale mock reference with `resolveOrgPlanLimits.mockResolvedValue(...)`; no production behavior changed. |
+| Correction scope | `src/modules/ai-platform-core/integration-ai-tools.test.ts` only |
+| Explicit non-scope | No production authorization behavior, schema/migration, OAuth transport, provider rollout, MCP, billing, production promotion, or unrelated refactor. |
+| Developer correction commit | `3ed83c8ddcde22e05ddfa415bce134e7773fca75` |
+| Verification | [architect-verified] Source review confirms the cross-tenant regression now configures the same authoritative resolver used by production code. Executable Gate-C evidence remains pending. |
+| Architect review status | RESOLVED — corrected and reviewed by ChatGPT on 2026-10-07. |
+| Resolution evidence | [architect-verified] The undefined legacy helper reference is removed; the regression now configures `resolveOrgPlanLimits` before executing the tenant-boundary assertion. |
+| Resolution date | 2026-10-07 |
+| Related worklog/session | SESSION-052 |
