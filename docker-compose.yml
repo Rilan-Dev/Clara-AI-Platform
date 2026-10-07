@@ -183,6 +183,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # The Dockerfile ends with the worker stage, so select the HTTP backend
+      # runner explicitly for this Compose service.
+      target: runner
     container_name: clara-backend
     restart: unless-stopped
     logging: *default-logging
