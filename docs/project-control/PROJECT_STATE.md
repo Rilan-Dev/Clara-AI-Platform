@@ -331,3 +331,13 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 [architect-verified] Gate-C preparation is complete at the repository level: CI remains manual-only and the platform health schedule is disabled. Gate-C is not falsely marked PASS; its sole remaining gap is executable current-head evidence. After that evidence exists, the next planned architect work is Gate-D final review.
 
 
+
+
+## 2026-10-08 — I-6 bounded hardening checkpoint
+
+[architect-verified] Continued I-6 source review identified and corrected two fail-closed bridge boundaries: explicit empty surface allowlists no longer widen to all Clara surfaces, and normalized MCP names now retain an identity-derived suffix to prevent ordinary sanitization collisions within the 64-character tool-name limit.
+
+- Corrections: `2cd0a2be62f7bbdb81327b3991f8c65177d34dc6`, `d4bfbe112863696c99ad7abb81857a9399f079c2`.
+- I-6 remains the active implementation capability.
+- External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction.
+- **Next implementation:** continue bounded I-6 source-level acceptance review; no MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated implementation.
