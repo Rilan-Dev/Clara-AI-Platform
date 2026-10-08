@@ -25,3 +25,13 @@ If a task belongs to another agent, create or update a backlog entry and continu
 - **Authorization:** Not authorized for OPS-01 to change application migration source; routed for FIX-01 correction.
 - **Suggested next action:** Preserve 060_sarvam_realtime_streaming.sql; remove or renumber the duplicate payment migration so its filename has a unique numeric prefix. The already-established corrected pattern uses 061_payment_settings_category.sql. Keep the duplicate-number guard in src/lib/db/migrate.ts. Do not skip migrations as a deployment workaround.
 - **Related session/event/handoff:** EVT-OPS-001; OPS-01 / 2026-10-09
+
+
+### BACKLOG-OPS-002 — 2026-10-09
+- Work: Fix Tailwind v4/PostCSS compatibility blocking the local clara-backend Docker build on feature/ai-core-from-doable-source.
+- Owner: FIX-01
+- State: ROUTED
+- Dependency: update package.json, package-lock.json, and postcss.config.js consistently; no Docker workaround is appropriate.
+- Authorization: application build configuration defect; OPS-01 is limited to diagnosis/routing under the supplied OPS-01 mandate.
+- Suggested next action: add @tailwindcss/postcss at a Tailwind-4-compatible version, regenerate the npm lockfile with the repository package manager, update PostCSS plugin registration, and then allow future build verification. Preserve Tailwind 4.3 and Docker npm-ci reproducibility.
+- Related session/event/handoff: EVT-OPS-002; OPS-01-2026-10-09-DOCKER
