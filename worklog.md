@@ -637,3 +637,7 @@ Disposition:
 - Corrected the parser to use the supported PDFParse v2 API, preserving metadata extraction where available and guaranteed parser cleanup.
 - Correction commit: e77ba3748285840af36d98c8c23475f58588f95a.
 - This is a bounded runtime-compatibility correction only; I-6 scope and external verification/deployment gates remain unchanged.
+
+
+## 2026-10-08 — I-3 bounded Action Runner continuation
+[architect-verified] Without waiting for GitHub Actions, Vercel, Gate-C, or Gate-D, ChatGPT continued the active I-3 Action Runner source acceptance track. Two concrete defects were corrected: (1) redirect validation now preserves typed EGRESS_BLOCKED failures for private/loopback redirect targets instead of relabeling them REDIRECT_BLOCKED (`42527f0a2c83e8b7d3d6baa5fd70c8d1c2dd7d78`, regression `e74b9f6f1e82102474ccb53c56da3931fde3fdd6`); (2) strict action validation now rejects supplied props when no usable action schema exists, while preserving empty-props and non-strict compatibility (`d6bdaa4238b9694430a4a484af2eb480f28fa5eb`, regression `d90a314df428bd13d18a6655a81bd498945d549e`). I-3 remains IN PROGRESS; external execution evidence is deferred by owner instruction. Next bounded work remains deterministic result propagation, remaining strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression review.
