@@ -216,27 +216,83 @@ async function seedFromPlatformDefault(): Promise<AgentVersionConfig> {
         launcherColour: persona.launcherColour ?? FALLBACK_ASSISTANT.launcherColour,
       }
     : FALLBACK_ASSISTANT;
+  // Snapshot the CURRENT platform AI defaults into the new agent Main draft.
+  // This is creation-time provenance: later platform default changes never
+  // mutate an existing agent silently.
+  const ai = await seedInitialAIDefaults();
+
   return {
     assistant,
-    ai: {
-      provider: null,
-      chatModel: null,
-      embeddingModel: null,
-      realtimeModel: null,
-      transcriptionModel: null,
-      voiceProvider: null,
-      voiceChatSttModel: null,
-      voiceChatTtsModel: null,
-      voiceChatVoiceId: null,
-      realtimeVoiceProvider: null,
-      realtimeLlmModel: null,
-      realtimeSttModel: null,
-      realtimeTtsModel: null,
-      realtimeVoiceId: null,
-    },
+    ai,
     runtime: { enableVoice: true, enableRealtime: true, enablePublicEmbed: true },
     knowledge: { kbIds: [] },
   };
+}
+
+async function seedInitialAIDefaults(): Promise<NonNullable<AgentVersionConfig["ai"]>> {
+  const empty: NonNullable<AgentVersionConfig["ai"]> = {
+    provider: null,
+    chatModel: null,
+    embeddingModel: null,
+    realtimeModel: null,
+    transcriptionModel: null,
+    voiceProvider: null,
+    voiceChatSttModel: null,
+    voiceChatTtsModel: null,
+    voiceChatVoiceId: null,
+    realtimeVoiceProvider: null,
+    realtimeLlmModel: null,
+    realtimeSttModel: null,
+    realtimeTtsModel: null,
+    realtimeVoiceId: null,
+  };
+
+  try {
+    const { getPlatformAIRegistry, listProviderModels } = await import("@/modules/ai-governance/core/registry-db");
+    const registry = await getPlatformAIRegistry();
+    const defaultFor = (capability: "chat" | "voice_chat" | "realtime_voice") =>
+      registry.defaults.find((item) => item.capability === capability) ?? null;
+
+    const chat = defaultFor("chat");
+    const voiceChat = defaultFor("voice_chat");
+    const realtime = defaultFor("realtime_voice");
+    const chatProvider = chat?.providerId ?? null;
+    const voiceProvider = voiceChat?.providerId ?? chatProvider;
+    const realtimeProvider = realtime?.providerId ?? voiceProvider;
+
+    const pickDefaultModel = async (
+      providerId: string | null,
+      capability: "chat" | "voice_chat" | "realtime_voice",
+      kind: "chat" | "embedding" | "realtime" | "transcription" | "stt" | "tts" | "voice",
+      explicitModelId?: string | null,
+    ): Promise<string | null> => {
+      if (!providerId) return explicitModelId ?? null;
+      if (explicitModelId) return explicitModelId;
+      const model = registry.defaultModels.find(
+        (item) => item.providerId === providerId && item.capability === capability && item.kind === kind,
+      );
+      if (model) return model.modelId;
+      const rows = await listProviderModels(providerId as "openai" | "gemini" | "sarvam" | "elevenlabs", capability);
+      return rows.find((row) => row.enabled && row.kind === kind && row.isDefault)?.modelId ?? null;
+    };
+
+    empty.provider = chatProvider;
+    empty.chatModel = await pickDefaultModel(chatProvider, "chat", "chat", chat?.modelId ?? null);
+    empty.embeddingModel = registry.embeddingDefault?.modelId ?? null;
+    empty.voiceProvider = voiceProvider;
+    empty.voiceChatSttModel = await pickDefaultModel(voiceProvider, "voice_chat", "stt");
+    empty.voiceChatTtsModel = await pickDefaultModel(voiceProvider, "voice_chat", "tts");
+    empty.voiceChatVoiceId = await pickDefaultModel(voiceProvider, "voice_chat", "voice");
+    empty.realtimeVoiceProvider = realtimeProvider;
+    empty.realtimeLlmModel = await pickDefaultModel(realtimeProvider, "realtime_voice", "realtime", realtime?.modelId ?? null);
+    empty.realtimeModel = empty.realtimeLlmModel;
+    empty.realtimeSttModel = await pickDefaultModel(realtimeProvider, "realtime_voice", "stt");
+    empty.realtimeTtsModel = await pickDefaultModel(realtimeProvider, "realtime_voice", "tts");
+    empty.realtimeVoiceId = await pickDefaultModel(realtimeProvider, "realtime_voice", "voice");
+    return empty;
+  } catch {
+    return empty;
+  }
 }
 
 /** Record which platform default version the agent was created from (Stage F). */

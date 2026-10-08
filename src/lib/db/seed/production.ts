@@ -34,7 +34,7 @@ import { hashPassword } from "@/modules/auth/core/password";
  *   DEMO_CLARA_API_KEY    landing-page embed key (raw clr_… value)
  */
 
-type Logger = Pick<typeof console, "log" | "warn" | "error">;
+type Logger = CliLog;
 
 const IDS = {
   adminUserId:  "40000000-0000-0000-0000-000000000001",
@@ -152,6 +152,7 @@ async function seedPlatformSettings(client: PoolClient, logger: Logger) {
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
       [key, value],
     );
+    printSection(logger, "SEED", "SETTING", { key, value });
   }
   logger.log(`[seed:prod] applied ${entries.length} platform settings values`);
 }
