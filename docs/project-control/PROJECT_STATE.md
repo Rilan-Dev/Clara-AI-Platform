@@ -1,3 +1,20 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
+
+[architect-verified] I-6 MCP Tool Bridge bounded implementation is complete. The bridge now has the required host-neutral descriptor/resolver contract, exact server/tool allowlisting, default-off runtime flag, provenance-verified execution-context binding, runtime schema validation, Unified Tool Runtime delegation, deterministic collision-resistant names, resolver/policy/descriptor runtime-boundary validation, fail-closed discovery/registration, isolated MCP runtime registration, and public AI Platform Core export.
+
+Latest hardening:
+- `aa6951a499fd66c40a467c646332d8cacd019648` — MCP policy runtime-boundary hardening.
+- `17c925a11a478d910779c3ce77e946500252ed67` — malformed-policy regression.
+- Prior I-6 hardening remains in history through resolver shape, exact execution-context binding, frozen resolution request, descriptor/schema validation, allowlist, collision, and runtime delegation corrections.
+
+I-6 status: **IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED**.
+
+No CI, Vercel build, Gate-C, or Gate-D completion is claimed. Those remain separate verification work and were intentionally not awaited.
+
+No further I-6 source implementation item is authorized by the current project-control plan. The next implementation may begin only from the next explicitly authorized project-control action; do not invent an I-7 scope.
+
+---
+
 ## CURRENT AUTHORITATIVE I-6 STATE — 2026-10-08 — REGISTRATION BOUNDARY HARDENING
 
 [architect-verified] The MCP runtime builder validates the injected resolver before registration iteration, including the empty-request case. Malformed resolver input fails closed instead of producing a misleading empty runtime.
