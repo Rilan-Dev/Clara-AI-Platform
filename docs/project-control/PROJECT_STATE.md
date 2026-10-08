@@ -1,3 +1,15 @@
+## I-6 FINAL IMPLEMENTATION RECORD — 2026-10-09
+
+[architect-verified] The final bounded I-6 source implementation is complete. The MCP bridge now validates the injected resolver both at public definition construction and before enabled runtime creation, including an empty request set. This closes the final runtime trust-boundary gap identified during bounded review.
+
+- Final source correction: `74e410e2e21cb641b33e660981877a555cabfc96`
+- Existing focused regression for malformed empty-request runtime: `bbdedae0497fc4b01ae0a4a4f4eb42e520add55c`
+- I-6 implementation objective: **COMPLETE**.
+- No additional I-6 source implementation item remains.
+- External CI/Vercel/Gate-C/Gate-D remain deferred and are not represented as PASS.
+
+---
+
 ## I-6 IMPLEMENTATION COMPLETION — 2026-10-08
 
 [architect-verified] Bounded I-6 MCP Tool Bridge hardening is now source-complete. The final correction validates the resolver before runtime creation and commits normalized identity bookkeeping only after successful runtime registration, preventing malformed empty-request runtimes and rejected-capability poisoning.
