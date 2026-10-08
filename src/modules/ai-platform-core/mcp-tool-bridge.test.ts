@@ -77,6 +77,17 @@ describe("MCP tool bridge", () => {
     ).toThrow("no allowed Clara surface");
   });
 
+  it("fails closed for a malformed policy object at the public builder boundary", () => {
+    expect(() =>
+      buildMcpToolDefinition(
+        descriptor,
+        null as never,
+        resolver,
+        context,
+      ),
+    ).toThrow("MCP allowlist policy is malformed");
+  });
+
   it("fails closed for a malformed resolver at the public builder boundary", () => {
     expect(() =>
       buildMcpToolDefinition(
