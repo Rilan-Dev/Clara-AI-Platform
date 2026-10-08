@@ -92,3 +92,10 @@ DEV-01 may still be working in another chat/session. Do not wait for or interrup
 Recover repository state independently, including shared and role-local memory. Find the currently authorized error/failure work, diagnose it, implement the authorized fix, record the result, and continue your own independent FIX-01 work.
 
 The same pattern applies to OPS-01 and WORK-01.
+
+
+## User-friendly invocation guide
+
+For the clearest situation-based instructions and minimal-effort copy/paste prompts, use `docs/project-control/HOW_TO_USE_AGENTS.md` first. This is the human-facing guide; this file remains the role invocation reference.
+
+The user may start a fresh chat with any registered role at any time. The role must recover repository state, shared memory, central session/event/handoff/backlog records, role-local memory/worklog, authorization, and NEXT_ACTION itself. No previous chat transcript is required.
