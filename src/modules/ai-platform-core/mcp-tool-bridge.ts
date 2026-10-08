@@ -107,6 +107,67 @@ export function mcpToolName(serverId: string, toolName: string): string {
   return normalizeMcpToolName(serverId, toolName);
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function assertMcpPolicy(policy: McpToolBridgePolicy): void {
+  if (!Array.isArray(policy.allowedServers) || !Array.isArray(policy.allowedToolPairs)) {
+    throw new ToolExecutionError(
+      "TENANT_SCOPE_VIOLATION",
+      "MCP allowlist policy is malformed.",
+    );
+  }
+
+  for (const serverId of policy.allowedServers) {
+    if (!isNonEmptyString(serverId)) {
+      throw new ToolExecutionError(
+        "TENANT_SCOPE_VIOLATION",
+        "MCP server allowlist is malformed.",
+      );
+    }
+  }
+
+  for (const entry of policy.allowedToolPairs) {
+    if (
+      entry === null ||
+      typeof entry !== "object" ||
+      !isNonEmptyString(entry.serverId) ||
+      !isNonEmptyString(entry.toolName)
+    ) {
+      throw new ToolExecutionError(
+        "TENANT_SCOPE_VIOLATION",
+        "MCP tool-pair allowlist is malformed.",
+      );
+    }
+  }
+}
+
+function assertMcpDescriptor(descriptor: McpToolDescriptor): void {
+  if (
+    descriptor === null ||
+    typeof descriptor !== "object" ||
+    !isNonEmptyString(descriptor.serverId) ||
+    !isNonEmptyString(descriptor.name) ||
+    typeof descriptor.description !== "string"
+  ) {
+    throw new ToolExecutionError(
+      "TENANT_SCOPE_VIOLATION",
+      "MCP tool descriptor is malformed.",
+    );
+  }
+
+  if (
+    descriptor.allowedSurfaces !== undefined &&
+    !Array.isArray(descriptor.allowedSurfaces)
+  ) {
+    throw new ToolExecutionError(
+      "UNAUTHORIZED_SURFACE",
+      "MCP tool surface allowlist is malformed.",
+    );
+  }
+}
+
 export function buildMcpToolDefinition(
   descriptor: McpToolDescriptor,
   policy: McpToolBridgePolicy,
@@ -114,6 +175,8 @@ export function buildMcpToolDefinition(
   boundContext: PlatformExecutionContext,
 ): ToolDefinition {
   assertExecutionContext(boundContext);
+  assertMcpPolicy(policy);
+  assertMcpDescriptor(descriptor);
   if (!isAllowed(descriptor, policy)) {
     throw new ToolExecutionError(
       "TENANT_SCOPE_VIOLATION",
@@ -205,6 +268,11 @@ export async function resolveMcpToolDefinition(
   resolver: McpToolResolver,
 ): Promise<ToolDefinition | null> {
   assertExecutionContext(request.context);
+  try {
+    assertMcpPolicy(policy);
+  } catch {
+    return null;
+  }
   if (!isAllowed(
     { serverId: request.serverId, name: request.toolName },
     policy,
@@ -222,6 +290,12 @@ export async function resolveMcpToolDefinition(
     return null;
   }
   if (!descriptor) return null;
+
+  try {
+    assertMcpDescriptor(descriptor);
+  } catch {
+    return null;
+  }
 
   // The resolver is not trusted to widen identity after the allowlist check.
   // Its resolved descriptor must exactly match the already-authorized request.
@@ -243,6 +317,11 @@ export async function buildMcpToolRuntime(
   resolver: McpToolResolver,
 ): Promise<ToolRuntime | null> {
   assertExecutionContext(context);
+  try {
+    assertMcpPolicy(policy);
+  } catch {
+    return null;
+  }
   if (!isMcpEnabled()) return null;
 
   const runtime = buildClaraToolRuntime();
@@ -300,5 +379,11 @@ export function isMcpToolAllowlisted(
   descriptor: McpToolDescriptor,
   policy: McpToolBridgePolicy,
 ): boolean {
-  return isAllowed(descriptor, policy);
+  try {
+    assertMcpPolicy(policy);
+    assertMcpDescriptor(descriptor);
+    return isAllowed(descriptor, policy);
+  } catch {
+    return false;
+  }
 }
