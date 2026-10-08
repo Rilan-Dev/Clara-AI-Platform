@@ -226,7 +226,6 @@ export function buildMcpToolDefinition(
 ): ToolDefinition {
   assertExecutionContext(boundContext);
   assertMcpPolicy(policy);
-  assertMcpResolver(resolver);
   assertMcpDescriptor(descriptor);
   if (!isAllowed(descriptor, policy)) {
     throw new ToolExecutionError(
@@ -251,6 +250,8 @@ export function buildMcpToolDefinition(
       `MCP tool has no allowed Clara surface: ${descriptor.serverId}/${descriptor.name}`,
     );
   }
+
+  assertMcpResolver(resolver);
 
   // Snapshot every policy/identity value used after registration. TypeScript
   // readonly does not make caller-owned arrays immutable at runtime, and the
