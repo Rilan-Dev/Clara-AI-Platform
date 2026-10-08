@@ -18,6 +18,17 @@ describe("integration action input validation", () => {
     expect(validateActionProps(schema, ["unexpected"], true)).toEqual(["props must be an object"]);
   });
 
+  it("fails closed when strict validation has no action schema", () => {
+    expect(validateActionProps(undefined, {}, true)).toEqual([]);
+    expect(validateActionProps(undefined, { unexpected: "value" }, true)).toEqual([
+      "unexpected is not allowed",
+    ]);
+    expect(validateActionProps(undefined, { nested: { value: 1 }, list: [1] }, true)).toEqual([
+      "nested is not allowed",
+      "list is not allowed",
+    ]);
+  });
+
   it("rejects missing required values", () => {
     expect(validateActionProps(schema, { count: 2 })).toEqual(["to is required"]);
   });
