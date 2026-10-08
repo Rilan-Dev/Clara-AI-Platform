@@ -273,3 +273,10 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - Regression: e74b9f6f1e82102474ccb53c56da3931fde3fdd6
 - I-3 remains IN PROGRESS; no external verification or phase closure is inferred.
 - Next implementation: deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage.
+
+
+## 2026-10-08 — I-3 strict validation fail-closed correction
+[architect-verified] Strict action-property validation now fails closed when an action has no usable property schema: supplied properties are rejected as not allowed, while empty props remain valid. Non-strict callers retain the previous compatibility behavior.
+- Implementation: d6bdaa4238b9694430a4a484af2eb480f28fa5eb
+- Regression: d90a314df428bd13d18a6655a81bd498945d549e
+- I-3 remains IN PROGRESS; no external verification or phase closure is inferred.
