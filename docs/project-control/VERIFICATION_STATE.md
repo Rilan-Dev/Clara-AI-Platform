@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 MCP RESOLVER SHAPE HARDENING
+
+[architect-verified] Source review identified a runtime trust-boundary gap: TypeScript's `McpToolResolver` interface does not validate injected JavaScript/runtime objects. The bridge now checks that the resolver is an object with callable `resolve` and `invoke` methods before using it. The public builder therefore fails closed deterministically instead of leaking a native binding/type error.
+
+- Implementation: `d6ee7f8acd007ffe0b687f9acd7a1522e28efcab`
+- Regression: `6fda566ecfe25361ee2bbf1901433ec46609fc53`
+- Verification class: source-level architect review + focused regression source; no executable Gate-C/Gate-D evidence.
+- Disposition: I-6 remains IN PROGRESS; no closure is inferred.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY HARDENING
 
 [architect-verified] Source review identified that TypeScript readonly does not make the injected MCP resolution request immutable at runtime. The bridge now passes a frozen request snapshot to resolver discovery, preventing transient server/tool/context mutation during asynchronous resolution. The same review also hardens the `requireUserId` policy shape by rejecting non-boolean runtime values.
