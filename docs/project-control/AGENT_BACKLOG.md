@@ -35,3 +35,6 @@ If a task belongs to another agent, create or update a backlog entry and continu
 - Authorization: application build configuration defect; OPS-01 is limited to diagnosis/routing under the supplied OPS-01 mandate.
 - Suggested next action: add @tailwindcss/postcss at a Tailwind-4-compatible version, regenerate the npm lockfile with the repository package manager, update PostCSS plugin registration, and then allow future build verification. Preserve Tailwind 4.3 and Docker npm-ci reproducibility.
 - Related session/event/handoff: EVT-OPS-002; OPS-01-2026-10-09-DOCKER
+
+- Resolution: FIX-01 applied Tailwind v4 PostCSS compatibility across package.json, package-lock.json, and postcss.config.js.
+- Resolution commits: ed56e33d49a391025d605919183cb8cdc581fd20; d119c02853ef2a33eb508c69418745eeab385782; 0d1666efa24950a1a23a995cea57ba4a7adfd4da.
