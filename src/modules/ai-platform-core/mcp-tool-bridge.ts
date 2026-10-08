@@ -295,6 +295,14 @@ export async function resolveMcpToolDefinition(
     return null;
   }
 
+  // Snapshot the authorization inputs before invoking the external
+  // resolver. TypeScript readonly is compile-time only; a resolver receives a
+  // normal object at runtime and must never be able to rewrite the identity
+  // or tenant context that the pre-resolution allowlist check authorized.
+  const requestedServerId = request.serverId;
+  const requestedToolName = request.toolName;
+  const requestedContext = request.context;
+
   let descriptor: McpToolDescriptor | null;
   try {
     descriptor = await resolver.resolve(request);
@@ -306,6 +314,17 @@ export async function resolveMcpToolDefinition(
   }
   if (!descriptor) return null;
 
+  // Re-check the resolver-owned request object itself before trusting its
+  // descriptor. A resolver that mutates the request cannot redirect the
+  // capability to another server/tool or tenant context.
+  if (
+    request.serverId !== requestedServerId ||
+    request.toolName !== requestedToolName ||
+    request.context !== requestedContext
+  ) {
+    return null;
+  }
+
   try {
     assertMcpDescriptor(descriptor);
   } catch {
@@ -313,10 +332,10 @@ export async function resolveMcpToolDefinition(
   }
 
   // The resolver is not trusted to widen identity after the allowlist check.
-  // Its resolved descriptor must exactly match the already-authorized request.
+  // Its resolved descriptor must exactly match the original authorized request.
   if (
-    descriptor.serverId !== request.serverId ||
-    descriptor.name !== request.toolName
+    descriptor.serverId !== requestedServerId ||
+    descriptor.name !== requestedToolName
   ) {
     return null;
   }
