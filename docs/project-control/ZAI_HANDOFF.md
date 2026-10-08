@@ -206,15 +206,15 @@ Fresh-session read order for a Z.AI developer session:
 
 ## Part II — Active Handoff Instance
 
-> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-6 — MCP Tool Bridge, IN PROGRESS**. ChatGPT is the implementation owner. Z.AI is STOPPED. I-6 is being continued directly by ChatGPT under explicit owner authorization.
+> **No active Z.AI implementation handoff.** Current repository state is **Integrations I-6 — MCP Tool Bridge, IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED**. ChatGPT is the implementation owner. Z.AI is STOPPED. The bounded I-6 implementation scope is complete; no further I-6 implementation is authorized without a new project-control action.
 
 ## 1. Current status
 
-| Status | **STOPPED — CHATGPT IMPLEMENTATION OWNER** |
-| Current bounded work | Integrations I-6 MCP Tool Bridge source implementation/hardening |
+| Status | **IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED** |
+| Current bounded work | Integrations I-6 MCP Tool Bridge — implementation complete; no remaining bounded implementation item |
 | Active Z.AI scope | **NONE** |
-| Reason | Explicit owner authorization places I-6 implementation with ChatGPT; Z.AI remains stopped |
-| Next handoff | None unless ChatGPT explicitly delegates a new bounded task |
+| Reason | Explicit owner authorization placed I-6 implementation with ChatGPT; the bounded implementation is now complete and Z.AI remains stopped |
+| Next handoff | None unless ChatGPT explicitly delegates a new bounded task after a newly authorized project-control action |
 
 ## 2. STOP boundary
 
