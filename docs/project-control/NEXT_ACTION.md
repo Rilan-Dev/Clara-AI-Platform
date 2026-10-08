@@ -1,3 +1,18 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 DIRECT BUILDER SCHEMA BOUNDARY CORRECTION
+
+[architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The public MCP ToolDefinition builder now fails closed when a resolver-supplied descriptor carries a runtime-invalid input schema. The TypeScript Zod type is no longer the only guard at this boundary: the descriptor must expose a callable safeParse function before an executable capability is constructed. Unified Tool Runtime registration remains the final schema validation boundary.
+
+- Implementation: a52ba9763bb0b35d1a5f4bb867fc41056a6f70c0
+- Regression: c03302597c4bff83e3477f6d3b60f3b5da0ba663
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 resolver/registration and capability-authorization invariant review.
+- **STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 IN-PLACE CONTEXT MUTATION CORRECTION
 
 [architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
