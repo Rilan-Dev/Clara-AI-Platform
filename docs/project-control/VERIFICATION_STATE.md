@@ -1351,3 +1351,11 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - Regression: e74b9f6f1e82102474ccb53c56da3931fde3fdd6
 - Evidence class: architect-verified source review + focused regression source; no executable Gate-C evidence.
 - I-3 remains IN PROGRESS. Gate-C/Gate-D are not closed by this correction.
+
+
+## 2026-10-08 — I-3 strict validation fail-closed correction
+[architect-verified] Source-level acceptance review identified a strict-validation gap: an absent action schema caused validateActionProps() to return no errors even when runtime props were supplied. The bounded correction rejects supplied properties under strict mode without changing non-strict behavior or the valid empty-props case.
+- Implementation: d6bdaa4238b9694430a4a484af2eb480f28fa5eb
+- Regression: d90a314df428bd13d18a6655a81bd498945d549e
+- Evidence class: architect-verified source review + focused regression source; no executable Gate-C evidence.
+- I-3 remains IN PROGRESS. Gate-C/Gate-D are not closed by this correction.
