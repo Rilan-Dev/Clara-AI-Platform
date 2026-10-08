@@ -217,3 +217,9 @@ If Z.AI is asked to continue, it must first obtain a fresh ChatGPT-issued handof
 ## 3. Current architect review status
 
 I-6 source implementation is **IN PROGRESS**. Exact server/tool allowlisting, default-off registration, provenance context binding, resolver fail-closed behavior, Unified Tool Runtime delegation, redacted capability metadata, and mutation-proof capability snapshots are being hardened incrementally. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction and is not represented as PASS or phase closure.
+
+## APCP Adaptive Control Layer
+
+The reusable adaptive operating layer is in `docs/project-control/ADAPTIVE_PROJECT_CONTROL.md`; navigation is in `docs/project-control/NAVIGATION.md`. These are governance additions only and do not alter the current I-6/next implementation scope.
+
+Fresh Z.AI sessions must recover state from repository documents. No prior conversation is required. A handoff remains bounded by its authorization; phase/task/checklist completion never self-authorizes the next item. Other-agent blockers are routed rather than taken over, and independent authorized work continues without repeated polling of asynchronous systems.
