@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-
+#!/usr/bin/env tsx
 #!/usr/bin/env tsx
 /**
  * scripts/db-reset.ts — destructive: drop the public schema, re-run the clean
