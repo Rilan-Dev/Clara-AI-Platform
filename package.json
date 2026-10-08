@@ -6,7 +6,7 @@
     "dev": "next dev -p 3000",
     "dev:relay": "node scripts/dev-relay.mjs",
     "postinstall": "node scripts/sync-monaco-assets.mjs",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "node scripts/start.mjs",
     "lint": "eslint .",
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
@@ -28,7 +28,7 @@
     "scan-blocked-domains": "tsx scripts/scan-blocked-domains.ts",
     "validate:model-config": "node scripts/validate-model-config.mjs",
     "validate:model-config:db": "node scripts/validate-model-config.mjs --db",
-    "vercel-build": "npm run db:migrate && next build"
+    "vercel-build": "npm run db:migrate && next build --webpack"
   },
   "dependencies": {
     "@activepieces/piece-activecampaign": "0.1.9",
