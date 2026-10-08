@@ -1,3 +1,19 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY CORRECTION
+
+[architect-verified] Continued the owner-authorized I-6 bounded implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The MCP resolver discovery boundary now passes a frozen request snapshot instead of the caller-owned mutable request object. This makes the `readonly` resolver contract enforceable at runtime and prevents transient server/tool/context mutation during asynchronous discovery. The bridge retains the original request identity/context checks as defense in depth. The MCP policy validator also now rejects malformed non-boolean `requireUserId` values instead of coercing them into an authorization policy.
+
+- Implementation: `9cfec56c90da88e367ac543e174716639802862b`
+- Regression: `7ac7557abeb700f0a3a42ffd44ce58346c0b165a`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+- **STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 DIRECT BUILDER SCHEMA BOUNDARY CORRECTION
 
 [architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
