@@ -1493,3 +1493,8 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - Commit: `9e3ab09931ea10584803f51feb6073c2eafce06f`.
 - External CI/Vercel/Gates were not awaited.
 - Next: continue bounded I-6 registration/capability-authorization invariant review.
+
+
+## 2026-10-09 — Integration discovery source review
+
+[architect-verified] Source changes add fail-closed user/agent identity requirements and restrict connected-tool discovery by active scoped connection, platform enablement, organisation grant, agent grant/ownership, and organisation plan allowlist. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Source review only; no tests or live provider integrations were run. CI, Vercel, Gate-C and Gate-D remain deferred; no executable PASS is inferred. Chat/realtime dispatch, RAG-preservation regressions, provider capability gating, and secure OAuth setup remain pending.
