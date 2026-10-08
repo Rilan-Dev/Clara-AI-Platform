@@ -11,9 +11,15 @@ import { assertExecutionContext } from "./execution-context";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
 import { ToolExecutionError } from "./tool-contracts";
-import { buildClaraToolRuntime } from "./clara-tools";
-import { ToolRegistrationError } from "./tool-registry";
-import type { ToolRuntime } from "./tool-registry";
+import {
+  buildClaraToolAuthorizationAdapter,
+  buildClaraToolMeteringHook,
+} from "./clara-tools";
+import {
+  createToolRuntime,
+  ToolRegistrationError,
+  type ToolRuntime,
+} from "./tool-registry";
 
 export const MCP_TOOL_FLAG = "ENABLE_MCP";
 
