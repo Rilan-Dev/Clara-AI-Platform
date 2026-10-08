@@ -416,6 +416,11 @@ export async function buildMcpToolRuntime(
   const registeredMcpIdentities = new Map<string, string>();
 
   for (const request of requests) {
+    try {
+      assertExecutionContext(request.context);
+    } catch {
+      continue;
+    }
     if (request.context !== context) {
       throw new ToolExecutionError(
         "TENANT_SCOPE_VIOLATION",
