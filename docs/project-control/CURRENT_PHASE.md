@@ -1,3 +1,19 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY CORRECTION
+
+[architect-verified] I-6 source hardening continues under the owner instruction to keep implementation moving without waiting for external CI/Vercel or phase gates.
+
+- The resolver receives a frozen request snapshot containing the authorized server/tool identity and provenance-verified execution context.
+- Malformed `requireUserId` policy values are rejected fail-closed.
+- Implementation: `9cfec56c90da88e367ac543e174716639802862b`
+- Regression: `7ac7557abeb700f0a3a42ffd44ce58346c0b165a`
+- Status: IN PROGRESS — bounded source hardening; external verification deferred.
+
+**Next implementation:** continue bounded I-6 resolver/registration and capability-authorization invariant review.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, marketplace, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP RUNTIME ISOLATION CORRECTION
 
 [architect-verified] I-6 implementation continues under owner authorization without waiting for external CI/Vercel or phase gates.
