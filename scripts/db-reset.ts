@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 #!/usr/bin/env tsx
 /**
  * scripts/db-reset.ts — destructive: drop the public schema, re-run the clean
@@ -15,6 +18,26 @@
 // Load .env (Node >= 20.12) BEFORE importing the db pool, which reads
 // POSTGRES_* at module-evaluation time.
 try { process.loadEnvFile(); } catch { /* .env optional */ }
+
+function validateMigrationFiles(): void {
+  const migrationsDir = path.join(process.cwd(), "src", "lib", "db", "migrations");
+  const files = fs.readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
+
+  const numbers = files.map((file) => file.split("_")[0]);
+  const duplicates = [...new Set(
+    numbers.filter((number, index) => numbers.indexOf(number) !== index),
+  )];
+
+  if (duplicates.length > 0) {
+    throw new Error(
+      `[db-reset] duplicate migration numbers detected before destructive reset: ${duplicates.join(", ")}`,
+    );
+  }
+
+  console.log(`[db-reset] migration preflight passed — ${files.length} migration files, unique numeric prefixes`);
+}
 
 async function cleanQdrant(): Promise<void> {
   const url = process.env.QDRANT_URL?.replace(/"/g, "");
@@ -40,6 +63,9 @@ async function main() {
   const wantsDev = process.argv.includes("--dev");
   const wantsNoSeed = process.argv.includes("--no-seed");
   const wantsQdrantClean = process.argv.includes("--clean-qdrant");
+
+  // Validate the migration set before opening the DB or performing any destructive operation.
+  validateMigrationFiles();
 
   if (wantsDev) {
     // Destructive + demo data: same hardened guard as the demo seeder —
