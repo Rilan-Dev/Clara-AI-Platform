@@ -1,3 +1,21 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — I-6 IMPLEMENTATION COMPLETE
+
+[architect-verified] I-6 is fully complete at the bounded source-implementation level. The final correction validates the injected resolver before enabled runtime creation, including the empty-request case, while the public builder already rejects malformed resolver objects.
+
+### Final correction
+- Implementation: `74e410e2e21cb641b33e660981877a555cabfc96`
+- Existing regression: `bbdedae0497fc4b01ae0a4a4f4eb42e520add55c`
+- The complete I-6 contract remains covered: exact server/tool allowlisting, default-off `ENABLE_MCP`, deterministic collision-resistant naming, runtime validation of resolver/policy/descriptor/surface/schema boundaries, frozen resolution requests, exact provenance-verified execution-context binding, isolated Unified Tool Runtime delegation, fail-closed discovery/registration, retry-safe registration bookkeeping, and public AI Platform Core export.
+- No additional I-6 source item remains authorized.
+
+### Verification disposition
+No GitHub Actions, Vercel build, Gate-C, or Gate-D was awaited. No external verification PASS is claimed.
+
+### Next implementation
+There is currently no repository-authorized I-7 implementation plan. Do not invent one. The next implementation begins only when the control layer authorizes a new bounded plan; until then, the only remaining I-6 activity is the separately documented external verification/closure process, which is intentionally not being awaited.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
 
 [architect-verified] I-6 bounded MCP Tool Bridge implementation is complete. No additional source hardening remains authorized within the I-6 plan.
