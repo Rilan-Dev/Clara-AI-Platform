@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db";
 import { hashPassword } from "@/modules/auth/core/password";
+import type { CliLog } from "@/lib/cli/observability";
 
 /**
  * Production seed — bootstrap data a real deployment needs to function.
