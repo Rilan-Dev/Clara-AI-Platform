@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
@@ -10,23 +14,38 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@clara/api-client": ["./packages/api-client/src/index.ts"],
-      "@clara/types": ["./packages/types/src/index.ts"],
-      "@clara/ui": ["./packages/ui/src/index.tsx"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@clara/api-client": [
+        "./packages/api-client/src/index.ts"
+      ],
+      "@clara/types": [
+        "./packages/types/src/index.ts"
+      ],
+      "@clara/ui": [
+        "./packages/ui/src/index.tsx"
+      ]
     },
-    "plugins": [{"name": "next"}]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "incremental": true,
+    "resolveJsonModule": true
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".next-app/types/**/*.ts",
     "next-env.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
