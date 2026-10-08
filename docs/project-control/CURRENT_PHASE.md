@@ -1,3 +1,19 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
+
+[architect-verified] I-6 MCP Tool Bridge bounded implementation is complete. All implementation-side acceptance requirements in the I-6 plan are represented in the AI Platform Core seam, including fail-closed authorization, exact execution-context preservation, runtime input-schema enforcement through Unified Tool Runtime, resolver-boundary validation, deterministic naming/collision protection, default-off behavior, and public export.
+
+Latest commits:
+- Implementation: `aa6951a499fd66c40a467c646332d8cacd019648`
+- Regression: `17c925a11a478d910779c3ce77e946500252ed67`
+
+Status: **IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED**.
+
+**STOP:** Do not add MCP transport/server hosting, OAuth/persistence expansion, marketplace/catalog work, broad provider rollout, production promotion, billing redesign, or unrelated implementation under I-6.
+
+**Next:** await/record the next explicitly authorized project-control implementation action; no new I-7 scope is inferred from I-6 completion.
+
+---
+
 ## CURRENT AUTHORITATIVE I-6 STATE — 2026-10-08 — REGISTRATION BOUNDARY HARDENING
 
 [architect-verified] The MCP runtime builder validates the injected resolver before registration iteration, including the empty-request case. Malformed resolver input fails closed instead of producing a misleading empty runtime.
