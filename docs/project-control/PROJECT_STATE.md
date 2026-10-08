@@ -1,3 +1,15 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE — FINAL REGISTRATION CORRECTION
+
+[architect-verified] I-6 bounded implementation is complete. Final registration hardening ensures an MCP capability identity is recorded as registered only after Unified Tool Runtime registration actually commits. A rejected registration therefore cannot poison a later identical resolution attempt in the same runtime build.
+
+- Implementation: `a215bb81b1bf53f1c4c98d5205aa841bb2a0ee43`
+- Regression: `e4cdc946a15b76a004e4123be5eaf060b4edcd9d`
+- I-6 status: **IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED**.
+- No CI, Vercel build, Gate-C, or Gate-D completion is claimed.
+- No further I-6 source implementation item remains authorized by the current plan.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
 
 [architect-verified] I-6 MCP Tool Bridge bounded implementation is complete. The bridge now has the required host-neutral descriptor/resolver contract, exact server/tool allowlisting, default-off runtime flag, provenance-verified execution-context binding, runtime schema validation, Unified Tool Runtime delegation, deterministic collision-resistant names, resolver/policy/descriptor runtime-boundary validation, fail-closed discovery/registration, isolated MCP runtime registration, and public AI Platform Core export.
