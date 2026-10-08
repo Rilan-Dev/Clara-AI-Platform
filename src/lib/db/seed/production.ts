@@ -281,8 +281,6 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
  * changes, so re-seeding never duplicates history.
  */
 async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
-  await seedDemoAgent(client);
-
   const email = (process.env.CLARA_DEMO_USER_EMAIL ?? "demo@clara.ai").toLowerCase().trim();
   const password = process.env.CLARA_DEMO_USER_PASSWORD ?? "Demo1234!";
   const fullName = "Clara Demo User";
@@ -290,6 +288,7 @@ async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
   // Ensure the tenant exists before any agent/child rows reference it.
   // The helper is idempotent and also covers the no-embed-key seed path.
   await seedDemoOrganisation(client);
+  await seedDemoAgent(client);
 
   const hash = await hashPassword(password);
   await client.query(
