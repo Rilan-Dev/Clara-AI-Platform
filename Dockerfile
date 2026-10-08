@@ -56,9 +56,12 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
 # The ElevenLabs Speech Engine is imported by the custom server entry point,
 # which is outside Next.js's standalone dependency tracing graph. The SDK is
 # already installed in the shared dependency layer, so copy only its runtime
-# package and small dependency closure into standalone instead of running a
-# second npm install. This preserves the exact lockfile-resolved versions and
-# removes the multi-minute registry/resolution/install step.
+# package and its lockfile-resolved dependency closure into standalone instead
+# of running a second npm install. Keep this list aligned with the installed
+# package version: ioredis 6 no longer depends on lodash.defaults or
+# redis-parser, so obsolete ioredis 5-era copies must not be assumed present.
+# This preserves the exact lockfile-resolved versions and removes the
+# multi-minute registry/resolution/install step.
 RUN mkdir -p .next/standalone/node_modules/@elevenlabs .next/standalone/node_modules/@ioredis && \
     cp -r node_modules/@elevenlabs/elevenlabs-js .next/standalone/node_modules/@elevenlabs/elevenlabs-js && \
     cp -r node_modules/command-exists .next/standalone/node_modules/command-exists && \
@@ -74,10 +77,7 @@ RUN mkdir -p .next/standalone/node_modules/@elevenlabs .next/standalone/node_mod
     cp -r node_modules/debug .next/standalone/node_modules/debug && \
     cp -r node_modules/ms .next/standalone/node_modules/ms && \
     cp -r node_modules/denque .next/standalone/node_modules/denque && \
-    cp -r node_modules/lodash.defaults .next/standalone/node_modules/lodash.defaults && \
-    cp -r node_modules/lodash.isarguments .next/standalone/node_modules/lodash.isarguments && \
     cp -r node_modules/redis-errors .next/standalone/node_modules/redis-errors && \
-    cp -r node_modules/redis-parser .next/standalone/node_modules/redis-parser && \
     cp -r node_modules/standard-as-callback .next/standalone/node_modules/standard-as-callback
 
 FROM base AS runner
