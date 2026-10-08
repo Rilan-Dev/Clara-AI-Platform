@@ -1,4 +1,4 @@
--- 060_payment_settings_category.sql
+-- 063_payment_settings_category.sql
 -- Repair platform payment setting metadata.
 --
 -- Migration 012 seeded Stripe/Razorpay credentials and NEXT_PUBLIC_APP_URL
