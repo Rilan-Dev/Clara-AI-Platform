@@ -94,6 +94,29 @@
 
 # ISSUES.md — Durable Issue Register
 
+## I-091 — MCP runtime capability-set isolation
+
+| Field | Value |
+|---|---|
+| Issue ID | I-091 |
+| Title | MCP runtime builder must not register unrelated Clara tools |
+| Phase | Integrations I-6 |
+| Severity | P1 |
+| Status | RESOLVED — architect source correction |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | `buildMcpToolRuntime()` constructed the MCP runtime through `buildClaraToolRuntime()`, which also registers unrelated RAG/integration capabilities. This widened the MCP capability set beyond the resolved MCP requests and contradicted the I-6 bridge isolation contract. |
+| Correction | `buildMcpToolRuntime()` now creates an isolated Unified Tool Runtime with the existing Clara authorization and metering bindings, without registering unrelated application tools. |
+| Correction commit | `9eaf90d1a01697a9dc7481290bfbf25813e88828` |
+| Regression | Existing focused I-6 regression asserts the enabled runtime contains exactly the resolved MCP capability and no `rag_search` capability. |
+| Verification | [architect-verified] Direct source review confirms the runtime constructor no longer imports unrelated tool registrations into the MCP capability set. Executable test evidence remains deferred by owner instruction. |
+| Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, or unrelated runtime refactor. |
+| Architect review status | RESOLVED — source correction reviewed by ChatGPT on 2026-10-08 |
+
+---
+
+
+
 > Known defects, blockers, and discrepancies. Derived from Phase 0 reconnaissance findings (PHASE-0-RECONNAISSANCE.md §8) and observed project events — no defects are invented.
 > **Issue-control system (durable, established by Phase 6 — Correction and Issue-Control Workflow, 2026-10-01):** the canonical issue lifecycle, severity model (P0–P3), issue-record schema, and issue/phase status relationship are defined in §"Issue-control system" below; the durable relationship to the verification contract is `VERIFICATION_STATE.md` §"Correction and issue-control workflow"; the canonical correction-handoff form is `docs/project-control/templates/CORRECTION_HANDOFF_TEMPLATE.md`. This register is the **single** issue database — no competing issue trackers may be created.
 > Pre-Phase-6 issue statuses: `open` · `resolved` (with dated evidence) · `deferred` (awaiting a later phase/decision) · `informational` (recorded fact, no action required). These legacy values map onto the canonical lifecycle (see §"Legacy entries" below); the historical records I-001…I-012 are preserved unrewritten.
