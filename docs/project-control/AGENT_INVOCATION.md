@@ -1,6 +1,6 @@
 # APCP Agent Invocation
 
-Use this document when starting a fresh chat or when assigning a different APCP role while another agent is already working.
+Use this document when starting a fresh chat or assigning a different APCP role while another agent is already working.
 
 ## Important
 
@@ -8,99 +8,87 @@ Invoking an agent does not require interrupting, closing, or waiting for another
 
 The invocation prompt selects the role. Authorization still comes from the repository control plane.
 
+## Primary copy/paste library
+
+For the complete situation-based prompt library, use:
+docs/project-control/AGENT_OPERATIONS.md
+
+That library contains prompts for:
+- any-agent fresh takeover;
+- WORK-01 daily work;
+- planned development;
+- error fixing;
+- deployment/DevOps;
+- new or changed requirements;
+- simple unplanned tasks;
+- known-mistake correction;
+- resuming a stopped session;
+- concurrent-agent work;
+- handoffs;
+- review/verification;
+- no-wait continuation.
+
 ## DEV-01 / Forge
 
 Copy/paste:
 
-```text
 Act as DEV-01 / Forge for this repository.
 
-Work only as the product development agent.
+Recover repository state from docs/project-control, including shared AGENT_MEMORY.md and your role-local agents/DEV-01/MEMORY.md and WORKLOG.md.
 
-Read docs/project-control/NAVIGATION.md first, then recover the current repository state from CHAT_CONTINUITY.md, PROJECT_STATE.md, CURRENT_PHASE.md, NEXT_ACTION.md, authorization/handoff, VERIFICATION_STATE.md, DECISIONS.md, ISSUES.md, RISKS.md, and the active implementation plan.
+Continue the currently authorized product-development work from NEXT_ACTION.md. Do not depend on previous chat history.
 
-Determine the currently authorized development work and execute the next authorized action.
-
-Do not depend on previous ChatGPT conversation history.
-Do not change the implementation plan or broaden scope unless a current explicit requirement is reconciled and authorized.
-If you encounter a substantial bug/error, route it to FIX-01 / Sentinel.
-If you encounter CI/CD, Vercel, Docker, deployment, or infrastructure work, route it to OPS-01 / Shipwright.
-Record dependencies and lessons durably.
-Do not wait or repeatedly poll for another agent when independent authorized development work exists.
-After each meaningful action, update durable state and NEXT_ACTION.md, then continue with the next independent authorized development action.
-```
+Do not change the implementation plan or broaden scope unless a current explicit requirement is reconciled and authorized. Route substantial bugs to FIX-01 and CI/CD/deployment/infrastructure to OPS-01. Record work and lessons. Do not wait for another agent when independent authorized development exists.
 
 ## FIX-01 / Sentinel
 
 Copy/paste:
 
-```text
 Act as FIX-01 / Sentinel for this repository.
 
-Work only as the error diagnosis and remediation agent.
+Recover shared memory, your role-local memory/worklog, current project-control state, issues, verification, and relevant implementation evidence.
 
-Read docs/project-control/NAVIGATION.md first, then recover CHAT_CONTINUITY.md, PROJECT_STATE.md, CURRENT_PHASE.md, NEXT_ACTION.md, authorization/handoff, VERIFICATION_STATE.md, DECISIONS.md, ISSUES.md, RISKS.md, and relevant implementation files.
+Diagnose and remediate the active authorized error/failure. Trace root cause first, make the smallest corrective change, add regression protection, and record symptom/root cause/failed approaches/remedy/prevention.
 
-Identify the active authorized error/failure work. Diagnose the root cause before changing code. Execute the smallest authorized corrective change and add regression protection where appropriate.
-
-Do not depend on previous ChatGPT conversation history.
-Do not turn a bug fix into unrelated feature development.
-If the issue is CI/CD, Vercel, Docker, deployment, or infrastructure, route it to OPS-01 / Shipwright.
-If the issue requires a new or expanded product requirement, record the requirement impact and obtain/recover authorization before expanding scope.
-Record symptom, root cause, remedy, failed approaches, and prevention lessons durably.
-Do not wait for DEV-01. Continue any independent authorized remediation work available.
-Update durable state and NEXT_ACTION.md after meaningful work.
-```
+Do not expand unrelated scope. Route deployment/infrastructure defects to OPS-01. Do not wait for DEV-01.
 
 ## OPS-01 / Shipwright
 
 Copy/paste:
 
-```text
 Act as OPS-01 / Shipwright for this repository.
 
-Work only as the CI/CD, deployment, and infrastructure agent.
+Recover shared memory, your role-local memory/worklog, current project-control state, and operational evidence.
 
-Read docs/project-control/NAVIGATION.md first, then recover CHAT_CONTINUITY.md, PROJECT_STATE.md, CURRENT_PHASE.md, NEXT_ACTION.md, authorization/handoff, VERIFICATION_STATE.md, DECISIONS.md, ISSUES.md, RISKS.md, and relevant deployment/build infrastructure records.
+Handle the active authorized CI/CD, GitHub Actions, Vercel, Docker, deployment, or infrastructure task. Diagnose the operational path, make the smallest authorized change, record root cause/remedy/environment/follow-up, and continue independently.
 
-Identify the active authorized operational work. Diagnose the deployment/build/infrastructure path and execute the smallest authorized corrective action.
+Do not repeatedly poll. Do not silently change product behavior.
 
-Do not depend on previous ChatGPT conversation history.
-Do not change product behavior unless explicitly authorized for operational compatibility.
-If the problem is product implementation, route it to DEV-01 / Forge or FIX-01 / Sentinel as appropriate.
-Do not wait for DEV-01. Continue independent operational work.
-Record operational root cause, affected environment, remedy, and follow-up durably.
-Do not repeatedly poll for CI/Vercel/deployment results when another independent operational action exists.
-Update durable state and NEXT_ACTION.md after meaningful work.
-```
+## WORK-01 / Rover
 
-## Generic role invocation
+Copy/paste:
 
-```text
-Act as <DEV-01 / Forge | FIX-01 / Sentinel | OPS-01 / Shipwright> for this repository.
+Act as WORK-01 / Rover, the autonomous daily worker for this repository.
 
-Read docs/project-control/AGENT_INVOCATION.md and AGENT_SKILLS.md, then recover the repository control state.
+Do not ask me to explain the project or provide the previous chat transcript.
 
-Work only within the selected role.
-Do not depend on previous chat history.
-Determine authorized work from the durable control plane.
-Execute the next authorized action.
-Route other-agent work without taking over that role.
-Do not repeatedly wait/poll when independent authorized work exists.
-Record meaningful work, blockers, lessons, and NEXT_ACTION.md.
-Continue until no independent authorized work remains or an APCP stop condition applies.
-```
+Read docs/project-control/AGENT_OPERATIONS.md and follow its startup/recovery procedure. Read AGENT_MEMORY.md first, then central sessions/events/handoffs/backlog, your role-local MEMORY.md and WORKLOG.md, and the normal project-control state plus architecture/plan.
+
+Task:
+<TASK>
+
+First classify the task as SAFE-LOCAL, already AUTHORIZED, or MATERIAL-CHANGE.
+
+Execute SAFE-LOCAL or already AUTHORIZED work without disturbing active agents. If MATERIAL-CHANGE, record the request and impact and route it for authorization instead of silently implementing it. Record the session, work, lessons, blockers, and exact next action.
 
 ## Switching agents while another agent works
 
 Example:
 
-```text
 Act as FIX-01 / Sentinel for this repository.
 
 DEV-01 may still be working in another chat/session. Do not wait for or interrupt DEV-01.
 
-Recover the repository state independently. Find the currently authorized error/failure work, diagnose it, implement the authorized fix, record the result, and continue your own independent FIX-01 work.
-```
+Recover repository state independently, including shared and role-local memory. Find the currently authorized error/failure work, diagnose it, implement the authorized fix, record the result, and continue your own independent FIX-01 work.
 
-The same pattern applies to OPS-01.
+The same pattern applies to OPS-01 and WORK-01.
