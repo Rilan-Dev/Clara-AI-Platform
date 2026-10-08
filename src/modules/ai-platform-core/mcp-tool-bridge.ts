@@ -159,6 +159,20 @@ function assertMcpPolicy(policy: McpToolBridgePolicy): void {
   }
 }
 
+function assertMcpResolver(resolver: McpToolResolver): void {
+  if (
+    resolver === null ||
+    typeof resolver !== "object" ||
+    typeof resolver.resolve !== "function" ||
+    typeof resolver.invoke !== "function"
+  ) {
+    throw new ToolExecutionError(
+      "TENANT_SCOPE_VIOLATION",
+      "MCP resolver is malformed.",
+    );
+  }
+}
+
 function assertMcpDescriptor(descriptor: McpToolDescriptor): void {
   if (
     descriptor === null ||
@@ -207,6 +221,7 @@ export function buildMcpToolDefinition(
 ): ToolDefinition {
   assertExecutionContext(boundContext);
   assertMcpPolicy(policy);
+  assertMcpResolver(resolver);
   assertMcpDescriptor(descriptor);
   if (!isAllowed(descriptor, policy)) {
     throw new ToolExecutionError(
@@ -299,6 +314,7 @@ export async function resolveMcpToolDefinition(
 ): Promise<ToolDefinition | null> {
   assertExecutionContext(request.context);
   try {
+    assertMcpResolver(resolver);
     assertMcpPolicy(policy);
   } catch {
     return null;
