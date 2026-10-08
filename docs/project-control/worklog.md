@@ -66,3 +66,13 @@
 - Removed the obsolete Next 16 `eslint` build option.
 - Hardened the MCP bridge against malformed runtime policy/descriptor shapes and added focused regressions.
 - No external CI, deployment gate, or continuous verification was awaited.
+
+
+## 2026-10-09 — Self-hosted Clara CSS regression hotfix
+
+- Inspected the live public site and latest `feature/ai-core-from-doable-source` source.
+- Confirmed dependency configuration uses `tailwindcss@4.3` and `@tailwindcss/postcss@4.3.3`, while `src/app/globals.css` used legacy v3 `@tailwind base/components/utilities` directives.
+- Corrected the CSS entry to `@import "tailwindcss";` plus `@config "../../tailwind.config.js";` so Tailwind v4 generates utilities using the existing design-token configuration.
+- Commit: `449afb73ea2a111c633c91dcd34e03f9d6a7480c`.
+- The Dockerfile already copies `.next/static` into the runner image. The host's Docker build/recreate and HTTP asset verification remain pending because no SSH/server execution tool is available in this chat. No live deployment success is claimed.
+- Immediate next action: pull the commit on the Docker host, rebuild/recreate `clara-backend`, and verify the served CSS assets.
