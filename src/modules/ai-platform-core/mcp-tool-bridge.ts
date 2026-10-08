@@ -125,6 +125,16 @@ function assertMcpPolicy(policy: McpToolBridgePolicy): void {
     );
   }
 
+  if (
+    policy.requireUserId !== undefined &&
+    typeof policy.requireUserId !== "boolean"
+  ) {
+    throw new ToolExecutionError(
+      "TENANT_SCOPE_VIOLATION",
+      "MCP requireUserId policy is malformed.",
+    );
+  }
+
   for (const serverId of policy.allowedServers) {
     if (!isNonEmptyString(serverId)) {
       throw new ToolExecutionError(
@@ -325,10 +335,15 @@ export async function resolveMcpToolDefinition(
     sessionId: request.context.sessionId,
     surface: request.context.surface,
   };
+  const boundResolutionRequest: McpToolResolutionRequest = Object.freeze({
+    serverId: requestedServerId,
+    toolName: requestedToolName,
+    context: requestedContext,
+  });
 
   let descriptor: McpToolDescriptor | null;
   try {
-    descriptor = await resolver.resolve(request);
+    descriptor = await resolver.resolve(boundResolutionRequest);
   } catch {
     // Resolver availability is an infrastructure boundary. Discovery must
     // fail closed rather than leak provider/transport errors or construct a
@@ -337,22 +352,11 @@ export async function resolveMcpToolDefinition(
   }
   if (!descriptor) return null;
 
-  // Re-check the resolver-owned request object itself before trusting its
-  // descriptor. A resolver that mutates the request cannot redirect the
-  // capability to another server/tool or tenant context.
-  if (
-    request.serverId !== requestedServerId ||
-    request.toolName !== requestedToolName ||
-    request.context !== requestedContext ||
-    request.context.tenantId !== requestedContextValues.tenantId ||
-    request.context.kbId !== requestedContextValues.kbId ||
-    request.context.agentId !== requestedContextValues.agentId ||
-    request.context.userId !== requestedContextValues.userId ||
-    request.context.sessionId !== requestedContextValues.sessionId ||
-    request.context.surface !== requestedContextValues.surface
-  ) {
-    return null;
-  }
+  // The resolver receives a frozen request snapshot rather than the
+  // caller-owned request object. This makes the readonly contract an actual
+  // runtime boundary and prevents transient identity/context mutation during
+  // async discovery. Keep the original-value checks below as defense in depth
+  // for callers that retain references to the supplied request object.
 
   try {
     assertMcpDescriptor(descriptor);
