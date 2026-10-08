@@ -172,6 +172,21 @@ function assertMcpDescriptor(descriptor: McpToolDescriptor): void {
       "MCP tool surface allowlist is malformed.",
     );
   }
+
+  // The descriptor is host-adapter input, so do not rely on the TypeScript
+  // Zod type alone. The public builder must never construct an executable
+  // ToolDefinition around a runtime-invalid schema; Unified Tool Runtime
+  // registration remains the final schema validation boundary.
+  if (
+    descriptor.inputSchema === null ||
+    typeof descriptor.inputSchema !== "object" ||
+    typeof descriptor.inputSchema.safeParse !== "function"
+  ) {
+    throw new ToolExecutionError(
+      "INVALID_ARGUMENTS",
+      "MCP tool input schema is malformed.",
+    );
+  }
 }
 
 export function buildMcpToolDefinition(
