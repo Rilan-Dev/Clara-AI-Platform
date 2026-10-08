@@ -1,26 +1,35 @@
 # APCP Governance File Index
 
-This file records the governance files added or modified by the adaptive agent-control update. It is a navigation/audit index, not a source of project implementation state.
+This file is the audit index for the governance-only APCP update. It is not project implementation state and never replaces the authoritative control documents.
 
-## Added governance files
+## Governance files in the adaptive/agent-control layer
 
-- `docs/project-control/NAVIGATION.md` — control-plane navigation and prompt routing.
-- `docs/project-control/ADAPTIVE_PROJECT_CONTROL.md` — adaptive requirements, autonomous continuation, boundaries, and copy/paste commands.
-- `docs/project-control/RULES.md` — concise adaptive governance rules.
-- `docs/project-control/AGENT_REGISTRY.md` — stable DEV-01/FIX-01/OPS-01 ownership and routing contract.
-- `docs/project-control/AGENT_SKILLS.md` — autonomous behavior and role-specific working skills.
-- `docs/project-control/AGENT_INVOCATION.md` — copy/paste role-assignment prompts, including concurrent-agent invocation.
-- `docs/project-control/FILES.md` — this governance-file audit index.
+| File | Purpose |
+|---|---|
+| `docs/project-control/NAVIGATION.md` | Fresh-session navigation and prompt routing |
+| `docs/project-control/ADAPTIVE_PROJECT_CONTROL.md` | Adaptive requirements, continuation, boundaries, and autonomous behavior |
+| `docs/project-control/RULES.md` | Concise enforceable governance rules |
+| `docs/project-control/AGENT_REGISTRY.md` | DEV-01 / FIX-01 / OPS-01 ownership and routing |
+| `docs/project-control/AGENT_SKILLS.md` | Shared autonomous skill plus role-specific skills |
+| `docs/project-control/AGENT_INVOCATION.md` | Copy/paste prompts for independently invoking each agent |
+| `docs/project-control/CHAT_CONTINUITY.md` | Fresh-session and cross-chat recovery |
+| `README.md` | Repository entry-point navigation to the APCP agent layer |
+| `docs/project-control/FILES.md` | This audit index |
 
-## Existing governance files updated by this layer
+## Agent behavior now covered
 
-- `docs/project-control/CHAT_CONTINUITY.md` — fresh-session recovery and adaptive/agent invocation references.
-- `README.md` — governance navigation entry point.
+- DEV-01 / Forge: authorized product development.
+- FIX-01 / Sentinel: errors, root-cause diagnosis, corrective remediation, regression protection.
+- OPS-01 / Shipwright: CI/CD, GitHub Actions, Vercel, Docker, deployment, infrastructure.
+- Role invocation is independent of other agent conversations.
+- Invocation selects behavior but never creates authorization.
+- Other-agent blockers are routed rather than silently taken over.
+- Independent authorized work continues without repeated polling/waiting.
+- Fresh sessions recover from GitHub and durable project-control records.
+- Lessons, blockers, and NEXT_ACTION.md remain durable.
 
-## Existing project-control files intentionally not changed by this governance update
+## Product-scope protection
 
-Product phase plans, implementation plans, acceptance criteria, architecture decisions, product code, deployment targets, and verification results remain governed by their existing records. This update does not authorize or reprioritize product implementation.
+This update is governance-only. It does not modify product implementation plans, phase objectives, acceptance criteria, architecture decisions, product code, deployment targets, or verification results.
 
-## Update rule
-
-Whenever this governance layer is materially changed, update this file in the same governance change with the added/modified file list and purpose. Do not use FILES.md as a substitute for the actual control documents.
+When governance changes again, update this index in the same governance change.
