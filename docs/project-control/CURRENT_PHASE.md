@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP RUNTIME ISOLATION CORRECTION
+
+[architect-verified] I-6 implementation continues under owner authorization without waiting for external CI/Vercel or phase gates.
+
+- `9eaf90d1a01697a9dc7481290bfbf25813e88828` corrects `buildMcpToolRuntime()` to construct an isolated Unified Tool Runtime using Clara authorization/metering bindings without registering unrelated RAG/integration tools.
+- This restores the I-6 capability-set isolation contract and aligns the existing focused runtime regression with the source implementation.
+- Status: IN PROGRESS — bounded source hardening; external verification deferred.
+
+**Next implementation:** continue bounded I-6 resolver/registration and capability-authorization invariant review.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, marketplace, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
 [architect-verified] I-6 exact authorization now uses a server/tool pair allowlist. The coarse server boundary remains required, while the authoritative pair entry must match both identities exactly. This prevents cross-product authorization when multiple MCP servers/tools are configured.
