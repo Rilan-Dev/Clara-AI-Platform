@@ -280,9 +280,9 @@ export function createTracedFetch(
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get("location");
         if (location) {
+          let redirectUrl: string;
           try {
-            const redirectUrl = new URL(location, rawUrl).toString();
-            await assertSafeEgressUrl(redirectUrl);
+            redirectUrl = new URL(location, rawUrl).toString();
           } catch {
             const errMsg = "Integration egress redirect is not allowed";
             const entry: HttpTraceEntry = {
@@ -295,6 +295,12 @@ export function createTracedFetch(
             if (xrayHttp) xrayHandle?.httpEnd(xrayHttp, res.status, durationMs, null, errMsg);
             throw integrationError("REDIRECT_BLOCKED", errMsg);
           }
+
+          // Preserve the host-owned egress classification from the redirect
+          // validator. A syntactically valid redirect to a private/loopback
+          // destination is an EGRESS_BLOCKED failure, not a generic redirect
+          // failure. Do not catch and relabel that typed boundary error.
+          await assertSafeEgressUrl(redirectUrl);
         }
         const errMsg = "Integration egress redirects are not allowed";
         const entry: HttpTraceEntry = {
