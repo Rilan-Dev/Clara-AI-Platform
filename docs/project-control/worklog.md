@@ -59,3 +59,10 @@
 - I-6 remains IN PROGRESS — bounded source hardening.
 - External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
 - Next implementation remains bounded I-6 resolver/registration and capability-authorization acceptance review.
+
+
+### I-6 / runtime configuration correction — 2026-10-08
+- Replaced the fragile Next TypeScript config boundary with explicit ESM `next.config.mjs` and `process.cwd()` root resolution; removed the old `next.config.ts`.
+- Removed the obsolete Next 16 `eslint` build option.
+- Hardened the MCP bridge against malformed runtime policy/descriptor shapes and added focused regressions.
+- No external CI, deployment gate, or continuous verification was awaited.
