@@ -1,3 +1,15 @@
+## 2026-10-08 — I-6 resolution-context mutation hardening
+
+[architect/ChatGPT] Continued the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+- Source review found that the executor compared invocation identity against the caller-owned `boundContext` object. Mutating that object after registration could therefore alter the capability's recorded resolution identity.
+- Corrected `src/modules/ai-platform-core/mcp-tool-bridge.ts` to snapshot the tenant/KB/agent/user/session/surface identity at registration and bind the resolver's `invoke` method at registration time.
+- Added focused source regression coverage for post-registration context mutation and resolver-method replacement.
+- Implementation: `7df0e6f40d20627fffc42526269c255bb9afa8b6`.
+- Regression: `311ecc1711e2ed892d2e6a8ee93d6bba16291eca`.
+- No MCP transport, persistence/OAuth, marketplace, production promotion, or unrelated scope was introduced.
+- I-6 remains IN PROGRESS; external verification remains deliberately deferred.
+
 ## 2026-10-08 — I-6 exact MCP server/tool allowlist pairing hardening
 
 [architect-verified] Continued the owner-authorized I-6 MCP Tool Bridge implementation without waiting for external CI, Vercel, Gate-C, or continuous verification. Source review found that independent server and tool allowlists authorized their cross-product, so a tool name permitted for one MCP server could be accepted for another permitted server. The bridge now requires an exact `serverId` + `toolName` pair in addition to the coarse server boundary and snapshots those pair identities into the executable definition.
