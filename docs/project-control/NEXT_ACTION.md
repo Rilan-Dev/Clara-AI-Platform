@@ -1,3 +1,13 @@
+# Immediate operational hotfix — responsive login layout (2026-10-09)
+
+The login surface at `src/features/admin/screens/login-screen.tsx` was using a viewport-height centered wrapper without vertical padding or a small-viewport-safe height, while its card used the mobile-density-sensitive `p-5` utility. The correction adds dynamic/small viewport height support, vertical breathing room so short screens can scroll, horizontal overflow protection, explicit min-width handling, and stable mobile/desktop card padding.
+
+- Source commit: `4d6a9720383a77374d59a326a509a83940a3fa0c`.
+- **Next action:** deploy by fetching the active branch and rebuilding/recreating `clara-backend` on the self-hosted Docker host. Then inspect /login at narrow mobile widths and short viewport heights, including when the mobile keyboard is open.
+- No Docker host access, browser-device test, build, or post-deploy verification was performed in this session. Do not claim the live deployment is fixed until the host is rebuilt.
+
+---
+
 # Immediate operational hotfix — CSS restoration (2026-10-09)
 
 The owner explicitly authorized a live self-hosted UI styling fix. The latest source branch uses Tailwind CSS 4.3 with `@tailwindcss/postcss`, but `src/app/globals.css` still used the removed v3 `@tailwind base/components/utilities` directives. Commit `449afb73ea2a111c633c91dcd34e03f9d6a7480c` switches the stylesheet entry to `@import "tailwindcss";` and explicitly loads the existing root Tailwind config with `@config "../../tailwind.config.js";`.
