@@ -70,3 +70,10 @@ Append lessons under the owning agent section:
 ## Memory conflict rule
 
 If shared memory conflicts with current repository state or current requirements, ignore the stale memory, record the conflict in AGENT_EVENTS.md or ISSUES.md when material, and follow current repository truth.
+
+### OPS-01 / 2026-10-09 — split deployment paths
+- **Issue/symptom:** Vercel-Preview and feature/ai-core-from-doable-source had different active failures even though both had historical migration/Tailwind blockers recorded.
+- **Root cause:** Vercel-Preview was at an older divergent source state with a missing CliLog import and incomplete seed dependency set; the feature branch Dockerfile had a brittle assumption that ioredis transitive dependencies are top-level hoisted.
+- **Remedy:** Diagnose each deployment path against its exact branch/commit and route application/build defects to FIX-01; do not change Vercel infrastructure or weaken Docker/npm reproducibility.
+- **Prevention:** Always inspect the actual deployed ref and latest build stage before relying on prior incident records.
+- **Related record:** EVT-OPS-003; EVT-OPS-004; HANDOFF-OPS-20261009-02.
