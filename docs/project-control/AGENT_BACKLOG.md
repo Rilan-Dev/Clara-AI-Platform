@@ -38,3 +38,22 @@ If a task belongs to another agent, create or update a backlog entry and continu
 
 - Resolution: FIX-01 applied Tailwind v4 PostCSS compatibility across package.json, package-lock.json, and postcss.config.js.
 - Resolution commits: ed56e33d49a391025d605919183cb8cdc581fd20; d119c02853ef2a33eb508c69418745eeab385782; 0d1666efa24950a1a23a995cea57ba4a7adfd4da.
+
+### BACKLOG-OPS-003 — 2026-10-09
+- **Work:** Correct Vercel-Preview seed TypeScript/dependency mismatch blocking clara-backend deployment.
+- **Owner:** FIX-01
+- **State:** ROUTED
+- **Dependency:** bounded application-source correction on Vercel-Preview.
+- **Authorization:** Not authorized for OPS-01 to modify application source; routed under OPS-01 diagnosis mandate.
+- **Suggested next action:** Reconcile production.ts with its required CliLog/observability and integration dependencies; do not bypass next build or db:migrate.
+- **Related session/event/handoff:** EVT-OPS-003; HANDOFF-OPS-20261009-02.
+
+### BACKLOG-OPS-004 — 2026-10-09
+- **Work:** Correct Docker standalone runtime dependency packaging so compose build does not assume lodash.defaults is top-level hoisted.
+- **Owner:** FIX-01
+- **State:** ROUTED
+- **Dependency:** bounded Dockerfile/package-layout correction on feature/ai-core-from-doable-source.
+- **Authorization:** Not authorized for OPS-01 to change application/build source; routed under OPS-01 diagnosis mandate.
+- **Suggested next action:** Derive standalone runtime copying from the actual npm-resolved dependency closure or use a reproducible packaging method; preserve lockfile resolution and ElevenLabs/ioredis behavior.
+- **Related session/event/handoff:** EVT-OPS-004; HANDOFF-OPS-20261009-02.
+
