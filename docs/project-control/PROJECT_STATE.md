@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP RESOLVER SHAPE HARDENING
+
+[architect-verified] Bounded I-6 source review identified that the public MCP ToolDefinition builder trusted the TypeScript resolver interface even though the resolver is an injected runtime boundary. The bridge now explicitly requires callable `resolve` and `invoke` methods and fails closed with a typed MCP resolver error before capability construction.
+
+- Implementation: `d6ee7f8acd007ffe0b687f9acd7a1522e28efcab`
+- Regression: `6fda566ecfe25361ee2bbf1901433ec46609fc53`
+- I-6 remains IN PROGRESS — bounded source hardening.
+- External CI/Vercel/Gate-C/Gate-D remain deferred and are not represented as PASS.
+
+**Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY CORRECTION
 
 [architect-verified] The active I-6 MCP bridge now passes a frozen resolution-request snapshot into the injected resolver, making the resolver's readonly request contract enforceable at runtime. The policy validator also rejects malformed non-boolean `requireUserId` values.
