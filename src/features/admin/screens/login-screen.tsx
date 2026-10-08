@@ -100,19 +100,19 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background flex items-center justify-center px-4">
+    <div className="relative flex min-h-[100svh] min-h-[100dvh] w-full items-center justify-center overflow-x-hidden bg-background px-4 py-8 sm:px-6 sm:py-10">
       {/* Personal theme switch — the platform default still governs the
           first visit; anyone can flip their own copy here. */}
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
         <ThemeToggle />
       </div>
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+      <div className="w-full min-w-0 max-w-sm">
+        <div className="mb-6 text-center sm:mb-8">
           <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Welcome to Clara AI</h1>
           <p className="text-muted-foreground text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
-        <div className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm">
+        <div className="w-full min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
           {needsVerification ? (
             <div className="space-y-4 text-center">
               <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
