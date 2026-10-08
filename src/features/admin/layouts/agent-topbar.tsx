@@ -247,10 +247,12 @@ export function AgentTopbarCluster() {
 
   const currentVersion = context?.currentVersion ?? null;
   const deployment = context?.deployment ?? null;
+  // A draft is publishable even when Main has no immutable version yet.
+  // That is the normal first-publish state for a newly created agent.
   const draftEditedSinceVersion =
     context?.draftUpdatedAt != null &&
-    currentVersion != null &&
-    new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime();
+    (currentVersion == null ||
+      new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime());
 
   // Publish is enabled ONLY when there is something to publish: draft edits
   // not in a version yet, a saved version production is not running, or the
@@ -260,7 +262,7 @@ export function AgentTopbarCluster() {
     !!currentVersion &&
     deployment.versionNumber === currentVersion.versionNumber &&
     !draftEditedSinceVersion;
-  const canPublish = !loading && !!context && !productionUpToDate && !!currentVersion;
+  const canPublish = !loading && !!context && (draftEditedSinceVersion || !productionUpToDate);
 
   // One-click publish: draft edits are versioned automatically, then the
   // resulting (or already-saved) version is published live.
@@ -275,7 +277,7 @@ export function AgentTopbarCluster() {
       }
       if (!versionId) {
         toast.error("Nothing to publish yet", {
-          description: "Save your assistant configuration first — a version is created from the draft.",
+          description: "The current Main draft is not available. Refresh the workspace and try again.",
         });
         return;
       }
