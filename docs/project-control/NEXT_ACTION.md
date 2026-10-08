@@ -1,3 +1,19 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RESOLVER SHAPE HARDENING
+
+[architect-verified] Continued bounded I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The public MCP ToolDefinition builder now validates the injected resolver's runtime shape before binding `invoke`. Both `resolve` and `invoke` must be callable; malformed resolver input fails closed with a typed `TENANT_SCOPE_VIOLATION` error. Focused regression coverage confirms the public builder rejects a malformed resolver.
+
+- Implementation: `d6ee7f8acd007ffe0b687f9acd7a1522e28efcab`
+- Regression: `6fda566ecfe25361ee2bbf1901433ec46609fc53`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+- **STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 EXACT EXECUTION-CONTEXT BINDING
 
 [architect-verified] Continued bounded I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
