@@ -1,3 +1,19 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 EXACT EXECUTION-CONTEXT BINDING
+
+[architect-verified] Continued bounded I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+MCP capabilities are now bound to the exact provenance-verified execution-context object used during discovery, rather than reconstructing an equivalent object from a fixed list of scalar fields. This prevents drift in correlation/metadata and future context fields and enforces the I-6 exact-context contract at invocation.
+
+- Implementation: `52385a93baf34d855aeff400ccb37597ab661849`
+- Regression: `ad429f5a1e50c37357763b31fd83ed999a9d29b8`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+- **STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY CORRECTION
 
 [architect-verified] Continued the owner-authorized I-6 bounded implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
