@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY CORRECTION
+
+[architect-verified] The active I-6 MCP bridge now passes a frozen resolution-request snapshot into the injected resolver, making the resolver's readonly request contract enforceable at runtime. The policy validator also rejects malformed non-boolean `requireUserId` values.
+
+- Implementation: `9cfec56c90da88e367ac543e174716639802862b`
+- Regression: `7ac7557abeb700f0a3a42ffd44ce58346c0b165a`
+- Control update: `7a49feb4c664f9d857c2daa3b28a8148a2c27379`
+- I-6 remains IN PROGRESS — bounded source hardening.
+- External CI/Vercel/Gate-C/Gate-D remain deferred and are not represented as PASS.
+
+**Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
 [architect-verified] I-6 resolver request integrity is now hardened: the bridge snapshots the pre-resolution server/tool identity and provenance-verified execution context and rejects resolver mutation before capability construction.
