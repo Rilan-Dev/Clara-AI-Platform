@@ -368,3 +368,7 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-08 — I-3 action-props hardening checkpoint
 
 [architect-verified] Current-state continuation remains Integrations I-3 — Action Runner, IN PROGRESS. The malformed runtime action-props boundary is corrected at 7aa1ebc8521c377684c711d97710e0614f66b4e3 with focused regression 8ac329d38af49a6c3acba22ac25935fb8b151c3c. I-2 external verification remains deferred; no I-2 PASS is inferred. No I-4/I-5/MCP/production scope is authorized.
+
+
+## 2026-10-08 — I-3 implementation continuation checkpoint
+[architect-verified] The active implementation capability remains Integrations Framework I-3 — Action Runner, IN PROGRESS. External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction. Latest bounded source corrections in this continuation are redirect egress error-classification preservation (`42527f0a2c83e8b7d3d6baa5fd70c8d1c2dd7d78`, regression `e74b9f6f1e82102474ccb53c56da3931fde3fdd6`) and strict validation fail-closed handling for absent schemas (`d6bdaa4238b9694430a4a484af2eb480f28fa5eb`, regression `d90a314df428bd13d18a6655a81bd498945d549e`). No I-3 closure or external verification is inferred. Next implementation remains deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage. No I-4/I-5, MCP expansion, production promotion, or unrelated implementation is authorized.
