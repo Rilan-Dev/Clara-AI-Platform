@@ -266,38 +266,39 @@ export async function buildConnectedIntegrationToolRuntime(
     );
   }
 
-  const rows = await query<{ integration_id: string }>(
-    `SELECT DISTINCT ic.integration_id
+  const limits = await resolveOrgPlanLimits(context.tenantId);
+  const rows = await query<{ integration_id: string; allowed_plans: string[] }>(
+    `SELECT DISTINCT ic.integration_id, pi.allowed_plans
        FROM integration_connections ic
        INNER JOIN organisation_integrations oi
-         ON oi.org_id=ic.org_id AND oi.integration_id=ic.integration_id AND oi.enabled=TRUE
+         ON oi.org_id=ic.org_id
+        AND oi.integration_id=ic.integration_id
+        AND oi.enabled=TRUE
        INNER JOIN platform_integrations pi
-         ON pi.integration_id=ic.integration_id AND pi.enabled=TRUE
+         ON pi.integration_id=ic.integration_id
+        AND pi.enabled=TRUE
        INNER JOIN agent_integrations ai
-         ON ai.integration_id=ic.integration_id AND ai.agent_id=$2 AND ai.enabled=TRUE
-       INNER JOIN agents a ON a.id=ai.agent_id AND a.org_id=$1
+         ON ai.integration_id=ic.integration_id
+        AND ai.agent_id=$2
+        AND ai.enabled=TRUE
+       INNER JOIN agents a
+         ON a.id=ai.agent_id
+        AND a.org_id=$1
       WHERE ic.org_id=$1
         AND ic.status='active'
         AND (ic.agent_id=$2 OR ic.agent_id IS NULL)
-        AND (ic.user_id=$3 OR ic.user_id IS NULL)
-        AND EXISTS (
-          SELECT 1
-            FROM organisation_integrations oi
-           WHERE oi.org_id=ic.org_id
-             AND oi.integration_id=ic.integration_id
-             AND oi.enabled=TRUE
-        )
-        AND EXISTS (
-          SELECT 1
-            FROM platform_integrations pi
-           WHERE pi.integration_id=ic.integration_id
-             AND pi.enabled=TRUE
-             AND (pi.allowed_plans @> ARRAY[$4]::text[] OR pi.allowed_plans @> ARRAY['*']::text[])
-        )`,
-    [context.tenantId, context.agentId, context.userId, (await resolveOrgPlanLimits(context.tenantId)).plan_id],
+        AND (ic.user_id=$3 OR ic.user_id IS NULL)`,
+    [context.tenantId, context.agentId, context.userId],
   );
+  const entitledIntegrationIds = new Set(
+    rows
+      .filter((row) => Array.isArray(row.allowed_plans) &&
+        (row.allowed_plans.includes(limits.plan_id) || row.allowed_plans.includes("*")))
+      .map((row) => row.integration_id),
+  );
+  const eligibleRows = rows.filter((row) => entitledIntegrationIds.has(row.integration_id));
 
-  for (const row of rows) {
+  for (const row of eligibleRows) {
     const definitions = await buildDefinitions(context, row.integration_id);
     for (const definition of definitions) {
       if (!runtime.hasTool(definition.name)) {
