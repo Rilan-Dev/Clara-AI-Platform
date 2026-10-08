@@ -43,3 +43,12 @@ This file is the audit index for the governance-only APCP update. It is not proj
 This update is governance-only. It does not modify product implementation plans, phase objectives, acceptance criteria, architecture decisions, product code, deployment targets, or verification results.
 
 When governance changes again, update this index in the same governance change.
+
+
+## User-facing agent usage
+
+| File | Purpose |
+|---|---|
+| docs/project-control/HOW_TO_USE_AGENTS.md | Primary human guide: agent selection, fresh-chat continuation, daily work, concurrent agents, memory, stop conditions, and copy/paste prompts |
+
+The user-facing guide is convenience documentation only. It does not create authorization or override APCP governance.
