@@ -618,3 +618,10 @@ Disposition:
 - [architect-verified] Corrected normalized-name collision handling with `12815df1d0caa27da3937fd7a9d7abba4411c434`: distinct MCP identities that converge on one runtime name fail closed instead of silently skipping the later capability.
 - [architect-verified] Added focused regression `d90cddbe1b90e2b00d1c3f6a49e844a670d5a548` proving post-registration policy/descriptor mutation cannot redirect the bound capability.
 - [architect-verified] Recorded I-089 as RESOLVED and reconciled PROJECT_STATE/CURRENT_PHASE/NEXT_ACTION to the I-6 continuation. No gate was closed and no external execution was awaited.
+
+## 2026-10-08 — PDF ingestion runtime compatibility correction
+
+- Current-head local startup exposed a pre-existing dependency/API mismatch: pdf-parse is pinned to 2.4.x while src/modules/ingest/parsers/pdf.ts still imported the removed v1 internal path pdf-parse/lib/pdf-parse.js.
+- Corrected the parser to use the supported PDFParse v2 API, preserving metadata extraction where available and guaranteed parser cleanup.
+- Correction commit: e77ba3748285840af36d98c8c23475f58588f95a.
+- This is a bounded runtime-compatibility correction only; I-6 scope and external verification/deployment gates remain unchanged.
