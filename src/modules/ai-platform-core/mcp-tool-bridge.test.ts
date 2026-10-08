@@ -77,6 +77,20 @@ describe("MCP tool bridge", () => {
     ).toThrow("no allowed Clara surface");
   });
 
+  it("fails closed for a runtime-invalid input schema", () => {
+    expect(() =>
+      buildMcpToolDefinition(
+        {
+          ...descriptor,
+          inputSchema: { safeParse: "not-a-function" } as never,
+        },
+        policy,
+        {} as McpToolResolver,
+        context,
+      ),
+    ).toThrow("input schema is malformed");
+  });
+
   it("fails closed when an external descriptor supplies a non-array surface allowlist", () => {
     expect(() =>
       buildMcpToolDefinition(
