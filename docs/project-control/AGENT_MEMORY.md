@@ -59,6 +59,14 @@ Append lessons under the owning agent section:
 ### WORK-01 / Rover
 <!-- Append durable daily-worker/maintenance lessons here. -->
 
+### OPS-01 / 2026-10-09
+- **Issue/symptom:** Vercel clara-backend build failed during db:migrate with duplicate migration number 060.
+- **Root cause:** deployment commit 4ea79c3b3bbb5202a25f2411b63471354200b01d introduced a second 060 migration while 060_sarvam_realtime_streaming.sql already existed; the migration runner correctly rejects duplicate numeric prefixes.
+- **Failed approach:** treating the failure as Vercel infrastructure and bypassing db:migrate or weakening the guard.
+- **Remedy:** route the migration-source correction to FIX-01 and preserve the fail-closed guard.
+- **Prevention:** distinguish deterministic repository migration failures from Vercel platform failures before changing deployment configuration.
+- **Related record:** EVT-OPS-001; BACKLOG-OPS-001; deployment aBdMD92VM3ZoHmQzqKQULZPuLTvf.
+
 ## Memory conflict rule
 
 If shared memory conflicts with current repository state or current requirements, ignore the stale memory, record the conflict in AGENT_EVENTS.md or ISSUES.md when material, and follow current repository truth.
