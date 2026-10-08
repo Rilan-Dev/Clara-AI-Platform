@@ -333,14 +333,6 @@ export async function resolveMcpToolDefinition(
   const requestedServerId = request.serverId;
   const requestedToolName = request.toolName;
   const requestedContext = request.context;
-  const requestedContextValues = {
-    tenantId: request.context.tenantId,
-    kbId: request.context.kbId,
-    agentId: request.context.agentId,
-    userId: request.context.userId,
-    sessionId: request.context.sessionId,
-    surface: request.context.surface,
-  };
   const boundResolutionRequest: McpToolResolutionRequest = Object.freeze({
     serverId: requestedServerId,
     toolName: requestedToolName,
