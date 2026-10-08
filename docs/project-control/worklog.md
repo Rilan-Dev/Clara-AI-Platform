@@ -48,3 +48,14 @@
 - `ddaa02bc`: regression covers malformed resolver schema output.
 - Project-control NEXT_ACTION/PROJECT_STATE/VERIFICATION_STATE records updated.
 - External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction; no PASS/closure is claimed.
+
+## 2026-10-08 — I-6 malformed surface allowlist + direct-context test correction
+
+[architect-verified] Continued the owner-authorized I-6 source acceptance review without waiting for external CI/Vercel/Gate-C/Gate-D evidence. The MCP bridge now treats any malformed `allowedSurfaces` entry as a fail-closed registration error rather than silently discarding unknown values. A focused test also aligns direct allowlist-rejection construction with the required provenance-minted execution-context contract.
+
+- Implementation: `030e905833097211adc0b69d202223c5e1f69de1`.
+- Regression: `8b59963f594beac5980f2b1178b85400261642ab`.
+- Test-contract correction: `b307056aa67c54024bc18b010d95ca13eec9ce73`.
+- I-6 remains IN PROGRESS — bounded source hardening.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
+- Next implementation remains bounded I-6 resolver/registration and capability-authorization acceptance review.
