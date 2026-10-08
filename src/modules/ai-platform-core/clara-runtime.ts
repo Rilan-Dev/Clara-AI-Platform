@@ -55,8 +55,8 @@ export const claraRuntime = {
       topK: options?.topK ?? 8,
       ragMode: options?.ragMode ?? "hybrid",
       surface: options?.channel === "voice" ? "voice" : "search",
-      sessionId: ctx.sessionId ?? null,
-      userId: ctx.userId ?? null,
+      sessionId: ctx.sessionId ?? undefined,
+      userId: ctx.userId ?? undefined,
       admission: "external",
       channel: options?.channel ?? "chat",
     });
@@ -81,8 +81,8 @@ export const claraRuntime = {
       topK: request.surface === "realtime" ? 4 : 8,
       ragMode: request.ragMode ?? "hybrid",
       surface: request.surface === "embed" ? "embed" : request.surface === "realtime" ? "voice" : "workspace",
-      sessionId: request.sessionId ?? null,
-      userId: request.userId ?? null,
+      sessionId: request.sessionId ?? undefined,
+      userId: request.userId ?? undefined,
       admission: "external",
       channel: request.surface === "realtime" ? "voice" : "chat",
     });
