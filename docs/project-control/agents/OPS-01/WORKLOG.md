@@ -15,6 +15,17 @@ Append-only operational history for OPS-01. This is not the source of authorizat
 - **Lesson:** <reusable lesson or none>
 - **Next action:** <exact next action>
 
+### OPS-01-2026-10-09-DEPLOYMENT-SPLIT / 2026-10-09
+- **Task:** Re-diagnose the two active deployment paths and distinguish current failures from already-resolved historical blockers.
+- **Authorization:** OPS-01 operational diagnosis/routing only; application/build source changes are not authorized.
+- **Started from:** feature/ai-core-from-doable-source at 8efae4712accd025ce5be6c476a3019e8199c1d0; Vercel deployment dpl_22XsSPHMrei8mh5StC8b4ytVGGke on Vercel-Preview fa46778f08b604125e942f4d39b249017254a8d2.
+- **Actions:** Confirmed separate Vercel-Preview branch. db:migrate now succeeds and applies 061_payment_settings_category.sql; active Vercel failure is Cannot find name 'CliLog' at production.ts:37. Feature seed imports CliLog plus listIntegrations; Vercel-Preview lacks integrations/registry.ts. Docker worker succeeds; backend fails only at final standalone copy of node_modules/lodash.defaults, proving Docker/BuildKit is functioning and the Dockerfile assumes a specific npm hoisting layout.
+- **Files/code:** No application source changed by OPS-01.
+- **Evidence:** Vercel deployment events and local Docker log supplied by the operator.
+- **Blockers/dependencies:** FIX-01 owns both bounded corrections; no infrastructure setting change is indicated.
+- **Lesson:** Diagnose each deployment path against its own ref. Do not keep routing stale migration/Tailwind failures after current logs prove those stages fixed.
+- **Next action:** FIX-01 corrects Vercel-Preview seed dependency synchronization and Docker standalone dependency packaging. OPS-01 does not poll or wait.
+
 <!-- Append new entries below. -->
 
 ### OPS-01-2026-10-09 / 2026-10-09
