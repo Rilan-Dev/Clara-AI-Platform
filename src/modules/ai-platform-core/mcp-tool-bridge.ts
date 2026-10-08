@@ -111,8 +111,9 @@ export function buildMcpToolDefinition(
   descriptor: McpToolDescriptor,
   policy: McpToolBridgePolicy,
   resolver: McpToolResolver,
-  boundContext?: PlatformExecutionContext,
+  boundContext: PlatformExecutionContext,
 ): ToolDefinition {
+  assertExecutionContext(boundContext);
   if (!isAllowed(descriptor, policy)) {
     throw new ToolExecutionError(
       "TENANT_SCOPE_VIOLATION",
