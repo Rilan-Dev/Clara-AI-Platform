@@ -124,11 +124,14 @@ export function buildMcpToolDefinition(
   const allowedSurfaces =
     descriptor.allowedSurfaces === undefined
       ? [...ALLOWED_MCP_SURFACES]
-      : descriptor.allowedSurfaces.filter((surface) =>
-          ALLOWED_MCP_SURFACES.includes(surface),
-        );
+      : [...descriptor.allowedSurfaces];
 
-  if (allowedSurfaces.length === 0) {
+  if (
+    allowedSurfaces.length === 0 ||
+    allowedSurfaces.some(
+      (surface) => !ALLOWED_MCP_SURFACES.includes(surface),
+    )
+  ) {
     throw new ToolExecutionError(
       "UNAUTHORIZED_SURFACE",
       `MCP tool has no allowed Clara surface: ${descriptor.serverId}/${descriptor.name}`,
