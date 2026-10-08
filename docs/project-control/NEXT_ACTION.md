@@ -3,6 +3,19 @@
 [architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
 
 ### Latest implementation correction
+The MCP bridge now rejects malformed `allowedSurfaces` values fail-closed instead of silently filtering unknown surfaces. Direct MCP definitions also have their required resolution context bound in focused tests. Commits `030e905833097211adc0b69d202223c5e1f69de1` and `b307056aa67c54024bc18b010d95ca13eec9ce73`.
+
+**Next implementation:** continue bounded I-6 source acceptance/reconciliation work, especially remaining resolver/registration edge cases and capability authorization invariants.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
+
+[architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
 `buildMcpToolDefinition()` now requires and validates a provenance-minted `PlatformExecutionContext`; an MCP capability can no longer be constructed through the direct builder without binding it to the resolution/execution context. Commits `8afb1ec8592d88108b137cd5d089ce90dd605b46` and `d7d19f397e4de2cedf56442e06245f15c83cc194`.
 
 **Next implementation:** continue bounded I-6 source acceptance/reconciliation work, especially remaining resolver/registration edge cases and capability authorization invariants.
