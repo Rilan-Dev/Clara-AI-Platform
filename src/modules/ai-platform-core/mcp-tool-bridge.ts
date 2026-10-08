@@ -322,7 +322,15 @@ export async function resolveMcpToolDefinition(
   }
 
   if (!isAllowed(descriptor, policy)) return null;
-  return buildMcpToolDefinition(descriptor, policy, resolver, request.context);
+
+  try {
+    return buildMcpToolDefinition(descriptor, policy, resolver, request.context);
+  } catch {
+    // A resolver-supplied descriptor is untrusted input. Any malformed
+    // capability must be rejected during discovery so one bad MCP tool cannot
+    // abort registration of otherwise valid allowlisted capabilities.
+    return null;
+  }
 }
 
 export async function buildMcpToolRuntime(
