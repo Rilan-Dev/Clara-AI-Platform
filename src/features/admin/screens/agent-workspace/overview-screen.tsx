@@ -158,8 +158,7 @@ export default function AgentOverviewScreen() {
 
   const draftEditedSinceVersion =
     draft != null &&
-    currentVersion != null &&
-    draft.getTime() > new Date(currentVersion.createdAt).getTime();
+    (currentVersion == null || draft.getTime() > new Date(currentVersion.createdAt).getTime());
 
   const productionUpToDate =
     !!deployment &&
@@ -172,7 +171,7 @@ export default function AgentOverviewScreen() {
       ? currentVersion
       : null;
 
-  const canPublish = !!currentVersion && (!productionUpToDate || !deployment);
+  const canPublish = !!context && (draftEditedSinceVersion || !!currentVersion && (!productionUpToDate || !deployment));
 
   // One-click publish — identical semantics to the topbar cluster button: draft edits
   // become a version automatically, then production is pointed at it.
@@ -187,7 +186,7 @@ export default function AgentOverviewScreen() {
       }
       if (!versionId) {
         toast.error("Nothing to publish yet", {
-          description: "Save your assistant configuration first — a version is created from the draft.",
+          description: "The current Main draft is not available. Refresh the workspace and try again.",
         });
         return;
       }

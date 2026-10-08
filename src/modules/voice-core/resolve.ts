@@ -310,24 +310,13 @@ export async function resolveVoiceConfig(
     realtimeSource = "voice_chat";
   }
 
-  // ── Org allow-list (mirrors the allowedProviders check in resolveAIConfig) ─
-  const allowedVoiceProviders = orgSettings?.allowedVoiceProviders?.length
-    ? orgSettings.allowedVoiceProviders
-    : (["openai", "gemini", "elevenlabs", "sarvam"] as VoiceProvider[]);
-
-  if (!allowedVoiceProviders.includes(voiceProvider)) {
-    throw new VoiceConfigResolutionError(
-      `Voice provider ${voiceProvider} is not enabled for this organisation.`,
-    );
-  }
-  if (
-    realtimeProvider !== voiceProvider &&
-    !allowedVoiceProviders.includes(realtimeProvider)
-  ) {
-    throw new VoiceConfigResolutionError(
-      `Realtime voice provider ${realtimeProvider} is not enabled for this organisation.`,
-    );
-  }
+  // Legacy org allow-lists are not authoritative provider gates.
+  // Older org rows can contain stale provider lists; current authority is
+  // platform capability/health -> subscription entitlement -> agent selection.
+  // Keep the legacy setting for compatibility, but let the AI governance
+  // resolver decide whether a selected provider is actually usable.
+  const legacyAllowedVoiceProviders = orgSettings?.allowedVoiceProviders ?? [];
+  void legacyAllowedVoiceProviders;
 
   // ── Platform availability: registry gate + fallback (not a hard error) ──
   // An org may have explicitly selected a voice provider (e.g. ElevenLabs)
@@ -372,10 +361,7 @@ export async function resolveVoiceConfig(
     const fallback: VoiceProvider = (await platformUnavailable(brain.provider, "voice_chat"))
       ? "openai"
       : brain.provider;
-    if (!allowedVoiceProviders.includes(fallback)) {
-      // Genuinely no usable voice provider for this org — surface the
-      // operator-actionable message instead of silently violating the org's
-      // explicit allow-list.
+    if (await platformUnavailable(fallback, "voice_chat")) {
       throw unavailableError(voiceProvider);
     }
     console.warn(
@@ -395,7 +381,7 @@ export async function resolveVoiceConfig(
       (await platformUnavailable(voiceProvider, "realtime_voice"))
         ? ((await platformUnavailable(brain.provider, "realtime_voice")) ? null : brain.provider)
         : voiceProvider;
-    if (!realtimeFallback || !allowedVoiceProviders.includes(realtimeFallback)) {
+    if (!realtimeFallback || await platformUnavailable(realtimeFallback, "realtime_voice")) {
       throw unavailableError(realtimeProvider);
     }
     console.warn(
