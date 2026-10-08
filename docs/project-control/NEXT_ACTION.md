@@ -1312,3 +1312,10 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - Focused regression: d90a314df428bd13d18a6655a81bd498945d549e
 - External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction.
 - Next bounded I-3 implementation: continue deterministic result propagation, remaining strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression review.
+
+
+### I-6 Follow-up — 2026-10-08
+- Removed an unused context-value snapshot from the MCP resolver path after exact execution-context object binding became the authoritative invariant.
+- Commit: `9e3ab09931ea10584803f51feb6073c2eafce06f`.
+- External CI/Vercel/Gates were not awaited.
+- Next: continue bounded I-6 registration/capability-authorization invariant review.
