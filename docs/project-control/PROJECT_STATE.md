@@ -1,3 +1,15 @@
+## I-6 IMPLEMENTATION COMPLETION — 2026-10-08
+
+[architect-verified] Bounded I-6 MCP Tool Bridge hardening is now source-complete. The final correction validates the resolver before runtime creation and commits normalized identity bookkeeping only after successful runtime registration, preventing malformed empty-request runtimes and rejected-capability poisoning.
+
+- Resolver-boundary implementation: `2d1b4c1b53023883c33b478cc7ed637e80433911`
+- Resolver-boundary regression: `358ac36cc0fd4d0ad4fd1804087b14408b2fa9ea`
+- Registration bookkeeping correction: `63fe42e176e95732a46c3c16f20c586ab025ce99`
+- I-6 implementation objective: **COMPLETE**.
+- External CI/Vercel/Gate-C/Gate-D evidence remains deferred and is not represented as PASS.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE — FINAL REGISTRATION CORRECTION
 
 [architect-verified] I-6 bounded implementation is complete. Final registration hardening ensures an MCP capability identity is recorded as registered only after Unified Tool Runtime registration actually commits. A rejected registration therefore cannot poison a later identical resolution attempt in the same runtime build.
