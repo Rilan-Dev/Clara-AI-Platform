@@ -254,6 +254,35 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("fails closed when the resolver mutates fields inside the authorized context", async () => {
+    const resolver: McpToolResolver = {
+      async resolve(request) {
+        const mutableContext = request.context as typeof request.context & {
+          tenantId: string;
+          userId: string;
+        };
+        mutableContext.tenantId = "tenant-attacker";
+        mutableContext.userId = "user-attacker";
+        return {
+          ...descriptor,
+          serverId: "demo",
+          name: "lookup",
+        };
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    await expect(
+      resolveMcpToolDefinition(
+        { serverId: "demo", toolName: "lookup", context },
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("fails closed when the resolver mutates the authorized request identity", async () => {
     const resolver: McpToolResolver = {
       async resolve(request) {
