@@ -1,5 +1,17 @@
 ## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
 
+[architect-verified] I-6 resolver request integrity is now hardened: the bridge snapshots the pre-resolution server/tool identity and provenance-verified execution context and rejects resolver mutation before capability construction.
+
+- Implementation: `8eb6bff89abd1867c3136f2dcfa32eed8b9a8751`
+- Regression: `556d48320a44b546919b9da177ec74c50c89f27a`
+- I-6 remains IN PROGRESS — bounded source hardening.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction and are not represented as PASS.
+
+**Next implementation:** continue remaining bounded I-6 resolver/registration and capability-authorization invariant review.
+
+---
+## CURRENT AUTHORITATIVE STATE — 2026-10-08 — I-6 MCP TOOL BRIDGE ACTIVE
+
 [architect-verified] I-6 now requires an exact server/tool allowlist pairing; separate server and tool membership can no longer authorize a cross-product capability. Implementation `37ae1f648df78cd651bd7eecec0bcce1fd3847c0`; regression `a0ac98adacadbd77d78e98cb88bd49fac49e7167`.
 
 - I-6 remains IN PROGRESS — bounded source hardening.
