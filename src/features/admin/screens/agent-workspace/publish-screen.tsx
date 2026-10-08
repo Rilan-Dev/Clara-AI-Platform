@@ -84,8 +84,8 @@ export default function AgentPublishScreen() {
   const currentVersion = context?.currentVersion ?? null;
   const draftEditedSinceVersion =
     context?.draftUpdatedAt != null &&
-    currentVersion != null &&
-    new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime();
+    (currentVersion == null ||
+      new Date(context.draftUpdatedAt).getTime() > new Date(currentVersion.createdAt).getTime());
 
   const productionUpToDate =
     !!deployment &&
@@ -108,7 +108,7 @@ export default function AgentPublishScreen() {
       }
       if (!versionId) {
         toast.error("Nothing to publish yet", {
-          description: "Save your assistant configuration first — a version is created from the draft.",
+          description: "The current Main draft is not available. Refresh the workspace and try again.",
         });
         return;
       }
