@@ -1,3 +1,16 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RUNTIME ISOLATION CORRECTION
+
+[architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+Commit `9eaf90d1a01697a9dc7481290bfbf25813e88828` corrects `buildMcpToolRuntime()` so it creates an isolated Unified Tool Runtime using Clara's authorization/metering bindings without registering unrelated RAG/integration tools. This restores the I-6 capability-set isolation contract and aligns the implementation with the existing regression requiring only MCP capabilities.
+
+**Next implementation:** continue bounded I-6 resolver/registration and capability-authorization invariant review.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, marketplace, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
 
 [architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
