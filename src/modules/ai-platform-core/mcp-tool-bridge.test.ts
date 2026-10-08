@@ -304,6 +304,30 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("skips a request with an invalid execution context during runtime registration", async () => {
+    vi.stubEnv("ENABLE_MCP", "true");
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const invalidContext = { ...context, tenantId: "" } as never;
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [{ serverId: "demo", toolName: "lookup", context: invalidContext }],
+      policy,
+      resolver,
+    );
+
+    expect(runtime).not.toBeNull();
+    expect(runtime?.listTools()).toHaveLength(0);
+    vi.unstubAllEnvs();
+  });
+
   it("fails closed when the resolver mutates fields inside the authorized context", async () => {
     const resolver: McpToolResolver = {
       async resolve(request) {
