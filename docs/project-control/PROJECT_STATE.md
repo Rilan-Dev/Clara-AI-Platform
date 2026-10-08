@@ -510,3 +510,8 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Commit: `9e3ab09931ea10584803f51feb6073c2eafce06f`.
 - External CI/Vercel/Gates were not awaited.
 - Next: continue bounded I-6 registration/capability-authorization invariant review.
+
+
+## 2026-10-09 — Integration discovery hardening
+
+[architect-verified] Connected integration discovery now requires user and agent identity and filters candidates by active scoped connection, platform enablement, organisation and agent grants, and organisation plan allowlist before registration. Execution remains in Unified Tool Runtime and the existing runner. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Chat/realtime dispatch and secure OAuth app configuration remain incomplete. No tests or live provider integrations were run; CI/Vercel/Gates remain deferred.
