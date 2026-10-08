@@ -1,3 +1,19 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RESOLVER REQUEST INTEGRITY CORRECTION
+
+[architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The MCP resolver request is now integrity-bound across the resolver call. The bridge snapshots the originally authorized `serverId`, `toolName`, and provenance-verified execution context before discovery, then rejects the capability if the resolver mutates any of those request fields. The resolved descriptor is compared against the original snapshot rather than resolver-mutated request values.
+
+- Implementation: `8eb6bff89abd1867c3136f2dcfa32eed8b9a8751`
+- Regression: `556d48320a44b546919b9da177ec74c50c89f27a`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 resolver/registration and capability-authorization invariant review.
+- **STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, marketplace, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RESOLVER FAIL-CLOSED CORRECTION
 
 [architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
