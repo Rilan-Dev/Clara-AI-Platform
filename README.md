@@ -81,3 +81,15 @@ Proprietary — for internal use.
 
 This repository uses repository-first APCP governance. Start with `docs/project-control/NAVIGATION.md`, then follow `CHAT_CONTINUITY.md` → current state/phase → `NEXT_ACTION.md` → authorization/handoff → verification and ledgers. For adaptive requirements, agent routing, no-wait continuation, and copy/paste prompts, use `docs/project-control/ADAPTIVE_PROJECT_CONTROL.md`. This governance layer does not change the product implementation plan.
 
+## APCP agent control
+
+This repository supports independently invokable autonomous APCP roles:
+
+- **DEV-01 / Forge** — product development.
+- **FIX-01 / Sentinel** — error diagnosis and remediation.
+- **OPS-01 / Shipwright** — CI/CD, deployment, and infrastructure.
+
+Start with `docs/project-control/NAVIGATION.md`. For role behavior use `docs/project-control/AGENT_SKILLS.md`; for direct assignment prompts use `docs/project-control/AGENT_INVOCATION.md`; for ownership use `docs/project-control/AGENT_REGISTRY.md`; for the governance file audit use `docs/project-control/FILES.md`.
+
+These role controls allow a new agent chat to begin while another agent is still working. The new agent recovers its own authorized work from GitHub and does not depend on the other conversation.
+
