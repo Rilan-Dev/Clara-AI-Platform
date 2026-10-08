@@ -1,3 +1,31 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — INTEGRATION RUNTIME DISPATCH
+
+[architect-verified] The active owner-authorized task is organisation integration setup plus AI access. The platform OAuth app configuration route and super-admin UI already exist; this continuation hardens their input boundary and adds focused regression coverage. The next implementation is provider-chat dispatch through the Unified Tool Runtime, followed by realtime voice dispatch through that same runtime.
+
+## Completed in this continuation
+- Platform OAuth app settings now reject malformed/oversized client IDs, oversized client secrets, invalid redirect URIs, non-HTTPS redirect URIs outside local development, redirect URI credentials/fragments, malformed scope arrays, oversized scope lists, and duplicate scopes.
+- OAuth validation is isolated in `src/modules/integrations/oauth-app-validation.ts` and has focused regressions in `src/modules/integrations/oauth-app-validation.test.ts`.
+- Stored OAuth client secrets remain encrypted server-side and are never selected into GET responses or returned to the browser.
+- Commits: `175803e3b30605baf8546e49878c4a5d4dcf9255`, `99aab21e6e31436073ed2ffe638c216f5f818a2a`, `7c0614d878c43ac50ec3e89d4c017a690c379d42`, `e8f1a1cf3b0bdcaea81a83a609a3be20bf5737d4`.
+
+## Still required in this bounded task
+1. Wire provider chat tool-call dispatch to `integration_availability` and `integration_action` through the Unified Tool Runtime, carrying a provenance-verified tenant/agent/user context.
+2. Wire realtime voice tool invocation to the same authorised runtime without a parallel executor or model-visible credentials.
+3. Add focused regressions for dispatch/context propagation and update project-control records.
+
+## Security / rollout
+- Never return stored secret values to the browser.
+- Preserve platform → organisation → agent grants, connection readiness, plan entitlement, and user-specific credential selection.
+- Provider and voice tool calls must execute only through the Unified Tool Runtime / existing integration runner.
+- Do not claim a functional OAuth consent/token-exchange flow: only app configuration is implemented; server-side state validation, callback and token exchange remain separate.
+- Do not wait for CI, Vercel, Gate-C/Gate-D, or continuous verification. External verification remains deferred.
+
+**Next implementation:** inspect provider contracts and the existing bounded agentic-loop pilot, then wire provider chat dispatch with default-off rollout and exact context propagation.
+
+**STOP:** no broad unrelated provider rollout, billing redesign, production promotion, or changes to unrelated integrations.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — ORGANISATION INTEGRATION SETUP + AI ACCESS
 
 [architect-verified] Owner-authorized integration usability/runtime task supersedes the prior "no authorized next implementation" state. The immediate defect is that organisation credential setup relies on a raw text/JSON field and does not guide users through provider-specific credentials. Agent access already enforces platform enablement, organisation grant, connection readiness, plan entitlement, and per-agent grants.
