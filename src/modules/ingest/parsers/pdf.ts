@@ -1,11 +1,9 @@
 import { DocumentParser, ParsedDocument } from "../types";
+import { PDFParse } from "pdf-parse";
 
-// pdf-parse@1.1.1 is kept as the fast primary parser. pdfjs-dist is already a
-// project dependency and provides a reliable fallback for PDFs that pdf-parse
-// cannot process because of parser/version/encoding edge cases.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParseModule = require("pdf-parse/lib/pdf-parse.js");
-const pdfParse = pdfParseModule.default || pdfParseModule;
+// pdf-parse@2.x exposes PDFParse as the supported Node API. The old
+// pdf-parse/lib/pdf-parse.js entrypoint belongs to the v1 package layout and
+// is not present in the installed 2.4.x dependency.
 
 type PdfJsMetadata = {
   info?: Record<string, unknown>;
@@ -93,22 +91,35 @@ export class PDFParser implements DocumentParser {
 
     let primaryError: Error | undefined;
 
+    let parser: PDFParse | undefined;
     try {
-      const data = await pdfParse(buffer);
+      parser = new PDFParse({ data: buffer });
+      const data = await parser.getText();
       const text = typeof data.text === "string" ? data.text.trim() : "";
 
       if (text) {
+        let infoData: Record<string, unknown> | undefined;
+        let pageCount: number | undefined;
+
+        try {
+          const info = await parser.getInfo();
+          infoData = info.infoData as Record<string, unknown> | undefined;
+          pageCount = info.total;
+        } catch {
+          // Metadata is optional; text extraction should still succeed.
+        }
+
         return {
           text,
           metadata: {
-            pageCount: data.numpages,
-            info: data.info,
+            pageCount,
+            info: infoData,
             sourceType: "pdf",
             originalFilename: filename,
             parser: "pdf-parse",
           },
           title:
-            (data.info?.Title as string | undefined) ||
+            (typeof infoData?.Title === "string" ? infoData.Title : undefined) ||
             filename.replace(/\.pdf$/i, ""),
         };
       }
@@ -116,8 +127,15 @@ export class PDFParser implements DocumentParser {
       primaryError = new Error("pdf-parse returned no readable text");
     } catch (error) {
       primaryError = error instanceof Error ? error : new Error(String(error));
+    } finally {
+      if (parser) {
+        try {
+          await parser.destroy();
+        } catch {
+          // Parser cleanup failure must not hide the primary parse/fallback path.
+        }
+      }
     }
-
     try {
       const fallback = await parseWithPdfJs(buffer);
       if (!fallback.text.trim()) {
