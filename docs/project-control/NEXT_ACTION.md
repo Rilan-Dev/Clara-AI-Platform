@@ -1,3 +1,19 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP REGISTRATION BOUNDARY HARDENING
+
+[architect-verified] Continued bounded I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The MCP runtime builder now validates the injected resolver before entering registration iteration. A malformed resolver therefore fails closed even when the request set is empty, instead of returning an apparently valid empty MCP runtime.
+
+- Implementation: `a885eac30a6b6ce8056ecc57091f6319d8d032a2`
+- Regression: `bbdedae0497fc4b01ae0a4a4f4eb42e520add55c`
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+- **STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RESOLVER SHAPE HARDENING
 
 [architect-verified] Continued bounded I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
