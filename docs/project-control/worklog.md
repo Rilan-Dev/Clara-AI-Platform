@@ -76,3 +76,12 @@
 - Commit: `449afb73ea2a111c633c91dcd34e03f9d6a7480c`.
 - The Dockerfile already copies `.next/static` into the runner image. The host's Docker build/recreate and HTTP asset verification remain pending because no SSH/server execution tool is available in this chat. No live deployment success is claimed.
 - Immediate next action: pull the commit on the Docker host, rebuild/recreate `clara-backend`, and verify the served CSS assets.
+
+
+## 2026-10-09 — Responsive login card hotfix
+
+- Owner reported that the login page lost responsiveness and the card layout looked incorrect.
+- Updated `src/features/admin/screens/login-screen.tsx`: small/dynamic viewport-safe minimum height, vertical padding for short screens, horizontal overflow protection, min-width-safe card wrapper, responsive header spacing, and explicit card padding that avoids the mobile `p-5` density override.
+- Source commit: `4d6a9720383a77374d59a326a509a83940a3fa0c`.
+- Project-control NEXT_ACTION now prioritizes Docker rebuild and visual checks on mobile/narrow and short viewports.
+- No tests, build, device/browser validation, or self-hosted Docker deployment was run. Live fix remains pending rollout.
