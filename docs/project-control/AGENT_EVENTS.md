@@ -26,6 +26,24 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Suggested next action:** <concrete action>
 - **Related records:** <paths / issue ids / commits>
 
+### EVT-OPS-003 — 2026-10-09
+- **Agent/session:** OPS-01 / Shipwright
+- **Type:** ROUTE
+- **Summary:** Current Vercel-Preview deployment dpl_22XsSPHMrei8mh5StC8b4ytVGGke at commit fa46778f08b604125e942f4d39b249017254a8d2 now completes db:migrate and applies 061_payment_settings_category.sql. The active blocker is TypeScript compilation: src/lib/db/seed/production.ts:37 references CliLog without importing it. Vercel-Preview also lacks src/modules/integrations/registry.ts, while the feature branch seed imports it; FIX-01 must reconcile the complete dependency change, not just the type alias.
+- **Impact:** Vercel Preview deployment blocker; no Vercel infrastructure outage identified.
+- **Owner:** FIX-01
+- **Suggested next action:** Correct the Vercel-Preview application source coherently; preserve npm run db:migrate && npm run build and do not weaken TypeScript/build checks.
+- **Related records:** deployment dpl_22XsSPHMrei8mh5StC8b4ytVGGke; commit fa46778f08b604125e942f4d39b249017254a8d2; production.ts; observability.ts; integrations/registry.ts; HANDOFF-OPS-20261009-02.
+
+### EVT-OPS-004 — 2026-10-09
+- **Agent/session:** OPS-01 / Shipwright
+- **Type:** ROUTE
+- **Summary:** Current local Docker build on feature/ai-core-from-doable-source reaches standalone packaging and fails at the Dockerfile hard-coded ioredis runtime copy: cp: cannot stat node_modules/lodash.defaults. clara-worker exports successfully. This is a deterministic Dockerfile/npm dependency-layout mismatch, not a Docker daemon or BuildKit outage; the Dockerfile assumes ioredis transitive dependencies are always top-level hoisted.
+- **Impact:** local production-image build blocker.
+- **Owner:** FIX-01
+- **Suggested next action:** Replace the brittle top-level transitive-package copy assumption with a reproducible dependency-closure packaging strategy. Do not disable npm ci or remove ElevenLabs/ioredis runtime dependencies.
+- **Related records:** feature/ai-core-from-doable-source; Dockerfile; package.json; package-lock.json; local BuildKit log; HANDOFF-OPS-20261009-02.
+
 <!-- Append new events above this marker. -->
 
 ### EVT-OPS-001 — 2026-10-09
