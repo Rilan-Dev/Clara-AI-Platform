@@ -1867,3 +1867,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] Direct source review confirms mutable caller-owned policy/descriptor values are no longer consulted after definition construction; the focused regression source is present. Executable test evidence remains deferred by owner instruction. |
 | Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, broad provider rollout, or unrelated refactor. |
 | Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
+
+
+## I-090 — MCP resolver malformed descriptor could abort capability discovery
+
+| Field | Value |
+|---|---|
+| Issue ID | I-090 |
+| Title | MCP resolver discovery must fail closed for malformed resolved descriptors |
+| Phase | Integrations I-6 |
+| Severity | P1 |
+| Status | RESOLVED — architect source correction + regression |
+| Date identified | 2026-10-08 |
+| Reporter / role | ChatGPT — architect / implementation owner |
+| Finding | resolveMcpToolDefinition validated resolver identity and allowlist membership, but then called buildMcpToolDefinition without converting descriptor-validation failures into an unavailable capability. A resolver-supplied malformed surface policy could therefore abort MCP runtime construction instead of failing closed for that capability while allowing other valid capabilities to continue. |
+| Correction | Resolver discovery now wraps the final MCP definition construction and returns null for malformed resolver-supplied descriptors. A focused regression verifies an explicitly empty resolver-supplied surface allowlist is rejected as unavailable. |
+| Scope | src/modules/ai-platform-core/mcp-tool-bridge.ts; src/modules/ai-platform-core/mcp-tool-bridge.test.ts |
+| Correction commits | 689313f3e7b4ebc17f1dfbc2b4e5f89f9f86c847; 6281348bef1fa2da08f9d795a2785aa493697610 |
+| Related correction | 282f80f72f1950c949a3658578d7e3b21745fd81 corrected MCP runtime factory imports exposed by the same bounded source review. |
+| Verification | [architect-verified] Direct source review confirms malformed resolver descriptors now fail closed during discovery; focused regression source is present. Executable test evidence remains deferred by owner instruction. |
+| Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, broad provider rollout, or unrelated runtime refactor. |
+| Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
