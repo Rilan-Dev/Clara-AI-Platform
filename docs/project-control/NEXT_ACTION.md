@@ -1457,3 +1457,14 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - Commit: `9e3ab09931ea10584803f51feb6073c2eafce06f`.
 - External CI/Vercel/Gates were not awaited.
 - Next: continue bounded I-6 registration/capability-authorization invariant review.
+
+
+## 2026-10-09 — Integration discovery hardening; chat/realtime dispatch remains active
+
+[architect-verified] The connected-integration runtime now fails closed when execution context lacks either agent or user identity. Discovery candidates are scoped by active connection, platform enablement, organisation grant, agent grant/ownership, and organisation plan allowlist before tool registration. Action execution continues through Unified Tool Runtime and the existing runner.
+
+- Source commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`.
+- No tests or live provider integrations were run; CI/Vercel/Gate-C/Gate-D remain deferred.
+- **Next implementation:** wire provider chat and realtime voice tool calls to this same authorized runtime/context while preserving existing Clara/Qdrant RAG, provider capability differences, cancellation, and metering; then add focused regressions. Also continue secure platform OAuth client configuration/callback work.
+- Inspect Doable and reusable-library references for multi-provider capability/tool-loop patterns when useful, but keep Clara authorization and Unified Tool Runtime authoritative.
+- Do not claim all providers support tool calling unless their adapter explicitly implements it. Never expose credentials to model-visible tool definitions.
