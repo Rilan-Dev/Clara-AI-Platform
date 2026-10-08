@@ -51,3 +51,18 @@ A new session must recover role, current phase, active scope, authorization, blo
 **Stopped boundary:** Resume the APCP project. Inspect CHAT_CONTINUITY.md, PROJECT_STATE.md, CURRENT_PHASE.md, handoff/authorization, VERIFICATION_STATE.md and NEXT_ACTION.md. Determine why work stopped and whether the next action is authorized; if authorized, continue it.
 
 **Route blocker:** Route the blocker to the correct APCP agent, record the dependency and suggested assignment, then continue the next independent authorized task for this role.
+
+## Explicit agent invocation
+
+The adaptive layer now has a durable role-invocation contract in `AGENT_REGISTRY.md`, `AGENT_SKILLS.md`, and `AGENT_INVOCATION.md`.
+
+A user may invoke DEV-01 / Forge, FIX-01 / Sentinel, or OPS-01 / Shipwright in a separate chat while another agent is already working. The invoked agent must recover the repository state independently; it must not require, interrupt, or wait for the other agent's conversation.
+
+Invocation changes the agent's operating role, not its authority. Authorization still comes from the current repository control state.
+
+The required autonomous pattern is:
+
+`recover → identify invoked role → check authorization → work → route other-agent dependency → record lesson/state → recompute NEXT_ACTION.md → continue`
+
+Use the role-specific prompts in `AGENT_INVOCATION.md`.
+
