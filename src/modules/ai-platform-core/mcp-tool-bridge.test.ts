@@ -193,6 +193,20 @@ describe("MCP tool bridge", () => {
     vi.unstubAllEnvs();
   });
 
+  it("fails closed for a malformed resolver before registration iteration", async () => {
+    vi.stubEnv("ENABLE_MCP", "true");
+
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [],
+      policy,
+      { resolve: "not-a-function", invoke: "not-a-function" } as never,
+    );
+
+    expect(runtime).toBeNull();
+    vi.unstubAllEnvs();
+  });
+
   it("registers resolved MCP capabilities in the Unified Tool Runtime when enabled", async () => {
     vi.stubEnv("ENABLE_MCP", "true");
     const resolver: McpToolResolver = {
