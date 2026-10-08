@@ -442,9 +442,12 @@ export async function buildMcpToolRuntime(
       continue;
     }
 
-    registeredMcpIdentities.set(definition.name, identity);
     try {
       runtime.registerTool(definition);
+      // Record the identity only after the capability has actually committed
+      // to the runtime. A rejected registration must not poison a later
+      // identical resolution attempt in the same build.
+      registeredMcpIdentities.set(definition.name, identity);
     } catch (error) {
       // A host resolver is not trusted to supply a structurally valid tool
       // definition. Registration failures make that capability unavailable;
