@@ -310,3 +310,10 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - Implementation: d6bdaa4238b9694430a4a484af2eb480f28fa5eb
 - Regression: d90a314df428bd13d18a6655a81bd498945d549e
 - I-3 remains IN PROGRESS; no external verification or phase closure is inferred.
+
+
+### I-6 Follow-up — 2026-10-08
+- Removed an unused context-value snapshot from the MCP resolver path after exact execution-context object binding became the authoritative invariant.
+- Commit: `9e3ab09931ea10584803f51feb6073c2eafce06f`.
+- External CI/Vercel/Gates were not awaited.
+- Next: continue bounded I-6 registration/capability-authorization invariant review.
