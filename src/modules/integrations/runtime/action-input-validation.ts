@@ -28,7 +28,20 @@ export function validateActionProps(
   props: unknown,
   strict = false,
 ): string[] {
-  if (!definitions || typeof definitions !== "object" || Array.isArray(definitions)) return [];
+  const hasDefinitions =
+    Boolean(definitions) &&
+    typeof definitions === "object" &&
+    !Array.isArray(definitions);
+
+  if (!hasDefinitions) {
+    if (!strict) return [];
+    if (props === null || typeof props !== "object" || Array.isArray(props)) {
+      return ["props must be an object"];
+    }
+    return Object.keys(props as Record<string, unknown>).map(
+      (name) => `${name} is not allowed`,
+    );
+  }
 
   if (props === null || typeof props !== "object" || Array.isArray(props)) {
     return ["props must be an object"];
