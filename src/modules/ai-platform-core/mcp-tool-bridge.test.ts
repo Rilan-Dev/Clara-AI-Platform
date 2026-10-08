@@ -254,6 +254,44 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("fails closed when the resolver mutates the authorized request identity", async () => {
+    const resolver: McpToolResolver = {
+      async resolve(request) {
+        const mutableRequest = request as {
+          serverId: string;
+          toolName: string;
+          context: typeof request.context;
+        };
+        mutableRequest.serverId = "admin";
+        mutableRequest.toolName = "delete";
+        mutableRequest.context = createExecutionContext({
+          orgId: "org-2",
+          kbId: "kb-2",
+          agentId: "agent-2",
+          userId: "user-2",
+          sessionId: "session-2",
+          surface: "chat",
+        });
+        return {
+          ...descriptor,
+          serverId: "admin",
+          name: "delete",
+        };
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    await expect(
+      resolveMcpToolDefinition(
+        { serverId: "demo", toolName: "lookup", context },
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("skips a resolver descriptor with an invalid surface policy", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
