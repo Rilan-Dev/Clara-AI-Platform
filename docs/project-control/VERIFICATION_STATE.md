@@ -121,6 +121,15 @@ Verification remains intentionally deferred; no external CI/Vercel result is bei
 - [architect-verified] Source review identified a remaining credential-bearing native fetch in the custom Supabase Management API action that was outside the I-058 egress/redirect hardening.
 - [architect-verified] Commit `c7a2b7f4edb33cc919e2fe6c9a0bec2c981450be` adds `assertSafeEgressUrl()`, `redirect: "manual"`, and explicit 3xx rejection for the Management API request.
 - I-059 is RESOLVED by architect source review. Gate-C remains MISSING and Gate-D remains IN_PROGRESS.
+# CURRENT AUTHORITATIVE I-6 SOURCE REVIEW — 2026-10-08
+
+[architect-verified] I-6 source correction `9eaf90d1a01697a9dc7481290bfbf25813e88828` fixes a capability-set isolation defect in `buildMcpToolRuntime()`. The bridge now constructs an isolated Unified Tool Runtime with the existing Clara authorization/metering bindings and does not register the application's unrelated RAG/integration tools. The existing focused regression requiring one MCP capability and explicitly rejecting `rag_search` now matches the implementation contract.
+
+Verification class: source-level architect review only. External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
+Disposition: I-6 remains IN PROGRESS; no PASS/closure inferred.
+
+---
+
 # VERIFICATION_STATE.md — Durable Verification Evidence Register
 
 ### 2026-10-06 — I-066 integration mutation plan-resolution fail-closed correction
