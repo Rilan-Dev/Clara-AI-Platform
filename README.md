@@ -76,3 +76,8 @@ Before pushing, run `npm run lint`, `npx tsc --noEmit` and `npm test -- --run`. 
 ## License
 
 Proprietary — for internal use.
+
+## AI Project Control
+
+This repository uses repository-first APCP governance. Start with `docs/project-control/NAVIGATION.md`, then follow `CHAT_CONTINUITY.md` → current state/phase → `NEXT_ACTION.md` → authorization/handoff → verification and ledgers. For adaptive requirements, agent routing, no-wait continuation, and copy/paste prompts, use `docs/project-control/ADAPTIVE_PROJECT_CONTROL.md`. This governance layer does not change the product implementation plan.
+
