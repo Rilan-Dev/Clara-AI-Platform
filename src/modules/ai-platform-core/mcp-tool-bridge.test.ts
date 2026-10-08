@@ -254,6 +254,25 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("skips a resolver descriptor with an invalid surface policy", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return { ...descriptor, allowedSurfaces: [] };
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    await expect(
+      resolveMcpToolDefinition(
+        { serverId: "demo", toolName: "lookup", context },
+        policy,
+        resolver,
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("fails closed when resolver discovery is unavailable", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
