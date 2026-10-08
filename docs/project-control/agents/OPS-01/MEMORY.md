@@ -31,3 +31,11 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Remedy:** route the application-source correction to FIX-01; retain the fail-closed migration guard and correct the duplicate filename on the deployment branch.
 - **Prevention:** when operating Vercel deployments, inspect migration-number integrity before treating a build failure as infrastructure; a deterministic application migration failure is not a Vercel platform fault.
 - **Related record:** EVT-OPS-001; BACKLOG-OPS-001; deployment aBdMD92VM3ZoHmQzqKQULZPuLTvf.
+
+
+### 2026-10-09 / OPS-01 — Local Docker build
+- Issue: local docker compose up -d --build on feature/ai-core-from-doable-source failed during npm run build.
+- Root cause: application build configuration uses Tailwind CSS 4.3 while postcss.config.js still registers tailwindcss directly as a PostCSS plugin. Tailwind v4 requires the separate @tailwindcss/postcss package, which is not declared in package.json.
+- Classification: application/build-configuration defect, not Docker/BuildKit infrastructure. clara-worker built successfully; clara-backend failed at Next.js CSS compilation.
+- OPS boundary: no product/build-config change was retained by OPS-01. A temporary PostCSS edit was immediately reverted after confirming the required dependency is absent.
+- Routing: FIX-01 owns the correction: add a lockfile-backed @tailwindcss/postcss dependency compatible with Tailwind 4.3, update postcss.config.js, and regenerate package-lock.json. Do not weaken npm-ci reproducibility or bypass CSS compilation.
