@@ -354,6 +354,44 @@ describe("MCP tool bridge", () => {
     ).resolves.toBeNull();
   });
 
+  it("passes a frozen resolution request to the resolver", async () => {
+    let receivedRequest: unknown;
+    const resolver: McpToolResolver = {
+      async resolve(request) {
+        receivedRequest = request;
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      policy,
+      resolver,
+    );
+
+    expect(tool).not.toBeNull();
+    expect(receivedRequest).toSatisfy((value: unknown) =>
+      value !== null &&
+      typeof value === "object" &&
+      Object.isFrozen(value),
+    );
+  });
+
+  it("fails closed for a malformed requireUserId policy", () => {
+    expect(
+      isMcpToolAllowlisted(
+        descriptor,
+        {
+          ...policy,
+          requireUserId: "yes" as never,
+        },
+      ),
+    ).toBe(false);
+  });
+
   it("fails closed when resolver discovery is unavailable", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
