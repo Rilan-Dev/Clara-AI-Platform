@@ -165,7 +165,17 @@ async function seedPlatformSettings(client: PoolClient, logger: Logger) {
   logger.log(`[seed:prod] applied ${entries.length} platform settings values`);
 }
 
+async function seedDemoOrganisation(client: PoolClient) {
+  await client.query(
+    `INSERT INTO organisations (id, name, slug, logo_url)
+     VALUES ($1, 'Clara', 'clara-demo', NULL)
+     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
+    [IDS.demoOrgId],
+  );
+}
+
 async function seedDemoAgent(client: PoolClient) {
+  await seedDemoOrganisation(client);
   await client.query(
     `INSERT INTO agents (id, org_id, name, description, status)
      VALUES ($1, $2, 'Clara Demo Assistant', 'Public landing-page demo assistant', 'published')
@@ -201,12 +211,7 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
     return;
   }
 
-  await client.query(
-    `INSERT INTO organisations (id, name, slug, logo_url)
-     VALUES ($1, 'Clara', 'clara-demo', NULL)
-     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
-    [IDS.demoOrgId],
-  );
+  await seedDemoAgent(client);
 
   await client.query(
     `INSERT INTO knowledge_bases (id, agent_id, name, description, qdrant_collection, status)
@@ -282,15 +287,9 @@ async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
   const password = process.env.CLARA_DEMO_USER_PASSWORD ?? "Demo1234!";
   const fullName = "Clara Demo User";
 
-  // The org row (same values as the landing demo — upserted here too so the
-  // login exists even when the embed key is absent and the landing demo is
-  // skipped).
-  await client.query(
-    `INSERT INTO organisations (id, name, slug, logo_url)
-     VALUES ($1, 'Clara', 'clara-demo', NULL)
-     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
-    [IDS.demoOrgId],
-  );
+  // Ensure the tenant exists before any agent/child rows reference it.
+  // The helper is idempotent and also covers the no-embed-key seed path.
+  await seedDemoOrganisation(client);
 
   const hash = await hashPassword(password);
   await client.query(
