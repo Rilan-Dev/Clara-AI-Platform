@@ -34,3 +34,16 @@ Cross-agent handoff register. A handoff transfers context, not authority.
 - **Authorization:** not authorized; proposal only. Receiving agent must independently recover current FIX-01 authorization before editing application source.
 - **Stop condition:** stop after the bounded duplicate-number correction; do not bypass migrations, alter unrelated migrations, or expand into deployment configuration.
 - **Status:** OPEN
+
+### HANDOFF-OPS-20261009-02 — 2026-10-09
+- **From:** OPS-01 / Shipwright
+- **To:** FIX-01
+- **Reason:** Two current branch-specific application/build defects block the two deployment paths: Vercel-Preview TypeScript seed compilation and feature-branch Docker standalone dependency packaging.
+- **Repository state:** Vercel-Preview / fa46778f08b604125e942f4d39b249017254a8d2; feature/ai-core-from-doable-source / 8efae4712accd025ce5be6c476a3019e8199c1d0.
+- **Work completed:** Confirmed migrations now complete on Vercel; current failure is Cannot find name 'CliLog'; Vercel-Preview lacks integrations/registry.ts while feature seed imports it; Docker fails at cp node_modules/lodash.defaults after worker export.
+- **Remaining work:** Apply two bounded FIX-01 corrections: reconcile Vercel-Preview seed dependencies and make Docker standalone packaging robust to actual npm layout.
+- **Evidence/records:** EVT-OPS-003; EVT-OPS-004; BACKLOG-OPS-003; BACKLOG-OPS-004; Vercel deployment dpl_22XsSPHMrei8mh5StC8b4ytVGGke; Dockerfile; package.json; package-lock.json.
+- **Authorization:** not authorized for OPS-01 to modify application/build source; receiving agent must recover FIX-01 authorization independently.
+- **Stop condition:** stop after the two bounded corrections; no unrelated product work, Vercel setting changes, migration bypasses, or reproducibility weakening.
+- **Status:** OPEN
+
