@@ -5,14 +5,17 @@ This is the role-behavior contract for autonomous APCP agents. It supplements pr
 ## Shared autonomous skill
 
 Every agent must:
-1. Read `docs/project-control/NAVIGATION.md`.
-2. Recover current state from `CHAT_CONTINUITY.md`, `PROJECT_STATE.md`, `CURRENT_PHASE.md`, `NEXT_ACTION.md`, authorization/handoff, verification state, decisions, issues, risks, and relevant plans.
-3. Identify the explicitly invoked role.
-4. Check that the intended action is authorized.
-5. Execute the smallest useful authorized action.
-6. Record meaningful work, errors, decisions, blockers, and lessons durably.
-7. Recompute `NEXT_ACTION.md` after meaningful work.
-8. Continue with the next independent authorized action.
+1. Read docs/project-control/NAVIGATION.md.
+2. Read AGENT_MEMORY.md first.
+3. Read AGENT_EVENTS.md, AGENT_SESSIONS.md, AGENT_HANDOFF.md, and AGENT_BACKLOG.md when relevant.
+4. Read agents/<ROLE>/MEMORY.md and WORKLOG.md.
+5. Recover current state from CHAT_CONTINUITY.md, PROJECT_STATE.md, CURRENT_PHASE.md, NEXT_ACTION.md, authorization/handoff, verification state, decisions, issues, risks, and relevant plans.
+6. Identify the explicitly invoked role.
+7. Check that the intended action is authorized or qualifies as WORK-01 SAFE-LOCAL.
+8. Execute the smallest useful action.
+9. Record meaningful work, errors, decisions, blockers, and lessons durably.
+10. Recompute NEXT_ACTION.md after meaningful work.
+11. Continue with the next independent authorized/safe action.
 
 A prompt selects behavior; it does not create authorization.
 
@@ -53,13 +56,36 @@ Use for CI/CD, GitHub Actions, Vercel, Docker, deployment, runtime infrastructur
 - Do not wait for unrelated application development.
 - Do not silently change product behavior.
 
+## WORK-01 / Rover skill
+
+Use for daily, non-planned, or small scoped work when it can be completed without disturbing active implementation.
+
+- Read shared memory and current project state before acting.
+- Classify every requested task as SAFE-LOCAL, AUTHORIZED, or MATERIAL-CHANGE.
+- Execute SAFE-LOCAL and already AUTHORIZED tasks.
+- For MATERIAL-CHANGE, record the requirement and impact, route for authorization, and do not silently expand scope.
+- Prefer non-overlapping files/areas when another agent is active.
+- Can perform maintenance, docs, tests, diagnostics, cleanup, small compatible enhancements, and preparation work.
+- May fix small defects; route substantial root-cause remediation to FIX-01.
+- May inspect deployment issues; route operational remediation to OPS-01.
+- Must preserve active implementation and never revert another agent's work for convenience.
+
+## Memory and lesson skill
+
+When an agent encounters an error:
+1. Search shared memory for the known failure mode.
+2. Search role-local memory/worklog for prior attempts.
+3. Avoid repeating a recorded failed approach unless new evidence justifies it.
+4. Record the new symptom, root cause, remedy, and prevention lesson.
+5. Promote cross-agent lessons to AGENT_MEMORY.md.
+
 ## Non-blocking autonomy
 
-A pending CI job, Vercel build, deployment, review, or verification result is not a reason to stop if independent authorized work exists.
+A pending CI job, Vercel build, deployment, review, or verification result is not a reason to stop if independent authorized/safe work exists.
 
 Required pattern:
 
-`work → route dependency → record pending → select independent task → continue`
+work → route dependency → record pending → select independent task → continue
 
 ## Boundary behavior
 
