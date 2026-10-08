@@ -1343,3 +1343,11 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - External CI/Vercel/Gate-C/Gate-D execution remains deferred by owner instruction.
 - No PASS/closure is inferred.
 - Next bounded implementation: strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
+
+
+## 2026-10-08 — I-3 redirect egress classification correction
+[architect-verified] Source-level acceptance review identified a deterministic error-contract defect in createTracedFetch: redirect URL validation was wrapped in a broad catch, converting typed EGRESS_BLOCKED failures into REDIRECT_BLOCKED. The correction narrows the catch to URL-construction failure and lets the typed egress error propagate through the runner and its redacted trace.
+- Implementation: 42527f0a2c83e8b7d3d6baa5fd70c8d1c2dd7d78
+- Regression: e74b9f6f1e82102474ccb53c56da3931fde3fdd6
+- Evidence class: architect-verified source review + focused regression source; no executable Gate-C evidence.
+- I-3 remains IN PROGRESS. Gate-C/Gate-D are not closed by this correction.
