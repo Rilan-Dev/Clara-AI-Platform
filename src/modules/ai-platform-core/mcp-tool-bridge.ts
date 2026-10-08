@@ -333,7 +333,15 @@ export async function buildMcpToolRuntime(
   }
   if (!isMcpEnabled()) return null;
 
-  const runtime = buildClaraToolRuntime();
+  // MCP gets an isolated Unified Tool Runtime instance. Do not use
+  // buildClaraToolRuntime() here: that application seam intentionally registers
+  // RAG/integration capabilities, which would widen the MCP capability set.
+  // Reuse the same Clara authorization/metering bindings without importing any
+  // unrelated tool definitions.
+  const runtime = createToolRuntime({
+    authorizationAdapter: buildClaraToolAuthorizationAdapter(),
+    meteringHook: buildClaraToolMeteringHook(),
+  });
   const registeredMcpIdentities = new Map<string, string>();
 
   for (const request of requests) {
