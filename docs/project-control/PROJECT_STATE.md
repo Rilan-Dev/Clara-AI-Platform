@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-09 — INTEGRATION RUNTIME DISPATCH
+
+[architect-verified] Owner-authorized organisation integration setup/AI access task is active. Platform OAuth app configuration validation is hardened and has dedicated regression source. Provider chat and realtime voice dispatch remain the next bounded implementation items; this task is not yet complete.
+
+- OAuth validation implementation: `175803e3b30605baf8546e49878c4a5d4dcf9255`
+- Validation module extraction: `99aab21e6e31436073ed2ffe638c216f5f818a2a`, `7c0614d878c43ac50ec3e89d4c017a690c379d42`
+- Regression source: `e8f1a1cf3b0bdcaea81a83a609a3be20bf5737d4`
+- No tests, CI, Vercel build, or Gates were run or awaited.
+- I-6 remains implementation-complete; the active task is organisation integration setup + AI access.
+
+**Next:** provider chat tool-call dispatch through the Unified Tool Runtime with verified tenant/agent/user context.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — ORGANISATION INTEGRATION SETUP + AI ACCESS
 
 [architect-verified] Owner-authorized integration usability/runtime task supersedes the prior "no authorized next implementation" state. The immediate defect is that organisation credential setup relies on a raw text/JSON field and does not guide users through provider-specific credentials. Agent access already enforces platform enablement, organisation grant, connection readiness, plan entitlement, and per-agent grants.
