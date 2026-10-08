@@ -48,3 +48,5 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - Related records: feature/ai-core-from-doable-source; package.json; package-lock.json; postcss.config.js; docs/project-control/agents/OPS-01/WORKLOG.md
 
 - **EVT-FIX-001 — 2026-10-09** — FIX-01 completed the Tailwind v4/PostCSS Docker build blocker on `feature/ai-core-from-doable-source`; added `@tailwindcss/postcss` 4.3.3, switched PostCSS registration, and regenerated the lock dependency closure. Source commits: `ed56e33d49a391025d605919183cb8cdc581fd20`, `d119c02853ef2a33eb508c69418745eeab385782`, `0d1666efa24950a1a23a995cea57ba4a7adfd4da`.
+
+- **EVT-FIX-002 — 2026-10-09** — Local Docker `npm ci` exposed one remaining lockfile-sync defect from the Tailwind migration: `@tailwindcss/node@4.3.3` requires `magic-string@^0.30.21`, while the lockfile only had the unrelated `magic-string@1.4.3` tree. Added the required nested `node_modules/@tailwindcss/node/node_modules/magic-string@0.30.21` lock entry. Commit: `a9d50dfafd29e9645705363906b128883148e4cc`. No application logic changed.
