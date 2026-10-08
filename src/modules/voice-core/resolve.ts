@@ -310,24 +310,17 @@ export async function resolveVoiceConfig(
     realtimeSource = "voice_chat";
   }
 
-  // ── Org allow-list (mirrors the allowedProviders check in resolveAIConfig) ─
-  const allowedVoiceProviders = orgSettings?.allowedVoiceProviders?.length
-    ? orgSettings.allowedVoiceProviders
-    : (["openai", "gemini", "elevenlabs", "sarvam"] as VoiceProvider[]);
-
-  if (!allowedVoiceProviders.includes(voiceProvider)) {
-    throw new VoiceConfigResolutionError(
-      `Voice provider ${voiceProvider} is not enabled for this organisation.`,
-    );
-  }
-  if (
-    realtimeProvider !== voiceProvider &&
-    !allowedVoiceProviders.includes(realtimeProvider)
-  ) {
-    throw new VoiceConfigResolutionError(
-      `Realtime voice provider ${realtimeProvider} is not enabled for this organisation.`,
-    );
-  }
+  // ── Legacy org allow-lists are NOT the provider-authority gate ───────────
+  // Older org_ai_settings rows can contain stale allowedVoiceProviders values
+  // (for example, a tenant created before Sarvam was added). Treating that
+  // denormalized list as authoritative makes draft preview disagree with the
+  // platform AI governance resolver. Provider authority is now:
+  // platform capability/health → subscription entitlement → agent selection.
+  // Keep the legacy field readable for compatibility, but never reject a
+  // current agent selection solely because this stale list is missing a
+  // platform-supported provider.
+  const legacyAllowedVoiceProviders = orgSettings?.allowedVoiceProviders ?? [];
+  void legacyAllowedVoiceProviders;
 
   // ── Platform availability: registry gate + fallback (not a hard error) ──
   // An org may have explicitly selected a voice provider (e.g. ElevenLabs)
