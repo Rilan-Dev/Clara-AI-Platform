@@ -1211,3 +1211,11 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction.
 - Next bounded I-3 implementation: continue deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression review.
 - STOP: no I-4/I-5, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-08 — I-3 strict validation fail-closed correction
+[architect-verified] Continued I-3 source acceptance found that strict action validation returned success when an action exposed no usable property definition, allowing arbitrary runtime props to reach execution without a schema boundary. Strict mode now rejects every supplied property when the action schema is absent, while an empty prop object remains valid and non-strict mode preserves compatibility.
+- Implementation: d6bdaa4238b9694430a4a484af2eb480f28fa5eb
+- Focused regression: d90a314df428bd13d18a6655a81bd498945d549e
+- External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction.
+- Next bounded I-3 implementation: continue deterministic result propagation, remaining strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression review.
