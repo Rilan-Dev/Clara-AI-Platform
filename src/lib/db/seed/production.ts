@@ -157,6 +157,19 @@ async function seedPlatformSettings(client: PoolClient, logger: Logger) {
   logger.log(`[seed:prod] applied ${entries.length} platform settings values`);
 }
 
+async function seedDemoAgent(client: PoolClient) {
+  await client.query(
+    `INSERT INTO agents (id, org_id, name, description, status)
+     VALUES ($1, $2, 'Clara Demo Assistant', 'Public landing-page demo assistant', 'published')
+     ON CONFLICT (id) DO UPDATE SET
+       org_id = EXCLUDED.org_id,
+       name = EXCLUDED.name,
+       description = EXCLUDED.description,
+       status = 'published'`,
+    [IDS.demoAgentId, IDS.demoOrgId],
+  );
+}
+
 async function seedLandingDemo(client: PoolClient, logger: Logger) {
   const rawKey = process.env.DEMO_CLARA_API_KEY?.trim() ||
     process.env.NEXT_PUBLIC_LANDING_EMBED_API_KEY?.trim() ||
@@ -185,14 +198,6 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
      VALUES ($1, 'Clara', 'clara-demo', NULL)
      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
     [IDS.demoOrgId],
-  );
-
-  await client.query(
-    `INSERT INTO agents (id, org_id, name, description, status)
-     VALUES ($1, $2, 'Clara Demo Assistant', 'Public landing-page demo assistant', 'published')
-     ON CONFLICT (id) DO UPDATE SET
-       name = EXCLUDED.name, description = EXCLUDED.description, status = 'published'`,
-    [IDS.demoAgentId, IDS.demoOrgId],
   );
 
   await client.query(
@@ -263,6 +268,8 @@ async function seedLandingDemo(client: PoolClient, logger: Logger) {
  * changes, so re-seeding never duplicates history.
  */
 async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
+  await seedDemoAgent(client);
+
   const email = (process.env.CLARA_DEMO_USER_EMAIL ?? "demo@clara.ai").toLowerCase().trim();
   const password = process.env.CLARA_DEMO_USER_PASSWORD ?? "Demo1234!";
   const fullName = "Clara Demo User";
