@@ -365,10 +365,7 @@ export async function resolveVoiceConfig(
     const fallback: VoiceProvider = (await platformUnavailable(brain.provider, "voice_chat"))
       ? "openai"
       : brain.provider;
-    if (!allowedVoiceProviders.includes(fallback)) {
-      // Genuinely no usable voice provider for this org — surface the
-      // operator-actionable message instead of silently violating the org's
-      // explicit allow-list.
+    if (await platformUnavailable(fallback, "voice_chat")) {
       throw unavailableError(voiceProvider);
     }
     console.warn(
@@ -388,7 +385,7 @@ export async function resolveVoiceConfig(
       (await platformUnavailable(voiceProvider, "realtime_voice"))
         ? ((await platformUnavailable(brain.provider, "realtime_voice")) ? null : brain.provider)
         : voiceProvider;
-    if (!realtimeFallback || !allowedVoiceProviders.includes(realtimeFallback)) {
+    if (!realtimeFallback || await platformUnavailable(realtimeFallback, "realtime_voice")) {
       throw unavailableError(realtimeProvider);
     }
     console.warn(
