@@ -39,6 +39,20 @@ The MCP bridge now requires an exact `serverId` + `toolName` allowlist pair in a
 
 # NEXT_ACTION.md
 
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
+
+[architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The MCP bridge now snapshots the resolution context identity at registration time and binds the resolver invocation method, preventing post-registration mutation of the caller-owned context or resolver object from changing the executable capability. Focused regressions cover both mutation paths. Implementation `7df0e6f40d20627fffc42526269c255bb9afa8b6`; regressions `311ecc1711e2ed892d2e6a8ee93d6bba16291eca`.
+
+**Next implementation:** continue bounded I-6 source acceptance/reconciliation work, especially remaining resolver/registration edge cases and capability authorization invariants.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, production promotion, billing redesign, or unrelated implementation.
+
+---
+
+
 ## CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
 
 [architect-verified] Continue the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
