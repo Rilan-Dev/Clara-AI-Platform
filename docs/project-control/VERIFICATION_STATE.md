@@ -1394,3 +1394,10 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - Regression: d90a314df428bd13d18a6655a81bd498945d549e
 - Evidence class: architect-verified source review + focused regression source; no executable Gate-C evidence.
 - I-3 remains IN PROGRESS. Gate-C/Gate-D are not closed by this correction.
+
+
+### I-6 Follow-up — 2026-10-08
+- Removed an unused context-value snapshot from the MCP resolver path after exact execution-context object binding became the authoritative invariant.
+- Commit: `9e3ab09931ea10584803f51feb6073c2eafce06f`.
+- External CI/Vercel/Gates were not awaited.
+- Next: continue bounded I-6 registration/capability-authorization invariant review.
