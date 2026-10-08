@@ -1202,3 +1202,12 @@ STOP: no I-3, MCP expansion, production promotion, or unrelated implementation.
 Next implementation: continue bounded I-3 acceptance review for strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
 
 STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-08 — I-3 redirect egress classification correction
+[architect-verified] Continued bounded I-3 source acceptance found that the generic traced-fetch redirect branch caught every redirect-validation failure and relabeled private/loopback redirect destinations as REDIRECT_BLOCKED. This obscured the host-owned egress policy classification. The runner now only maps malformed redirect URLs to REDIRECT_BLOCKED and preserves typed EGRESS_BLOCKED errors from the redirect egress validator.
+- Implementation: 42527f0a2c83e8b7d3d6baa5fd70c8d1c2dd7d78
+- Focused regression: e74b9f6f1e82102474ccb53c56da3931fde3fdd6
+- External CI/Vercel/Gate-C/Gate-D evidence remains deferred by owner instruction.
+- Next bounded I-3 implementation: continue deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression review.
+- STOP: no I-4/I-5, MCP expansion, production promotion, or unrelated implementation.
