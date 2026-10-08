@@ -302,6 +302,14 @@ export async function resolveMcpToolDefinition(
   const requestedServerId = request.serverId;
   const requestedToolName = request.toolName;
   const requestedContext = request.context;
+  const requestedContextValues = {
+    tenantId: request.context.tenantId,
+    kbId: request.context.kbId,
+    agentId: request.context.agentId,
+    userId: request.context.userId,
+    sessionId: request.context.sessionId,
+    surface: request.context.surface,
+  };
 
   let descriptor: McpToolDescriptor | null;
   try {
@@ -320,7 +328,13 @@ export async function resolveMcpToolDefinition(
   if (
     request.serverId !== requestedServerId ||
     request.toolName !== requestedToolName ||
-    request.context !== requestedContext
+    request.context !== requestedContext ||
+    request.context.tenantId !== requestedContextValues.tenantId ||
+    request.context.kbId !== requestedContextValues.kbId ||
+    request.context.agentId !== requestedContextValues.agentId ||
+    request.context.userId !== requestedContextValues.userId ||
+    request.context.sessionId !== requestedContextValues.sessionId ||
+    request.context.surface !== requestedContextValues.surface
   ) {
     return null;
   }
