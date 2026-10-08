@@ -236,14 +236,11 @@ export function buildMcpToolDefinition(
   // readonly does not make caller-owned arrays immutable at runtime, and the
   // resolver descriptor is also an external object. A live closure over either
   // would let post-registration mutation widen or redirect the capability.
-  const boundResolutionContext: PlatformExecutionContext = Object.freeze({
-    tenantId: boundContext.tenantId,
-    kbId: boundContext.kbId,
-    agentId: boundContext.agentId,
-    userId: boundContext.userId,
-    sessionId: boundContext.sessionId,
-    surface: boundContext.surface,
-  });
+  // Execution contexts are provenance-verified and immutable. Bind the
+  // exact context object rather than reconstructing an equivalent-looking
+  // value, so correlation/metadata and any future context fields cannot drift
+  // outside the fields currently enumerated by this bridge.
+  const boundResolutionContext = boundContext;
   const boundInvoke = resolver.invoke.bind(resolver);
 
   const boundPolicy: McpToolBridgePolicy = Object.freeze({
@@ -284,14 +281,7 @@ export function buildMcpToolDefinition(
           "MCP tool is no longer allowlisted.",
         );
       }
-      if (
-        context.tenantId !== boundResolutionContext.tenantId ||
-        context.kbId !== boundResolutionContext.kbId ||
-        context.agentId !== boundResolutionContext.agentId ||
-        context.userId !== boundResolutionContext.userId ||
-        context.sessionId !== boundResolutionContext.sessionId ||
-        context.surface !== boundResolutionContext.surface
-      ) {
+      if (context !== boundResolutionContext) {
         throw new ToolExecutionError(
           "TENANT_SCOPE_VIOLATION",
           "MCP tool execution context does not match the resolution context.",
