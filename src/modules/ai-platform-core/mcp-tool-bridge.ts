@@ -118,7 +118,12 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function assertMcpPolicy(policy: McpToolBridgePolicy): void {
-  if (!Array.isArray(policy.allowedServers) || !Array.isArray(policy.allowedToolPairs)) {
+  if (
+    policy === null ||
+    typeof policy !== "object" ||
+    !Array.isArray(policy.allowedServers) ||
+    !Array.isArray(policy.allowedToolPairs)
+  ) {
     throw new ToolExecutionError(
       "TENANT_SCOPE_VIOLATION",
       "MCP allowlist policy is malformed.",
