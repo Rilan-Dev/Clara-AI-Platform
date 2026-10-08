@@ -1,14 +1,13 @@
-# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RUNTIME ISOLATION CORRECTION
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RESOLVER FAIL-CLOSED CORRECTION
 
 [architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
 
 ### Latest implementation correction
-Commit `9eaf90d1a01697a9dc7481290bfbf25813e88828` corrects `buildMcpToolRuntime()` so it creates an isolated Unified Tool Runtime using Clara's authorization/metering bindings without registering unrelated RAG/integration tools. This restores the I-6 capability-set isolation contract and aligns the implementation with the existing regression requiring only MCP capabilities.
+Commits 282f80f72f1950c949a3658578d7e3b21745fd81, 689313f3e7b4ebc17f1dfbc2b4e5f89f9f86c847, and 6281348bef1fa2da08f9d795a2785aa493697610 correct the MCP bridge runtime imports, make resolver discovery fail closed when a resolved descriptor is malformed, and add focused regression coverage for invalid resolver-supplied surface policy.
 
 **Next implementation:** continue bounded I-6 resolver/registration and capability-authorization invariant review.
 
 **STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, marketplace, production promotion, billing redesign, or unrelated implementation.
-
 ---
 
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6
