@@ -205,6 +205,16 @@ export function buildMcpToolDefinition(
   // readonly does not make caller-owned arrays immutable at runtime, and the
   // resolver descriptor is also an external object. A live closure over either
   // would let post-registration mutation widen or redirect the capability.
+  const boundResolutionContext: PlatformExecutionContext = Object.freeze({
+    tenantId: boundContext.tenantId,
+    kbId: boundContext.kbId,
+    agentId: boundContext.agentId,
+    userId: boundContext.userId,
+    sessionId: boundContext.sessionId,
+    surface: boundContext.surface,
+  });
+  const boundInvoke = resolver.invoke.bind(resolver);
+
   const boundPolicy: McpToolBridgePolicy = Object.freeze({
     allowedServers: Object.freeze([...policy.allowedServers]),
     allowedToolPairs: Object.freeze(
@@ -244,20 +254,19 @@ export function buildMcpToolDefinition(
         );
       }
       if (
-        boundContext !== undefined &&
-        (context.tenantId !== boundContext.tenantId ||
-          context.kbId !== boundContext.kbId ||
-          context.agentId !== boundContext.agentId ||
-          context.userId !== boundContext.userId ||
-          context.sessionId !== boundContext.sessionId ||
-          context.surface !== boundContext.surface)
+        context.tenantId !== boundResolutionContext.tenantId ||
+        context.kbId !== boundResolutionContext.kbId ||
+        context.agentId !== boundResolutionContext.agentId ||
+        context.userId !== boundResolutionContext.userId ||
+        context.sessionId !== boundResolutionContext.sessionId ||
+        context.surface !== boundResolutionContext.surface
       ) {
         throw new ToolExecutionError(
           "TENANT_SCOPE_VIOLATION",
           "MCP tool execution context does not match the resolution context.",
         );
       }
-      return resolver.invoke(boundDescriptor, input, context);
+      return boundInvoke(boundDescriptor, input, context);
     },
   };
 }
