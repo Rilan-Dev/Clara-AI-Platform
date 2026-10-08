@@ -373,11 +373,8 @@ describe("MCP tool bridge", () => {
     );
 
     expect(tool).not.toBeNull();
-    expect(receivedRequest).toSatisfy((value: unknown) =>
-      value !== null &&
-      typeof value === "object" &&
-      Object.isFrozen(value),
-    );
+    expect(receivedRequest).toBeDefined();
+    expect(Object.isFrozen(receivedRequest)).toBe(true);
   });
 
   it("fails closed for a malformed requireUserId policy", () => {
