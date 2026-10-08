@@ -77,6 +77,17 @@ describe("MCP tool bridge", () => {
     ).toThrow("no allowed Clara surface");
   });
 
+  it("fails closed for a malformed resolver at the public builder boundary", () => {
+    expect(() =>
+      buildMcpToolDefinition(
+        descriptor,
+        policy,
+        { resolve: "not-a-function", invoke: "not-a-function" } as never,
+        context,
+      ),
+    ).toThrow("MCP resolver is malformed");
+  });
+
   it("fails closed for a runtime-invalid input schema", () => {
     expect(() =>
       buildMcpToolDefinition(
