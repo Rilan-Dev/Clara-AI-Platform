@@ -1,3 +1,18 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 IN-PLACE CONTEXT MUTATION CORRECTION
+
+[architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
+
+### Latest implementation correction
+The MCP resolver request-integrity boundary now snapshots the scalar provenance values inside the resolution context (tenantId, kbId, agentId, userId, sessionId, and surface) before resolver invocation. The post-resolution guard rejects both replacement of the context object and in-place mutation of any authorized context field. This closes the remaining resolver-side context mutation path.
+
+- Implementation: c0236b2e3ebff2bf3d711bfb95be746c7cd0873b
+- Regression: 211e321ae427e6e6d4f5ac4ef24f8865efff2f90
+- No tests, CI, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 remains **IN PROGRESS — BOUNDED HARDENING**.
+- **Next implementation:** continue bounded I-6 source acceptance/reconciliation for remaining resolver, registration, allowlist, and capability-authorization invariants.
+- **STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP RESOLVER REQUEST INTEGRITY CORRECTION
 
 [architect-verified] Continued owner-authorized I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
