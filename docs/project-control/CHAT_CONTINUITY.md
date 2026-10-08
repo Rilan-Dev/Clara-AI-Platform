@@ -412,3 +412,20 @@ A phase/task/checklist stop is a durable boundary. Inspect the current documents
 Current owner requirements may change earlier requirements. Material changes require impact analysis and updated/superseding authorization; completed work may be reopened when the current authorized requirement requires it. Rules-only governance updates must not mutate product scope or implementation plans.
 
 Use the copy/paste commands in `ADAPTIVE_PROJECT_CONTROL.md` for Continue, Execute Next, New Requirement, Change Requirement, Modify Implementation, Stopped Boundary, and Route Blocker.
+
+## APCP agent invocation layer
+
+Fresh sessions may be started for a specific APCP role without depending on another agent's chat history.
+
+Before role-specific work, read:
+- `docs/project-control/NAVIGATION.md`
+- `docs/project-control/AGENT_REGISTRY.md`
+- `docs/project-control/AGENT_SKILLS.md`
+- `docs/project-control/AGENT_INVOCATION.md`
+
+Then recover the normal project-control state and execute only the work authorized for the invoked role.
+
+A new FIX-01 or OPS-01 session does not need DEV-01 to stop first. Likewise, DEV-01 does not wait for a pending FIX-01/OPS-01 task when independent authorized development exists.
+
+The role prompt is an execution instruction, not a source of project authority.
+
