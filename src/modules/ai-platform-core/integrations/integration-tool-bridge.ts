@@ -255,6 +255,17 @@ export async function buildConnectedIntegrationToolRuntime(
 ): Promise<ToolRuntime> {
   assertExecutionContext(context);
   const runtime = buildClaraToolRuntime();
+  // A user-scoped execution context is required for both chat and realtime
+  // discovery: the runner's credential selection and the availability tool
+  // use this same tenant/agent/user identity. Fail closed rather than turning
+  // a missing user into a broad org-level connection listing.
+  if (!context.userId || !context.agentId) {
+    throw new ToolExecutionError(
+      "TENANT_SCOPE_VIOLATION",
+      "Connected integration discovery requires tenant, agent, and user identity.",
+    );
+  }
+
   const rows = await query<{ integration_id: string }>(
     `SELECT DISTINCT ic.integration_id
        FROM integration_connections ic
