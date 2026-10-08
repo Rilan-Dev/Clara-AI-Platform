@@ -265,3 +265,11 @@ I-046 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 Next implementation: continue bounded I-3 acceptance review for strict schema edge cases, deterministic result propagation, egress/redirect boundaries, redacted trace invariants, and tenant-isolation regression coverage.
 
 STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production promotion, or unrelated implementation.
+
+
+## 2026-10-08 — I-3 redirect egress classification correction
+[architect-verified] The active I-3 Action Runner now preserves the typed host-owned egress classification when a validated HTTP redirect targets a private, loopback, link-local, or otherwise blocked destination. Only malformed redirect locations are classified as REDIRECT_BLOCKED. Focused regression coverage verifies EGRESS_BLOCKED propagation and trace state.
+- Implementation: 42527f0a2c83e8b7d3d6baa5fd70c8d1c2dd7d78
+- Regression: e74b9f6f1e82102474ccb53c56da3931fde3fdd6
+- I-3 remains IN PROGRESS; no external verification or phase closure is inferred.
+- Next implementation: deterministic result propagation, strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression coverage.
