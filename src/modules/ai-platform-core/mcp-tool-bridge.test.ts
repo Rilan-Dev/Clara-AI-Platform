@@ -559,6 +559,48 @@ describe("MCP tool bridge", () => {
     });
   });
 
+  it("rejects an equivalent-looking but different execution-context object", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      policy,
+      resolver,
+    );
+    expect(tool).not.toBeNull();
+
+    const equivalentContext = createExecutionContext({
+      orgId: context.tenantId,
+      kbId: context.kbId,
+      agentId: context.agentId,
+      userId: context.userId,
+      sessionId: context.sessionId,
+      surface: context.surface,
+      correlationId: context.correlationId,
+      metadata: context.metadata,
+    });
+
+    const runtime = createRuntime();
+    runtime.registerTool(tool!);
+    const result = await runtime.invoke(
+      tool!.name,
+      { id: "abc" },
+      equivalentContext,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "TENANT_SCOPE_VIOLATION" },
+    });
+  });
+
   it("rejects same-tenant execution with a different caller identity", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
