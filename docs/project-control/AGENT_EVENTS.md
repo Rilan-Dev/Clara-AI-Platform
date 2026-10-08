@@ -46,3 +46,5 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - Owner: FIX-01
 - Suggested next action: add a lockfile-backed @tailwindcss/postcss dependency compatible with Tailwind 4.3, update postcss.config.js to use it, regenerate package-lock.json, then verify later when external verification is resumed. Do not downgrade Tailwind, bypass CSS processing, or change Docker reproducibility as an operational workaround.
 - Related records: feature/ai-core-from-doable-source; package.json; package-lock.json; postcss.config.js; docs/project-control/agents/OPS-01/WORKLOG.md
+
+- **EVT-FIX-001 — 2026-10-09** — FIX-01 completed the Tailwind v4/PostCSS Docker build blocker on `feature/ai-core-from-doable-source`; added `@tailwindcss/postcss` 4.3.3, switched PostCSS registration, and regenerated the lock dependency closure. Source commits: `ed56e33d49a391025d605919183cb8cdc581fd20`, `d119c02853ef2a33eb508c69418745eeab385782`, `0d1666efa24950a1a23a995cea57ba4a7adfd4da`.
