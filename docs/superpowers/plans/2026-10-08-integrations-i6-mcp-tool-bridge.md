@@ -4,7 +4,7 @@ Date: 2026-10-08
 Owner: ChatGPT
 Authorization: Explicit owner instruction to continue the next pending implementation
 Baseline: `1e4495ebcc737074e958b15e6dcf2228d36d1d75`
-Status: IMPLEMENTATION ACTIVE — BOUNDED HARDENING
+Status: IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED
 
 ## Objective
 
@@ -74,3 +74,25 @@ External CI/Vercel/Gate-C/Gate-D evidence remains deferred under owner instructi
 - The public static helper is now named `isMcpToolAllowlisted`; it returns only whether the exact server/tool pair is statically allowlisted.
 - Full authorization remains exclusively in the Unified Tool Runtime (surface, required identity, host RBAC, plan entitlement, and tenant checks).
 - This prevents a convenience helper from being mistaken for the authoritative authorization boundary.
+
+
+## 2026-10-08 — I-6 implementation completion checkpoint
+
+The bounded implementation contract is complete. Final implementation coverage includes:
+- exact server/tool pair allowlisting with coarse server boundary;
+- default-off `ENABLE_MCP` registration;
+- deterministic 64-character collision-resistant MCP tool names;
+- runtime validation of resolver, policy, descriptor, surface, and input-schema boundaries;
+- frozen resolver discovery requests;
+- exact provenance-verified execution-context identity binding;
+- isolated Unified Tool Runtime delegation;
+- fail-closed discovery and registration;
+- retry-safe registration identity bookkeeping;
+- public AI Platform Core export;
+- focused source regressions for the above invariants.
+
+Implementation commits include the final registration correction `a215bb81b1bf53f1c4c98d5205aa841bb2a0ee43` and regression `e4cdc946a15b76a004e4123be5eaf060b4edcd9d`.
+
+No MCP transport/server hosting, OAuth/persistence, marketplace/catalog, broad provider rollout, production promotion, billing redesign, or unrelated implementation was introduced.
+
+External CI/Vercel/Gate-C/Gate-D execution remains intentionally deferred and is not claimed as verification evidence.
