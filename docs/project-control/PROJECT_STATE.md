@@ -1,3 +1,30 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — ORGANISATION INTEGRATION SETUP + AI ACCESS
+
+[architect-verified] Owner-authorized integration usability/runtime task supersedes the prior "no authorized next implementation" state. The immediate defect is that organisation credential setup relies on a raw text/JSON field and does not guide users through provider-specific credentials. Agent access already enforces platform enablement, organisation grant, connection readiness, plan entitlement, and per-agent grants.
+
+### Implemented in this task
+- `src/features/admin/screens/org-integrations-screen.tsx` now renders structured credential fields using registry `customAuthFields` where available, with explicit fallback fields for secret-text, OAuth2, and basic-auth integrations.
+- Added validation for required fields, request failure messages, success feedback, reconnect/update credentials flow, and a copyable OAuth callback reference.
+- UI explicitly clarifies that the callback reference is not an interactive OAuth consent/token-exchange flow; do not represent OAuth as complete until a real server-side callback/state/token exchange is implemented.
+- Commit: `5e6c99c06e1fa314c229e83de84832a6e6502b66`.
+
+### Still required in this bounded task
+1. Add a secure platform-level OAuth app configuration path for provider client IDs/secrets and callback configuration, using encrypted persistence and never echoing secrets.
+2. Ensure provider chat tool-calling dispatch can invoke `integration_availability` and `integration_action` through the Unified Tool Runtime with provenance-verified tenant/agent/user context.
+3. Ensure realtime voice agent tool invocation can reach the same authorised integration runtime without introducing a parallel executor or exposing credentials to the model.
+4. Update focused regressions and project-control records as source implementation progresses.
+
+### Security/rollout constraints
+- Never return stored secret values to the browser.
+- Keep exact platform → organisation → agent grants and plan entitlement checks.
+- Integration execution must remain in the Unified Tool Runtime / existing runner; do not call provider APIs directly from UI.
+- Do not fabricate an OAuth callback or claim a working OAuth flow from a displayed URL.
+- Do not wait for CI, Vercel, Gate-C/Gate-D, or continuous verification; report external verification as deferred.
+- Next implementation: continue the secure OAuth configuration/runtime dispatch items above, starting with actual route and provider-tool contracts.
+- STOP: no broad unrelated provider rollout, billing redesign, production promotion, or changes to unrelated integrations.
+
+---
+
 ## I-6 FINAL IMPLEMENTATION RECORD — 2026-10-09
 
 [architect-verified] The final bounded I-6 source implementation is complete. The MCP bridge now validates the injected resolver both at public definition construction and before enabled runtime creation, including an empty request set. This closes the final runtime trust-boundary gap identified during bounded review.
