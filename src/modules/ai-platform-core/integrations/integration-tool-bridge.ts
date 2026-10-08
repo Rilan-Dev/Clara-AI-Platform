@@ -279,8 +279,22 @@ export async function buildConnectedIntegrationToolRuntime(
       WHERE ic.org_id=$1
         AND ic.status='active'
         AND (ic.agent_id=$2 OR ic.agent_id IS NULL)
-        AND (ic.user_id=$3 OR ic.user_id IS NULL)`,
-    [context.tenantId, context.agentId ?? null, context.userId],
+        AND (ic.user_id=$3 OR ic.user_id IS NULL)
+        AND EXISTS (
+          SELECT 1
+            FROM organisation_integrations oi
+           WHERE oi.org_id=ic.org_id
+             AND oi.integration_id=ic.integration_id
+             AND oi.enabled=TRUE
+        )
+        AND EXISTS (
+          SELECT 1
+            FROM platform_integrations pi
+           WHERE pi.integration_id=ic.integration_id
+             AND pi.enabled=TRUE
+             AND (pi.allowed_plans @> ARRAY[$4]::text[] OR pi.allowed_plans @> ARRAY['*']::text[])
+        )`,
+    [context.tenantId, context.agentId, context.userId, (await resolveOrgPlanLimits(context.tenantId)).plan_id],
   );
 
   for (const row of rows) {
