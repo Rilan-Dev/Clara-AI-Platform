@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 MCP RESOLVER SHAPE HARDENING
+
+[architect-verified] I-6 continues as bounded MCP Tool Bridge implementation. The injected resolver boundary now validates its runtime shape before the bridge binds resolver execution, preventing malformed host adapters from crossing the public builder boundary.
+
+- Implementation: `d6ee7f8acd007ffe0b687f9acd7a1522e28efcab`
+- Regression: `6fda566ecfe25361ee2bbf1901433ec46609fc53`
+- Status: IN PROGRESS — bounded source hardening; external verification deferred.
+
+**Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+
+**STOP:** no MCP transport/server hosting, broad provider rollout, OAuth/persistence expansion, marketplace, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY CORRECTION
 
 [architect-verified] I-6 source hardening continues under the owner instruction to keep implementation moving without waiting for external CI/Vercel or phase gates.
