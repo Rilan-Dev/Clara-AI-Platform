@@ -27,3 +27,15 @@ Append-only operational history for OPS-01. This is not the source of authorizat
 - **Blockers/dependencies:** FIX-01 must correct the duplicate migration source before a successful Vercel build is possible from that deployment branch.
 - **Lesson:** This is an application migration defect, not a Vercel infrastructure failure. The correct OPS response is diagnosis plus routing, not bypassing migrations or weakening the guard.
 - **Next action:** FIX-01 corrects the deployment-branch migration filename/number; after the correction, a future deployment may be run when externally authorized. OPS-01 does not poll or wait for that deployment.
+
+
+### OPS-01-2026-10-09-DOCKER / 2026-10-09
+- Task: Diagnose local Docker Compose production-image build failure on feature/ai-core-from-doable-source.
+- Authorization: OPS-01 operational diagnosis/routing; do not silently alter application behavior.
+- Started from: feature/ai-core-from-doable-source after git pull advanced local branch from 853dfaf8 to 5a79fe6f.
+- Actions: Recovered NEXT_ACTION.md and role-local records. Inspected package.json and postcss.config.js. Confirmed tailwindcss is 4.3 while postcss.config.js still registers tailwindcss directly. Classified the failure as Next.js CSS compilation, not Docker/BuildKit infrastructure. clara-worker built and exported successfully; clara-backend failed at next build. Confirmed @tailwindcss/postcss is not declared. A temporary PostCSS edit was made only to validate the diagnosis and immediately reverted because OPS-01 is not authorized to retain application-source changes.
+- Files/code: postcss.config.js restored to its original content; no product fix retained.
+- Evidence: Docker build failed at RUN npm run build; Next.js 16.4.0 reported that tailwindcss cannot be used directly as the PostCSS plugin and that the plugin moved to @tailwindcss/postcss.
+- Blockers/dependencies: FIX-01/DEV-01 must update package.json, package-lock.json, and postcss.config.js consistently.
+- Lesson: a frontend toolchain compatibility error inside next build is an application build-configuration defect even when surfaced through Docker. Do not modify Dockerfile/npm reproducibility to hide it.
+- Next action: FIX-01 applies the lockfile-backed Tailwind v4 PostCSS migration. OPS-01 does not poll or wait for CI/Vercel.
