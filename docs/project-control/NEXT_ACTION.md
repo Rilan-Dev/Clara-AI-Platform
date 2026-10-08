@@ -1,3 +1,11 @@
+# Immediate operational hotfix — CSS restoration (2026-10-09)
+
+The owner explicitly authorized a live self-hosted UI styling fix. The latest source branch uses Tailwind CSS 4.3 with `@tailwindcss/postcss`, but `src/app/globals.css` still used the removed v3 `@tailwind base/components/utilities` directives. Commit `449afb73ea2a111c633c91dcd34e03f9d6a7480c` switches the stylesheet entry to `@import "tailwindcss";` and explicitly loads the existing root Tailwind config with `@config "../../tailwind.config.js";`.
+
+**Next action:** on the self-hosted Docker host, fetch this branch and rebuild/recreate `clara-backend`; then verify the page's `/_next/static/css/*` assets return HTTP 200 and contain generated utility CSS, and hard-refresh the browser. ChatGPT cannot access the user's SSH session from this chat, so no host rebuild or live-runtime verification is claimed yet. Do not treat source commit alone as a production deployment.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — I-6 IMPLEMENTATION COMPLETE
 
 [architect-verified] I-6 is fully complete at the bounded source-implementation level. The final correction validates the injected resolver before enabled runtime creation, including the empty-request case, while the public builder already rejects malformed resolver objects.
