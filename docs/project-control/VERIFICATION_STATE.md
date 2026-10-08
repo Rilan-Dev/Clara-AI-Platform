@@ -1,3 +1,15 @@
+## CURRENT AUTHORITATIVE I-6 STATE — 2026-10-08 — REGISTRATION BOUNDARY HARDENING
+
+[architect-verified] The MCP runtime builder validates the injected resolver before registration iteration, including the empty-request case. Malformed resolver input fails closed instead of producing a misleading empty runtime.
+
+- Implementation: `a885eac30a6b6ce8056ecc57091f6319d8d032a2`
+- Regression: `bbdedae0497fc4b01ae0a4a4f4eb42e520add55c`
+- I-6 remains IN PROGRESS; external CI/Vercel/Gate evidence is deferred.
+
+**Next implementation:** continue bounded I-6 registration and capability-authorization invariant review.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 MCP RESOLVER SHAPE HARDENING
 
 [architect-verified] Source review identified a runtime trust-boundary gap: TypeScript's `McpToolResolver` interface does not validate injected JavaScript/runtime objects. The bridge now checks that the resolver is an object with callable `resolve` and `invoke` methods before using it. The public builder therefore fails closed deterministically instead of leaking a native binding/type error.
