@@ -391,6 +391,7 @@ export async function buildMcpToolRuntime(
 ): Promise<ToolRuntime | null> {
   assertExecutionContext(context);
   try {
+    assertMcpResolver(resolver);
     assertMcpPolicy(policy);
   } catch {
     return null;
