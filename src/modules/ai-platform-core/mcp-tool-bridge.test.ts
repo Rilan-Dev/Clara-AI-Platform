@@ -559,6 +559,36 @@ describe("MCP tool bridge", () => {
     vi.unstubAllEnvs();
   });
 
+  it("does not poison a later identical capability after a registration rejection", async () => {
+    vi.stubEnv("ENABLE_MCP", "true");
+    let resolveCount = 0;
+    const resolver: McpToolResolver = {
+      async resolve() {
+        resolveCount += 1;
+        return resolveCount === 1
+          ? { ...descriptor, description: "x".repeat(1001) }
+          : descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [
+        { serverId: "demo", toolName: "lookup", context },
+        { serverId: "demo", toolName: "lookup", context },
+      ],
+      policy,
+      resolver,
+    );
+
+    expect(resolveCount).toBe(2);
+    expect(runtime?.listTools()).toHaveLength(1);
+    vi.unstubAllEnvs();
+  });
+
   it("binds resolved capabilities to the resolution context", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
