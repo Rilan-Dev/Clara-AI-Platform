@@ -93,3 +93,20 @@ Start with `docs/project-control/NAVIGATION.md`. For role behavior use `docs/pro
 
 These role controls allow a new agent chat to begin while another agent is still working. The new agent recovers its own authorized work from GitHub and does not depend on the other conversation.
 
+
+
+## APCP — How to use agents
+
+You can start a brand-new ChatGPT chat with any APCP agent without explaining the project again. The agent must recover the architecture, current work, authorization, project-control state, shared lessons, known mistakes, sessions, and next action from GitHub.
+
+**Human quick guide:** `docs/project-control/HOW_TO_USE_AGENTS.md`
+
+Use it when you need to know **which agent to call, when to call it, how to continue where you left off, how to assign daily/unplanned work, how to run agents concurrently, and which copy/paste prompt to use**.
+
+Registered roles:
+- **DEV-01 / Forge** — planned product development.
+- **FIX-01 / Sentinel** — bugs, failures, regressions, root-cause correction.
+- **OPS-01 / Shipwright** — CI/CD, GitHub Actions, Vercel, Docker, deployment, infrastructure.
+- **WORK-01 / Rover** — daily/simple/unplanned safe work and investigations.
+
+Starting an agent selects its role; it does not grant authorization. Shared and role-local memories preserve lessons and prevent repeat mistakes, while current GitHub/project-control state remains authoritative.
