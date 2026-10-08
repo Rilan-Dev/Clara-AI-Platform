@@ -95,6 +95,7 @@ describe("MCP tool bridge", () => {
         { ...descriptor, name: "delete" },
         policy,
         {} as McpToolResolver,
+        context,
       ),
     ).toThrow("not allowlisted");
   });
