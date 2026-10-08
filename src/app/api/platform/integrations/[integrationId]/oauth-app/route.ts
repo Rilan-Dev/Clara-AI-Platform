@@ -7,6 +7,34 @@ import { getIntegration } from "@/modules/integrations/registry";
 
 export const dynamic = "force-dynamic";
 
+function validateRedirectUri(value: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return "Redirect URI must be an absolute URL.";
+  }
+  const localHttp = parsed.protocol === "http:" &&
+    (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "[::1]") &&
+    process.env.NODE_ENV !== "production";
+  if (parsed.protocol !== "https:" && !localHttp) {
+    return "Redirect URI must use HTTPS (HTTP is allowed only for local development).";
+  }
+  if (parsed.username || parsed.password || parsed.hash) {
+    return "Redirect URI must not contain credentials or a fragment.";
+  }
+  return null;
+}
+
+function normalizeScopes(value: unknown): string[] | null {
+  if (!Array.isArray(value) || !value.every((scope) => typeof scope === "string")) {
+    return null;
+  }
+  const scopes = value.map((scope: string) => scope.trim()).filter(Boolean);
+  if (scopes.length > 100 || scopes.some((scope) => scope.length > 200)) return null;
+  return [...new Set(scopes)];
+}
+
 type Params = { params: Promise<{ integrationId: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -65,11 +93,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const clientId = typeof body.clientId === "string" ? body.clientId.trim() : "";
     const clientSecret = typeof body.clientSecret === "string" ? body.clientSecret : "";
     const redirectUri = typeof body.redirectUri === "string" ? body.redirectUri.trim() : "";
-    const scopes = Array.isArray(body.scopes) && body.scopes.every((v) => typeof v === "string")
-      ? body.scopes.map((v: string) => v.trim()).filter(Boolean)
-      : null;
-    if (!clientId || !redirectUri || scopes === null) {
-      return NextResponse.json({ error: "Client ID, redirect URI, and a string-array scopes value are required" }, { status: 400 });
+    const scopes = normalizeScopes(body.scopes);
+    if (!clientId || clientId.length > 512 || !redirectUri || scopes === null) {
+      return NextResponse.json({ error: "A valid client ID, redirect URI, and scopes array are required" }, { status: 400 });
+    }
+    if (clientSecret.length > 8192) {
+      return NextResponse.json({ error: "OAuth client secret is too long" }, { status: 400 });
+    }
+    const redirectError = validateRedirectUri(redirectUri);
+    if (redirectError) {
+      return NextResponse.json({ error: redirectError }, { status: 400 });
     }
     let secretToStore = clientSecret;
     if (!secretToStore) {
