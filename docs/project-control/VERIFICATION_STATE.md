@@ -1,3 +1,15 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 RESOLVER REQUEST INTEGRITY HARDENING
+
+[architect-verified] Source review identified that the injected MCP resolver receives the resolution request as a normal runtime object despite TypeScript readonly declarations. Before this correction, a resolver could mutate `serverId`, `toolName`, or `context`, and subsequent identity checks would read the mutated values. I-6 now snapshots the authorized request identity/context before resolver invocation and rejects any mutation before constructing the capability.
+
+- Implementation: `8eb6bff89abd1867c3136f2dcfa32eed8b9a8751`
+- Regression: `556d48320a44b546919b9da177ec74c50c89f27a`
+- Verification class: source-level architect review only.
+- External CI/Vercel/Gate-C/Gate-D remain deferred by owner instruction.
+- Disposition: I-6 remains **IN PROGRESS**.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 SOURCE IMPLEMENTATION ACTIVE / EXTERNAL VERIFICATION DEFERRED
 
 [architect-verified] Source review identified that independent `allowedServers` and `allowedTools` membership could authorize an unintended server/tool cross-product. I-6 now requires an exact server/tool pair entry and snapshots those pair identities at definition construction. Focused regression covers rejection of a cross-product pairing.
