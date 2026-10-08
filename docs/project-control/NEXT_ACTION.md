@@ -1,3 +1,19 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE — FINAL REGISTRATION CORRECTION
+
+[architect-verified] I-6 MCP Tool Bridge is implementation-complete within its bounded plan. The final registration correction ensures the capability identity map is committed only after `runtime.registerTool()` succeeds. A `ToolRegistrationError` therefore leaves the identity retryable, so a subsequent identical resolution can register successfully.
+
+- Implementation: `a215bb81b1bf53f1c4c98d5205aa841bb2a0ee43`
+- Regression: `e4cdc946a15b76a004e4123be5eaf060b4edcd9d`
+- All I-6 implementation acceptance requirements remain covered: exact server/tool allowlist, default-off flag, deterministic collision-resistant names, resolver/policy/descriptor runtime validation, frozen resolution request, exact provenance-verified context binding, schema validation, isolated Unified Tool Runtime delegation, fail-closed discovery/registration, and public AI Platform Core export.
+- No tests, GitHub Actions, Vercel build, Gate-C, or Gate-D execution was awaited.
+- I-6 is **IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED**.
+
+**Next implementation:** no additional I-6 item remains authorized. The next implementation must come from a newly authorized project-control action; do not invent an I-7 scope.
+
+**STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace/catalog, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
 
 [architect-verified] I-6 MCP Tool Bridge is implementation-complete within its bounded plan.
