@@ -4,6 +4,13 @@ import type { PoolClient } from "pg";
 import { pool } from "@/lib/db";
 import { hashPassword } from "@/modules/auth/core/password";
 import { listIntegrations } from "@/modules/integrations/registry";
+import {
+  createCliSummary,
+  printSection,
+  printSummary,
+  stage,
+  type CliLog,
+} from "@/lib/cli/observability";
 
 /**
  * Production seed — bootstrap data a real deployment needs to function.
@@ -35,7 +42,7 @@ import { listIntegrations } from "@/modules/integrations/registry";
  *   DEMO_CLARA_API_KEY    landing-page embed key (raw clr_… value)
  */
 
-type Logger = Pick<typeof console, "log" | "warn" | "error">;
+type Logger = CliLog;
 
 const IDS = {
   adminUserId:  "40000000-0000-0000-0000-000000000001",
@@ -153,6 +160,7 @@ async function seedPlatformSettings(client: PoolClient, logger: Logger) {
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
       [key, value],
     );
+    printSection(logger, "SEED", "SETTING", { key, value });
   }
   logger.log(`[seed:prod] applied ${entries.length} platform settings values`);
 }
@@ -446,20 +454,78 @@ async function seedDemoIntegrationAccess(client: PoolClient, logger: Logger) {
 
 export async function seedProductionData(options?: { logger?: Logger }) {
   const logger = options?.logger ?? console;
+  const summary = createCliSummary();
   const client = await pool.connect();
 
+  async function runStage(
+    area: string,
+    title: string,
+    action: () => Promise<void>,
+    details: Record<string, unknown> = {},
+  ) {
+    const current = stage(logger, summary, area, title, details);
+    try {
+      await action();
+      current.complete();
+    } catch (error) {
+      current.fail(error);
+      throw error;
+    }
+  }
+
   try {
+    printSection(logger, "SEED", "DATABASE", {
+      transaction: "BEGIN → COMMIT / ROLLBACK",
+      poolClient: "dedicated transaction client",
+      mutationMode: "idempotent upserts",
+    });
+
     await client.query("BEGIN");
-    await seedPlatformAdmin(client, logger);
-    await seedPlatformIntegrations(client, logger);
-    await seedPlatformSettings(client, logger);
-    await seedLandingDemo(client, logger);
-    await seedDemoOrgAccess(client, logger);
-    await seedDemoIntegrationAccess(client, logger);
+
+    await runStage("SEED", "PLATFORM ADMIN", () => seedPlatformAdmin(client, logger), {
+      userId: IDS.adminUserId,
+      email: process.env.CLARA_ADMIN_EMAIL ?? "admin@clara.ai",
+    });
+
+    await runStage("SEED", "PLATFORM INTEGRATIONS", () => seedPlatformIntegrations(client, logger), {
+      source: "integration registry",
+    });
+
+    await runStage("SEED", "PLATFORM SETTINGS", () => seedPlatformSettings(client, logger), {
+      source: "environment + production defaults",
+      target: "platform_env_settings",
+    });
+
+    await runStage("SEED", "LANDING DEMO", () => seedLandingDemo(client, logger), {
+      organisationId: IDS.demoOrgId,
+      agentId: IDS.demoAgentId,
+      knowledgeBaseId: IDS.demoKbId,
+      qdrantCollection: DEMO_QDRANT_COLLECTION,
+      apiKey: process.env.DEMO_CLARA_API_KEY ? "configured" : "not configured",
+    });
+
+    await runStage("SEED", "DEMO ORGANISATION ACCESS", () => seedDemoOrgAccess(client, logger), {
+      organisationId: IDS.demoOrgId,
+      plan: "enterprise",
+      termYears: DEMO_SUB_YEARS,
+    });
+
+    await runStage("SEED", "DEMO INTEGRATION ACCESS", () => seedDemoIntegrationAccess(client, logger), {
+      organisationId: IDS.demoOrgId,
+      agentId: IDS.demoAgentId,
+    });
+
     await client.query("COMMIT");
-    logger.log("[seed:prod] production seed complete.");
+    logger.log("\n[SEED][TRANSACTION] ✓ COMMIT completed — all production seed changes are durable.");
+    printSummary(logger, summary, "SUCCESS");
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+      logger.error("\n[SEED][TRANSACTION] ✓ ROLLBACK completed — no partial seed transaction was committed.");
+    } catch (rollbackError) {
+      logger.error("[SEED][TRANSACTION] ✗ ROLLBACK failed: " + (rollbackError instanceof Error ? rollbackError.message : String(rollbackError)));
+    }
+    printSummary(logger, summary, "FAILED");
     throw error;
   } finally {
     client.release();
