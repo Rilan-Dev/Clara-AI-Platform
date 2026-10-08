@@ -58,6 +58,7 @@ describe("MCP tool bridge", () => {
         { ...descriptor, allowedSurfaces: [] },
         policy,
         {} as McpToolResolver,
+        context,
       ),
     ).toThrow("no allowed Clara surface");
   });
@@ -163,7 +164,7 @@ describe("MCP tool bridge", () => {
       },
     };
 
-    const tool = buildMcpToolDefinition(descriptor, policy, resolver);
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver, context);
     const runtime = createRuntime();
     runtime.registerTool(tool);
 
@@ -182,7 +183,7 @@ describe("MCP tool bridge", () => {
       },
     };
 
-    const tool = buildMcpToolDefinition(descriptor, policy, resolver);
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver, context);
     const runtime = createRuntime();
     runtime.registerTool(tool);
 
@@ -253,6 +254,7 @@ describe("MCP tool bridge", () => {
       mutableDescriptor,
       mutablePolicy,
       resolver,
+      context,
     );
     const runtime = createRuntime();
     runtime.registerTool(tool);
