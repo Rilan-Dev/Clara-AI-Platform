@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE — FINAL REGISTRATION CORRECTION
+
+[architect-verified] I-6 MCP Tool Bridge implementation is complete within the bounded plan. The final registration invariant records normalized MCP identity only after successful Unified Tool Runtime registration, allowing a later identical capability to retry after a registration rejection without silently being skipped.
+
+- Implementation: `a215bb81b1bf53f1c4c98d5205aa841bb2a0ee43`
+- Regression: `e4cdc946a15b76a004e4123be5eaf060b4edcd9d`
+- Status: **IMPLEMENTATION COMPLETE — EXTERNAL VERIFICATION DEFERRED**.
+
+**STOP:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace/catalog, broad provider rollout, production promotion, billing redesign, or unrelated implementation under I-6.
+
+**Next:** await a newly authorized project-control implementation action; do not invent I-7 scope.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
 
 [architect-verified] I-6 MCP Tool Bridge bounded implementation is complete. All implementation-side acceptance requirements in the I-6 plan are represented in the AI Platform Core seam, including fail-closed authorization, exact execution-context preservation, runtime input-schema enforcement through Unified Tool Runtime, resolver-boundary validation, deterministic naming/collision protection, default-off behavior, and public export.
