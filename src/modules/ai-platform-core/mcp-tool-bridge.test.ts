@@ -308,6 +308,60 @@ describe("MCP tool bridge", () => {
     expect(receivedName).toBe("lookup");
   });
 
+  it("binds immutable resolution identity when the caller mutates its context object", async () => {
+    const mutableContext = {
+      ...context,
+    };
+
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = buildMcpToolDefinition(
+      descriptor,
+      policy,
+      resolver,
+      mutableContext,
+    );
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    mutableContext.userId = "user-2";
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "TENANT_SCOPE_VIOLATION" },
+    });
+  });
+
+  it("binds the resolver invocation method at registration time", async () => {
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver, context);
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    resolver.invoke = async () => {
+      throw new Error("replaced resolver must not execute");
+    };
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result).toMatchObject({ ok: true, data: { ok: true } });
+  });
+
   it("skips a resolver capability that cannot pass runtime registration", async () => {
     vi.stubEnv("ENABLE_MCP", "true");
     const resolver: McpToolResolver = {
