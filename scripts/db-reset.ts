@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import fs from "node:fs";
 import path from "node:path";
+/**
  * scripts/db-reset.ts — destructive: drop the public schema, re-run the clean
  * migration baseline, and seed.
  *
