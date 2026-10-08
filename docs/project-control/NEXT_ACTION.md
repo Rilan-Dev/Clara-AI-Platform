@@ -1,3 +1,28 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 IMPLEMENTATION COMPLETE
+
+[architect-verified] I-6 MCP Tool Bridge is implementation-complete within its bounded plan.
+
+### Completion record
+- Added runtime validation for the injected MCP resolver (`resolve` and `invoke` must be callable).
+- Added runtime validation for malformed/null MCP policy objects at the public builder boundary.
+- Added focused regressions for both trust-boundary failures.
+- Removed an obsolete unused context snapshot from the resolver path.
+- Existing I-6 controls remain intact: exact server/tool allowlist, explicit empty-surface fail-closed behavior, default-off `ENABLE_MCP`, deterministic 64-character collision-resistant names, frozen resolver request, exact provenance-verified execution-context identity binding, descriptor/schema validation, isolated Unified Tool Runtime delegation, and fail-closed registration/discovery.
+
+Latest commits:
+- `aa6951a499fd66c40a467c646332d8cacd019648`
+- `17c925a11a478d910779c3ce77e946500252ed67`
+
+### Verification disposition
+No tests, GitHub Actions, Vercel build, Gate-C, or Gate-D execution was awaited. No external verification PASS is claimed.
+
+### Next implementation
+No additional I-6 implementation item remains authorized by the current plan. Do not invent or expand an I-7 scope. The next implementation must be taken from a newly authorized project-control action.
+
+**STOP boundary:** no MCP transport/server hosting, OAuth/persistence expansion, marketplace/catalog, broad provider rollout, production promotion, billing redesign, or unrelated implementation.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-08 — I-6 MCP REGISTRATION BOUNDARY HARDENING
 
 [architect-verified] Continued bounded I-6 implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
