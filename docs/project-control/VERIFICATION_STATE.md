@@ -1,3 +1,15 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 RESOLVER REQUEST IMMUTABILITY HARDENING
+
+[architect-verified] Source review identified that TypeScript readonly does not make the injected MCP resolution request immutable at runtime. The bridge now passes a frozen request snapshot to resolver discovery, preventing transient server/tool/context mutation during asynchronous resolution. The same review also hardens the `requireUserId` policy shape by rejecting non-boolean runtime values.
+
+- Implementation: `9cfec56c90da88e367ac543e174716639802862b`
+- Regression: `7ac7557abeb700f0a3a42ffd44ce58346c0b165a`
+- Verification class: source-level architect review only.
+- No tests, CI, Vercel, Gate-C, or Gate-D execution was awaited.
+- Disposition: I-6 remains IN PROGRESS; no closure is inferred.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-08 — I-6 RESOLVER REQUEST INTEGRITY HARDENING
 
 [architect-verified] Source review identified that the injected MCP resolver receives the resolution request as a normal runtime object despite TypeScript readonly declarations. Before this correction, a resolver could mutate `serverId`, `toolName`, or `context`, and subsequent identity checks would read the mutated values. I-6 now snapshots the authorized request identity/context before resolver invocation and rejects any mutation before constructing the capability.
