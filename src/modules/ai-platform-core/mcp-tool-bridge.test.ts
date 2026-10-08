@@ -77,6 +77,32 @@ describe("MCP tool bridge", () => {
     ).toThrow("no allowed Clara surface");
   });
 
+  it("fails closed when an external descriptor supplies a non-array surface allowlist", () => {
+    expect(() =>
+      buildMcpToolDefinition(
+        {
+          ...descriptor,
+          allowedSurfaces: "chat" as never,
+        },
+        policy,
+        {} as McpToolResolver,
+        context,
+      ),
+    ).toThrow("surface allowlist is malformed");
+  });
+
+  it("treats malformed policy data as unauthorized in static inspection", () => {
+    expect(
+      isMcpToolAllowlisted(
+        descriptor,
+        {
+          allowedServers: "demo" as never,
+          allowedToolPairs: [],
+        },
+      ),
+    ).toBe(false);
+  });
+
   it("requires the exact server/tool allowlist pairing", () => {
     const crossProductPolicy = {
       allowedServers: ["demo", "admin"],
