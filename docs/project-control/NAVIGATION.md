@@ -12,3 +12,10 @@ Startup memory order:
 WORK-01 / Rover is the safe daily-worker role. It can perform SAFE-LOCAL or already AUTHORIZED maintenance/unplanned work while planned agents continue. MATERIAL-CHANGE work is routed for explicit authorization.
 
 Shared memory is for reusable lessons; role-local memory/worklogs preserve independent agent history; central sessions/events/handoffs/backlog provide coordination. None of these replaces authorization or project state.
+
+
+## User agent quick guide
+
+**Start here for human copy/paste usage:** read `docs/project-control/HOW_TO_USE_AGENTS.md`.
+
+It explains which agent to call, when to use DEV-01 / FIX-01 / OPS-01 / WORK-01, how to start a fresh chat and continue where you left off, how to run daily work, how to invoke agents concurrently, how memory is recovered, and ready-to-paste prompts for common situations.
