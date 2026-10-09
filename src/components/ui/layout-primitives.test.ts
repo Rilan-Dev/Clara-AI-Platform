@@ -131,6 +131,19 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(orgSettings).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("keeps email audit notes, billing notes, and variable descriptions from truncating", () => {
+    const emailAudit = source("../../components/admin/EmailTemplatesPanel.tsx");
+    const billing = source("../../features/admin/screens/org-billing-screen.tsx");
+    const variables = source("../../components/admin/email-templates/VariablesManagerDialog.tsx");
+
+    expect(emailAudit).not.toMatch(/min-w-0 flex-1 truncate text-xs text-muted-foreground/);
+    expect(emailAudit).toMatch(/overflow-wrap:anywhere/);
+    expect(billing).not.toMatch(/entry\.note.*truncate/);
+    expect(billing).toMatch(/overflow-wrap:anywhere/);
+    expect(variables).not.toMatch(/min-w-0 flex-1 truncate text-xs text-muted-foreground/);
+    expect(variables).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps live conversation messages shrink-safe with long user and assistant text", () => {
     const conversation = source("../../features/agent-conversation/components/conversation-chat-window.tsx");
 
