@@ -47,3 +47,7 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Prevention:** Each fresh build log is new evidence: inspect the complete failing trace and keep the correction narrowly tied to real target files.
 - **Verification:** Post-correction build not run.
 - **Commits:** `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
+
+
+### 2026-10-09 — OAuth token type contract
+When changing OAuth consent/refresh persistence, update `OAuth2TokenData` alongside the persisted fields. The refresh path reads optional `authorization_method` to preserve HEADER/BODY client authentication; missing values remain compatible with the existing BODY fallback. Source correction: `5d0d64c22c04c32f01a44cbb0ad95b3fee7b4921`. This is not build verification.
