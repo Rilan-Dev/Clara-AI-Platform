@@ -131,6 +131,19 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(orgSettings).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("constrains demo chat bubbles and OAuth form controls to their containers", () => {
+    const landing = source("../../features/platform/screens/landing-screen.tsx");
+    const platformOAuth = source("../../features/admin/screens/platform-integrations-screen.tsx");
+
+    expect(landing).toMatch(/w-full min-w-0 max-w-3xl/);
+    expect(landing).toMatch(/max-w-\[calc\(100%-2\.75rem\)\]/);
+    expect(landing).toMatch(/overflow-wrap:anywhere/);
+    expect(landing).not.toMatch(/max-w-\[85%\]/);
+    expect(platformOAuth).toMatch(/overflow-x-hidden/);
+    expect(platformOAuth).toMatch(/flex-wrap items-center justify-between gap-3/);
+    expect(platformOAuth).toMatch(/w-full min-w-0 max-w-full/);
+  });
+
   it("preserves long agent names and analytics query text in cards", () => {
     const orgAgents = source("../../features/admin/screens/org-agents-screen.tsx");
     const analytics = source("../../features/admin/screens/analytics-screen.tsx");
