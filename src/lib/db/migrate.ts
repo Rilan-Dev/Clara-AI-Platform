@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { pool } from "@/lib/db";
 import type { PoolClient } from "pg";
+import { findDuplicateMigrationNumbers } from "@/lib/db/migration-validation";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
 const MIGRATION_LOCK_KEY = "clara-schema-migrations";
@@ -23,6 +24,17 @@ async function appliedMigrations(client: PoolClient): Promise<Set<string>> {
 }
 
 async function runMigrations(): Promise<void> {
+  // Validate the complete migration set before opening a DB connection. This
+  // makes a duplicate-number failure deterministic and prevents even bootstrap
+  // schema queries from running against an invalid migration set.
+  const files = fs.readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  const duplicates = findDuplicateMigrationNumbers(files);
+  if (duplicates.length > 0) {
+    throw new Error(`[migrate] duplicate migration numbers detected: ${duplicates.join(", ")}`);
+  }
+
   // Vercel can start multiple serverless instances at the same time. The
   // advisory lock serializes schema changes across instances.
   //
@@ -37,18 +49,6 @@ async function runMigrations(): Promise<void> {
 
     await createMigrationsTable(lockClient);
     const applied = await appliedMigrations(lockClient);
-
-    const files = fs.readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
-
-    // Guard: each migration file number must be unique — duplicates indicate
-    // an accidental re-add and must never be executed.
-    const numbers = files.map((f) => f.split("_")[0]);
-    const dupes = numbers.filter((n, i) => numbers.indexOf(n) !== i);
-    if (dupes.length > 0) {
-      throw new Error(`[migrate] duplicate migration numbers detected: ${dupes.join(", ")}`);
-    }
 
     let appliedCount = 0;
     for (const filename of files) {
