@@ -382,8 +382,8 @@ function DeployTrafficDialog({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={() => !busy && onClose()}
       />
-      <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
-        <div className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="absolute inset-0 flex min-w-0 items-center justify-center overflow-y-auto p-2 sm:p-6">
+        <div className="flex max-h-full w-full min-w-0 max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-200 [overflow-wrap:anywhere]">
           <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-foreground">Deploy traffic</h2>
