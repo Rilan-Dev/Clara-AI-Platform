@@ -1869,21 +1869,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
 
 
-## I-090 — WhatsApp Business channel needs complete server-side lifecycle
+## I-090 — WhatsApp Business connection and briefing lifecycle
 
 | Field | Value |
 |---|---|
 | Issue ID | I-090 |
-| Title | WhatsApp Business requires durable Meta authorization, signed webhooks, message state, and gated briefing readiness |
+| Title | WhatsApp Business requires secure Meta authorization, signed webhook state, durable messages, and gated scheduled delivery |
 | Phase | Messaging / WhatsApp Business |
 | Severity | P1 |
-| Status | OPEN — lifecycle source slice implemented; outbound delivery and live verification pending |
+| Status | OPEN — source implemented; token health, regression execution, and live provider verification pending |
 | Date identified | 2026-10-09 |
 | Reporter / role | DEV-01 / Forge |
 | Finding | The agent workspace initially had no WhatsApp-specific connection initiation/callback, webhook verification handler, or durable inbound/message delivery state. Generic agent integrations are not a WhatsApp phone connection. |
-| Source correction | Added migration `067_whatsapp_business_lifecycle.sql`; authenticated agent-scoped Meta OAuth initiation and one-time callback; encrypted long-lived-token session/connection storage; business/WABA/phone selection; database uniqueness constraints for one active phone per agent and one active agent per phone; WABA app subscription; webhook challenge and raw-body HMAC signature checks; transactionally deduplicated event processing; durable inbound messages/status updates; server-backed UI health; and a briefing eligibility flag guarded by verified webhook readiness. |
-| Regression/docs | Added `src/modules/integrations/whatsapp-webhook.test.ts` and `docs/deployment/whatsapp-business.md`. |
-| Implementation commits | `27ad17cb8f9bff9d0278ce4eb68900e81fe2ecfe`, `89ce8d7b23e1fadb877c41f14540aa140b2f864b`, `496db2482512d39d632ee2c95c5ec2779a466bd4`, `3b238a36890b9f6d2acb8973a4e9681d6606ce26`, `19c6401062334447277171c3e44c906809378a6d`, `a5ccba51b4ecd06bc279c9f8f67b13c34cb1dc78`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `30fca3dfe1d2fc6a847cc8da7ca725a4dcf93f0c`, `392978f3df24a2656c43ed4b12241317ad1df66`. |
-| Remaining work | Implement outbound message send + provider delivery capture; implement actual scheduled daily summary generation/delivery gated by active + webhook-verified + briefing-enabled connection; token expiry/revocation/reconnect handling; focused route-level regressions. The briefing flag is eligibility/preference only and does not mean messages are scheduled or delivered. |
-| Verification | Regression source is authored but not run. No typecheck/build/Docker/CI/Vercel/deployment/live Meta OAuth/webhook/subscription was run or claimed. |
+| Source correction | Added migration `067_whatsapp_business_lifecycle.sql`; authenticated agent-scoped Meta OAuth with one-time state and callback permission recheck; encrypted token/session persistence; WABA/phone selection; one-active-phone constraints; WABA subscription; challenge/HMAC webhook verification; transactional idempotent event processing; durable inbound messages and delivery status; server-backed UI health; recipient E.164/opt-in capture; and a CRON_SECRET-protected daily briefing sender scheduled for 03:00 UTC. |
+| Briefing controls | Sending requires active + webhook-verified connection, enabled preference, explicit recipient opt-in, and a configured approved Meta template. Unique connection/date run records and outbound provider message IDs/statuses are persisted. Current summary is a deterministic message-excerpt digest, not an LLM-generated summary. |
+| Regression/docs | Helper regression source: `src/modules/integrations/whatsapp-webhook.test.ts` and `src/modules/integrations/whatsapp-briefing.test.ts`. Setup: `docs/deployment/whatsapp-business.md`. |
+| Remaining work | Persist token expiry and automate expiry/revocation/reconnect health; add route-level regression source for OAuth replay/tenant isolation/phone conflicts/briefing gate; reconcile ambiguous `sending` runs and provider status races; optionally upgrade digest to grounded AI summarization. |
+| Verification | Tests authored but not run. No typecheck/build/Docker/CI/Vercel/deployment/live Meta OAuth/webhook/subscription/scheduled delivery was run or claimed. |
 | Related session | SESSION-DEV-20261009-04 |
