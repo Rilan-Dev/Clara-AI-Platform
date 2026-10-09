@@ -79,3 +79,12 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - Bounded webhook body size, validated provider timestamps, rejected non-WhatsApp webhook objects, and fixed disconnect result reporting.
 - Follow-up commits: `86819cc2af482ad6ae46474496546202cd8c2fc7`, `9c63b124f3dd048322967f34b58d2c7578b70ba3`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `93743aebaa8d66f55ccf30cfc15c8b6b7aa0976`, `ef6f17b22c1bacd7be7741a6d496c64c792e409a`, `494fc312ecf14ed22e8540f560cb94fd19dc42a`.
 - Verification remains source inspection only; no tests/build/live Meta flow were run or awaited.
+
+
+### SESSION-DEV-20261009-04 — scheduled briefing follow-up
+
+- **Actions:** Added recipient E.164 validation and explicit opt-in fields; briefing eligibility now requires a verified connection plus saved recipient consent. Added `whatsapp_daily_briefing_runs`, a `CRON_SECRET`-protected sender using an approved Meta template, outbound message/status persistence, duplicate-per-date prevention, and a 03:00 UTC schedule in `vercel.json` (also consumed by self-hosted `local-cron`). Extracted and authored regression source for recipient validation and bounded daily digest generation.
+- **Additional files:** `src/app/api/cron/whatsapp-daily-briefings/route.ts`; `src/modules/integrations/whatsapp-briefing.ts`; `src/modules/integrations/whatsapp-briefing.test.ts`; updated `src/lib/db/migrations/067_whatsapp_business_lifecycle.sql`, `src/app/api/orgs/[orgId]/agents/[agentId]/messaging/connection/route.ts`, `src/features/admin/screens/agent-messaging-screen.tsx`, and `vercel.json`.
+- **Commits:** `6535699544f97dd912fff7ecbd997c05dbbbde9a`, `82fbd0d46bfc179cb90ff4ed86963b48283b96b8`, `68feadd4843e30ec4214b3ca38ec3e9839c89677`, `15e1285c3d1be6402fe42232bcb2b28eedf98ef7`, `4aafbb3ab2435d8ea52816be7641f53faf0a21e7`, `6b280078a817e8e98fe18244eea152a5c2e245e9`, `8301d7f59d3275795e1cd326be2ca51b61fa6fa5`, `e17a6376ab9bd75feb4c681767fce534579b0635`, `8669eeb679afa39a295038817dae9fe316f70f76`, `62675fe59e5570366e925140a18c2f28884936d3`, `7086c66ea3458617f69eff28a2eefaa2785c25f4`.
+- **Boundary:** Daily content is a deterministic digest of recent inbound excerpts, not LLM summarization. The approved template, Meta app setup, CRON_SECRET, and recipient opt-in are required. No tests/build/cron run/live provider send was executed or awaited.
+- **Next:** Implement token expiry/revocation/reconnect health and route-level regression source; reconcile ambiguous `sending` runs without unsafe automatic retries.
