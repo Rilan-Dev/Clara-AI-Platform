@@ -1,3 +1,14 @@
+## 2026-10-09 — Shared integration capability policy
+
+- Added `integration-policy.ts` as the shared authorization check used by both the I-4 bridge and `integration-action-tool.ts`.
+- Authorization covers caller identity, platform integration enablement, current plan allowlist, organisation grant, agent grant and user/agent-scoped active connection. DB errors are sanitized to a typed authorization-unavailable result.
+- Availability uses runtime-resolvable action definitions and safe status-specific guidance. Action failures preserve runner error code and retryability metadata.
+- Regression source added for missing identity, policy DB failure, status guidance, and unavailable piece actions.
+- Relevant commits: `55306cc3f1fe62b0295c51089462018fb98eba7b`, `80642166654c16b6c533917783f80c50832d73ee`, `7d6954093c2f7f8bd557b12bf5e75ec6b241e098`, `af97578a8557b92064210748760def6be7b49425`, `1df63308197e42351ba2ddb4efc90d20ed8bff71`, `0f51346861e4f2e61b2a8bd863dc70ce17ec37d6`.
+- No tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider flow was run or awaited.
+
+---
+
 ## 2026-10-09 — Shared integration readiness consistency
 
 - Missing caller user/agent identity now fails closed in integration availability, action invocation, and I-4 bridge capability discovery.
