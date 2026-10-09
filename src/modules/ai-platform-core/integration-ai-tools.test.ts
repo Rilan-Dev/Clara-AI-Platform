@@ -52,7 +52,7 @@ describe("integration availability plan entitlement", () => {
     resolveOrgPlanLimits.mockResolvedValue({ plan_id: "pro" });
     query
       .mockResolvedValueOnce([{ integration_id: "github", enabled: true, allowed_plans: ["pro"] }])
-      .mockResolvedValueOnce([{ integration_id: "github" }]);
+      .mockResolvedValueOnce([{ integration_id: "github", status: "active" }]);
 
     const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
     const tool = buildIntegrationAvailabilityTool();
@@ -68,6 +68,7 @@ describe("integration availability plan entitlement", () => {
         name: "GitHub",
         description: "GitHub API",
         connected: true,
+        connectionStatus: "active",
         actions: ["list_repos"],
         help: "Use the connected GitHub integration through its supported actions.",
       },
@@ -137,6 +138,7 @@ describe("integration availability plan entitlement", () => {
         name: "GitHub",
         description: "GitHub API",
         connected: false,
+        connectionStatus: "disconnected",
         actions: ["list_repos"],
         help: "GitHub is enabled for this agent but still needs credentials connected.",
       },
