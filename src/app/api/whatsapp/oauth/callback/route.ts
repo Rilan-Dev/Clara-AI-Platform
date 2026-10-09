@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
+import { requireAuth } from "@/modules/auth/core/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!state || state.length > 512) return NextResponse.json({ error: "Invalid WhatsApp OAuth state." }, { status: 400 });
   try {
     await ensureMigrated();
+    const auth = await requireAuth(req);
     const consumed = await query<OAuthState>(
       `UPDATE whatsapp_oauth_states SET consumed_at = now()
-        WHERE state_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+        WHERE state_hash = $1 AND user_id = $2 AND consumed_at IS NULL AND expires_at > now()
         RETURNING org_id, agent_id, user_id, redirect_uri`,
-      [digest(state)],
+      [digest(state), auth.user.id],
     );
     const oauthState = consumed[0];
     if (!oauthState) return NextResponse.json({ error: "Invalid, expired, or already-used WhatsApp OAuth state." }, { status: 400 });
@@ -141,6 +143,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!session) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
     return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "select-phone", session.id);
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[whatsapp OAuth callback]", err);
     return NextResponse.json({ error: "WhatsApp authorization could not be completed." }, { status: 500 });
   }
