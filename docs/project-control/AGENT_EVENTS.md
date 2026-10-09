@@ -166,3 +166,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Correction:** Declared `@napi-rs/canvas@^0.1.80` in `package.json` and synchronized the root dependency set in `package-lock.json`.
 - **Commits:** `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`; `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`.
 - **Verification:** No npm ci, Docker build, native module load, or PDF extraction was run. Runtime confirmation remains pending.
+
+
+### EVT-DEV-003 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-03
+- **Type:** CORRECTION
+- **Summary:** Added a Messaging entry point to the existing agent workspace and identified that the WhatsApp-specific connection/webhook/message-persistence lifecycle is absent from source. UI stays Not connected and does not treat external Meta navigation as authorization.
+- **Impact:** Makes the channel reachable while keeping the missing backend capability explicit.
+- **Owner:** DEV-01
+- **Suggested next action:** Implement authenticated Meta WhatsApp connection lifecycle and durable webhook/message state; bind UI status to server truth.
+- **Related records:** SESSION-DEV-20261009-03; `docs/project-control/NEXT_ACTION.md`; `src/features/admin/screens/agent-messaging-screen.tsx`.
