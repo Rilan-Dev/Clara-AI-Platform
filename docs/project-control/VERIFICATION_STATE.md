@@ -1768,3 +1768,11 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 ### Follow-up — explicit canvas runtime dependency
 - Declared `@napi-rs/canvas@^0.1.80` as a direct production dependency and added it to the root lockfile dependency set. Commits: `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`.
 - This addresses the missing package declaration indicated by the log; it does not establish that the native canvas module loads correctly in the self-hosted image or that PDF extraction succeeds.
+
+
+### 2026-10-09 — Background consumers gated after migration failure
+- Owner-provided PostgreSQL logs show missing schema relations while the application logs migration failure. Current `src/instrumentation.node.ts` caught the migration exception but still started cron/ingest/reindex/subscription consumers.
+- Correction: migration completion is tracked; background DB consumers now remain disabled unless migrations complete successfully. HTTP remains available for diagnostics. Commit: `039847f0c6cd8496dcdeec163eb087b366f52f9b`.
+- The current feature-branch migration directory has one `063` prefix and includes `065_platform_integration_oauth_apps.sql`. The log's duplicate-063 failure is not reproducible from the current source listing; exact old image source remains unknown.
+- Current production seed source inserts/upserts the demo organisation before the demo agent. The reported foreign-key error requires fresh evidence before changing seed order or database rows.
+- **Not run / not claimed:** tests, typecheck, Docker rebuild, migration, direct DB inspection, seed execution, PDF extraction, or runtime recovery.
