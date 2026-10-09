@@ -1,3 +1,12 @@
+## 2026-10-09 — OAuth configuration incident: production migration skip guard
+
+[architect-verified] Added a fail-closed guard to `scripts/migrate.ts`: `SKIP_DB_MIGRATIONS=1` remains available for non-production local workflows, but the migration command now exits unsuccessfully if that skip is requested in production or on Vercel. This prevents a deployment build from silently succeeding while request handlers depend on schema migrations that were never applied.
+
+- Implementation commit: `176f9f26a13152f64aae505f1d04fee750f01411`.
+- The earlier OAuth migration-number correction is already present on this branch: `src/lib/db/migrations/065_platform_integration_oauth_apps.sql`; migration `063` is no longer duplicated by the OAuth table migration.
+- Source-level correction only. Tests, CI, Vercel build, live DB migration state, and production endpoint recovery were not verified or awaited.
+- The live endpoint can still fail until the corrected source is deployed and the production migration succeeds. No session cookies, OAuth secrets, or credentials were copied into repository files.
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — REALTIME VOICE DISPATCH ARCHITECT REVIEW RECORDED
 
 [architect-verified] DEV-01 / Forge's bounded source review of realtime voice integration dispatch found no substantial implementation defect requiring FIX-01 handoff. The implementation follows the intended security shape: both rollout flags gate tool exposure and invocation; only two fixed integration tool names are accepted; public embed sessions are blocked from the browser dispatch path; server-side auth and KB membership/read access are checked; tenant, agent, user, and session identity are derived server-side; and execution delegates to the existing Clara Unified Tool Runtime.
