@@ -180,7 +180,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (body.action === "save-briefing-recipient") {
       const phone = body.recipientPhone?.trim() ?? "";
-      if (!/^\\+[1-9]\\d{7,14}$/.test(phone) || body.optIn !== true) {
+      if (!/^\+[1-9]\d{7,14}$/.test(phone) || body.optIn !== true) {
         return NextResponse.json({ error: "Enter a valid E.164 phone number and confirm the recipient's opt-in." }, { status: 400 });
       }
       const saved = await query<{ id: string }>(
