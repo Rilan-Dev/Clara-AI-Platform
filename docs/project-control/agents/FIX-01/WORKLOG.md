@@ -241,3 +241,12 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** GitHub accepted source/test writes. Local Vitest/typecheck and mobile/desktop browser inspection remain unexecuted; no PASS claimed.
 - **Database incident:** OPS-01 remains owner of missing PostgreSQL relations and seed FK failure. No manual schema creation, reset, or migration bypass.
 - **Next:** Continue current-branch audit of remaining custom cards/overlays and inspect likely fixed-width/ellipsis patterns. Run tests/typecheck and browser review when local execution is available; don't wait on CI/Vercel.
+
+
+### SESSION-FIX-20261010-12 / 2026-10-10
+- **Task:** Continue current feature-branch audit for long content clipped in flex rows and source cards.
+- **Findings/fixes:** Payment gateway webhook URLs now wrap instead of truncating beside the copy action (`43db1b383e2af3cd97e5f031de3c91bd603c3247`). Organisation member names/emails wrap instead of truncating (`ecc48ef8eb02808a099678c6aeafbeb43afbb5b6`). Uploaded document titles and original filenames wrap (`d60cd3c580db17e341124c497a5a0310cf495f64`). Web source titles, filenames and root URLs wrap, and metadata actions can wrap in constrained layouts (`e0a2afaac07ac2d2b3a93f005c715a100d3221fe`).
+- **Regression coverage:** Added a focused source-contract test covering these areas; suite now contains 15 tests. Test update commit: `683d05a51c973b13575413a0d1b88ebd7b0bc17d`.
+- **Verification boundary:** GitHub accepted the writes. Vitest, typecheck and responsive browser review remain unexecuted; no runtime PASS claimed.
+- **Database incident:** OPS-01 retains ownership of PostgreSQL missing relations and seed FK failure. No schema mutation, reset or migration bypass.
+- **Next:** Continue the current-branch audit for clipping in cards/popovers/dialogs; run focused tests/typecheck and mobile/desktop visual review when local execution is available, without waiting for CI/Vercel.
