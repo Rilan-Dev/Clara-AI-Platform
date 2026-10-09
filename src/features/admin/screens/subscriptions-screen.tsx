@@ -158,10 +158,10 @@ function ActionModal({ orgId, orgName, planId, status, plans, onClose, onDone }:
   const isPaused    = status === "paused";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       {/* Mobile: bottom sheet; desktop: centered dialog */}
-      <div className="relative w-full max-w-lg bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <div className="relative max-h-[92dvh] w-full min-w-0 max-w-lg overflow-hidden rounded-t-3xl border border-border bg-card shadow-2xl flex flex-col sm:rounded-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
 
         {/* Header */}
         <div className="px-4 sm:px-6 py-4 border-b border-border flex items-center justify-between gap-3">
@@ -891,9 +891,9 @@ export default function AdminSubscriptionsScreen() {
 
           {/* Edit Plan Modal — mobile: bottom sheet; desktop: centered dialog */}
           {editPlan && (
-            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="fixed inset-0 z-50 flex items-end justify-center p-2 sm:items-center sm:p-4">
               <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setEditPlan(null)} />
-              <div className="relative w-full max-w-2xl max-h-[92dvh] overflow-y-auto overscroll-contain-y bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+              <div className="relative max-h-[92dvh] w-full min-w-0 max-w-2xl overflow-y-auto overscroll-contain-y rounded-t-3xl border border-border bg-card shadow-2xl sm:rounded-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
                 <div className="sticky top-0 px-4 sm:px-6 py-4 border-b border-border flex items-center justify-between gap-3 bg-card/95 backdrop-blur-sm rounded-t-3xl sm:rounded-t-2xl">
                   <h2 className="text-base font-bold text-foreground truncate">{editPlan.id === "new" ? "Create New Plan" : `Edit: ${editPlan.name}`}</h2>
                   <button onClick={() => setEditPlan(null)} aria-label="Close" className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl text-muted-foreground/70 hover:text-foreground active:bg-muted transition-colors"><X className="w-5 h-5" /></button>
@@ -1041,9 +1041,9 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex justify-end pl-2 sm:pl-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-xl h-full bg-card border-l border-border flex flex-col shadow-2xl">
+      <div className="relative h-dvh max-h-dvh w-full min-w-0 max-w-[min(100vw,32rem)] overflow-hidden border-l border-border bg-card shadow-2xl flex flex-col">
 
         {/* Drawer header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between shrink-0">
