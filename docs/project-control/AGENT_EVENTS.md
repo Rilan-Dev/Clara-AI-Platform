@@ -323,3 +323,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 removed truncation from email-template audit subjects, organisation billing notes, and email variable descriptions/custom values; affected rows now shrink and wrap instead of hiding text or forcing a rigid row.
 - Commits: `67a9f793113a34494287804861e6b60eae435a19`, `aaacf4c12d036ee108eeeb1d911f15d4e266ce59`, `dde58e8a6737d0619e4884f5f8d37facf05cf781`; test commit `ba188039024cc1177d420a9f56b8a8fe98c34a3c`. Source-contract suite now has 14 tests.
 - Local test/typecheck/browser review not run; no PASS claimed. OPS-01 retains PostgreSQL incident.
+
+
+## EVT-FIX-022 — 2026-10-10 — Long URLs and source-card labels
+- FIX-01 changed payment webhook URL display, organisation member identity rows, uploaded document labels, and web source title/filename/root URL display to wrap safely rather than truncate in constrained flex layouts.
+- Commits: `43db1b383e2af3cd97e5f031de3c91bd603c3247`, `ecc48ef8eb02808a099678c6aeafbeb43afbb5b6`, `d60cd3c580db17e341124c497a5a0310cf495f64`, `e0a2afaac07ac2d2b3a93f005c715a100d3221fe`; regression test commit `683d05a51c973b13575413a0d1b88ebd7b0bc17d` (15 source-contract tests).
+- Vitest/typecheck/browser review not run; no PASS claimed. OPS-01 retains PostgreSQL incident.
