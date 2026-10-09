@@ -1,3 +1,24 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — P0 CONNECTION RECOVERY BASELINE
+
+[owner-authorized] Continued OAuth and connection reliability work. In addition to the consent/token flow, the organisation connection API now rejects invalid credential shapes, reports safe health summaries, and offers scoped disconnect/reconnect controls.
+
+## Latest recovery hardening
+- Health summaries are scoped to the authenticated user's available connections plus organisation-shared connections; other users' private credentials are not counted as the current user's ready connection.
+- Disconnect now matches the exact `agent_id` scope instead of treating a missing agent ID as permission to delete every agent-scoped connection.
+- UI adds explicit disconnect confirmation and OAuth reconnect affordance.
+- Regression source covers server-side credential validation, expired health status, and exact disconnect scope.
+- Commits: `6472dae88f4b1a835839f22c1d2bf9aa5a27da4f`, `bf8f6c0706ca0df432e5ddf3c75a15152585846e`, `d9442aa0b0311a9623b8f21916b053174260e843`, `5e1cd4a9399d3ccf05c0726dc70bf36ff1bb02b1`, `e4f94669d9a1cf8a832cb15dc33b38430a442374`.
+
+## Verification
+Tests are authored but not run. No typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent was run or awaited. No runtime PASS or production recovery is claimed.
+
+## Next implementation
+Continue P1 integration capability/readiness consistency by inspecting `src/modules/ai-platform-core/integrations/integration-tool-bridge.ts` and the existing Unified Tool Runtime contracts. Reuse the existing runtime; do not add a second executor. Ensure availability reflects platform/org/agent grants, plan entitlement, and caller-usable connection scope, and ensure invocation repeats the checks.
+
+Do not wait for CI/Vercel/Gates.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — CONNECTION HEALTH + CREDENTIAL VALIDATION
 
 [owner-authorized] The OAuth lifecycle source slice now includes a server-side credential boundary and health summaries.
