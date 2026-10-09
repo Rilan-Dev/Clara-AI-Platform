@@ -1,3 +1,29 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — INTEGRATIONS & AI ENHANCEMENT IMPLEMENTATION
+
+[owner-authorized] The user authorized proceeding with the Integrations & AI Enhancement Roadmap. This supersedes earlier stop/await text for the bounded work below, but does not authorize production promotion or claims of live recovery.
+
+## Completed in this continuation
+- Added shared pure migration-number validation in `src/lib/db/migration-validation.ts`.
+- Added focused regression source in `src/lib/db/migration-validation.test.ts`.
+- Updated `src/lib/db/migrate.ts` to validate migration filenames before acquiring a database connection or issuing schema queries.
+- Updated `scripts/db-reset.ts` to reuse the same validator.
+- Source commits: `e0fc892e9b94b851cde247ebf36ed7dde5db8dfe`, `8bf3b378b9fadb39e5435a4e21e7489ef32b00b7`, `e28b6ee8b8536123069eee85bb64392b5eede592`, `690730bb95ce91f8f86a8e413fff09f7f69ef619`.
+
+## Verification disposition
+- Source-level change only. Tests, typecheck, build, CI, Vercel, live DB migration, deployment, and OAuth endpoint recovery were not run or awaited.
+- The earlier OAuth migration numbering correction and production skip guard are source-level mitigations, not proof the live endpoint recovered.
+
+## Next bounded implementation
+1. Inspect existing connection/token persistence and provider OAuth contracts before adding a callback.
+2. Implement the smallest safe OAuth lifecycle slice: state validation, expiry, one-time consumption, exact redirect matching, and PKCE where supported.
+3. Keep platform OAuth app configuration separate from organisation/user consent and connection records.
+4. Preserve server-side tenant/user provenance, encrypted token storage, secret redaction, and Unified Tool Runtime execution.
+5. Add focused regression source as each slice lands and update project-control records.
+
+Do not start a broad provider rollout, billing redesign, production promotion, or parallel tool executor. Do not wait for CI/Vercel/gates; report executable and live verification as deferred.
+
+---
+
 ## 2026-10-09 — OAuth configuration incident: production migration skip guard
 
 [architect-verified] Added a fail-closed guard to `scripts/migrate.ts`: `SKIP_DB_MIGRATIONS=1` remains available for non-production local workflows, but the migration command now exits unsuccessfully if that skip is requested in production or on Vercel. This prevents a deployment build from silently succeeding while request handlers depend on schema migrations that were never applied.
