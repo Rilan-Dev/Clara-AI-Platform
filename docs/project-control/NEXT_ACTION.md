@@ -1,25 +1,17 @@
-# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — REALTIME VOICE INTEGRATION DISPATCH
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — REALTIME VOICE DISPATCH ARCHITECT REVIEW RECORDED
 
-[developer-reported] The authorized integration-runtime continuation now has source implementation for realtime voice dispatch. Realtime sessions expose the two integration tools only when both existing rollout flags are enabled and the caller is an authenticated non-platform-admin with KB read access. The voice client submits tool calls to a same-origin server route; that route derives org/agent/user/session identity from server-side auth and KB relationships, creates a provenance-verified execution context, and delegates to the existing Clara Unified Tool Runtime.
+[architect-verified] DEV-01 / Forge's bounded source review of realtime voice integration dispatch found no substantial implementation defect requiring FIX-01 handoff. The implementation follows the intended security shape: both rollout flags gate tool exposure and invocation; only two fixed integration tool names are accepted; public embed sessions are blocked from the browser dispatch path; server-side auth and KB membership/read access are checked; tenant, agent, user, and session identity are derived server-side; and execution delegates to the existing Clara Unified Tool Runtime.
 
-### Implemented source
-- `src/modules/assistant/api/realtime.ts`: default-off, authenticated integration tool descriptors; RAG remains unchanged.
-- `src/modules/assistant/api/realtime-tool.ts` and `src/app/api/realtime/tool/route.ts`: authenticated, fixed-tool allowlist dispatch through the Unified Tool Runtime; request-body identity is ignored.
-- `src/modules/assistant/core/hooks/useOpenAIRealtime.ts`: handles integration tool calls through the server route and returns the runtime outcome to the Realtime API.
-- Regression source: `src/modules/assistant/api/realtime.test.ts` and `src/modules/assistant/api/realtime-tool.test.ts`.
-
-Implementation commits: a2dee343b099edef6ad6337fef976047c3f59aa5, c36b5b67beabad175ea9530293846ef8763b3151, f3e8efda5b7a12173e313ee4f476774c62092e52, a64e8f3258b9ab8e59f4f0258c600b1e0ddf13e9, a218e2a354e0c83e7944dbe9b32ad6bebbb574bf, f830efd8fb03f778a4277b2817cc2e684266c3cb, 29e470aea416cd3cc1af56e0a27a1320013498f5, e6da6968d3d7d6e422b309e5188562578f2adb56.
-
-### Verification / status
-- Regression source has been authored, but tests/build were not executed in this session.
+### Review outcome
+- **PASS_WITH_FOLLOWUP — SOURCE REVIEW ONLY.** This does not close the broader organisation-integration task, approve deployment, or claim test/build/CI success.
+- Focused regressions exist for tool exposure, auth, allowlisting, forged body identity, KB permission, and runtime delegation. Tests were not executed during this review.
+- No source implementation changes were made during the review. No FIX-01 handoff was needed.
 - No CI, Vercel build, Gate-C/Gate-D, or deployment was run or awaited.
-- Status remains IN_PROGRESS until architect review; no phase PASS or closure is claimed.
-- Security invariant: never trust body-supplied org, agent, user, or session IDs; do not expose integration tools to anonymous/public embed sessions; keep both rollout flags default-off.
 
-**Exact next action:** ChatGPT architect-review this bounded implementation and its authored regressions. If review identifies a substantial implementation bug, route that defect to FIX-01; otherwise record the review outcome. No unrelated implementation or new phase is authorized by this task.
+### Follow-up / stop boundary
+The remaining evidence gap is execution of the focused realtime regression tests and normal project verification when separately authorized. Do not interpret this review as OAuth consent/token exchange completion or production deployment. Do not start unrelated implementation or a new phase from this review.
 
----
-
+**Exact next action:** stop after recording this review outcome and await the next owner-authorized bounded task.
 # INCIDENT CORRECTION — 2026-10-09 — PLATFORM OAUTH APP CONFIGURATION 500
 
 [architect-verified] The reported `GET /api/platform/integrations/gmail/oauth-app` response `Could not load OAuth application configuration` is consistent with a migration-bootstrap blocker in the active branch: two migration files used prefix `063`, while `runMigrations()` explicitly rejects duplicate migration numbers before applying schema changes.
