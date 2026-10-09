@@ -186,3 +186,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** DEV-01
 - **Suggested next action:** Implement outbound message sending and provider delivery persistence, then a `CRON_SECRET`-protected daily summary worker that only selects active, webhook-verified, briefing-enabled connections. Add route-level regression source for tenant isolation, OAuth replay, phone uniqueness, and briefing gating.
 - **Related records:** I-090; SESSION-DEV-20261009-04; `src/lib/db/migrations/067_whatsapp_business_lifecycle.sql`; `src/app/api/whatsapp/oauth/callback/route.ts`; `src/app/api/webhooks/whatsapp/route.ts`; `docs/deployment/whatsapp-business.md`.
+
+
+### EVT-DEV-005 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-04
+- **Type:** CORRECTION
+- **Summary:** Extended the WhatsApp lifecycle with explicit E.164 briefing recipient and opt-in persistence, a verified-connection-only eligibility action, and a CRON_SECRET-protected daily briefing sender scheduled from `vercel.json` at 03:00 UTC. The sender uses a configured approved Meta template, persists one run per connection/date, and records outbound provider message IDs/status. Current summary content is a deterministic digest of inbound message excerpts.
+- **Impact:** Source now covers the initial scheduled outbound path; real provider setup and runtime delivery remain unverified.
+- **Owner:** DEV-01
+- **Suggested next action:** Add token expiry/revocation/reconnect handling, route-level security regressions, and reconciliation for ambiguous sending runs/provider-status races. Do not automatically resend ambiguous outcomes.
+- **Related records:** I-090; SESSION-DEV-20261009-04; `src/app/api/cron/whatsapp-daily-briefings/route.ts`; `src/lib/db/migrations/067_whatsapp_business_lifecycle.sql`; `vercel.json`; `docs/deployment/whatsapp-business.md`.
