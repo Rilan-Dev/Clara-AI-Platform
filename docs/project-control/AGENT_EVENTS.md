@@ -207,3 +207,14 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Verification:** Source-only. No token expiry transition, Graph error, test, build, or live provider behavior was executed.
 - **Next:** Add revocation/permission-health probes, safe reconnect state, and route-level regression source. Keep ambiguous sends from being automatically duplicated.
 - **Related records:** I-090; SESSION-DEV-20261009-04; `src/app/api/whatsapp/oauth/callback/route.ts`; `src/app/api/cron/whatsapp-daily-briefings/route.ts`.
+
+
+### EVT-DEV-007 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-04
+- **Type:** CORRECTION
+- **Summary:** Persisted Meta token expiry when provided; expired tokens and Graph 401/403 send responses disable briefing eligibility. Added opt-in withdrawal, queue rotation/retry limits, and monotonic provider delivery status transitions shared by webhook and early-status reconciliation. Added route/helper regression source for OAuth replay/permission, tenant boundary, briefing gate, signatures/idempotency, recipient validation, digest bounds, and delivery ordering.
+- **Impact:** Improves connection health handling, recipient consent control, queue fairness, and out-of-order delivery correctness.
+- **Owner:** DEV-01
+- **Verification:** Source only; regression tests have not been executed. No live Meta or scheduled send was run.
+- **Next:** Add remaining phone uniqueness and duplicate webhook retry tests, proactive revocation/reconnect health, and reconciliation for ambiguous `sending` runs. No CI/Vercel polling.
+- **Related records:** I-090; SESSION-DEV-20261009-04; `docs/project-control/NEXT_ACTION.md`; `src/modules/integrations/whatsapp-message-status.ts`.
