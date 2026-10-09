@@ -293,3 +293,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Commit:** `023ba0b25b615f3badd6ff5b30b47b93afe7d832`.
 - **Verification:** Tests authored, not run. Local clone attempt could not resolve github.com; no local repository/dependency runtime available.
 - **Next:** Safe reconnect and expiry coverage, ambiguous sending-run reconciliation, then continue grounded AI briefing evaluation and remaining UI audit without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261010-06 — 2026-10-10
+- **Role:** FIX-01 / Sentinel with roadmap continuation
+- **Implementation:** Explicit safe-reconnect state in Messaging UI; stale ambiguous WhatsApp briefing sends are quarantined as terminal unknown outcomes after 30 minutes rather than automatically retried; route tests authored.
+- **Commits:** `ab9a776eced829f8e88847d1c42a72170a70f8e3`, `2ab69e96434de51baadd8ebfaad6a85e563ffe97`, `afe11cf0ff1a95e4e6524f2e02b90cc168f785fb`, `3d506bf3e91734e9b9851702e0651dcc2d6c49cf`.
+- **Verification:** Source-only; no Vitest/typecheck or live Meta send was run. The local clone failed because GitHub DNS was unavailable in this runtime.
+- **Next:** Phone uniqueness, duplicate webhook and monotonic delivery regression; safe unknown-send recovery; grounded AI briefing evaluation; remaining public/auth clipping audit.
