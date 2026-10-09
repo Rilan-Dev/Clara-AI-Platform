@@ -16,7 +16,7 @@
 - The branch contains source implementation only. Do not claim the channel is live until server configuration and Meta app setup are complete and normal runtime evidence exists.
 
 ## Exact next implementation
-1. Add token-expiry/revocation tracking and safe reconnect handling. The current callback attempts a long-lived token exchange but does not persist `expires_in` or automate revocation recovery; an expired token must never be shown as ready or continue sending briefings.
+1. Token `expires_in` is now persisted when Meta returns it; status reads and the scheduled worker mark expired connections unhealthy and disable briefing eligibility, while Graph 401/403 send responses mark the connection in error. Next, add revocation/permission-health probes and safe reconnect state, and cover expiry transitions in regression source. If Meta returns no expiry value, that unknown-expiry case remains a limitation.
 2. Add focused route-level regression source for OAuth state replay/cancellation, callback user/agent permission, tenant isolation, phone uniqueness conflicts, webhook signature rejection/duplicate retry, briefing consent, and the server-side readiness gate.
 3. Improve scheduled-run reconciliation for ambiguous `sending` records and provider status races without introducing duplicate sends. Keep template/opt-in/customer-service-window requirements enforced.
 4. Evaluate replacing the deterministic excerpt digest with a grounded AI summary using the existing Clara message/RAG policy; do not expose provider tokens or bypass tenant isolation.
