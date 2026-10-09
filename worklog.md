@@ -1,3 +1,14 @@
+## 2026-10-09 — Server-side integration credential validation
+
+- Added `validateConnectionCredentials` and wired it into organisation integration connection creation.
+- OAuth client ID/secret without an access token can no longer create an active OAuth connection. Basic auth requires username/password, secret-text/custom-auth require valid credential values, and `none` cannot be connected with credentials.
+- Added regression source for accepted/rejected credential shapes and expired connection health.
+- Commits: `1449d36377a14c96a34625618b39405eb9d26749`, `ff01cda2c64b0f1391321440c22ee99e0afdf351`, `675cd39bc4e831f5fdba7b4859daa4f3c921341f`.
+- No tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider flow was run or awaited.
+- Next: continue P0 connection recovery and P1 common integration capability/readiness contracts, reusing the Unified Tool Runtime.
+
+---
+
 ## 2026-10-09 — OAuth refresh compatibility and connection health
 
 - Persisted `authorization_method` with OAuth credentials and aligned `ensureTokenFresh` to the registry's HEADER/BODY token-auth mode; added a regression for Basic auth refresh.
