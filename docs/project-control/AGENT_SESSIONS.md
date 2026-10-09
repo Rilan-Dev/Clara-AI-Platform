@@ -136,3 +136,16 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers/dependencies:** Meta server variables and Meta app callback/webhook/scopes must be configured before live use. Daily briefing flag is preference/eligibility only; no scheduled delivery is claimed.
 - **Handoff:** None. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
 - **Next action:** Follow `docs/project-control/NEXT_ACTION.md`; add the remaining uniqueness/duplicate-retry regressions and proactive revocation/reconnect health. Do not poll CI/Vercel/Gates.
+
+
+### SESSION-FIX-20261010-01 — 2026-10-10
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Recover repository/project-control context; trace owner-provided missing PostgreSQL relations and repair modal/card width and vertical word-wrapping defects with minimal scope.
+- **Started from:** `feature/ai-core-from-doable-source`; current branch source fetched from GitHub. Historical database logs are dated 2026-10-08.
+- **Scope:** Inspect shared/central/role-local memory, current phase/next action/issues/verification; trace migration readiness and seed order; fix shared dialog layout; record root cause, remedy, prevention and evidence.
+- **Status:** HANDOFF
+- **Completed:** Confirmed `src/instrumentation.node.ts` gates local background DB consumers behind successful migrations; confirmed current production seed source imports the expected integration/observability dependencies and project-control already records organisation-before-agent ordering. Updated shared `src/components/ui/dialog.tsx` for viewport-safe width/height, scrollable long content, min-width handling and word wrapping.
+- **Pending:** No browser screenshot/UI test, typecheck, unit test, build, Docker rebuild, DB migration run, or live runtime log comparison was executed. Database incident remains unconfirmed against the current image; no production recovery is claimed.
+- **Blockers:** Need a fresh runtime image/commit and migration output to confirm whether historical errors persist.
+- **Handoff:** EVT-FIX-010.
+- **Next action:** Continue the currently authorized roadmap; on the next ordinary runtime verification, confirm deployed/running commit and migration result before any further DB code change. Do not wait/poll for CI/Vercel gates.
