@@ -6,7 +6,7 @@ import { constantTimeEquals, verifyMetaWebhookSignature, whatsappEventKey, whats
 export const dynamic = "force-dynamic";
 
 function providerDate(value?: string): Date | null {
-  if (!value || !/^\\d{1,12}$/.test(value)) return null;
+  if (!value || !/^\d{1,12}$/.test(value)) return null;
   const seconds = Number(value);
   if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 4_102_444_800) return null;
   const date = new Date(seconds * 1000);
