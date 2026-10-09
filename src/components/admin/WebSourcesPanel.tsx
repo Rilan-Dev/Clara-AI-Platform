@@ -231,10 +231,10 @@ export function WebSourcesPanel({ kbId, docs, onDelete, onReprocess }: Props) {
       {/* Sessions still in flight (no docs yet) */}
       {emptySessions.map((s) => (
         <div key={s.id} className="rounded-xl border border-border bg-card/50 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <GlobeIcon className="h-4 w-4 text-primary animate-pulse" />
-            <div>
-              <p className="text-sm font-medium text-foreground truncate">{s.rootUrl}</p>
+          <div className="flex min-w-0 items-start gap-3">
+            <GlobeIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary animate-pulse" />
+            <div className="min-w-0 flex-1">
+              <p className="break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">{s.rootUrl}</p>
               <p className="text-xs text-muted-foreground capitalize">{s.status}…</p>
             </div>
           </div>
