@@ -127,3 +127,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Correction:** Added optional `authorization_method?: "HEADER" | "BODY"` to the token data contract. No runtime behavior changed; persisted legacy records without the field retain the existing BODY fallback.
 - **Commit:** `5d0d64c22c04c32f01a44cbb0ad95b3fee7b4921`
 - **Verification:** Source-only; no build, test, typecheck, Docker, CI, Vercel, gate, or deployment result is claimed.
+
+
+## EVT-FIX-007 — Docker build follow-up: files-service import
+- **Date:** 2026-10-09
+- **Role:** FIX-01 / Sentinel
+- **Evidence:** User-provided `docker compose build clara-backend` output after pull to `0665f6f3` failed in `src/modules/integrations/runtime/runner-helpers.ts`: webpack could not resolve `./files-service.js`. The corresponding module exists as `files-service.ts` in the same runtime directory.
+- **Root cause:** A remaining explicit JavaScript extension in a dynamic import targeting a TypeScript source module.
+- **Correction:** Changed `await import("./files-service.js")` to `await import("./files-service")` only. No business logic, auth, secrets, or webpack configuration changed.
+- **Commit:** `bda45fd90379154e098d39076823829d2b741bd7`
+- **Verification:** Correction is source-committed; rebuild has not yet been run. No build PASS or production recovery is claimed.
