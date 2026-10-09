@@ -21,7 +21,7 @@ function digest(value: string): string {
 }
 function parseExpiresIn(value: unknown): number | null {
   const seconds = typeof value === "number" ? value
-    : typeof value === "string" && /^\\d+$/.test(value) ? Number(value) : null;
+    : typeof value === "string" && /^\d+$/.test(value) ? Number(value) : null;
   return seconds !== null && Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 2_147_483_647
     ? seconds : null;
 }
