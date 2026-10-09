@@ -22,6 +22,7 @@ import type {
   IntegrationExecutionResult,
   IntegrationToolBridgeAdapter,
 } from "./integration-contracts";
+import { assertIntegrationCapability } from "./integration-policy";
 import type { ToolDefinition } from "../tool-contracts";
 import type { ToolRuntime } from "../tool-registry";
 import { ToolExecutionError } from "../tool-contracts";
