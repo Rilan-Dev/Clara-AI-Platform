@@ -186,3 +186,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** Changed source and test files were re-fetched from GitHub. Local checkout is unavailable, so Vitest/typecheck and browser visual checks were not run; no pass claimed.
 - **Routing:** OPS-01 owns missing PostgreSQL relations and seed FK failure; no DB changes.
 - **Next:** Continue bounded custom dialog/card audit; run focused Vitest/typecheck and inspect mobile/desktop when local execution is available.
+
+
+## SESSION-FIX-20261010-06 — FIX-01 / Sentinel — 2026-10-10
+- **Goal:** Continue current-branch audit for custom overlays/cards, clipped content, and identifier wrapping.
+- **Result:** Constrained fullscreen prompt editor to viewport; changed workspace copy fields from truncation to natural wrapping; made embed API-key value/header overflow-safe. Focused source-contract suite now contains 9 tests.
+- **Evidence:** GitHub accepted changes. Vitest/typecheck and browser-level mobile/desktop inspection remain outstanding because local execution is unavailable. No PASS claimed.
+- **Routing:** OPS-01 owns missing PostgreSQL relations and seed FK failure; no database changes.
+- **Next:** Continue current-branch source audit and run focused tests/typecheck/visual review when local execution is available.
