@@ -259,3 +259,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** OPS-01 for runtime/database identity and migration investigation; FIX-01 remains owner for source defects if current evidence isolates one.
 - **Suggested next action:** Compare the running container image/commit and target database against the current branch; inspect `db:migrate` output and applied migration ledger, then route a reproducible application migration/bootstrap defect back to FIX-01. Do not wait for DEV-01.
 - **Related records:** `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/AGENT_MEMORY.md`; `src/instrumentation.node.ts`; `src/lib/db/migrate.ts`; `src/lib/db/seed/production.ts`.
+
+
+### EVT-FIX-012 — 2026-10-10
+- **Agent/session:** FIX-01 / SESSION-FIX-20261010-02
+- **Type:** CORRECTION
+- **Summary:** Continued the authorized shared UI audit after the Modal fix. Added viewport-bounded sizing and wrapping/scroll safety to Popover, HoverCard, AlertDialog, Sheet, Drawer, Tooltip and DropdownMenu; added a focused source-contract regression test for shared panel/card layout. Existing Dialog/Card/Modal protections were retained.
+- **Impact:** Shared UI primitives across screens; intended to prevent narrow popup overflow and pathological long-token layout.
+- **Owner:** FIX-01
+- **Suggested next action:** Run the focused Vitest test/typecheck when local execution is available and visually inspect representative popovers/dialogs/cards at mobile and desktop widths. Continue checking feature-level overrides; do not claim UI-wide verification from source assertions.
+- **Related records:** `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/AGENT_MEMORY.md`; `src/components/ui/layout-primitives.test.ts`; commits `da0f74909bfa4e92d1268ef4e0eb384d07ad9ed6` and related UI commits.
