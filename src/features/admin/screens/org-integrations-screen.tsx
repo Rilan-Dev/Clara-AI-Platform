@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 type CredentialField = { name: string; displayName: string; description?: string; type: "text" | "secret" | "dropdown"; required: boolean; options?: Array<{ label: string; value: string }> };
 type Item = {
  id:string; displayName:string; description:string; logoUrl:string; category:string; authType:string;
- platformEnabled:boolean; planAllowed:boolean; organisationEnabled:boolean; connected:boolean; actions:string[];
+ platformEnabled:boolean; planAllowed:boolean; organisationEnabled:boolean; connected:boolean; connectionStatus?:"connected"|"expired"|"error"|"revoked"|"disconnected"; connectionUpdatedAt?:string|null; actions:string[];
  customAuthFields?: CredentialField[]; oauth2Config?: { authUrl:string; tokenUrl:string; scopes:string[] };
  requiresOAuthApp?:boolean; supportsUserProvidedCredentials?:boolean;
 };
@@ -98,9 +98,13 @@ export default function OrgIntegrationsScreen(){
    <p className="mt-2 text-xs text-muted-foreground">{i.actions.length} supported actions</p>
    {!i.platformEnabled?<div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5"/>Disabled by platform administrator</div>:
    !i.planAllowed?<div className="mt-4 text-xs text-amber-600">Not included in the {plan.id} plan.</div>:
-   <div className="mt-4 flex flex-wrap gap-2"><button disabled={busy===i.id} onClick={()=>void access(i,!i.organisationEnabled)} className={`rounded-lg px-3 py-2 text-xs font-medium ${i.organisationEnabled?"border border-border":"bg-primary text-primary-foreground"}`}>{busy===i.id?"Saving…":i.organisationEnabled?"Disable for organisation":"Enable for organisation"}</button>{i.organisationEnabled&&i.authType!=="none"&&<button disabled={busy===i.id} onClick={()=>i.authType==="oauth2"?void startOAuth(i):openConnect(i)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">{busy===i.id?"Connecting…":i.authType==="oauth2"?(i.connected?"Reconnect account":"Connect account"):(i.connected?"Update credentials":"Configure / connect")}</button>}</div>}
-   {i.connected&&<div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5"/>Credentials connected</div>}
-   {i.organisationEnabled&&!i.connected&&i.authType!=="none"&&<p className="mt-3 text-xs text-amber-600">Set up credentials here, then enable this integration on each agent that should use it.</p>}
+   <div className="mt-4 flex flex-wrap gap-2"><button disabled={busy===i.id} onClick={()=>void access(i,!i.organisationEnabled)} className={`rounded-lg px-3 py-2 text-xs font-medium ${i.organisationEnabled?"border border-border":"bg-primary text-primary-foreground"}`}>{busy===i.id?"Saving…":i.organisationEnabled?"Disable for organisation":"Enable for organisation"}</button>{i.organisationEnabled&&i.authType!=="none"&&<button disabled={busy===i.id} onClick={()=>i.authType==="oauth2"?void startOAuth(i):openConnect(i)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">{busy===i.id?"Connecting…":i.authType==="oauth2"?(i.connectionStatus==="expired"?"Reconnect expired account":i.connected?"Reconnect account":"Connect account"):(i.connected?"Update credentials":"Configure / connect")}</button>}</div>}
+   {i.connected&&<div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5"/>Connected and ready</div>}
+   {!i.connected&&i.connectionStatus==="expired"&&<p role="status" className="mt-3 text-xs text-amber-600">Connection expired. Reconnect to restore agent access.</p>}
+   {!i.connected&&i.connectionStatus==="error"&&<p role="status" className="mt-3 text-xs text-red-600">Connection needs attention. Reconnect or update credentials.</p>}
+   {!i.connected&&i.connectionStatus==="revoked"&&<p className="mt-3 text-xs text-muted-foreground">Connection was revoked.</p>}
+   {i.connected&&i.connectionUpdatedAt&&<p className="mt-1 text-xs text-muted-foreground">Last connection update: {new Date(i.connectionUpdatedAt).toLocaleString()}</p>}
+   {i.organisationEnabled&&!i.connected&&i.authType!=="none"&&i.connectionStatus!=="expired"&&i.connectionStatus!=="error"&&<p className="mt-3 text-xs text-amber-600">Connect an account or configure credentials, then grant the integration to individual agents.</p>}
   </div>)}</div>
   {selected&&<div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-labelledby="integration-connection-title" className="my-auto w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl">
    <div className="flex items-start gap-3"><div className="rounded-xl bg-primary/10 p-2"><KeyRound className="h-5 w-5 text-primary"/></div><div><h2 id="integration-connection-title" className="text-lg font-semibold">Configure {selected.displayName}</h2><p className="mt-1 text-sm text-muted-foreground">Enter the credential values required by the provider. Secrets are encrypted server-side and are not shown again after saving.</p></div></div>
