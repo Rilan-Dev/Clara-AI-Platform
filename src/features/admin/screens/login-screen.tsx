@@ -173,7 +173,7 @@ function LoginForm() {
               <div className="relative">
                 <input id="login-password" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required
                   aria-invalid={error ? true : undefined} aria-describedby={error ? "login-error" : undefined}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus:border-primary transition-colors" />
+                  className="block w-full min-w-0 max-w-full box-border bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus:border-primary transition-colors" />
                 <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} aria-pressed={show}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                   {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
