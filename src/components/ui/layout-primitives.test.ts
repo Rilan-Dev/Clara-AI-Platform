@@ -246,4 +246,22 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(reset).toMatch(/block w-full min-w-0 max-w-full box-border/);
     expect(verify).toMatch(/w-full min-w-0 max-w-full border border-border bg-card/);
   });
+
+  it("keeps pricing, checkout, checkout-success and signup-verification cards responsive", () => {
+    const pricing = source("../../features/platform/screens/pricing-screen.tsx");
+    const checkout = source("../../features/platform/screens/checkout-screen.tsx");
+    const success = source("../../features/platform/screens/checkout-success-screen.tsx");
+    const signupVerify = source("../../features/platform/screens/signup-verify-screen.tsx");
+
+    expect(pricing).toMatch(/grid min-w-0 md:grid-cols-2 lg:grid-cols-4/);
+    expect(pricing).toMatch(/relative min-w-0 rounded-2xl/);
+    expect(pricing).toMatch(/overflow-wrap:anywhere/);
+    expect(checkout).toMatch(/w-full min-w-0 max-w-md/);
+    expect(checkout).toMatch(/w-full min-w-0 max-w-full border rounded-2xl/);
+    expect(checkout).toMatch(/flex min-w-0 flex-wrap items-start justify-between gap-3/);
+    expect(success).toMatch(/w-full min-w-0 max-w-lg text-center/);
+    expect(success).toMatch(/flex flex-wrap justify-between gap-x-3 gap-y-1/);
+    expect(signupVerify).toMatch(/w-full min-w-0 max-w-md text-center/);
+    expect(signupVerify).toMatch(/w-full min-w-0 border border-border bg-card/);
+  });
 });
