@@ -1953,3 +1953,7 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Remaining risk | This isolates PDF.js from non-PDF startup paths but does not prove PDF extraction works. Missing `@napi-rs/canvas` and `DOMMatrix` errors may still affect actual PDF parsing. |
 | Verification | Source correction only. No tests, Docker rebuild, or PDF ingestion was run. |
 | Next action | Rebuild from the current branch; if PDF jobs still fail, resolve the actual PDF.js canvas/DOMMatrix runtime dependency without weakening PDF validation or decoding binary bytes as text. |
+
+
+### I-093 follow-up — production dependency declaration
+Declared `@napi-rs/canvas@^0.1.80` directly in `package.json` and synchronized the existing locked package entry in `package-lock.json`. Commits: `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`. Runtime load and PDF extraction remain unverified.
