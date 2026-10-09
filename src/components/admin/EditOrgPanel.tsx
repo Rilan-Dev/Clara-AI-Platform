@@ -81,7 +81,7 @@ export function EditOrgPanel({
           ].map(([label, value]) => (
             <div key={label} className={label === "Logo URL" ? "col-span-2" : ""}>
               <div className="text-xs text-muted-foreground mb-1">{label}</div>
-              <div className="text-foreground/80 font-mono text-xs break-all">{value}</div>
+              <div className="text-foreground/80 font-mono text-xs break-words [overflow-wrap:anywhere]">{value}</div>
             </div>
           ))}
           {saved && <div className="col-span-2 flex items-center gap-1.5 text-emerald-600 text-xs"><Check className="w-3.5 h-3.5" /> Saved successfully</div>}
