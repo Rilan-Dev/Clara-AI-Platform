@@ -107,6 +107,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const accessToken = exchangeJson && typeof exchangeJson === "object" && "access_token" in exchangeJson &&
       typeof (exchangeJson as { access_token?: unknown }).access_token === "string"
       ? (exchangeJson as { access_token: string }).access_token : "";
+    const expiresInValue = exchangeJson && typeof exchangeJson === "object" && "expires_in" in exchangeJson
+      ? (exchangeJson as { expires_in?: unknown }).expires_in : undefined;
+    const tokenExpiresIn = typeof expiresInValue === "number" && Number.isSafeInteger(expiresInValue) &&
+      expiresInValue > 0 && expiresInValue <= 2_147_483_647 ? expiresInValue : null;
     if (!accessToken || accessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
 
     const graphUrl = new URL("https://graph.facebook.com/v23.0/me/businesses");
@@ -146,10 +150,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Access tokens are encrypted immediately. Only provider IDs and display labels are exposed to the authenticated owner.
     const session = (await query<{ id: string }>(
       `INSERT INTO whatsapp_oauth_sessions
-         (state_hash, org_id, agent_id, user_id, access_token_encrypted, candidates, expires_at)
-       VALUES($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7::jsonb, now() + interval '10 minutes')
+         (state_hash, org_id, agent_id, user_id, access_token_encrypted, access_token_expires_at, candidates, expires_at)
+       VALUES($1, $2, $3, $4, pgp_sym_encrypt($5, $6),
+              CASE WHEN $7::int IS NULL THEN NULL ELSE now() + ($7::int * interval '1 second') END,
+              $8::jsonb, now() + interval '10 minutes')
        RETURNING id`,
-      [digest(state), oauthState.org_id, oauthState.agent_id, oauthState.user_id, accessToken, ENCRYPTION_KEY, JSON.stringify(candidates)],
+      [digest(state), oauthState.org_id, oauthState.agent_id, oauthState.user_id, accessToken, ENCRYPTION_KEY, tokenExpiresIn, JSON.stringify(candidates)],
     ))[0];
     if (!session) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
     return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "select-phone", session.id);
