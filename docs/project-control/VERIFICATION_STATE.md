@@ -1,3 +1,13 @@
+## 2026-10-09 — WhatsApp OAuth, briefing gate, and delivery-order regression source
+
+- Added route-level regression source for OAuth state replay and current agent permission recheck, cross-organisation denial, and the server-side briefing gate/recipient consent path.
+- Added pure helper regressions for Meta raw-body HMAC signature validation, event idempotency keys, E.164 recipient validation, bounded daily digest, and monotonic delivery-status transitions. Updated local-cron test source to assert the briefing job is registered.
+- The same monotonic delivery-status helper is used by webhook status updates and early-status reconciliation after an outbound send.
+- **Not run / not claimed:** none of these tests were executed; no typecheck/build/Docker/CI/Vercel/deployment/live Meta OAuth/webhook/cron/message delivery was run or awaited.
+- **Still pending:** phone-uniqueness conflict and duplicate-webhook retry route tests; proactive token revocation/reconnect; ambiguous send reconciliation and provider-status races; AI summary quality review.
+
+---
+
 ## 2026-10-09 — WhatsApp token expiry and queue-safety follow-up
 
 - Meta `expires_in` is persisted when returned; expired active connections are marked `error` and briefing eligibility is cleared from status/cron handling. Graph 401/403 send responses also mark the connection unhealthy and disable briefings.
