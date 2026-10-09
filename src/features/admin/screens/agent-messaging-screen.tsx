@@ -99,7 +99,12 @@ export default function AgentMessagingScreen() {
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "WhatsApp connection request failed.");
+      const message = err instanceof Error ? err.message : "WhatsApp connection request failed.";
+      setError(message);
+      if (action === "verify" || action === "subscribe") {
+        await load();
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
