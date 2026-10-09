@@ -27,8 +27,11 @@ function digest(value: string): string {
 async function subscribeWaba(wabaId: string, token: string): Promise<boolean> {
   try {
     const url = new URL(`https://graph.facebook.com/v23.0/${encodeURIComponent(wabaId)}/subscribed_apps`);
-    url.searchParams.set("access_token", token);
-    const response = await fetch(url, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    const response = await fetch(url, {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ access_token: token }).toString(),
+      redirect: "manual", signal: AbortSignal.timeout(10_000),
+    });
     if (!response.ok) return false;
     const result: unknown = await response.json().catch(() => null);
     return Boolean(result && typeof result === "object" && "success" in result && (result as { success?: unknown }).success === true);
