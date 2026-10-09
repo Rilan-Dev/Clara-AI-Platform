@@ -54,8 +54,8 @@ function CopyField({ label, value, mono = true }: { label: string; value: string
   return (
     <div className="space-y-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <code className={`flex-1 truncate rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm ${mono ? "font-mono" : ""} text-foreground/70 select-all`}>
+      <div className="flex min-w-0 items-start gap-2">
+        <code className={`min-w-0 flex-1 break-words [overflow-wrap:anywhere] rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm ${mono ? "font-mono" : ""} text-foreground/70 select-all`}>
           {value}
         </code>
         <button
