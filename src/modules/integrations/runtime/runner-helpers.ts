@@ -1,8 +1,8 @@
-import { getIntegration } from "../registry/index.js";
-import { credentialVault } from "./credential-vault.js";
-import { assertSafeEgressUrl } from "./runner-fetch.js";
-import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
-import type { RunActionParams, OAuth2TokenData } from "./types.js";
+import { getIntegration } from "../registry";
+import { credentialVault } from "./credential-vault";
+import { assertSafeEgressUrl } from "./runner-fetch";
+import { assertIntegrationExecutionAuthorized } from "./execution-authorization";
+import type { RunActionParams, OAuth2TokenData } from "./types";
 import { query } from "@/lib/db";
 
 // ─── Custom Actions ──────────────────────────────────────
