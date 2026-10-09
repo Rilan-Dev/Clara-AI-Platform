@@ -274,3 +274,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Blockers/dependencies:** Actual visual behavior at the deployed URL remains unconfirmed from this session; deployment may lag the feature branch.
 - **Lesson:** Prevent clipping at both the card boundary and its flex/grid ancestors; long strings need wrapping on the text element, not just an outer overflow rule.
 - **Next action:** Continue auditing other public/auth cards for the same combination of missing `min-w-0`, intrinsic input sizing, and unbreakable content. Do not wait for CI/Vercel; report visual verification as pending.
+
+
+### SESSION-FIX-20261010-02 / 2026-10-10
+- **Task:** Extend the responsive clipping audit from landing/login to the remaining public authentication cards.
+- **Authorization:** Direct owner request to continue the UI clipping audit and current roadmap.
+- **Actions:** Audited signup wizard, forgot-password, reset-password, and email-verification screens. Added shrink-safe viewport/page wrappers, card width constraints, natural wrapping, responsive signup plan-row layout, and width-boxed input controls.
+- **Files/code:** `src/features/platform/screens/signup-screen.tsx`; `src/app/login/forgot/page.tsx`; `src/app/login/reset/page.tsx`; `src/app/login/verify-email/page.tsx`; regression source `src/components/ui/layout-primitives.test.ts`.
+- **Commits:** `e88747825ffb3923543e056e14c46b0c88cafe1c`, `b45db54a1342b9153face2848232428c1c00a6ef`, `2de0043febf3d0f20f7e2c996ae6da2cbd729736`, `eac422cfaa8cf7199ad56968448d0ab7fc2b1c43`.
+- **Verification:** Browser DOM audit returned HTTP 200 for live landing and login routes on mobile preset. Screenshot capture service failed upstream with HTTP 502, so no screenshot-based visual verdict is claimed. Runtime Vitest/typecheck are still unavailable in this session.
+- **Next action:** Add regression coverage, continue auditing public/auth UI surfaces, and run local Vitest/typecheck/browser review when a repo runtime is available. Keep DEV-01 WhatsApp lifecycle/reconciliation as the authoritative roadmap action; do not wait for CI/Vercel.
