@@ -164,6 +164,20 @@ function assertMcpPolicy(policy: McpToolBridgePolicy): void {
   }
 }
 
+function snapshotMcpPolicy(policy: McpToolBridgePolicy): McpToolBridgePolicy {
+  // Policy is supplied by a host and may be mutated while async resolution is
+  // in flight. Bind an immutable copy before awaiting any untrusted resolver.
+  return Object.freeze({
+    allowedServers: Object.freeze([...policy.allowedServers]),
+    allowedToolPairs: Object.freeze(
+      policy.allowedToolPairs.map((entry) =>
+        Object.freeze({ serverId: entry.serverId, toolName: entry.toolName }),
+      ),
+    ),
+    requireUserId: policy.requireUserId ?? true,
+  });
+}
+
 function assertMcpResolver(resolver: McpToolResolver): void {
   if (
     resolver === null ||
@@ -264,18 +278,7 @@ export function buildMcpToolDefinition(
   const boundResolutionContext = boundContext;
   const boundInvoke = resolver.invoke.bind(resolver);
 
-  const boundPolicy: McpToolBridgePolicy = Object.freeze({
-    allowedServers: Object.freeze([...policy.allowedServers]),
-    allowedToolPairs: Object.freeze(
-      policy.allowedToolPairs.map((entry) =>
-        Object.freeze({
-          serverId: entry.serverId,
-          toolName: entry.toolName,
-        }),
-      ),
-    ),
-    requireUserId: policy.requireUserId ?? true,
-  });
+  const boundPolicy = snapshotMcpPolicy(policy);
   const boundDescriptor: McpToolDescriptor = Object.freeze({
     ...descriptor,
     allowedSurfaces: Object.freeze([...allowedSurfaces]),
@@ -319,15 +322,17 @@ export async function resolveMcpToolDefinition(
   resolver: McpToolResolver,
 ): Promise<ToolDefinition | null> {
   assertExecutionContext(request.context);
+  let boundPolicy: McpToolBridgePolicy;
   try {
     assertMcpResolver(resolver);
     assertMcpPolicy(policy);
+    boundPolicy = snapshotMcpPolicy(policy);
   } catch {
     return null;
   }
   if (!isAllowed(
     { serverId: request.serverId, name: request.toolName },
-    policy,
+    boundPolicy,
   )) {
     return null;
   }
@@ -377,10 +382,10 @@ export async function resolveMcpToolDefinition(
     return null;
   }
 
-  if (!isAllowed(descriptor, policy)) return null;
+  if (!isAllowed(descriptor, boundPolicy)) return null;
 
   try {
-    return buildMcpToolDefinition(descriptor, policy, resolver, request.context);
+    return buildMcpToolDefinition(descriptor, boundPolicy, resolver, request.context);
   } catch {
     // A resolver-supplied descriptor is untrusted input. Any malformed
     // capability must be rejected during discovery so one bad MCP tool cannot
@@ -396,9 +401,11 @@ export async function buildMcpToolRuntime(
   resolver: McpToolResolver,
 ): Promise<ToolRuntime | null> {
   assertExecutionContext(context);
+  let boundPolicy: McpToolBridgePolicy;
   try {
     assertMcpResolver(resolver);
     assertMcpPolicy(policy);
+    boundPolicy = snapshotMcpPolicy(policy);
   } catch {
     return null;
   }
@@ -428,7 +435,7 @@ export async function buildMcpToolRuntime(
       );
     }
 
-    const definition = await resolveMcpToolDefinition(request, policy, resolver);
+    const definition = await resolveMcpToolDefinition(request, boundPolicy, resolver);
     if (!definition) continue;
 
     const identity = `${request.serverId}\0${request.toolName}`;
