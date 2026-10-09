@@ -166,6 +166,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             WHERE s.id = $2 AND s.org_id = $3 AND s.agent_id = $4 AND s.user_id = $5
               AND s.selected_at IS NULL AND s.expires_at > now()
               AND c->>'phoneNumberId' = $6
+              AND (s.access_token_expires_at IS NULL OR s.access_token_expires_at > now())
             FOR UPDATE OF s
          )
          INSERT INTO whatsapp_business_connections
@@ -217,6 +218,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
       if (!saved[0]) return NextResponse.json({ error: "Save the briefing recipient only after the WhatsApp connection and webhook are verified." }, { status: 409 });
       return NextResponse.json({ ok: true, recipientPhone: phone, optedIn: true });
+    }
+
+    if (body.action === "clear-briefing-recipient") {
+      await query(
+        `UPDATE whatsapp_business_connections
+            SET briefing_recipient_phone = NULL, briefing_recipient_opt_in_at = NULL,
+                daily_briefing_enabled = false, updated_at = now()
+          WHERE org_id = $1 AND agent_id = $2`,
+        [orgId, agentId],
+      );
+      return NextResponse.json({ ok: true, consentCleared: true });
     }
 
     if (body.action === "enable-briefing") {
