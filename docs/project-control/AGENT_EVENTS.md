@@ -218,3 +218,12 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Verification:** Source only; regression tests have not been executed. No live Meta or scheduled send was run.
 - **Next:** Add remaining phone uniqueness and duplicate webhook retry tests, proactive revocation/reconnect health, and reconciliation for ambiguous `sending` runs. No CI/Vercel polling.
 - **Related records:** I-090; SESSION-DEV-20261009-04; `docs/project-control/NEXT_ACTION.md`; `src/modules/integrations/whatsapp-message-status.ts`.
+
+
+### EVT-DEV-008 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-04
+- **Type:** CORRECTION
+- **Summary:** Added an authenticated WABA access probe to Messaging. A Meta 401/403 response marks the connection unhealthy and disables briefing eligibility; UI refreshes server status after verification/subscription errors. Added route regression source for this transition.
+- **Impact:** Operators can check current Meta WABA access and are offered reconnection when provider credentials/permissions are rejected.
+- **Verification:** Source only; tests and live Meta verification remain unexecuted.
+- **Next:** Proactive token revocation/permission health, route-level uniqueness/duplicate retry coverage, and safe reconciliation of ambiguous sends.
