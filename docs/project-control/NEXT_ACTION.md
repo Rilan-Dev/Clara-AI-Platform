@@ -1,3 +1,16 @@
+# IMMEDIATE SELF-HOSTED RUNTIME FOLLOW-UP — 2026-10-09
+
+The owner-provided `clara-backend` logs exposed a runtime/image mismatch and PDF.js startup issue. Source corrections are committed, but the running image is 14 hours old and is not verified against the branch.
+
+- Migration set on the current branch has one `063` prefix and includes `065_platform_integration_oauth_apps.sql`; rebuild the current branch before diagnosing the older image's duplicate-063 error further. If the rebuilt image still reports duplicates, inspect the packaged `/app/src/lib/db/migrations` filenames.
+- PDF parser no longer eagerly loads `pdf-parse` during parser-registry startup (`cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`). Declared `@napi-rs/canvas` as a production dependency and synced the lockfile (`3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b)). Actual PDF extraction still requires normal runtime confirmation.
+- If self-hosted cron routes are intended to run, configure a strong `CRON_SECRET` in the server's environment and restart/recreate the backend after updating the environment.
+- Do not use `docker compose up` after a failed build as proof that the new source is running. No build, migration, PDF parse, deployment, or runtime PASS is currently claimed.
+
+Continue the existing authorized integration-runtime roadmap below without waiting for CI/Vercel/Gates.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — SHARED INTEGRATION CAPABILITY POLICY
 
 [owner-authorized] P1 common integration framework work now has one shared authorization policy for integration capability discovery and action invocation.
