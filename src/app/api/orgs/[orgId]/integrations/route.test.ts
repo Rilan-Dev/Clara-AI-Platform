@@ -44,6 +44,36 @@ describe("organisation integration entitlement enforcement", () => {
     vi.clearAllMocks();
   });
 
+  it("returns safe connection health state for expired OAuth connections", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ integration_id: "github", enabled: true, allowed_plans: ["pro"] }])
+      .mockResolvedValueOnce([{ integration_id: "github", enabled: true }])
+      .mockResolvedValueOnce([{
+        integration_id: "github",
+        active_count: 0,
+        expired_count: 1,
+        error_count: 0,
+        revoked_count: 0,
+        last_updated_at: new Date("2026-10-09T12:00:00.000Z"),
+      }]);
+    getOrgPlanLimitsMock.mockResolvedValue({ plan_id: "pro", max_integrations: 10 });
+
+    const { GET } = await import("./route");
+    const response = await GET(new NextRequest("http://localhost/api/orgs/org-1/integrations"), {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.integrations[0]).toMatchObject({
+      id: "github",
+      connected: false,
+      connectionStatus: "expired",
+      connectionUpdatedAt: "2026-10-09T12:00:00.000Z",
+    });
+    expect(JSON.stringify(payload)).not.toContain("credentials_encrypted");
+  });
+
   it("allows disabling an existing integration after a plan downgrade without reading plan limits", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }])
