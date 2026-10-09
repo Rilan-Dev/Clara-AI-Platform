@@ -1,5 +1,5 @@
-import { credentialVault } from "./credential-vault.js";
-import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
+import { credentialVault } from "./credential-vault";
+import { assertIntegrationExecutionAuthorized } from "./execution-authorization";
 
 /**
  * Allows integration actions to look up other integration connections.
