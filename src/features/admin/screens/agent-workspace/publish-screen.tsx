@@ -320,7 +320,7 @@ export default function AgentPublishScreen() {
                         </a>
                       </div>
                     </div>
-                    <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{exploreLink.previewUrl}</p>
+                    <p className="mt-1 break-words [overflow-wrap:anywhere] font-mono text-[11px] leading-relaxed text-muted-foreground/80">{exploreLink.previewUrl}</p>
                   </div>
 
                   {/* Public published page — always on while access is public. */}
@@ -341,7 +341,7 @@ export default function AgentPublishScreen() {
                         </a>
                       </div>
                     </div>
-                    <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/80">{publicPageUrl}</p>
+                    <p className="mt-1 break-words [overflow-wrap:anywhere] font-mono text-[11px] leading-relaxed text-muted-foreground/80">{publicPageUrl}</p>
                     <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/80">
                       The hosted public experience — chat and realtime voice from the published
                       settings only, with plan quotas and rate limits enforced.
