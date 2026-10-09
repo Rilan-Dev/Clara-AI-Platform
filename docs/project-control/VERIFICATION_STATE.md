@@ -1,3 +1,17 @@
+## 2026-10-09 — Integrations & AI enhancement implementation start
+
+[architect-verified] Owner authorized proceeding with the roadmap. The first bounded reliability slice centralizes duplicate migration-prefix detection and moves migration preflight ahead of database connection/bootstrap operations.
+
+- Shared validator: `src/lib/db/migration-validation.ts`.
+- Regression source: `src/lib/db/migration-validation.test.ts`.
+- Migration runner integration: `src/lib/db/migrate.ts`.
+- Destructive reset preflight reuses the same validator: `scripts/db-reset.ts`.
+- Source commits: `e0fc892e9b94b851cde247ebf36ed7dde5db8dfe`, `8bf3b378b9fadb39e5435a4e21e7489ef32b00b7`, `e28b6ee8b8536123069eee85bb64392b5eede592`, `690730bb95ce91f8f86a8e413fff09f7f69ef619`.
+- Verification class: source inspection + regression source authored only. Tests, typecheck, build, CI, Vercel, database migration, deployment, and live OAuth endpoint recovery were not run or awaited.
+- Next: inspect existing integration connection/token persistence and provider-specific OAuth contracts, then implement the smallest safe OAuth state/callback/token lifecycle slice with focused regressions.
+
+---
+
 ## 2026-10-09 — OAuth app configuration incident: migration skip guard
 
 [architect-verified] Source change committed as `176f9f26a13152f64aae505f1d04fee750f01411`. Production/Vercel builds now fail closed when `SKIP_DB_MIGRATIONS=1` is set, rather than silently skipping schema application. Existing OAuth migration numbering correction remains in place at migration 065.
