@@ -110,6 +110,9 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
       authorizationUrl.searchParams.set("code_challenge_method", pkceMethod);
     }
 
+    if (request.headers.get("accept")?.includes("application/json")) {
+      return NextResponse.json({ authorizationUrl: authorizationUrl.toString() });
+    }
     return NextResponse.redirect(authorizationUrl);
   } catch (error) {
     if (error instanceof NextResponse) return error;
