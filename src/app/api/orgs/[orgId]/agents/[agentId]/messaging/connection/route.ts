@@ -49,14 +49,22 @@ export async function GET(req: NextRequest, { params }: Params) {
     const access = await requireAgentPermission(auth, agentId, "project:read");
     if (access.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
 
+    await query(
+      `UPDATE whatsapp_business_connections
+          SET status = 'error', daily_briefing_enabled = false, last_error_code = 'TOKEN_EXPIRED', updated_at = now()
+        WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+          AND access_token_expires_at IS NOT NULL AND access_token_expires_at <= now()`,
+      [orgId, agentId],
+    );
+
     const connection = (await query<{
       id: string; waba_id: string; waba_name: string | null; phone_number_id: string;
       display_phone_number: string; verified_name: string | null; status: string;
       webhook_verified: boolean; webhook_verified_at: string | null; last_webhook_at: string | null;
-      last_error_code: string | null; daily_briefing_enabled: boolean; briefing_recipient_phone: string | null; briefing_recipient_opt_in_at: string | null; daily_briefing_last_sent_on: string | null; updated_at: string;
+      last_error_code: string | null; access_token_expires_at: string | null; daily_briefing_enabled: boolean; briefing_recipient_phone: string | null; briefing_recipient_opt_in_at: string | null; daily_briefing_last_sent_on: string | null; updated_at: string;
     }>(`SELECT id, waba_id, waba_name, phone_number_id, display_phone_number, verified_name,
-              status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, daily_briefing_enabled, briefing_recipient_phone, briefing_recipient_opt_in_at, daily_briefing_last_sent_on, updated_at
-         FROM whatsapp_business_connections WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+              status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, access_token_expires_at, daily_briefing_enabled, briefing_recipient_phone, briefing_recipient_opt_in_at, daily_briefing_last_sent_on, updated_at
+         FROM whatsapp_business_connections WHERE org_id = $1 AND agent_id = $2 AND status IN ('active','error','revoked')
          ORDER BY updated_at DESC LIMIT 1`, [orgId, agentId]))[0] ?? null;
 
     const sessionId = req.nextUrl.searchParams.get("session");
@@ -70,7 +78,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       ))[0];
       if (row) pending = row;
     }
-    const connectionReady = Boolean(connection && connection.status === "active" && connection.webhook_verified);
+    const connectionReady = Boolean(connection && connection.status === "active" && connection.webhook_verified && (!connection.access_token_expires_at || new Date(connection.access_token_expires_at).getTime() > Date.now()));
     const ready = Boolean(connectionReady && connection?.briefing_recipient_phone && connection?.briefing_recipient_opt_in_at);
     return NextResponse.json({
       connection: connection ? {
@@ -79,6 +87,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         verifiedName: connection.verified_name, status: connection.status,
         webhookVerified: connection.webhook_verified, webhookVerifiedAt: connection.webhook_verified_at,
         lastWebhookAt: connection.last_webhook_at, lastErrorCode: connection.last_error_code,
+        accessTokenExpiresAt: connection.access_token_expires_at,
         briefingRecipientPhone: connection.briefing_recipient_phone,
         briefingRecipientOptInAt: connection.briefing_recipient_opt_in_at,
         dailyBriefingLastSentOn: connection.daily_briefing_last_sent_on,
@@ -109,6 +118,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     const auth = await requireAuth(req);
     const access = await requireAgentPermission(auth, agentId, "config:update");
     if (access.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
+    await query(
+      `UPDATE whatsapp_business_connections
+          SET status = 'error', daily_briefing_enabled = false, last_error_code = 'TOKEN_EXPIRED', updated_at = now()
+        WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+          AND access_token_expires_at IS NOT NULL AND access_token_expires_at <= now()`,
+      [orgId, agentId],
+    );
     const body = await req.json().catch(() => ({})) as { action?: string; sessionId?: string; phoneNumberId?: string; recipientPhone?: string; optIn?: boolean };
     if (body.action === "connect") {
       const appId = process.env.META_APP_ID?.trim();
@@ -189,6 +205,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             SET briefing_recipient_phone = $3, briefing_recipient_opt_in_at = now(),
                 daily_briefing_enabled = false, updated_at = now()
           WHERE org_id = $1 AND agent_id = $2 AND status = 'active' AND webhook_verified = true
+            AND (access_token_expires_at IS NULL OR access_token_expires_at > now())
           RETURNING id`,
         [orgId, agentId, phone],
       );
@@ -202,6 +219,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             SET daily_briefing_enabled = true, updated_at = now()
           WHERE org_id = $1 AND agent_id = $2 AND status = 'active' AND webhook_verified = true
             AND briefing_recipient_phone IS NOT NULL AND briefing_recipient_opt_in_at IS NOT NULL
+            AND (access_token_expires_at IS NULL OR access_token_expires_at > now())
           RETURNING id`,
         [orgId, agentId],
       );
@@ -222,7 +240,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       const connection = (await query<{ id: string; waba_id: string; access_token: string }>(
         `SELECT id, waba_id, pgp_sym_decrypt(access_token_encrypted, $3) AS access_token
            FROM whatsapp_business_connections
-          WHERE org_id = $1 AND agent_id = $2 AND status = 'active' LIMIT 1`,
+          WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+            AND (access_token_expires_at IS NULL OR access_token_expires_at > now()) LIMIT 1`,
         [orgId, agentId, ENCRYPTION_KEY],
       ))[0];
       if (!connection) return NextResponse.json({ error: "No active WhatsApp phone is connected." }, { status: 404 });
@@ -237,7 +256,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (body.action === "disconnect") {
       const result = await query(
         `UPDATE whatsapp_business_connections SET status = 'disconnected', daily_briefing_enabled = false, updated_at = now()
-          WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+          WHERE org_id = $1 AND agent_id = $2 AND status IN ('active','error','revoked')
           RETURNING id`,
         [orgId, agentId],
       );
