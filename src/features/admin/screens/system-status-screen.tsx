@@ -456,7 +456,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiOpenai.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiOpenai.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiOpenai.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-all text-destructive/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-words [overflow-wrap:anywhere] [word-break:normal] text-destructive/80">
                       {data.services.aiOpenai.error ?? "unreachable"}
                     </p>
                   )}
@@ -473,7 +473,7 @@ export function SystemStatusScreen() {
                   <DetailRow label="Embedding model" value={data.services.aiGemini.model ?? "—"} />
                   <DetailRow label="Endpoint" value={data.services.aiGemini.endpoint?.replace(/^https?:\/\//, "") ?? "—"} />
                   {data.services.aiGemini.status === "down" && (
-                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-all text-destructive/80">
+                    <p className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 font-mono text-[11px] leading-4 break-words [overflow-wrap:anywhere] [word-break:normal] text-destructive/80">
                       {data.services.aiGemini.error ?? "unreachable"}
                     </p>
                   )}
