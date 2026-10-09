@@ -71,3 +71,11 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Blockers/dependencies:** Server must have `META_APP_ID`, `META_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, a stable `NEXT_PUBLIC_APP_URL`, and `INTEGRATION_ENCRYPTION_KEY` (or supported `AUTH_SECRET` fallback); Meta app callback/webhook and scopes must be configured. The daily briefing flag is only a readiness/preference bit; no outbound sender or scheduled summary worker exists yet. Meta token expiry/revocation monitoring is also pending.
 - **Lesson:** OAuth callback success alone is not channel readiness. Keep the token encrypted, phone binding database-enforced, webhook events signature-verified and idempotent, and daily briefing eligibility server-gated by active connection plus a valid signed event. Do not claim scheduled delivery until the actual worker and outbound send path exist.
 - **Next action:** Implement outbound WhatsApp send/delivery capture and a `CRON_SECRET`-protected daily-summary worker that only selects active, webhook-verified, briefing-enabled connections; add route-level regression source for tenant isolation, state replay, phone uniqueness, duplicate events, and briefing gating. Continue without CI/Vercel polling. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
+
+
+### SESSION-DEV-20261009-04 — follow-up source hardening
+
+- Bound the callback to the initiating authenticated user session as well as the one-time OAuth state; sent Graph API access tokens in the Authorization header and WABA subscription tokens in the POST body rather than the URL.
+- Bounded webhook body size, validated provider timestamps, rejected non-WhatsApp webhook objects, and fixed disconnect result reporting.
+- Follow-up commits: `86819cc2af482ad6ae46474496546202cd8c2fc7`, `9c63b124f3dd048322967f34b58d2c7578b70ba3`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `93743aebaa8d66f55ccf30cfc15c8b6b7aa0976`, `ef6f17b22c1bacd7be7741a6d496c64c792e409a`, `494fc312ecf14ed22e8540f560cb94fd19dc42a`.
+- Verification remains source inspection only; no tests/build/live Meta flow were run or awaited.
