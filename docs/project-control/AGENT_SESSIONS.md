@@ -234,3 +234,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** GitHub accepted updates. Vitest/typecheck and browser-level mobile/desktop review remain outstanding; no PASS claimed.
 - **Routing:** OPS-01 owns PostgreSQL missing relations and seed FK failure. No DB changes.
 - **Next:** Continue custom overlay/card audit and run focused tests plus mobile/desktop review when local execution is available, without waiting on CI/Vercel.
+
+
+## SESSION-FIX-20261010-12 — FIX-01 / Sentinel — 2026-10-10
+- **Goal:** Continue current-branch audit for long URLs, names, filenames and labels clipped in flex rows/cards.
+- **Result:** Payment webhook URL, organisation member identity, uploaded document labels and web source labels/URLs now use shrink-safe wrapping. Focused source-contract suite contains 15 tests.
+- **Evidence:** GitHub accepted changes; Vitest/typecheck and responsive browser checks remain pending. No runtime PASS claimed.
+- **Routing:** OPS-01 remains owner for PostgreSQL missing relations and seed FK failure; no DB changes.
+- **Next:** Continue audit of remaining cards, popovers and dialogs, then run focused checks and mobile/desktop visual review when local execution is available. Do not wait for CI/Vercel.
