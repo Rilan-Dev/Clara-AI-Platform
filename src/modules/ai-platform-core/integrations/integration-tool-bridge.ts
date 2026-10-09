@@ -122,6 +122,16 @@ async function assertIntegrationCapability(
   context: PlatformExecutionContext,
   integrationId: string,
 ): Promise<void> {
+  // Capability discovery must use the same user+agent provenance required by
+  // credential selection and runtime invocation. An organisation-shared
+  // connection must not turn a missing caller identity into a usable tool.
+  if (!context.userId || !context.agentId) {
+    throw new ToolExecutionError(
+      "TENANT_SCOPE_VIOLATION",
+      "Integration capability discovery requires tenant, agent, and user identity.",
+    );
+  }
+
   const def = getIntegration(integrationId);
   if (!def) throw new ToolExecutionError("UNKNOWN_TOOL", `Unknown integration: ${integrationId}`);
 
@@ -154,9 +164,6 @@ async function assertIntegrationCapability(
     throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", `${def.displayName} is not enabled for this organisation.`);
   }
 
-  if (!context.agentId) {
-    throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", "Integration tools require an agent execution context.");
-  }
   const agentGrant = (await query<{ enabled: boolean }>(
     "SELECT ai.enabled FROM agent_integrations ai INNER JOIN agents a ON a.id=ai.agent_id WHERE ai.agent_id=$1 AND a.org_id=$2 AND ai.integration_id=$3",
     [context.agentId, context.tenantId, integrationId],
