@@ -338,7 +338,7 @@ export function ConfigEditor({
   const fullscreenPromptDialog = (
     <Dialog open={promptFullscreenOpen} onOpenChange={setPromptFullscreenOpen}>
       <DialogContent
-        className="flex h-[100dvh] max-w-none flex-col gap-3 p-4 sm:h-[94vh] sm:w-[96vw] sm:max-w-[1400px] sm:rounded-xl sm:p-6"
+        className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] min-w-0 max-w-[1400px] flex-col gap-3 overflow-hidden p-3 sm:h-[94dvh] sm:max-h-[94dvh] sm:w-[96vw] sm:rounded-xl sm:p-6"
         onOpenAutoFocus={(event) => {
           // Continue writing where the prompt ends, not at its first line.
           event.preventDefault();
