@@ -70,3 +70,8 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Lesson:** A daily WhatsApp send needs more than a connected phone. Require explicit recipient opt-in, an approved Meta template, a CRON_SECRET-protected schedule, one run per connection/date, and durable provider message IDs/statuses. If a network/persistence failure leaves send acceptance ambiguous, do not blindly retry; that can duplicate messages.
 - **Boundary:** The first scheduled briefing implementation is a deterministic digest of inbound message excerpts. Do not call it an AI summary or claim delivery until a real provider run is evidenced.
 - **Next:** Implement token expiry/revocation/reconnect and route-level regression source; reconcile ambiguous sends safely.
+
+
+- **Date/session:** 2026-10-09 / SESSION-DEV-20261009-04
+- **Lesson:** Provider delivery callbacks can arrive out of order. A durable message state machine must be monotonic: late `sent` or `failed` events must not regress a `delivered`/`read` state, and `read`, `deleted`, and terminal `failed` states must not be overwritten by late lower-value events. Use the same transition rule in webhook processing and replay/reconciliation paths.
+- **Test boundary:** Route/helper regression source now covers OAuth replay and permission recheck, tenant boundary, briefing gate, signature/idempotency, recipient format/digest, and status ordering. No tests have been executed.
