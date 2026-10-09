@@ -150,8 +150,8 @@ export default function CheckoutSuccessScreen() {
   const planName  = planId.charAt(0).toUpperCase() + planId.slice(1);
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-20 flex items-center justify-center">
-      <div className="w-full max-w-lg text-center">
+    <div className="min-h-[100dvh] w-full min-w-0 px-4 py-8 sm:py-12 md:py-20 flex items-center justify-center">
+      <div className="w-full min-w-0 max-w-lg text-center [overflow-wrap:anywhere]">
 
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2 mb-10">
@@ -171,12 +171,12 @@ export default function CheckoutSuccessScreen() {
 
         {isPortal ? (
           <>
-            <h1 className="text-3xl font-black text-foreground mb-2">Billing settings saved</h1>
+            <h1 className="text-3xl font-black text-foreground mb-2 break-words [overflow-wrap:anywhere]">Billing settings saved</h1>
             <p className="text-muted-foreground mb-8">Your subscription changes are now in effect.</p>
           </>
         ) : (
           <>
-            <h1 className="text-3xl font-black text-foreground mb-2">
+            <h1 className="text-3xl font-black text-foreground mb-2 break-words [overflow-wrap:anywhere]">
               {activationStatus === "pending_email"
                 ? <>Payment received — <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">verify your email</span></>
                 : activationStatus === "checking"
@@ -198,7 +198,7 @@ export default function CheckoutSuccessScreen() {
 
         {/* Plan features */}
         {!isPortal && features.length > 0 && (
-          <div className="border border-emerald-500/20 bg-emerald-500/[0.04] rounded-2xl p-5 mb-6 text-left">
+          <div className="w-full min-w-0 border border-emerald-500/20 bg-emerald-500/[0.04] rounded-2xl p-4 sm:p-5 mb-6 text-left [overflow-wrap:anywhere]">
             <p className="text-xs font-semibold text-emerald-600 mb-3 uppercase tracking-wide">
               What&apos;s included in your {planName} plan
             </p>
@@ -215,16 +215,16 @@ export default function CheckoutSuccessScreen() {
 
         {/* Receipt */}
         {!isPortal && (
-          <div className="border border-border bg-card rounded-xl p-4 mb-6 text-left">
+          <div className="w-full min-w-0 border border-border bg-card rounded-xl p-4 mb-6 text-left [overflow-wrap:anywhere]">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 pb-2 border-b border-border">
               Receipt
             </p>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span className="text-muted-foreground">Plan</span>
                 <span className="text-foreground font-medium">{planName} · monthly</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="text-foreground font-bold">
                   {PLAN_AMOUNTS[planId]
@@ -232,7 +232,7 @@ export default function CheckoutSuccessScreen() {
                     : "—"}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                 <span className="text-muted-foreground">Gateway</span>
                 <span className="text-foreground flex items-center gap-1">
                   {gateway === "stripe"
@@ -242,26 +242,26 @@ export default function CheckoutSuccessScreen() {
                 </span>
               </div>
               {todayStr && (
-                <div className="flex justify-between">
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                   <span className="text-muted-foreground">Date</span>
                   <span className="text-foreground">{todayStr}</span>
                 </div>
               )}
               {(sessionId || payRef) && (
-                <div className="flex justify-between">
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                   <span className="text-muted-foreground">Transaction ref</span>
-                  <span className="text-muted-foreground font-mono text-xs truncate max-w-[180px]">
+                  <span className="max-w-full break-words [overflow-wrap:anywhere] text-muted-foreground font-mono text-xs">
                     {(payRef || sessionId).slice(0, 24)}…
                   </span>
                 </div>
               )}
               {renewalStr && PLAN_AMOUNTS[planId] && (
-                <div className="flex justify-between">
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                   <span className="text-muted-foreground">Renews</span>
                   <span className="text-foreground">{renewalStr}</span>
                 </div>
               )}
-              <div className="flex justify-between pt-2 mt-1 border-t border-border">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 pt-2 mt-1 border-t border-border">
                 <span className="text-muted-foreground">Status</span>
                 <span className={activationStatus === "active" ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>{activationStatus === "checking" ? "Checking…" : activationStatus.replaceAll("_", " ")}</span>
               </div>
