@@ -30,6 +30,11 @@ describe("OAuth state helpers", () => {
     expect(result.codeChallenge).not.toBe(result.codeVerifier);
   });
 
+  it("honors an explicitly configured plain PKCE method", () => {
+    const result = createOAuthState(new Date(), "plain");
+    expect(result.codeChallenge).toBe(result.codeVerifier);
+  });
+
   it("hashes the same state deterministically without persisting raw state", () => {
     expect(hashOAuthState("example-state")).toBe(hashOAuthState("example-state"));
     expect(hashOAuthState("example-state")).not.toBe(hashOAuthState("different-state"));
