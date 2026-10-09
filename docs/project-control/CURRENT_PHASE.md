@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — CONNECTION CREDENTIAL BOUNDARY HARDENED
+
+[developer-reported] The organisation integration POST endpoint now validates credential structure server-side before creating a connection row. This closes the path where an OAuth client ID/secret pair alone could be saved as an active OAuth connection without an access token.
+
+- Added `src/modules/integrations/connection-validation.ts` and focused regression source.
+- OAuth2 requires a non-empty access token; basic auth requires username/password; secret-text checks accepted key aliases; custom auth enforces required registry fields; `none` cannot create a credential-bearing connection.
+- Existing organisation health response/UI now distinguishes active, expired, error, revoked and disconnected states without exposing credential columns.
+- Commits: `1449d36377a14c96a34625618b39405eb9d26749`, `ff01cda2c64b0f1391321440c22ee99e0afdf351`, `675cd39bc4e831f5fdba7b4859daa4f3c921341f`.
+- Tests/build/Docker/CI/Vercel/Gates/deployment/live OAuth consent were not run or awaited.
+
+**Next:** continue bounded P0 connection recovery and then P1 common capability/readiness contracts; keep execution in the existing Unified Tool Runtime.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — OAUTH TOKEN REFRESH + CONNECTION HEALTH SOURCE HARDENING
 
 [developer-reported] Follow-up source review aligned OAuth token exchange with the existing runner's refresh contract and added safe connection health reporting.
