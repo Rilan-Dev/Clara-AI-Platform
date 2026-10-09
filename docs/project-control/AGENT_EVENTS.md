@@ -196,3 +196,14 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** DEV-01
 - **Suggested next action:** Add token expiry/revocation/reconnect handling, route-level security regressions, and reconciliation for ambiguous sending runs/provider-status races. Do not automatically resend ambiguous outcomes.
 - **Related records:** I-090; SESSION-DEV-20261009-04; `src/app/api/cron/whatsapp-daily-briefings/route.ts`; `src/lib/db/migrations/067_whatsapp_business_lifecycle.sql`; `vercel.json`; `docs/deployment/whatsapp-business.md`.
+
+
+### EVT-DEV-006 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-04
+- **Type:** CORRECTION
+- **Summary:** Added persistence for Meta `expires_in` when returned; the connection-status route and scheduled worker mark expired active tokens as errors and disable briefing eligibility. Graph 401/403 send responses also mark the connection unhealthy. Reconnect is exposed through the existing Connect action when status requires attention.
+- **Impact:** Known-expired or provider-rejected credentials are no longer treated as briefing-ready or used for further scheduled sends.
+- **Owner:** DEV-01
+- **Verification:** Source-only. No token expiry transition, Graph error, test, build, or live provider behavior was executed.
+- **Next:** Add revocation/permission-health probes, safe reconnect state, and route-level regression source. Keep ambiguous sends from being automatically duplicated.
+- **Related records:** I-090; SESSION-DEV-20261009-04; `src/app/api/whatsapp/oauth/callback/route.ts`; `src/app/api/cron/whatsapp-daily-briefings/route.ts`.
