@@ -1,3 +1,19 @@
+## 2026-10-09 — P0 OAuth consent lifecycle source implementation
+
+Continued the authorized Integrations & AI Enhancement Roadmap after completing I-6 source hardening.
+
+- Added migration `066_integration_oauth_states.sql` with one-time hashed state, expiry, tenant/user/agent provenance, exact redirect binding, encrypted PKCE verifier, RLS and browser-role revocation.
+- Added cryptographic state/PKCE helpers and regression source.
+- Added organisation-scoped OAuth start route with platform/org/plan checks, configured redirect URI, S256 or explicitly configured plain PKCE, and stale-state pruning.
+- Added OAuth callback with atomic state consumption, provider error/cancel handling, callback origin/path binding, secure token exchange (HTTPS, no redirects, timeout), HEADER/BODY client authentication, current grant/plan rechecks, and encrypted connection persistence.
+- Updated organisation integrations UI to start OAuth consent and show safe callback status.
+- Added focused start/callback regression source; tests were authored but not run.
+- Representative commits: `bd7380f09ad4e56e30ab3c2a69ec416c9ef35652`, `28ecb76e96779ac0730b7c2ee1a8798b32b79777`, `23b99abe58cd82e9f6c9724787a066bb2304de99`, `da181a12e5e9d92798bd2d068a2f676eba62f2b4`, `df5217af0678b76eaa7983c66656ad8ad0b0a980`, `a6c471a86b7afd2f131c4f0602a397af1afc2516`, `fd0665cbfea5725794a285349bf647b82272ce86`, `c442aa3afe5757ca1bc7128d827cdee4f6d73764`.
+- Tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider flow were not run or awaited.
+- Next: source-review stored OAuth credential shape against `OAuth2TokenData` and `ensureTokenFresh`; correct mismatches and add regression source without waiting for external gates.
+
+---
+
 ## 2026-10-09 — I-6 final async policy-snapshot hardening
 
 Owner explicitly requested completing I-6 bounded hardening without waiting for CI/Vercel/Gates. Source review found that MCP policy was snapshotted only after awaiting the untrusted resolver. The resolver could mutate the caller-owned policy while discovery was in flight, including changing `requireUserId`.
