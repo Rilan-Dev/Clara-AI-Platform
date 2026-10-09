@@ -252,3 +252,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Next:** Continue the current-branch audit for clipping in cards/popovers/dialogs; run focused tests/typecheck and mobile/desktop visual review when local execution is available, without waiting for CI/Vercel.
 
 - **Follow-up in same session:** A second pass found the root URL in the empty/pending web-crawl session card still used `truncate`; it now wraps safely too. Commit: `f82471c07fa9cc1a2205b71c09b0ab6470c9e130`.
+
+
+### SESSION-FIX-20261010-13 / 2026-10-10
+- **Task:** Continue UI width audit for long content in analytics, configuration pickers and language selection.
+- **Fixes:** Top-query analytics cells now wrap instead of truncating (`0d22fb9cb26b86c3495e1c06809a514382460c7b`). Organisation usage names/slugs and metric values wrap (`7dc2f59cadcee1a8a4d57fe98c17bcb68a933c69`). ConfigEditor option labels/descriptions and preset names use natural wrapping (`22c83d90b470259f963e458e9acf22b2c04ec206`). Translator language names wrap in narrow picker rows (`0769bb726ba0d5d427cb40f3955c2a6f9472abd6`).
+- **Regression coverage:** Added a source-contract test; suite now contains 16 tests. Commit `6dac46b7bf397c9751e18e611f9ff6f06ac5fecf`.
+- **Verification:** GitHub accepted source/test updates. Local Vitest, typecheck, and browser-based responsive review are still not executed; no PASS claimed.
+- **Control continuity:** Read CHAT_CONTINUITY.md and NEXT_ACTION.md. NEXT_ACTION.md currently describes DEV-01 WhatsApp daily briefing work; this FIX-01 audit is independent and does not change its authority/ownership.
+- **Database incident:** OPS-01 remains responsible for PostgreSQL missing relations and seed FK failure; no schema mutation, reset or migration bypass.
+- **Next:** Continue current-branch audit of remaining cards/popovers/dialogs; run focused tests and typecheck and perform mobile/desktop visual review when local execution is available, without waiting on CI/Vercel.
