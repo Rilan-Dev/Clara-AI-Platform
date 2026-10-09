@@ -329,3 +329,5 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 changed payment webhook URL display, organisation member identity rows, uploaded document labels, and web source title/filename/root URL display to wrap safely rather than truncate in constrained flex layouts.
 - Commits: `43db1b383e2af3cd97e5f031de3c91bd603c3247`, `ecc48ef8eb02808a099678c6aeafbeb43afbb5b6`, `d60cd3c580db17e341124c497a5a0310cf495f64`, `e0a2afaac07ac2d2b3a93f005c715a100d3221fe`; regression test commit `683d05a51c973b13575413a0d1b88ebd7b0bc17d` (15 source-contract tests).
 - Vitest/typecheck/browser review not run; no PASS claimed. OPS-01 retains PostgreSQL incident.
+
+- **EVT-FIX-022 follow-up:** Also fixed the root URL in pending/empty web-crawl session cards, which a second source review found still used truncation. Commit: `f82471c07fa9cc1a2205b71c09b0ab6470c9e130`.
