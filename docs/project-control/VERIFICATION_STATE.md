@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-09 — PROVIDER CHAT DISPATCH
+
+[architect-verified] The KB-aware chat route now conditionally invokes the bounded agentic loop using the existing Unified Tool Runtime for the two integration tools. Both rollout flags are default-off, and provider capability is checked before entering the tool path. The context is minted from server-side identity.
+
+- Implementation commit: `df124e837b49a17d1e218eca9a585a8313dbdec6`.
+- Regression sources already exist for bounded loop flags, Unified Tool Runtime delegation, malformed calls, and exact context forwarding; no tests were executed for this route change.
+- CI, Vercel build, Gate-C, and Gate-D remain deferred. No executable PASS is claimed.
+- Active task remains IN PROGRESS; realtime voice dispatch and additional focused regression source are next.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-09 — INTEGRATION RUNTIME DISPATCH
 
 [architect-verified] Source changes harden platform OAuth app configuration validation and add focused regression source. The regressions were authored but not executed. No CI, Vercel build, Gate-C, or Gate-D evidence is claimed.
