@@ -45,11 +45,11 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-[100dvh] w-full min-w-0 px-4 sm:px-6 py-8 sm:py-12 md:py-20">
+      <div className="w-full min-w-0 max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-14">
-          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-4">
+          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-4 break-words [overflow-wrap:anywhere]">
             Get in <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">touch</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
@@ -57,9 +57,9 @@ export default function ContactPage() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-8">
+        <div className="grid min-w-0 lg:grid-cols-5 gap-6 sm:gap-8">
           {/* Left — info */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="min-w-0 lg:col-span-2 space-y-6">
             {/* Contact options */}
             <div className="border border-border bg-card rounded-2xl p-4 sm:p-6">
               <h3 className="font-semibold text-foreground mb-4">Contact us</h3>
@@ -117,8 +117,8 @@ export default function ContactPage() {
           </div>
 
           {/* Right — form */}
-          <div className="lg:col-span-3">
-            <div className="border border-border bg-card rounded-2xl p-4 sm:p-8">
+          <div className="min-w-0 lg:col-span-3">
+            <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-8 [overflow-wrap:anywhere]">
               {submitted ? (
                 <div className="text-center py-12">
                   <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
@@ -132,7 +132,7 @@ export default function ContactPage() {
                   </Link>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="min-w-0 space-y-5">
                   <h3 className="text-lg font-bold text-foreground mb-1">Request a demo</h3>
                   <p className="text-muted-foreground text-sm mb-6">Tell us about your use case and we&apos;ll set up a live walkthrough.</p>
 
@@ -141,13 +141,13 @@ export default function ContactPage() {
                       <label htmlFor="contact-name" className="block text-xs font-medium text-muted-foreground mb-1.5">Your name *</label>
                       <input id="contact-name" required type="text" autoComplete="name" value={formData.name} onChange={e => handleChange("name", e.target.value)}
                         placeholder="Jane Smith"
-                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
+                        className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
                     </div>
                     <div>
                       <label htmlFor="contact-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Work email *</label>
                       <input id="contact-email" required type="email" autoComplete="email" value={formData.email} onChange={e => handleChange("email", e.target.value)}
                         placeholder="jane@company.com"
-                        className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
+                        className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
                     </div>
                   </div>
 
@@ -155,7 +155,7 @@ export default function ContactPage() {
                     <label htmlFor="contact-company" className="block text-xs font-medium text-muted-foreground mb-1.5">Company *</label>
                     <input id="contact-company" required type="text" autoComplete="organization" value={formData.company} onChange={e => handleChange("company", e.target.value)}
                       placeholder="Acme Corp"
-                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
+                      className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors" />
                   </div>
 
                   <div>
