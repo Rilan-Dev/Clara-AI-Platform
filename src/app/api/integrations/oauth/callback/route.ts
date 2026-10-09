@@ -91,10 +91,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const tokenBody = new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      client_id: app.client_id,
-      client_secret: app.client_secret,
       redirect_uri: app.redirect_uri,
     });
+    const tokenHeaders: Record<string, string> = {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    };
+    if (definition.oauth2Config.authorizationMethod === "HEADER") {
+      tokenHeaders.Authorization = `Basic ${Buffer.from(`${app.client_id}:${app.client_secret}`, "utf8").toString("base64")}`;
+    } else {
+      tokenBody.set("client_id", app.client_id);
+      tokenBody.set("client_secret", app.client_secret);
+    }
     if (definition.oauth2Config.pkce) {
       if (!oauthState.code_verifier) {
         return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id));
@@ -106,7 +114,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
       tokenResponse = await fetch(tokenUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        headers: tokenHeaders,
         body: tokenBody.toString(),
         redirect: "manual",
         signal: AbortSignal.timeout(12_000),
