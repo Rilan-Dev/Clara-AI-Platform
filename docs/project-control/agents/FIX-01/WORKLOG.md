@@ -119,3 +119,17 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Lesson:** Missing-relation logs are not fixed until the running image and migration status are tied to the current source; do not hand-create tables. Shared primitive fixes cover more screens than scattered CSS patches.
 - **Blockers/dependencies:** Current runtime image SHA and migration output not provided; UI behavior not visually verified.
 - **Next action:** Continue current roadmap. At next ordinary runtime verification, record image SHA + migration status and check whether the missing relations persist; inspect representative dialogs at narrow widths and with long text.
+
+
+### SESSION-FIX-20261010-01 / 2026-10-10
+- **Task:** Investigate repeated missing PostgreSQL relation errors and repair shared modal/card text layout.
+- **Authorization:** Explicit owner request: trace root cause, make smallest authorized correction, add regression protection where appropriate, document evidence/next action; route infrastructure/environment work to OPS-01.
+- **Started from:** `feature/ai-core-from-doable-source`; branch verified present. Repository control state points to the 2026-10-09 WhatsApp lifecycle source work; active DEV-01 session remains independent and is not a blocker.
+- **Actions:** Recovered shared agent memory, central events/sessions/issues/verification state, current phase/next action, agent registry and FIX-01 memory/worklog. Inspected the shared `src/components/ui/Modal.tsx` primitive and corrected viewport sizing, max height, flex/min-width shrink behavior, scrolling, dialog semantics, and long-text wrapping.
+- **Files/code:** `src/components/ui/Modal.tsx`; commit `ef069e3f8ac64d65288855497326e9c6ad0c6b5e`.
+- **Database symptom/evidence:** Supplied PostgreSQL logs show `documents`, `ingest_jobs`, `event_outbox`, `kb_reindex_jobs`, and `platform_integration_oauth_apps` missing, plus a seed insert violating `agents_org_id_fkey` because the referenced organisation row is absent. This is consistent with schema/migration/bootstrap ordering or wrong/incomplete target database; exact cause is not proven from logs alone.
+- **Routing:** Database runtime/migration/bootstrap/environment investigation is routed to OPS-01. Do not manually create tables or reset database data. OPS-01 should compare database identity, migration runner outcome and applied migration ledger against the image/source actually running.
+- **Failed approaches:** No manual schema edits, database reset, seed rewrite, unrelated migration changes, or broad global word-breaking CSS.
+- **Remedy/prevention:** Shared modal primitive now uses viewport-bounded width/height, shrink-safe children, scrolling, and overflow wrapping so ordinary words retain natural horizontal flow while long unbroken tokens do not force overflow.
+- **Verification:** GitHub source write succeeded at `ef069e3f8ac64d65288855497326e9c6ad0c6b5e`. No UI browser test, regression test, typecheck/build, database query, migration run, Docker rebuild, or runtime comparison was executed. No PASS claimed.
+- **Next action:** Continue source-side UI audit for other independent dialog/card primitives without waiting for OPS-01; inspect the DB failure only if source evidence reveals a migration/bootstrap defect. OPS-01 to establish current DB/migration state and determine whether any application-side correction should be routed back to FIX-01.
