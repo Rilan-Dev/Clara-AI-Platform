@@ -56,7 +56,15 @@ async function subscribeWaba(wabaId: string, token: string): Promise<{ ok: boole
       body: new URLSearchParams({ access_token: token }).toString(),
       redirect: "manual", signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) return { ok: false, authRejected: response.status === 401 || response.status === 403 };
+    if (!response.ok) {
+      const errorBody: unknown = await response.json().catch(() => null);
+      const graphError = errorBody && typeof errorBody === "object" && "error" in errorBody
+        ? (errorBody as { error?: { code?: unknown } }).error : undefined;
+      return {
+        ok: false,
+        authRejected: response.status === 401 || response.status === 403 || graphError?.code === 190 || graphError?.code === 102,
+      };
+    }
     const result: unknown = await response.json().catch(() => null);
     return { ok: Boolean(result && typeof result === "object" && "success" in result && (result as { success?: unknown }).success === true), authRejected: false };
   } catch {
