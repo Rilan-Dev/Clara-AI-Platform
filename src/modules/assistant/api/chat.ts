@@ -3,7 +3,14 @@ import { TextEncoder } from "node:util";
 import { NextRequest, NextResponse } from "next/server";
 
 import { ProviderFactory } from "@/modules/ai-core/factory";
-import type { ChatMessage } from "@/modules/ai-core/types";
+import type { ChatMessage, ChatToolDefinition, ToolCallingLLMProvider } from "@/modules/ai-core/types";
+import {
+  createExecutionContext,
+  getClaraToolRuntime,
+  isAgentLoopEnabled,
+  isProviderToolCallingEnabled,
+  runBoundedAgenticLoop,
+} from "@/modules/ai-platform-core";
 import {
   embedQuery,
   searchSimilarDocuments,
@@ -36,6 +43,34 @@ import {
   recentMessages,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
+
+const INTEGRATION_CHAT_TOOLS: readonly ChatToolDefinition[] = [
+  {
+    name: "integration_availability",
+    description: "List integrations enabled for this organisation and agent, their connection readiness, and available actions.",
+    parameters: {
+      type: "object",
+      properties: {
+        integrationId: { type: "string", description: "Optional integration identifier to inspect." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "integration_action",
+    description: "Execute an explicitly enabled action on a connected organisation integration. Use integration_availability first to discover valid actions.",
+    parameters: {
+      type: "object",
+      properties: {
+        integrationId: { type: "string", minLength: 1 },
+        actionName: { type: "string", minLength: 1 },
+        props: { type: "object", additionalProperties: true },
+      },
+      required: ["integrationId", "actionName"],
+      additionalProperties: false,
+    },
+  },
+];
 
 // ── P1 FIX: Read max-tokens from env (was hardcoded 500) ──────────────────────
 //
@@ -451,7 +486,7 @@ async function postChatKb(
         // (Ref object — TS narrows a closure-written `let` to null at read time.)
         const usageRef: { value: { promptTokens: number; completionTokens: number } | null } = { value: null };
         try {
-          const completionStream = provider.chatStream(chatMessages, {
+          const chatOptions = {
             temperature: resolved.temperature ?? config.temperature,
             // The assistant's configured reply length on every surface. A
             // hardcoded 350-token voice cap cut spoken answers off mid-word
@@ -459,14 +494,59 @@ async function postChatKb(
             // voice comes from the prompt, not truncation.
             maxTokens: resolved.maxTokens ?? config.maxTokens,
             reasoningEffort: realtimeVoice ? null : undefined,
-            onUsage: (u) => { usageRef.value = u; },
-          });
-          for await (const delta of completionStream) {
-            if (delta) {
-              if (answerTranslator) {
-                answerTranslator.push(delta, emitToken);
-              } else {
-                emitToken(delta);
+            onUsage: (u: { promptTokens: number; completionTokens: number }) => { usageRef.value = u; },
+          };
+          const canCallTools =
+            isAgentLoopEnabled() &&
+            isProviderToolCallingEnabled() &&
+            typeof (provider as Partial<ToolCallingLLMProvider>).chatStreamWithTools === "function" &&
+            Boolean(orgId && authCtx?.user.id && resolved.agentId);
+          if (canCallTools) {
+            // Build the only authorized context from server-resolved identity.
+            // Request-body tenant/user/agent fields are never trusted.
+            const executionContext = createExecutionContext({
+              orgId: orgId!,
+              kbId,
+              agentId: resolved.agentId!,
+              userId: authCtx!.user.id,
+              ...(sessionId ? { sessionId } : {}),
+              surface: "chat",
+            });
+            const loopResult = await runBoundedAgenticLoop(
+              provider as ToolCallingLLMProvider,
+              chatMessages,
+              INTEGRATION_CHAT_TOOLS,
+              executionContext,
+              getClaraToolRuntime(),
+              {
+                signal: request.signal,
+                enabled: true,
+                toolCallingEnabled: true,
+                maxIterations: 3,
+              },
+            );
+            if (loopResult.status === "provider_error") {
+              throw new Error("Provider tool-calling request failed.");
+            }
+            if (loopResult.status === "cancelled") {
+              throw new Error("Chat request was cancelled.");
+            }
+            if (loopResult.status === "max_iterations") {
+              console.warn("[chat] bounded integration tool loop reached its iteration limit");
+            }
+            if (loopResult.text) {
+              if (answerTranslator) await answerTranslator.push(loopResult.text, emitToken);
+              else emitToken(loopResult.text);
+            }
+          } else {
+            const completionStream = provider.chatStream(chatMessages, chatOptions);
+            for await (const delta of completionStream) {
+              if (delta) {
+                if (answerTranslator) {
+                  answerTranslator.push(delta, emitToken);
+                } else {
+                  emitToken(delta);
+                }
               }
             }
           }
