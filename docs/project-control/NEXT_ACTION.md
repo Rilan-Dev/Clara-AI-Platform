@@ -1,3 +1,29 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — SHARED INTEGRATION CAPABILITY POLICY
+
+[owner-authorized] P1 common integration framework work now has one shared authorization policy for integration capability discovery and action invocation.
+
+## Completed source work
+- Added `src/modules/ai-platform-core/integrations/integration-policy.ts` as the common server-authoritative gate for platform enablement, plan entitlement, organisation grant, agent grant, caller identity, and caller-usable connection readiness.
+- Both the I-4 `integration-tool-bridge.ts` and the AI `integration-action-tool.ts` now reuse that policy instead of maintaining separate grant/connection checks.
+- Authorization database failures are normalized to `AUTHORIZATION_UNAVAILABLE` without exposing SQL/driver details.
+- Runner error codes and retryability are preserved as structured tool failure details.
+- AI availability advertises only actions that the runtime can actually resolve, and reports safe connection status/help.
+- Regression source added for missing identity, sanitized policy-query failure, error taxonomy, expired status, and unavailable action packages.
+- Commits: `55306cc3f1fe62b0295c51089462018fb98eba7b`, `80642166654c16b6c533917783f80c50832d73ee`, `7d6954093c2f7f8bd557b12bf5e75ec6b241e098`, `af97578a8557b92064210748760def6be7b49425`, `fa5b81f6e60c453986d165b2425bbe0d299ef943`, `38dbb5b4707b4acb41f5b61d527fe2dae1f2e9c6`, `c50313256116ac7f59b34d83d2950e68df37695d`, `8fd1ab08ed89bcccc9d8f30a1bdb7e8b8e0a930a`, `e74e0de0b68f19f45b12a46629e2a035b5f3761f`, `481988f4b3febf1eefbe4aea6c86a80700d0e3fb`, `1df63308197e42351ba2ddb4efc90d20ed8bff71`, `ffd9c2f719535d0a231d4b73fcee8dd62487a523`, `9caa045853d9141f9139f4069e506b75cfe93f1a`, `0f51346861e4f2e61b2a8bd863dc70ce17ec37d6`, `5b2c476669b6cb9845cf20e20bdcc012b09293c9`, `641ddc114aa5d04e59e58be762019bb3b2d893c0`, `fa62216fd8c145d1d79c5a5e45e8df1876baf776`, `51ef9a3305904e1404d7920710cf8400e1d7a66d`, `9ca66371f263d65c6fb24b8b73ce0d3a89cbbc70`.
+
+## Verification
+Tests authored only. No test execution, typecheck, build, Docker, CI, Vercel, Gates, deployment, or live provider flow was run or awaited.
+
+## Next implementation
+Continue P1/P2 integration runtime hardening:
+1. Review the new shared policy and OAuth token contract as a single end-to-end path; retain runner-side authorization as the final credential boundary.
+2. Add typed idempotency and approval/policy hooks for consequential integration actions using existing runtime contracts—do not create a second executor.
+3. Keep RAG knowledge grounded in Clara Qdrant, and preserve tenant/user provenance, secret redaction, and default-off rollout flags.
+
+Do not wait for CI/Vercel/Gates.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — UNIFIED INTEGRATION READINESS CONSISTENCY
 
 [owner-authorized] Continued P1 shared capability/readiness work while preserving the existing Unified Tool Runtime.
