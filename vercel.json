@@ -22,6 +22,10 @@
     {
       "path": "/api/cron/whatsapp-daily-briefings",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp-connection-health",
+      "schedule": "*/15 * * * *"
     }
   ],
   "functions": {
