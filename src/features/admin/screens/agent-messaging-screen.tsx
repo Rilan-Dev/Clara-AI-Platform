@@ -85,7 +85,7 @@ export default function AgentMessagingScreen() {
       } else if (action === "disconnect") {
         setNotice("WhatsApp Business was disconnected from this agent.");
       } else if (action === "save-briefing-recipient") {
-        setNotice("Briefing recipient and opt-in recorded. You can enable briefing eligibility once this verified connection is ready.");
+        setNotice("Briefing recipient and opt-in saved. Enable daily briefing to include this agent in the scheduled job.");
       } else if (action === "enable-briefing") {
         setNotice("Daily briefing eligibility is enabled for this verified connection.");
       } else if (action === "disable-briefing") {
@@ -242,7 +242,8 @@ export default function AgentMessagingScreen() {
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium">Daily briefing</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection and webhook are verified." : state?.dailyBriefing.enabled ? "Eligibility is enabled for this verified connection; scheduled delivery still requires the briefing worker." : "Connection is verified. Enable briefing eligibility when you want this agent marked ready for scheduled delivery."}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection and webhook are verified." : state?.dailyBriefing.enabled ? "Enabled for this verified connection. The scheduled job runs daily at 03:00 UTC using the configured approved Meta template." : "Connection is verified. Enable briefing eligibility when you want this agent marked ready for scheduled delivery."}</p>
+                {connection?.dailyBriefingLastSentOn && <p className="mt-1 text-xs text-muted-foreground">Last sent date (UTC): {connection.dailyBriefingLastSentOn}</p>}
               </div>
             </div>
             {connection?.lastErrorCode && <p className="rounded-md border border-amber-500/30 p-2 text-xs text-muted-foreground">Connection issue: {connection.lastErrorCode}</p>}
