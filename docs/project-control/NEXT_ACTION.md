@@ -1,22 +1,31 @@
-# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP BUSINESS CONNECTION LIFECYCLE
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP SERVER LIFECYCLE SOURCE SLICE
 
-[owner-authorized] Continue the explicit DEV-01 Messaging task. The UI entry point is committed, but the account is not connected and the server-side WhatsApp lifecycle is missing.
+[owner-authorized] DEV-01 continued the WhatsApp Business task beyond the initial UI. The server-side connection lifecycle and guarded readiness state are now committed as source; live Meta setup and runtime verification remain unclaimed.
 
-## Completed source work
-- Added `/orgs/[id]/agents/[agentId]/messaging` and the “Connect WhatsApp Business” setup dialog.
-- Added Messaging to the existing desktop agent sidebar and mobile workspace tabs; no second sidebar was added.
-- UI honestly keeps the channel “Not connected”; opening Meta Business Manager does not mark it connected.
+## Implemented source
+- Migration `067_whatsapp_business_lifecycle.sql`: one-time OAuth states, encrypted pending OAuth sessions, WABA/phone connection identity, one active phone per agent and phone ID, durable webhook event rows, and durable message/delivery rows. Browser roles are denied access.
+- Authenticated agent-scoped connect endpoint creates a short-lived hashed state and Meta authorization URL; callback consumes state once, exchanges code and attempts long-lived token exchange, discovers owned/client WABA phone candidates, and stores access tokens encrypted.
+- Owner selects a Meta-returned phone; the database enforces one active phone per agent and one active agent per phone. The selected WABA is subscribed to the Meta app.
+- `/api/webhooks/whatsapp` implements Meta's challenge response, raw-body HMAC signature validation, transactionally deduplicated events, inbound-message persistence, and message delivery-status updates.
+- Messaging UI reads connection/webhook health from the server and allows disconnect/retry-subscription. Daily-briefing eligibility can only be enabled while an active connection has a verified signed webhook event.
+- Added helper regression source for signature rejection, raw-body tampering, constant-time comparison, and event-key idempotency.
+- Setup notes: `docs/deployment/whatsapp-business.md`.
+- Source commits in this slice include `27ad17cb8f9bff9d0278ce4eb68900e81fe2ecfe`, `89ce8d7b23e1fadb877c41f14540aa140b2f864b`, `496db2482512d39d632ee2c95c5ec2779a466bd4`, `3b238a36890b9f6d2acb8973a4e9681d6606ce26`, `19c6401062334447277171c3e44c906809378a6d`, `a5ccba51b4ecd06bc279c9f8f67b13c34cb1dc78`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `30fca3dfe1d2fc6a847cc8da7ca725a4dcf93f0c`, and `392978f3df24a2656c43ed4b12241317ad1df66`.
+
+## Verification / limits
+- Regression test source is authored but not executed. No typecheck, build, Docker, CI, Vercel, deployment, live Meta consent, webhook challenge, WABA subscription, or production PASS was run or awaited.
+- The `daily_briefing_enabled` value is a guarded eligibility/preference flag only. A scheduled summary generator and outbound WhatsApp delivery worker are not present yet. Do not claim daily messages are scheduled or delivered.
+- Meta token expiry/revocation monitoring and automated reconnect remain follow-up work.
 
 ## Exact next implementation
-1. Inspect existing OAuth, encrypted connection persistence, credential-vault, and migration conventions.
-2. Implement authenticated, organisation-authorized and agent-scoped Meta WhatsApp connection initiation/callback. Persist OAuth state and selected WABA/phone identity securely; enforce one active WhatsApp Business phone per agent.
-3. Add Meta webhook challenge and signature verification, idempotent inbound event handling, and durable message/delivery state with retry-safe processing.
-4. Wire Messaging UI to server-authoritative connection/webhook health; enable daily briefing only after a verified phone exists.
-5. Add focused regression source for tenant/agent isolation, callback/state replay, webhook verification, duplicate events, and durable state transitions.
-
-Do not claim live Meta connection, webhook verification, or runtime PASS without evidence. Do not wait for CI/Vercel/Gates. Route substantial bugs to FIX-01 and deployment/infrastructure-only work to OPS-01.
+1. Implement the outbound WhatsApp message service using the encrypted active connection, persisting outbound message IDs and status transitions; honor Meta recipient-consent/template-window rules and never expose access tokens.
+2. Add a scheduled daily-summary worker that selects only `status='active' AND webhook_verified=true AND daily_briefing_enabled=true`, verifies `CRON_SECRET`, generates a grounded summary from Clara's stored message state, and persists send attempts/results idempotently. If no existing scheduler contract supports this safely, implement the scheduler contract first rather than simulating delivery.
+3. Add focused regression source for tenant/agent isolation, OAuth state replay/cancellation, phone-selection uniqueness, signature rejection, duplicate event retries, and the briefing readiness gate.
+4. Add token expiry/revocation health and safe reconnect handling. Wire real status and delivery results into Messaging.
+5. Keep project-control records current. Route substantial correctness/security bugs to FIX-01 and deployment/infrastructure work to OPS-01. Do not poll or wait for CI/Vercel/Gates.
 
 ---
+
 
 # IMMEDIATE SELF-HOSTED RUNTIME FOLLOW-UP — 2026-10-09
 
