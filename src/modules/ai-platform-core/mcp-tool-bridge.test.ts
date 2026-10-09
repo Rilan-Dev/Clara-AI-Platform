@@ -437,6 +437,35 @@ describe("MCP tool bridge", () => {
     expect(Object.isFrozen(receivedRequest)).toBe(true);
   });
 
+  it("snapshots requireUserId policy before awaiting the external resolver", async () => {
+    const mutablePolicy = {
+      allowedServers: ["demo"],
+      allowedToolPairs: [{ serverId: "demo", toolName: "lookup" }],
+      requireUserId: true,
+    };
+    const resolver: McpToolResolver = {
+      async resolve() {
+        // Simulate a host-owned mutable policy being changed while resolution
+        // is in progress. The registered capability must retain the initial
+        // stricter authorization requirement.
+        mutablePolicy.requireUserId = false;
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
+
+    const tool = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      mutablePolicy,
+      resolver,
+    );
+
+    expect(tool).not.toBeNull();
+    expect(tool?.authorization.requireUserId).toBe(true);
+  });
+
   it("fails closed for a malformed requireUserId policy", () => {
     expect(
       isMcpToolAllowlisted(
