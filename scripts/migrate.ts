@@ -11,9 +11,23 @@ try {
 
 async function main() {
   if (process.env.SKIP_DB_MIGRATIONS === "1") {
-    console.log("[db:migrate] SKIP_DB_MIGRATIONS=1 — skipped.");
+    // Skipping migrations in production can publish an application whose
+    // request handlers query tables that do not exist yet (including the
+    // platform OAuth-app configuration table). Keep local opt-out available,
+    // but never let a production/Vercel build silently succeed without schema.
+    if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+      console.error(
+        "[db:migrate] Refusing to skip database migrations in production/Vercel. " +
+          "Unset SKIP_DB_MIGRATIONS or apply migrations before building.",
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    console.log("[db:migrate] SKIP_DB_MIGRATIONS=1 — skipped in non-production environment.");
     return;
   }
+
   const { runMigrationsOnStartup } = await import("../src/lib/db/migrate");
 
   try {
