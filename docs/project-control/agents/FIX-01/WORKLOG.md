@@ -262,3 +262,15 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Control continuity:** Read CHAT_CONTINUITY.md and NEXT_ACTION.md. NEXT_ACTION.md currently describes DEV-01 WhatsApp daily briefing work; this FIX-01 audit is independent and does not change its authority/ownership.
 - **Database incident:** OPS-01 remains responsible for PostgreSQL missing relations and seed FK failure; no schema mutation, reset or migration bypass.
 - **Next:** Continue current-branch audit of remaining cards/popovers/dialogs; run focused tests and typecheck and perform mobile/desktop visual review when local execution is available, without waiting on CI/Vercel.
+
+
+### SESSION-FIX-20261010-01 / 2026-10-10
+- **Task:** Continue the responsive UI clipping audit on the public landing page and login card after the owner reported the same design defect in both.
+- **Authorization:** Direct owner request to complete the UI clipping audit.
+- **Started from:** `feature/ai-core-from-doable-source`; landing source at `4264abedc32f36903ee4271a374c9d8b7a3e3fcd`, login source at `9f503dfef41e882386355cedf43c1b0245d46ecb`.
+- **Actions:** Made the landing hero content wrapper full-width and shrink-safe; allowed hero heading/description and feature-card titles/descriptions to wrap long tokens. Constrained the login card and login fields to their available width, added shrink-safe form/password wrappers, and authored a source-contract regression for both screens.
+- **Files/code:** `src/features/platform/screens/landing-screen.tsx`; `src/features/admin/screens/login-screen.tsx`; `src/components/ui/layout-primitives.test.ts`.
+- **Evidence:** Source commits `4dcf32954d6e2c31ac3b022977af20dba7565e24`, `06c9343cb0cf3f8ffcc76bfacde63a22f58aeb40`; regression-source update is being recorded in this session. No Vitest/typecheck/browser inspection was run.
+- **Blockers/dependencies:** Actual visual behavior at the deployed URL remains unconfirmed from this session; deployment may lag the feature branch.
+- **Lesson:** Prevent clipping at both the card boundary and its flex/grid ancestors; long strings need wrapping on the text element, not just an outer overflow rule.
+- **Next action:** Continue auditing other public/auth cards for the same combination of missing `min-w-0`, intrinsic input sizing, and unbreakable content. Do not wait for CI/Vercel; report visual verification as pending.
