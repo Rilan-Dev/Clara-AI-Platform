@@ -1,3 +1,13 @@
+## 2026-10-09 — OAuth refresh compatibility and connection health
+
+- Added `authorization_method` to the stored OAuth token contract and updated `ensureTokenFresh` to use the provider-configured HEADER/BODY client-auth mode. Regression source asserts HEADER mode does not place client credentials in the form body.
+- OAuth start validates HTTPS authorization URL and redirect URI at use time, uses configured PKCE method, and opportunistically removes stale OAuth state rows.
+- Organisation integration API now returns aggregate health only; regression source covers expired state without exposing credential columns. Admin UI displays expired/error/revoked status and reconnect entry.
+- Relevant commits: `78e28640520922db010023a0d0804fff3c9142f7`, `fbd95c6d43b6b9bee15787785f75409111540c44`, `67abff6bb38aca66df886971a6a8f0357727e803`, `0afb5258e9d721857095078ccb2598b2a43d6d88`, `87756d3cc235ab4a356c057319e7159c8733c104`, `fcfc27207bebf75dbc1300b57a227db592fd4c47`, `a4f46d8af88a55e869f292db5ffa9cf63ed496d5`, `d84a8c1523ebcd6b7b5af04f468a01f51159648a`, `2b82214135ff5fe164eaf2fb9feafedc424f6358`.
+- No tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent was run or awaited. No runtime or production PASS is claimed.
+
+---
+
 ## 2026-10-09 — P0 OAuth consent lifecycle source implementation
 
 [developer-reported] Added a generic authorization-code flow using the existing platform OAuth app configuration and `integration_connections` storage.
