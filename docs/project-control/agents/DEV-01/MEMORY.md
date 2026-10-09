@@ -33,3 +33,13 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Remedy:** Gate descriptors behind both existing default-off flags and authenticated KB membership; submit calls to a same-origin route that derives org/agent/user/session identity from server state and invokes the existing Unified Tool Runtime.
 - **Prevention:** Every voice tool call must pass server authentication, KB access checks, a factory-minted execution context, and the existing runtime; public embed sessions must not receive these workspace integration tools.
 - **Related record:** `src/modules/assistant/api/realtime-tool.ts`; source commits a2dee343b099edef6ad6337fef976047c3f59aa5, c36b5b67beabad175ea9530293846ef8763b3151, f3e8efda5b7a12173e313ee4f476774c62092e52, a64e8f3258b9ab8e59f4f0258c600b1e0ddf13e9, a218e2a354e0c83e7944dbe9b32ad6bebbb574bf, f830efd8fb03f778a4277b2817cc2e684266c3cb, 29e470aea416cd3cc1af56e0a27a1320013498f5, e6da6968d3d7d6e422b309e5188562578f2adb56.
+
+
+- **Date/session:** 2026-10-09 / SESSION-DEV-20261009-03
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** Agent workspace had no Messaging navigation path or WhatsApp Business connection action; source search did not find a WhatsApp-specific connect route, webhook verifier, or durable message store.
+- **Root cause:** The generic integrations UI controls AI tool integrations, not WhatsApp as a messaging channel; adding only an integration toggle would not establish a WhatsApp phone connection.
+- **Failed approach:** Treating a generic integration grant or an external Meta page visit as a completed WhatsApp connection would falsely imply account authorization and webhook readiness.
+- **Remedy:** Add Messaging to the existing agent sidebar and mobile tabs and keep status Not connected until a server-side Meta connection lifecycle exists.
+- **Prevention:** UI state must be backed by durable tenant/agent-scoped connection state and verified webhook status; external provider navigation is setup guidance only.
+- **Related record:** SESSION-DEV-20261009-03; commits 751db6158fca1b85b6f6c933ad46b45635bfeaf1, 292e8ea5dd5f7c1548d22a196324035f933de762, 7d0e28314af14fd1739fa1746f5855632645b4d8, 8fe3ee7c168c0bbc0d1e837514f1e0a3cab73500.
