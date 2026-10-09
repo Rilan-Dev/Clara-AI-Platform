@@ -27,3 +27,15 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Next action:** Resume the roadmap action in docs/project-control/NEXT_ACTION.md without waiting for CI/Vercel/Gates. Rebuild only when normal verification is next run; do not claim PASS or production recovery.
  
 <!-- Append new entries below. -->
+
+
+### SESSION-FIX-20261009-02 / 2026-10-09
+- **Task:** Diagnose and correct the follow-on Docker Next.js webpack unresolved-module errors.
+- **Authorization:** Explicit owner instruction to recover current state, trace root cause, make the smallest authorized corrective change, add regression protection where appropriate, and record the incident; no unrelated scope.
+- **Started from:** `feature/ai-core-from-doable-source`; owner-reported build after local pull to `992d8385`.
+- **Actions:** Read shared `AGENT_MEMORY.md`, central events/sessions/issues/verification, FIX-01 role-local memory/worklog, and `NEXT_ACTION.md`. Confirmed target files exist as TypeScript siblings. Changed the remaining five explicit `.js` import specifiers in three runtime files to extensionless imports.
+- **Files/code:** `src/modules/integrations/runtime/connections-manager.ts`; `runner-core.ts`; `runner-fetch.ts`.
+- **Evidence:** Source commits `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`. The reported build log is the pre-correction failure evidence. No post-correction build/test run.
+- **Blockers/dependencies:** Outcome of a new Docker build is unknown; no infrastructure/daemon failure is indicated by the shown webpack errors.
+- **Lesson:** Correct only the concrete failing imports; deeper imports can surface after earlier failures are removed. A running old container is not evidence that new source compiled.
+- **Next action:** Resume `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel/Gates and do not claim PASS or production recovery.
