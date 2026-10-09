@@ -1,3 +1,15 @@
+## 2026-10-09 — I-6 final async policy-snapshot hardening
+
+Owner explicitly requested completing I-6 bounded hardening without waiting for CI/Vercel/Gates. Source review found that MCP policy was snapshotted only after awaiting the untrusted resolver. The resolver could mutate the caller-owned policy while discovery was in flight, including changing `requireUserId`.
+
+- Updated `src/modules/ai-platform-core/mcp-tool-bridge.ts` to snapshot validated policy before resolver awaits and once at runtime-build entry.
+- Added a regression to `src/modules/ai-platform-core/mcp-tool-bridge.test.ts` proving a mutation to `requireUserId` during discovery does not relax the registered authorization requirement.
+- Commits: `826169686c91c5095ac5d717eb27a048c020a57a`, `6f824ce9f75e38645c6b33e06b37559977650d0a`.
+- I-6 source implementation is complete. Tests/build/CI/Vercel/Gates/deployment were not run or awaited.
+- Next implementation: continue the authorized Integrations & AI roadmap with the P0 OAuth connection lifecycle. The runner webpack import correction `b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd` is committed but the owner-provided local Docker build predates it.
+
+---
+
 ## 2026-10-09 — Next.js webpack integration-runner import fix
 
 Owner supplied Docker build output showing five unresolved modules from src/modules/integrations/runtime/runner-core.ts. Updated relative imports to extensionless specifiers for registry index, credential vault, context builder, XRay, and runner fetch. Commit: b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd.
