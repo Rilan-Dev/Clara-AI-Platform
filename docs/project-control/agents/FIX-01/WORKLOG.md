@@ -61,3 +61,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Prevention:** Keep persisted OAuth fields and the shared token interface updated together when consent or refresh semantics change.
 - **Evidence:** Source diff/commit only. No build/test/typecheck/CI/Vercel/deployment PASS claimed.
 - **Next action:** Continue the authorized P1/P2 integration-runtime work from `NEXT_ACTION.md`; inspect existing typed tool contracts before adding idempotency and approval/policy hooks. Do not add a second executor or wait for external gates.
+
+
+## 2026-10-09 — Docker build: files-service module resolution
+- **Symptom/evidence:** User's actual Docker build failed with webpack `Module not found: Can't resolve './files-service.js'` from `src/modules/integrations/runtime/runner-helpers.ts`; trace continued through `runner-core.ts` → integration tool bridge → chat route.
+- **Root cause:** The runtime file is `files-service.ts`, but a dynamic import used a `.js` suffix inconsistent with this TS source/build setup.
+- **Failed approaches:** Earlier import-suffix corrections addressed several sibling imports but missed this dynamic import; this is another distinct occurrence, not proof of broader build success.
+- **Remedy:** Changed the import to extensionless `./files-service` (commit `bda45fd90379154e098d39076823829d2b741bd7`).
+- **Prevention:** When a webpack error points to a TS module, inspect all static and dynamic imports in the implicated runtime module for explicit `.js` suffixes, but correct only demonstrated failures and avoid blanket replacements.
+- **Evidence status:** User-provided build output is the failure evidence; source correction commit is the remedy evidence. No post-fix build/test/typecheck/CI/Vercel/deployment PASS is claimed. Existing container being healthy is an older running instance and does not verify the new image.
+- **Next action:** Continue planned source work without waiting for external gates; when the ordinary Docker build is run again, address the next error from its actual output.
