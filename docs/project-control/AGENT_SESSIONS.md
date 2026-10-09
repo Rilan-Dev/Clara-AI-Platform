@@ -74,3 +74,16 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** None known from source authoring; no deployment or runtime result claimed.
 - **Handoff:** EVT-DEV-001 (architect review request; no authority transfer to FIX-01 unless a substantial defect is identified).
 - **Next action:** Architect review the bounded implementation and regression source. Do not start unrelated work without a new authorized NEXT_ACTION.
+
+
+### SESSION-FIX-20261009-02 — 2026-10-09
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Recover project-control authority and diagnose/fix the next Docker webpack missing-module failures.
+- **Started from:** `feature/ai-core-from-doable-source`; owner-reported local build after pull to `992d8385`.
+- **Scope:** Trace only the reported unresolved relative imports, apply the smallest authorized correction, and record the incident. No unrelated scope.
+- **Status:** HANDOFF
+- **Completed:** Recovered shared memory, central agent records, FIX-01 role-local records, verification state and NEXT_ACTION. Confirmed the missing targets are existing TypeScript siblings and removed five remaining explicit `.js` suffixes across three runtime files.
+- **Pending:** New Docker/Next build not run; successful compilation is not established.
+- **Blockers:** Build evidence unavailable after source correction. No OPS-01 infrastructure action is indicated by this webpack module-resolution symptom.
+- **Handoff:** Resume the existing owner-authorized roadmap in `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel/Gates.
+- **Related commits:** `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`.
