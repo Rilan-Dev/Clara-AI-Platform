@@ -111,3 +111,15 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Pending:** Rebuild and inspect the actual packaged migration set; verify PDF parsing with the production runtime dependency; set `CRON_SECRET` in the self-hosted environment if the three local cron jobs are intended to run.
 - **Blockers:** No current-image build or runtime verification was performed; the running container is not known to contain current source.
 - **Next action:** Continue the authorized roadmap in `docs/project-control/NEXT_ACTION.md` without waiting for CI/Vercel/Gates; treat the next Docker build and any new runtime errors as separate evidence.
+
+
+### SESSION-DEV-20261009-03 — 2026-10-09
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Owner requested recovery and continuation of WhatsApp Business Messaging connection UX.
+- **Started from:** `feature/ai-core-from-doable-source`; recovered project-control and DEV-01 role-local records from GitHub.
+- **Scope:** Inspect existing agent navigation and integration patterns; add a reachable Messaging screen and connection-start affordance without falsely claiming a connection.
+- **Status:** ACTIVE — UI entry point committed; backend connection lifecycle pending.
+- **Completed:** Added per-agent Messaging route/screen, Connect WhatsApp Business dialog, Meta Business Manager handoff, and desktop/mobile navigation entries.
+- **Blockers:** No WhatsApp-specific server connection, webhook verification, or durable message-state implementation found. UI explicitly remains Not connected.
+- **Handoff:** None. Route substantial correctness/security bugs to FIX-01 and deployment/infrastructure work to OPS-01.
+- **Next action:** Implement authenticated Meta connection initiation, tenant/agent-scoped phone binding, verified webhook processing, and persistent message state; then bind UI to backend status.
