@@ -63,14 +63,14 @@ function PageRow({ doc, kbId, onDelete, onReprocess }: {
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate" title={doc.title}>{doc.title}</p>
-          <p className="text-xs text-muted-foreground font-mono truncate mt-0.5" title={doc.originalFilename}>
+          <p className="break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground" title={doc.title}>{doc.title}</p>
+          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-mono text-muted-foreground" title={doc.originalFilename}>
             {doc.originalFilename}
           </p>
         </div>
 
         {/* Meta + actions */}
-        <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span>{formatSize(doc.fileSize)}</span>
           <span>{doc.chunkCount != null ? `${doc.chunkCount.toLocaleString()} chunks` : "—"}</span>
           <StatusBadge status={doc.status} />
@@ -127,7 +127,7 @@ function SessionGroup({ session, docs, kbId, onDelete, onReprocess }: {
           <GlobeIcon className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground truncate">{session.rootUrl}</p>
+          <p className="break-words [overflow-wrap:anywhere] font-semibold text-foreground">{session.rootUrl}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {docs.length} page{docs.length !== 1 ? "s" : ""}
             {" · "}{readyDocs} ready
