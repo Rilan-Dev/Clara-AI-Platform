@@ -29,7 +29,11 @@ async function probe(connection: Connection): Promise<"healthy" | "rejected" | "
       signal: AbortSignal.timeout(10_000),
     });
     const body: unknown = await response.json().catch(() => null);
-    return classifyWhatsAppGraphHealth(response.status, body);
+    const classification = classifyWhatsAppGraphHealth(response.status, body);
+    if (classification === "healthy" && (!body || typeof body !== "object" || !("id" in body) || (body as { id?: unknown }).id !== connection.waba_id)) {
+      return "unavailable";
+    }
+    return classification;
   } catch {
     return "unavailable";
   }
