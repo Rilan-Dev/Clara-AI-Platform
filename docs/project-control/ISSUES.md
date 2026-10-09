@@ -1888,3 +1888,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | [architect-verified] Direct source review confirms malformed resolver descriptors now fail closed during discovery; focused regression source is present. Executable test evidence remains deferred by owner instruction. |
 | Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, broad provider rollout, or unrelated runtime refactor. |
 | Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
+
+
+## I-092 — Integration runtime TypeScript imports unresolved by Next.js webpack
+
+| Field | Value |
+|---|---|
+| Issue ID | I-092 |
+| Title | Integration runtime sibling imports must resolve in the production webpack build |
+| Phase | Integrations runtime / build reliability |
+| Severity | P1 — production image build blocker in the supplied log |
+| Status | SOURCE CORRECTED — post-change build verification pending |
+| Date identified | 2026-10-09 |
+| Reporter / role | Owner-provided Docker build log / FIX-01 Sentinel |
+| Finding | Next.js 16.4.0 webpack failed to resolve `./store.js`, `./files-service.js`, and `./connections-manager.js` from `context-builder.ts`, plus `./action-input-validation.js` and `./error-normalization.js` from `runner-core.ts`. The target TypeScript files exist in the runtime directory. |
+| Root cause | Explicit `.js` relative specifiers for TypeScript siblings were not resolved in this webpack build path. |
+| Correction scope | Only the five reported import specifiers in `src/modules/integrations/runtime/context-builder.ts` and `src/modules/integrations/runtime/runner-core.ts`; no resolver configuration or unrelated runtime logic changed. |
+| Correction commits | `ec1d0cd88d16e626ffbb9af7ed44a6b9e1320210`; `8da4ec31da847a9a024d27ad49c2ee53d67f0372` |
+| Regression protection | Existing extensionless import convention retained. The production webpack build is the meaningful integration check; no source-text-only test was added. |
+| Verification | Source updated and project-control records written. No post-change tests/typecheck/build/Docker/CI/Vercel/Gates/deployment were run or awaited. Do not mark PASS until ordinary verification provides evidence. |
+| Failed approach / prevention | Repeating the same build without source changes cannot fix resolver behavior. `docker compose up -d --no-deps` after a failed build may leave the previous image running and is not evidence of recovery. Preserve build checks. |
+| Next action | Continue the authorized P1/P2 integration-runtime roadmap in `NEXT_ACTION.md` without waiting for external gates; investigate any new build failure as a separate issue when verification is next run. |
+| Related records | EVT-FIX-003; SESSION-FIX-20261009-01; `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/VERIFICATION_STATE.md` |
+| Architect review status | Source correction recorded; post-change build not reviewed or claimed. |
