@@ -1906,3 +1906,22 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Seed evidence | Current `src/lib/db/seed/production.ts` upserts the demo organisation before inserting its agent. The reported FK error likely came from an older seed/runtime or inconsistent DB state; do not manually insert/delete tenant rows without fresh evidence. |
 | Verification | Source correction only. No Docker rebuild, migration, DB query, or runtime test performed. |
 | Next action | Rebuild the current branch and inspect fresh logs. If duplicate 063 persists, inspect actual packaged migration filenames; if the organisation FK failure persists with current seed code, capture the seed's ordered stage logs and query the target row before changing data. |
+
+
+## I-095 — Shared dialog and card content overflow / vertical wrapping
+
+| Field | Value |
+|---|---|
+| Issue ID | I-095 |
+| Title | Shared dialog and card primitives must preserve responsive width and readable text wrapping |
+| Phase | Shared UI reliability |
+| Severity | P2 |
+| Status | SOURCE-CORRECTED — visual regression verification pending |
+| Date identified | 2026-10-10 |
+| Symptom | Owner reports popup/card width defects and text displayed one word or letter per vertical line, producing poor UI/UX. |
+| Root cause | Shared DialogContent used full width without a viewport-relative width/max-height/scroll container; shared dialog/card text containers lacked consistent shrink-safe minimum widths and robust wrapping for long content. |
+| Remedy | Updated `src/components/ui/dialog.tsx` with viewport-safe width and max-height, scrolling, min-width handling, and text wrapping. Updated `src/components/ui/card.tsx` to keep card/title/description/content shrink-safe, wrap long text, and allow footer controls to wrap. |
+| Commits | `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; `f309ab93f80eb9eaa6246d72d17aa5d2d1c5c88f`. |
+| Verification | Source commits only. No browser screenshot, viewport sweep, UI test, typecheck, or build run; visual outcome remains unverified. |
+| Prevention | Prefer shared primitive corrections over scattered per-page patches. On normal UI verification, check desktop and narrow viewports, long labels/descriptions/URLs, and dialogs with content taller than the viewport. |
+| Next action | Continue the authorized roadmap; visually inspect representative existing dialogs/cards on the next ordinary UI verification pass. |
