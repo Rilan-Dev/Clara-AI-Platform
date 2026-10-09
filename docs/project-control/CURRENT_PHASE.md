@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — CONNECTION HEALTH + SCOPED DISCONNECT SOURCE COMPLETE
+
+- Organisation integration health now reports safe status counts and latest update time for the authenticated caller's own/shared connection scope.
+- Credential writes validate on the server before persistence.
+- OAuth reconnect uses the new consent flow; explicit disconnect is available and scoped to the exact organisation/agent connection rather than accidentally deleting all agent-specific connections.
+- Regression source covers expired health, credential shapes and disconnect scope.
+- Commits: `6472dae88f4b1a835839f22c1d2bf9aa5a27da4f`, `bf8f6c0706ca0df432e5ddf3c75a15152585846e`, `d9442aa0b0311a9623b8f21916b053174260e843`, `5e1cd4a9399d3ccf05c0726dc70bf36ff1bb02b1`, `e4f94669d9a1cf8a832cb15dc33b38430a442374`.
+- Tests/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider flow were not run or awaited.
+
+**Next:** P1 source review of integration capability/readiness discovery and invocation through the Unified Tool Runtime.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — CONNECTION CREDENTIAL BOUNDARY HARDENED
 
 [developer-reported] The organisation integration POST endpoint now validates credential structure server-side before creating a connection row. This closes the path where an OAuth client ID/secret pair alone could be saved as an active OAuth connection without an access token.
