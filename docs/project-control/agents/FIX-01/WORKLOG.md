@@ -93,3 +93,14 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Next action:** When rebuilt from current branch, inspect any remaining duplicate migration prefix in the actual image; if a PDF parse still fails on DOMMatrix, resolve the production PDF.js canvas runtime dependency.
 
 - **Follow-up dependency correction:** The lockfile already contained `@napi-rs/canvas@0.1.80` and platform-specific optional packages, but it was not a direct root dependency. Declared `@napi-rs/canvas@^0.1.80` in `package.json` and synchronized the root dependency list in `package-lock.json` (commits `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`). This improves dependency inclusion but remains unverified in the standalone Docker image.
+
+
+### SESSION-FIX-20261009-05 / 2026-10-09
+- **Task:** Diagnose PostgreSQL missing-relation logs and stop background consumers from repeatedly querying a schema after migration failure.
+- **Authorization:** Owner supplied runtime evidence during FIX-01 continuation; narrow corrective maintenance.
+- **Started from:** `feature/ai-core-from-doable-source`; recovered `CHAT_CONTINUITY.md` and `NEXT_ACTION.md`.
+- **Actions:** Inspected migration runner, current migration filenames, node instrumentation, production seed, demo seed, and Dockerfile. Current migration directory has one `063` file and contains migration 065; current production seed upserts the demo organisation before its agent. Updated startup so background consumers only start after successful migrations.
+- **Files/code:** `src/instrumentation.node.ts`.
+- **Evidence:** Commit `039847f0c6cd8496dcdeec163eb087b366f52f9b`. Owner logs remain evidence from a running image of unknown source commit. No tests/build/DB operations executed.
+- **Lesson:** A migration failure that is logged and swallowed must not be followed by DB consumers that assume the schema is ready. Keep HTTP available for diagnosis but gate background DB workloads.
+- **Next action:** Rebuild current branch; inspect fresh migration output. If duplicate 063 persists, inspect the packaged migration directory. If the organisation FK failure persists, capture current seed stage output before modifying seed/data.
