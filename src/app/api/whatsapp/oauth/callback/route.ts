@@ -1,0 +1,122 @@
+import { createHash } from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { ensureMigrated } from "@/lib/db/migrate";
+import { query } from "@/lib/db";
+import { ENCRYPTION_KEY } from "@/lib/secrets";
+
+export const dynamic = "force-dynamic";
+
+type OAuthState = { org_id: string; agent_id: string; user_id: string; redirect_uri: string };
+type GraphPhone = { id?: string; display_phone_number?: string; verified_name?: string };
+type GraphWaba = { id?: string; name?: string; phone_numbers?: { data?: GraphPhone[] } };
+type GraphBusiness = { id?: string; name?: string; owned_whatsapp_business_accounts?: { data?: GraphWaba[] } };
+type Candidate = {
+  businessId: string; businessName: string; wabaId: string; wabaName: string;
+  phoneNumberId: string; displayPhoneNumber: string; verifiedName: string | null;
+};
+
+function digest(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+function returnUrl(origin: string, orgId: string, agentId: string, status: string, sessionId?: string): NextResponse {
+  const url = new URL(`/orgs/${encodeURIComponent(orgId)}/agents/${encodeURIComponent(agentId)}/messaging`, origin);
+  url.searchParams.set("whatsapp", status);
+  if (sessionId) url.searchParams.set("session", sessionId);
+  return NextResponse.redirect(url);
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const state = req.nextUrl.searchParams.get("state") ?? "";
+  const code = req.nextUrl.searchParams.get("code") ?? "";
+  if (!state || state.length > 512) return NextResponse.json({ error: "Invalid WhatsApp OAuth state." }, { status: 400 });
+  try {
+    await ensureMigrated();
+    const consumed = await query<OAuthState>(
+      `UPDATE whatsapp_oauth_states SET consumed_at = now()
+        WHERE state_hash = $1 AND consumed_at IS NULL AND expires_at > now()
+        RETURNING org_id, agent_id, user_id, redirect_uri`,
+      [digest(state)],
+    );
+    const oauthState = consumed[0];
+    if (!oauthState) return NextResponse.json({ error: "Invalid, expired, or already-used WhatsApp OAuth state." }, { status: 400 });
+    const origin = new URL(oauthState.redirect_uri).origin;
+    const callback = new URL(oauthState.redirect_uri);
+    if (callback.origin !== req.nextUrl.origin || callback.pathname !== req.nextUrl.pathname) {
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    if (req.nextUrl.searchParams.has("error") || !code || code.length > 4096) {
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "cancelled");
+    }
+    const appId = process.env.META_APP_ID?.trim();
+    const appSecret = process.env.META_APP_SECRET?.trim();
+    if (!appId || !appSecret || ENCRYPTION_KEY.length < 32) {
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "configuration-error");
+    }
+
+    const tokenUrl = new URL("https://graph.facebook.com/v23.0/oauth/access_token");
+    tokenUrl.searchParams.set("client_id", appId);
+    tokenUrl.searchParams.set("client_secret", appSecret);
+    tokenUrl.searchParams.set("redirect_uri", oauthState.redirect_uri);
+    tokenUrl.searchParams.set("code", code);
+    let tokenResponse: Response;
+    try {
+      tokenResponse = await fetch(tokenUrl, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(12_000) });
+    } catch {
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    if (!tokenResponse.ok) {
+      console.warn("[whatsapp OAuth callback] token exchange failed", { status: tokenResponse.status });
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    const tokenJson: unknown = await tokenResponse.json().catch(() => null);
+    const accessToken = tokenJson && typeof tokenJson === "object" && "access_token" in tokenJson &&
+      typeof (tokenJson as { access_token?: unknown }).access_token === "string"
+      ? (tokenJson as { access_token: string }).access_token : "";
+    if (!accessToken || accessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+
+    const graphUrl = new URL("https://graph.facebook.com/v23.0/me/businesses");
+    graphUrl.searchParams.set("fields", "id,name,owned_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}");
+    graphUrl.searchParams.set("limit", "100");
+    graphUrl.searchParams.set("access_token", accessToken);
+    let graphResponse: Response;
+    try {
+      graphResponse = await fetch(graphUrl, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(12_000) });
+    } catch {
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    if (!graphResponse.ok) {
+      console.warn("[whatsapp OAuth callback] business discovery failed", { status: graphResponse.status });
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    const graphJson: unknown = await graphResponse.json().catch(() => null);
+    const businesses = graphJson && typeof graphJson === "object" && "data" in graphJson && Array.isArray((graphJson as { data?: unknown }).data)
+      ? (graphJson as { data: GraphBusiness[] }).data : [];
+    const candidates: Candidate[] = [];
+    for (const business of businesses) {
+      for (const waba of business.owned_whatsapp_business_accounts?.data ?? []) {
+        for (const phone of waba.phone_numbers?.data ?? []) {
+          if (!business.id || !waba.id || !phone.id || !phone.display_phone_number) continue;
+          candidates.push({
+            businessId: business.id, businessName: business.name ?? business.id,
+            wabaId: waba.id, wabaName: waba.name ?? waba.id, phoneNumberId: phone.id,
+            displayPhoneNumber: phone.display_phone_number, verifiedName: phone.verified_name ?? null,
+          });
+        }
+      }
+    }
+    if (candidates.length === 0) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "no-eligible-phone");
+    // Access tokens are encrypted immediately. Only provider IDs and display labels are exposed to the authenticated owner.
+    const session = (await query<{ id: string }>(
+      `INSERT INTO whatsapp_oauth_sessions
+         (state_hash, org_id, agent_id, user_id, access_token_encrypted, candidates, expires_at)
+       VALUES($1, $2, $3, $4, pgp_sym_encrypt($5, $6), $7::jsonb, now() + interval '10 minutes')
+       RETURNING id`,
+      [digest(state), oauthState.org_id, oauthState.agent_id, oauthState.user_id, accessToken, ENCRYPTION_KEY, JSON.stringify(candidates)],
+    ))[0];
+    if (!session) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "select-phone", session.id);
+  } catch (err) {
+    console.error("[whatsapp OAuth callback]", err);
+    return NextResponse.json({ error: "WhatsApp authorization could not be completed." }, { status: 500 });
+  }
+}
