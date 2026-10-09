@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — WHATSAPP CONNECTION LIFECYCLE SOURCE IMPLEMENTED
+
+- Owner-authorized DEV-01 scope: implement the actual Meta WhatsApp Business server lifecycle, not another UI redesign.
+- Source now contains agent-authorized OAuth start/callback with one-time state, encrypted token/session persistence, WABA/phone selection with one-active-phone constraints, WABA subscription, Meta challenge + raw-body signature verification, idempotent webhook event handling, durable inbound message/delivery records, server-derived connection/webhook health, and a daily-briefing eligibility gate requiring a verified webhook.
+- Messaging screen now reflects server state and exposes connect/select/retry/disconnect/briefing eligibility actions. Setup/environment instructions are in `docs/deployment/whatsapp-business.md`.
+- Regression source exists for webhook signature/idempotency helpers. No tests, typecheck, build, Docker, CI/Vercel, deployment, or live Meta flow was run or awaited; no runtime PASS is claimed.
+- Remaining in this bounded phase: outbound message service + delivery state, scheduled daily-summary worker gated by active verified connection and `daily_briefing_enabled`, token expiry/revocation/reconnect handling, and route-level regression source.
+- **Next:** follow the latest `docs/project-control/NEXT_ACTION.md`; continue independent implementation without waiting for external gates.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — WHATSAPP MESSAGING CONNECTION UX STARTED
 
 - Owner-authorized DEV-01 task: restore a continuous path from an agent workspace to WhatsApp Business connection setup.
