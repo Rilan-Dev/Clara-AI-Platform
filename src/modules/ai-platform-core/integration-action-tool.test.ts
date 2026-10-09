@@ -65,6 +65,37 @@ describe("integration action tool scope propagation", () => {
     );
   });
 
+  it("preserves runner error codes and retryability in the unified tool failure", async () => {
+    query
+      .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([{ enabled: true }])
+      .mockResolvedValueOnce([{ id: "connection-1" }]);
+    runAction.mockResolvedValue({
+      success: false,
+      output: null,
+      error: "Provider token expired",
+      errorCode: "TOKEN_EXPIRED",
+      retryable: true,
+    });
+
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
+    )).rejects.toMatchObject({
+      code: "EXECUTION_FAILED",
+      details: {
+        integrationId: "example",
+        actionName: "do_work",
+        runnerErrorCode: "TOKEN_EXPIRED",
+        retryable: true,
+      },
+    });
+  });
+
   it("does not treat another user's connection as current-user readiness", async () => {
     query
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
