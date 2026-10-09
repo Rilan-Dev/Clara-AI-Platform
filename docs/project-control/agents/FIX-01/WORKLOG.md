@@ -91,3 +91,5 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Evidence:** Owner log reports `DOMMatrix is not defined` and missing `@napi-rs/canvas`; source correction commit `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
 - **Failed approaches:** No runtime commands were run. Do not treat lazy loading as proof that PDF extraction itself works.
 - **Next action:** When rebuilt from current branch, inspect any remaining duplicate migration prefix in the actual image; if a PDF parse still fails on DOMMatrix, resolve the production PDF.js canvas runtime dependency.
+
+- **Follow-up dependency correction:** The lockfile already contained `@napi-rs/canvas@0.1.80` and platform-specific optional packages, but it was not a direct root dependency. Declared `@napi-rs/canvas@^0.1.80` in `package.json` and synchronized the root dependency list in `package-lock.json` (commits `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`). This improves dependency inclusion but remains unverified in the standalone Docker image.
