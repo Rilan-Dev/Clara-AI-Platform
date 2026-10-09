@@ -144,8 +144,12 @@ function sessionRequest(body: Record<string, unknown>): NextRequest {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  const { getAuthContext } = await import("@/modules/auth/core/rbac");
+  const { getKbAccessContext } = await import("@/modules/auth/core/db");
+  vi.mocked(getAuthContext).mockResolvedValue(null);
+  vi.mocked(getKbAccessContext).mockResolvedValue([]);
   process.env.OPENAI_API_KEY = "sk-test-baseline";
   delete process.env.ENABLE_AI_PLATFORM_AGENT_LOOP;
   delete process.env.ENABLE_AI_PLATFORM_TOOL_CALLING;
@@ -220,7 +224,7 @@ describe("postRealtimeSession — locked happy path (kbId)", () => {
     vi.mocked(getKbAccessContext).mockResolvedValue([{
       orgId: "org-openai-1",
       membership: {} as never,
-      permissions: new Set(["kb:read"]),
+      permissions: new Set(["kb:read"]) as never,
     }]);
 
     await postRealtimeSession(sessionRequest({ kbId: KB_FIXTURE.id }));
