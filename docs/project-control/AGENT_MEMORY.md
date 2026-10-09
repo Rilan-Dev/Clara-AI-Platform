@@ -137,3 +137,12 @@ If shared memory conflicts with current repository state or current requirements
 - **Remedy:** Updated shared `src/components/ui/dialog.tsx` with viewport-safe responsive width/height, vertical scrolling, shrink-safe header/title/description, and overflow wrapping (commit `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`). Updated shared `src/components/ui/card.tsx` with shrink-safe card/title/description/content and wrapping footer controls (commit `f309ab93f80eb9eaa6246d72d17aa5d2d1c5c88f`). Database source guard was inspected and is already present; no duplicate migration/seed rewrite was made without fresh current-runtime evidence.
 - **Prevention:** On missing-relation storms, confirm the exact running image/commit and migration outcome first; keep all background DB workers behind migration readiness and never hand-create schema to silence logs. For modal UX, fix shared dialog primitives before adding local component overrides; test narrow viewport, long unbroken strings, and long dialog content.
 - **Related record:** EVT-FIX-010; `src/instrumentation.node.ts`; `src/lib/db/migrate.ts`; `src/lib/db/seed/production.ts`; `src/components/ui/dialog.tsx`.
+
+
+### FIX-01 lesson — responsive floating panels and text wrapping (2026-10-10)
+- **Issue/symptom:** Popup/panel widths and card text could overflow narrow layouts; long labels could wrap poorly. Blanket `break-all` is not an acceptable global fix because it can split ordinary words into narrow vertical-looking stacks.
+- **Root cause:** Shared floating primitives had fixed widths or lacked viewport max-width, shrink-safe sizing, or bounded scrolling/wrapping contracts. This is a source-level diagnosis; individual screen-specific defects still need visual confirmation.
+- **Failed approach:** Do not apply global `word-break: break-all` or treat class-source tests as proof of correct visual rendering.
+- **Remedy:** Constrain shared popover/hover-card/tooltip/dropdown widths to the viewport, allow overflow wrapping for long tokens, and add max-height/scrolling/shrink safety to dialog-like surfaces. Add focused regression tests for the shared contracts.
+- **Prevention:** Fix shared primitives before per-screen overrides. Follow with a feature-level search for custom width/whitespace classes and perform browser checks at narrow and desktop widths.
+- **Related record:** FIX-01 `SESSION-FIX-20261010-02`; `src/components/ui/layout-primitives.test.ts`; commit `da0f74909bfa4e92d1268ef4e0eb384d07ad9ed6`.
